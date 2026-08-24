@@ -1,0 +1,52 @@
+﻿# Environment variables and secrets
+.env
+.env.*
+*.env
+
+# Python compilation and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Logs and SQLite databases
+logs/*.log
+logs/*.db
+logs/*.sqlite*
+*.log
+*.sqlite
+*.db
+
+# Temporary and Scratch files
+scratch/
+temp/
+tmp/
+*.tmp
+*.bak
+jarvis_screenshot_*.jpg
+jarvis_screenshot_*.png
+JARVIS_Screenshot_*.png
+
+# IDE and Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS specific files
+Thumbs.db
+Desktop.ini
+.DS_Store

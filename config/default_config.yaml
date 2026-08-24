@@ -1,0 +1,228 @@
+# ==============================================================================
+# JARVIS Desktop Assistant: Master Default Configuration
+# Covers all 15 Core Requirements (R1-R15) and 43 Features (F-01 to F-43)
+# ==============================================================================
+
+system:
+  name: "JARVIS"
+  version: "1.0.0"
+  debug: false
+  autostart:
+    enabled: false
+    app_name: "JARVIS_Assistant"
+  locale: "vi_VN"
+  timezone: "Asia/Ho_Chi_Minh"
+
+logging:
+  level: "INFO"               # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: "logs/jarvis.log"
+  max_bytes: 10485760         # 10 MB
+  backup_count: 5
+  console_colors: true
+
+audio:
+  sample_rate: 44100          # 44.1 kHz
+  block_ms: 40                # 40ms frame (~1764 samples)
+  channels: 1                 # Mono
+  input_device: ""            # Device index integer or name substring override
+  probe_seconds: 0.5          # Duration for probe scanning
+  silent_rms_threshold: 0.001 # Silence cutoff
+
+gesture:
+  dsp:
+    spike_ratio: 7.0          # Multiplier over dynamic noise floor
+    cooldown_s: 0.45          # Debounce cooldown
+    retrigger_ratio: 0.55     # Schmitt trigger reset threshold
+    noise_floor_alpha: 0.992  # Exponential Moving Average smoothing
+    min_rms: 0.012            # Absolute minimum RMS floor
+    quiet_gate_mult: 2.2      # Noise floor adaptation gate
+  patterns:
+    double_clap:
+      enabled: true
+      min_gap_s: 0.05
+      max_gap_s: 0.35
+      actions:
+        - "spotify"
+        - "chrome_claude"
+        - "chrome_binance"
+        - "tts_welcome"
+        - "cursor"
+    triple_clap:
+      enabled: true
+      min_gap_s: 0.05
+      max_gap_s: 0.40
+      actions:
+        - "system_status"
+    clap_pause_clap:
+      enabled: true
+      min_gap1_s: 0.05
+      max_gap1_s: 0.35
+      pause_min_s: 0.50
+      pause_max_s: 1.20
+      min_gap2_s: 0.05
+      max_gap2_s: 0.35
+      actions:
+        - "show_overlay"    # Mở giao diện JARVIS chat (đã đổi từ toggle_mute)
+
+tts:
+  provider: "elevenlabs"      # "elevenlabs" or "sapi5"
+  elevenlabs:
+    api_key: ""               # Loaded from .env ELEVENLABS_API_KEY
+    voice_id: ""              # Loaded from .env ELEVENLABS_VOICE_ID
+    model_id: "eleven_multilingual_v2"
+    output_format: "pcm_24000"
+    sample_rate: 24000
+  cache:
+    enabled: true
+    dir: ".cache/jarvis_welcome"
+  welcome:
+    enabled: true
+    startup_phrase: "Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS."
+    phrase: "Welcome home sir. Tất cả các kết nối và cảm biến đã hoàn tất khởi động."
+    phrases:
+      - "Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS."
+      - "Chào mừng Ngài trở lại. Mọi hệ thống đang hoạt động tối ưu."
+      - "Xin chào sếp, JARVIS đã sẵn sàng phục vụ."
+      - "Welcome home sir. Tất cả các kết nối và cảm biến đã hoàn tất khởi động."
+      - "Chào Ngài, tôi đã sẵn sàng phục vụ mọi yêu cầu."
+    delay_after_song_s: 1.0
+  fallback:
+    engine: "sapi5"
+    voice_name: "Microsoft David Desktop"
+    rate: 190
+    volume: 1.0
+
+stt:
+  provider: "web_speech"    # "whisper_api" cần OPENAI_API_KEY, "web_speech" dùng Windows built-in (miễn phí)
+  language: "vi"
+  vad_threshold: 0.015
+  timeout_s: 5.0
+
+llm:
+  provider: "gemini"        # "openai", "gemini" (miễn phí), "claude", "ollama"
+  model: "gemini-1.5-flash"
+  temperature: 0.7
+  max_tokens: 1024
+  api_key: ""               # Đọc từ GEMINI_API_KEY trong .env
+  system_prompt: "You are JARVIS, an intelligent Windows desktop assistant. Respond in Vietnamese. Provide concise, direct responses and execute actions with extreme precision."
+
+ui:
+  tray:
+    enabled: true
+    tooltip: "JARVIS Desktop Assistant"
+  dashboard:
+    enabled: true
+    host: "127.0.0.1"
+    port: 8080
+    ws_port: 8765
+    theme: "dark"
+
+hardware:
+  poll_interval_s: 5.0
+  voice_alerts: true
+  thresholds:
+    cpu_temp_c: 85.0
+    ram_percent: 90.0
+    disk_free_gb: 10.0
+    gpu_temp_c: 85.0
+
+healing:
+  enabled: true
+  mode: "autonomous"          # "autonomous" (auto-kill) or "advisory" (voice warn only)
+  ram_threshold_percent: 90.0
+  check_hung_apps: true
+  protected_processes:
+    - "explorer.exe"
+    - "csrss.exe"
+    - "services.exe"
+    - "lsass.exe"
+    - "svchost.exe"
+    - "jarvis.exe"
+    - "python.exe"
+
+security:
+  biometric_required: true
+  nmap_path: "nmap"
+  tshark_path: "tshark"
+  scan_timeout_s: 120
+
+vision:
+  camera_index: 0
+  face_recognition:
+    enabled: true
+    bypass_mode: false
+    match_tolerance: 0.5
+    intruder_auto_lock: true
+  hand_tracking:
+    enabled: true
+    min_detection_confidence: 0.7
+    gestures:
+      swipe_left: "virtual_desktop_left"
+      swipe_right: "virtual_desktop_right"
+      fist: "close_active_window"
+
+smart_home:
+  home_assistant:
+    enabled: false
+    url: "http://homeassistant.local:8123"
+    token: ""
+    entities:
+      living_room_light: "light.living_room_ceiling"
+  mqtt:
+    enabled: false
+    broker: "127.0.0.1"
+    port: 1883
+    username: ""
+    password: ""
+
+comms:
+  telegram:
+    enabled: false
+    bot_token: ""
+    whitelist_chat_ids: []
+  discord:
+    enabled: false
+    bot_token: ""
+    channel_ids: []
+  email_imap:
+    enabled: false
+    host: "imap.gmail.com"
+    port: 993
+    username: ""
+    password: ""
+    check_interval_s: 300
+
+automation:
+  vm:
+    type: "vmware"            # "vmware" or "virtualbox"
+    vmrun_path: "vmrun"
+    vboxmanage_path: "VBoxManage"
+    vm_path: ""
+  workspace:
+    cursor_path: ""
+    default_project_dir: "d:/Software GitCode/JARVIS"
+    default_terminal: "wt.exe"
+
+plugins:
+  directory: "jarvis/plugins"
+  spotify:
+    enabled: true
+    song_uri: "spotify:track:39shmbIHICJ2Wxnk1fPSdz"
+  chrome:
+    enabled: true
+    claude_url: "https://claude.ai/new"
+    binance_url: "https://www.binance.com/en/trade/BTC_USDT"
+    claude_monitor: 1
+    binance_monitor: 3
+    open_claude: true
+    open_binance: true
+    fullscreen: true
+    separate_profiles: false
+    window_width: 1400
+    window_height: 900
+    wait_timeout_s: 25.0
+  cursor:
+    enabled: true
+    focus_existing: true
+    open_new: false
+    fullscreen: true
