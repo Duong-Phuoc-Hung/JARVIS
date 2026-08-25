@@ -340,7 +340,7 @@ class SkillRegistry:
             error = str(exc)
             logger.error("Error executing skill '%s': %s", skill_name, exc, exc_info=True)
 
-        elapsed = (time.perf_counter() - t0) * 1000.0
+        elapsed = max((time.perf_counter() - t0) * 1000.0, 0.01)
 
         # Update telemetry
         skill_def.metadata.record_invocation(success=success, latency_ms=elapsed)

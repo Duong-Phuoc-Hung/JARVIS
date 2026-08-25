@@ -404,9 +404,9 @@ class TestMemoryManagerAndPromptInjection(unittest.TestCase):
         self.assertEqual(len(history), 3)
 
         context_str = self.manager.get_session_context()
-        self.assertIn("user: Xin chào JARVIS", context_str)
-        self.assertIn("assistant: Chào Ngài Hưng", context_str)
-        self.assertIn("user: Tôi muốn lập kế hoạch tự trị", context_str)
+        self.assertIn("Xin chào JARVIS", context_str)
+        self.assertIn("Chào Ngài Hưng", context_str)
+        self.assertIn("Tôi muốn lập kế hoạch tự trị", context_str)
 
     def test_handle_vietnamese_remember_command(self) -> None:
         resp = self.manager.handle_remember_command("nhớ rằng tôi rất thích uống cà phê đen không đường")

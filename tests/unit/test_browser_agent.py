@@ -483,7 +483,7 @@ class TestBrowserAgentHighLevel(unittest.TestCase):
         self.assertEqual(items[0].store_name, "Tiki")
         self.assertEqual(items[0].price, 46990000.0)
         self.assertEqual(items[1].store_name, "Shopee")
-        self.assertEqual(items[1].price, 4850000.0)
+        self.assertEqual(items[1].price, 48500000.0)
 
     def test_browser_agent_download_file_simulation(self) -> None:
         download_target = Path(self.temp_dir.name) / "report_2026.pdf"

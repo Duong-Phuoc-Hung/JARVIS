@@ -37,6 +37,11 @@ class SandboxResult:
     error: Optional[str] = None
     scratch_dir: Optional[str] = None
 
+    @property
+    def execution_time_seconds(self) -> float:
+        """Returns execution duration in seconds."""
+        return self.execution_time_ms / 1000.0
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "success": self.success,
@@ -46,6 +51,7 @@ class SandboxResult:
             "artifacts": [a.to_dict() for a in self.artifacts],
             "data": self.data,
             "execution_time_ms": self.execution_time_ms,
+            "execution_time_seconds": self.execution_time_seconds,
             "error": self.error,
             "scratch_dir": self.scratch_dir,
         }

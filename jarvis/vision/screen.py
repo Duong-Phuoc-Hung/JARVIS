@@ -65,6 +65,8 @@ class ScreenVisionManager:
 
     DEFAULT_FALLBACK_MESSAGE = "Tôi chưa thể nhìn thấy màn hình do chưa cấu hình Vision API key, thưa Ngài."
     OFFLINE_MESSAGE = "Xin lỗi Ngài, tôi không thể phân tích màn hình do không có kết nối mạng."
+    gemini_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = None
 
     def __init__(
         self,

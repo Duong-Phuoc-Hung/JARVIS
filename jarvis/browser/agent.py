@@ -138,11 +138,13 @@ class BrowserAgent:
         Navigate to a form page, populate fields, and submit.
         """
         self.start()
-        return self.actions.fill_and_submit_form(
+        res = self.actions.fill_and_submit_form(
             fields=form_fields,
             submit_selector=submit_selector,
             url=url,
         )
+        res.action = "fill_form"
+        return res
 
     def download_resource(
         self,
@@ -176,11 +178,23 @@ class BrowserAgent:
         target_stores = stores or ["Shopee", "Lazada", "Tiki", "CellphoneS", "GearVN"]
         all_items: List[PriceComparisonItem] = []
 
+        store_url_templates = {
+            "shopee": "https://shopee.vn/search?q={query}",
+            "tiki": "https://tiki.vn/search?q={query}",
+            "lazada": "https://www.lazada.vn/catalog/?q={query}",
+            "cellphones": "https://cellphones.com.vn/catalogsearch/result?q={query}",
+            "gearvn": "https://gearvn.com/search?q={query}",
+        }
+
         for store in target_stores:
             try:
-                # Query search for each store
-                encoded_q = urllib.parse.quote(f"{target_product} {store}")
-                search_url = f"https://html.duckduckgo.com/html/?q={encoded_q}"
+                st_key = store.strip().lower()
+                query_encoded = urllib.parse.quote(target_product)
+                if st_key in store_url_templates:
+                    search_url = store_url_templates[st_key].format(query=query_encoded)
+                else:
+                    search_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(f'{target_product} {store}')}"
+
                 self.navigate(search_url)
                 page_html = self._driver.get_html()
 

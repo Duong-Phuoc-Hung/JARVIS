@@ -1,4 +1,4 @@
-﻿# Environment variables and secrets
+# Environment variables and secrets
 .env
 .env.*
 *.env
@@ -23,12 +23,11 @@ htmlcov/
 .nox/
 
 # Logs and SQLite databases
-logs/*.log
-logs/*.db
-logs/*.sqlite*
+logs/
 *.log
 *.sqlite
 *.db
+*.lnk
 
 # Temporary and Scratch files
 scratch/

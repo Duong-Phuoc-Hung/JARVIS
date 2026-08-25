@@ -220,7 +220,7 @@ class ASTCodeValidator:
         re.compile(r"\b(Stop-Computer|Restart-Computer)\b", re.IGNORECASE),
         re.compile(r"\bSet-ExecutionPolicy\b", re.IGNORECASE),
         re.compile(r"\b(Invoke-Expression|\biex\b)\s+", re.IGNORECASE),
-        re.compile(r"Remove-Item\s+.*-[rR]ecurse.*[cC]:\\", re.IGNORECASE),
+        re.compile(r"Remove-Item\b.*(-[rR]ecurse|[cC]:\\Windows|[cC]:\\Program)", re.IGNORECASE),
         re.compile(r"\b(Add-MpPreference|Set-MpPreference)\b.*-Exclusion", re.IGNORECASE),
         re.compile(r"Set-ItemProperty\s+.*HKLM", re.IGNORECASE),
         re.compile(r"\bnet\s+(user|localgroup)\b", re.IGNORECASE),

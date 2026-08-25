@@ -277,7 +277,7 @@ class UIElementDetector:
         Tier 1: Queries Vision LLM with structured coordinate grounding prompt.
         Expects normalized coordinates [ymin, xmin, ymax, xmax] in 0-1000 scale.
         """
-        api_key = self.vision_manager.gemini_api_key or self.vision_manager.openai_api_key
+        api_key = getattr(self.vision_manager, "gemini_api_key", None) or getattr(self.vision_manager, "openai_api_key", None)
         if not api_key:
             logger.debug("Vision LLM API key not configured, skipping Tier 1.")
             return []

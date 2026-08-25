@@ -1249,7 +1249,14 @@ class LLMIntentRouter:
         )
 
     def _make_app_intent(self, app_name: str) -> IntentResult:
-        clean = (app_name or "").strip()
+        clean = (app_name or "").strip().lower()
+        if clean == "spotify":
+            return IntentResult(
+                action_name="spotify",
+                parameters={"query": "", "name": "spotify"},
+                source="rule_fallback",
+                response_text="Đang mở Spotify cho Ngài.",
+            )
         params = {"app_name": clean, "name": clean}
         return IntentResult(
             action_name="app_open",

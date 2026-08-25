@@ -160,6 +160,16 @@ class PlanResult:
     error: Optional[str] = None
     summary_message: str = ""
 
+    @property
+    def step_results(self) -> List[TaskNode]:
+        """Returns list of TaskNode results for compatibility."""
+        return list(self.nodes.values())
+
+    @property
+    def steps(self) -> List[TaskNode]:
+        """Returns list of TaskNode steps for compatibility."""
+        return list(self.nodes.values())
+
     def to_dict(self) -> Dict[str, Any]:
         """Serializes plan outcome and step states."""
         return {

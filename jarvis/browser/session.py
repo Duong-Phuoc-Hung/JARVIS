@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 import sqlite3
 import threading
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from jarvis.browser.driver import BaseBrowserDriver
 
@@ -44,19 +44,22 @@ class BrowserSessionManager:
         try:
             db_file = Path(self.db_path)
             db_file.parent.mkdir(parents=True, exist_ok=True)
-            with sqlite3.connect(self.db_path, timeout=10.0) as conn:
-                conn.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS browser_sessions (
-                        domain TEXT PRIMARY KEY,
-                        cookies_json TEXT NOT NULL,
-                        local_storage_json TEXT NOT NULL DEFAULT '{}',
-                        user_agent TEXT NOT NULL DEFAULT '',
-                        updated_at DATETIME NOT NULL DEFAULT (DATETIME('now', 'localtime'))
-                    );
-                    """
-                )
-                conn.commit()
+            conn = sqlite3.connect(self.db_path, timeout=10.0)
+            try:
+                with conn:
+                    conn.execute(
+                        """
+                        CREATE TABLE IF NOT EXISTS browser_sessions (
+                            domain TEXT PRIMARY KEY,
+                            cookies_json TEXT NOT NULL,
+                            local_storage_json TEXT NOT NULL DEFAULT '{}',
+                            user_agent TEXT NOT NULL DEFAULT '',
+                            updated_at DATETIME NOT NULL DEFAULT (DATETIME('now', 'localtime'))
+                        );
+                        """
+                    )
+            finally:
+                conn.close()
         except Exception as exc:
             logger.warning("Could not initialize browser_sessions table in SQLite: %s", exc)
 
@@ -103,25 +106,28 @@ class BrowserSessionManager:
             # 2. Save to SQLite database
             if self.db_path:
                 try:
-                    with sqlite3.connect(self.db_path, timeout=10.0) as conn:
-                        conn.execute(
-                            """
-                            INSERT INTO browser_sessions (domain, cookies_json, local_storage_json, user_agent, updated_at)
-                            VALUES (?, ?, ?, ?, DATETIME('now', 'localtime'))
-                            ON CONFLICT(domain) DO UPDATE SET
-                                cookies_json=excluded.cookies_json,
-                                local_storage_json=excluded.local_storage_json,
-                                user_agent=excluded.user_agent,
-                                updated_at=DATETIME('now', 'localtime')
-                            """,
-                            (
-                                norm_domain,
-                                json.dumps(cookies, ensure_ascii=False),
-                                json.dumps(local_storage, ensure_ascii=False),
-                                user_agent,
-                            ),
-                        )
-                        conn.commit()
+                    conn = sqlite3.connect(self.db_path, timeout=10.0)
+                    try:
+                        with conn:
+                            conn.execute(
+                                """
+                                INSERT INTO browser_sessions (domain, cookies_json, local_storage_json, user_agent, updated_at)
+                                VALUES (?, ?, ?, ?, DATETIME('now', 'localtime'))
+                                ON CONFLICT(domain) DO UPDATE SET
+                                    cookies_json=excluded.cookies_json,
+                                    local_storage_json=excluded.local_storage_json,
+                                    user_agent=excluded.user_agent,
+                                    updated_at=DATETIME('now', 'localtime')
+                                """,
+                                (
+                                    norm_domain,
+                                    json.dumps(cookies, ensure_ascii=False),
+                                    json.dumps(local_storage, ensure_ascii=False),
+                                    user_agent,
+                                ),
+                            )
+                    finally:
+                        conn.close()
                 except Exception as exc:
                     logger.debug("SQLite session sync notice for %s: %s", norm_domain, exc)
 
@@ -147,7 +153,8 @@ class BrowserSessionManager:
             # Fallback to SQLite
             if self.db_path:
                 try:
-                    with sqlite3.connect(self.db_path, timeout=10.0) as conn:
+                    conn = sqlite3.connect(self.db_path, timeout=10.0)
+                    try:
                         cursor = conn.cursor()
                         cursor.execute(
                             "SELECT cookies_json, local_storage_json, user_agent, updated_at FROM browser_sessions WHERE domain = ?",
@@ -162,6 +169,8 @@ class BrowserSessionManager:
                                 "user_agent": row[2],
                                 "updated_at": row[3],
                             }
+                    finally:
+                        conn.close()
                 except Exception as exc:
                     logger.debug("SQLite session read error: %s", exc)
 
@@ -183,9 +192,12 @@ class BrowserSessionManager:
 
             if self.db_path:
                 try:
-                    with sqlite3.connect(self.db_path, timeout=10.0) as conn:
-                        conn.execute("DELETE FROM browser_sessions WHERE domain = ?", (norm_domain,))
-                        conn.commit()
+                    conn = sqlite3.connect(self.db_path, timeout=10.0)
+                    try:
+                        with conn:
+                            conn.execute("DELETE FROM browser_sessions WHERE domain = ?", (norm_domain,))
+                    finally:
+                        conn.close()
                 except Exception as exc:
                     logger.debug("SQLite delete session error: %s", exc)
 
@@ -251,11 +263,15 @@ class BrowserSessionManager:
             user_agent=driver.config.user_agent,
         )
 
-    def export_cookies_netscape(self, domain: str) -> str:
+    def export_cookies_netscape(
+        self,
+        domain: str,
+        output_path: Optional[Union[str, Path]] = None,
+    ) -> Union[str, bool]:
         """Export stored domain cookies in Netscape format (compatible with curl / wget)."""
         session_data = self.load_session(domain)
         if not session_data:
-            return ""
+            return False if output_path else ""
 
         lines = [
             "# Netscape HTTP Cookie File",
@@ -273,7 +289,13 @@ class BrowserSessionManager:
             value = c.get("value", "")
             lines.append(f"{d}\t{include_sub}\t{path}\t{secure}\t{expires}\t{name}\t{value}")
 
-        return "\n".join(lines) + "\n"
+        content = "\n".join(lines) + "\n"
+        if output_path:
+            out_p = Path(output_path)
+            out_p.parent.mkdir(parents=True, exist_ok=True)
+            out_p.write_text(content, encoding="utf-8")
+            return True
+        return content
 
     # Alias for method name compatibility
     export_netscape_cookies = export_cookies_netscape

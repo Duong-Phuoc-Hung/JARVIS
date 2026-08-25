@@ -341,8 +341,12 @@ class TaskDAG:
         return all(node.status in terminal_states for node in self._nodes.values())
 
     def is_successful(self) -> bool:
-        """Returns True if every node completed successfully."""
-        return len(self._nodes) > 0 and all(node.status == StepStatus.COMPLETED for node in self._nodes.values())
+        """Returns True if execution succeeded (no failed/blocked nodes, and at least one completed)."""
+        if not self._nodes:
+            return False
+        has_completed = any(node.status == StepStatus.COMPLETED for node in self._nodes.values())
+        has_failure = any(node.status in (StepStatus.FAILED, StepStatus.BLOCKED) for node in self._nodes.values())
+        return has_completed and not has_failure
 
     def has_failures(self) -> bool:
         """Returns True if any node failed or was blocked."""

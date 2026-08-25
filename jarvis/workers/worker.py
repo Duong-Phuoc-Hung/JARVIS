@@ -143,6 +143,7 @@ class BackgroundWorker:
     def wait_if_paused(self) -> None:
         """Blocks execution while the worker is in PAUSED state."""
         self._pause_event.wait()
+        self.check_cancelled()
 
     def update_progress(
         self,
@@ -212,6 +213,7 @@ class BackgroundWorker:
         try:
             # Execute actual workload
             result = self._execute_task()
+            self.check_cancelled()
 
             with self._lock:
                 self._telemetry.status = WorkerStatus.COMPLETED

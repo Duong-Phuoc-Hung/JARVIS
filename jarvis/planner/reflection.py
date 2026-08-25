@@ -156,12 +156,16 @@ class SelfReflectionEngine:
         if any(ind in err_lower for ind in not_found_indicators):
             alt_tool = self.tool_fallbacks.get(node.action_name)
             if alt_tool:
+                adapted_params = dict(node.parameters)
+                if alt_tool in ("web_search_direct", "web_search", "web_search_fallback"):
+                    if "url" in adapted_params and "query" not in adapted_params:
+                        adapted_params["query"] = adapted_params.pop("url")
                 return ReflectionResult(
                     step_id=node.step_id,
                     strategy=RecoveryStrategy.ALTERNATIVE_TOOL,
                     diagnosis=f"Công cụ '{node.action_name}' không khả dụng hoặc bị chặn. Tự động đổi sang '{alt_tool}'.",
                     suggested_action=alt_tool,
-                    suggested_parameters=dict(node.parameters),
+                    suggested_parameters=adapted_params,
                     reasoning=f"Tool unavailable or blocked. Switching to registered fallback '{alt_tool}'.",
                     backoff_seconds=0.5,
                 )

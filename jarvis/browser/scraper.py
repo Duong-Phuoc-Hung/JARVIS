@@ -83,9 +83,15 @@ class HTMLToMarkdownConverter(HTMLParser):
             if not self._in_pre:
                 self._output_chunks.append("`")
                 self._in_code = True
+            else:
+                cls_attr = attr_dict.get("class", "")
+                if "language-" in cls_attr or cls_attr in ("python", "js", "html", "bash", "json", "rust", "go", "sql"):
+                    lang = cls_attr.replace("language-", "").strip()
+                    if self._output_chunks and self._output_chunks[-1] == "\n\n```\n":
+                        self._output_chunks[-1] = f"\n\n```{lang}\n"
         elif tag_lower == "pre":
             self._in_pre = True
-            lang = attr_dict.get("class", "").replace("language-", "")
+            lang = attr_dict.get("class", "").replace("language-", "").strip()
             self._output_chunks.append(f"\n\n```{lang}\n")
         elif tag_lower == "blockquote":
             self._output_chunks.append("\n\n> ")

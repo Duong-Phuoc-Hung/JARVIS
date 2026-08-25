@@ -187,10 +187,12 @@ class ReActTaskEngine:
                 executable_nodes: List[TaskNode] = []
                 for node in ready_nodes:
                     if mode == PlanMode.SAFETY_GATE and self.safety_interceptor.is_high_risk_node(node):
-                        if node.status != StepStatus.WAITING_CONFIRMATION:
-                            # Intercept and generate token
+                        # Only intercept if not already confirmed
+                        if not node.confirmation_token:
                             token = self.safety_interceptor.intercept_node(node, event_bus=self.event_bus)
-                            # Do not execute now; wait for confirmation
+                            continue
+                        elif node.status == StepStatus.WAITING_CONFIRMATION:
+                            # Still waiting for confirmation
                             continue
                     executable_nodes.append(node)
 
