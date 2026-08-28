@@ -4,8 +4,10 @@ tests/unit/test_plugin_sdk.py
 Unit tests for Plugin SDK Loader.
 """
 from __future__ import annotations
+
 import json
 from pathlib import Path
+
 import pytest
 
 from jarvis.plugins.loader import PluginLoader, PluginManifest

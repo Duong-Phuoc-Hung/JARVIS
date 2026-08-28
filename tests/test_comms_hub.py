@@ -10,12 +10,12 @@ Covering:
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
+
 import pytest
 
 from jarvis.comms.discord import DiscordBotClient, DiscordBotIntegration
 from jarvis.comms.email_imap import EmailMessage, IMAPEmailReader
 from jarvis.comms.telegram import TelegramBotController
-
 
 # ============================================================================
 # TIER 1: FEATURE COVERAGE HAPPY PATHS

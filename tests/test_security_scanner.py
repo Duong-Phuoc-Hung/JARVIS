@@ -9,13 +9,15 @@ Covering:
   - R12 / F-34: Biometric Privilege Gate Enforcement
 """
 
-from pathlib import Path
 import shutil
 import subprocess
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 import pytest
 
 from jarvis.core.models import PrivilegeLevel, RequesterContext
+from jarvis.security.report import SecurityPrivilegeGate, SecurityReportGenerator
 from jarvis.security.scanner import (
     HostScanResult,
     NetworkScanner,
@@ -27,8 +29,6 @@ from jarvis.security.scanner import (
     Vulnerability,
     VulnerabilitySeverity,
 )
-from jarvis.security.report import SecurityPrivilegeGate, SecurityReportGenerator
-
 
 # ============================================================================
 # TIER 1: FEATURE COVERAGE HAPPY PATHS

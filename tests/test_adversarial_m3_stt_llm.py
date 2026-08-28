@@ -27,9 +27,9 @@ import re
 import sys
 import threading
 import time
+import wave
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from unittest.mock import MagicMock, patch
-import wave
 
 import numpy as np
 import pytest
@@ -39,19 +39,6 @@ import requests
 from jarvis.audio.dsp import calculate_rms
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import ActionResult, RequesterContext
-from jarvis.stt.engine import (
-    BaseSTTEngine,
-    FasterWhisperSTT,
-    MockSTTEngine,
-    OpenAIWhisperSTT,
-    STTError,
-    STTEngine,
-    VADSegmenter,
-    WindowsSpeechSTT,
-    audio_to_float32,
-    float32_to_pcm16_wav_bytes,
-    resample_audio,
-)
 from jarvis.llm.client import (
     ChatMessage,
     LLMAuthenticationError,
@@ -72,7 +59,19 @@ from jarvis.llm.router import (
     build_jarvis_system_prompt,
     generate_tool_schema_from_dispatcher,
 )
-
+from jarvis.stt.engine import (
+    BaseSTTEngine,
+    FasterWhisperSTT,
+    MockSTTEngine,
+    OpenAIWhisperSTT,
+    STTEngine,
+    STTError,
+    VADSegmenter,
+    WindowsSpeechSTT,
+    audio_to_float32,
+    float32_to_pcm16_wav_bytes,
+    resample_audio,
+)
 
 # ============================================================================
 # 1. STT AUDIO PIPELINE ADVERSARIAL STRESS TESTS

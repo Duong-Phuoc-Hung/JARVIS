@@ -5,6 +5,7 @@ End-to-End Pipeline Integration Test for Milestone 2:
 Audio Stream -> DSP -> GestureDetector -> ActionDispatcher -> Plugins -> TTSManager.
 """
 import time
+
 import numpy as np
 import pytest
 

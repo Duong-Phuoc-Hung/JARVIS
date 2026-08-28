@@ -12,10 +12,10 @@ Covers:
 from __future__ import annotations
 
 import concurrent.futures
-from pathlib import Path
 import sqlite3
 import threading
 import time
+from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import MagicMock
 
@@ -26,7 +26,6 @@ from jarvis.llm.router import LLMIntentRouter, build_jarvis_system_prompt
 from jarvis.memory.manager import MemoryManager
 from jarvis.memory.session import ConversationTurn, SessionContextManager
 from jarvis.memory.sqlite_store import SQLiteMemoryStore
-
 
 # ============================================================================
 # 1. SQLite Store & WAL Mode Tests

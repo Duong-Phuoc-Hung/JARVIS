@@ -3,11 +3,11 @@ import ctypes
 import json
 import logging
 import os
-from pathlib import Path
 import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 from unittest.mock import MagicMock, patch
 
@@ -24,17 +24,21 @@ from jarvis.hardware.monitor import (
     HardwareMonitor,
 )
 from jarvis.hardware.reporter import HardwareReporter
+from jarvis.healing.terminator import (
+    PROTECTED_PROCESS_WHITELIST,
+    AutonomousTerminator,
+    HealingEngine,
+    HealingMode,
+    HealingReport,
+)
 from jarvis.healing.watchdog import (
     HungProcessInfo,
     ResourceWatchdog,
     UnresponsiveAppDetector,
 )
-from jarvis.healing.terminator import (
-    AutonomousTerminator,
-    HealingEngine,
-    HealingMode,
-    HealingReport,
-    PROTECTED_PROCESS_WHITELIST,
+from jarvis.security.report import (
+    SecurityPrivilegeGate,
+    SecurityReportGenerator,
 )
 from jarvis.security.scanner import (
     HostScanResult,
@@ -42,10 +46,6 @@ from jarvis.security.scanner import (
     PacketCapture,
     PacketCaptureResult,
     ScanReport,
-)
-from jarvis.security.report import (
-    SecurityPrivilegeGate,
-    SecurityReportGenerator,
 )
 
 
@@ -65,7 +65,7 @@ def test_hardware_monitor_corrupted_thermal_cim_json_resilience():
         json.dumps([3732]),
     ]
     for payload in corrupt_payloads:
-        def mock_subprocess_run(*args, **kwargs):
+        def mock_subprocess_run(*args, payload=payload, **kwargs):
             mock_proc = MagicMock()
             mock_proc.returncode = 0
             mock_proc.stdout = payload

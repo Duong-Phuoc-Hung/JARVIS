@@ -20,12 +20,12 @@ Covers:
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import sqlite3
 import tempfile
 import time
-from typing import Any, Dict, List, Optional
 import unittest
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
 from jarvis.browser.session import BrowserSessionManager
@@ -35,9 +35,9 @@ from jarvis.memory.manager import MemoryManager
 from jarvis.memory.session import ConversationTurn, SessionContextManager
 from jarvis.memory.sqlite_store import SQLiteMemoryStore
 from jarvis.ui.overlay import (
-    AlwaysOnOverlay,
     BREATHING_GRADIENT,
     COLORS,
+    AlwaysOnOverlay,
     OverlayMode,
     OverlayState,
     TurnRecord,

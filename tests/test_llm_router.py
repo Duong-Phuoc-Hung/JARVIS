@@ -12,19 +12,11 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pytest
 
-from jarvis.stt.engine import (
-    BaseSTTEngine,
-    FasterWhisperSTT,
-    MockSTTEngine,
-    OpenAIWhisperSTT,
-    STTEngine,
-    WindowsSpeechSTT,
-    audio_to_float32,
-    float32_to_pcm16_wav_bytes,
-)
+from jarvis.core.models import ActionResult
 from jarvis.llm.client import (
     ChatMessage,
     LLMAuthenticationError,
@@ -40,10 +32,18 @@ from jarvis.llm.router import (
     build_jarvis_system_prompt,
     generate_tool_schema_from_dispatcher,
 )
-from jarvis.core.models import ActionResult
-from jarvis.ui.tray import SystemTrayController, TrayStatus
+from jarvis.stt.engine import (
+    BaseSTTEngine,
+    FasterWhisperSTT,
+    MockSTTEngine,
+    OpenAIWhisperSTT,
+    STTEngine,
+    WindowsSpeechSTT,
+    audio_to_float32,
+    float32_to_pcm16_wav_bytes,
+)
 from jarvis.ui.dashboard import DashboardMetricsServer, DashboardServer
-
+from jarvis.ui.tray import SystemTrayController, TrayStatus
 
 # ============================================================================
 # TIER 1: FEATURE COVERAGE HAPPY PATHS

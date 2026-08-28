@@ -13,6 +13,7 @@ import math
 import threading
 import time
 from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pytest
 
@@ -41,7 +42,6 @@ from jarvis.gesture.models import (
     GestureType,
 )
 from jarvis.gesture.patterns import get_default_patterns
-
 
 # ============================================================================
 # 1. ACOUSTIC DSP & RMS CALCULATION EMPIRICAL STRESS TESTS

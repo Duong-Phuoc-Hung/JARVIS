@@ -63,6 +63,7 @@ import threading
 import time
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from jarvis.proactive.briefing_scheduler import DailyBriefingScheduler
@@ -71,7 +72,6 @@ from jarvis.proactive.health_monitor import HealthAlert, SystemHealthMonitor
 from jarvis.proactive.inactivity import InactivityMonitor
 from jarvis.proactive.pomodoro import PomodoroState, PomodoroStatus, PomodoroTimer
 from jarvis.proactive.reminders import ReminderScheduler, ScheduledReminder
-
 
 # ============================================================================
 # 1. REMINDER SCHEDULER TESTS

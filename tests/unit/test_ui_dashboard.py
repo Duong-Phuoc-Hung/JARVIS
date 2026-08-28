@@ -13,25 +13,25 @@ from __future__ import annotations
 import json
 import socket
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from jarvis.core.config import ConfigManager
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
+from jarvis.ui.dashboard import (
+    DASHBOARD_HTML,
+    DashboardMetricsServer,
+    DashboardServer,
+)
 from jarvis.ui.tray import (
     PIL_AVAILABLE,
     SystemTrayController,
     TrayStatus,
     create_status_icon,
 )
-from jarvis.ui.dashboard import (
-    DashboardMetricsServer,
-    DashboardServer,
-    DASHBOARD_HTML,
-)
-
 
 # ============================================================================
 # 1. SYSTEM TRAY CONTROLLER TESTS

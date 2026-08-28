@@ -4,6 +4,7 @@ tests/unit/test_dsp.py
 Unit tests for Acoustic DSP Module (jarvis.audio.dsp).
 """
 import math
+
 import numpy as np
 import pytest
 

@@ -4,8 +4,9 @@ tests/unit/test_tts_cache.py
 Unit tests for Local TTS Audio Cache (jarvis.tts.cache).
 """
 import hashlib
-from pathlib import Path
 import wave
+from pathlib import Path
+
 import numpy as np
 import pytest
 

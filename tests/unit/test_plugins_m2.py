@@ -5,6 +5,7 @@ Unit tests for Milestone 2 plugins (Spotify, Chrome Multi-Monitor, Cursor IDE).
 """
 import os
 import subprocess
+
 import pytest
 
 from jarvis.core.dispatcher import ActionDispatcher

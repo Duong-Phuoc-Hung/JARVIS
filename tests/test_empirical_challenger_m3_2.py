@@ -10,12 +10,13 @@ Validates:
 from __future__ import annotations
 
 import concurrent.futures
-from pathlib import Path
 import re
 import threading
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from jarvis.core.app import JarvisApp
@@ -29,8 +30,7 @@ from jarvis.core.logger import (
     setup_logging,
     shutdown_logging,
 )
-from jarvis.tts.manager import TTSManager, WELCOME_PHRASES
-
+from jarvis.tts.manager import WELCOME_PHRASES, TTSManager
 
 # ============================================================================
 # 1. HIGH-CONCURRENCY [INTERACTION] LOGGING STRESS & ADVERSARIAL PAYLOADS

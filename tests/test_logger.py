@@ -4,9 +4,9 @@ Unit tests for structured rotating logger, ANSI color formatting, and domain ada
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 
 from jarvis.core.logger import (
     ColoredConsoleFormatter,

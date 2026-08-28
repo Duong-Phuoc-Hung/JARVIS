@@ -17,69 +17,37 @@ import json
 import logging
 import math
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import time
-from typing import Any, Dict, List, Optional
 import urllib.error
 import zipfile
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pytest
 
-# Core models
-from jarvis.core.models import PrivilegeLevel, RequesterContext
-
-# 1. Security imports
-from jarvis.security.scanner import (
-    HostScanResult,
-    NetworkScanner,
-    NmapScannerWrapper,
-    PacketCapture,
-    PacketCaptureResult,
-    ScanReport,
-    TSharkCaptureWrapper,
-    Vulnerability,
-    VulnerabilitySeverity,
-    resolve_nmap_binary,
-    resolve_tshark_binary,
+# 5. Automation imports
+from jarvis.automation.vm import HypervisorType, VMActionResult, VMOrchestrator, VMState
+from jarvis.automation.workspace import (
+    WindowPlacementRecipe,
+    WorkspaceRecipe,
+    WorkspaceRecipeManager,
 )
-from jarvis.security.report import SecurityPrivilegeGate, SecurityReportGenerator
-
-# 2. Vision & Gesture imports
-from jarvis.vision.biometrics import (
-    BiometricPrivilegeGate,
-    BiometricsEngine,
-    FaceEmbeddingStorage,
-)
-from jarvis.vision.hands import (
-    GestureType,
-    HandGestureClassifier,
-    HandGestureEngine,
-    HandLandmarkTracker,
-    NormalizedLandmark,
-)
-from jarvis.gesture.detector import GestureDetector
-from jarvis.gesture.models import ClapEvent, DetectorState, GestureResult
-
-# 3. Smart Home imports
-from jarvis.smart_home.home_assistant import HomeAssistantClient
-from jarvis.smart_home.mqtt import MQTTAdapter
+from jarvis.comms.discord import DiscordBotClient
+from jarvis.comms.email_imap import EmailMessage, EmailSummaryResult, IMAPEmailReader
 
 # 4. Comms imports
 from jarvis.comms.telegram import TelegramBotController
-from jarvis.comms.email_imap import EmailMessage, EmailSummaryResult, IMAPEmailReader
-from jarvis.comms.discord import DiscordBotClient
 
-# 5. Automation imports
-from jarvis.automation.vm import HypervisorType, VMActionResult, VMOrchestrator, VMState
-from jarvis.automation.workspace import WindowPlacementRecipe, WorkspaceRecipe, WorkspaceRecipeManager
+# Core models
+from jarvis.core.models import PrivilegeLevel, RequesterContext
 
 # 6. Data imports
 from jarvis.data.document import (
-    DocxReportBuilder,
     DocumentExporter,
+    DocxReportBuilder,
     PdfReportBuilder,
     VoiceSummaryGenerator,
     _xml_escape,
@@ -98,7 +66,42 @@ from jarvis.data.stats import (
     TabularDataset,
     TrendResult,
 )
+from jarvis.gesture.detector import GestureDetector
+from jarvis.gesture.models import ClapEvent, DetectorState, GestureResult
+from jarvis.security.report import SecurityPrivilegeGate, SecurityReportGenerator
 
+# 1. Security imports
+from jarvis.security.scanner import (
+    HostScanResult,
+    NetworkScanner,
+    NmapScannerWrapper,
+    PacketCapture,
+    PacketCaptureResult,
+    ScanReport,
+    TSharkCaptureWrapper,
+    Vulnerability,
+    VulnerabilitySeverity,
+    resolve_nmap_binary,
+    resolve_tshark_binary,
+)
+
+# 3. Smart Home imports
+from jarvis.smart_home.home_assistant import HomeAssistantClient
+from jarvis.smart_home.mqtt import MQTTAdapter
+
+# 2. Vision & Gesture imports
+from jarvis.vision.biometrics import (
+    BiometricPrivilegeGate,
+    BiometricsEngine,
+    FaceEmbeddingStorage,
+)
+from jarvis.vision.hands import (
+    GestureType,
+    HandGestureClassifier,
+    HandGestureEngine,
+    HandLandmarkTracker,
+    NormalizedLandmark,
+)
 
 # ============================================================================
 # DOMAIN 1: jarvis/security ADVERSARIAL STRESS TESTS

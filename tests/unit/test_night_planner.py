@@ -8,11 +8,11 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from jarvis.workers.night_shift import NightShiftWorker, NightShiftTask
+from jarvis.workers.night_shift import NightShiftTask, NightShiftWorker
 
 
 @pytest.fixture

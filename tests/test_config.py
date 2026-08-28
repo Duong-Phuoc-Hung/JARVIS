@@ -17,6 +17,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Dict
+
 import pytest
 
 from jarvis.core.config import (
@@ -30,7 +31,6 @@ from jarvis.core.config import (
 )
 from jarvis.core.logger import LogContext, StructuredLogger, setup_logging
 from jarvis.platform.autostart import AutoStartManager, AutoStartMode
-
 
 # ============================================================================
 # TIER 1: FEATURE COVERAGE HAPPY PATHS

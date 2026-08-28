@@ -7,18 +7,18 @@ Targeting:
 """
 from __future__ import annotations
 
-from collections import deque
 import concurrent.futures
 import inspect
 import json
 import logging
 import os
-from pathlib import Path
 import tempfile
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 import unittest
+from collections import deque
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from unittest.mock import MagicMock, patch
 
 from jarvis.automation.safety_gate import PendingConfirmation, SafetyGate
@@ -57,7 +57,6 @@ from jarvis.workers.models import (
 )
 from jarvis.workers.notifications import WorkerNotificationDispatcher
 from jarvis.workers.worker import BackgroundWorker, WorkerCancelledException
-
 
 # ============================================================================
 # R1: ADVERSARIAL STRESS TESTS (PLANNER, DAG, SAFETY GATE, SELF-HEALING)

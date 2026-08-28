@@ -9,6 +9,7 @@ Covering:
 import asyncio
 import time
 from typing import Any, Dict, List
+
 import pytest
 
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
@@ -18,7 +19,6 @@ from jarvis.core.models import (
     PrivilegeLevel,
     RequesterContext,
 )
-
 
 # ============================================================================
 # TIER 1: FEATURE COVERAGE HAPPY PATHS

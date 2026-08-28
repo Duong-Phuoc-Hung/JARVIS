@@ -18,13 +18,14 @@ from __future__ import annotations
 import concurrent.futures
 import time
 from typing import List
+
 import pytest
 
 from jarvis.ui.overlay import (
-    AlwaysOnOverlay,
     BREATHING_GRADIENT,
     COLORS,
     FONT_FAMILY,
+    AlwaysOnOverlay,
     JarvisOverlay,
     OverlayMode,
     OverlayState,

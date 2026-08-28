@@ -21,7 +21,6 @@ import json
 import logging
 import math
 import os
-from pathlib import Path
 import queue
 import shutil
 import subprocess
@@ -29,26 +28,13 @@ import sys
 import tempfile
 import threading
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 import requests
-
-# JARVIS core imports
-from jarvis.core.config import ConfigManager, JarvisConfig, _simple_yaml_parse, load_config
-from jarvis.core.dispatcher import ActionDispatcher, EventBus
-from jarvis.core.models import (
-    ActionDefinition,
-    ActionResult,
-    HandlerResult,
-    MonitorInfo,
-    PrivilegeLevel,
-    RequesterContext,
-    WindowInfo,
-)
-from jarvis.core.logger import log_trigger, log_action
 
 # JARVIS audio & gesture imports
 from jarvis.audio.dsp import (
@@ -64,29 +50,37 @@ from jarvis.audio.engine import (
     AudioEngineMode,
     MicrophoneProbeManager,
 )
+
+# JARVIS core imports
+from jarvis.core.config import ConfigManager, JarvisConfig, _simple_yaml_parse, load_config
+from jarvis.core.dispatcher import ActionDispatcher, EventBus
+from jarvis.core.logger import log_action, log_trigger
+from jarvis.core.models import (
+    ActionDefinition,
+    ActionResult,
+    HandlerResult,
+    MonitorInfo,
+    PrivilegeLevel,
+    RequesterContext,
+    WindowInfo,
+)
 from jarvis.gesture.detector import GestureDetector
 from jarvis.gesture.models import ClapEvent, DetectorState, GestureResult, GestureType
 
-# JARVIS tts & stt imports
-from jarvis.tts.cache import LocalTTSCache, TTSAudioCache
-from jarvis.tts.elevenlabs import ElevenLabsTTS
-from jarvis.tts.engine import TTSEngine
-from jarvis.tts.fallback import SAPI5FallbackTTS
-from jarvis.tts.manager import TTSManager
-from jarvis.tts.base import TTSError
-
-from jarvis.stt.engine import (
-    FasterWhisperSTT,
-    MockSTTEngine,
-    OpenAIWhisperSTT,
-    STTEngine,
-    STTError,
-    VADSegmenter,
-    WindowsSpeechSTT,
-    audio_to_float32,
-    float32_to_pcm16_wav_bytes,
-    resample_audio,
+# JARVIS hardware & healing imports
+from jarvis.hardware.monitor import (
+    DiskSmartMetrics,
+    HardwareMetrics,
+    HardwareMonitor,
 )
+from jarvis.healing.terminator import (
+    PROTECTED_PROCESS_WHITELIST,
+    AutonomousTerminator,
+    HealingEngine,
+    HealingMode,
+    HealingReport,
+)
+from jarvis.healing.watchdog import HungProcessInfo, UnresponsiveAppDetector
 
 # JARVIS llm & ui imports
 from jarvis.llm.client import (
@@ -102,27 +96,6 @@ from jarvis.llm.client import (
     TokenUsage,
     ToolCall,
 )
-from jarvis.ui.dashboard import (
-    DashboardHTTPRequestHandler,
-    DashboardServer,
-    _DashboardHTTPServer,
-)
-from jarvis.ui.tray import SystemTrayController, TrayStatus, create_status_icon
-
-# JARVIS hardware & healing imports
-from jarvis.hardware.monitor import (
-    DiskSmartMetrics,
-    HardwareMetrics,
-    HardwareMonitor,
-)
-from jarvis.healing.terminator import (
-    AutonomousTerminator,
-    HealingEngine,
-    HealingMode,
-    HealingReport,
-    PROTECTED_PROCESS_WHITELIST,
-)
-from jarvis.healing.watchdog import HungProcessInfo, UnresponsiveAppDetector
 
 # JARVIS platform imports
 from jarvis.platform.autostart import (
@@ -135,7 +108,32 @@ from jarvis.platform.windows import (
     WindowsPlatformAPI,
     platform_win32,
 )
+from jarvis.stt.engine import (
+    FasterWhisperSTT,
+    MockSTTEngine,
+    OpenAIWhisperSTT,
+    STTEngine,
+    STTError,
+    VADSegmenter,
+    WindowsSpeechSTT,
+    audio_to_float32,
+    float32_to_pcm16_wav_bytes,
+    resample_audio,
+)
+from jarvis.tts.base import TTSError
 
+# JARVIS tts & stt imports
+from jarvis.tts.cache import LocalTTSCache, TTSAudioCache
+from jarvis.tts.elevenlabs import ElevenLabsTTS
+from jarvis.tts.engine import TTSEngine
+from jarvis.tts.fallback import SAPI5FallbackTTS
+from jarvis.tts.manager import TTSManager
+from jarvis.ui.dashboard import (
+    DashboardHTTPRequestHandler,
+    DashboardServer,
+    _DashboardHTTPServer,
+)
+from jarvis.ui.tray import SystemTrayController, TrayStatus, create_status_icon
 
 # ============================================================================
 # DOMAIN 1: jarvis/core ADVERSARIAL STRESS & CONCURRENCY

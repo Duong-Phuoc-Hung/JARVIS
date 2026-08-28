@@ -4,10 +4,11 @@ tests/unit/test_memory_injection.py
 Unit tests for MemoryManager context injection, relevant facts ranking, and system prompt formatting.
 """
 from pathlib import Path
+
 import pytest
 
-from jarvis.memory.manager import MemoryManager
 from jarvis.llm.router import build_jarvis_system_prompt
+from jarvis.memory.manager import MemoryManager
 
 
 class TestMemoryInjection:

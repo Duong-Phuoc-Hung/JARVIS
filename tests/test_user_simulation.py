@@ -28,11 +28,12 @@ from __future__ import annotations
 import concurrent.futures
 import io
 import logging
-from pathlib import Path
 import threading
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
 
@@ -53,14 +54,13 @@ from jarvis.stt.engine import (
     WindowsSpeechSTT,
 )
 from jarvis.tts.fallback import SAPI5FallbackTTS
-from jarvis.tts.manager import TTSManager, WELCOME_PHRASES
+from jarvis.tts.manager import WELCOME_PHRASES, TTSManager
 from jarvis.ui.overlay import (
     BREATHING_GRADIENT,
     JarvisOverlay,
     OverlayState,
 )
 from jarvis.ui.tray import TrayStatus
-
 
 # ============================================================================
 # TEST FIXTURES & ISOLATION HELPERS
@@ -100,8 +100,8 @@ def sim_app(tmp_path, monkeypatch):
             lambda txt, wait=False, **kw: spoken_phrases.append({"text": str(txt), "wait": wait}) or True,
         )
 
-    setattr(app, "spoken_phrases", spoken_phrases)
-    setattr(app, "log_file_path", log_file)
+    app.spoken_phrases = spoken_phrases
+    app.log_file_path = log_file
 
     yield app
 

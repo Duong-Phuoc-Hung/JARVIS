@@ -10,6 +10,7 @@ Covering:
 
 import sys
 from typing import Any, Dict, List, Optional, Tuple
+
 import pytest
 
 from jarvis.core.models import MonitorInfo, WindowInfo

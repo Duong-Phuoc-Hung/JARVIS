@@ -40,7 +40,6 @@ from jarvis.vision.hands import (
     NormalizedLandmark,
 )
 
-
 # ============================================================================
 # 1. VISION & BIOMETRICS ADVERSARIAL TESTS
 # ============================================================================

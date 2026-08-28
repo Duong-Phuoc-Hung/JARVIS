@@ -27,15 +27,14 @@ from jarvis.stt.engine import (
     FasterWhisperSTT,
     MockSTTEngine,
     OpenAIWhisperSTT,
-    STTError,
     STTEngine,
+    STTError,
     VADSegmenter,
     WindowsSpeechSTT,
     audio_to_float32,
     float32_to_pcm16_wav_bytes,
     resample_audio,
 )
-
 
 # ============================================================================
 # 1. AUDIO FORMAT & RESAMPLING CONVERSION TESTS

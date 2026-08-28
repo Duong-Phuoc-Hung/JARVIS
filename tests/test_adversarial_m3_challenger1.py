@@ -42,22 +42,22 @@ from jarvis.stt.engine import (
     BaseSTTEngine,
     MockSTTEngine,
     OpenAIWhisperSTT,
-    STTError,
     STTEngine,
+    STTError,
     VADSegmenter,
     audio_to_float32,
     float32_to_pcm16_wav_bytes,
     resample_audio,
+)
+from jarvis.ui.dashboard import (
+    DashboardHTTPRequestHandler,
+    DashboardServer,
 )
 from jarvis.ui.tray import (
     PIL_AVAILABLE,
     SystemTrayController,
     TrayStatus,
     create_status_icon,
-)
-from jarvis.ui.dashboard import (
-    DashboardHTTPRequestHandler,
-    DashboardServer,
 )
 
 logger = logging.getLogger("test.challenger_m3_1")

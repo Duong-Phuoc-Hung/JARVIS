@@ -11,6 +11,7 @@ Covering:
 """
 
 from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pytest
 
@@ -27,7 +28,6 @@ from jarvis.vision.hands import (
     HandLandmarkTracker,
     NormalizedLandmark,
 )
-
 
 # ============================================================================
 # TIER 1: FEATURE COVERAGE HAPPY PATHS

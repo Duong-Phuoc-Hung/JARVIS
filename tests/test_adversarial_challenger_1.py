@@ -11,17 +11,17 @@ import concurrent.futures
 import io
 import math
 import os
-from pathlib import Path
 import sqlite3
 import sys
 import threading
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-from PIL import Image
 import pytest
+from PIL import Image
 
 from jarvis.audio.dsp import calculate_rms
 from jarvis.audio.wake_word import (
@@ -40,9 +40,8 @@ from jarvis.memory.session import ConversationTurn, SessionContextManager
 from jarvis.memory.sqlite_store import SQLiteMemoryStore
 from jarvis.platform.windows import WindowsPlatformAPI
 from jarvis.ui.tray import SystemTrayController
-from jarvis.vision.dialog_detector import ErrorDialogDetector, WIN32_DIALOG_CLASS
+from jarvis.vision.dialog_detector import WIN32_DIALOG_CLASS, ErrorDialogDetector
 from jarvis.vision.screen import ScreenCaptureResult, ScreenVisionManager
-
 
 # ============================================================================
 # R1: WAKE WORD ADVERSARIAL STRESS TESTS

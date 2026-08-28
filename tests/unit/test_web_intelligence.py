@@ -19,6 +19,7 @@ import threading
 import time
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from jarvis.web.cache import CacheEntry, TTLCache
@@ -27,7 +28,6 @@ from jarvis.web.hub import WebIntelligenceHub
 from jarvis.web.news import NewsAggregator, NewsArticle
 from jarvis.web.search import SearchResultItem, WebSearcher
 from jarvis.web.weather import WeatherData, WeatherProvider
-
 
 # ============================================================================
 # 1. TTL CACHE TESTS (10-Minute Caching Layer)

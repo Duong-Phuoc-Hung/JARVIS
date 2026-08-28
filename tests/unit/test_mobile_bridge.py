@@ -7,11 +7,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from jarvis.comms.mobile_bridge import MobileFileBridge, _ALLOWED_EXTENSIONS
+from jarvis.comms.mobile_bridge import _ALLOWED_EXTENSIONS, MobileFileBridge
 
 
 @pytest.fixture

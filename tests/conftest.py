@@ -31,7 +31,6 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-
 # ============================================================================
 # 1. MOCK AUDIO STREAM & SYNTHESIZER FIXTURE
 # ============================================================================
@@ -292,12 +291,12 @@ def audio_synthesizer() -> AudioSynthesizer:
 def mock_audio_stream(audio_synthesizer) -> MockAudioStream:
     """Fixture providing ready-to-use MockAudioStream with AudioSynthesizer attached."""
     stream = MockAudioStream(sample_rate=44100, block_size=1764, channels=1)
-    setattr(stream, "synthesizer", audio_synthesizer)
-    setattr(stream, "generate_double_clap", audio_synthesizer.generate_double_clap)
-    setattr(stream, "generate_triple_clap", audio_synthesizer.generate_triple_clap)
-    setattr(stream, "generate_clap_pause_clap", audio_synthesizer.generate_clap_pause_clap)
-    setattr(stream, "generate_noise", audio_synthesizer.generate_noise)
-    setattr(stream, "generate_silence", audio_synthesizer.generate_silence)
+    stream.synthesizer = audio_synthesizer
+    stream.generate_double_clap = audio_synthesizer.generate_double_clap
+    stream.generate_triple_clap = audio_synthesizer.generate_triple_clap
+    stream.generate_clap_pause_clap = audio_synthesizer.generate_clap_pause_clap
+    stream.generate_noise = audio_synthesizer.generate_noise
+    stream.generate_silence = audio_synthesizer.generate_silence
     
     def generate_claps(times: List[float], peak: float = 0.85, total_s: float = 1.0) -> np.ndarray:
         sr = 44100
@@ -310,7 +309,7 @@ def mock_audio_stream(audio_synthesizer) -> MockAudioStream:
             buf[idx:end] += pulse[:p_end]
         return buf
         
-    setattr(stream, "generate_claps", generate_claps)
+    stream.generate_claps = generate_claps
     return stream
 
 
@@ -481,7 +480,7 @@ def mock_hardware_provider(monkeypatch) -> MockHardwareProvider:
     def mock_sensors_temperatures():
         return {
             "coretemp": [
-                MagicMock(label=f"Package id 0", current=provider.cpu_temp_c, high=85.0, critical=95.0)
+                MagicMock(label="Package id 0", current=provider.cpu_temp_c, high=85.0, critical=95.0)
             ]
         }
 

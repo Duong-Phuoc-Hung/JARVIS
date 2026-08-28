@@ -38,8 +38,8 @@ from jarvis.stt.engine import (
     FasterWhisperSTT,
     MockSTTEngine,
     OpenAIWhisperSTT,
-    STTError,
     STTEngine,
+    STTError,
     VADSegmenter,
     WindowsSpeechSTT,
     audio_to_float32,
@@ -48,8 +48,7 @@ from jarvis.stt.engine import (
 from jarvis.tts.base import BaseTTSEngine, TTSError
 from jarvis.tts.elevenlabs import ElevenLabsTTS
 from jarvis.tts.fallback import SAPI5FallbackTTS
-from jarvis.tts.manager import TTSManager, WELCOME_PHRASES
-
+from jarvis.tts.manager import WELCOME_PHRASES, TTSManager
 
 # ============================================================================
 # 1. HEADLESS AUDIO CAPTURE (`record_audio()`)

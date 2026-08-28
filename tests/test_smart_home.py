@@ -8,11 +8,11 @@ Covering:
 """
 
 from typing import Any, Callable, Dict, List, Optional
+
 import pytest
 
 from jarvis.smart_home.home_assistant import HomeAssistantClient
 from jarvis.smart_home.mqtt import MQTTAdapter
-
 
 # ============================================================================
 # TIER 1: FEATURE COVERAGE HAPPY PATHS

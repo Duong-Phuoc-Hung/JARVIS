@@ -14,6 +14,7 @@ import struct
 import wave
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pytest
 

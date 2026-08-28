@@ -15,8 +15,7 @@ import pytest
 
 vad_mod = pytest.importorskip("jarvis.audio.vad", reason="VAD module not yet available")
 
-from jarvis.audio.vad import VoiceActivityConfig, VoiceActivityDetector, SpeechSegment
-
+from jarvis.audio.vad import SpeechSegment, VoiceActivityConfig, VoiceActivityDetector
 
 # ---------------------------------------------------------------------------
 # Helpers

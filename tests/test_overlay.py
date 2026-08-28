@@ -14,7 +14,9 @@ Covers:
 from __future__ import annotations
 
 import time
+
 import pytest
+
 from jarvis.ui.overlay import (
     BREATHING_GRADIENT,
     COLORS,
