@@ -1,0 +1,96 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-08-28 12:56:15",
+  "ready_subsystems": 0,
+  "total_subsystems": 0,
+  "new_modules_ready": 0,
+  "new_modules_total": 17,
+  "test_summary": "536 tests collected in 1.86s",
+  "modules": [
+    {
+      "module": "jarvis.audio.vad",
+      "display": "VAD Engine",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.audio.fullduplex",
+      "display": "Full-Duplex Barge-in",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.audio.sound_effects",
+      "display": "Stark UI Sound Effects",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.tts.piper",
+      "display": "Piper TTS Offline",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.stt.faster_whisper",
+      "display": "Faster-Whisper STT",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.memory.vector_store",
+      "display": "Semantic Vector Store",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.workers.night_shift",
+      "display": "Night Shift Worker",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.comms.discord",
+      "display": "Discord Bot Controller",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.comms.mobile_bridge",
+      "display": "Mobile File Bridge",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.smart_home.discovery",
+      "display": "Smart Home Discovery",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.skills.screen_context",
+      "display": "Screen Context AI",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.skills.macro_recorder",
+      "display": "Voice Macro Recorder",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.skills.skill_synthesizer",
+      "display": "Self-Coding Synthesizer",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.skills.rag_search",
+      "display": "Semantic RAG Search",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.skills.night_planner",
+      "display": "Night Planner",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.skills.smart_home_discovery",
+      "display": "Smart Home Discovery",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    },
+    {
+      "module": "jarvis.skills.sound_board",
+      "display": "Sound Board",
+      "status": "❌ ERROR: No module named 'jarvis'"
+    }
+  ]
+}

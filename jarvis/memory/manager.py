@@ -159,10 +159,48 @@ class MemoryManager:
 
     # ── System Prompt Memory Injection ───────────────────────────────────────
 
+    def get_relevant_facts_for_prompt(
+        self,
+        query: str,
+        limit: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieves most relevant facts scored against the given user query.
+        Always prioritizes user identity/profile facts.
+        """
+        all_facts = self.list_facts(limit=50)
+        if not all_facts:
+            return []
+
+        q_tokens = set(re.findall(r"\w+", query.lower())) if query else set()
+        
+        scored: List[Tuple[float, Dict[str, Any]]] = []
+        for f in all_facts:
+            score = 0.0
+            cat = str(f.get("category", "")).lower()
+            k = str(f.get("key", "")).lower()
+            v = str(f.get("value", "")).lower()
+
+            # Profile baseline boost
+            if cat == "profile" or k in ("user_name", "email", "current_project"):
+                score += 2.0
+
+            # Token overlap score
+            text_tokens = set(re.findall(r"\w+", f"{cat} {k} {v}"))
+            overlap = len(q_tokens.intersection(text_tokens))
+            score += overlap * 1.5
+
+            scored.append((score, f))
+
+        # Sort descending by score
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [item[1] for item in scored[:limit]]
+
     def get_system_prompt_context(
         self,
         max_facts: int = 10,
         max_turns: int = 5,
+        query: Optional[str] = None,
     ) -> str:
         """
         Assembles persistent user profile / facts and recent conversational turns
@@ -170,8 +208,12 @@ class MemoryManager:
         """
         sections: List[str] = []
 
-        # 1. Long-term Facts & User Profile
-        facts = self.list_facts(limit=max_facts)
+        # 1. Long-term Facts & User Profile (Query-ranked if query is given)
+        if query:
+            facts = self.get_relevant_facts_for_prompt(query=query, limit=max_facts)
+        else:
+            facts = self.list_facts(limit=max_facts)
+
         if facts:
             fact_lines = ["### User Profile & Long-Term Memories:"]
             for f in facts:
@@ -333,7 +375,72 @@ class MemoryManager:
         )
 
 
+    # ── Semantic Memory RAG ─────────────────────────────────────────────────────
+
+    def _get_vector_store(self):
+        """Lazily initialize the semantic vector store."""
+        if not hasattr(self, "_vector_store"):
+            try:
+                from jarvis.memory.vector_store import SemanticVectorStore, VectorStoreConfig
+                self._vector_store = SemanticVectorStore(
+                    VectorStoreConfig(persist_path="logs/vector_store.json")
+                )
+            except Exception as exc:
+                logger.warning("Vector store init failed: %s — RAG disabled", exc)
+                self._vector_store = None
+        return self._vector_store
+
+    def index_fact_to_vectors(self, key: str, value: str, category: str = "facts") -> bool:
+        """Add a memory fact to the semantic vector index."""
+        store = self._get_vector_store()
+        if store is None:
+            return False
+        doc_id = f"fact_{key.replace(' ', '_')[:40]}"
+        content = f"{key}: {value}"
+        return store.add_document(doc_id, content, category=category)
+
+    def index_episode_to_vectors(self, text: str, speaker: str = "user") -> bool:
+        """Add a conversation episode to the semantic vector index."""
+        import time as _time
+        store = self._get_vector_store()
+        if store is None:
+            return False
+        doc_id = f"ep_{int(_time.time() * 1000) % 1_000_000}"
+        return store.add_document(doc_id, text, category=f"episode_{speaker}")
+
+    def semantic_search(
+        self,
+        query: str,
+        k: int = 5,
+        category_filter: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search memory semantically using TF-IDF cosine similarity.
+        Returns list of dicts with keys: doc_id, content, score, category.
+        """
+        store = self._get_vector_store()
+        if store is None:
+            return []
+        results = store.search(query, k=k, category_filter=category_filter)
+        return [r.to_dict() for r in results]
+
+    def build_rag_context(self, query: str, k: int = 5) -> str:
+        """
+        Build a RAG context string from most relevant memories for LLM injection.
+        Returns a formatted markdown block for use in system prompt.
+        """
+        results = self.semantic_search(query, k=k)
+        if not results:
+            return ""
+        lines = ["### Semantic Memory Context (most relevant):"]
+        for r in results:
+            score_pct = int(r["score"] * 100)
+            lines.append(f"- [{r['category']}] ({score_pct}%) {r['content'][:150]}")
+        return "\n".join(lines)
+
+
 class MemoryCommandResult(str):
+
     """
     Subclass of str that transparently acts as both a formatted string
     and a dict with metadata for backwards-compatibility across all test suites.

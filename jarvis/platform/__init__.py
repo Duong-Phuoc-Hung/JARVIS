@@ -4,6 +4,7 @@ Windows Platform and Hardware Integration Subsystems.
 from __future__ import annotations
 
 from jarvis.platform.autostart import AutostartStatus, get_autostart_status, set_autostart
+from jarvis.platform.hotkeys import GlobalHotkeyManager, HotkeyRegistration
 from jarvis.platform.windows import (
     INPUT,
     KEYBDINPUT,
@@ -33,6 +34,8 @@ from jarvis.platform.windows import (
 )
 
 __all__ = [
+    "GlobalHotkeyManager",
+    "HotkeyRegistration",
     "WindowsPlatformAPI",
     "platform_win32",
     "get_monitors",

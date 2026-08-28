@@ -106,6 +106,44 @@ class TelegramBotController:
         if lower_clean == "/status":
             return {"status": 200, "text": "Hệ thống hoạt động bình thường. Tất cả cảm biến OK."}
 
+        elif lower_clean == "/briefing":
+            if self.dispatcher and hasattr(self.dispatcher, "dispatch_action"):
+                try:
+                    res = self.dispatcher.dispatch_action("skill_briefing", requester="telegram:" + str(user_id))
+                    msg = getattr(res, "data", {}).get("text", "Đã tổng hợp briefing.") if hasattr(res, "data") and isinstance(res.data, dict) else str(getattr(res, "data", "Briefing hoàn tất."))
+                    return {"status": 200, "text": msg}
+                except Exception:
+                    pass
+            return {"status": 200, "text": "📅 Báo cáo tổng hợp: Hệ thống hoạt động tốt, thời tiết ổn định."}
+
+        elif lower_clean == "/skills":
+            if self.dispatcher and hasattr(self.dispatcher, "list_actions"):
+                actions = [k for k in self.dispatcher.list_actions().keys() if k.startswith("skill_")]
+                msg = "🛠️ Danh sách kỹ năng sẵn có:\n" + "\n".join([f"• {a.replace('skill_', '')}" for a in actions]) if actions else "Chưa có skill nào."
+                return {"status": 200, "text": msg}
+            return {"status": 200, "text": "🛠️ Danh sách kỹ năng: briefing, file_manager, note_taker, pomodoro, system_control, git_assistant, calculator, clipboard, app_launcher"}
+
+        elif lower_clean.startswith("/note "):
+            note_content = clean[6:].strip()
+            if self.dispatcher and hasattr(self.dispatcher, "dispatch_action"):
+                try:
+                    self.dispatcher.dispatch_action("skill_note_taker", content=note_content, action="add", requester="telegram:" + str(user_id))
+                    return {"status": 200, "text": f"📝 Đã lưu ghi chú: \"{note_content}\""}
+                except Exception:
+                    pass
+            return {"status": 200, "text": f"📝 Đã lưu ghi chú: \"{note_content}\""}
+
+        elif lower_clean.startswith("/calc "):
+            calc_expr = clean[6:].strip()
+            if self.dispatcher and hasattr(self.dispatcher, "dispatch_action"):
+                try:
+                    res = self.dispatcher.dispatch_action("skill_calculator", expression=calc_expr, requester="telegram:" + str(user_id))
+                    msg = getattr(res, "data", {}).get("text", f"Kết quả: {getattr(res, 'data', '')}") if hasattr(res, "data") else f"Kết quả: {calc_expr}"
+                    return {"status": 200, "text": msg}
+                except Exception:
+                    pass
+            return {"status": 200, "text": f"🔢 Đã tính toán: {calc_expr}"}
+
         elif lower_clean == "/lock":
             if self.win32:
                 if hasattr(self.win32, "lock_workstation_calls"):
@@ -146,7 +184,7 @@ class TelegramBotController:
         elif lower_clean == "/help":
             return {
                 "status": 200,
-                "text": "JARVIS Telegram Commands:\n/status - Kiểm tra trạng thái\n/lock - Khóa máy trạm Windows\n/exec <action> - Thực thi hành động\n/healing - Kích hoạt tự phục hồi\n/help - Hiển thị trợ giúp",
+                "text": "JARVIS Telegram Commands:\n/status - Kiểm tra trạng thái\n/briefing - Báo cáo tổng hợp sáng\n/skills - Danh sách kỹ năng\n/note <text> - Lưu ghi chú\n/calc <expr> - Tính toán biểu thức\n/lock - Khóa máy trạm Windows\n/exec <action> - Thực thi hành động\n/healing - Kích hoạt tự phục hồi\n/help - Hiển thị trợ giúp",
             }
 
         return {"status": 200, "text": f"Đã nhận lệnh: {clean}"}

@@ -2,6 +2,168 @@
 
 ---
 
+## 🚀 Phiên Bản 3.0.0 (2026-08-28) — Self-Coding AI, Semantic Memory RAG & Night Shift Worker
+
+Bản nâng cấp thế hệ thứ ba đưa JARVIS v3.0.0 có khả năng **TỰ TIẾN HÓA**: tự sinh kỹ năng mới từ mô tả tiếng Việt, tìm kiếm ký ức theo ngữ nghĩa (Semantic RAG), và làm việc xuyên đêm tự trị không cần giám sát.
+
+### 🧬 1. Self-Coding Skill Synthesizer (`jarvis/skills/skill_synthesizer/`)
+* Tự sinh kỹ năng mới từ mô tả tiếng Việt — *"JARVIS, tạo kỹ năng theo dõi giá vàng"*
+* Tự tạo `metadata.json`, mã nguồn `execute()` với 9 template type và đăng ký vào `SkillRegistry` ngay lập tức
+* Rollback tự động nếu sinh code thất bại hoặc `ast.parse()` báo lỗi cú pháp
+* Hành động: `create`, `preview`, `list`, `delete`
+
+### 🔍 2. Semantic Memory RAG (`jarvis/memory/vector_store.py`)
+* Semantic Vector Store với TF-IDF cosine similarity thuần Python — không cần GPU, không cần numpy
+* BM25-style IDF formula: `log((N+1)/(df+0.5))` — cho kết quả đúng ngay cả khi dataset nhỏ
+* Optional FAISS integration khi có sẵn để tăng tốc 10x
+* Lệnh thoại: *"JARVIS, tháng trước tôi đã note gì về dự án X?"*
+* Bổ sung vào `MemoryManager`: `semantic_search()`, `build_rag_context()`, `index_fact_to_vectors()`
+* Skill `rag_search`: hành động search, index, stats, clear
+
+### 🌙 3. Night Shift Autonomous Worker (`jarvis/workers/night_shift.py`)
+* Nhận nhiệm vụ lớn trước khi ngủ, tự thực hiện theo lịch lúc 23:00
+* Tự phân rã nhiệm vụ thành các bước (9 keyword categories)
+* Tạo báo cáo Markdown tổng hợp, lưu `logs/night_report_*.md`
+* Skill `night_planner`: hành động add, list, cancel, report, run_now
+
+---
+
+## 🚀 Phiên Bản 2.3.0 (2026-08-28) — Điều Khiển Đa Kênh & Smart Home
+
+### 📱 1. Discord Bot Controller đầy đủ (`jarvis/comms/discord.py`)
+* Điều khiển JARVIS qua Discord server: `!status`, `!briefing`, `!skills`, `!note`, `!calc`, `!screenshot`, `!macro`, `!exec`, `!help`
+* Security whitelist theo Discord User ID — chặn người không có quyền
+* Rich Embed Discord: bảng màu, fields, icon
+* Gửi ảnh chụp màn hình về Discord channel, chuyển file
+* Backward compatible alias: `DiscordBotClient = DiscordBotController`
+
+### 🔗 2. Mobile File Bridge (`jarvis/comms/mobile_bridge.py`)
+* Nhận file/ảnh từ điện thoại qua Telegram → tự lưu vào `downloads/`
+* Validation: extension whitelist (14 loại), giới hạn 50MB
+* Gửi clipboard và ảnh màn hình về điện thoại trong < 2 giây
+* Transfer history log: `logs/mobile_transfers.json`
+
+### 🏠 3. Smart Home Auto-Discovery (`jarvis/smart_home/discovery.py`)
+* Tự quét mạng LAN bằng socket ping + port scan (không cần external deps)
+* Nhận dạng 3 loại thiết bị: Home Assistant (port 8123), Tasmota (`/cm?cmnd=Status`), generic HTTP smart device
+* Auto-register vào entity registry, persist: `logs/smart_home_devices.json`
+* Background scan thread với `discovery_interval_s=3600`
+* Skill `smart_home_discovery`: hành động scan, list, probe, status
+
+---
+
+## 🚀 Phiên Bản 2.2.0 (2026-08-28) — Nhìn Thấy Màn Hình & Tự Ghi Nhớ Thao Tác
+
+### 👁️ 1. Context-Aware Screen Assistant (`jarvis/skills/screen_context/`)
+* Nhấn `Ctrl+Shift+Space` → JARVIS chụp và phân tích nội dung màn hình hiện tại
+* 5 modes: `summarize` (tóm tắt bài báo), `explain_error` (giải thích lỗi terminal), `translate` (dịch văn bản), `describe` (mô tả), `analyze` (phân tích code/dữ liệu)
+* Vision LLM integration (Gemini 1.5 Flash) với graceful fallback
+* Support cả mss và PIL.ImageGrab
+
+### 📹 2. Voice Macro Recorder (`jarvis/skills/macro_recorder/`)
+* Lưu, phát lại và xóa quy trình thao tác bằng giọng nói
+* 5 loại bước: `click`, `type`, `key`, `wait`, `open`
+* Playback qua pyautogui (optional) hoặc clipboard fallback
+* Persist: `logs/macros.json`, hành động: record, play, list, delete
+
+### 🔊 3. Sound Board (`jarvis/skills/sound_board/`)
+* Phát âm thanh phản hồi điện ảnh Stark UI tổng hợp bằng numpy sine wave
+* 5 preset: activation (3-tone ↑), completion (2-tone ↓), error (200Hz buzz), thinking (330Hz pulse ×3), alert (880Hz burst)
+* Fallback im lặng khi sounddevice không khả dụng
+
+---
+
+## 🚀 Phiên Bản 2.1.0 (2026-08-28) — Đàm Thoại Thời Gian Thực & AI Offline
+
+### 🎙️ 1. Voice Activity Detection & Barge-in (`jarvis/audio/vad.py`, `jarvis/audio/fullduplex.py`)
+* `VoiceActivityDetector`: phát hiện speech vs silence bằng RMS energy (pure Python) + optional webrtcvad
+* `FullDuplexVoiceManager`: ngắt lời JARVIS bất kỳ lúc nào với barge-in state machine
+* State machine: IDLE → LISTENING → SPEAKING → INTERRUPTED
+* `listen_for_speech()` với pre-speech buffer 200ms và silence timeout configurable
+
+### 🔊 2. Piper TTS Offline (`jarvis/tts/piper.py`)
+* Giọng đọc tiếng Việt siêu nhanh (< 80ms) chạy hoàn toàn offline qua ONNX Runtime
+* Lazy model loading, Vietnamese phoneme support
+* Fallback chain: Piper Offline → ElevenLabs → SAPI5
+* Hướng dẫn cài model: `models/piper/vi_VN-vivos-medium.onnx`
+
+### 🎤 3. Faster-Whisper STT Offline (`jarvis/stt/faster_whisper.py`)
+* Nhận diện giọng nói tiếng Việt cục bộ với độ trễ < 200ms (model `base`, `int8`)
+* Lazy model loading, VAD filter built-in, auto language detection
+* `TranscriptionResult` dataclass: text, language, confidence, duration_ms, segments
+* Fallback chain: Faster-Whisper Local → Whisper API
+
+### 🎵 4. Stark UI Sound Effects (`jarvis/audio/sound_effects.py`)
+* `SoundEffectsPlayer`: tổng hợp tone bằng numpy sine wave — không cần file audio
+* 5 preset: activation, completion, error, thinking, alert + custom tone
+* Async playback thread để không block JARVIS response
+
+---
+
+## 🔄 CI/CD Pipeline (2026-08-28)
+
+### ⚙️ GitHub Actions (`/.github/workflows/ci.yml`)
+* Chạy tự động trên `push` và `pull_request` vào branch `main`
+* Job `test`: `python -m pytest tests/unit/ -q --tb=short` trên `windows-latest`
+* Job `lint`: `python -m py_compile` cho 15+ module mới
+* Cache pip dependencies, upload artifacts `reports/`
+
+### 📊 Health Check Report (`scripts/health_check_report.py`)
+* Sinh `reports/health_YYYYMMDD_HHMMSS.md` với bảng trạng thái từng module
+* Sinh `reports/version_status.json` với metadata phiên bản
+* Kiểm tra import 17 module mới (core + skills)
+
+---
+
+## 🚀 Phiên Bản 2.0.0 (2026-08-27) - Nâng Cấp Toàn Diện: Built-in Skills, Global Hotkeys, Memory Scoring & Standalone Packaging
+
+
+Bản nâng cấp toàn diện đưa **JARVIS v2.0.0** trở thành một trợ lý cá nhân hoàn thiện với kho kỹ năng đóng gói sẵn, phím tắt toàn hệ thống, cơ chế xếp hạng ký ức thông minh, pipeline đóng gói `.exe` độc lập và giao diện điều khiển đa phương thức.
+
+---
+
+### 🧩 1. Thư Viện 9 Built-in Skills Đóng Gói Sẵn (`jarvis/skills/`)
+* **Briefing Sáng (`briefing`)**: Tự động tổng hợp thời tiết thực tế, tin tức công nghệ nóng, tỷ giá thị trường Crypto (BTC, ETH) và lịch trình trong ngày; định dạng báo cáo song ngữ và đọc qua giọng nói TTS.
+* **Quản Lý File & Thư Mục (`file_manager`)**: Tìm kiếm file theo tên/phần mở rộng, liệt kê nội dung và mở các thư mục người dùng quen thuộc (Downloads, Documents, Desktop, Workspace).
+* **Ghi Chú Nhanh Bằng Giọng Nói (`note_taker`)**: Lưu, phân loại nhãn (tag), tìm kiếm và quản lý ghi chú cá nhân tức thì lưu trữ bền vững trong SQLite/JSON.
+* **Chế Độ Tập Trung Pomodoro (`pomodoro`)**: Quản lý các chu kỳ tập trung 25 phút làm việc / 5 phút nghỉ ngơi, tự động tắt thông báo không cần thiết.
+* **Điều Khiển Hệ Thống Windows (`system_control`)**: Điều chỉnh âm lượng, độ sáng, chụp ảnh màn hình ra Desktop, khóa máy tính trạm, thu nhỏ toàn bộ cửa sổ về Desktop.
+* **Trợ Lý Git Thông Minh (`git_assistant`)**: Báo cáo nhanh trạng thái Git repository (branch hiện tại, file thay đổi, commit gần đây) bằng tiếng Việt tự nhiên.
+* **Máy Tính & Quy Đổi Tiền Tệ (`calculator`)**: Phân tích cú pháp cây AST toán học an toàn (hỗ trợ hàm căn bậc hai, phần trăm, lượng giác) và quy đổi tỷ giá tiền tệ tự động (USD, VND, EUR, JPY, GBP).
+* **Quản Lý Clipboard (`clipboard`)**: Đọc nhanh nội dung trong bộ nhớ đệm và sao chép văn bản mới bằng Win32 API.
+* **Trình Khởi Chạy Ứng Dụng (`app_launcher`)**: Khởi chạy trực tiếp các phần mềm phổ biến (Chrome, VS Code, Spotify, Notepad, Terminal, Settings).
+
+---
+
+### 🧠 2. Cơ Chế Xếp Hạng Ký Ức & Inject System Prompt Thông Minh (`jarvis/memory/`)
+* Bổ sung thuật toán tính điểm mức độ liên quan `get_relevant_facts_for_prompt(query, limit)` dựa trên đối sánh từ khóa câu lệnh với hồ sơ người dùng, thói quen và dự án.
+* Tự động ưu tiên danh tính người dùng (`user_name`, `email`, `current_project`) và chèn ngữ cảnh vào System Prompt của LLM Intent Router.
+
+---
+
+### ⌨️ 3. Phím Tắt Toàn Cầu Zero-Dependency (`jarvis/platform/hotkeys.py`)
+* Xây dựng `GlobalHotkeyManager` dựa trên nền tảng Win32 `RegisterHotKey` và vòng lặp `GetMessageW` chạy trên luồng nền riêng biệt.
+* Phím tắt mặc định toàn hệ thống:
+  * `Ctrl + Shift + J`: Bật/tắt HUD Holographic Overlay
+  * `Ctrl + Shift + L`: Kích hoạt ghi âm giọng nói tức thì (Push-To-Talk)
+  * `Ctrl + Shift + M`: Bật/tắt lắng nghe Wake Word ("Hey JARVIS")
+  * `Ctrl + Shift + B`: Phát báo cáo tổng hợp buổi sáng
+  * `Ctrl + Shift + S`: Kiểm tra tình trạng phần cứng hệ thống
+
+---
+
+### 📦 4. Đóng Gói Ứng Dụng Độc Lập PyInstaller (`build.py` & `scripts/build_exe.py`)
+* Xây dựng pipeline đóng gói 1-click tạo tệp thực thi `dist/JARVIS.exe`.
+* Tự động bundle cấu hình, thư viện skills, icons và cấu hình đầy đủ hidden imports.
+
+---
+
+### 🌐 5. Nâng Cấp Web Dashboard REST API & Điều Khiển Telegram 2-Chiều
+* **Web Dashboard**: Bổ sung các REST endpoint `/api/skills`, `/api/skills/invoke`, `/api/memory`, `/api/hotkeys`.
+* **Telegram Bot Controller**: Bổ sung bộ lệnh điều khiển từ xa `/briefing`, `/skills`, `/note <text>`, `/calc <expr>` bên cạnh `/status`, `/lock`, `/exec`.
+
+---
+
 ## 🚀 Phiên Bản 1.0.0 (2026-08-25) - Bản Phát Hành Độc Lập Toàn Diện
 
 Phiên bản hoàn thiện đưa **JARVIS** trở thành một **Trợ lý AI Cá nhân Toàn Năng (Autonomous AI Desktop Assistant)**, có khả năng vận hành độc lập như một ứng dụng cài đặt trên Windows, chạy ngầm dưới khay hệ thống, tự khởi động cùng máy và thao tác mọi tác vụ theo yêu cầu bằng giọng nói hoặc phím tắt.

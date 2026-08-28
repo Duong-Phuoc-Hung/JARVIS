@@ -1,0 +1,43 @@
+{
+  "name": "clipboard",
+  "version": "1.0.0",
+  "description": "Đọc nội dung clipboard hiện tại hoặc sao chép văn bản mới vào clipboard hệ thống.",
+  "parameters_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "read",
+          "copy",
+          "clear"
+        ],
+        "description": "Lệnh clipboard: read (đọc), copy (sao chép), clear (xóa)",
+        "default": "read"
+      },
+      "text": {
+        "type": "string",
+        "description": "Văn bản cần sao chép vào clipboard",
+        "default": ""
+      }
+    },
+    "required": []
+  },
+  "return_schema": null,
+  "tags": [
+    "clipboard",
+    "copy",
+    "paste",
+    "system",
+    "text"
+  ],
+  "synthesized_by": "jarvis_builtin_system",
+  "created_at": 1787839217.582826,
+  "updated_at": 1787896475.4687629,
+  "invocation_count": 14,
+  "success_count": 14,
+  "failure_count": 0,
+  "total_latency_ms": 1722.6058999993938,
+  "success_rate": 1.0,
+  "avg_latency_ms": 123.04
+}

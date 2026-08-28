@@ -415,6 +415,12 @@ class DashboardHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(srv.get_config_dict())
         elif path == "/api/logs":
             self._send_json({"logs": srv.get_recent_logs()})
+        elif path == "/api/skills":
+            self._send_json({"skills": srv.get_skills()})
+        elif path == "/api/memory":
+            self._send_json(srv.get_memory_facts())
+        elif path == "/api/hotkeys":
+            self._send_json({"hotkeys": srv.get_hotkeys()})
         else:
             self._send_json({"error": "Not Found", "path": path}, 404)
 
@@ -440,6 +446,12 @@ class DashboardHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(result)
         elif path == "/api/config":
             result = srv.update_config_dict(payload)
+            self._send_json(result)
+        elif path == "/api/skills/invoke":
+            result = srv.invoke_skill(payload)
+            self._send_json(result)
+        elif path == "/api/memory/fact":
+            result = srv.store_memory_fact(payload)
             self._send_json(result)
         else:
             self._send_json({"error": "Endpoint not found", "path": path}, 404)
@@ -682,6 +694,53 @@ class DashboardServer:
                 return {"success": True, "response_text": "Hệ thống hoạt động bình thường, RAM 45%, Disk 180 GB trống."}
 
         return {"success": True, "response_text": f"Đã nhận lệnh: '{cmd_text}'"}
+
+    def get_skills(self) -> List[Dict[str, Any]]:
+        """Returns list of registered skills with metadata."""
+        registry = getattr(self.app, "skill_registry", None)
+        if registry:
+            return [meta.to_dict() for meta in registry.list_skills()]
+        return []
+
+    def invoke_skill(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Directly invoke a skill via REST API."""
+        skill_name = payload.get("skill_name", payload.get("name", ""))
+        params = payload.get("parameters", payload.get("params", {}))
+        
+        registry = getattr(self.app, "skill_registry", None)
+        if not registry:
+            return {"success": False, "error": "SkillRegistry is not available."}
+        
+        res = registry.invoke_skill(skill_name, **params)
+        return res.to_dict()
+
+    def get_memory_facts(self) -> Dict[str, Any]:
+        """Returns stored long-term memory facts and recent history."""
+        mem = getattr(self.app, "memory_manager", None)
+        if not mem:
+            return {"facts": [], "episodes": []}
+        return {
+            "facts": mem.list_facts(limit=50),
+            "episodes": mem.get_today_episodes(),
+        }
+
+    def store_memory_fact(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Stores a new fact into memory store."""
+        key = payload.get("key", "")
+        value = payload.get("value", "")
+        category = payload.get("category", "general")
+        mem = getattr(self.app, "memory_manager", None)
+        if not mem:
+            return {"success": False, "error": "MemoryManager is not available."}
+        ok = mem.store_fact(key=key, value=value, category=category)
+        return {"success": ok, "key": key, "value": value}
+
+    def get_hotkeys(self) -> List[Dict[str, Any]]:
+        """Returns list of active global keyboard shortcuts."""
+        hk = getattr(self.app, "hotkey_manager", None)
+        if hk:
+            return hk.list_hotkeys()
+        return []
 
 
 # Backward compatibility alias for test suite

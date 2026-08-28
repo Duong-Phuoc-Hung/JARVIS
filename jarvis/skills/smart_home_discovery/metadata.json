@@ -1,0 +1,9 @@
+{
+  "name": "smart_home_discovery",
+  "display_name": "Smart Home Auto-Discovery",
+  "description": "Tự động quét mạng LAN và phát hiện thiết bị nhà thông minh (Home Assistant, Tasmota, Tuya)",
+  "version": "1.0.0",
+  "author": "JARVIS Core Team",
+  "tags": ["smart_home", "discovery", "iot", "lan", "network", "auto"],
+  "actions": ["scan", "list", "probe", "status"]
+}

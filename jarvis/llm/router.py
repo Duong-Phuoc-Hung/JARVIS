@@ -1153,6 +1153,93 @@ class LLMIntentRouter:
                     response_text="Đang giảm độ sáng màn hình cho Ngài.",
                 ),
             ),
+            # 8. Built-in Skills Fast-Path Patterns
+            (
+                re.compile(r"(?:briefing\s*(?:sáng|hôm\s*nay)?|báo\s*cáo\s*sáng|tổng\s*hợp\s*sáng|điểm\s*tin\s*sáng|morning\s*briefing)", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="skill_briefing",
+                    parameters={},
+                    source="rule_fallback",
+                    response_text="Đang tổng hợp báo cáo buổi sáng cho Ngài.",
+                ),
+            ),
+            (
+                re.compile(r"(?:bắt\s*đầu\s*pomodoro|chế\s*độ\s*tập\s*trung|start\s*pomodoro|focus\s*mode)(?:\s+(\d+)\s*(?:phút|m|mins))?", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="skill_pomodoro",
+                    parameters={"action": "start", "duration_minutes": int(m.group(1)) if m.group(1) else 25},
+                    source="rule_fallback",
+                    response_text="Bắt đầu phiên làm việc tập trung Pomodoro cho Ngài.",
+                ),
+            ),
+            (
+                re.compile(r"(?:ghi\s*chú(?:\s*nhanh)?|lưu\s*ghi\s*chú|take\s*note|add\s*note)\s*[:,\s]\s*(.+)", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="skill_note_taker",
+                    parameters={"action": "add", "content": m.group(1).strip()},
+                    source="rule_fallback",
+                    response_text=f"Đã lưu ghi chú cho Ngài: {m.group(1).strip()}",
+                ),
+            ),
+            (
+                re.compile(r"^(?:tính|calculate|eval)\s+([\d\s\+\-\*\/\^\(\)\.\%xX]+)$", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="skill_calculator",
+                    parameters={"action": "eval", "expression": m.group(1).strip()},
+                    source="rule_fallback",
+                    response_text="Đang tính toán biểu thức cho Ngài.",
+                ),
+            ),
+            (
+                re.compile(r"(?:đổi|chuyển\s*đổi)\s+(\d+(?:\.\d+)?)\s*(usd|vnd|eur|jpy|gbp)\s*(?:sang|qua|to)\s*(vnd|usd|eur|jpy|gbp)", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="skill_calculator",
+                    parameters={
+                        "action": "convert_currency",
+                        "amount": float(m.group(1)),
+                        "currency_from": m.group(2).upper(),
+                        "currency_to": m.group(3).upper(),
+                    },
+                    source="rule_fallback",
+                    response_text="Đang quy đổi tỷ giá tiền tệ cho Ngài.",
+                ),
+            ),
+            (
+                re.compile(r"(?:git\s*status|kiểm\s*tra\s*git|trạng\s*thái\s*git)", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="skill_git_assistant",
+                    parameters={"action": "status"},
+                    source="rule_fallback",
+                    response_text="Đang kiểm tra trạng thái Git repository cho Ngài.",
+                ),
+            ),
+            (
+                re.compile(r"(?:chụp\s*ảnh\s*màn\s*hình|chụp\s*màn\s*hình|take\s*screenshot)", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="skill_system_control",
+                    parameters={"action": "screenshot"},
+                    source="rule_fallback",
+                    response_text="Đang chụp ảnh màn hình và lưu vào Desktop cho Ngài.",
+                ),
+            ),
+            (
+                re.compile(r"(?:hiển\s*thị\s*desktop|màn\s*hình\s*chính|thu\s*nhỏ\s*tất\s*cả|show\s*desktop|minimize\s*all)", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="skill_system_control",
+                    parameters={"action": "show_desktop"},
+                    source="rule_fallback",
+                    response_text="Đã hiển thị màn hình nền Desktop cho Ngài.",
+                ),
+            ),
+            (
+                re.compile(r"(?:tìm\s*file|search\s*file|find\s*file)\s+(.+)", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="skill_file_manager",
+                    parameters={"action": "search", "query": m.group(1).strip()},
+                    source="rule_fallback",
+                    response_text=f"Đang tìm kiếm file '{m.group(1).strip()}' cho Ngài.",
+                ),
+            ),
         ]
 
     def _match_rule_key(self, key: str, clean_lower: str) -> bool:
@@ -1465,6 +1552,34 @@ class LLMIntentRouter:
                 return f"Đã đặt độ sáng màn hình thành {b}%, thưa Ngài."
             return "Đã điều chỉnh độ sáng màn hình cho Ngài."
 
+        # 13b. Built-in Skills (Category 6b)
+        if action_name in ("skill_briefing", "briefing"):
+            return "Đang tổng hợp báo cáo buổi sáng cho Ngài."
+
+        if action_name in ("skill_pomodoro", "pomodoro"):
+            return "Đã cập nhật chế độ tập trung Pomodoro cho Ngài."
+
+        if action_name in ("skill_note_taker", "note_taker"):
+            return "Đã xử lý ghi chú cá nhân cho Ngài."
+
+        if action_name in ("skill_calculator", "calculator"):
+            return "Đã thực hiện tính toán cho Ngài."
+
+        if action_name in ("skill_file_manager", "file_manager"):
+            return "Đang tìm kiếm file cho Ngài."
+
+        if action_name in ("skill_git_assistant", "git_assistant"):
+            return "Đang kiểm tra trạng thái Git cho Ngài."
+
+        if action_name in ("skill_clipboard", "clipboard"):
+            return "Đã xử lý thao tác clipboard cho Ngài."
+
+        if action_name in ("skill_app_launcher", "app_launcher"):
+            return "Đang khởi chạy ứng dụng cho Ngài."
+
+        if action_name in ("skill_system_control", "system_control"):
+            return "Đã thực thi điều khiển hệ thống cho Ngài."
+
         # 14. Fallback (Category 7)
         return "Tôi chưa hiểu lệnh này, vui lòng thử cách khác"
 
@@ -1543,6 +1658,8 @@ class LLMIntentRouter:
             mem_ctx = None
             if self.memory_manager:
                 try:
+                    mem_ctx = self.memory_manager.get_system_prompt_context(query=text)
+                except TypeError:
                     mem_ctx = self.memory_manager.get_system_prompt_context()
                 except Exception as e:
                     logger.debug("Failed to get memory system prompt context: %s", e)

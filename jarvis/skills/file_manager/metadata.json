@@ -1,0 +1,58 @@
+{
+  "name": "file_manager",
+  "version": "1.0.0",
+  "description": "Tìm kiếm file theo tên/phần mở rộng hoặc mở các thư mục hệ thống (Downloads, Documents, Desktop).",
+  "parameters_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "search",
+          "open_folder",
+          "list_folder"
+        ],
+        "description": "Hành động: search (tìm kiếm), open_folder (mở thư mục), list_folder (liệt kê)",
+        "default": "search"
+      },
+      "query": {
+        "type": "string",
+        "description": "Tên file hoặc từ khóa cần tìm kiếm",
+        "default": ""
+      },
+      "directory": {
+        "type": "string",
+        "description": "Đường dẫn thư mục hoặc tên thư mục (downloads, documents, desktop, workspace)",
+        "default": ""
+      },
+      "extension": {
+        "type": "string",
+        "description": "Phần mở rộng file (e.g. pdf, txt, png, py)",
+        "default": ""
+      },
+      "max_results": {
+        "type": "integer",
+        "description": "Số lượng kết quả tối đa",
+        "default": 10
+      }
+    },
+    "required": []
+  },
+  "return_schema": null,
+  "tags": [
+    "file",
+    "folder",
+    "search",
+    "filesystem",
+    "system"
+  ],
+  "synthesized_by": "jarvis_builtin_system",
+  "created_at": 1787839217.192897,
+  "updated_at": 1787896474.6297703,
+  "invocation_count": 14,
+  "success_count": 14,
+  "failure_count": 0,
+  "total_latency_ms": 51.093999999068274,
+  "success_rate": 1.0,
+  "avg_latency_ms": 3.65
+}

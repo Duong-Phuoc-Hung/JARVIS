@@ -1,0 +1,50 @@
+{
+  "name": "system_control",
+  "version": "1.0.0",
+  "description": "Điều khiển hệ thống máy tính Windows (âm lượng, độ sáng, chụp màn hình, show desktop, lock).",
+  "parameters_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "volume_up",
+          "volume_down",
+          "mute",
+          "set_volume",
+          "screenshot",
+          "show_desktop",
+          "lock_screen"
+        ],
+        "description": "Lệnh điều khiển hệ thống",
+        "default": "volume_up"
+      },
+      "value": {
+        "type": "integer",
+        "description": "Giá trị số (phần trăm âm lượng 0-100 hoặc mức tăng/giảm)",
+        "default": 10
+      }
+    },
+    "required": [
+      "action"
+    ]
+  },
+  "return_schema": null,
+  "tags": [
+    "system",
+    "volume",
+    "screen",
+    "screenshot",
+    "windows",
+    "control"
+  ],
+  "synthesized_by": "jarvis_builtin_system",
+  "created_at": 1787839217.2987947,
+  "updated_at": 1787896474.797278,
+  "invocation_count": 14,
+  "success_count": 14,
+  "failure_count": 0,
+  "total_latency_ms": 155.25680000024522,
+  "success_rate": 1.0,
+  "avg_latency_ms": 11.09
+}

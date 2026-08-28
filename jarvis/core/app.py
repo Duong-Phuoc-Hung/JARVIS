@@ -69,6 +69,7 @@ from jarvis.web.hub import WebIntelligenceHub
 from jarvis.automation.control import ComputerController
 from jarvis.automation.safety_gate import SafetyGate
 from jarvis.automation.shell_assistant import ShellAssistant
+from jarvis.platform.hotkeys import GlobalHotkeyManager
 from jarvis.proactive.engine import ProactiveEngine
 
 # Autonomous Superpower Subsystems (Milestones 1-5)
@@ -147,6 +148,9 @@ class JarvisApp:
 
         # 8. Hardware Telemetry & Diagnostics
         self.hardware_reporter: Optional[HardwareReporter] = None
+
+        # 8b. System-Wide Hotkey Shortcuts
+        self.hotkey_manager: Optional[GlobalHotkeyManager] = None
 
         # 9. Autonomous Superpower Subsystems (Milestones 1-5)
         self.safety_interceptor: Optional[SafetyGateInterceptor] = None
@@ -446,7 +450,13 @@ class JarvisApp:
             if hasattr(self.tray_controller, "wake_word_detector"):
                 self.tray_controller.wake_word_detector = self.wake_word_detector
 
-        # 24. Signal Handlers
+        # 24. Global Keyboard Hotkey Manager
+        hotkey_cfg = self.config.get("hotkeys", {})
+        if hotkey_cfg.get("enabled", True):
+            self.hotkey_manager = GlobalHotkeyManager(is_mock=self.headless)
+            self._register_default_hotkeys()
+
+        # 25. Signal Handlers
         if threading.current_thread() is threading.main_thread():
             try:
                 signal.signal(signal.SIGINT, self._handle_signal)
@@ -457,6 +467,37 @@ class JarvisApp:
         log.info("All JARVIS Core & Autonomous Agentic Subsystems successfully initialized.")
         self._initialized = True
         return self
+
+    def _register_default_hotkeys(self) -> None:
+        """Register default system-wide keyboard shortcuts."""
+        if not self.hotkey_manager:
+            return
+
+        def _toggle_overlay_cb():
+            if self.overlay:
+                self.overlay.toggle()
+
+        def _ptt_voice_cb():
+            threading.Thread(target=self._handle_voice_command, kwargs={"trigger_name": "HOTKEY_PTT"}, daemon=True).start()
+
+        def _toggle_wake_word_cb():
+            if self.wake_word_detector:
+                new_state = self.wake_word_detector.toggle_enabled()
+                msg = f"Đã {'bật' if new_state else 'tắt'} nhận diện từ khóa Hey JARVIS."
+                if self.tts_manager:
+                    self.tts_manager.speak(msg, wait=False)
+
+        def _briefing_cb():
+            threading.Thread(target=self._handle_morning_briefing, daemon=True).start()
+
+        def _status_cb():
+            threading.Thread(target=self._handle_system_status, daemon=True).start()
+
+        self.hotkey_manager.register("Ctrl+Shift+J", _toggle_overlay_cb, "Bật/tắt giao diện HUD JARVIS")
+        self.hotkey_manager.register("Ctrl+Shift+L", _ptt_voice_cb, "Ghi âm lệnh giọng nói tức thì (PTT)")
+        self.hotkey_manager.register("Ctrl+Shift+M", _toggle_wake_word_cb, "Bật/tắt lắng nghe Hey JARVIS")
+        self.hotkey_manager.register("Ctrl+Shift+B", _briefing_cb, "Báo cáo tổng hợp buổi sáng")
+        self.hotkey_manager.register("Ctrl+Shift+S", _status_cb, "Kiểm tra tình trạng phần cứng hệ thống")
 
     def _register_core_actions(self) -> None:
         """Register built-in system and expansion actions into ActionDispatcher."""
@@ -1821,6 +1862,14 @@ class JarvisApp:
             except Exception as e:
                 log.warning("System Tray failed to start: %s", e)
 
+        # Start Global Hotkey Manager
+        if self.hotkey_manager:
+            try:
+                self.hotkey_manager.start()
+                log.info("Global Keyboard Hotkey Manager started.")
+            except Exception as e:
+                log.warning("Global Hotkey Manager failed to start: %s", e)
+
         # Startup self-introduction speech
         if self.tts_manager:
             try:
@@ -1875,6 +1924,11 @@ class JarvisApp:
             self.overlay.destroy()
         if self.tray_controller:
             self.tray_controller.stop()
+        if self.hotkey_manager:
+            try:
+                self.hotkey_manager.stop()
+            except Exception as e:
+                log.debug("Error stopping hotkey manager: %s", e)
         if self.dashboard_server:
             self.dashboard_server.stop()
         if self.audio_engine:

@@ -1,0 +1,10 @@
+{
+  "name": "screen_context",
+  "display_name": "Context-Aware Screen Assistant",
+  "description": "Nhìn và hiểu nội dung màn hình hiện tại: tóm tắt bài báo, giải thích lỗi code, dịch văn bản",
+  "version": "1.0.0",
+  "author": "JARVIS Core Team",
+  "tags": ["vision", "screen", "summarize", "translate", "explain", "analyze"],
+  "hotkey": "Ctrl+Shift+Space",
+  "actions": ["summarize", "explain_error", "translate", "describe", "analyze"]
+}

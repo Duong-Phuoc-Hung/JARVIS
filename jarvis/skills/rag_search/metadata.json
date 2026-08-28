@@ -1,0 +1,9 @@
+{
+  "name": "rag_search",
+  "display_name": "Semantic Memory Search",
+  "description": "Tìm kiếm thông minh trong toàn bộ ký ức và lịch sử JARVIS bằng ngữ nghĩa",
+  "version": "1.0.0",
+  "author": "JARVIS Core Team",
+  "tags": ["rag", "search", "memory", "semantic", "recall", "vector"],
+  "actions": ["search", "index", "stats", "clear"]
+}

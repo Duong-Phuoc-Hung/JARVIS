@@ -1,0 +1,58 @@
+{
+  "name": "calculator",
+  "version": "1.0.0",
+  "description": "Thực hiện tính toán biểu thức toán học, phần trăm, và chuyển đổi đơn vị/tiền tệ an toàn.",
+  "parameters_schema": {
+    "type": "object",
+    "properties": {
+      "expression": {
+        "type": "string",
+        "description": "Biểu thức toán học cần tính (e.g. '15% * 2000000', '125 * 48 - 300', 'sqrt(144) + 2^5')",
+        "default": ""
+      },
+      "action": {
+        "type": "string",
+        "enum": [
+          "eval",
+          "convert_currency",
+          "percentage"
+        ],
+        "description": "Hành động tính toán",
+        "default": "eval"
+      },
+      "amount": {
+        "type": "number",
+        "description": "Số tiền hoặc giá trị cần chuyển đổi",
+        "default": 1.0
+      },
+      "currency_from": {
+        "type": "string",
+        "description": "Mã tiền tệ gốc (e.g. USD, EUR, VND, JPY)",
+        "default": "USD"
+      },
+      "currency_to": {
+        "type": "string",
+        "description": "Mã tiền tệ đích (e.g. VND, USD)",
+        "default": "VND"
+      }
+    },
+    "required": []
+  },
+  "return_schema": null,
+  "tags": [
+    "math",
+    "calculator",
+    "currency",
+    "converter",
+    "finance"
+  ],
+  "synthesized_by": "jarvis_builtin_system",
+  "created_at": 1787839217.2624567,
+  "updated_at": 1787896474.7764854,
+  "invocation_count": 24,
+  "success_count": 24,
+  "failure_count": 0,
+  "total_latency_ms": 3.657499999803804,
+  "success_rate": 1.0,
+  "avg_latency_ms": 0.15
+}

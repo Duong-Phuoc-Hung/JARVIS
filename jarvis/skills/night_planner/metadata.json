@@ -1,0 +1,9 @@
+{
+  "name": "night_planner",
+  "display_name": "Night Shift Task Planner",
+  "description": "Đặt lịch tác vụ lớn để JARVIS tự thực hiện xuyên đêm và báo cáo sáng hôm sau",
+  "version": "1.0.0",
+  "author": "JARVIS Core Team",
+  "tags": ["night", "autonomous", "schedule", "overnight", "batch", "planner"],
+  "actions": ["add", "list", "cancel", "report", "run_now"]
+}

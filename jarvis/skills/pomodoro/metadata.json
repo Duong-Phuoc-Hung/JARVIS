@@ -1,0 +1,49 @@
+{
+  "name": "pomodoro",
+  "version": "1.0.0",
+  "description": "Điều khiển phiên làm việc tập trung Pomodoro (start, status, stop, pause).",
+  "parameters_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "start",
+          "status",
+          "stop",
+          "pause",
+          "resume"
+        ],
+        "description": "Hành động Pomodoro: start, status, stop, pause, resume",
+        "default": "start"
+      },
+      "duration_minutes": {
+        "type": "integer",
+        "description": "Thời lượng làm việc tập trung (phút)",
+        "default": 25
+      },
+      "break_minutes": {
+        "type": "integer",
+        "description": "Thời lượng nghỉ giải lao (phút)",
+        "default": 5
+      }
+    },
+    "required": []
+  },
+  "return_schema": null,
+  "tags": [
+    "pomodoro",
+    "focus",
+    "productivity",
+    "timer"
+  ],
+  "synthesized_by": "jarvis_builtin_system",
+  "created_at": 1787839217.253563,
+  "updated_at": 1787896474.7193549,
+  "invocation_count": 35,
+  "success_count": 35,
+  "failure_count": 0,
+  "total_latency_ms": 0.586100000191,
+  "success_rate": 1.0,
+  "avg_latency_ms": 0.02
+}

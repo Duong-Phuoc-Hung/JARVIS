@@ -1,0 +1,9 @@
+{
+  "name": "skill_synthesizer",
+  "display_name": "Self-Coding Skill Synthesizer",
+  "description": "Tự động sinh kỹ năng mới từ mô tả tiếng Việt, viết code, test và đăng ký vào hệ thống ngay lập tức",
+  "version": "1.0.0",
+  "author": "JARVIS Core Team",
+  "tags": ["meta", "self-coding", "synthesize", "generate", "learn", "dynamic"],
+  "actions": ["create", "preview", "list", "delete"]
+}

@@ -112,6 +112,10 @@ class SystemTrayController:
 
         # Standard menu items list for contract compatibility
         self.menu_items: List[str] = [
+            "Toggle HUD Overlay",
+            "Morning Briefing",
+            "Focus Mode (Pomodoro)",
+            "System Status",
             "Enable Detection",
             "Mute Microphone",
             "Toggle Hand Gestures",
@@ -202,6 +206,11 @@ class SystemTrayController:
         menu = pystray.Menu(
             pystray.MenuItem(_get_status_text, None, enabled=False),
             pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Toggle HUD Overlay (Ctrl+Shift+J)", self._on_toggle_overlay),
+            pystray.MenuItem("Morning Briefing (Ctrl+Shift+B)", self._on_morning_briefing),
+            pystray.MenuItem("Focus Mode / Pomodoro", self._on_focus_mode),
+            pystray.MenuItem("System Health Status", self._on_system_status),
+            pystray.Menu.SEPARATOR,
             pystray.MenuItem(_get_mute_text, self._on_toggle_mute),
             pystray.MenuItem(_get_gesture_text, self._on_toggle_gestures),
             pystray.MenuItem(_get_wakeword_text, self._on_toggle_wakeword),
@@ -257,6 +266,29 @@ class SystemTrayController:
     # -----------------------------------------------------------------------
     # Context Menu Action Handlers
     # -----------------------------------------------------------------------
+    def _on_toggle_overlay(self, icon: Any = None, item: Any = None) -> None:
+        logger.info("Tray: Toggle HUD Overlay clicked.")
+        if self.app and hasattr(self.app, "overlay") and self.app.overlay:
+            self.app.overlay.toggle()
+
+    def _on_morning_briefing(self, icon: Any = None, item: Any = None) -> None:
+        logger.info("Tray: Morning Briefing clicked.")
+        if self.app:
+            if hasattr(self.app, "_handle_morning_briefing"):
+                threading.Thread(target=self.app._handle_morning_briefing, daemon=True).start()
+            elif hasattr(self.app, "dispatcher") and self.app.dispatcher:
+                threading.Thread(target=self.app.dispatcher.dispatch, args=("skill_briefing", {}), daemon=True).start()
+
+    def _on_focus_mode(self, icon: Any = None, item: Any = None) -> None:
+        logger.info("Tray: Focus Mode clicked.")
+        if self.app and hasattr(self.app, "proactive_engine") and self.app.proactive_engine:
+            self.app.proactive_engine.start_pomodoro()
+
+    def _on_system_status(self, icon: Any = None, item: Any = None) -> None:
+        logger.info("Tray: System Status clicked.")
+        if self.app and hasattr(self.app, "_handle_system_status"):
+            threading.Thread(target=self.app._handle_system_status, daemon=True).start()
+
     def _on_toggle_mute(self, icon: Any = None, item: Any = None) -> None:
         self._is_mic_muted = not self._is_mic_muted
         if self._is_mic_muted:

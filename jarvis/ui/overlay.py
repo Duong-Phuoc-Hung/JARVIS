@@ -581,6 +581,14 @@ class AlwaysOnOverlay:
         else:
             self.minimize_to_arc_reactor()
 
+    def toggle(self) -> None:
+        """Toggles overlay visibility and expansion state."""
+        if self._is_collapsed or self._is_minimized or self._state == OverlayState.HIDDEN:
+            self.expand_sidebar()
+            self.show()
+        else:
+            self.collapse_sidebar()
+
     def dock_to_right(self) -> None:
         """Snaps window to the right edge of screen."""
         self._schedule(self._do_dock_to_right)

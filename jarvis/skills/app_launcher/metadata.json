@@ -1,0 +1,40 @@
+{
+  "name": "app_launcher",
+  "version": "1.0.0",
+  "description": "Khởi chạy các ứng dụng phổ biến trên máy tính (Chrome, VS Code, Spotify, Notepad, Calculator, Explorer, Terminal).",
+  "parameters_schema": {
+    "type": "object",
+    "properties": {
+      "app_name": {
+        "type": "string",
+        "description": "Tên ứng dụng cần mở (e.g. chrome, vscode, spotify, notepad, calc, terminal, explorer)",
+        "default": "notepad"
+      },
+      "args": {
+        "type": "string",
+        "description": "Tham số bổ sung khi khởi chạy",
+        "default": ""
+      }
+    },
+    "required": [
+      "app_name"
+    ]
+  },
+  "return_schema": null,
+  "tags": [
+    "app",
+    "launcher",
+    "open",
+    "system",
+    "windows"
+  ],
+  "synthesized_by": "jarvis_builtin_system",
+  "created_at": 1787839217.8560314,
+  "updated_at": 1787896476.2830758,
+  "invocation_count": 7,
+  "success_count": 7,
+  "failure_count": 0,
+  "total_latency_ms": 5589.121600000112,
+  "success_rate": 1.0,
+  "avg_latency_ms": 798.45
+}

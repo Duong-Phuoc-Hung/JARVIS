@@ -1,0 +1,53 @@
+{
+  "name": "note_taker",
+  "version": "1.0.0",
+  "description": "Lưu, tra cứu và quản lý ghi chú cá nhân nhanh với nhãn tag và thời gian.",
+  "parameters_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "add",
+          "list",
+          "search",
+          "clear"
+        ],
+        "description": "Hành động: add (thêm), list (danh sách), search (tìm kiếm), clear (xóa)",
+        "default": "add"
+      },
+      "content": {
+        "type": "string",
+        "description": "Nội dung ghi chú cần lưu",
+        "default": ""
+      },
+      "tag": {
+        "type": "string",
+        "description": "Thẻ phân loại ghi chú (e.g. work, personal, idea, urgent)",
+        "default": "general"
+      },
+      "query": {
+        "type": "string",
+        "description": "Từ khóa tìm kiếm trong ghi chú",
+        "default": ""
+      }
+    },
+    "required": []
+  },
+  "return_schema": null,
+  "tags": [
+    "note",
+    "memo",
+    "productivity",
+    "memory"
+  ],
+  "synthesized_by": "jarvis_builtin_system",
+  "created_at": 1787839217.234379,
+  "updated_at": 1787896481.60048,
+  "invocation_count": 26,
+  "success_count": 26,
+  "failure_count": 0,
+  "total_latency_ms": 25.251199999672735,
+  "success_rate": 1.0,
+  "avg_latency_ms": 0.97
+}

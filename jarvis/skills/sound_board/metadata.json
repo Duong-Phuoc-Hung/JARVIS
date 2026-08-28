@@ -1,0 +1,9 @@
+{
+  "name": "sound_board",
+  "display_name": "Sound Board & Audio Feedback",
+  "description": "Phát âm thanh phản hồi điện ảnh Stark UI: kích hoạt, hoàn thành, cảnh báo lỗi",
+  "version": "1.0.0",
+  "author": "JARVIS Core Team",
+  "tags": ["audio", "sound", "alarm", "alert", "feedback", "stark"],
+  "actions": ["chime", "play", "alarm", "alert", "stop"]
+}

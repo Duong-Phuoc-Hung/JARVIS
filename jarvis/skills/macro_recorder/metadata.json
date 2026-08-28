@@ -1,0 +1,9 @@
+{
+  "name": "macro_recorder",
+  "display_name": "Voice Macro Recorder",
+  "description": "Dạy và phát lại quy trình thao tác máy tính bằng giọng nói",
+  "version": "1.0.0",
+  "author": "JARVIS Core Team",
+  "tags": ["macro", "automation", "record", "playback", "workflow"],
+  "actions": ["record", "play", "list", "delete", "stop"]
+}

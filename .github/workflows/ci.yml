@@ -1,0 +1,109 @@
+name: JARVIS CI — Tests & Health Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Unit Tests & Health Check
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        env:
+          PYTHONDONTWRITEBYTECODE: 1
+
+      - name: 🧪 Run full unit test suite
+        run: |
+          python -m pytest tests/unit/ -q --tb=short --no-header -rN
+        env:
+          PYTHONIOENCODING: utf-8
+          JARVIS_HEADLESS: "1"
+          JARVIS_MOCK_AUDIO: "1"
+
+      - name: 🩺 Health check
+        run: |
+          python -m jarvis health-check --format json > reports/ci_health.json || echo "{}" > reports/ci_health.json
+          python -c "
+          import json, pathlib
+          p = pathlib.Path('reports/ci_health.json')
+          if p.exists():
+              d = json.loads(p.read_text())
+              total = len(d)
+              ready = sum(1 for v in d.values() if isinstance(v, dict) and v.get('status') == 'ready')
+              print(f'Health: {ready}/{total} subsystems READY')
+          "
+        env:
+          PYTHONIOENCODING: utf-8
+          JARVIS_HEADLESS: "1"
+        continue-on-error: true
+
+      - name: 📊 Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: reports/
+          retention-days: 7
+
+  lint:
+    name: Code Quality
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 📦 Install lint tools
+        run: pip install pyflakes
+
+      - name: 🔍 Syntax check — core modules
+        run: |
+          python -m py_compile jarvis/__init__.py
+          python -m py_compile jarvis/audio/vad.py
+          python -m py_compile jarvis/audio/fullduplex.py
+          python -m py_compile jarvis/audio/sound_effects.py
+          python -m py_compile jarvis/tts/piper.py
+          python -m py_compile jarvis/stt/faster_whisper.py
+          python -m py_compile jarvis/memory/vector_store.py
+          python -m py_compile jarvis/workers/night_shift.py
+          python -m py_compile jarvis/comms/discord.py
+          python -m py_compile jarvis/comms/mobile_bridge.py
+          python -m py_compile jarvis/smart_home/discovery.py
+        env:
+          PYTHONIOENCODING: utf-8
+
+      - name: 🔍 Syntax check — skills
+        run: |
+          python -m py_compile jarvis/skills/screen_context/__init__.py
+          python -m py_compile jarvis/skills/macro_recorder/__init__.py
+          python -m py_compile jarvis/skills/skill_synthesizer/__init__.py
+          python -m py_compile jarvis/skills/rag_search/__init__.py
+          python -m py_compile jarvis/skills/night_planner/__init__.py
+          python -m py_compile jarvis/skills/smart_home_discovery/__init__.py
+          python -m py_compile jarvis/skills/sound_board/__init__.py
+        env:
+          PYTHONIOENCODING: utf-8

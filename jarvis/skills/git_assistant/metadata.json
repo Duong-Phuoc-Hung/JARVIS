@@ -1,0 +1,49 @@
+{
+  "name": "git_assistant",
+  "version": "1.0.0",
+  "description": "Hỗ trợ các tác vụ Git trong repository (status, log, diff summary, current branch).",
+  "parameters_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "status",
+          "branch",
+          "log",
+          "summary"
+        ],
+        "description": "Lệnh Git: status, branch, log, summary",
+        "default": "status"
+      },
+      "repo_path": {
+        "type": "string",
+        "description": "Đường dẫn repo Git",
+        "default": ""
+      },
+      "limit": {
+        "type": "integer",
+        "description": "Số lượng commits tối đa khi xem log",
+        "default": 5
+      }
+    },
+    "required": []
+  },
+  "return_schema": null,
+  "tags": [
+    "git",
+    "vcs",
+    "developer",
+    "code",
+    "repository"
+  ],
+  "synthesized_by": "jarvis_builtin_system",
+  "created_at": 1787839217.3088331,
+  "updated_at": 1787896475.1421492,
+  "invocation_count": 21,
+  "success_count": 21,
+  "failure_count": 0,
+  "total_latency_ms": 1642.065099999627,
+  "success_rate": 1.0,
+  "avg_latency_ms": 78.19
+}
