@@ -16,7 +16,9 @@ Covers:
 from __future__ import annotations
 
 import concurrent.futures
+import ctypes
 import time
+from ctypes import wintypes
 from typing import List
 from unittest.mock import MagicMock, patch
 
@@ -33,7 +35,36 @@ from jarvis.ui.overlay import (
     TurnRecord,
     _safe_probe_battery,
     _safe_probe_cpu_ram,
+    _valid_battery_percent,
 )
+
+
+class _MirrorSystemPowerStatus(ctypes.Structure):
+    """
+    Layout-identical mirror of the SYSTEM_POWER_STATUS struct defined inside
+    _safe_probe_battery(), used to poke values into the real struct instance
+    via the pointer a mocked GetSystemPowerStatus receives.
+    """
+    _fields_ = [
+        ("ACLineStatus", wintypes.BYTE),
+        ("BatteryFlag", wintypes.BYTE),
+        ("BatteryLifePercent", ctypes.c_ubyte),
+        ("SystemStatusFlag", wintypes.BYTE),
+        ("BatteryLifeTime", wintypes.DWORD),
+        ("BatteryFullLifeTime", wintypes.DWORD),
+    ]
+
+
+def _make_gsps_side_effect(battery_life_percent: int, ac_line_status: int = 0, battery_flag: int = 0):
+    """Builds a GetSystemPowerStatus side_effect that fills in the struct behind the pointer it receives."""
+    def _side_effect(sps_ptr):
+        real = ctypes.cast(sps_ptr, ctypes.POINTER(_MirrorSystemPowerStatus)).contents
+        real.ACLineStatus = ac_line_status
+        real.BatteryFlag = battery_flag
+        real.BatteryLifePercent = battery_life_percent
+        real.SystemStatusFlag = 0
+        return 1
+    return _side_effect
 
 
 def test_overlay_constants_and_dataclasses():
@@ -378,6 +409,67 @@ def test_safe_probe_battery_no_battery_present():
         bat, charging = _safe_probe_battery()
     assert bat is None
     assert charging is False
+
+
+# ---------------------------------------------------------------------------
+# _valid_battery_percent: pure validation logic, version-independent.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        (42, 42),        # ordinary valid reading
+        (0, 0),          # lower boundary, valid
+        (100, 100),      # upper boundary, valid
+        (-1, None),      # Python < 3.12 signed-byte reading of Win32's 0xFF "unknown" sentinel
+        (255, None),     # Python >= 3.12 unsigned-byte reading of the same 0xFF sentinel
+        (101, None),     # any other out-of-range value must also be rejected
+    ],
+)
+def test_valid_battery_percent(raw, expected):
+    """Verify the 0..100 validation contract directly, independent of ctypes/Python version."""
+    assert _valid_battery_percent(raw) == expected
+
+
+# ---------------------------------------------------------------------------
+# _safe_probe_battery(): Windows GetSystemPowerStatus path.
+# ---------------------------------------------------------------------------
+
+def test_safe_probe_battery_windows_api_valid_percentage():
+    """A valid BatteryLifePercent from GetSystemPowerStatus passes through unchanged."""
+    with patch(
+        "ctypes.windll.kernel32.GetSystemPowerStatus",
+        side_effect=_make_gsps_side_effect(battery_life_percent=42, ac_line_status=1),
+    ):
+        bat, charging = _safe_probe_battery()
+    assert bat == 42
+    assert charging is True
+
+
+def test_safe_probe_battery_windows_api_unsigned_sentinel_255():
+    """
+    Regression test for the real Win32 "unknown battery" sentinel: BatteryLifePercent=0xFF (255).
+    On Python >= 3.12, ctypes.wintypes.BYTE reads this as unsigned 255.
+    Must be rejected as None, not returned as a bogus 255% reading.
+    """
+    with patch(
+        "ctypes.windll.kernel32.GetSystemPowerStatus",
+        side_effect=_make_gsps_side_effect(battery_life_percent=255, ac_line_status=0, battery_flag=8),
+    ):
+        bat, charging = _safe_probe_battery()
+    assert bat is None
+    # Charging state is still derived from ACLineStatus/BatteryFlag independently of pct validity.
+    assert charging is True
+
+
+def test_safe_probe_battery_windows_api_signed_sentinel_negative_one():
+    """
+    Regression test for the same 0xFF sentinel as read on Python < 3.12, where
+    ctypes.wintypes.BYTE was signed c_byte and exposed it as -1 instead of 255.
+    _valid_battery_percent() must reject -1 just as it rejects 255, so the
+    contract holds regardless of Python version.
+    """
+    assert _valid_battery_percent(-1) is None
 
 
 def test_overlay_single_arg_show_response():
