@@ -158,6 +158,7 @@ jobs:
             "requests" `
             "psutil" `
             "pyperclip" `
+            "elevenlabs" `
             "pytest>=8" `
             "pytest-subtests" `
             "pytest-timeout" `
