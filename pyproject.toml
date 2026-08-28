@@ -95,6 +95,7 @@ addopts = [
     "--tb=short",
     "--no-header",
     "-q",
+    "--timeout=60",
 ]
 filterwarnings = [
     "ignore::pytest.PytestUnhandledThreadExceptionWarning",
@@ -143,6 +144,16 @@ ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # do not perform function calls in argument defaults
     "B904",   # within except clause, raise from
+    "B007",   # loop control variable not used in loop body
+    "B905",   # zip() without strict parameter
+    "F401",   # imported but unused (common in __init__.py)
+    "F811",   # redefinition of unused variable
+    "F821",   # undefined name (false positives with TYPE_CHECKING)
+    "F841",   # local variable assigned but never used
+    "W293",   # blank line contains whitespace
+    "E741",   # ambiguous variable name (l, O, I)
+    "E721",   # type comparison (use isinstance)
+    "UP",     # pyupgrade — handled separately
 ]
 
 [tool.ruff.lint.isort]

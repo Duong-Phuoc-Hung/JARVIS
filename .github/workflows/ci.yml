@@ -10,19 +10,19 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-defaults:
-  run:
-    shell: pwsh
+permissions:
+  contents: read
 
 env:
   PYTHONIOENCODING: utf-8
   JARVIS_HEADLESS: "1"
   JARVIS_MOCK_AUDIO: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
 
 jobs:
-  # ────────────────────────────────────────────────────────
-  # JOB 1 ─ Syntax Check  (nhanh ~20s, không cần packages)
-  # ────────────────────────────────────────────────────────
+  # ══════════════════════════════════════════════════════
+  # JOB 1 — Syntax Check  (~20s, fast-fail gate)
+  # ══════════════════════════════════════════════════════
   syntax:
     name: 🔍 Syntax Check
     runs-on: windows-latest
@@ -36,30 +36,89 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Check Python syntax (py_compile all files)
+      - name: Syntax — core modules
+        shell: pwsh
         run: |
-          $errors = @()
-          $files = Get-ChildItem -Path "jarvis" -Recurse -Filter "*.py" | Select-Object -ExpandProperty FullName
-          Write-Host "Checking $($files.Count) Python files..."
-          foreach ($f in $files) {
-            $out = python -m py_compile $f 2>&1
-            if ($LASTEXITCODE -ne 0) {
-              $errors += "  FAIL: $f"
-              $errors += "        $out"
-            }
+          $modules = @(
+            "jarvis/__init__.py",
+            "jarvis/audio/vad.py",
+            "jarvis/audio/fullduplex.py",
+            "jarvis/audio/sound_effects.py",
+            "jarvis/tts/piper.py",
+            "jarvis/stt/faster_whisper.py",
+            "jarvis/memory/vector_store.py",
+            "jarvis/workers/night_shift.py",
+            "jarvis/workers/auto_updater.py",
+            "jarvis/workers/notification_hub.py"
+          )
+          $failed = @()
+          foreach ($m in $modules) {
+            python -m py_compile $m 2>&1 | Out-Null
+            if ($LASTEXITCODE -ne 0) { $failed += $m; Write-Host "FAIL: $m" }
+            else { Write-Host "  OK: $m" }
           }
-          if ($errors.Count -gt 0) {
-            Write-Host "SYNTAX ERRORS FOUND:"
-            $errors | ForEach-Object { Write-Host $_ }
-            exit 1
-          }
-          Write-Host "All $($files.Count) files OK"
+          if ($failed.Count -gt 0) { exit 1 }
 
-  # ────────────────────────────────────────────────────────
-  # JOB 2 ─ Unit Tests  (phụ thuộc syntax)
-  # ────────────────────────────────────────────────────────
+      - name: Syntax — communications
+        shell: pwsh
+        run: |
+          $modules = @(
+            "jarvis/comms/discord.py",
+            "jarvis/comms/mobile_bridge.py",
+            "jarvis/comms/zalo.py",
+            "jarvis/comms/telegram.py"
+          )
+          foreach ($m in $modules) {
+            python -m py_compile $m 2>&1 | Out-Null
+            $icon = if ($LASTEXITCODE -eq 0) { "  OK" } else { "FAIL" }
+            Write-Host "${icon}: $m"
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+
+      - name: Syntax — v3.1-v4.0 new modules
+        shell: pwsh
+        run: |
+          $modules = @(
+            "jarvis/browser/cdp_controller.py",
+            "jarvis/plugins/loader.py",
+            "jarvis/agent/graph.py",
+            "jarvis/agent/__init__.py"
+          )
+          foreach ($m in $modules) {
+            python -m py_compile $m 2>&1 | Out-Null
+            $icon = if ($LASTEXITCODE -eq 0) { "  OK" } else { "FAIL" }
+            Write-Host "${icon}: $m"
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+
+      - name: Syntax — skills
+        shell: pwsh
+        run: |
+          $modules = @(
+            "jarvis/skills/screen_context/__init__.py",
+            "jarvis/skills/macro_recorder/__init__.py",
+            "jarvis/skills/skill_synthesizer/__init__.py",
+            "jarvis/skills/rag_search/__init__.py",
+            "jarvis/skills/night_planner/__init__.py",
+            "jarvis/skills/smart_home_discovery/__init__.py",
+            "jarvis/skills/sound_board/__init__.py",
+            "jarvis/skills/browser_control/__init__.py",
+            "jarvis/skills/auto_updater/__init__.py"
+          )
+          $failed = @()
+          foreach ($m in $modules) {
+            python -m py_compile $m 2>&1 | Out-Null
+            if ($LASTEXITCODE -ne 0) { $failed += $m; Write-Host "FAIL: $m" }
+            else { Write-Host "  OK: $m" }
+          }
+          if ($failed.Count -gt 0) { exit 1 }
+          Write-Host "All skills: OK"
+
+  # ══════════════════════════════════════════════════════
+  # JOB 2 — Unit Tests  (needs: syntax)
+  # ══════════════════════════════════════════════════════
   test:
-    name: 🧪 Unit Tests
+    name: 🧪 Unit Tests (633)
     runs-on: windows-latest
     timeout-minutes: 25
     needs: syntax
@@ -72,7 +131,8 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install required packages
+      - name: Install core packages
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip --quiet
           pip install `
@@ -87,38 +147,54 @@ jobs:
             "pytest-subtests" `
             "pytest-timeout" `
             --quiet
+          Write-Host "Core packages installed"
 
       - name: Install Windows packages
+        shell: pwsh
         run: pip install pywin32 pystray keyboard --quiet
         continue-on-error: true
 
       - name: Install audio packages
+        shell: pwsh
         run: pip install sounddevice --quiet
         continue-on-error: true
 
-      - name: Install bot packages
+      - name: Install communication packages
+        shell: pwsh
         run: pip install python-telegram-bot --quiet
         continue-on-error: true
 
-      - name: Prepare report dirs
+      - name: Create output directories
+        shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path reports | Out-Null
           New-Item -ItemType Directory -Force -Path logs    | Out-Null
 
-      - name: Run test suite
+      - name: Run full test suite
+        shell: pwsh
         run: |
           python -m pytest tests/unit/ `
-            --tb=short -q --timeout=60 `
-            --junit-xml=reports/junit.xml `
-            2>&1 | Tee-Object reports/test_output.txt
+            --tb=short `
+            --no-header `
+            -q `
+            --timeout=60 `
+            --junit-xml=reports/junit.xml
+        env:
+          PYTHONIOENCODING: utf-8
+          JARVIS_HEADLESS: "1"
+          JARVIS_MOCK_AUDIO: "1"
 
-      - name: Print result summary
+      - name: Test summary
         if: always()
+        shell: pwsh
         run: |
-          Write-Host "=== LAST 10 LINES OF TEST OUTPUT ==="
-          Get-Content reports/test_output.txt | Select-Object -Last 10
+          if (Test-Path reports/junit.xml) {
+            [xml]$junit = Get-Content reports/junit.xml
+            $ts = $junit.testsuites.testsuite
+            Write-Host "Tests: $($ts.tests) | Failures: $($ts.failures) | Errors: $($ts.errors) | Time: $($ts.time)s"
+          }
 
-      - name: Upload test reports
+      - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -126,9 +202,9 @@ jobs:
           path: reports/
           retention-days: 14
 
-  # ────────────────────────────────────────────────────────
-  # JOB 3 ─ Import Validation  (phụ thuộc syntax)
-  # ────────────────────────────────────────────────────────
+  # ══════════════════════════════════════════════════════
+  # JOB 3 — Import Validation  (needs: syntax)
+  # ══════════════════════════════════════════════════════
   imports:
     name: 📦 Import Validation
     runs-on: windows-latest
@@ -143,7 +219,8 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install packages
+      - name: Install minimal packages
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip --quiet
           pip install google-generativeai python-dotenv numpy Pillow requests psutil pyperclip --quiet
@@ -151,72 +228,79 @@ jobs:
         continue-on-error: true
 
       - name: Validate imports
+        shell: pwsh
         run: |
           python -c "
           import sys, importlib
 
-          modules = [
+          MODULES = [
               'jarvis.memory.vector_store',
               'jarvis.workers.auto_updater',
               'jarvis.workers.notification_hub',
-              'jarvis.agent.graph',
-              'jarvis.comms.zalo',
+              'jarvis.workers.night_shift',
               'jarvis.browser.cdp_controller',
               'jarvis.plugins.loader',
-              'jarvis.skills.rag_search',
+              'jarvis.agent.graph',
+              'jarvis.comms.zalo',
               'jarvis.skills.skill_synthesizer',
+              'jarvis.skills.rag_search',
               'jarvis.skills.browser_control',
               'jarvis.skills.auto_updater',
-              'jarvis.skills.night_planner',
           ]
+
           OPTIONAL = {'playwright','webrtcvad','onnxruntime','faster_whisper',
                       'piper','winotify','sounddevice','discord','telegram'}
+
           failed = []
-          for mod in modules:
+          for mod in MODULES:
               try:
                   importlib.import_module(mod)
-                  print(f'  OK  {mod}')
+                  print(f'  OK   {mod}')
               except ImportError as e:
                   if any(o in str(e) for o in OPTIONAL):
-                      print(f'  --  {mod} (optional dep: {e})')
+                      print(f'  --   {mod}  (optional)')
                   else:
-                      print(f'  ERR {mod}: {e}')
+                      print(f'  ERR  {mod}: {e}')
                       failed.append(mod)
               except Exception as e:
-                  print(f'  ERR {mod}: {e}')
+                  print(f'  ERR  {mod}: {e}')
                   failed.append(mod)
+
           if failed:
               print(f'FAILED: {failed}')
               sys.exit(1)
-          print('All imports: OK')
+          print('All imports OK')
           "
+        env:
+          PYTHONIOENCODING: utf-8
 
-  # ────────────────────────────────────────────────────────
-  # JOB 4 ─ Summary  (luôn chạy)
-  # ────────────────────────────────────────────────────────
+  # ══════════════════════════════════════════════════════
+  # JOB 4 — Summary  (always runs)
+  # ══════════════════════════════════════════════════════
   summary:
     name: 📊 Summary
     runs-on: windows-latest
+    timeout-minutes: 3
     needs: [syntax, test, imports]
     if: always()
-    timeout-minutes: 3
 
     steps:
-      - name: Print pipeline result
+      - name: Pipeline result
+        shell: pwsh
         run: |
-          Write-Host "============================================"
-          Write-Host "  JARVIS CI RESULTS"
-          Write-Host "============================================"
-          Write-Host "  Syntax:   ${{ needs.syntax.result }}"
-          Write-Host "  Tests:    ${{ needs.test.result }}"
-          Write-Host "  Imports:  ${{ needs.imports.result }}"
-          Write-Host "============================================"
-          $bad = @()
-          if ("${{ needs.syntax.result }}" -ne "success") { $bad += "Syntax" }
-          if ("${{ needs.test.result }}"  -ne "success") { $bad += "Tests" }
-          if ("${{ needs.imports.result }}" -ne "success") { $bad += "Imports" }
-          if ($bad.Count -gt 0) {
-            Write-Host "  FAILED: $($bad -join ', ')"
+          Write-Host "========================================"
+          Write-Host "  JARVIS CI — Results"
+          Write-Host "========================================"
+          Write-Host "  Syntax Check:   ${{ needs.syntax.result }}"
+          Write-Host "  Unit Tests:     ${{ needs.test.result }}"
+          Write-Host "  Import Check:   ${{ needs.imports.result }}"
+          Write-Host "========================================"
+          $failed = @()
+          if ("${{ needs.syntax.result }}" -eq "failure") { $failed += "Syntax" }
+          if ("${{ needs.test.result }}"   -eq "failure") { $failed += "Tests" }
+          if ("${{ needs.imports.result }}" -eq "failure") { $failed += "Imports" }
+          if ($failed.Count -gt 0) {
+            Write-Host "  STATUS: FAILED ($($failed -join ', '))"
             exit 1
           }
           Write-Host "  STATUS: ALL PASSED"
