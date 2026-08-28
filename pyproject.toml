@@ -95,7 +95,6 @@ addopts = [
     "--tb=short",
     "--no-header",
     "-q",
-    "--timeout=60",
 ]
 filterwarnings = [
     "ignore::pytest.PytestUnhandledThreadExceptionWarning",
