@@ -185,6 +185,16 @@ jobs:
           New-Item -ItemType Directory -Force -Path reports | Out-Null
           New-Item -ItemType Directory -Force -Path logs    | Out-Null
 
+      - name: Check test collection
+        shell: pwsh
+        run: |
+          python -m pytest tests/unit/ --collect-only -q 2>&1 | Select-Object -Last 5
+        env:
+          PYTHONIOENCODING: utf-8
+          JARVIS_HEADLESS: "1"
+          JARVIS_MOCK_AUDIO: "1"
+          GOOGLE_API_KEY: "test_dummy_ci_key"
+
       - name: Run 633 tests
         shell: pwsh
         run: |
@@ -192,11 +202,13 @@ jobs:
             -v `
             --tb=long `
             --timeout=120 `
-            --junit-xml=reports/junit.xml
+            --junit-xml=reports/junit.xml `
+            2>&1 | Tee-Object reports/test_output.txt
         env:
           PYTHONIOENCODING: utf-8
           JARVIS_HEADLESS: "1"
           JARVIS_MOCK_AUDIO: "1"
+          GOOGLE_API_KEY: "test_dummy_ci_key"
 
       - name: Show test summary
         if: always()
