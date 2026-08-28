@@ -24,11 +24,12 @@ against the actual runtime behavior (not just silenced type errors).
 * Fixed the morning briefing skill's crypto-price lookup (`jarvis/skills/briefing`) — called a nonexistent method
 * Fixed the visual verifier (`jarvis/vision/visual_verifier.py`) building its result from unresolved `None` image bytes instead of the already-computed fallback values
 * Added the missing `show()` method on the always-on overlay (`jarvis/ui/overlay.py`) — `toggle()` called it but it didn't exist
+* Fixed invalid battery telemetry on headless/VM systems (`jarvis/ui/overlay.py`) — `_safe_probe_battery()` now treats an invalid sentinel percentage (e.g. `-1` reported by psutil when no real battery is present) as unavailable (`None`) instead of returning it raw, while still preserving the AC-charging state; added 3 regression tests covering a valid percentage, the invalid sentinel, and no battery present
 
 ### Code quality
 * Full Ruff + mypy cleanup across `jarvis/` and `tests/` (import ordering, closure-variable binding, Optional-narrowing, etc.) — no functional changes
 * Fixed headless/mock TTS playback for GitHub Actions — `JARVIS_MOCK_AUDIO=1` now bypasses physical audio playback while preserving synthesis/cache validation
-* CI unit suite (`tests/unit/`) verified green: **635 passed**
+* CI unit suite (`tests/unit/`) verified green: **638 passed**
 * GitHub Actions verified on Python 3.13: **Syntax Check, Unit Tests, Import Validation, and Pipeline Summary all passed**
 
 > **Note:** this does **not** claim the entire `tests/` tree is green. The
