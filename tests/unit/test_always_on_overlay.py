@@ -18,6 +18,7 @@ from __future__ import annotations
 import concurrent.futures
 import time
 from typing import List
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -343,6 +344,40 @@ def test_safe_probe_functions():
     if bat is not None:
         assert 0 <= bat <= 100
     assert isinstance(charging, bool)
+
+
+def test_safe_probe_battery_valid_percentage():
+    """A valid 0..100 psutil reading passes through unchanged."""
+    fake_batt = MagicMock(percent=42, power_plugged=True)
+    with patch("ctypes.windll.kernel32.GetSystemPowerStatus", return_value=0), \
+         patch("psutil.sensors_battery", return_value=fake_batt):
+        bat, charging = _safe_probe_battery()
+    assert bat == 42
+    assert charging is True
+
+
+def test_safe_probe_battery_invalid_sentinel_returns_none():
+    """
+    Regression test: on headless runners with no real battery, psutil can
+    report a sentinel percentage (e.g. -1) instead of a real value.
+    _safe_probe_battery() must reject it and return None, not the raw sentinel.
+    """
+    fake_batt = MagicMock(percent=-1, power_plugged=False)
+    with patch("ctypes.windll.kernel32.GetSystemPowerStatus", return_value=0), \
+         patch("psutil.sensors_battery", return_value=fake_batt):
+        bat, charging = _safe_probe_battery()
+    assert bat is None
+    # Charging status is still preserved even though percent was invalid.
+    assert charging is False
+
+
+def test_safe_probe_battery_no_battery_present():
+    """When psutil reports no battery at all, returns (None, False)."""
+    with patch("ctypes.windll.kernel32.GetSystemPowerStatus", return_value=0), \
+         patch("psutil.sensors_battery", return_value=None):
+        bat, charging = _safe_probe_battery()
+    assert bat is None
+    assert charging is False
 
 
 def test_overlay_single_arg_show_response():

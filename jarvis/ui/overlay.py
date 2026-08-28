@@ -153,7 +153,11 @@ def _safe_probe_battery() -> tuple[int | None, bool]:
         import psutil
         batt = psutil.sensors_battery()
         if batt is not None:
-            return int(batt.percent), bool(batt.power_plugged)
+            charging = bool(batt.power_plugged)
+            pct = int(batt.percent)
+            if 0 <= pct <= 100:
+                return pct, charging
+            return None, charging
     except Exception:
         pass
 
