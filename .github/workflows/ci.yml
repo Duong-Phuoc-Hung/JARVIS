@@ -174,11 +174,11 @@ jobs:
         shell: pwsh
         run: |
           python -m pytest tests/unit/ `
-            --tb=short `
-            --no-header `
-            -q `
-            --timeout=60 `
-            --junit-xml=reports/junit.xml
+            --tb=long `
+            -v `
+            --timeout=120 `
+            --junit-xml=reports/junit.xml `
+            2>&1 | Tee-Object reports/test_output.txt
         env:
           PYTHONIOENCODING: utf-8
           JARVIS_HEADLESS: "1"
