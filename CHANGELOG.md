@@ -2,6 +2,41 @@
 
 ---
 
+## 🛠️ Unreleased — CA/CI & Runtime Fixes
+
+Audit pass over static analysis (Ruff, mypy) and the CI pipeline surfaced a
+number of latent bugs that were previously masked by broad `except` clauses
+or simply never exercised by the test suite. Fixed below, all confirmed
+against the actual runtime behavior (not just silenced type errors).
+
+### Build & dependencies
+* Fixed a corrupted line in `requirements.txt` that broke `pip install -r requirements.txt` entirely
+* Fixed an invalid `build-backend` in `pyproject.toml` (`setuptools.backends.legacy:build` does not exist) that broke any PEP 517 build (`pip install .`, `python -m build`)
+
+### Runtime bugs
+* Fixed broken Telegram integration (`jarvis/agent/graph.py`, `jarvis/workers/notification_hub.py`) — referenced a nonexistent `TelegramController` class with the wrong `send_message` signature
+* Fixed broken LLM intent-routing calls (`jarvis/agent/graph.py`, `jarvis/comms/zalo.py`) — referenced a nonexistent `IntentRouter` class
+* Implemented Windows autostart (`jarvis/platform/windows.py`) — `set_autostart`/`get_autostart_status` were referenced by the CLI but never defined
+* Fixed Windows volume control (`jarvis/automation/control.py`) — wrong `CLSCTX_ALL` constant source silently broke all volume get/set/mute calls
+* Fixed several API/signature mismatches in `jarvis/core/app.py` (wrong enum member, missing required argument, stale skill-synthesis and form-fill call signatures, duplicate lookups)
+* Fixed plugin registration (`jarvis/core/plugin.py`) — a duplicate `stop_all()` definition silently shadowed the first, and `register_plugin()` could return `None` instead of a proper `bool`
+* Fixed Discord/Zalo skill-listing commands (`jarvis/comms/discord.py`, `jarvis/comms/zalo.py`) — `SkillMetadata` was being accessed like a dict instead of a dataclass
+* Fixed the morning briefing skill's crypto-price lookup (`jarvis/skills/briefing`) — called a nonexistent method
+* Fixed the visual verifier (`jarvis/vision/visual_verifier.py`) building its result from unresolved `None` image bytes instead of the already-computed fallback values
+* Added the missing `show()` method on the always-on overlay (`jarvis/ui/overlay.py`) — `toggle()` called it but it didn't exist
+
+### Code quality
+* Full Ruff + mypy cleanup across `jarvis/` and `tests/` (import ordering, closure-variable binding, Optional-narrowing, etc.) — no functional changes
+* CI unit suite (`tests/unit/`) verified green: **633 passed**
+
+> **Note:** this does **not** claim the entire `tests/` tree is green. The
+> broader, non-CI test suites (adversarial/challenger stress tests,
+> biometrics, e2e scenarios) still contain pre-existing failures unrelated
+> to this pass — several require optional dependencies not installed in CI
+> (e.g. `cv2`), and others test features that were never implemented.
+
+---
+
 ## 🚀 Phiên Bản 4.0.0 (2026-08-28) — Full Autonomous ReAct Agent
 
 JARVIS v4.0.0 là bước nhảy vọt lớn nhất: JARVIS không chỉ thực thi lệnh mà giờ có thể **tự lập kế hoạch và thực thi mục tiêu phức tạp** thông qua vòng lặp Think → Act → Observe → Reflect.
