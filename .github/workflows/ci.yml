@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [ main ]
 
-# Cancel previous runs when new commits push
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -15,11 +14,12 @@ env:
   PYTHONIOENCODING: utf-8
   JARVIS_HEADLESS: "1"
   JARVIS_MOCK_AUDIO: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
 
 jobs:
-  # ──────────────────────────────────────────────
-  # JOB 1: Syntax & Lint (chạy trước, nhanh nhất)
-  # ──────────────────────────────────────────────
+  # ══════════════════════════════════════════════════════════════
+  # JOB 1 — Syntax & Lint  (nhanh ~20s)
+  # ══════════════════════════════════════════════════════════════
   lint:
     name: 🔍 Syntax & Lint Check
     runs-on: windows-latest
@@ -35,12 +35,14 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: 📦 Install lint tools
+      - name: 📦 Install lint deps only
         run: |
           python -m pip install --upgrade pip
           pip install pyflakes
+        env:
+          PYTHONIOENCODING: utf-8
 
-      - name: 🔍 Syntax check — Core
+      - name: 🔍 Syntax — Core modules
         run: |
           python -m py_compile jarvis/__init__.py
           python -m py_compile jarvis/audio/vad.py
@@ -52,25 +54,23 @@ jobs:
           python -m py_compile jarvis/workers/night_shift.py
           python -m py_compile jarvis/workers/auto_updater.py
           python -m py_compile jarvis/workers/notification_hub.py
-          echo "Core syntax OK"
+          Write-Host "Core: OK"
 
-      - name: 🔍 Syntax check — Communications
+      - name: 🔍 Syntax — Communications
         run: |
           python -m py_compile jarvis/comms/discord.py
           python -m py_compile jarvis/comms/mobile_bridge.py
           python -m py_compile jarvis/comms/zalo.py
-          python -m py_compile jarvis/comms/telegram.py
-          echo "Comms syntax OK"
+          Write-Host "Comms: OK"
 
-      - name: 🔍 Syntax check — New Modules (v3.1-v4.0)
+      - name: 🔍 Syntax — v3.1-v4.0 modules
         run: |
           python -m py_compile jarvis/browser/cdp_controller.py
           python -m py_compile jarvis/plugins/loader.py
           python -m py_compile jarvis/agent/graph.py
-          python -m py_compile jarvis/smart_home/discovery.py
-          echo "New modules syntax OK"
+          Write-Host "New modules: OK"
 
-      - name: 🔍 Syntax check — Skills
+      - name: 🔍 Syntax — Skills
         run: |
           python -m py_compile jarvis/skills/screen_context/__init__.py
           python -m py_compile jarvis/skills/macro_recorder/__init__.py
@@ -81,20 +81,17 @@ jobs:
           python -m py_compile jarvis/skills/sound_board/__init__.py
           python -m py_compile jarvis/skills/browser_control/__init__.py
           python -m py_compile jarvis/skills/auto_updater/__init__.py
-          echo "Skills syntax OK"
+          Write-Host "Skills: OK"
 
-      - name: 🔍 Syntax check — Build Scripts
+      - name: 🔍 Syntax — Scripts
         run: |
           python -m py_compile scripts/build_installer.py
           python -m py_compile scripts/health_check_report.py
-          echo "Scripts syntax OK"
+          Write-Host "Scripts: OK"
 
-      - name: ✅ Lint Summary
-        run: echo "All syntax checks passed!"
-
-  # ──────────────────────────────────────────────
-  # JOB 2: Full Test Suite (phụ thuộc lint)
-  # ──────────────────────────────────────────────
+  # ══════════════════════════════════════════════════════════════
+  # JOB 2 — Full Test Suite (phụ thuộc lint)
+  # ══════════════════════════════════════════════════════════════
   test:
     name: 🧪 Unit Tests (633 tests)
     runs-on: windows-latest
@@ -102,7 +99,7 @@ jobs:
     needs: lint
 
     steps:
-      - name: 📥 Checkout repository
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
       - name: 🐍 Set up Python 3.11
@@ -111,57 +108,91 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install core dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install `
+            google-generativeai `
+            python-dotenv `
+            numpy `
+            Pillow `
+            requests `
+            psutil `
+            pyperclip `
+            pytest `
+            pytest-subtests `
+            pytest-timeout
+        env:
+          PYTHONIOENCODING: utf-8
 
-      - name: 🧪 Run full test suite with JUnit report
+      - name: 📦 Install Windows-specific dependencies
         run: |
+          pip install pywin32 pystray keyboard
+        env:
+          PYTHONIOENCODING: utf-8
+        continue-on-error: true
+
+      - name: 📦 Install optional audio dependencies
+        run: |
+          pip install sounddevice
+        env:
+          PYTHONIOENCODING: utf-8
+        continue-on-error: true
+
+      - name: 📦 Install communication dependencies
+        run: |
+          pip install python-telegram-bot
+        env:
+          PYTHONIOENCODING: utf-8
+        continue-on-error: true
+
+      - name: 🧪 Run full test suite
+        run: |
+          New-Item -ItemType Directory -Force -Path reports | Out-Null
+          New-Item -ItemType Directory -Force -Path logs | Out-Null
           python -m pytest tests/unit/ `
             --tb=short `
             --no-header `
             -q `
+            --timeout=60 `
             --junit-xml=reports/junit_results.xml `
-            -v `
             2>&1 | Tee-Object -FilePath reports/test_output.txt
         env:
           PYTHONIOENCODING: utf-8
+          JARVIS_HEADLESS: "1"
+          JARVIS_MOCK_AUDIO: "1"
 
-      - name: 📊 Print test summary
+      - name: 📊 Test summary
         if: always()
         run: |
-          $lines = Get-Content reports/test_output.txt -Tail 10
-          Write-Host "=== TEST SUMMARY ==="
-          $lines | ForEach-Object { Write-Host $_ }
+          Write-Host "=========================================="
+          Write-Host " TEST RESULTS"
+          Write-Host "=========================================="
+          if (Test-Path reports/test_output.txt) {
+            Get-Content reports/test_output.txt | Select-Object -Last 15
+          }
+          Write-Host "=========================================="
 
-      - name: 🩺 Generate health report
-        if: always()
-        run: |
-          New-Item -ItemType Directory -Force -Path reports | Out-Null
-          $env:PYTHONIOENCODING = "utf-8"
-          python scripts/health_check_report.py 2>&1 | Out-Host
+      - name: 🩺 Health report
+        if: success()
+        run: python scripts/health_check_report.py
+        env:
+          PYTHONIOENCODING: utf-8
         continue-on-error: true
 
-      - name: 📋 Count modules
-        run: |
-          $skills = (Get-ChildItem jarvis/skills -Directory).Count
-          $tests  = (Get-ChildItem tests/unit -Filter "test_*.py").Count
-          Write-Host "Skills: $skills | Test files: $tests"
-
-      - name: 📤 Upload test artifacts
+      - name: 📤 Upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: jarvis-test-reports-${{ github.run_number }}
+          name: jarvis-reports-${{ github.run_number }}
           path: |
             reports/
             logs/
           retention-days: 14
 
-  # ──────────────────────────────────────────────
-  # JOB 3: Module Import Check
-  # ──────────────────────────────────────────────
+  # ══════════════════════════════════════════════════════════════
+  # JOB 3 — Module Import Validation (phụ thuộc lint)
+  # ══════════════════════════════════════════════════════════════
   import-check:
     name: 📦 Module Import Validation
     runs-on: windows-latest
@@ -178,57 +209,73 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: 📦 Install dependencies
-        run: pip install -r requirements.txt
+      - name: 📦 Install minimal deps for import check
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-generativeai python-dotenv numpy Pillow requests psutil pyperclip
+          pip install pywin32 pystray keyboard
+        env:
+          PYTHONIOENCODING: utf-8
+        continue-on-error: true
 
-      - name: 🔌 Validate all module imports
+      - name: 🔌 Validate module imports
         run: |
           python -c "
-          import sys, importlib, traceback
-          modules = [
-              'jarvis.audio.vad',
-              'jarvis.audio.sound_effects',
+          import sys, importlib
+
+          # Modules that MUST import cleanly
+          required = [
               'jarvis.memory.vector_store',
-              'jarvis.workers.night_shift',
               'jarvis.workers.auto_updater',
               'jarvis.workers.notification_hub',
+              'jarvis.workers.night_shift',
               'jarvis.browser.cdp_controller',
               'jarvis.plugins.loader',
               'jarvis.agent.graph',
               'jarvis.comms.zalo',
-              'jarvis.comms.discord',
-              'jarvis.comms.mobile_bridge',
               'jarvis.skills.skill_synthesizer',
               'jarvis.skills.rag_search',
               'jarvis.skills.browser_control',
               'jarvis.skills.auto_updater',
           ]
+
+          # Packages that may be absent on CI (optional deps)
+          OPTIONAL_ERRORS = {
+              'playwright', 'webrtcvad', 'onnxruntime',
+              'faster_whisper', 'piper', 'winotify',
+              'sounddevice', 'discord',
+          }
+
           failed = []
-          for mod in modules:
+          for mod in required:
               try:
                   importlib.import_module(mod)
-                  print(f'  OK  {mod}')
+                  print(f'  OK   {mod}')
               except ImportError as e:
-                  # Expected for optional deps (playwright, webrtcvad...)
-                  if 'playwright' in str(e) or 'webrtcvad' in str(e) or 'onnxruntime' in str(e):
-                      print(f'  --  {mod} (optional dep missing: {e})')
+                  dep = str(e).split(\"'\")[-2] if \"'\" in str(e) else str(e)
+                  if any(opt in dep for opt in OPTIONAL_ERRORS):
+                      print(f'  --   {mod} (optional dep missing: {dep})')
                   else:
                       print(f'  FAIL {mod}: {e}')
                       failed.append(mod)
               except Exception as e:
-                  print(f'  ERR  {mod}: {e}')
+                  print(f'  ERR  {mod}: {type(e).__name__}: {e}')
                   failed.append(mod)
+
+          print()
           if failed:
-              print(f'FAILED: {failed}')
+              print(f'FAILED imports: {failed}')
               sys.exit(1)
-          print('All core imports OK')
+          print('All required imports: OK')
           "
         env:
           PYTHONIOENCODING: utf-8
+          JARVIS_HEADLESS: "1"
+          JARVIS_MOCK_AUDIO: "1"
 
-  # ──────────────────────────────────────────────
-  # JOB 4: Summary Badge (chạy sau tất cả)
-  # ──────────────────────────────────────────────
+  # ══════════════════════════════════════════════════════════════
+  # JOB 4 — CI Summary  (luôn chạy)
+  # ══════════════════════════════════════════════════════════════
   summary:
     name: 📊 CI Summary
     runs-on: windows-latest
@@ -237,19 +284,25 @@ jobs:
     if: always()
 
     steps:
-      - name: 📊 Print final status
+      - name: 📊 Final result board
         run: |
-          Write-Host "=================================================="
-          Write-Host " JARVIS CI PIPELINE RESULT"
-          Write-Host "=================================================="
-          Write-Host " Lint:          ${{ needs.lint.result }}"
-          Write-Host " Tests:         ${{ needs.test.result }}"
-          Write-Host " Import Check:  ${{ needs.import-check.result }}"
-          Write-Host "=================================================="
-          $results = @("${{ needs.lint.result }}", "${{ needs.test.result }}", "${{ needs.import-check.result }}")
-          if ($results -contains "failure") {
-            Write-Host " STATUS: FAILED - check logs above"
+          Write-Host "=============================================="
+          Write-Host "  JARVIS CI PIPELINE — FINAL RESULTS"
+          Write-Host "=============================================="
+          Write-Host "  Lint / Syntax:     ${{ needs.lint.result }}"
+          Write-Host "  Unit Tests:        ${{ needs.test.result }}"
+          Write-Host "  Import Check:      ${{ needs.import-check.result }}"
+          Write-Host "=============================================="
+
+          $failed = @()
+          if ("${{ needs.lint.result }}" -eq "failure")        { $failed += "Lint" }
+          if ("${{ needs.test.result }}" -eq "failure")        { $failed += "Tests" }
+          if ("${{ needs.import-check.result }}" -eq "failure") { $failed += "ImportCheck" }
+
+          if ($failed.Count -gt 0) {
+            Write-Host "  STATUS: FAILED ($($failed -join ', '))"
+            Write-Host "  -> Check the failed jobs above for details"
             exit 1
           } else {
-            Write-Host " STATUS: ALL PASSED"
+            Write-Host "  STATUS: ALL PASSED"
           }

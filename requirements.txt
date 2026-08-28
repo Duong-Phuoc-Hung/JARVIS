@@ -1,0 +1,57 @@
+# ============================================================
+# JARVIS v4.0.0 — Requirements
+# Cài đặt: pip install -r requirements.txt
+# ============================================================
+
+# ── Core / LLM ───────────────────────────────────────────────
+google-generativeai>=0.8,<2          # Gemini API (BẮT BUỘC)
+python-dotenv>=1.0,<2                # Đọc file .env
+
+# ── Audio / STT / TTS ────────────────────────────────────────
+numpy>=1.24,<3                       # Xử lý tín hiệu âm thanh
+sounddevice>=0.4.6,<0.6             # Ghi/phát âm thanh
+# Tuỳ chọn (cài thêm để dùng offline):
+# faster-whisper>=1.0                # STT offline (cần ffmpeg)
+# piper-tts>=1.2                     # TTS offline
+# webrtcvad>=2.0                     # VAD chuẩn Google (thay RMS)
+
+# ── System Tray & Hotkeys ────────────────────────────────────
+pystray>=0.19,<1                     # System tray icon
+Pillow>=10,<12                       # Xử lý ảnh (icon, screenshot)
+keyboard>=0.13,<1                    # Global hotkeys
+pywin32>=306; sys_platform=="win32"  # Windows API (tray, toast)
+
+# ── Memory / Database ────────────────────────────────────────
+# sqlite3 là built-in, không cần cài thêm
+scikit-learn>=1.3,<2; python_version>="3.9"  # TF-IDF vector store (tuỳ chọn)
+
+# ── Communications ───────────────────────────────────────────
+python-telegram-bot>=21,<23         # Telegram Bot API
+# discord.py>=2.3,<3               # Discord Bot (tuỳ chọn — nặng)
+requests>=2.31,<3                    # HTTP requests chung
+urllib3>=2.0,<3                      # HTTP thấp hơn
+
+# ── Browser Automation ───────────────────────────────────────
+# playwright>=1.40                   # Chrome CDP (cài riêng: playwright install chromium)
+
+# ── Notifications ────────────────────────────────────────────
+# winotify>=1.1                      # Windows Toast (tuỳ chọn)
+
+# ── Smart Home ───────────────────────────────────────────────
+# zeroconf>=0.132                    # mDNS discovery (tuỳ chọn)
+
+# ── Build & Dev Tools ────────────────────────────────────────
+# pyinstaller>=6.0                   # Build .exe (cài khi build)
+
+# ── Testing ──────────────────────────────────────────────────
+pytest>=8.0,<9
+pytest-subtests>=0.12                # Subtests support (46 subtests)
+pytest-timeout>=2.2                  # Test timeout
+
+# ── Utilities ────────────────────────────────────────────────
+psutil>=5.9,<7                       # System info (CPU, RAM, disk)
+pyperclip>=1.8,<2                    # Clipboard access
+
+# ── Optional: ElevenLabs TTS ─────────────────────────────────
+# elevenlabs>=1.50,<3                # Cloud TTS (tuỳ chọn)
+# websockets>=13                     # WebSocket (tuỳ chọn)
