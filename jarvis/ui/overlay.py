@@ -128,6 +128,21 @@ BREATHING_GRADIENT: list[str] = [
 FONT_FAMILY = "Consolas"
 
 
+def _valid_battery_percent(pct: int) -> int | None:
+    """
+    Validates a raw battery percentage reading, returning it only when it
+    falls in the inclusive 0..100 range, else None.
+
+    Both Win32's GetSystemPowerStatus and psutil use out-of-range sentinels
+    to mean "unknown/unavailable": Win32 uses BatteryLifePercent=255 (0xFF)
+    for "unknown", which ctypes.wintypes.BYTE exposed as signed c_byte
+    (i.e. -1) on Python < 3.12 and as unsigned c_ubyte (i.e. 255) on
+    Python >= 3.12. A plain "<= 100" check let -1 slip through on the
+    signed builds, so both bounds must be checked explicitly.
+    """
+    return pct if 0 <= pct <= 100 else None
+
+
 def _safe_probe_battery() -> tuple[int | None, bool]:
     """Safely reads system battery percentage and AC charging status."""
     if sys.platform == "win32":
@@ -136,14 +151,17 @@ def _safe_probe_battery() -> tuple[int | None, bool]:
                 _fields_ = [
                     ("ACLineStatus", wintypes.BYTE),
                     ("BatteryFlag", wintypes.BYTE),
-                    ("BatteryLifePercent", wintypes.BYTE),
+                    # Explicitly unsigned: ctypes.wintypes.BYTE was signed
+                    # c_byte before Python 3.12, which turned the Win32
+                    # "unknown" sentinel 0xFF into -1 instead of 255.
+                    ("BatteryLifePercent", ctypes.c_ubyte),
                     ("SystemStatusFlag", wintypes.BYTE),
                     ("BatteryLifeTime", wintypes.DWORD),
                     ("BatteryFullLifeTime", wintypes.DWORD),
                 ]
             sps = SYSTEM_POWER_STATUS()
             if ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(sps)):
-                pct = int(sps.BatteryLifePercent) if sps.BatteryLifePercent <= 100 else None
+                pct = _valid_battery_percent(int(sps.BatteryLifePercent))
                 charging = bool(sps.ACLineStatus == 1 or (sps.BatteryFlag & 8))
                 return pct, charging
         except Exception:
@@ -154,10 +172,8 @@ def _safe_probe_battery() -> tuple[int | None, bool]:
         batt = psutil.sensors_battery()
         if batt is not None:
             charging = bool(batt.power_plugged)
-            pct = int(batt.percent)
-            if 0 <= pct <= 100:
-                return pct, charging
-            return None, charging
+            pct = _valid_battery_percent(int(batt.percent))
+            return pct, charging
     except Exception:
         pass
 
