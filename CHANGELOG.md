@@ -2,7 +2,7 @@
 
 ---
 
-## 🛠️ Unreleased — CA/CI & Runtime Fixes
+## 🚀 Phiên Bản 4.0.1 (2026-08-29) — Stability, CA/CI & Runtime Fixes
 
 Audit pass over static analysis (Ruff, mypy) and the CI pipeline surfaced a
 number of latent bugs that were previously masked by broad `except` clauses
@@ -27,7 +27,9 @@ against the actual runtime behavior (not just silenced type errors).
 
 ### Code quality
 * Full Ruff + mypy cleanup across `jarvis/` and `tests/` (import ordering, closure-variable binding, Optional-narrowing, etc.) — no functional changes
-* CI unit suite (`tests/unit/`) verified green: **633 passed**
+* Fixed headless/mock TTS playback for GitHub Actions — `JARVIS_MOCK_AUDIO=1` now bypasses physical audio playback while preserving synthesis/cache validation
+* CI unit suite (`tests/unit/`) verified green: **635 passed**
+* GitHub Actions verified on Python 3.13: **Syntax Check, Unit Tests, Import Validation, and Pipeline Summary all passed**
 
 > **Note:** this does **not** claim the entire `tests/` tree is green. The
 > broader, non-CI test suites (adversarial/challenger stress tests,
