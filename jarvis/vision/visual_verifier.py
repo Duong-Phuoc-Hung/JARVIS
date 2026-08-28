@@ -351,8 +351,8 @@ class VisualVerifier:
             changed_roi=changed_roi,
             expected_change_detected=expected_detected,
             semantic_verification=semantic_msg,
-            before_img_bytes=before_bytes,
-            after_img_bytes=after_bytes,
+            before_img_bytes=b_bytes,
+            after_img_bytes=a_bytes,
             details=details,
         )
 

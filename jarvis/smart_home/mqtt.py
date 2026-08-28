@@ -42,7 +42,7 @@ class MQTTAdapter:
         self.keepalive = keepalive
 
         self.is_connected: bool = False
-        self._client = None
+        self._client: Any = None
         self._subscriptions: dict[str, list[Callable[[str, bytes], None]]] = {}
         self._lock = threading.RLock()
 

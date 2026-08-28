@@ -159,9 +159,15 @@ class NotificationHub:
 
         elif channel == Channel.TELEGRAM.value:
             try:
-                from jarvis.comms.telegram import TelegramController
-                tg = TelegramController()
-                tg.send_message(full_text)
+                import os
+
+                from jarvis.comms.telegram import TelegramBotController
+                chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+                if not chat_id:
+                    log.debug("Telegram dispatch skipped: TELEGRAM_CHAT_ID not configured")
+                    return False
+                tg = TelegramBotController(bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+                tg.send_message(int(chat_id), full_text)
                 return True
             except Exception as exc:
                 log.debug("Telegram dispatch error: %s", exc)

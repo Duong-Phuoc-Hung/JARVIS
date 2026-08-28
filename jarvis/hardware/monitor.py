@@ -236,6 +236,7 @@ class HardwareMonitor:
     def _get_metrics_from_provider(self) -> HardwareMetrics:
         """Extract metrics from injected mock provider in tests."""
         p = self.provider
+        assert p is not None
 
         cpu_pct = getattr(p, "cpu_percent", 0.0)
         cpu_temp = getattr(p, "cpu_temp_c", None)
@@ -274,7 +275,7 @@ class HardwareMonitor:
                     disks[k] = v
                 else:
                     disks[k] = DiskSmartMetrics(
-                        drive=getattr(v, "drive", k),
+                        drive=str(getattr(v, "drive", k)),
                         status=getattr(v, "status", "PASSED"),
                         temperature_c=getattr(v, "temperature_c", 35),
                         reallocated_sectors=getattr(v, "reallocated_sectors", 0),
@@ -372,7 +373,11 @@ class HardwareMonitor:
                         user = _filetime_to_uint64(user_ft)
                         now = time.time()
 
-                        if self._prev_idle_time is not None:
+                        if (
+                            self._prev_idle_time is not None
+                            and self._prev_kernel_time is not None
+                            and self._prev_user_time is not None
+                        ):
                             d_idle = idle - self._prev_idle_time
                             d_kernel = kernel - self._prev_kernel_time
                             d_user = user - self._prev_user_time

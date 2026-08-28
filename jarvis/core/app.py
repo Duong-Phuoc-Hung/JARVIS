@@ -29,6 +29,7 @@ import os
 import signal
 import threading
 import time
+import uuid
 from collections.abc import Callable
 from typing import Any
 
@@ -70,7 +71,6 @@ from jarvis.plugins.spotify import SpotifyPlugin
 from jarvis.plugins.webhook import WebhookPlugin
 from jarvis.proactive.engine import ProactiveEngine
 from jarvis.sandbox.interpreter import CodeInterpreterSandbox, SandboxResult
-from jarvis.skills.models import SkillMetadata
 from jarvis.skills.registry import SkillRegistry
 from jarvis.skills.synthesizer import DynamicSkillSynthesizer
 
@@ -1041,7 +1041,8 @@ class JarvisApp:
     def _handle_safety_gate_confirm(self, token: str | None = None, **kwargs) -> dict[str, Any]:
         """Confirms pending high-risk action."""
         if self.safety_gate:
-            t = token or (self.safety_gate.get_latest_pending().token if self.safety_gate.get_latest_pending() else "")
+            pending = self.safety_gate.get_latest_pending()
+            t = token or (pending.token if pending else "")
             ok = self.safety_gate.confirm(t) if t else False
             msg = f"Đã xác nhận và thực thi thao tác (Token {t}), thưa Ngài." if ok else "Không có thao tác nào đang chờ xác nhận hoặc token đã hết hạn."
             return {"status": "success" if ok else "failed", "message": msg}
@@ -1050,7 +1051,8 @@ class JarvisApp:
     def _handle_safety_gate_reject(self, token: str | None = None, **kwargs) -> dict[str, Any]:
         """Rejects pending high-risk action."""
         if self.safety_gate:
-            t = token or (self.safety_gate.get_latest_pending().token if self.safety_gate.get_latest_pending() else "")
+            pending = self.safety_gate.get_latest_pending()
+            t = token or (pending.token if pending else "")
             ok = self.safety_gate.reject(t) if t else False
             msg = f"Đã hủy thao tác (Token {t}), thưa Ngài." if ok else "Không có thao tác nào đang chờ xác nhận."
             return {"status": "success" if ok else "failed", "message": msg}
@@ -1083,6 +1085,7 @@ class JarvisApp:
     def _handle_memory_save_fact(self, key: str | None = None, value: str | None = None, text: str | None = None, **kwargs) -> dict[str, Any]:
         """Saves persistent fact."""
         if self.memory_manager:
+            res: Any
             if text:
                 res = self.memory_manager.handle_remember_command(text)
             elif key and value:
@@ -1121,7 +1124,7 @@ class JarvisApp:
         if not self.planner_engine:
             return {"status": "failed", "message": "ReAct Planner Subsystem is unavailable."}
 
-        plan_mode = PlanMode.SAFETY_GATE_CONFIRM if "confirm" in mode.lower() or "safety" in mode.lower() else PlanMode.FULLY_AUTONOMOUS
+        plan_mode = PlanMode.SAFETY_GATE if "confirm" in mode.lower() or "safety" in mode.lower() else PlanMode.FULLY_AUTONOMOUS
         dag = self.planner_engine.create_plan(goal=goal, context=context)
 
         # Update HUD overlay with plan telemetry
@@ -1181,6 +1184,7 @@ class JarvisApp:
 
         p_enum = WorkerPriority.HIGH if priority.lower() == "high" else (WorkerPriority.CRITICAL if priority.lower() == "critical" else WorkerPriority.NORMAL)
         task = WorkerTask(
+            task_id=f"subagent_{uuid.uuid4().hex[:12]}",
             name=name,
             payload=payload or {},
             target_callable=target_callable or (lambda ctx: {"status": "completed", "name": name}),
@@ -1220,10 +1224,11 @@ class JarvisApp:
             return {"status": "failed", "message": "Code Interpreter Sandbox is unavailable."}
 
         lang = language.lower().strip()
+        res: SandboxResult
         if lang in ("powershell", "ps1"):
-            res: SandboxResult = self.sandbox.execute_powershell(code, timeout_seconds=timeout_seconds)
+            res = self.sandbox.execute_powershell(code, timeout_seconds=timeout_seconds)
         else:
-            res: SandboxResult = self.sandbox.execute_python(code, timeout_seconds=timeout_seconds)
+            res = self.sandbox.execute_python(code, timeout_seconds=timeout_seconds)
 
         # Stream code output to overlay HUD
         if self.overlay:
@@ -1264,22 +1269,19 @@ class JarvisApp:
         if not self.skill_synthesizer:
             return {"status": "failed", "message": "Skill Synthesizer is unavailable."}
 
-        meta = SkillMetadata(
-            name=name,
-            description=description or f"Tự động tổng hợp kỹ năng {name}",
-            category=category,
-            author="JARVIS-Synthesizer",
-        )
-        skill_def = self.skill_synthesizer.synthesize_skill(
-            metadata=meta,
-            code=code,
-            requirements=requirements or [],
-            overwrite=overwrite,
-        )
-        if skill_def:
-            msg = f"Đã đóng gói thành công kỹ năng '{name}' vào thư viện kỹ năng tái sử dụng, thưa Ngài."
-            return {"status": "success", "skill_name": name, "module_path": skill_def.file_path, "message": msg}
-        return {"status": "failed", "skill_name": name, "message": f"Không thể đóng gói kỹ năng '{name}' do lỗi kiểm thử hoặc cú pháp."}
+        try:
+            skill_def = self.skill_synthesizer.synthesize_skill(
+                name=name,
+                code=code,
+                description=description or f"Tự động tổng hợp kỹ năng {name}",
+                tags=[category] if category else None,
+            )
+        except Exception as e:
+            log.warning("Skill synthesis failed for '%s': %s", name, e)
+            return {"status": "failed", "skill_name": name, "message": f"Không thể đóng gói kỹ năng '{name}' do lỗi kiểm thử hoặc cú pháp."}
+
+        msg = f"Đã đóng gói thành công kỹ năng '{name}' vào thư viện kỹ năng tái sử dụng, thưa Ngài."
+        return {"status": "success", "skill_name": name, "module_path": skill_def.file_path, "message": msg}
 
     def _handle_skill_invoke(self, skill_name: str, **kwargs) -> dict[str, Any]:
         """Invokes a packaged persistent skill from library."""
@@ -1324,7 +1326,7 @@ class JarvisApp:
         """Fills and submits web forms automatically."""
         if not self.browser_agent:
             return {"status": "failed", "message": "Browser Agent is unavailable."}
-        res: BrowserActionResult = self.browser_agent.fill_form(url=url, fields=fields, submit_selector=submit_selector)
+        res: BrowserActionResult = self.browser_agent.fill_form(url=url, form_fields=fields, submit_selector=submit_selector)
         msg = f"Đã điền tự động {len(fields)} trường dữ liệu trên {url}." if res.success else f"Lỗi điền form: {res.error}"
         return {"status": "success" if res.success else "failed", "url": url, "fields": fields, "message": msg}
 
@@ -1612,7 +1614,7 @@ class JarvisApp:
             )
             return
 
-        action_names: list[str] = self.config.get(f"gesture.patterns.{pattern_name}.actions", [])
+        action_names = self.config.get(f"gesture.patterns.{pattern_name}.actions", [])
         for act in action_names:
             try:
                 self.dispatcher.dispatch_action(act, requester=RequesterContext.system())
@@ -1811,7 +1813,7 @@ class JarvisApp:
         return {
             "success": status_flag == "success",
             "transcript": clean_text,
-            "intent": intent_result.to_dict() if hasattr(intent_result, "to_dict") else None,
+            "intent": intent_result.to_dict() if intent_result is not None else None,
             "result": action_result.to_dict() if action_result else None,
             "response_text": response_text,
         }

@@ -463,7 +463,7 @@ class AudioEngine:
             try:
                 if timestamp is not None:
                     try:
-                        cb(block, timestamp=timestamp)
+                        cb(block, timestamp=timestamp)  # type: ignore[call-arg]
                     except TypeError:
                         cb(block)
                 else:

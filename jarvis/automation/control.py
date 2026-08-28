@@ -13,7 +13,7 @@ import sys
 import time
 from collections import deque
 from datetime import datetime
-from typing import Any
+from typing import Any, Union
 
 from jarvis.platform.windows import WindowsPlatformAPI, platform_win32
 
@@ -343,12 +343,13 @@ class ComputerController:
     def get_volume(self) -> int:
         """Returns master volume level (0-100%)."""
         try:
+            from comtypes import CLSCTX_ALL  # type: ignore
             from pycaw.pycaw import AudioUtilities  # type: ignore
             speakers = AudioUtilities.GetSpeakers()
             if speakers:
                 endpoint = speakers.Activate(
                     AudioUtilities.IAudioEndpointVolume._iid_,
-                    ctypes.wintypes.CLSCTX_ALL,
+                    CLSCTX_ALL,
                     None,
                 )
                 vol = endpoint.GetMasterVolumeLevelScalar()
@@ -363,12 +364,13 @@ class ComputerController:
         level = max(0, min(100, int(level_percent)))
         self._current_volume = level
         try:
+            from comtypes import CLSCTX_ALL  # type: ignore
             from pycaw.pycaw import AudioUtilities  # type: ignore
             speakers = AudioUtilities.GetSpeakers()
             if speakers:
                 endpoint = speakers.Activate(
                     AudioUtilities.IAudioEndpointVolume._iid_,
-                    ctypes.wintypes.CLSCTX_ALL,
+                    CLSCTX_ALL,
                     None,
                 )
                 endpoint.SetMasterVolumeLevelScalar(level / 100.0, None)
@@ -399,12 +401,13 @@ class ComputerController:
             self._is_muted = bool(mute)
 
         try:
+            from comtypes import CLSCTX_ALL  # type: ignore
             from pycaw.pycaw import AudioUtilities  # type: ignore
             speakers = AudioUtilities.GetSpeakers()
             if speakers:
                 endpoint = speakers.Activate(
                     AudioUtilities.IAudioEndpointVolume._iid_,
-                    ctypes.wintypes.CLSCTX_ALL,
+                    CLSCTX_ALL,
                     None,
                 )
                 endpoint.SetMute(int(self._is_muted), None)

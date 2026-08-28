@@ -212,6 +212,7 @@ class SelfReflectionEngine:
             f'"reasoning": "English explanation"}}\n'
         )
 
+        assert self.llm_client is not None
         resp = self.llm_client.generate_reflection(prompt)
         if isinstance(resp, str):
             # Parse JSON from markdown code block or direct text

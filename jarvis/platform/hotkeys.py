@@ -281,16 +281,16 @@ class GlobalHotkeyManager:
 
                 if msg.message == WM_HOTKEY:
                     hotkey_id = msg.wParam
-                    reg = None
+                    hotkey_reg: HotkeyRegistration | None = None
                     with self._lock:
-                        reg = self._hotkeys.get(hotkey_id)
+                        hotkey_reg = self._hotkeys.get(hotkey_id)
 
-                    if reg and reg.callback:
+                    if hotkey_reg:
                         try:
                             # Run callback in background thread to avoid blocking pump
                             threading.Thread(
-                                target=reg.callback,
-                                name=f"hotkey-cb-{reg.id}",
+                                target=hotkey_reg.callback,
+                                name=f"hotkey-cb-{hotkey_reg.id}",
                                 daemon=True,
                             ).start()
                         except Exception as cb_exc:

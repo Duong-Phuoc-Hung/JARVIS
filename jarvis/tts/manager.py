@@ -113,7 +113,7 @@ class TTSManager:
         mock_http: Any | None = None,
     ) -> bool:
         with self._lock:
-            v_id = voice_id or getattr(self.primary_engine, "voice_id", "")
+            v_id = voice_id or str(getattr(self.primary_engine, "voice_id", "") or "")
             m_id = getattr(self.primary_engine, "model_id", "eleven_multilingual_v2")
             out_fmt = getattr(self.primary_engine, "output_format", "pcm_24000")
 

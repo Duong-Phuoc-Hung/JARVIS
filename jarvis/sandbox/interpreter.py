@@ -250,12 +250,10 @@ class CodeInterpreterSandbox:
         except subprocess.TimeoutExpired as texc:
             timed_out = True
             exit_code = -1
-            stdout = texc.stdout or ""
-            stderr = texc.stderr or ""
-            if isinstance(stdout, bytes):
-                stdout = stdout.decode("utf-8", errors="replace")
-            if isinstance(stderr, bytes):
-                stderr = stderr.decode("utf-8", errors="replace")
+            raw_stdout = texc.stdout or ""
+            raw_stderr = texc.stderr or ""
+            stdout = raw_stdout.decode("utf-8", errors="replace") if isinstance(raw_stdout, bytes) else raw_stdout
+            stderr = raw_stderr.decode("utf-8", errors="replace") if isinstance(raw_stderr, bytes) else raw_stderr
             logger.warning("Code execution timed out after %s seconds.", timeout)
         except Exception as exc:
             exit_code = -1
@@ -385,12 +383,10 @@ class CodeInterpreterSandbox:
         except subprocess.TimeoutExpired as texc:
             timed_out = True
             exit_code = -1
-            stdout = texc.stdout or ""
-            stderr = texc.stderr or ""
-            if isinstance(stdout, bytes):
-                stdout = stdout.decode("utf-8", errors="replace")
-            if isinstance(stderr, bytes):
-                stderr = stderr.decode("utf-8", errors="replace")
+            raw_stdout = texc.stdout or ""
+            raw_stderr = texc.stderr or ""
+            stdout = raw_stdout.decode("utf-8", errors="replace") if isinstance(raw_stdout, bytes) else raw_stdout
+            stderr = raw_stderr.decode("utf-8", errors="replace") if isinstance(raw_stderr, bytes) else raw_stderr
             logger.warning("PowerShell execution timed out after %s seconds.", timeout)
         except Exception as exc:
             exit_code = -1

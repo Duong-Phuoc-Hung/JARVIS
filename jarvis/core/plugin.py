@@ -183,6 +183,8 @@ class PluginRegistry:
                     plugin_inst.error_message = str(exc)
                     logger.error("Failed to initialize plugin '%s': %s", name, exc, exc_info=True)
                     return False
+            return True
+
     def get_plugin(self, name: str) -> BasePlugin | None:
         """Retrieve registered plugin by name."""
         with self._lock:
@@ -244,12 +246,6 @@ class PluginRegistry:
                         plugin.status = PluginStatus.INITIALIZED
                     except Exception as e:
                         logger.error("Failed to initialize plugin '%s': %s", name, e)
-
-    def stop_all(self) -> None:
-        """Stop all active plugins."""
-        with self._lock:
-            for name in list(self._enabled_plugins):
-                self.disable_plugin(name)
 
     def discover_and_load_plugins(
         self,

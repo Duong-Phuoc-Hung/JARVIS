@@ -349,7 +349,7 @@ class MemoryManager:
         success_count = sum(1 for e in episodes if e.get("success"))
 
         # Aggregate intents / actions
-        action_counts: dict[str, int] = collections.Counter()
+        action_counts: collections.Counter[str] = collections.Counter()
         for e in episodes:
             intent = e.get("intent") or "tác vụ"
             action_counts[intent] += 1
@@ -445,6 +445,8 @@ class MemoryCommandResult(str):
     Subclass of str that transparently acts as both a formatted string
     and a dict with metadata for backwards-compatibility across all test suites.
     """
+    _data: dict[str, Any]
+
     def __new__(cls, content: str, **kwargs: Any):
         obj = super().__new__(cls, content)
         obj._data = kwargs

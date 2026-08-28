@@ -13,6 +13,7 @@ import os
 import re
 import time
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -21,7 +22,7 @@ try:
     import requests
     REQUESTS_AVAILABLE = True
 except ImportError:
-    requests = None
+    requests = None  # type: ignore[assignment]
     REQUESTS_AVAILABLE = False
 
 logger = logging.getLogger("jarvis.llm.client")
@@ -267,7 +268,7 @@ class LLMClient:
 
     def chat(
         self,
-        messages: list[ChatMessage | dict[str, str]],
+        messages: Sequence[ChatMessage | dict[str, str]],
         tools: list[dict[str, Any]] | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
@@ -420,6 +421,7 @@ class LLMClient:
 
     # Provider HTTP REST Implementations (OpenAI, Gemini, Claude, Ollama)
     def _call_openai(self, messages: list[ChatMessage], tools: list[dict[str, Any]] | None, temperature: float, max_tokens: int) -> LLMResponse:
+        assert self.session is not None
         url = self.base_url or self.DEFAULT_ENDPOINTS[LLMProvider.OPENAI]
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -474,6 +476,7 @@ class LLMClient:
         )
 
     def _call_gemini(self, messages: list[ChatMessage], tools: list[dict[str, Any]] | None, temperature: float, max_tokens: int) -> LLMResponse:
+        assert self.session is not None
         endpoint = self.DEFAULT_ENDPOINTS[LLMProvider.GEMINI].format(model=self.model)
         url = f"{endpoint}?key={self.api_key}" if not self.base_url else self.base_url
         headers = {"Content-Type": "application/json"}
@@ -543,6 +546,7 @@ class LLMClient:
         )
 
     def _call_claude(self, messages: list[ChatMessage], tools: list[dict[str, Any]] | None, temperature: float, max_tokens: int) -> LLMResponse:
+        assert self.session is not None
         url = self.base_url or self.DEFAULT_ENDPOINTS[LLMProvider.CLAUDE]
         headers = {
             "x-api-key": self.api_key,
@@ -614,6 +618,7 @@ class LLMClient:
         )
 
     def _call_ollama(self, messages: list[ChatMessage], tools: list[dict[str, Any]] | None, temperature: float, max_tokens: int) -> LLMResponse:
+        assert self.session is not None
         url = self.base_url or self.DEFAULT_ENDPOINTS[LLMProvider.OLLAMA]
         headers = {"Content-Type": "application/json"}
         formatted_messages = [m.to_dict() for m in messages]

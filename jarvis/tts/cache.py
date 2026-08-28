@@ -224,7 +224,7 @@ class LocalTTSCache(TTSAudioCache):
     expecting get() -> bytes.
     """
 
-    def get(
+    def get(  # type: ignore[override]
         self,
         text: str,
         voice_id: str = "",

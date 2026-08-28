@@ -42,7 +42,7 @@ class DiscordEmbed:
     title: str = ""
     description: str = ""
     color: int = 0x00FF88   # JARVIS green
-    fields: list[dict[str, str]] = field(default_factory=list)
+    fields: list[dict[str, Any]] = field(default_factory=list)
 
     def add_field(self, name: str, value: str, inline: bool = False) -> DiscordEmbed:
         self.fields.append({"name": name, "value": value, "inline": inline})
@@ -192,7 +192,7 @@ class DiscordBotController:
             from jarvis.skills import registry
             reg = registry.SkillRegistry()
             skills = reg.list_skills()
-            names = [s.get("name", "?") for s in skills]
+            names = [s.name for s in skills]
             text = "🧰 **Kỹ năng:** " + ", ".join(f"`{n}`" for n in names)
         except Exception as exc:
             text = f"Lỗi lấy danh sách kỹ năng: {exc}"

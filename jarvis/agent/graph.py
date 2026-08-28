@@ -179,8 +179,8 @@ class ReActAgent:
 
         try:
             # Try LangGraph / Gemini
-            from jarvis.llm.router import IntentRouter
-            router = IntentRouter()
+            from jarvis.llm.client import LLMClient
+            client = LLMClient()
             # Build ReAct prompt
             react_prompt = (
                 f"Mục tiêu: {task.goal}\n\n"
@@ -192,8 +192,7 @@ class ReActAgent:
                 f"Hành động: <tên tool hoặc DONE>\n"
                 f"Tham số: <json hoặc text>"
             )
-            result = router.route(react_prompt)
-            response = result.get("output", "")
+            response = client.generate(react_prompt).content
             return self._parse_react_response(response)
         except Exception as exc:
             log.debug("LLM think error: %s", exc)
@@ -365,9 +364,14 @@ class ReActAgent:
 
     def _tool_send_telegram(self, message: str = "", **kw) -> dict:
         try:
-            from jarvis.comms.telegram import TelegramController
-            tg = TelegramController()
-            tg.send_message(message)
+            import os
+
+            from jarvis.comms.telegram import TelegramBotController
+            chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+            if not chat_id:
+                return {"output": "Telegram: TELEGRAM_CHAT_ID not configured"}
+            tg = TelegramBotController(bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+            tg.send_message(int(chat_id), message)
             return {"output": f"Telegram: {message[:60]}"}
         except Exception as exc:
             return {"output": str(exc)}

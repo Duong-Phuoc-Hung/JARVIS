@@ -29,7 +29,7 @@ try:
     import websockets
     WEBSOCKETS_AVAILABLE = True
 except ImportError:
-    websockets = None
+    websockets = None  # type: ignore[assignment]
     WEBSOCKETS_AVAILABLE = False
 
 
@@ -605,7 +605,7 @@ class DashboardServer:
                 "version": "1.0.0",
                 "uptime_s": round(time.monotonic(), 1),
                 "telemetry": self.last_broadcast_payload or {},
-                "active_device": getattr(self.app, "audio_engine", None) and getattr(self.app.audio_engine, "_active_device_index", "Default"),
+                "active_device": getattr(self.app, "audio_engine", None) and getattr(getattr(self.app, "audio_engine", None), "_active_device_index", "Default"),
                 "stt_provider": "whisper_api",
                 "llm_provider": "openai",
             }

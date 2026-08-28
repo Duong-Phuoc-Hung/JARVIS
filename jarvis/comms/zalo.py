@@ -211,17 +211,17 @@ class ZaloBotController:
         try:
             from jarvis.skills.registry import SkillRegistry
             reg = SkillRegistry()
-            names = list(reg.list_skills().keys())
+            names = [s.name for s in reg.list_skills()]
             return "🧰 *Kỹ năng hiện có:*\n" + "\n".join(f"• {n}" for n in names[:15])
         except Exception:
             return "🧰 *Kỹ năng:* briefing, note_taker, calculator, system_control, browser_control..."
 
     def _cmd_jarvis(self, text: str) -> str:
         try:
-            from jarvis.llm.router import IntentRouter
-            router = IntentRouter()
-            result = router.route(text)
-            return result.get("output", "JARVIS đã xử lý yêu cầu của bạn.")
+            from jarvis.llm.client import LLMClient
+            client = LLMClient()
+            result = client.generate(text)
+            return result.content or "JARVIS đã xử lý yêu cầu của bạn."
         except Exception:
             return f"🤖 JARVIS đã nhận: *{text[:100]}*\n_(Xử lý qua LLM pipeline)_"
 
