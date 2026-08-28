@@ -2,7 +2,46 @@
 
 ---
 
+## 🚀 Phiên Bản 3.1.0 (2026-08-28) — Browser Control, Auto-Update & Plugin SDK
+
+Bản nâng cấp v3.1.0 mở rộng JARVIS với khả năng **điều khiển Chrome bằng giọng nói**, **tự cập nhật từ GitHub Releases**, **hệ sinh thái plugin bên thứ 3**, và **pipeline CI/CD tự động build .EXE**.
+
+### 🌐 1. Browser CDP Controller (`jarvis/browser/cdp_controller.py`)
+* Điều khiển Chrome/Edge bằng giọng nói qua Playwright (CDP)
+* Lệnh: *"Mở YouTube", "Tìm kiếm tin tức", "Click vào nút Đăng nhập", "Chụp ảnh trang web"*
+* 9 hành động: `open`, `navigate`, `search`, `click`, `type`, `screenshot`, `extract`, `scroll`, `close`
+* Quick URL shortcuts: youtube, gmail, github, shopee, lazada, vnexpress, dantri, tgdd...
+* Skill `browser_control` tích hợp trực tiếp vào voice pipeline
+
+### 🔄 2. Auto-Update Daemon (`jarvis/workers/auto_updater.py`)
+* Tự động kiểm tra GitHub Releases mỗi 6 giờ
+* So sánh semver thông minh: `v3.1.0 > v3.0.0`
+* Tự áp dụng bản mới qua `git pull` + `pip install -r requirements.txt`
+* Backup marker trước khi cập nhật, rollback về bản trước nếu lỗi
+* Lịch sử 30 lần kiểm tra gần nhất tại `logs/update_history.json`
+* Skill `auto_updater`: check, update, rollback, history, status
+
+### 🧩 3. Plugin SDK (`jarvis/plugins/loader.py`)
+* Hot-load kỹ năng từ `~/.jarvis/plugins/<name>/` — không cần khởi động lại
+* Cài từ pip: `pip install jarvis-plugin-<name>` (entry_point: `jarvis.plugins`)
+* API: `PluginLoader.load_all()`, `call_plugin()`, `reload_plugin()`, `unload_plugin()`
+* Tự động merge vào SkillRegistry khi start JARVIS
+
+### ⚙️ 4. Release CI/CD Pipeline (`.github/workflows/release.yml`)
+* Tự động build `JARVIS_v*.*.*.exe` khi push tag `v*.*.*`
+* Jobs: tests → build .exe (PyInstaller) → zip → publish GitHub Release
+* Sinh `reports/version_status.json` đính kèm vào release
+* Support prerelease flag cho `beta`/`rc` tags
+
+### 🧪 5. Tests (+46 mới, tổng 582)
+* `tests/unit/test_browser_control.py` — 15 tests (navigation, click, screenshot, extract)
+* `tests/unit/test_auto_updater.py` — 16 tests (version compare, fetch, check, apply, rollback, history)
+* `tests/unit/test_plugin_sdk.py` — 15 tests (mock loader, folder loader, manifest, unload)
+
+---
+
 ## 🚀 Phiên Bản 3.0.0 (2026-08-28) — Self-Coding AI, Semantic Memory RAG & Night Shift Worker
+
 
 Bản nâng cấp thế hệ thứ ba đưa JARVIS v3.0.0 có khả năng **TỰ TIẾN HÓA**: tự sinh kỹ năng mới từ mô tả tiếng Việt, tìm kiếm ký ức theo ngữ nghĩa (Semantic RAG), và làm việc xuyên đêm tự trị không cần giám sát.
 

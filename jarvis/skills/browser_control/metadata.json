@@ -1,0 +1,9 @@
+{
+  "name": "browser_control",
+  "display_name": "Browser Control & Web Automation",
+  "description": "Điều khiển Chrome/Edge trực tiếp: mở tab, tìm kiếm, click, điền form, chụp ảnh trang web",
+  "version": "1.0.0",
+  "author": "JARVIS Core Team",
+  "tags": ["browser", "chrome", "web", "automation", "cdp", "playwright"],
+  "actions": ["open", "navigate", "search", "click", "type", "screenshot", "extract", "scroll", "close"]
+}

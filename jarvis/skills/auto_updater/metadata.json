@@ -1,0 +1,9 @@
+{
+  "name": "auto_updater",
+  "display_name": "Auto-Update & Version Manager",
+  "description": "Tự động kiểm tra bản cập nhật JARVIS từ GitHub, cài bản mới và rollback nếu cần",
+  "version": "1.0.0",
+  "author": "JARVIS Core Team",
+  "tags": ["update", "version", "github", "release", "maintenance"],
+  "actions": ["check", "update", "rollback", "history", "status"]
+}
