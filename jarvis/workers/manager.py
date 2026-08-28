@@ -5,12 +5,11 @@ health watchdog telemetry, and multi-channel completion dispatching.
 """
 from __future__ import annotations
 
-from collections import deque
-from concurrent.futures import ThreadPoolExecutor
 import logging
 import threading
 import time
-from typing import Any, Callable, Deque, Dict, List, Optional, Union
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
 from jarvis.healing.watchdog import ResourceWatchdog
@@ -30,10 +29,10 @@ class SubAgentManager:
     def __init__(
         self,
         max_workers: int = 4,
-        watchdog: Optional[ResourceWatchdog] = None,
-        event_bus: Optional[EventBus] = None,
-        dispatcher: Optional[ActionDispatcher] = None,
-        notification_dispatcher: Optional[WorkerNotificationDispatcher] = None,
+        watchdog: ResourceWatchdog | None = None,
+        event_bus: EventBus | None = None,
+        dispatcher: ActionDispatcher | None = None,
+        notification_dispatcher: WorkerNotificationDispatcher | None = None,
         history_maxlen: int = 100,
     ) -> None:
         self.max_workers = max(1, int(max_workers))
@@ -42,8 +41,8 @@ class SubAgentManager:
         self.dispatcher = dispatcher
         self.notifications = notification_dispatcher or WorkerNotificationDispatcher(event_bus=self.event_bus)
 
-        self._active_workers: Dict[str, BackgroundWorker] = {}
-        self._history: Deque[WorkerTelemetry] = deque(maxlen=history_maxlen)
+        self._active_workers: dict[str, BackgroundWorker] = {}
+        self._history: deque[WorkerTelemetry] = deque(maxlen=history_maxlen)
         self._lock = threading.RLock()
         self._executor = ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix="SubAgentPool")
         self._is_shutdown = False
@@ -115,7 +114,7 @@ class SubAgentManager:
                 return True
             return False
 
-    def get_worker_status(self, worker_id: str) -> Optional[WorkerTelemetry]:
+    def get_worker_status(self, worker_id: str) -> WorkerTelemetry | None:
         """
         Retrieves telemetry for a worker by ID, searching active registry and history.
         """
@@ -131,24 +130,24 @@ class SubAgentManager:
 
             return None
 
-    def list_active_workers(self) -> List[WorkerTelemetry]:
+    def list_active_workers(self) -> list[WorkerTelemetry]:
         """Returns list of telemetry snapshots for all currently active workers."""
         with self._lock:
             return [w.telemetry for w in self._active_workers.values()]
 
-    def list_history(self) -> List[WorkerTelemetry]:
+    def list_history(self) -> list[WorkerTelemetry]:
         """Returns list of finished worker telemetry records."""
         with self._lock:
             return list(self._history)
 
-    def list_all_workers(self) -> List[WorkerTelemetry]:
+    def list_all_workers(self) -> list[WorkerTelemetry]:
         """Returns active and historical worker telemetry records combined."""
         with self._lock:
             active = [w.telemetry for w in self._active_workers.values()]
             historical = list(self._history)
             return active + historical
 
-    def wait_for_worker(self, worker_id: str, timeout: Optional[float] = None) -> Optional[WorkerTelemetry]:
+    def wait_for_worker(self, worker_id: str, timeout: float | None = None) -> WorkerTelemetry | None:
         """
         Blocks until a specific worker finishes execution or timeout expires.
         
@@ -165,7 +164,7 @@ class SubAgentManager:
 
         return self.get_worker_status(worker_id)
 
-    def wait_all(self, timeout: Optional[float] = None) -> bool:
+    def wait_all(self, timeout: float | None = None) -> bool:
         """
         Blocks until all active workers finish execution.
         

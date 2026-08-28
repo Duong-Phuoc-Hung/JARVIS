@@ -9,8 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import PluginMetadata
@@ -27,7 +26,7 @@ class ChromeMultiMonitorPlugin(BasePlugin):
             description="Chrome multi-monitor window placement and snapping",
         )
 
-    def initialize(self, config: Dict[str, Any], dispatcher: ActionDispatcher) -> None:
+    def initialize(self, config: dict[str, Any], dispatcher: ActionDispatcher) -> None:
         self.config = config or {}
         self.dispatcher = dispatcher
 
@@ -72,7 +71,7 @@ class ChromeMultiMonitorPlugin(BasePlugin):
             description="Open generic URL in browser",
         )
 
-    def _get_chrome_exe(self) -> Optional[str]:
+    def _get_chrome_exe(self) -> str | None:
         """Resolves Chrome executable path across Windows installations."""
         if sys.platform == "win32":
             candidates = [
@@ -85,10 +84,10 @@ class ChromeMultiMonitorPlugin(BasePlugin):
                     return p
         return shutil.which("google-chrome") or shutil.which("chrome") or shutil.which("chrome.exe")
 
-    def open_claude(self, **kwargs) -> Dict[str, Any]:
+    def open_claude(self, **kwargs) -> dict[str, Any]:
         return self.open_url(self.claude_url, monitor=self.claude_monitor, fullscreen=self.fullscreen)
 
-    def open_binance(self, **kwargs) -> Dict[str, Any]:
+    def open_binance(self, **kwargs) -> dict[str, Any]:
         return self.open_url(self.binance_url, monitor=self.binance_monitor, fullscreen=self.fullscreen)
 
     def open_url(
@@ -99,7 +98,7 @@ class ChromeMultiMonitorPlugin(BasePlugin):
         window_width: int = 1400,
         window_height: int = 900,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         x_offset = (int(monitor) - 1) * 1920
         y_offset = 0
 

@@ -8,14 +8,13 @@ Win32 RegisterHotKey API and dedicated message pump thread.
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
-from dataclasses import dataclass, field
 import logging
-import re
 import sys
 import threading
-import time
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from ctypes import wintypes
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger("jarvis.platform.hotkeys")
 
@@ -29,7 +28,7 @@ WM_HOTKEY = 0x0312
 WM_QUIT = 0x0012
 
 # Virtual Key Mapping
-VK_MAP: Dict[str, int] = {
+VK_MAP: dict[str, int] = {
     "f1": 0x70, "f2": 0x71, "f3": 0x72, "f4": 0x73,
     "f5": 0x74, "f6": 0x75, "f7": 0x76, "f8": 0x77,
     "f9": 0x78, "f10": 0x79, "f11": 0x7A, "f12": 0x7B,
@@ -62,17 +61,17 @@ class GlobalHotkeyManager:
 
     def __init__(self, is_mock: bool = False) -> None:
         self.is_mock = is_mock or (sys.platform != "win32")
-        self._hotkeys: Dict[int, HotkeyRegistration] = {}
-        self._combo_map: Dict[str, int] = {}
+        self._hotkeys: dict[int, HotkeyRegistration] = {}
+        self._combo_map: dict[str, int] = {}
         self._next_id = 1
         self._lock = threading.RLock()
-        
-        self._thread: Optional[threading.Thread] = None
-        self._thread_id: Optional[int] = None
+
+        self._thread: threading.Thread | None = None
+        self._thread_id: int | None = None
         self._running = False
         self._stop_event = threading.Event()
 
-    def parse_combination(self, combination: str) -> Tuple[int, int]:
+    def parse_combination(self, combination: str) -> tuple[int, int]:
         """
         Parses shortcut string e.g. 'ctrl+shift+j' into (modifiers, vk_code).
         """
@@ -194,7 +193,7 @@ class GlobalHotkeyManager:
                     return False
         return False
 
-    def list_hotkeys(self) -> List[Dict[str, Any]]:
+    def list_hotkeys(self) -> list[dict[str, Any]]:
         """Returns metadata of all registered hotkeys."""
         with self._lock:
             return [
@@ -268,7 +267,7 @@ class GlobalHotkeyManager:
         """Win32 thread message pump handling WM_HOTKEY."""
         try:
             self._thread_id = ctypes.windll.kernel32.GetCurrentThreadId()
-            
+
             # Register all pending hotkeys on this thread
             with self._lock:
                 for reg in self._hotkeys.values():

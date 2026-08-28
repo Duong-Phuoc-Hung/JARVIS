@@ -11,7 +11,8 @@ import json
 import logging
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Union
+from collections.abc import Callable
+from typing import Any
 
 log = logging.getLogger("jarvis.smart_home.mqtt")
 
@@ -28,9 +29,9 @@ class MQTTAdapter:
         self,
         broker_host: str = "localhost",
         broker_port: int = 1883,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        client_id: Optional[str] = None,
+        username: str | None = None,
+        password: str | None = None,
+        client_id: str | None = None,
         keepalive: int = 60,
     ):
         self.host = broker_host
@@ -42,7 +43,7 @@ class MQTTAdapter:
 
         self.is_connected: bool = False
         self._client = None
-        self._subscriptions: Dict[str, List[Callable[[str, bytes], None]]] = {}
+        self._subscriptions: dict[str, list[Callable[[str, bytes], None]]] = {}
         self._lock = threading.RLock()
 
     def connect(self) -> bool:
@@ -91,10 +92,10 @@ class MQTTAdapter:
     def publish(
         self,
         topic: str,
-        payload: Union[str, bytes, Dict[str, Any]],
+        payload: str | bytes | dict[str, Any],
         qos: int = 0,
         retain: bool = False,
-        mock_http: Optional[Any] = None,
+        mock_http: Any | None = None,
     ) -> bool:
         """Publishes payload to target MQTT topic."""
         # Format payload
@@ -128,7 +129,7 @@ class MQTTAdapter:
         topic: str,
         callback: Callable[[str, bytes], None],
         qos: int = 0,
-        mock_http: Optional[Any] = None,
+        mock_http: Any | None = None,
     ) -> bool:
         """Subscribes callback to MQTT topic."""
         with self._lock:

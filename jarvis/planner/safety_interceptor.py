@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any
 
-from jarvis.automation.safety_gate import PendingConfirmation, SafetyGate
+from jarvis.automation.safety_gate import SafetyGate
 from jarvis.planner.models import StepStatus, TaskNode
 
 logger = logging.getLogger("jarvis.planner.safety_interceptor")
@@ -22,7 +22,7 @@ class SafetyGateInterceptor:
     until affirmative user authorization is received.
     """
 
-    HIGH_RISK_ACTIONS: Set[str] = {
+    HIGH_RISK_ACTIONS: set[str] = {
         "file_delete", "delete_file", "delete_folder", "remove_directory",
         "format_disk", "system_shutdown", "system_reboot", "registry_edit",
         "drop_database", "truncate_table", "telegram_send_document",
@@ -30,7 +30,7 @@ class SafetyGateInterceptor:
         "shell_execute_destructive", "os_kill_process",
     }
 
-    DANGEROUS_PATTERNS: List[re.Pattern] = [
+    DANGEROUS_PATTERNS: list[re.Pattern] = [
         re.compile(r"\brm\s+-[rf]{1,2}\b", re.IGNORECASE),
         re.compile(r"\brmdir\s+/[sq]\b", re.IGNORECASE),
         re.compile(r"\bdel\s+/[sqf]\b", re.IGNORECASE),
@@ -51,9 +51,9 @@ class SafetyGateInterceptor:
 
     def __init__(
         self,
-        safety_gate: Optional[SafetyGate] = None,
+        safety_gate: SafetyGate | None = None,
         timeout_seconds: float = 30.0,
-        custom_high_risk_actions: Optional[Set[str]] = None,
+        custom_high_risk_actions: set[str] | None = None,
     ) -> None:
         self.safety_gate = safety_gate or SafetyGate(timeout_seconds=timeout_seconds)
         self.timeout_seconds = float(timeout_seconds)
@@ -91,9 +91,9 @@ class SafetyGateInterceptor:
 
         return False
 
-    def _extract_strings_from_params(self, params: Any) -> List[str]:
+    def _extract_strings_from_params(self, params: Any) -> list[str]:
         """Recursively extracts all string values from parameter objects."""
-        strings: List[str] = []
+        strings: list[str] = []
         if isinstance(params, str):
             strings.append(params)
         elif isinstance(params, dict):
@@ -109,7 +109,7 @@ class SafetyGateInterceptor:
     def intercept_node(
         self,
         node: TaskNode,
-        event_bus: Optional[Any] = None,
+        event_bus: Any | None = None,
     ) -> str:
         """
         Gates the given node, setting its status to WAITING_CONFIRMATION,
@@ -155,7 +155,7 @@ class SafetyGateInterceptor:
 
         return token
 
-    def check_confirmation(self, token: str) -> Tuple[bool, str]:
+    def check_confirmation(self, token: str) -> tuple[bool, str]:
         """
         Checks the status of a confirmation token.
         

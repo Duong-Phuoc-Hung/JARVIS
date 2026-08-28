@@ -14,8 +14,8 @@ from __future__ import annotations
 import datetime
 import logging
 import threading
-import time
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger("jarvis.proactive.briefing_scheduler")
 
@@ -27,13 +27,13 @@ class DailyBriefingScheduler:
 
     def __init__(
         self,
-        web_hub: Optional[Any] = None,
-        briefing_provider: Optional[Callable[..., Dict[str, Any]]] = None,
-        tts_callback: Optional[Callable[[str], None]] = None,
-        overlay_callback: Optional[Callable[[str, str], None]] = None,
+        web_hub: Any | None = None,
+        briefing_provider: Callable[..., dict[str, Any]] | None = None,
+        tts_callback: Callable[[str], None] | None = None,
+        overlay_callback: Callable[[str, str], None] | None = None,
         target_time: str = "08:00",
         check_interval_seconds: float = 10.0,
-        city: Optional[str] = None,
+        city: str | None = None,
         enabled: bool = True,
     ) -> None:
         self.web_hub = web_hub
@@ -45,11 +45,11 @@ class DailyBriefingScheduler:
         self.enabled = enabled
 
         self._target_hour, self._target_minute = self._parse_time_str(target_time)
-        self._last_briefing_date: Optional[str] = None
+        self._last_briefing_date: str | None = None
 
         self._lock = threading.RLock()
         self._stop_event = threading.Event()
-        self._worker_thread: Optional[threading.Thread] = None
+        self._worker_thread: threading.Thread | None = None
 
     @staticmethod
     def _parse_time_str(time_str: str) -> tuple[int, int]:
@@ -74,7 +74,7 @@ class DailyBriefingScheduler:
     # Trigger Logic & Schedule Checking
     # ──────────────────────────────────────────────────────────────────────────
 
-    def check_schedule(self, current_dt: Optional[datetime.datetime] = None) -> bool:
+    def check_schedule(self, current_dt: datetime.datetime | None = None) -> bool:
         """
         Evaluates whether current datetime has reached target time for today and has not run yet.
         """
@@ -101,7 +101,7 @@ class DailyBriefingScheduler:
 
         return False
 
-    def tick(self, current_dt: Optional[datetime.datetime] = None) -> Optional[Dict[str, Any]]:
+    def tick(self, current_dt: datetime.datetime | None = None) -> dict[str, Any] | None:
         """
         Periodic scheduler tick. If due, executes the morning briefing.
         Returns briefing dictionary if triggered, or None.
@@ -115,12 +115,12 @@ class DailyBriefingScheduler:
             return self.trigger_now(city=self.city)
         return None
 
-    def trigger_now(self, city: Optional[str] = None) -> Dict[str, Any]:
+    def trigger_now(self, city: str | None = None) -> dict[str, Any]:
         """
         Immediately generates and vocalizes morning briefing.
         """
         target_city = city or self.city
-        briefing_data: Dict[str, Any] = {}
+        briefing_data: dict[str, Any] = {}
 
         # 1. Fetch briefing from provider or web_hub
         try:

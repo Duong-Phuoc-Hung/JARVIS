@@ -13,13 +13,13 @@ def execute(
     include_news: bool = True,
     include_crypto: bool = True,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Execute daily briefing synthesis.
     """
     now = datetime.datetime.now()
     date_str = now.strftime("%A, ngày %d/%m/%Y, %H:%M")
-    
+
     weather_info = f"Thời tiết tại {city}: Nhiệt độ khoảng 28-32°C, trời nắng nhẹ."
     crypto_info = "Bitcoin: $92,500 | Ethereum: $3,450"
     news_info = [
@@ -31,7 +31,7 @@ def execute(
     try:
         from jarvis.web.hub import WebIntelligenceHub
         hub = WebIntelligenceHub()
-        
+
         # Weather
         try:
             w_res = hub.get_weather(city)

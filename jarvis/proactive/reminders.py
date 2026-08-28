@@ -11,14 +11,15 @@ Features:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import heapq
 import logging
 import re
 import threading
 import time
 import uuid
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
 
 logger = logging.getLogger("jarvis.proactive.reminders")
 
@@ -30,11 +31,11 @@ class ScheduledReminder:
     reminder_id: str = field(compare=False)
     text: str = field(compare=False)
     created_timestamp: float = field(compare=False, default_factory=time.time)
-    callback: Optional[Callable[[ScheduledReminder], None]] = field(compare=False, default=None)
+    callback: Callable[[ScheduledReminder], None] | None = field(compare=False, default=None)
     completed: bool = field(compare=False, default=False)
     cancelled: bool = field(compare=False, default=False)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert reminder to dictionary."""
         return {
             "reminder_id": self.reminder_id,
@@ -54,8 +55,8 @@ class ReminderScheduler:
 
     def __init__(
         self,
-        tts_callback: Optional[Callable[[str], None]] = None,
-        overlay_callback: Optional[Callable[[str, str], None]] = None,
+        tts_callback: Callable[[str], None] | None = None,
+        overlay_callback: Callable[[str, str], None] | None = None,
         check_interval_seconds: float = 0.5,
         enabled: bool = True,
     ) -> None:
@@ -64,11 +65,11 @@ class ReminderScheduler:
         self.check_interval_seconds = check_interval_seconds
         self.enabled = enabled
 
-        self._queue: List[ScheduledReminder] = []
-        self._reminders_by_id: Dict[str, ScheduledReminder] = {}
+        self._queue: list[ScheduledReminder] = []
+        self._reminders_by_id: dict[str, ScheduledReminder] = {}
         self._lock = threading.RLock()
         self._stop_event = threading.Event()
-        self._worker_thread: Optional[threading.Thread] = None
+        self._worker_thread: threading.Thread | None = None
 
     # ──────────────────────────────────────────────────────────────────────────
     # Core Scheduling API
@@ -78,7 +79,7 @@ class ReminderScheduler:
         self,
         text: str,
         delay_seconds: float,
-        callback: Optional[Callable[[ScheduledReminder], None]] = None,
+        callback: Callable[[ScheduledReminder], None] | None = None,
     ) -> str:
         """
         Schedules a reminder after delay_seconds from current time.
@@ -92,7 +93,7 @@ class ReminderScheduler:
         self,
         text: str,
         trigger_timestamp: float,
-        callback: Optional[Callable[[ScheduledReminder], None]] = None,
+        callback: Callable[[ScheduledReminder], None] | None = None,
     ) -> str:
         """
         Schedules a reminder at an absolute unix timestamp.
@@ -132,7 +133,7 @@ class ReminderScheduler:
             logger.info("Cancelled reminder [%s] '%s'", reminder_id, reminder.text)
             return True
 
-    def get_reminder(self, reminder_id: str) -> Optional[Dict[str, Any]]:
+    def get_reminder(self, reminder_id: str) -> dict[str, Any] | None:
         """Retrieve reminder details by ID."""
         with self._lock:
             reminder = self._reminders_by_id.get(reminder_id)
@@ -140,7 +141,7 @@ class ReminderScheduler:
                 return reminder.to_dict()
             return None
 
-    def get_pending_reminders(self) -> List[Dict[str, Any]]:
+    def get_pending_reminders(self) -> list[dict[str, Any]]:
         """Returns list of pending (not cancelled, not completed) reminders ordered by trigger time."""
         with self._lock:
             pending = [
@@ -160,7 +161,7 @@ class ReminderScheduler:
     # Execution & Ticking
     # ──────────────────────────────────────────────────────────────────────────
 
-    def tick(self, now: Optional[float] = None) -> List[ScheduledReminder]:
+    def tick(self, now: float | None = None) -> list[ScheduledReminder]:
         """
         Evaluates queue against current time `now`, executes due reminders, and pops expired items.
         Returns list of executed reminders.
@@ -169,7 +170,7 @@ class ReminderScheduler:
             return []
 
         current_time = time.time() if now is None else float(now)
-        due_reminders: List[ScheduledReminder] = []
+        due_reminders: list[ScheduledReminder] = []
 
         with self._lock:
             while self._queue:
@@ -261,7 +262,7 @@ class ReminderScheduler:
     # ──────────────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def parse_relative_time(command: str) -> Optional[Tuple[str, float]]:
+    def parse_relative_time(command: str) -> tuple[str, float] | None:
         """
         Parses natural language relative time requests.
         Examples:

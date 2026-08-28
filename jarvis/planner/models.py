@@ -4,10 +4,10 @@ Defines task graph nodes, lifecycle states, reflection results, and plan outcome
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from enum import Enum
-import time
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any
 
 
 class StepStatus(str, Enum):
@@ -43,21 +43,21 @@ class TaskNode:
     step_id: str
     action_name: str
     description: str = ""
-    parameters: Dict[str, Any] = field(default_factory=dict)
-    depends_on: List[str] = field(default_factory=list)
+    parameters: dict[str, Any] = field(default_factory=dict)
+    depends_on: list[str] = field(default_factory=list)
     status: StepStatus = StepStatus.PENDING
     is_high_risk: bool = False
     max_retries: int = 3
     retry_count: int = 0
     result_data: Any = None
-    error_message: Optional[str] = None
-    confirmation_token: Optional[str] = None
+    error_message: str | None = None
+    confirmation_token: str | None = None
     execution_time_ms: float = 0.0
     created_at: float = field(default_factory=time.time)
-    started_at: Optional[float] = None
-    finished_at: Optional[float] = None
+    started_at: float | None = None
+    finished_at: float | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serializes the TaskNode into a JSON-serializable dictionary."""
         return {
             "step_id": self.step_id,
@@ -79,7 +79,7 @@ class TaskNode:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> TaskNode:
+    def from_dict(cls, data: dict[str, Any]) -> TaskNode:
         """Constructs a TaskNode from a dictionary."""
         raw_status = data.get("status", StepStatus.PENDING)
         if isinstance(raw_status, str):
@@ -123,13 +123,13 @@ class ReflectionResult:
     step_id: str
     strategy: RecoveryStrategy
     diagnosis: str
-    suggested_action: Optional[str] = None
-    suggested_parameters: Optional[Dict[str, Any]] = None
-    new_subgraph_nodes: Optional[List[TaskNode]] = None
+    suggested_action: str | None = None
+    suggested_parameters: dict[str, Any] | None = None
+    new_subgraph_nodes: list[TaskNode] | None = None
     reasoning: str = ""
     backoff_seconds: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serializes reflection evaluation result."""
         return {
             "step_id": self.step_id,
@@ -150,27 +150,27 @@ class PlanResult:
     goal: str
     success: bool
     mode: PlanMode
-    nodes: Dict[str, TaskNode] = field(default_factory=dict)
+    nodes: dict[str, TaskNode] = field(default_factory=dict)
     total_steps: int = 0
     completed_steps: int = 0
     failed_steps: int = 0
     skipped_steps: int = 0
     total_duration_ms: float = 0.0
     final_output: Any = None
-    error: Optional[str] = None
+    error: str | None = None
     summary_message: str = ""
 
     @property
-    def step_results(self) -> List[TaskNode]:
+    def step_results(self) -> list[TaskNode]:
         """Returns list of TaskNode results for compatibility."""
         return list(self.nodes.values())
 
     @property
-    def steps(self) -> List[TaskNode]:
+    def steps(self) -> list[TaskNode]:
         """Returns list of TaskNode steps for compatibility."""
         return list(self.nodes.values())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serializes plan outcome and step states."""
         return {
             "plan_id": self.plan_id,

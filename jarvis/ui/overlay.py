@@ -18,11 +18,7 @@ Milestone 5 (R6 & R8) Enhanced Implementation:
 """
 from __future__ import annotations
 
-from collections import deque
 import ctypes
-from ctypes import wintypes
-from dataclasses import dataclass, field
-from enum import Enum
 import logging
 import math
 import random
@@ -30,8 +26,13 @@ import sys
 import threading
 import time
 import tkinter as tk
+from collections import deque
+from collections.abc import Callable
+from ctypes import wintypes
+from dataclasses import dataclass, field
+from enum import Enum
 from tkinter import font as tkfont
-from typing import Any, Callable, Deque, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 logger = logging.getLogger("jarvis.ui.overlay")
 
@@ -60,7 +61,7 @@ class TurnRecord:
     action: str = ""
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "user_text": self.user_text,
             "jarvis_text": self.jarvis_text,
@@ -70,7 +71,7 @@ class TurnRecord:
 
 
 # Iron Man HUD Palette
-COLORS: Dict[str, str] = {
+COLORS: dict[str, str] = {
     "bg": "#0a0e1a",
     "bg_card": "#101827",
     "bg_card_user": "#1a1c29",
@@ -111,7 +112,7 @@ COLORS: Dict[str, str] = {
 }
 
 # 10-step gradient from deep warm amber to radiant gold
-BREATHING_GRADIENT: List[str] = [
+BREATHING_GRADIENT: list[str] = [
     "#B8860B",  # 0: Dark Goldenrod
     "#C89418",  # 1: Deep Amber
     "#DAA520",  # 2: Goldenrod
@@ -127,7 +128,7 @@ BREATHING_GRADIENT: List[str] = [
 FONT_FAMILY = "Consolas"
 
 
-def _safe_probe_battery() -> Tuple[Optional[int], bool]:
+def _safe_probe_battery() -> tuple[int | None, bool]:
     """Safely reads system battery percentage and AC charging status."""
     if sys.platform == "win32":
         try:
@@ -159,7 +160,7 @@ def _safe_probe_battery() -> Tuple[Optional[int], bool]:
     return None, False
 
 
-def _safe_probe_cpu_ram() -> Tuple[float, float]:
+def _safe_probe_cpu_ram() -> tuple[float, float]:
     """Safely reads CPU percent and RAM percent."""
     try:
         import psutil
@@ -218,10 +219,10 @@ class AlwaysOnOverlay:
         margin_bottom: int = 40,
         auto_hide_s: float = 8.0,
         sidebar_mode: bool = True,
-        on_close: Optional[Callable[[], None]] = None,
-        on_action: Optional[Callable[[str], Any]] = None,
+        on_close: Callable[[], None] | None = None,
+        on_action: Callable[[str], Any] | None = None,
         headless: bool = False,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         self._width = width
         self._height = height
@@ -249,19 +250,19 @@ class AlwaysOnOverlay:
         self._hint_text: str = ""
 
         # 5-Turn Conversation History Queue
-        self._history: Deque[TurnRecord] = deque(maxlen=5)
+        self._history: deque[TurnRecord] = deque(maxlen=5)
 
         # Autonomous Task DAG State Telemetry
-        self._current_dag: Optional[Dict[str, Any]] = None
+        self._current_dag: dict[str, Any] | None = None
 
         # Live Code Interpreter Log Stream (Buffer of 100 entries)
-        self._code_logs: Deque[Dict[str, Any]] = deque(maxlen=100)
+        self._code_logs: deque[dict[str, Any]] = deque(maxlen=100)
 
         # Visual Result Cards
-        self._visual_results: List[Dict[str, Any]] = []
+        self._visual_results: list[dict[str, Any]] = []
 
         # Persistent Memory Preview Facts (Top 3)
-        self._memory_facts: List[str] = [
+        self._memory_facts: list[str] = [
             "Chủ nhân: Hưng",
             "Dự án: JARVIS AI",
             "Nhạc: Lofi Work",
@@ -270,61 +271,61 @@ class AlwaysOnOverlay:
         # Realtime Hardware Telemetry (5s update)
         self._cpu_percent: float = 0.0
         self._ram_percent: float = 0.0
-        self._battery_percent: Optional[int] = None
+        self._battery_percent: int | None = None
         self._is_charging: bool = False
         self._telemetry_interval_ms: int = 5000
 
         # Audio Waveform Spectrum Analyzer (11 Bars)
-        self._waveform_bars: List[float] = [0.1] * 11
+        self._waveform_bars: list[float] = [0.1] * 11
         self._waveform_phase: float = 0.0
         self._waveform_interval_ms: int = 60
 
         # Quick Action Callbacks Registry
-        self._action_callbacks: Dict[str, Callable[[], Any]] = {}
+        self._action_callbacks: dict[str, Callable[[], Any]] = {}
         self._setup_default_action_callbacks()
 
         # Tkinter & Threading
-        self._root: Optional[tk.Tk] = None
-        self._thread: Optional[threading.Thread] = None
+        self._root: tk.Tk | None = None
+        self._thread: threading.Thread | None = None
         self._ready = threading.Event()
         self._is_running = False
         self._lock = threading.RLock()
 
         # Animation & Timer Job Handles
-        self._breathing_job: Optional[str] = None
+        self._breathing_job: str | None = None
         self._breathing_index: int = 0
         self._breathing_direction: int = 1
         self._breathing_interval_ms: int = 120
 
-        self._typing_job: Optional[str] = None
+        self._typing_job: str | None = None
         self._typing_index: int = 0
         self._typing_interval_ms: int = 350
         self._current_transcript: str = ""
 
-        self._hide_job: Optional[str] = None
-        self._waveform_job: Optional[str] = None
-        self._telemetry_job: Optional[str] = None
+        self._hide_job: str | None = None
+        self._waveform_job: str | None = None
+        self._telemetry_job: str | None = None
 
         # Drag Window Geometry Tracking
         self._drag_x: int = 0
         self._drag_y: int = 0
 
         # Tkinter Widget References
-        self._main_container: Optional[tk.Frame] = None
-        self._ribbon_container: Optional[tk.Frame] = None
-        self._arc_badge_container: Optional[tk.Frame] = None
-        self._status_dot: Optional[tk.Label] = None
-        self._status_var: Optional[tk.StringVar] = None
-        self._user_var: Optional[tk.StringVar] = None
-        self._jarvis_var: Optional[tk.StringVar] = None
-        self._hint_var: Optional[tk.StringVar] = None
-        self._telemetry_var: Optional[tk.StringVar] = None
-        self._memory_var: Optional[tk.StringVar] = None
-        self._waveform_canvas: Optional[tk.Canvas] = None
-        self._history_frame: Optional[tk.Frame] = None
-        self._dag_frame: Optional[tk.Frame] = None
-        self._code_log_frame: Optional[tk.Frame] = None
-        self._visual_result_frame: Optional[tk.Frame] = None
+        self._main_container: tk.Frame | None = None
+        self._ribbon_container: tk.Frame | None = None
+        self._arc_badge_container: tk.Frame | None = None
+        self._status_dot: tk.Label | None = None
+        self._status_var: tk.StringVar | None = None
+        self._user_var: tk.StringVar | None = None
+        self._jarvis_var: tk.StringVar | None = None
+        self._hint_var: tk.StringVar | None = None
+        self._telemetry_var: tk.StringVar | None = None
+        self._memory_var: tk.StringVar | None = None
+        self._waveform_canvas: tk.Canvas | None = None
+        self._history_frame: tk.Frame | None = None
+        self._dag_frame: tk.Frame | None = None
+        self._code_log_frame: tk.Frame | None = None
+        self._visual_result_frame: tk.Frame | None = None
 
     # =========================================================================
     # Public Properties for Observability & Testing
@@ -375,7 +376,7 @@ class AlwaysOnOverlay:
         return self._headless or (self._root is None)
 
     @property
-    def memory_facts(self) -> List[str]:
+    def memory_facts(self) -> list[str]:
         with self._lock:
             return list(self._memory_facts)
 
@@ -388,7 +389,7 @@ class AlwaysOnOverlay:
         return self._ram_percent
 
     @property
-    def battery_percent(self) -> Optional[int]:
+    def battery_percent(self) -> int | None:
         return self._battery_percent
 
     @property
@@ -396,27 +397,27 @@ class AlwaysOnOverlay:
         return self._is_charging
 
     @property
-    def waveform_bars(self) -> List[float]:
+    def waveform_bars(self) -> list[float]:
         with self._lock:
             return list(self._waveform_bars)
 
     @property
-    def current_dag(self) -> Optional[Dict[str, Any]]:
+    def current_dag(self) -> dict[str, Any] | None:
         with self._lock:
             return dict(self._current_dag) if self._current_dag else None
 
     @property
-    def code_logs(self) -> List[Dict[str, Any]]:
+    def code_logs(self) -> list[dict[str, Any]]:
         with self._lock:
             return list(self._code_logs)
 
     @property
-    def visual_results(self) -> List[Dict[str, Any]]:
+    def visual_results(self) -> list[dict[str, Any]]:
         with self._lock:
             return list(self._visual_results)
 
     @property
-    def latest_visual_result(self) -> Optional[Dict[str, Any]]:
+    def latest_visual_result(self) -> dict[str, Any] | None:
         with self._lock:
             return dict(self._visual_results[-1]) if self._visual_results else None
 
@@ -446,13 +447,13 @@ class AlwaysOnOverlay:
             self._headless = True
             self._is_running = True
 
-    def show_listening(self, prompt: Optional[str] = None, hint: Optional[str] = None) -> None:
+    def show_listening(self, prompt: str | None = None, hint: str | None = None) -> None:
         """Activates LISTENING state and starts breathing dot & waveform animations."""
         actual_prompt = prompt or hint or "🎤 Đang lắng nghe..."
         actual_hint = hint or ""
         self._schedule(lambda: self._do_show_listening(actual_prompt, actual_hint))
 
-    def show_thinking(self, transcript: str = "", user_text: Optional[str] = None) -> None:
+    def show_thinking(self, transcript: str = "", user_text: str | None = None) -> None:
         """Activates THINKING state and starts dynamic typing dots & waveform animations."""
         actual_transcript = user_text if user_text is not None else transcript
         self._schedule(lambda: self._do_show_thinking(actual_transcript))
@@ -460,11 +461,11 @@ class AlwaysOnOverlay:
     def show_response(
         self,
         transcript: str = "",
-        response: Optional[str] = None,
-        duration_s: Optional[float] = None,
+        response: str | None = None,
+        duration_s: float | None = None,
         hint: str = "💡 Double clap để hỏi tiếp",
-        jarvis_text: Optional[str] = None,
-        user_text: Optional[str] = None,
+        jarvis_text: str | None = None,
+        user_text: str | None = None,
         action: str = "",
     ) -> None:
         """Activates RESPONSE state, renders text, records conversation turn, and sets auto-hide."""
@@ -495,7 +496,7 @@ class AlwaysOnOverlay:
     # Task DAG, Code Stream & Visual Result Card Telemetry (Milestone 5)
     # =========================================================================
 
-    def update_task_dag(self, dag_data: Dict[str, Any]) -> None:
+    def update_task_dag(self, dag_data: dict[str, Any]) -> None:
         """
         Updates the HUD Task DAG telemetry and renders active plan progression.
         Thread-safe: schedules UI update onto Tkinter thread or headless buffer.
@@ -521,7 +522,7 @@ class AlwaysOnOverlay:
 
         self._schedule(self._render_code_logs)
 
-    def display_visual_result(self, result_info: Dict[str, Any]) -> None:
+    def display_visual_result(self, result_info: dict[str, Any]) -> None:
         """
         Displays a visual result card (e.g. computer-use bounding box, visual diff, OCR summary).
         Thread-safe: adds to visual results history and refreshes UI.
@@ -610,7 +611,7 @@ class AlwaysOnOverlay:
         self._schedule(self._render_history_cards)
         return record
 
-    def get_history(self) -> List[Dict[str, Any]]:
+    def get_history(self) -> list[dict[str, Any]]:
         """Returns the list of up to 5 conversation turns."""
         with self._lock:
             return [t.to_dict() for t in self._history]
@@ -621,7 +622,7 @@ class AlwaysOnOverlay:
             self._history.clear()
         self._schedule(self._render_history_cards)
 
-    def set_memory_facts(self, facts: List[str]) -> None:
+    def set_memory_facts(self, facts: list[str]) -> None:
         """Updates the top 3 persistent memory facts preview."""
         with self._lock:
             self._memory_facts = list(facts[:3])
@@ -661,11 +662,11 @@ class AlwaysOnOverlay:
 
     def update_telemetry(
         self,
-        cpu_percent: Optional[float] = None,
-        ram_percent: Optional[float] = None,
-        battery_percent: Optional[int] = None,
-        is_charging: Optional[bool] = None,
-    ) -> Dict[str, Any]:
+        cpu_percent: float | None = None,
+        ram_percent: float | None = None,
+        battery_percent: int | None = None,
+        is_charging: bool | None = None,
+    ) -> dict[str, Any]:
         """Manually updates hardware telemetry and refreshes UI status bar."""
         with self._lock:
             if cpu_percent is not None:
@@ -687,7 +688,7 @@ class AlwaysOnOverlay:
         self._schedule(self._update_telemetry_label)
         return summary
 
-    def probe_system_metrics(self) -> Dict[str, Any]:
+    def probe_system_metrics(self) -> dict[str, Any]:
         """Probes CPU, RAM, and Battery from OS subsystems and updates telemetry."""
         cpu, ram = _safe_probe_cpu_ram()
         bat, charging = _safe_probe_battery()
@@ -698,7 +699,7 @@ class AlwaysOnOverlay:
             is_charging=charging,
         )
 
-    def update_audio_level(self, level: Union[float, List[float]]) -> None:
+    def update_audio_level(self, level: float | list[float]) -> None:
         """Updates 11-bar waveform spectrum analyzer with audio RMS or bar levels."""
         with self._lock:
             if isinstance(level, (int, float)):
@@ -769,7 +770,7 @@ class AlwaysOnOverlay:
             self._is_running = True
             self._ready.set()
 
-    def _get_screen_dimensions(self) -> Tuple[int, int]:
+    def _get_screen_dimensions(self) -> tuple[int, int]:
         if self._root:
             try:
                 return self._root.winfo_screenwidth(), self._root.winfo_screenheight()

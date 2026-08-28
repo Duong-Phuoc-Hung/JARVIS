@@ -17,12 +17,12 @@ Commands:
 """
 from __future__ import annotations
 
-import io
 import logging
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 log = logging.getLogger("jarvis.comms.discord")
 
@@ -30,9 +30,9 @@ log = logging.getLogger("jarvis.comms.discord")
 @dataclass
 class DiscordConfig:
     bot_token: str = ""
-    whitelist_user_ids: List[int] = field(default_factory=list)
-    guild_id: Optional[int] = None
-    default_channel_id: Optional[int] = None
+    whitelist_user_ids: list[int] = field(default_factory=list)
+    guild_id: int | None = None
+    default_channel_id: int | None = None
     enabled: bool = True
     rate_limit_s: float = 1.0
 
@@ -42,13 +42,13 @@ class DiscordEmbed:
     title: str = ""
     description: str = ""
     color: int = 0x00FF88   # JARVIS green
-    fields: List[Dict[str, str]] = field(default_factory=list)
+    fields: list[dict[str, str]] = field(default_factory=list)
 
-    def add_field(self, name: str, value: str, inline: bool = False) -> "DiscordEmbed":
+    def add_field(self, name: str, value: str, inline: bool = False) -> DiscordEmbed:
         self.fields.append({"name": name, "value": value, "inline": inline})
         return self
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"title": self.title, "description": self.description,
                 "color": self.color, "fields": self.fields}
 
@@ -62,23 +62,23 @@ class DiscordBotController:
     def __init__(
         self,
         bot_token: str = "",
-        whitelist_user_ids: Optional[List[int]] = None,
-        guild_id: Optional[int] = None,
-        channel_id: Optional[int] = None,
-        dispatcher: Optional[Callable] = None,
-        http_client: Optional[Any] = None,
+        whitelist_user_ids: list[int] | None = None,
+        guild_id: int | None = None,
+        channel_id: int | None = None,
+        dispatcher: Callable | None = None,
+        http_client: Any | None = None,
     ) -> None:
         self.bot_token = bot_token
-        self.whitelist: List[int] = whitelist_user_ids or []
+        self.whitelist: list[int] = whitelist_user_ids or []
         self.guild_id = guild_id
         self.default_channel_id = channel_id
         self.dispatcher = dispatcher
         self._http = http_client
-        self.sent_messages: List[Dict[str, Any]] = []
-        self.security_violations: List[Dict[str, Any]] = []
+        self.sent_messages: list[dict[str, Any]] = []
+        self.security_violations: list[dict[str, Any]] = []
         self._running = False
-        self._poll_thread: Optional[threading.Thread] = None
-        self._last_message_id: Optional[str] = None
+        self._poll_thread: threading.Thread | None = None
+        self._last_message_id: str | None = None
         log.info("DiscordBotController initialized (token=%s, whitelist=%d users)",
                  "set" if bot_token else "not_set", len(self.whitelist))
 
@@ -102,7 +102,7 @@ class DiscordBotController:
         username: str,
         content: str,
         channel_id: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Process an incoming Discord message and return a response dict.
         Response: {"status": 200, "text": str, "embed": dict|None}
@@ -152,7 +152,7 @@ class DiscordBotController:
     # Commands
     # ------------------------------------------------------------------
 
-    def _cmd_help(self) -> Dict[str, Any]:
+    def _cmd_help(self) -> dict[str, Any]:
         embed = DiscordEmbed(title="🤖 JARVIS Discord Controller", description="Danh sách lệnh điều khiển:")
         embed.add_field("!status", "Kiểm tra sức khỏe hệ thống", True)
         embed.add_field("!briefing", "Báo cáo sáng tổng hợp", True)
@@ -164,7 +164,7 @@ class DiscordBotController:
         embed.add_field("!exec <cmd>", "Thực thi kỹ năng/lệnh", True)
         return {"status": 200, "text": "📋 Danh sách lệnh JARVIS:", "embed": embed.to_dict()}
 
-    def _cmd_status(self) -> Dict[str, Any]:
+    def _cmd_status(self) -> dict[str, Any]:
         try:
             from jarvis.core.health import HealthChecker
             checker = HealthChecker()
@@ -177,7 +177,7 @@ class DiscordBotController:
         embed = DiscordEmbed(title="🟢 JARVIS System Status", description=text)
         return {"status": 200, "text": text, "embed": embed.to_dict()}
 
-    def _cmd_briefing(self) -> Dict[str, Any]:
+    def _cmd_briefing(self) -> dict[str, Any]:
         try:
             from jarvis.skills import registry
             reg = registry.SkillRegistry()
@@ -187,7 +187,7 @@ class DiscordBotController:
             text = f"Briefing không khả dụng: {exc}"
         return {"status": 200, "text": f"📰 {text[:1800]}", "embed": None}
 
-    def _cmd_skills(self) -> Dict[str, Any]:
+    def _cmd_skills(self) -> dict[str, Any]:
         try:
             from jarvis.skills import registry
             reg = registry.SkillRegistry()
@@ -198,7 +198,7 @@ class DiscordBotController:
             text = f"Lỗi lấy danh sách kỹ năng: {exc}"
         return {"status": 200, "text": text[:1800], "embed": None}
 
-    def _cmd_note(self, note_text: str) -> Dict[str, Any]:
+    def _cmd_note(self, note_text: str) -> dict[str, Any]:
         if not note_text:
             return {"status": 400, "text": "⚠️ Vui lòng nhập nội dung ghi chú sau `!note`.", "embed": None}
         try:
@@ -210,7 +210,7 @@ class DiscordBotController:
             text = f"📝 Ghi chú đã ghi nhận: {note_text[:100]}"
         return {"status": 200, "text": text, "embed": None}
 
-    def _cmd_calc(self, expr: str) -> Dict[str, Any]:
+    def _cmd_calc(self, expr: str) -> dict[str, Any]:
         if not expr:
             return {"status": 400, "text": "⚠️ Nhập biểu thức sau `!calc`.", "embed": None}
         try:
@@ -222,14 +222,14 @@ class DiscordBotController:
             text = f"Lỗi tính toán: {exc}"
         return {"status": 200, "text": f"🔢 {text}", "embed": None}
 
-    def _cmd_screenshot(self, channel_id: int) -> Dict[str, Any]:
+    def _cmd_screenshot(self, channel_id: int) -> dict[str, Any]:
         png_bytes = self._capture_screenshot()
         if png_bytes:
             self.send_file(channel_id, png_bytes, "screenshot.png", "📸 Màn hình hiện tại")
             return {"status": 200, "text": "📸 Đã chụp và gửi màn hình!", "embed": None}
         return {"status": 500, "text": "❌ Không thể chụp màn hình.", "embed": None}
 
-    def _cmd_macro(self, macro_name: str) -> Dict[str, Any]:
+    def _cmd_macro(self, macro_name: str) -> dict[str, Any]:
         try:
             from jarvis.skills import registry
             reg = registry.SkillRegistry()
@@ -239,7 +239,7 @@ class DiscordBotController:
             text = f"Lỗi chạy macro '{macro_name}': {exc}"
         return {"status": 200, "text": text[:1800], "embed": None}
 
-    def _cmd_exec(self, command: str, username: str) -> Dict[str, Any]:
+    def _cmd_exec(self, command: str, username: str) -> dict[str, Any]:
         parts = command.split(None, 1)
         skill_name = parts[0] if parts else ""
         params_str = parts[1] if len(parts) > 1 else ""
@@ -259,12 +259,14 @@ class DiscordBotController:
     # Sending
     # ------------------------------------------------------------------
 
-    def send_message(self, channel_id: int, content: str) -> Dict[str, Any]:
+    def send_message(self, channel_id: int, content: str) -> dict[str, Any]:
         record = {"channel_id": channel_id, "content": content, "timestamp": time.time()}
         self.sent_messages.append(record)
         if self._http and self.bot_token:
             try:
-                import urllib.request, json as _json, urllib.error
+                import json as _json
+                import urllib.error
+                import urllib.request
                 payload = _json.dumps({"content": content}).encode()
                 req = urllib.request.Request(
                     f"https://discord.com/api/v10/channels/{channel_id}/messages",
@@ -283,19 +285,20 @@ class DiscordBotController:
         file_bytes: bytes,
         filename: str,
         caption: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         record = {"channel_id": channel_id, "filename": filename, "size": len(file_bytes), "timestamp": time.time()}
         self.sent_messages.append(record)
         log.info("Discord send_file: %s (%dKB) to channel %d", filename, len(file_bytes) // 1024, channel_id)
         return {"success": True, "data": record}
 
-    def send_embed(self, channel_id: int, title: str, description: str, fields: List[Dict]) -> Dict[str, Any]:
+    def send_embed(self, channel_id: int, title: str, description: str, fields: list[dict]) -> dict[str, Any]:
         embed = {"title": title, "description": description, "fields": fields, "color": 0x00FF88}
         return self.send_message(channel_id, f"**{title}**\n{description}")
 
-    def _capture_screenshot(self) -> Optional[bytes]:
+    def _capture_screenshot(self) -> bytes | None:
         try:
-            import mss, mss.tools
+            import mss
+            import mss.tools
             with mss.mss() as sct:
                 img = sct.grab(sct.monitors[1])
                 return mss.tools.to_png(img.rgb, img.size)
@@ -303,6 +306,7 @@ class DiscordBotController:
             pass
         try:
             import io
+
             from PIL import ImageGrab
             buf = io.BytesIO()
             ImageGrab.grab().save(buf, format="PNG")

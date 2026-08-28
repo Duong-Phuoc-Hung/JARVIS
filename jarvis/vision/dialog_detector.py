@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import ctypes
 import logging
-import os
 import sys
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("jarvis.vision.dialog_detector")
 
@@ -45,7 +44,7 @@ class ErrorDialogDetector:
     warning message boxes (#32770), and application crash windows.
     """
 
-    def __init__(self, custom_keywords: Optional[List[str]] = None) -> None:
+    def __init__(self, custom_keywords: list[str] | None = None) -> None:
         self.error_keywords = set(ERROR_KEYWORDS)
         if custom_keywords:
             for kw in custom_keywords:
@@ -57,7 +56,7 @@ class ErrorDialogDetector:
         """Returns True if Win32 dialog inspection is supported on the current platform."""
         return sys.platform == "win32"
 
-    def scan_for_dialogs(self) -> List[Dict[str, Any]]:
+    def scan_for_dialogs(self) -> list[dict[str, Any]]:
         """
         Enumerates all visible top-level windows and returns detected modal dialogs / error popups.
         """
@@ -65,7 +64,7 @@ class ErrorDialogDetector:
             logger.debug("Non-Windows OS detected; returning empty dialog list.")
             return []
 
-        dialogs: List[Dict[str, Any]] = []
+        dialogs: list[dict[str, Any]] = []
 
         try:
             user32 = getattr(ctypes.windll, "user32", None)
@@ -151,9 +150,9 @@ class ErrorDialogDetector:
 
         return dialogs
 
-    def _get_child_window_texts(self, parent_hwnd: int, user32: Any) -> List[str]:
+    def _get_child_window_texts(self, parent_hwnd: int, user32: Any) -> list[str]:
         """Extracts text strings from all child static and edit controls."""
-        texts: List[str] = []
+        texts: list[str] = []
 
         try:
             def enum_child_proc(hwnd: int, lparam: int) -> int:
@@ -180,7 +179,7 @@ class ErrorDialogDetector:
 
         return texts
 
-    def get_active_error_dialog(self) -> Optional[Dict[str, Any]]:
+    def get_active_error_dialog(self) -> dict[str, Any] | None:
         """
         Returns the most relevant active error dialog if found on screen,
         or None if no errors/dialogs are present.
@@ -200,7 +199,7 @@ class ErrorDialogDetector:
         """Returns True if any error dialog or warning popup is detected."""
         return self.get_active_error_dialog() is not None
 
-    def format_error_summary(self, dialog: Optional[Dict[str, Any]] = None) -> str:
+    def format_error_summary(self, dialog: dict[str, Any] | None = None) -> str:
         """
         Creates a clean, vocalizable Vietnamese description of the error dialog.
         """

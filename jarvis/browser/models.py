@@ -7,7 +7,7 @@ and price comparison representations for the JARVIS browser automation subsystem
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class BrowserDriverType(str, Enum):
@@ -33,10 +33,10 @@ class BrowserConfig:
     downloads_dir: str = "downloads"
     session_storage_dir: str = "logs/browser_sessions"
     cdp_endpoint: str = "http://127.0.0.1:9222"
-    proxy: Optional[str] = None
+    proxy: str | None = None
     accept_downloads: bool = True
     slow_mo_ms: int = 0
-    extra_headers: Dict[str, str] = field(default_factory=dict)
+    extra_headers: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -45,13 +45,13 @@ class PageElement:
     selector: str
     tag_name: str
     text: str = ""
-    role: Optional[str] = None
-    aria_label: Optional[str] = None
-    bounding_box: Optional[Dict[str, float]] = None  # {"x": 0.0, "y": 0.0, "width": 0.0, "height": 0.0}
+    role: str | None = None
+    aria_label: str | None = None
+    bounding_box: dict[str, float] | None = None  # {"x": 0.0, "y": 0.0, "width": 0.0, "height": 0.0}
     is_visible: bool = True
     is_enabled: bool = True
-    attributes: Dict[str, str] = field(default_factory=dict)
-    value: Optional[str] = None
+    attributes: dict[str, str] = field(default_factory=dict)
+    value: str | None = None
 
 
 @dataclass
@@ -62,14 +62,14 @@ class BrowserActionResult:
     url: str = ""
     title: str = ""
     extracted_data: Any = None
-    downloaded_file: Optional[str] = None
-    error_message: Optional[str] = None
-    screenshot_b64: Optional[str] = None
+    downloaded_file: str | None = None
+    error_message: str | None = None
+    screenshot_b64: str | None = None
     execution_time_ms: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
-    def error(self) -> Optional[str]:
+    def error(self) -> str | None:
         """Convenience alias for error_message."""
         return self.error_message
 
@@ -82,11 +82,11 @@ class PriceComparisonItem:
     price: float
     currency: str = "VND"
     product_url: str = ""
-    rating: Optional[float] = None
+    rating: float | None = None
     in_stock: bool = True
     shipping_cost: float = 0.0
     source: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -96,11 +96,11 @@ class ScrapeResult:
     title: str
     markdown_content: str
     text_content: str
-    structured_data: Dict[str, Any] = field(default_factory=dict)
-    links: List[str] = field(default_factory=list)
-    images: List[str] = field(default_factory=list)
-    tables: List[List[Dict[str, str]]] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    structured_data: dict[str, Any] = field(default_factory=dict)
+    links: list[str] = field(default_factory=list)
+    images: list[str] = field(default_factory=list)
+    tables: list[list[dict[str, str]]] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def markdown(self) -> str:
@@ -108,7 +108,7 @@ class ScrapeResult:
         return self.markdown_content
 
     @property
-    def error(self) -> Optional[str]:
+    def error(self) -> str | None:
         """Convenience alias returning None on successful scrape payload."""
         return None
 
@@ -128,4 +128,4 @@ class DownloadProgress:
     downloaded_bytes: int = 0
     percentage: float = 0.0
     status: str = "pending"  # "pending", "downloading", "completed", "failed"
-    error: Optional[str] = None
+    error: str | None = None

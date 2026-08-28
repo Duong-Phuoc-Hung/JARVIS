@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Callable, Dict, List, Optional, Union
 
 from jarvis.comms.telegram import TelegramBotController
 from jarvis.core.dispatcher import EventBus
@@ -29,11 +28,11 @@ class WorkerNotificationDispatcher:
 
     def __init__(
         self,
-        tts_manager: Optional[TTSManager] = None,
-        overlay: Optional[AlwaysOnOverlay] = None,
-        telegram_controller: Optional[TelegramBotController] = None,
-        event_bus: Optional[EventBus] = None,
-        default_telegram_chat_id: Optional[int] = None,
+        tts_manager: TTSManager | None = None,
+        overlay: AlwaysOnOverlay | None = None,
+        telegram_controller: TelegramBotController | None = None,
+        event_bus: EventBus | None = None,
+        default_telegram_chat_id: int | None = None,
     ) -> None:
         self.tts_manager = tts_manager
         self.overlay = overlay
@@ -183,7 +182,7 @@ class WorkerNotificationDispatcher:
             except Exception as e:
                 logger.debug("Failed to publish worker:cancelled: %s", e)
 
-    def _dispatch_telegram(self, chat_id: int, text: str, artifacts: List[str]) -> None:
+    def _dispatch_telegram(self, chat_id: int, text: str, artifacts: list[str]) -> None:
         """Sends message and uploads artifact files/photos to Telegram."""
         if not self.telegram_controller:
             return

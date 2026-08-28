@@ -7,14 +7,11 @@ Covers Feature:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-import email
-from email.header import decode_header
 import html
-import imaplib
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass, field
+from typing import Any
 
 log = logging.getLogger("jarvis.comms.email")
 
@@ -34,7 +31,7 @@ class EmailSummaryResult:
     total_unread: int
     priority_count: int
     voice_summary: str
-    priority_emails: List[EmailMessage] = field(default_factory=list)
+    priority_emails: list[EmailMessage] = field(default_factory=list)
 
 
 class IMAPEmailReader:
@@ -42,13 +39,13 @@ class IMAPEmailReader:
 
     def __init__(
         self,
-        priority_senders: Optional[List[str]] = None,
+        priority_senders: list[str] | None = None,
         host: str = "imap.gmail.com",
         port: int = 993,
         username: str = "",
         password: str = "",
     ):
-        self.priority_senders: List[str] = [s.lower() for s in (priority_senders or [])]
+        self.priority_senders: list[str] = [s.lower() for s in (priority_senders or [])]
         self.host = host
         self.port = port
         self.username = username
@@ -61,8 +58,8 @@ class IMAPEmailReader:
 
     def fetch_and_summarize(
         self,
-        mock_emails: Optional[List[EmailMessage]] = None,
-    ) -> Dict[str, Any]:
+        mock_emails: list[EmailMessage] | None = None,
+    ) -> dict[str, Any]:
         """Filters priority unread emails and generates natural language voice summary."""
         emails = mock_emails or []
         priority_emails = [

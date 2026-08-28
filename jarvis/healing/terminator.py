@@ -11,13 +11,14 @@ Features:
 from __future__ import annotations
 
 import ctypes
-from dataclasses import dataclass, field
-from enum import Enum
 import logging
 import os
 import sys
 import time
-from typing import Any, Dict, Iterator, List, Optional, Set, Union
+from collections.abc import Iterator
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
 
 try:
     import psutil
@@ -25,13 +26,13 @@ try:
 except ImportError:
     HAS_PSUTIL = False
 
-from jarvis.healing.watchdog import HungProcessInfo, ResourceWatchdog, UnresponsiveAppDetector
+from jarvis.healing.watchdog import UnresponsiveAppDetector
 from jarvis.platform.windows import platform_win32
 
 log = logging.getLogger("jarvis.healing.terminator")
 
 # Immutable Windows OS & JARVIS process whitelist (case-insensitive)
-PROTECTED_PROCESS_WHITELIST: Set[str] = {
+PROTECTED_PROCESS_WHITELIST: set[str] = {
     "system",
     "registry",
     "smss.exe",
@@ -63,16 +64,16 @@ class HealingMode(str, Enum):
 class HealingReport:
     """Structured report returned after healing execution, compatible with dict access."""
     success: bool
-    pid: Optional[int] = None
-    name: Optional[str] = None
-    reclaimed_ram: Optional[float] = None
+    pid: int | None = None
+    name: str | None = None
+    reclaimed_ram: float | None = None
     spoken_message: str = ""
-    reason: Optional[str] = None
+    reason: str | None = None
     alert_issued: bool = False
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "success": self.success,
             "spoken_message": self.spoken_message,
             "timestamp": self.timestamp,
@@ -113,22 +114,22 @@ class AutonomousTerminator:
 
     def __init__(
         self,
-        win32_platform: Optional[Any] = None,
-        hardware_provider: Optional[Any] = None,
-        custom_whitelist: Optional[Set[str]] = None,
+        win32_platform: Any | None = None,
+        hardware_provider: Any | None = None,
+        custom_whitelist: set[str] | None = None,
         grace_period_s: float = 2.5,
     ) -> None:
         self.win32 = win32_platform if win32_platform is not None else platform_win32
         self.hardware = hardware_provider
         self.grace_period_s = grace_period_s
-        self.whitelist: Set[str] = set(PROTECTED_PROCESS_WHITELIST)
+        self.whitelist: set[str] = set(PROTECTED_PROCESS_WHITELIST)
         if custom_whitelist:
             self.whitelist.update(k.lower() for k in custom_whitelist)
 
         # Protect self PID
         self.self_pid = os.getpid()
 
-    def is_protected(self, process_name: str, pid: Optional[int] = None) -> bool:
+    def is_protected(self, process_name: str, pid: int | None = None) -> bool:
         """Validates if process is on immutable OS whitelist or matches self PID."""
         if pid is not None and pid == self.self_pid:
             return True
@@ -139,7 +140,7 @@ class AutonomousTerminator:
             return True
         return False
 
-    def terminate_process(self, pid: int, process_name: str, hwnd: Optional[int] = None) -> bool:
+    def terminate_process(self, pid: int, process_name: str, hwnd: int | None = None) -> bool:
         """
         Executes two-phase safe termination:
         Phase 1: Graceful WM_CLOSE / SIGTERM.
@@ -229,11 +230,11 @@ class HealingEngine:
 
     def __init__(
         self,
-        win32_platform: Optional[Any] = None,
-        hardware_provider: Optional[Any] = None,
+        win32_platform: Any | None = None,
+        hardware_provider: Any | None = None,
         auto_kill: bool = True,
-        mode: Union[HealingMode, str] = HealingMode.AUTONOMOUS,
-        custom_whitelist: Optional[Set[str]] = None,
+        mode: HealingMode | str = HealingMode.AUTONOMOUS,
+        custom_whitelist: set[str] | None = None,
         ram_threshold: float = 90.0,
     ) -> None:
         self.win32 = win32_platform if win32_platform is not None else platform_win32
@@ -248,7 +249,7 @@ class HealingEngine:
             custom_whitelist=custom_whitelist,
         )
         self.detector = UnresponsiveAppDetector(win32_platform=self.win32)
-        self.healing_log: List[Dict[str, Any]] = []
+        self.healing_log: list[dict[str, Any]] = []
 
     def is_ram_critical(self) -> bool:
         """Returns True if current system RAM >= ram_threshold."""
@@ -261,15 +262,15 @@ class HealingEngine:
                 pass
         return False
 
-    def find_hung_windows(self) -> List[Any]:
+    def find_hung_windows(self) -> list[Any]:
         """Returns list of unresponsive windows/applications."""
         return self.detector.find_hung_windows()
 
-    def is_protected(self, process_name: str, pid: Optional[int] = None) -> bool:
+    def is_protected(self, process_name: str, pid: int | None = None) -> bool:
         """Checks if process name is on the protected whitelist."""
         return self.terminator.is_protected(process_name, pid=pid)
 
-    def heal_hung_process(self, pid: int, name: str, hwnd: Optional[int] = None) -> Dict[str, Any]:
+    def heal_hung_process(self, pid: int, name: str, hwnd: int | None = None) -> dict[str, Any]:
         """
         Remediates a hung or leaking application process:
         - Rejects protected system processes.
@@ -322,7 +323,7 @@ class HealingEngine:
         self.healing_log.append(report)
         return report
 
-    def run_auto_recovery_cycle(self) -> List[Dict[str, Any]]:
+    def run_auto_recovery_cycle(self) -> list[dict[str, Any]]:
         """
         Scans for all hung applications and performs autonomous healing.
         Returns list of recovery reports.

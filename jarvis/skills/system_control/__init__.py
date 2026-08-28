@@ -6,10 +6,10 @@ from __future__ import annotations
 
 import ctypes
 import os
-from pathlib import Path
 import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 
@@ -17,7 +17,7 @@ def execute(
     action: str = "volume_up",
     value: int = 10,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Execute OS-level hardware/system control operations.
     """
@@ -38,14 +38,14 @@ def execute(
                 return {"text": msg, "output": msg, "success": True}
             except Exception:
                 pass
-        
+
         # Win32 VK_VOLUME_UP fallback
         if sys.platform == "win32":
             VK_VOLUME_UP = 0xAF
             for _ in range(max(1, value // 2)):
                 ctypes.windll.user32.keybd_event(VK_VOLUME_UP, 0, 0, 0)
                 ctypes.windll.user32.keybd_event(VK_VOLUME_UP, 0, 2, 0)
-            msg = f"Đã tăng âm lượng hệ thống."
+            msg = "Đã tăng âm lượng hệ thống."
             return {"text": msg, "output": msg, "success": True}
         return {"text": "Đã tăng âm lượng.", "output": "Đã tăng âm lượng.", "success": True}
 
@@ -57,14 +57,14 @@ def execute(
                 return {"text": msg, "output": msg, "success": True}
             except Exception:
                 pass
-        
+
         # Win32 VK_VOLUME_DOWN fallback
         if sys.platform == "win32":
             VK_VOLUME_DOWN = 0xAE
             for _ in range(max(1, value // 2)):
                 ctypes.windll.user32.keybd_event(VK_VOLUME_DOWN, 0, 0, 0)
                 ctypes.windll.user32.keybd_event(VK_VOLUME_DOWN, 0, 2, 0)
-            msg = f"Đã giảm âm lượng hệ thống."
+            msg = "Đã giảm âm lượng hệ thống."
             return {"text": msg, "output": msg, "success": True}
         return {"text": "Đã giảm âm lượng.", "output": "Đã giảm âm lượng.", "success": True}
 
@@ -81,7 +81,7 @@ def execute(
         save_dir = Path.home() / "Desktop"
         if not save_dir.exists():
             save_dir = Path.cwd()
-        
+
         filename = f"JARVIS_Screenshot_{int(time.time())}.png"
         filepath = save_dir / filename
 

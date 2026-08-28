@@ -5,10 +5,10 @@ Data structures, enums, and event models for acoustic gesture recognition.
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from enum import Enum
-import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 
 class GestureType(str, Enum):
@@ -38,7 +38,7 @@ class ClapEvent:
     threshold: float = 0.0              # Spike detection threshold
     snr_ratio: float = 0.0              # Signal-to-noise ratio (amplitude / noise_floor)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "amplitude": self.amplitude,
@@ -55,15 +55,15 @@ class GesturePatternConfig:
     name: str
     gesture_type: GestureType
     enabled: bool = True
-    actions: List[str] = field(default_factory=list)
+    actions: list[str] = field(default_factory=list)
     min_gap_s: float = 0.05             # Minimum interval between claps (debounce)
     max_gap_s: float = 0.35             # Maximum interval between claps
     pause_min_s: float = 0.50           # Minimum pause duration (for syncopation)
     pause_max_s: float = 1.20           # Maximum pause duration
     cooldown_s: float = 0.45            # Post-trigger debounce cooldown
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "gesture_type": self.gesture_type.value,
@@ -84,17 +84,17 @@ class GestureResult:
     gesture_type: GestureType
     timestamp: float = field(default_factory=time.time)
     confidence: float = 1.0
-    claps: List[ClapEvent] = field(default_factory=list)
-    intervals: List[float] = field(default_factory=list)
-    actions_triggered: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    claps: list[ClapEvent] = field(default_factory=list)
+    intervals: list[float] = field(default_factory=list)
+    actions_triggered: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def pattern_type(self) -> str:
         """Alias for compatibility with uppercase test strings (DOUBLE_CLAP, TRIPLE_CLAP, etc.)."""
         return self.gesture_type.value.upper()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "gesture_type": self.gesture_type.value,
             "pattern_type": self.pattern_type,

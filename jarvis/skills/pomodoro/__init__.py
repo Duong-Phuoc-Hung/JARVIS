@@ -24,7 +24,7 @@ def execute(
     duration_minutes: int = 25,
     break_minutes: int = 5,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Execute Pomodoro focus actions.
     """
@@ -51,12 +51,12 @@ def execute(
         if not _POMODORO_STATE["is_running"]:
             msg = "🍅 Chế độ Pomodoro hiện đang tắt. Nói 'JARVIS, bắt đầu Pomodoro' để bắt đầu."
             return {"text": msg, "output": msg, "is_running": False, "success": True}
-        
+
         elapsed = now - _POMODORO_STATE["start_time"]
         remaining = max(0, _POMODORO_STATE["duration_seconds"] - elapsed)
         mins = int(remaining // 60)
         secs = int(remaining % 60)
-        
+
         mode_vi = "làm việc tập trung" if _POMODORO_STATE["mode"] == "work" else "nghỉ ngơi"
         msg = f"🍅 Đang trong phiên {mode_vi}. Thời gian còn lại: {mins} phút {secs:02d} giây (Chu kỳ đã hoàn thành: {_POMODORO_STATE['completed_cycles']})."
         return {

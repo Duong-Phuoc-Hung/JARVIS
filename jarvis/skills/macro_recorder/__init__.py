@@ -21,7 +21,7 @@ log = logging.getLogger("jarvis.skills.macro_recorder")
 _MACROS_FILE = Path("logs/macros.json")
 
 
-def _load_macros() -> Dict[str, List[Dict]]:
+def _load_macros() -> dict[str, list[dict]]:
     _MACROS_FILE.parent.mkdir(parents=True, exist_ok=True)
     if not _MACROS_FILE.exists():
         return {}
@@ -31,12 +31,12 @@ def _load_macros() -> Dict[str, List[Dict]]:
         return {}
 
 
-def _save_macros(macros: Dict[str, List[Dict]]) -> None:
+def _save_macros(macros: dict[str, list[dict]]) -> None:
     _MACROS_FILE.parent.mkdir(parents=True, exist_ok=True)
     _MACROS_FILE.write_text(json.dumps(macros, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def _execute_step(step: Dict) -> Dict:
+def _execute_step(step: dict) -> dict:
     """Execute a single macro step."""
     step_type = step.get("type", "")
     params = step.get("params", {})
@@ -90,10 +90,10 @@ def _execute_step(step: Dict) -> Dict:
 def execute(
     action: str = "list",
     macro_name: str = "",
-    steps: Optional[List[Dict]] = None,
+    steps: list[dict] | None = None,
     description: str = "",
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Macro recording and playback manager.
 

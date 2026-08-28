@@ -3,10 +3,11 @@ Data models, enums, and structured payloads for JARVIS Core.
 """
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 
 class PrivilegeLevel(IntEnum):
@@ -34,8 +35,8 @@ class RequesterContext:
     requester_id: str = "system"                    # e.g. "user_voice", "telegram:123456", "system"
     granted_privilege: PrivilegeLevel = PrivilegeLevel.NORMAL
     is_authenticated: bool = False                 # True if passed face recognition or secret key
-    client_ip: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    client_ip: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def system(cls) -> RequesterContext:
@@ -63,8 +64,8 @@ class HandlerResult:
     event_name: str
     success: bool
     result: Any = None
-    error: Optional[str] = None
-    error_type: Optional[str] = None
+    error: str | None = None
+    error_type: str | None = None
     execution_time_ms: float = 0.0
 
 
@@ -74,8 +75,8 @@ class ActionResult:
     action_name: str
     success: bool
     data: Any = None
-    error: Optional[str] = None
-    error_code: Optional[str] = None     # e.g. ACTION_NOT_FOUND, PERMISSION_DENIED, TIMEOUT, HANDLER_EXCEPTION
+    error: str | None = None
+    error_code: str | None = None     # e.g. ACTION_NOT_FOUND, PERMISSION_DENIED, TIMEOUT, HANDLER_EXCEPTION
     execution_time_ms: float = 0.0
     requester: str = "system"
     timestamp: float = field(default_factory=time.time)
@@ -84,7 +85,7 @@ class ActionResult:
     def is_success(self) -> bool:
         return self.success
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "action_name": self.action_name,
             "success": self.success,
@@ -104,9 +105,9 @@ class ActionDefinition:
     handler: Callable[..., Any]
     required_privilege: PrivilegeLevel = PrivilegeLevel.NORMAL
     description: str = ""
-    schema: Optional[Dict[str, Any]] = None
-    timeout_seconds: Optional[float] = None
-    plugin_name: Optional[str] = None
+    schema: dict[str, Any] | None = None
+    timeout_seconds: float | None = None
+    plugin_name: str | None = None
     is_async: bool = False
 
 
@@ -128,10 +129,10 @@ class PluginMetadata:
     version: str = "1.0.0"
     author: str = "JARVIS Team"
     description: str = ""
-    required_permissions: List[str] = field(default_factory=list)
-    dependencies: List[str] = field(default_factory=list)
+    required_permissions: list[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
     enabled_by_default: bool = True
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -142,7 +143,7 @@ class PluginHealth:
     is_healthy: bool
     message: str = "OK"
     last_check_timestamp: float = field(default_factory=time.time)
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    metrics: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -152,8 +153,8 @@ class MonitorInfo:
     handle: int                                 # HMONITOR
     device_name: str                            # e.g. "\\\\.\\DISPLAY1"
     is_primary: bool                            # True if primary display
-    rect: Tuple[int, int, int, int]             # (left, top, right, bottom) in virtual desktop pixels
-    work_rect: Tuple[int, int, int, int]        # (left, top, right, bottom) excluding taskbar
+    rect: tuple[int, int, int, int]             # (left, top, right, bottom) in virtual desktop pixels
+    work_rect: tuple[int, int, int, int]        # (left, top, right, bottom) excluding taskbar
     width: int                                  # right - left
     height: int                                 # bottom - top
     dpi_x: int                                  # Horizontal DPI (e.g. 96, 120, 144)
@@ -167,7 +168,7 @@ class WindowInfo:
     hwnd: int
     title: str
     class_name: str
-    rect: Tuple[int, int, int, int]             # (left, top, right, bottom)
+    rect: tuple[int, int, int, int]             # (left, top, right, bottom)
     width: int
     height: int
     pid: int

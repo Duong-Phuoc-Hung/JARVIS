@@ -4,11 +4,12 @@ Provides a 30-second tokenized state machine protecting against unintended OS op
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
 import uuid
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -17,7 +18,7 @@ class PendingConfirmation:
     token: str
     action_desc: str
     payload: Any = None
-    callback: Optional[Callable[..., Any]] = None
+    callback: Callable[..., Any] | None = None
     created_at: float = field(default_factory=time.time)
     expires_at: float = 0.0
     status: str = "PENDING"  # PENDING, CONFIRMED, REJECTED, EXPIRED
@@ -46,14 +47,14 @@ class SafetyGate:
 
     def __init__(self, timeout_seconds: float = 30.0) -> None:
         self.timeout_seconds = float(timeout_seconds)
-        self._pending: Dict[str, PendingConfirmation] = {}
+        self._pending: dict[str, PendingConfirmation] = {}
         self._lock = threading.RLock()
 
     def request_confirmation(
         self,
         action_desc: str,
         payload: Any = None,
-        callback: Optional[Callable[..., Any]] = None,
+        callback: Callable[..., Any] | None = None,
     ) -> str:
         """
         Registers a dangerous action and returns a unique confirmation token.
@@ -134,13 +135,13 @@ class SafetyGate:
                 return False
             return entry.status == "PENDING"
 
-    def get_pending(self, token: str) -> Optional[PendingConfirmation]:
+    def get_pending(self, token: str) -> PendingConfirmation | None:
         """Retrieves confirmation entry by token."""
         with self._lock:
             token_clean = token.strip().upper()
             return self._pending.get(token_clean)
 
-    def get_latest_pending(self) -> Optional[PendingConfirmation]:
+    def get_latest_pending(self) -> PendingConfirmation | None:
         """Returns the most recent active unexpired pending confirmation."""
         with self._lock:
             self.cleanup_expired()
@@ -153,7 +154,7 @@ class SafetyGate:
             pending_items.sort(key=lambda x: x.created_at, reverse=True)
             return pending_items[0]
 
-    def list_pending(self) -> List[PendingConfirmation]:
+    def list_pending(self) -> list[PendingConfirmation]:
         """Lists all currently active unexpired pending confirmations."""
         with self._lock:
             self.cleanup_expired()
@@ -194,8 +195,8 @@ class SafetyGate:
         return False
 
     def process_voice_response(
-        self, phrase: str, token: Optional[str] = None
-    ) -> Tuple[bool, str]:
+        self, phrase: str, token: str | None = None
+    ) -> tuple[bool, str]:
         """
         Evaluates a natural voice response against pending confirmations.
         Returns (success, message).

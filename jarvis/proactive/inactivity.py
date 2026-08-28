@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
 logger = logging.getLogger("jarvis.proactive.inactivity")
 
@@ -26,8 +26,8 @@ class InactivityMonitor:
 
     def __init__(
         self,
-        tts_callback: Optional[Callable[[str], None]] = None,
-        overlay_callback: Optional[Callable[[str, str], None]] = None,
+        tts_callback: Callable[[str], None] | None = None,
+        overlay_callback: Callable[[str, str], None] | None = None,
         inactivity_threshold_seconds: float = 7200.0,  # 2 hours
         cooldown_seconds: float = 3600.0,              # 1 hour
         greeting_phrase: str = "Thưa Ngài, Ngài có cần hỗ trợ gì không?",
@@ -47,7 +47,7 @@ class InactivityMonitor:
         self._last_greeting_time: float = 0.0
 
         self._stop_event = threading.Event()
-        self._worker_thread: Optional[threading.Thread] = None
+        self._worker_thread: threading.Thread | None = None
 
     @property
     def last_activity_time(self) -> float:
@@ -58,7 +58,7 @@ class InactivityMonitor:
     # Activity Tracking API
     # ──────────────────────────────────────────────────────────────────────────
 
-    def record_activity(self, now: Optional[float] = None) -> None:
+    def record_activity(self, now: float | None = None) -> None:
         """
         Call this whenever user interacts with JARVIS (voice command, gesture, UI click).
         Resets inactivity timer.
@@ -68,7 +68,7 @@ class InactivityMonitor:
             self._last_activity_time = current_time
             logger.debug("Recorded user activity at timestamp %.1f", current_time)
 
-    def get_idle_seconds(self, now: Optional[float] = None) -> float:
+    def get_idle_seconds(self, now: float | None = None) -> float:
         """Returns elapsed seconds since last recorded user activity."""
         current_time = time.time() if now is None else float(now)
         with self._lock:
@@ -84,7 +84,7 @@ class InactivityMonitor:
     # Check & Ticking Logic
     # ──────────────────────────────────────────────────────────────────────────
 
-    def check_inactivity(self, now: Optional[float] = None) -> bool:
+    def check_inactivity(self, now: float | None = None) -> bool:
         """
         Checks if user inactivity has exceeded threshold and cooldown has passed.
         If triggered, fires vocal greeting and overlay notification.
@@ -117,7 +117,7 @@ class InactivityMonitor:
 
         return False
 
-    def tick(self, now: Optional[float] = None) -> bool:
+    def tick(self, now: float | None = None) -> bool:
         """Tick alias for check_inactivity."""
         return self.check_inactivity(now=now)
 

@@ -5,12 +5,12 @@ Provides Git status, active branch info, recent commit logs, and repository over
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 
-def _run_git(args: List[str], cwd: Optional[Path] = None) -> Tuple[int, str, str]:
+def _run_git(args: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
     """Execute git command safely."""
     try:
         proc = subprocess.run(
@@ -32,7 +32,7 @@ def execute(
     repo_path: str = "",
     limit: int = 5,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Execute Git assistant commands.
     """
@@ -47,7 +47,7 @@ def execute(
         if code != 0:
             msg = f"Lỗi thực thi git status: {stderr or 'Không phải git repository'}"
             return {"data": {"text": msg, "success": False}, "output": msg}
-        
+
         _, branch_out, _ = _run_git(["branch", "--show-current"], target_dir)
         branch_name = branch_out or "unknown"
 
@@ -62,7 +62,7 @@ def execute(
                 },
                 "output": summary,
             }
-        
+
         lines = stdout.splitlines()
         summary = f"🌿 Git [{branch_name}]: Có {len(lines)} file có thay đổi:\n" + "\n".join(
             [f"  • {line}" for line in lines[:10]]
@@ -86,7 +86,7 @@ def execute(
         if code != 0:
             msg = f"Lỗi lấy danh sách branch: {stderr}"
             return {"data": {"text": msg, "success": False}, "output": msg}
-        
+
         summary = f"🌿 Các nhánh Git:\n{stdout}"
         return {"data": {"text": summary, "branches": stdout.splitlines(), "success": True}, "output": summary}
 
@@ -95,7 +95,7 @@ def execute(
         if code != 0:
             msg = f"Lỗi lấy lịch sử git log: {stderr}"
             return {"data": {"text": msg, "success": False}, "output": msg}
-        
+
         summary = f"🌿 {limit} Commit gần nhất:\n{stdout}"
         return {"data": {"text": summary, "commits": stdout.splitlines(), "success": True}, "output": summary}
 

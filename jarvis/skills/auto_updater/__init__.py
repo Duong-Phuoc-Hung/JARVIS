@@ -16,7 +16,7 @@ from typing import Any, Dict, Optional
 
 log = logging.getLogger("jarvis.skills.auto_updater")
 
-_UPDATER: Optional[Any] = None
+_UPDATER: Any | None = None
 
 
 def _get_updater():
@@ -31,7 +31,7 @@ def execute(
     action: str = "check",
     confirm: bool = False,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Auto-Update skill.
 

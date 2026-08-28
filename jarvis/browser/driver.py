@@ -8,18 +8,15 @@ Provides four concrete execution tiers:
 - Tier 4: MockBrowserDriver (Deterministic in-memory DOM simulation for CI/CD unit testing)
 """
 
-from abc import ABC, abstractmethod
-import base64
 import html
-import json
 import logging
 import re
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
 import urllib.parse
+from abc import ABC, abstractmethod
+from typing import Any
 
 from jarvis.browser.models import (
-    BrowserActionResult,
     BrowserConfig,
     BrowserDriverType,
     PageElement,
@@ -39,14 +36,14 @@ MINIMAL_PNG_BYTES = (
 class BaseBrowserDriver(ABC):
     """Abstract Browser Driver Contract."""
 
-    def __init__(self, config: Optional[BrowserConfig] = None) -> None:
+    def __init__(self, config: BrowserConfig | None = None) -> None:
         self.config: BrowserConfig = config or BrowserConfig()
         self._is_running: bool = False
         self._current_url: str = ""
         self._title: str = ""
 
     @abstractmethod
-    def launch(self, config: Optional[BrowserConfig] = None) -> bool:
+    def launch(self, config: BrowserConfig | None = None) -> bool:
         """Launch and initialize the browser driver instance."""
         pass
 
@@ -102,7 +99,7 @@ class BaseBrowserDriver(ABC):
         pass
 
     @abstractmethod
-    def get_text(self, selector: Optional[str] = None) -> str:
+    def get_text(self, selector: str | None = None) -> str:
         """Get visible text content of the page or specified selector."""
         pass
 
@@ -112,12 +109,12 @@ class BaseBrowserDriver(ABC):
         pass
 
     @abstractmethod
-    def get_cookies(self) -> List[Dict[str, Any]]:
+    def get_cookies(self) -> list[dict[str, Any]]:
         """Retrieve all cookies for the current session."""
         pass
 
     @abstractmethod
-    def set_cookies(self, cookies: List[Dict[str, Any]]) -> None:
+    def set_cookies(self, cookies: list[dict[str, Any]]) -> None:
         """Inject cookies into the current browser session."""
         pass
 
@@ -132,7 +129,7 @@ class BaseBrowserDriver(ABC):
         pass
 
     @abstractmethod
-    def find_elements(self, selector: str) -> List[PageElement]:
+    def find_elements(self, selector: str) -> list[PageElement]:
         """Query and return matching PageElements in the DOM."""
         pass
 
@@ -156,21 +153,21 @@ class PlaywrightBrowserDriver(BaseBrowserDriver):
     Provides full headless/headed browser automation with DOM event interception.
     """
 
-    def __init__(self, config: Optional[BrowserConfig] = None) -> None:
+    def __init__(self, config: BrowserConfig | None = None) -> None:
         super().__init__(config)
         self._playwright: Any = None
         self._browser: Any = None
         self._context: Any = None
         self._page: Any = None
 
-    def launch(self, config: Optional[BrowserConfig] = None) -> bool:
+    def launch(self, config: BrowserConfig | None = None) -> bool:
         if config:
             self.config = config
         try:
             from playwright.sync_api import sync_playwright  # type: ignore
 
             self._playwright = sync_playwright().start()
-            launch_options: Dict[str, Any] = {
+            launch_options: dict[str, Any] = {
                 "headless": self.config.headless,
                 "slow_mo": self.config.slow_mo_ms,
             }
@@ -178,7 +175,7 @@ class PlaywrightBrowserDriver(BaseBrowserDriver):
                 launch_options["proxy"] = {"server": self.config.proxy}
 
             self._browser = self._playwright.chromium.launch(**launch_options)
-            context_options: Dict[str, Any] = {
+            context_options: dict[str, Any] = {
                 "user_agent": self.config.user_agent,
                 "viewport": {
                     "width": self.config.viewport_width,
@@ -310,7 +307,7 @@ class PlaywrightBrowserDriver(BaseBrowserDriver):
             logger.error("Playwright get_html failed: %s", exc)
             return ""
 
-    def get_text(self, selector: Optional[str] = None) -> str:
+    def get_text(self, selector: str | None = None) -> str:
         if not self._is_running or not self._page:
             return ""
         try:
@@ -331,7 +328,7 @@ class PlaywrightBrowserDriver(BaseBrowserDriver):
             logger.error("Playwright screenshot capture failed: %s", exc)
             return b""
 
-    def get_cookies(self) -> List[Dict[str, Any]]:
+    def get_cookies(self) -> list[dict[str, Any]]:
         if not self._is_running or not self._context:
             return []
         try:
@@ -340,7 +337,7 @@ class PlaywrightBrowserDriver(BaseBrowserDriver):
             logger.error("Playwright get_cookies failed: %s", exc)
             return []
 
-    def set_cookies(self, cookies: List[Dict[str, Any]]) -> None:
+    def set_cookies(self, cookies: list[dict[str, Any]]) -> None:
         if not self._is_running or not self._context:
             return
         try:
@@ -364,10 +361,10 @@ class PlaywrightBrowserDriver(BaseBrowserDriver):
                 pass
         return self._title
 
-    def find_elements(self, selector: str) -> List[PageElement]:
+    def find_elements(self, selector: str) -> list[PageElement]:
         if not self._is_running or not self._page:
             return []
-        results: List[PageElement] = []
+        results: list[PageElement] = []
         try:
             elements = self._page.query_selector_all(selector)
             for el in elements:
@@ -420,15 +417,15 @@ class CDPBrowserDriver(BaseBrowserDriver):
     Communicates via REST JSON endpoints and CDP commands.
     """
 
-    def __init__(self, config: Optional[BrowserConfig] = None) -> None:
+    def __init__(self, config: BrowserConfig | None = None) -> None:
         super().__init__(config)
         self._endpoint: str = (config.cdp_endpoint if config else "http://127.0.0.1:9222").rstrip("/")
-        self._session_id: Optional[str] = None
-        self._target_id: Optional[str] = None
-        self._ws_url: Optional[str] = None
-        self._cookies: List[Dict[str, Any]] = []
+        self._session_id: str | None = None
+        self._target_id: str | None = None
+        self._ws_url: str | None = None
+        self._cookies: list[dict[str, Any]] = []
 
-    def launch(self, config: Optional[BrowserConfig] = None) -> bool:
+    def launch(self, config: BrowserConfig | None = None) -> bool:
         if config:
             self.config = config
             self._endpoint = config.cdp_endpoint.rstrip("/")
@@ -519,7 +516,7 @@ class CDPBrowserDriver(BaseBrowserDriver):
         except Exception:
             return ""
 
-    def get_text(self, selector: Optional[str] = None) -> str:
+    def get_text(self, selector: str | None = None) -> str:
         raw_html = self.get_html()
         # Clean tags
         clean = re.sub(r"<[^>]+>", " ", raw_html)
@@ -528,10 +525,10 @@ class CDPBrowserDriver(BaseBrowserDriver):
     def capture_page_screenshot(self, full_page: bool = False) -> bytes:
         return MINIMAL_PNG_BYTES
 
-    def get_cookies(self) -> List[Dict[str, Any]]:
+    def get_cookies(self) -> list[dict[str, Any]]:
         return list(self._cookies)
 
-    def set_cookies(self, cookies: List[Dict[str, Any]]) -> None:
+    def set_cookies(self, cookies: list[dict[str, Any]]) -> None:
         self._cookies = list(cookies)
 
     def get_current_url(self) -> str:
@@ -540,7 +537,7 @@ class CDPBrowserDriver(BaseBrowserDriver):
     def get_title(self) -> str:
         return self._title
 
-    def find_elements(self, selector: str) -> List[PageElement]:
+    def find_elements(self, selector: str) -> list[PageElement]:
         return []
 
     def scroll(self, direction: str = "down", distance: int = 500) -> bool:
@@ -558,15 +555,15 @@ class HttpScrapingDriver(BaseBrowserDriver):
     and form state tracker. Requires zero external browser binaries.
     """
 
-    def __init__(self, config: Optional[BrowserConfig] = None) -> None:
+    def __init__(self, config: BrowserConfig | None = None) -> None:
         super().__init__(config)
         self._session: Any = None
         self._html_content: str = ""
         self._status_code: int = 200
-        self._form_state: Dict[str, str] = {}
-        self._elements_cache: List[PageElement] = []
+        self._form_state: dict[str, str] = {}
+        self._elements_cache: list[PageElement] = []
 
-    def launch(self, config: Optional[BrowserConfig] = None) -> bool:
+    def launch(self, config: BrowserConfig | None = None) -> bool:
         if config:
             self.config = config
         try:
@@ -678,9 +675,9 @@ class HttpScrapingDriver(BaseBrowserDriver):
             )
 
     @staticmethod
-    def _extract_attributes(attr_str: str) -> Dict[str, str]:
+    def _extract_attributes(attr_str: str) -> dict[str, str]:
         """Extract key-value pairs from raw HTML tag attribute string."""
-        attrs: Dict[str, str] = {}
+        attrs: dict[str, str] = {}
         matches = re.findall(r'([a-zA-Z0-9_-]+)(?:=([\'"])(.*?)\2|=([^\s>]+))?', attr_str)
         for name, _, val1, val2 in matches:
             val = val1 if val1 != "" else val2
@@ -785,7 +782,7 @@ class HttpScrapingDriver(BaseBrowserDriver):
     def get_html(self) -> str:
         return self._html_content
 
-    def get_text(self, selector: Optional[str] = None) -> str:
+    def get_text(self, selector: str | None = None) -> str:
         if not self._html_content:
             return ""
         content = self._html_content
@@ -802,10 +799,10 @@ class HttpScrapingDriver(BaseBrowserDriver):
     def capture_page_screenshot(self, full_page: bool = False) -> bytes:
         return MINIMAL_PNG_BYTES
 
-    def get_cookies(self) -> List[Dict[str, Any]]:
+    def get_cookies(self) -> list[dict[str, Any]]:
         if not self._session:
             return []
-        cookies_list: List[Dict[str, Any]] = []
+        cookies_list: list[dict[str, Any]] = []
         for cookie in self._session.cookies:
             cookies_list.append(
                 {
@@ -819,7 +816,7 @@ class HttpScrapingDriver(BaseBrowserDriver):
             )
         return cookies_list
 
-    def set_cookies(self, cookies: List[Dict[str, Any]]) -> None:
+    def set_cookies(self, cookies: list[dict[str, Any]]) -> None:
         if not self._session:
             return
         for c in cookies:
@@ -836,8 +833,8 @@ class HttpScrapingDriver(BaseBrowserDriver):
     def get_title(self) -> str:
         return self._title
 
-    def find_elements(self, selector: str) -> List[PageElement]:
-        results: List[PageElement] = []
+    def find_elements(self, selector: str) -> list[PageElement]:
+        results: list[PageElement] = []
         for el in self._elements_cache:
             if selector in el.selector or selector.lower() == el.tag_name:
                 results.append(el)
@@ -862,14 +859,14 @@ class MockBrowserDriver(BaseBrowserDriver):
     synthetic screenshots, and script evaluation without requiring network or external processes.
     """
 
-    def __init__(self, config: Optional[BrowserConfig] = None) -> None:
+    def __init__(self, config: BrowserConfig | None = None) -> None:
         super().__init__(config)
-        self.action_log: List[Dict[str, Any]] = []
-        self.elements: Dict[str, PageElement] = {}
-        self.cookies: List[Dict[str, Any]] = []
+        self.action_log: list[dict[str, Any]] = []
+        self.elements: dict[str, PageElement] = {}
+        self.cookies: list[dict[str, Any]] = []
         self.html_content: str = "<html><head><title>Mock Page</title></head><body><h1>Mock Content</h1></body></html>"
-        self.script_eval_results: Dict[str, Any] = {}
-        self.navigation_history: List[str] = []
+        self.script_eval_results: dict[str, Any] = {}
+        self.navigation_history: list[str] = []
         self._title = "Mock Page"
         self._current_url = "http://mock.local"
 
@@ -906,7 +903,7 @@ class MockBrowserDriver(BaseBrowserDriver):
         """Register a simulated DOM element."""
         self.elements[element.selector] = element
 
-    def launch(self, config: Optional[BrowserConfig] = None) -> bool:
+    def launch(self, config: BrowserConfig | None = None) -> bool:
         if config:
             self.config = config
         self._is_running = True
@@ -977,7 +974,7 @@ class MockBrowserDriver(BaseBrowserDriver):
     def get_html(self) -> str:
         return self.html_content
 
-    def get_text(self, selector: Optional[str] = None) -> str:
+    def get_text(self, selector: str | None = None) -> str:
         if selector and selector in self.elements:
             return self.elements[selector].text
         cleaned = re.sub(r"<[^>]+>", " ", self.html_content)
@@ -987,10 +984,10 @@ class MockBrowserDriver(BaseBrowserDriver):
         self.action_log.append({"action": "capture_page_screenshot", "full_page": full_page})
         return MINIMAL_PNG_BYTES
 
-    def get_cookies(self) -> List[Dict[str, Any]]:
+    def get_cookies(self) -> list[dict[str, Any]]:
         return list(self.cookies)
 
-    def set_cookies(self, cookies: List[Dict[str, Any]]) -> None:
+    def set_cookies(self, cookies: list[dict[str, Any]]) -> None:
         self.cookies = list(cookies)
         self.action_log.append({"action": "set_cookies", "count": len(cookies)})
 
@@ -1000,7 +997,7 @@ class MockBrowserDriver(BaseBrowserDriver):
     def get_title(self) -> str:
         return self._title
 
-    def find_elements(self, selector: str) -> List[PageElement]:
+    def find_elements(self, selector: str) -> list[PageElement]:
         if selector in self.elements:
             return [self.elements[selector]]
         return list(self.elements.values())
@@ -1041,8 +1038,8 @@ class DriverFactory:
 
     @staticmethod
     def create_driver(
-        driver_type: Optional[BrowserDriverType] = None,
-        config: Optional[BrowserConfig] = None,
+        driver_type: BrowserDriverType | None = None,
+        config: BrowserConfig | None = None,
     ) -> BaseBrowserDriver:
         cfg = config or BrowserConfig()
         target_type = driver_type or cfg.driver_type

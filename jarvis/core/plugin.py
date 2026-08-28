@@ -3,15 +3,16 @@ Base Plugin Architecture and Dynamic Plugin Registry for JARVIS.
 """
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 import importlib.util
 import inspect
 import logging
-from pathlib import Path
 import sys
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Set, Type, Union
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import (
@@ -29,20 +30,20 @@ class BasePlugin(ABC):
     Abstract Base Class for all JARVIS plugins.
     """
 
-    def __init__(self, metadata: Optional[PluginMetadata] = None, dispatcher: Optional[ActionDispatcher] = None) -> None:
+    def __init__(self, metadata: PluginMetadata | None = None, dispatcher: ActionDispatcher | None = None) -> None:
         self.metadata = metadata or self._define_metadata()
-        self.config: Dict[str, Any] = {}
-        self.dispatcher: Optional[ActionDispatcher] = dispatcher
+        self.config: dict[str, Any] = {}
+        self.dispatcher: ActionDispatcher | None = dispatcher
         self.status: PluginStatus = PluginStatus.UNINITIALIZED
-        self.error_message: Optional[str] = None
-        self._registered_actions: List[str] = []
-        self._registered_subscriptions: List[str] = []
+        self.error_message: str | None = None
+        self._registered_actions: list[str] = []
+        self._registered_subscriptions: list[str] = []
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         orig_init = getattr(cls, "initialize", None)
         if orig_init and callable(orig_init):
-            def wrapped_initialize(self, config: Dict[str, Any], dispatcher: ActionDispatcher):
+            def wrapped_initialize(self, config: dict[str, Any], dispatcher: ActionDispatcher):
                 self.config = config
                 self.dispatcher = dispatcher
                 return orig_init(self, config, dispatcher)
@@ -54,7 +55,7 @@ class BasePlugin(ABC):
         pass
 
     @abstractmethod
-    def initialize(self, config: Dict[str, Any], dispatcher: ActionDispatcher) -> None:
+    def initialize(self, config: dict[str, Any], dispatcher: ActionDispatcher) -> None:
         """
         Lifecycle Hook 1: Initialize plugin with system/plugin config and dispatcher.
         Register actions and subscribe to events here.
@@ -100,9 +101,9 @@ class BasePlugin(ABC):
         handler: Callable[..., Any],
         required_privilege: PrivilegeLevel = PrivilegeLevel.NORMAL,
         description: str = "",
-        schema: Optional[Dict[str, Any]] = None,
-        timeout_seconds: Optional[float] = None,
-        dispatcher: Optional[ActionDispatcher] = None,
+        schema: dict[str, Any] | None = None,
+        timeout_seconds: float | None = None,
+        dispatcher: ActionDispatcher | None = None,
     ) -> None:
         """Helper to register action associated with this plugin."""
         disp = dispatcher or self.dispatcher
@@ -125,7 +126,7 @@ class BasePlugin(ABC):
         event_name: str,
         handler: Callable[..., Any],
         priority: int = 0,
-        dispatcher: Optional[ActionDispatcher] = None,
+        dispatcher: ActionDispatcher | None = None,
     ) -> str:
         """Helper to subscribe to event bus associated with this plugin."""
         disp = dispatcher or self.dispatcher
@@ -149,15 +150,15 @@ class PluginRegistry:
 
     def __init__(self, dispatcher: ActionDispatcher) -> None:
         self.dispatcher = dispatcher
-        self._plugins: Dict[str, BasePlugin] = {}
-        self._enabled_plugins: Set[str] = set()
-        self._plugin_configs: Dict[str, Dict[str, Any]] = {}
+        self._plugins: dict[str, BasePlugin] = {}
+        self._enabled_plugins: set[str] = set()
+        self._plugin_configs: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
 
     def register_plugin(
         self,
-        plugin: Union[BasePlugin, type],
-        config: Optional[Dict[str, Any]] = None,
+        plugin: BasePlugin | type,
+        config: dict[str, Any] | None = None,
         auto_init: bool = True
     ) -> bool:
         """Register a plugin instance or class with dependency resolution and initialization."""
@@ -182,12 +183,12 @@ class PluginRegistry:
                     plugin_inst.error_message = str(exc)
                     logger.error("Failed to initialize plugin '%s': %s", name, exc, exc_info=True)
                     return False
-    def get_plugin(self, name: str) -> Optional[BasePlugin]:
+    def get_plugin(self, name: str) -> BasePlugin | None:
         """Retrieve registered plugin by name."""
         with self._lock:
             return self._plugins.get(name)
 
-    def list_plugins(self) -> List[PluginMetadata]:
+    def list_plugins(self) -> list[PluginMetadata]:
         """List metadata for all registered plugins."""
         with self._lock:
             return [p.metadata for p in self._plugins.values()]
@@ -230,7 +231,7 @@ class PluginRegistry:
                 logger.error("Error while disabling plugin '%s': %s", name, exc, exc_info=True)
                 return False
 
-    def initialize_all(self, configs: Optional[Dict[str, Any]] = None) -> None:
+    def initialize_all(self, configs: dict[str, Any] | None = None) -> None:
         """Initialize all registered plugins with optional config overrides."""
         configs = configs or {}
         with self._lock:
@@ -252,9 +253,9 @@ class PluginRegistry:
 
     def discover_and_load_plugins(
         self,
-        directory: Union[str, Path],
-        configs: Optional[Dict[str, Dict[str, Any]]] = None
-    ) -> List[str]:
+        directory: str | Path,
+        configs: dict[str, dict[str, Any]] | None = None
+    ) -> list[str]:
         """
         Discover and load all BasePlugin subclasses from python files in a directory.
         """
@@ -264,7 +265,7 @@ class PluginRegistry:
             return []
 
         configs = configs or {}
-        discovered_classes: List[Type[BasePlugin]] = []
+        discovered_classes: list[type[BasePlugin]] = []
 
         for file_path in plugin_dir.glob("*.py"):
             if file_path.name.startswith("_"):
@@ -290,7 +291,7 @@ class PluginRegistry:
                 logger.error("Failed to load plugin file '%s': %s", file_path.name, exc, exc_info=True)
 
         # Instantiate plugins
-        instantiated: Dict[str, BasePlugin] = {}
+        instantiated: dict[str, BasePlugin] = {}
         for cls in discovered_classes:
             try:
                 instance = cls(dispatcher=self.dispatcher)
@@ -301,7 +302,7 @@ class PluginRegistry:
         # Dependency Resolution (Topological Sort)
         sorted_plugins = self._resolve_dependencies(instantiated)
 
-        loaded_names: List[str] = []
+        loaded_names: list[str] = []
         for plugin in sorted_plugins:
             cfg = configs.get(plugin.metadata.name, {})
             if self.register_plugin(plugin, config=cfg, auto_init=True):
@@ -309,12 +310,12 @@ class PluginRegistry:
 
         return loaded_names
 
-    def _resolve_dependencies(self, plugins: Dict[str, BasePlugin]) -> List[BasePlugin]:
+    def _resolve_dependencies(self, plugins: dict[str, BasePlugin]) -> list[BasePlugin]:
         """
         Topologically sort plugins by declared dependencies (Kahn's algorithm).
         """
-        in_degree: Dict[str, int] = {name: 0 for name in plugins}
-        adj_list: Dict[str, List[str]] = {name: [] for name in plugins}
+        in_degree: dict[str, int] = {name: 0 for name in plugins}
+        adj_list: dict[str, list[str]] = {name: [] for name in plugins}
 
         for name, plugin in plugins.items():
             for dep in plugin.metadata.dependencies:
@@ -325,7 +326,7 @@ class PluginRegistry:
                     logger.warning("Plugin '%s' has unmet optional/external dependency: '%s'", name, dep)
 
         queue = [name for name, deg in in_degree.items() if deg == 0]
-        sorted_names: List[str] = []
+        sorted_names: list[str] = []
 
         while queue:
             node = queue.pop(0)
@@ -342,9 +343,9 @@ class PluginRegistry:
 
         return [plugins[n] for n in sorted_names]
 
-    def check_all_health(self) -> Dict[str, PluginHealth]:
+    def check_all_health(self) -> dict[str, PluginHealth]:
         """Run health check on all registered plugins."""
-        health_reports: Dict[str, PluginHealth] = {}
+        health_reports: dict[str, PluginHealth] = {}
         with self._lock:
             for name, plugin in self._plugins.items():
                 try:

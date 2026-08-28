@@ -10,6 +10,7 @@ Features:
 """
 from __future__ import annotations
 
+from jarvis.security.report import SecurityPrivilegeGate, SecurityReportGenerator
 from jarvis.security.scanner import (
     HostScanResult,
     NetworkScanner,
@@ -21,7 +22,6 @@ from jarvis.security.scanner import (
     Vulnerability,
     VulnerabilitySeverity,
 )
-from jarvis.security.report import SecurityPrivilegeGate, SecurityReportGenerator
 
 __all__ = [
     "HostScanResult",

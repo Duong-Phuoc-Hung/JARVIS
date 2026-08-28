@@ -7,20 +7,15 @@ Covers Feature:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-import html
-import io
 import logging
-import os
-from pathlib import Path
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
 import zipfile
+from pathlib import Path
+from typing import Any
 
 from jarvis.data.stats import (
     AnomalyReport,
-    CorrelationResult,
     DataStatsReport,
     DescriptiveStats,
     MonteCarloResult,
@@ -47,9 +42,9 @@ class DocxReportBuilder:
 
     def __init__(self, title: str = "JARVIS Analytics Report"):
         self.title = title
-        self.paragraphs_xml: List[str] = []
+        self.paragraphs_xml: list[str] = []
 
-    def add_title(self, text: str, subtitle: Optional[str] = None) -> None:
+    def add_title(self, text: str, subtitle: str | None = None) -> None:
         """Adds main title and optional subtitle."""
         esc_title = _xml_escape(text)
         self.paragraphs_xml.append(
@@ -81,7 +76,7 @@ class DocxReportBuilder:
         text: str,
         bold: bool = False,
         italic: bool = False,
-        color: Optional[str] = None,
+        color: str | None = None,
     ) -> None:
         """Adds a normal text paragraph."""
         esc_text = _xml_escape(text)
@@ -125,8 +120,8 @@ class DocxReportBuilder:
 
     def add_table(
         self,
-        headers: List[str],
-        rows: List[List[str]],
+        headers: list[str],
+        rows: list[list[str]],
         header_bg: str = "1F4E79",
     ) -> None:
         """Adds a formatted OpenXML grid table with alternating row colors."""
@@ -167,7 +162,7 @@ class DocxReportBuilder:
         tbl_parts.append('</w:tbl><w:p><w:pPr><w:spacing w:after="180"/></w:pPr></w:p>')
         self.paragraphs_xml.append("".join(tbl_parts))
 
-    def save(self, target_path: Union[str, Path]) -> Path:
+    def save(self, target_path: str | Path) -> Path:
         """Packages OpenXML files into valid .docx ZIP archive."""
         out = Path(target_path)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -232,9 +227,9 @@ class PdfReportBuilder:
 
     def __init__(self, title: str = "JARVIS Analytics Report"):
         self.title = title
-        self.elements: List[Tuple[str, str, Dict[str, Any]]] = []  # (type, text/data, options)
+        self.elements: list[tuple[str, str, dict[str, Any]]] = []  # (type, text/data, options)
 
-    def add_title(self, text: str, subtitle: Optional[str] = None) -> None:
+    def add_title(self, text: str, subtitle: str | None = None) -> None:
         self.elements.append(("title", text, {}))
         if subtitle:
             self.elements.append(("subtitle", subtitle, {}))
@@ -245,16 +240,16 @@ class PdfReportBuilder:
     def add_paragraph(self, text: str) -> None:
         self.elements.append(("paragraph", text, {}))
 
-    def add_table(self, headers: List[str], rows: List[List[str]]) -> None:
+    def add_table(self, headers: list[str], rows: list[list[str]]) -> None:
         self.elements.append(("table", "", {"headers": headers, "rows": rows}))
 
-    def save(self, target_path: Union[str, Path]) -> Path:
+    def save(self, target_path: str | Path) -> Path:
         """Synthesizes valid PDF 1.4 binary file."""
         out = Path(target_path)
         out.parent.mkdir(parents=True, exist_ok=True)
 
         # Build stream content
-        stream_lines: List[str] = []
+        stream_lines: list[str] = []
         y = 800
 
         for elem_type, text, opts in self.elements:
@@ -318,10 +313,10 @@ class VoiceSummaryGenerator:
     def generate_summary(
         self,
         filename: str,
-        stats: Union[DescriptiveStats, DataStatsReport],
-        sim: Optional[MonteCarloResult] = None,
-        anomalies: Optional[AnomalyReport] = None,
-        trend: Optional[TrendResult] = None,
+        stats: DescriptiveStats | DataStatsReport,
+        sim: MonteCarloResult | None = None,
+        anomalies: AnomalyReport | None = None,
+        trend: TrendResult | None = None,
         language: str = "vi",
     ) -> str:
         """Generates natural language spoken summary."""
@@ -351,8 +346,8 @@ class VoiceSummaryGenerator:
     def generate_brief_notification(
         self,
         filename: str,
-        stats: Union[DescriptiveStats, DataStatsReport],
-        sim: Optional[MonteCarloResult] = None,
+        stats: DescriptiveStats | DataStatsReport,
+        sim: MonteCarloResult | None = None,
     ) -> str:
         return self.generate_summary(filename, stats, sim)
 
@@ -365,7 +360,7 @@ class DocumentExporter:
 
     def export_report(
         self,
-        stats: Union[DataStatsReport, DescriptiveStats],
+        stats: DataStatsReport | DescriptiveStats,
         sim: MonteCarloResult,
         output_path: Path,
     ) -> Path:
@@ -450,7 +445,7 @@ Monte Carlo Simulation ({sim.iterations:,} runs):
     def get_voice_summary(
         self,
         filename: str,
-        stats: Union[DataStatsReport, DescriptiveStats],
+        stats: DataStatsReport | DescriptiveStats,
         sim: MonteCarloResult,
     ) -> str:
         """Returns Vietnamese natural language voice summary."""

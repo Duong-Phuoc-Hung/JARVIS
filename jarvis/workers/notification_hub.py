@@ -16,10 +16,11 @@ import datetime
 import logging
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 log = logging.getLogger("jarvis.workers.notification_hub")
 
@@ -47,10 +48,10 @@ class Notification:
     title: str
     message: str
     priority: Priority = Priority.NORMAL
-    channels: List[str] = field(default_factory=lambda: ["toast", "sound"])
+    channels: list[str] = field(default_factory=lambda: ["toast", "sound"])
     icon: str = "🔔"
     sent_at: str = ""
-    sent_via: List[str] = field(default_factory=list)
+    sent_via: list[str] = field(default_factory=list)
     success: bool = False
     error: str = ""
 
@@ -68,8 +69,8 @@ class ScheduledNotification:
 class AlertRule:
     rule_id: str
     condition: str             # Human-readable description
-    check_fn: Optional[Callable] = None  # Callable returning bool
-    notification: Optional[Notification] = None
+    check_fn: Callable | None = None  # Callable returning bool
+    notification: Notification | None = None
     cooldown_s: int = 300      # Don't fire twice within N seconds
     last_fired: float = 0.0
     active: bool = True
@@ -83,11 +84,11 @@ class NotificationHub:
 
     def __init__(self, is_mock: bool = False) -> None:
         self.is_mock = is_mock
-        self._scheduled: List[ScheduledNotification] = []
-        self._rules: List[AlertRule] = []
-        self._history: List[Notification] = []
+        self._scheduled: list[ScheduledNotification] = []
+        self._rules: list[AlertRule] = []
+        self._history: list[Notification] = []
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         Path("logs").mkdir(exist_ok=True)
         log.info("NotificationHub initialized (mock=%s)", is_mock)
 
@@ -100,7 +101,7 @@ class NotificationHub:
         message: str,
         title: str = "JARVIS",
         priority: Priority = Priority.NORMAL,
-        channels: Optional[List[str]] = None,
+        channels: list[str] | None = None,
         icon: str = "🔔",
     ) -> Notification:
         """Send a notification across specified channels."""
@@ -194,7 +195,8 @@ class NotificationHub:
         """Send Windows Toast notification."""
         try:
             # Try winotify (best library for Windows 10/11 toasts)
-            from winotify import Notification as WinNotif, audio  # type: ignore[import]
+            from winotify import Notification as WinNotif  # type: ignore[import]
+            from winotify import audio
             toast = WinNotif(
                 app_id="JARVIS AI Assistant",
                 title=f"{icon} {title}",
@@ -262,7 +264,7 @@ class NotificationHub:
         message: str,
         at: str,
         title: str = "JARVIS Reminder",
-        channels: Optional[List[str]] = None,
+        channels: list[str] | None = None,
         repeat: str = "once",
         notif_id: str = "",
     ) -> ScheduledNotification:
@@ -286,7 +288,7 @@ class NotificationHub:
                 return True
         return False
 
-    def list_schedules(self) -> List[Dict[str, Any]]:
+    def list_schedules(self) -> list[dict[str, Any]]:
         return [
             {"id": s.notif_id, "time": s.trigger_time, "repeat": s.repeat,
              "message": s.notification.message[:60], "active": s.active}
@@ -301,9 +303,9 @@ class NotificationHub:
         self,
         condition: str,
         rule_id: str,
-        check_fn: Optional[Callable] = None,
+        check_fn: Callable | None = None,
         message: str = "",
-        channels: Optional[List[str]] = None,
+        channels: list[str] | None = None,
         cooldown_s: int = 300,
     ) -> AlertRule:
         """Add an alert rule with a check function."""
@@ -370,7 +372,7 @@ class NotificationHub:
             except Exception as exc:
                 log.debug("Schedule check error: %s", exc)
 
-    def _parse_trigger_time(self, time_str: str, now: datetime.datetime) -> Optional[datetime.datetime]:
+    def _parse_trigger_time(self, time_str: str, now: datetime.datetime) -> datetime.datetime | None:
         """Parse 'HH:MM' or ISO datetime into a datetime object."""
         if ":" in time_str and len(time_str) <= 5:
             h, m = map(int, time_str.split(":"))
@@ -407,7 +409,7 @@ class NotificationHub:
     # History
     # ------------------------------------------------------------------
 
-    def get_history(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_history(self, limit: int = 20) -> list[dict[str, Any]]:
         return [
             {"sent_at": n.sent_at, "title": n.title, "message": n.message[:100],
              "channels": n.sent_via, "success": n.success}

@@ -13,7 +13,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any
 
 log = logging.getLogger("jarvis.stt.faster_whisper")
 
@@ -32,7 +32,7 @@ class TranscriptionResult:
     language: str
     confidence: float
     duration_ms: float
-    segments: List[TranscriptionSegment] = field(default_factory=list)
+    segments: list[TranscriptionSegment] = field(default_factory=list)
     is_mock: bool = False
 
 
@@ -44,7 +44,7 @@ class FasterWhisperConfig:
     language: str = "vi"            # Primary language hint
     beam_size: int = 3
     vad_filter: bool = True         # Built-in VAD to remove silence
-    initial_prompt: Optional[str] = "Xin chào JARVIS"
+    initial_prompt: str | None = "Xin chào JARVIS"
 
 
 class FasterWhisperSTTEngine:
@@ -55,12 +55,12 @@ class FasterWhisperSTTEngine:
 
     def __init__(
         self,
-        config: Optional[FasterWhisperConfig] = None,
+        config: FasterWhisperConfig | None = None,
         is_mock: bool = False,
     ) -> None:
         self.config = config or FasterWhisperConfig()
         self.is_mock = is_mock
-        self._model: Optional[Any] = None
+        self._model: Any | None = None
         self._lock = threading.Lock()
         log.info(
             "FasterWhisperSTTEngine initialized (model=%s, device=%s, available=%s)",
@@ -109,7 +109,7 @@ class FasterWhisperSTTEngine:
     def transcribe(
         self,
         audio_bytes: bytes,
-        language: Optional[str] = None,
+        language: str | None = None,
     ) -> TranscriptionResult:
         """
         Transcribe PCM audio bytes to text.
@@ -141,8 +141,10 @@ class FasterWhisperSTTEngine:
             )
 
         try:
+            import io  # noqa: E401
+            import wave
+
             import numpy as np  # type: ignore[import]
-            import io, wave     # noqa: E401
 
             # Convert PCM bytes to float32 numpy array
             audio_int16 = np.frombuffer(audio_bytes, dtype=np.int16)
@@ -160,8 +162,8 @@ class FasterWhisperSTTEngine:
                 initial_prompt=cfg.initial_prompt,
             )
 
-            segments: List[TranscriptionSegment] = []
-            full_text_parts: List[str] = []
+            segments: list[TranscriptionSegment] = []
+            full_text_parts: list[str] = []
 
             for seg in segments_gen:
                 text_clean = seg.text.strip()

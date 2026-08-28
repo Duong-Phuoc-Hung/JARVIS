@@ -6,20 +6,20 @@ execution timeouts, and automatic artifact indexing.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import json
 import logging
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import time
-from typing import Any, Dict, List, Optional, Set, Union
 import uuid
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
 
 from jarvis.sandbox.artifacts import ArtifactInfo, ArtifactManager
-from jarvis.sandbox.validator import ASTCodeValidator, ValidationResult
+from jarvis.sandbox.validator import ASTCodeValidator
 
 logger = logging.getLogger("jarvis.sandbox.interpreter")
 
@@ -31,18 +31,18 @@ class SandboxResult:
     exit_code: int
     stdout: str
     stderr: str
-    artifacts: List[ArtifactInfo] = field(default_factory=list)
+    artifacts: list[ArtifactInfo] = field(default_factory=list)
     data: Any = None
     execution_time_ms: float = 0.0
-    error: Optional[str] = None
-    scratch_dir: Optional[str] = None
+    error: str | None = None
+    scratch_dir: str | None = None
 
     @property
     def execution_time_seconds(self) -> float:
         """Returns execution duration in seconds."""
         return self.execution_time_ms / 1000.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
             "exit_code": self.exit_code,
@@ -67,12 +67,12 @@ class CodeInterpreterSandbox:
 
     def __init__(
         self,
-        base_scratch_dir: Optional[Union[str, Path]] = None,
+        base_scratch_dir: str | Path | None = None,
         default_timeout: float = DEFAULT_TIMEOUT_SECONDS,
-        validator: Optional[ASTCodeValidator] = None,
+        validator: ASTCodeValidator | None = None,
         cleanup_on_exit: bool = False,
-        persistent_artifacts_dir: Optional[Union[str, Path]] = None,
-        max_execution_seconds: Optional[float] = None,
+        persistent_artifacts_dir: str | Path | None = None,
+        max_execution_seconds: float | None = None,
         **kwargs: Any,
     ) -> None:
         if base_scratch_dir:
@@ -80,7 +80,7 @@ class CodeInterpreterSandbox:
         else:
             # Default to workspace/sandbox under project root
             self.base_scratch_dir = Path("workspace/sandbox").resolve()
-            
+
         self.base_scratch_dir.mkdir(parents=True, exist_ok=True)
         self.default_timeout = max_execution_seconds if max_execution_seconds is not None else default_timeout
         self.max_execution_seconds = self.default_timeout
@@ -92,14 +92,14 @@ class CodeInterpreterSandbox:
         if self.persistent_artifacts_dir:
             self.persistent_artifacts_dir.mkdir(parents=True, exist_ok=True)
 
-    def create_scratch_env(self, run_id: Optional[str] = None) -> Path:
+    def create_scratch_env(self, run_id: str | None = None) -> Path:
         """Create a dedicated scratch directory for a single script run."""
         rid = run_id or f"run_{uuid.uuid4().hex[:10]}"
         scratch_path = self.base_scratch_dir / rid
         scratch_path.mkdir(parents=True, exist_ok=True)
         return scratch_path
 
-    def cleanup_scratch_env(self, scratch_path: Union[str, Path]) -> None:
+    def cleanup_scratch_env(self, scratch_path: str | Path) -> None:
         """Clean up and remove scratch directory."""
         path = Path(scratch_path)
         if path.exists() and path.is_dir():
@@ -109,7 +109,7 @@ class CodeInterpreterSandbox:
             except Exception as exc:
                 logger.warning("Failed to clean up scratch dir %s: %s", path, exc)
 
-    def _prepare_environment(self, custom_env: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    def _prepare_environment(self, custom_env: dict[str, str] | None = None) -> dict[str, str]:
         """Prepare sanitized environment variables for subprocess execution."""
         env = os.environ.copy()
         # Set UTF-8 encoding for Python subprocesses
@@ -162,10 +162,10 @@ class CodeInterpreterSandbox:
     def execute_python(
         self,
         code: str,
-        timeout_seconds: Optional[float] = None,
-        env: Optional[Dict[str, str]] = None,
-        extra_files: Optional[Dict[str, Union[str, bytes]]] = None,
-        custom_scratch_dir: Optional[Union[str, Path]] = None,
+        timeout_seconds: float | None = None,
+        env: dict[str, str] | None = None,
+        extra_files: dict[str, str | bytes] | None = None,
+        custom_scratch_dir: str | Path | None = None,
     ) -> SandboxResult:
         """
         Execute Python code safely in the sandbox environment.
@@ -301,9 +301,9 @@ class CodeInterpreterSandbox:
     def execute_powershell(
         self,
         script: str,
-        timeout_seconds: Optional[float] = None,
-        env: Optional[Dict[str, str]] = None,
-        custom_scratch_dir: Optional[Union[str, Path]] = None,
+        timeout_seconds: float | None = None,
+        env: dict[str, str] | None = None,
+        custom_scratch_dir: str | Path | None = None,
     ) -> SandboxResult:
         """
         Execute PowerShell script safely in the sandbox environment.

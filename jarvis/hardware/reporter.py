@@ -13,9 +13,9 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from jarvis.hardware.monitor import DiskSmartMetrics, HardwareMetrics, HardwareMonitor
+from jarvis.hardware.monitor import HardwareMetrics, HardwareMonitor
 
 log = logging.getLogger("jarvis.hardware.reporter")
 
@@ -27,10 +27,10 @@ class HardwareReporter:
 
     def __init__(
         self,
-        monitor: Optional[HardwareMonitor] = None,
-        tts_manager: Optional[Any] = None,
-        dispatcher: Optional[Any] = None,
-        config: Optional[Dict[str, Any]] = None,
+        monitor: HardwareMonitor | None = None,
+        tts_manager: Any | None = None,
+        dispatcher: Any | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         self.config = config or {}
         self.monitor = monitor or HardwareMonitor(config=self.config)
@@ -38,7 +38,7 @@ class HardwareReporter:
         self.dispatcher = dispatcher
         self.voice_alerts_enabled = self.config.get("hardware", {}).get("voice_alerts", True)
 
-    def format_voice_summary(self, metrics: Optional[HardwareMetrics] = None, lang: str = "vi") -> str:
+    def format_voice_summary(self, metrics: HardwareMetrics | None = None, lang: str = "vi") -> str:
         """Generate human-like spoken response for system status inquiry."""
         if metrics is None:
             return self.monitor.get_voice_summary(lang=lang)
@@ -64,7 +64,7 @@ class HardwareReporter:
     def format_component_summary(
         self,
         component: str,
-        metrics: Optional[HardwareMetrics] = None,
+        metrics: HardwareMetrics | None = None,
         lang: str = "vi",
     ) -> str:
         """Generate targeted voice answer for specific component (cpu, ram, gpu, disk)."""
@@ -109,7 +109,7 @@ class HardwareReporter:
 
         return self.format_voice_summary(metrics=m, lang=lang)
 
-    def format_markdown_report(self, metrics: Optional[HardwareMetrics] = None) -> str:
+    def format_markdown_report(self, metrics: HardwareMetrics | None = None) -> str:
         """Format comprehensive Markdown diagnostic dashboard report."""
         m = metrics or self.monitor.get_metrics()
         now_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(m.timestamp))
@@ -147,7 +147,7 @@ class HardwareReporter:
 
         return "\n".join(lines)
 
-    def format_json_telemetry(self, metrics: Optional[HardwareMetrics] = None) -> str:
+    def format_json_telemetry(self, metrics: HardwareMetrics | None = None) -> str:
         """Export serialized telemetry snapshot for WebSocket dashboard."""
         m = metrics or self.monitor.get_metrics()
         return json.dumps(m.to_dict(), indent=2)
@@ -170,7 +170,7 @@ class HardwareReporter:
 
         return self.format_voice_summary(lang=lang)
 
-    def poll_and_alert(self, speak: bool = True) -> List[Dict[str, Any]]:
+    def poll_and_alert(self, speak: bool = True) -> list[dict[str, Any]]:
         """
         Execute threshold check; if breached, publish alert event and vocalize speech warning.
         """

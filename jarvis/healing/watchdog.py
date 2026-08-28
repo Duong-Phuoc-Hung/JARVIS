@@ -10,12 +10,13 @@ Features:
 from __future__ import annotations
 
 import ctypes
-from dataclasses import dataclass, field
 import logging
 import sys
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 try:
     import psutil
@@ -23,7 +24,7 @@ try:
 except ImportError:
     HAS_PSUTIL = False
 
-from jarvis.platform.windows import platform_win32, WindowsPlatformAPI
+from jarvis.platform.windows import platform_win32
 
 log = logging.getLogger("jarvis.healing.watchdog")
 
@@ -39,7 +40,7 @@ class HungProcessInfo:
     memory_rss_bytes: int = 0
     cpu_percent: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "hwnd": self.hwnd,
             "pid": self.pid,
@@ -54,7 +55,7 @@ class HungProcessInfo:
 class UnresponsiveAppDetector:
     """Detects frozen Windows GUI desktop applications using Win32 IsHungAppWindow."""
 
-    def __init__(self, win32_platform: Optional[Any] = None) -> None:
+    def __init__(self, win32_platform: Any | None = None) -> None:
         self.win32 = win32_platform if win32_platform is not None else platform_win32
 
     def is_window_hung(self, hwnd: int) -> bool:
@@ -73,9 +74,9 @@ class UnresponsiveAppDetector:
                 pass
         return False
 
-    def find_hung_windows(self) -> List[HungProcessInfo]:
+    def find_hung_windows(self) -> list[HungProcessInfo]:
         """Enumerates active top-level windows and returns list of hung applications."""
-        hung_list: List[HungProcessInfo] = []
+        hung_list: list[HungProcessInfo] = []
 
         # Case 1: Handle MockWin32Platform fixture in test suite
         if hasattr(self.win32, "windows") and isinstance(self.win32.windows, dict):
@@ -125,11 +126,11 @@ class ResourceWatchdog:
         ram_threshold: float = 90.0,
         cpu_threshold: float = 95.0,
         poll_interval_s: float = 5.0,
-        hardware_provider: Optional[Any] = None,
-        win32_platform: Optional[Any] = None,
-        event_bus: Optional[Any] = None,
-        on_critical_ram: Optional[Callable[[float], None]] = None,
-        on_hung_app: Optional[Callable[[HungProcessInfo], None]] = None,
+        hardware_provider: Any | None = None,
+        win32_platform: Any | None = None,
+        event_bus: Any | None = None,
+        on_critical_ram: Callable[[float], None] | None = None,
+        on_hung_app: Callable[[HungProcessInfo], None] | None = None,
     ) -> None:
         self.ram_threshold = ram_threshold
         self.cpu_threshold = cpu_threshold
@@ -140,12 +141,12 @@ class ResourceWatchdog:
         self.on_critical_ram = on_critical_ram
         self.on_hung_app = on_hung_app
 
-        self._thread_heartbeats: Dict[str, float] = {}
-        self._thread_deadlines: Dict[str, float] = {}
+        self._thread_heartbeats: dict[str, float] = {}
+        self._thread_deadlines: dict[str, float] = {}
         self._lock = threading.RLock()
 
         self._stop_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self.is_running = False
 
     def record_heartbeat(self, thread_name: str, timeout_s: float = 30.0) -> None:
@@ -155,7 +156,7 @@ class ResourceWatchdog:
             self._thread_heartbeats[thread_name] = now
             self._thread_deadlines[thread_name] = timeout_s
 
-    def check_thread_health(self) -> List[Dict[str, Any]]:
+    def check_thread_health(self) -> list[dict[str, Any]]:
         """Returns list of degraded or timed-out background threads."""
         stale_threads = []
         now = time.time()

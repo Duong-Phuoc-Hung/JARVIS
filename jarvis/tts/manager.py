@@ -8,12 +8,13 @@ and non-blocking asynchronous audio playback.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 import queue
 import random
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Union
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
 from jarvis.tts.base import BaseTTSEngine
 from jarvis.tts.cache import TTSAudioCache
@@ -23,7 +24,7 @@ from jarvis.tts.fallback import SAPI5FallbackTTS
 log = logging.getLogger("jarvis.tts.manager")
 
 
-WELCOME_PHRASES: List[str] = [
+WELCOME_PHRASES: list[str] = [
     "Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.",
     "Chào mừng Ngài trở lại. Mọi hệ thống đang hoạt động tối ưu.",
     "Xin chào sếp, JARVIS đã sẵn sàng phục vụ.",
@@ -37,10 +38,10 @@ class TTSManager:
 
     def __init__(
         self,
-        config: Optional[Dict[str, Any]] = None,
-        cache_dir: Optional[Union[str, Path]] = None,
-        primary_engine: Optional[BaseTTSEngine] = None,
-        fallback_engine: Optional[BaseTTSEngine] = None,
+        config: dict[str, Any] | None = None,
+        cache_dir: str | Path | None = None,
+        primary_engine: BaseTTSEngine | None = None,
+        fallback_engine: BaseTTSEngine | None = None,
     ) -> None:
         self.config = config or {}
         cache_enabled = self.config.get("cache", {}).get("enabled", True)
@@ -56,9 +57,9 @@ class TTSManager:
 
         self._queue: queue.Queue = queue.Queue()
         self._stop_event = threading.Event()
-        self._worker_thread: Optional[threading.Thread] = None
+        self._worker_thread: threading.Thread | None = None
         self._lock = threading.RLock()
-        self._last_welcome_phrase: Optional[str] = None
+        self._last_welcome_phrase: str | None = None
         self._start_worker()
 
     def _start_worker(self) -> None:
@@ -86,10 +87,10 @@ class TTSManager:
     def speak(
         self,
         text: str,
-        voice_id: Optional[str] = None,
+        voice_id: str | None = None,
         wait: bool = False,
-        callback: Optional[Callable[[bool], None]] = None,
-        mock_http: Optional[Any] = None,
+        callback: Callable[[bool], None] | None = None,
+        mock_http: Any | None = None,
     ) -> bool:
         """
         Public entrypoint. If wait=False, queues speech asynchronously.
@@ -107,9 +108,9 @@ class TTSManager:
     def _execute_speak(
         self,
         text: str,
-        voice_id: Optional[str] = None,
+        voice_id: str | None = None,
         wait: bool = True,
-        mock_http: Optional[Any] = None,
+        mock_http: Any | None = None,
     ) -> bool:
         with self._lock:
             v_id = voice_id or getattr(self.primary_engine, "voice_id", "")
@@ -150,7 +151,7 @@ class TTSManager:
             log.info("Using offline fallback TTS for: %r", text[:40])
             return self.fallback_engine.speak(text, voice_id=voice_id, wait=wait)
 
-    def get_welcome_phrase(self, explicit_phrase: Optional[str] = None) -> str:
+    def get_welcome_phrase(self, explicit_phrase: str | None = None) -> str:
         """
         Selects a welcome phrase. If a pool of phrases is configured or available,
         selects randomly without repeating the immediately previous phrase.
@@ -190,7 +191,7 @@ class TTSManager:
             self._last_welcome_phrase = chosen
             return chosen
 
-    def speak_welcome(self, delay_s: float = 1.0, phrase: Optional[str] = None) -> None:
+    def speak_welcome(self, delay_s: float = 1.0, phrase: str | None = None) -> None:
         """Plays a randomized Tony Stark-style welcome phrase in a detached daemon thread."""
         welcome_phrase = self.get_welcome_phrase(explicit_phrase=phrase)
 

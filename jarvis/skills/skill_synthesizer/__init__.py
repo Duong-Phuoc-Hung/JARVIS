@@ -46,7 +46,7 @@ def _generate_skill_code(
     skill_name: str,
     description: str,
     template: str,
-    actions: List[str],
+    actions: list[str],
 ) -> str:
     """Generate the execute() function for a new skill."""
     actions_str = ", ".join([f"'{a}'" for a in actions])
@@ -146,7 +146,7 @@ def execute(
 '''
 
 
-def _validate_skill_name(name: str) -> Optional[str]:
+def _validate_skill_name(name: str) -> str | None:
     """Return error message or None if name is valid."""
     if not name:
         return "Vui lòng cung cấp skill_name."
@@ -163,7 +163,7 @@ def execute(
     description: str = "",
     actions_list: str = "run,status",
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Self-Coding Skill Synthesizer.
 

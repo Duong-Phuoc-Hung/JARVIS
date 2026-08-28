@@ -9,10 +9,9 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Callable, Optional
 
 log = logging.getLogger("jarvis.audio.fullduplex")
 
@@ -40,7 +39,7 @@ class FullDuplexVoiceManager:
 
     def __init__(
         self,
-        config: Optional[BargeInConfig] = None,
+        config: BargeInConfig | None = None,
         is_mock: bool = False,
     ) -> None:
         self.config = config or BargeInConfig()
@@ -48,8 +47,8 @@ class FullDuplexVoiceManager:
         self._state = VoiceState.IDLE
         self._lock = threading.RLock()
         self._playback_stop_event = threading.Event()
-        self._barge_in_thread: Optional[threading.Thread] = None
-        self._on_barge_in: Optional[Callable[[], None]] = None
+        self._barge_in_thread: threading.Thread | None = None
+        self._on_barge_in: Callable[[], None] | None = None
         log.info(
             "FullDuplexVoiceManager initialized (enabled=%s, threshold=%.3f)",
             self.config.enabled,
@@ -63,8 +62,8 @@ class FullDuplexVoiceManager:
 
     def start_barge_in_detection(
         self,
-        playback_stop_fn: Optional[Callable[[], None]] = None,
-        on_barge_in: Optional[Callable[[], None]] = None,
+        playback_stop_fn: Callable[[], None] | None = None,
+        on_barge_in: Callable[[], None] | None = None,
     ) -> None:
         """
         Start monitoring microphone for barge-in during TTS playback.
@@ -87,8 +86,8 @@ class FullDuplexVoiceManager:
         def _detect() -> None:
             consecutive = 0
             try:
+                import numpy as np  # type: ignore[import]
                 import sounddevice as sd  # type: ignore[import]
-                import numpy as np        # type: ignore[import]
                 sr = 16000
                 frame_ms = 30
                 chunk = int(sr * frame_ms / 1000)

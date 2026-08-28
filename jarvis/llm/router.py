@@ -9,16 +9,16 @@ Provides:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import inspect
-import json
 import logging
 import re
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, get_args, get_origin
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any, Union, get_args, get_origin
 
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import ActionResult, RequesterContext
-from jarvis.llm.client import ChatMessage, LLMClient, LLMResponse, ToolCall
+from jarvis.llm.client import LLMClient, LLMResponse
 
 logger = logging.getLogger("jarvis.llm.router")
 
@@ -26,18 +26,18 @@ logger = logging.getLogger("jarvis.llm.router")
 @dataclass
 class IntentResult:
     action_name: str
-    parameters: Dict[str, Any] = field(default_factory=dict)
+    parameters: dict[str, Any] = field(default_factory=dict)
     confidence: float = 1.0
     source: str = "llm"  # "llm", "rule_fallback", "rule_fast_path"
-    reasoning: Optional[str] = None
+    reasoning: str | None = None
     raw_text: str = ""
-    llm_response: Optional[LLMResponse] = None
-    response_text: Optional[str] = None
+    llm_response: LLMResponse | None = None
+    response_text: str | None = None
     requires_confirmation: bool = False
-    confirmation_prompt: Optional[str] = None
-    danger_level: Optional[str] = None
+    confirmation_prompt: str | None = None
+    danger_level: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "action_name": self.action_name,
             "parameters": self.parameters,
@@ -66,8 +66,8 @@ def _parse_duration_seconds(amount: int, unit_str: str) -> int:
 
 def generate_tool_schema_from_dispatcher(
     dispatcher: ActionDispatcher,
-    filter_actions: Optional[List[str]] = None,
-) -> List[Dict[str, Any]]:
+    filter_actions: list[str] | None = None,
+) -> list[dict[str, Any]]:
     """
     Dynamically inspects registered ActionDefinitions in ActionDispatcher and
     generates OpenAI-compliant function call schemas.
@@ -86,8 +86,8 @@ def generate_tool_schema_from_dispatcher(
             parameters = action_def.schema
         else:
             # 2. Dynamic signature introspection
-            properties: Dict[str, Any] = {}
-            required: List[str] = []
+            properties: dict[str, Any] = {}
+            required: list[str] = []
             try:
                 sig = inspect.signature(action_def.handler)
                 for param_name, param in sig.parameters.items():
@@ -111,9 +111,9 @@ def generate_tool_schema_from_dispatcher(
                         param_type = "number"
                     elif ann == bool or ann_str in ("bool", "boolean"):
                         param_type = "boolean"
-                    elif origin in (list, tuple, set, List, Tuple) or ann in (list, List) or ann_str.startswith("list") or ann_str.startswith("typing.list"):
+                    elif origin in (list, tuple, set, list, tuple) or ann in (list, list) or ann_str.startswith("list") or ann_str.startswith("typing.list"):
                         param_type = "array"
-                    elif origin in (dict, Dict) or ann in (dict, Dict) or ann_str.startswith("dict") or ann_str.startswith("typing.dict"):
+                    elif origin in (dict, dict) or ann in (dict, dict) or ann_str.startswith("dict") or ann_str.startswith("typing.dict"):
                         param_type = "object"
                     elif "list" in ann_str and "dict" not in ann_str:
                         param_type = "array"
@@ -148,9 +148,9 @@ def generate_tool_schema_from_dispatcher(
 
 
 def build_jarvis_system_prompt(
-    context_info: Optional[Dict[str, Any]] = None,
+    context_info: dict[str, Any] | None = None,
     language: str = "vi",
-    memory_context: Optional[str] = None,
+    memory_context: str | None = None,
 ) -> str:
     """
     Generates bilingual system prompt embedding JARVIS persona, operating context,
@@ -206,9 +206,9 @@ class LLMIntentRouter:
     def __init__(
         self,
         llm_client: LLMClient,
-        dispatcher: Optional[ActionDispatcher] = None,
+        dispatcher: ActionDispatcher | None = None,
         fast_path_enabled: bool = True,
-        memory_manager: Optional[Any] = None,
+        memory_manager: Any | None = None,
     ) -> None:
         self.llm = llm_client
         self.dispatcher = dispatcher
@@ -217,7 +217,7 @@ class LLMIntentRouter:
         self._memory_manager = memory_manager
 
         # Compiled Deterministic Rule Engine for Substring Matching
-        self.rule_engine: Dict[str, IntentResult] = {
+        self.rule_engine: dict[str, IntentResult] = {
             # 1. Smart Home (Category 1)
             "bật đèn phòng khách": IntentResult(
                 action_name="home_assistant_call",
@@ -846,10 +846,10 @@ class LLMIntentRouter:
         }
 
         # Pre-sort rule dictionary keys by descending length for greedy exact match
-        self._sorted_rule_keys: List[str] = sorted(self.rule_engine.keys(), key=len, reverse=True)
+        self._sorted_rule_keys: list[str] = sorted(self.rule_engine.keys(), key=len, reverse=True)
 
         # Advanced Parametric Regex Rules (Run before static substring fallback)
-        self._regex_rules: List[Tuple[re.Pattern, Callable[[re.Match], IntentResult]]] = [
+        self._regex_rules: list[tuple[re.Pattern, Callable[[re.Match], IntentResult]]] = [
             # 1. Smart Home Light Controls (with parameter variations)
             (
                 re.compile(r"(?:bật|mở|turn\s*on)\s+(?:đèn|light)(?:\s+(phòng\s*khách|phòng\s*ngủ|bàn|living\s*room|bedroom|desk))?", re.IGNORECASE),
@@ -1250,7 +1250,7 @@ class LLMIntentRouter:
             return bool(re.search(r"(?:\b|^)" + re.escape(key) + r"(?:\b|$)", clean_lower))
         return key in clean_lower
 
-    def _make_light_intent(self, service: str, target: Optional[str]) -> IntentResult:
+    def _make_light_intent(self, service: str, target: str | None) -> IntentResult:
         t = (target or "").lower().strip()
         if "bàn" in t or "desk" in t:
             entity_id = "light.desk_lamp"
@@ -1287,7 +1287,7 @@ class LLMIntentRouter:
             response_text=self.get_natural_response("hardware_telemetry_check", params),
         )
 
-    def _make_weather_intent(self, loc_raw: Optional[str]) -> IntentResult:
+    def _make_weather_intent(self, loc_raw: str | None) -> IntentResult:
         loc = (loc_raw or "").strip().lower()
         if "hà nội" in loc or "hanoi" in loc:
             location = "Hà Nội"
@@ -1352,7 +1352,7 @@ class LLMIntentRouter:
             response_text=f"Đang mở ứng dụng {clean} cho Ngài.",
         )
 
-    def _make_web_intent(self, site: str, query: Optional[str] = None) -> IntentResult:
+    def _make_web_intent(self, site: str, query: str | None = None) -> IntentResult:
         clean_site = (site or "").strip()
         clean_query = (query or "").strip() if query else ""
         target = f"{clean_site} {clean_query}".strip()
@@ -1377,9 +1377,9 @@ class LLMIntentRouter:
     def get_natural_response(
         self,
         action_name: str,
-        params: Optional[Dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
         text: str = "",
-        action_result: Optional[ActionResult] = None,
+        action_result: ActionResult | None = None,
         **kwargs: Any,
     ) -> str:
         """
@@ -1586,8 +1586,8 @@ class LLMIntentRouter:
     def parse_intent(
         self,
         text: str,
-        available_actions: Optional[List[str]] = None,
-        context: Optional[Dict[str, Any]] = None,
+        available_actions: list[str] | None = None,
+        context: dict[str, Any] | None = None,
         force_llm: bool = False,
     ) -> IntentResult:
         """
@@ -1743,7 +1743,7 @@ class LLMIntentRouter:
     def execute_intent(
         self,
         intent: IntentResult,
-        requester: Union[str, RequesterContext] = "system",
+        requester: str | RequesterContext = "system",
     ) -> ActionResult:
         """Executes the resolved IntentResult against the registered ActionDispatcher."""
         if not self.dispatcher:

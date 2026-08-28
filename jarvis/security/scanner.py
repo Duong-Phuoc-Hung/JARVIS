@@ -9,19 +9,19 @@ Features:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum
 import logging
 import os
-from pathlib import Path
-import re
 import shutil
 import subprocess
 import time
-from typing import Any, Dict, Iterator, List, Optional, Union
 import xml.etree.ElementTree as ET
+from collections.abc import Iterator
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Any
 
-from jarvis.core.models import PrivilegeLevel, RequesterContext
+from jarvis.core.models import RequesterContext
 
 log = logging.getLogger("jarvis.security.scanner")
 
@@ -45,10 +45,10 @@ class Vulnerability:
     title: str
     severity: VulnerabilitySeverity
     description: str
-    port: Optional[int] = None
+    port: int | None = None
     remediation: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "title": self.title,
@@ -65,11 +65,11 @@ class HostScanResult:
     ip: str
     hostname: str
     status: str = "UP"                       # "UP" or "DOWN"
-    open_ports: List[int] = field(default_factory=list)
-    services: Dict[int, str] = field(default_factory=dict)
-    vulnerabilities: List[Vulnerability] = field(default_factory=list)
+    open_ports: list[int] = field(default_factory=list)
+    services: dict[int, str] = field(default_factory=dict)
+    vulnerabilities: list[Vulnerability] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "ip": self.ip,
             "hostname": self.hostname,
@@ -84,14 +84,14 @@ class HostScanResult:
 class ScanReport:
     """Comprehensive network audit and vulnerability scan report."""
     target: str
-    hosts: List[HostScanResult] = field(default_factory=list)
+    hosts: list[HostScanResult] = field(default_factory=list)
     total_hosts: int = 0
     duration_s: float = 0.0
     status: str = "SUCCESS"                  # "SUCCESS", "TOOL_NOT_FOUND", "TIMEOUT", "PERMISSION_DENIED", "ERROR"
-    error_message: Optional[str] = None
+    error_message: str | None = None
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "target": self.target,
             "hosts": [h.to_dict() for h in self.hosts],
@@ -109,15 +109,15 @@ class PacketCaptureResult:
     interface: str
     packet_count: int
     duration_s: float
-    protocols: Dict[str, int] = field(default_factory=dict)
-    top_talkers: List[Dict[str, Any]] = field(default_factory=list)
+    protocols: dict[str, int] = field(default_factory=dict)
+    top_talkers: list[dict[str, Any]] = field(default_factory=list)
     anomalies_detected: int = 0
-    anomalies: List[str] = field(default_factory=list)
-    pcap_path: Optional[str] = None
+    anomalies: list[str] = field(default_factory=list)
+    pcap_path: str | None = None
     status: str = "SUCCESS"                  # "SUCCESS", "TOOL_NOT_FOUND", "TIMEOUT", "ERROR"
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "interface": self.interface,
             "packet_count": self.packet_count,
@@ -151,7 +151,7 @@ class PacketCaptureResult:
 # Network Scanner (Nmap) Wrapper (F-23)
 # ---------------------------------------------------------------------------
 
-def resolve_nmap_binary(override_path: Optional[str] = None) -> Optional[str]:
+def resolve_nmap_binary(override_path: str | None = None) -> str | None:
     """Finds nmap binary in PATH or standard Windows installation locations."""
     if override_path and os.path.isfile(override_path):
         return override_path
@@ -185,7 +185,7 @@ class NetworkScanner:
 
     def __init__(
         self,
-        nmap_path: Optional[str] = None,
+        nmap_path: str | None = None,
         timeout_s: float = 120.0,
     ) -> None:
         self.nmap_path = nmap_path
@@ -195,8 +195,8 @@ class NetworkScanner:
         self,
         subnet: str,
         ports: str = "80,443,22,53,3306,3389,8000,8080",
-        timeout_s: Optional[float] = None,
-        context: Optional[RequesterContext] = None,
+        timeout_s: float | None = None,
+        context: RequesterContext | None = None,
     ) -> ScanReport:
         """
         Executes Nmap subnet discovery and port auditing.
@@ -294,13 +294,13 @@ class NetworkScanner:
                 status="SUCCESS",
             )
 
-    def _parse_nmap_xml(self, xml_content: str) -> List[HostScanResult]:
+    def _parse_nmap_xml(self, xml_content: str) -> list[HostScanResult]:
         """Parses Nmap -oX XML output into HostScanResult list."""
         if not xml_content or not xml_content.strip():
             return []
         try:
             root = ET.fromstring(xml_content)
-            hosts: List[HostScanResult] = []
+            hosts: list[HostScanResult] = []
             for host_el in root.findall("host"):
                 status_el = host_el.find("status")
                 if status_el is not None and status_el.get("state") != "up":
@@ -324,8 +324,8 @@ class NetworkScanner:
                         hostname = hname_el.get("name", ip)
 
                 # Ports
-                open_ports: List[int] = []
-                services: Dict[int, str] = {}
+                open_ports: list[int] = []
+                services: dict[int, str] = {}
                 ports_el = host_el.find("ports")
                 if ports_el is not None:
                     for p in ports_el.findall("port"):
@@ -352,7 +352,7 @@ class NetworkScanner:
             log.debug("XML parse error in Nmap output: %s", e)
             return []
 
-    def _fallback_simulated_parse(self, subnet: str) -> List[HostScanResult]:
+    def _fallback_simulated_parse(self, subnet: str) -> list[HostScanResult]:
         """Provides simulated host scan results for test environments and mock testing."""
         prefix = subnet.rsplit(".", 1)[0] if "." in subnet else "192.168.1"
         return [
@@ -381,7 +381,7 @@ NmapScannerWrapper = NetworkScanner
 # Packet Capture (TShark) Wrapper (F-24)
 # ---------------------------------------------------------------------------
 
-def resolve_tshark_binary(override_path: Optional[str] = None) -> Optional[str]:
+def resolve_tshark_binary(override_path: str | None = None) -> str | None:
     """Finds tshark binary in PATH or Wireshark install locations."""
     if override_path and os.path.isfile(override_path):
         return override_path
@@ -413,7 +413,7 @@ class PacketCapture:
 
     def __init__(
         self,
-        tshark_path: Optional[str] = None,
+        tshark_path: str | None = None,
         default_duration_s: float = 10.0,
     ) -> None:
         self.tshark_path = tshark_path
@@ -423,10 +423,10 @@ class PacketCapture:
         self,
         interface: str = "eth0",
         count: int = 50,
-        duration_s: Optional[float] = None,
-        bpf_filter: Optional[str] = None,
-        output_pcap: Optional[Path] = None,
-        context: Optional[RequesterContext] = None,
+        duration_s: float | None = None,
+        bpf_filter: str | None = None,
+        output_pcap: Path | None = None,
+        context: RequesterContext | None = None,
     ) -> PacketCaptureResult:
         """
         Executes live packet capture and protocol distribution analysis.
@@ -491,7 +491,7 @@ class PacketCapture:
         interface: str,
         count: int,
         duration: float,
-        pcap_path: Optional[str] = None,
+        pcap_path: str | None = None,
     ) -> PacketCaptureResult:
         """Constructs packet protocol metrics matching test expectations."""
         tcp_count = int(count * 0.70)

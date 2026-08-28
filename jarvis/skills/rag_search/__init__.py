@@ -29,7 +29,7 @@ def execute(
     content: str = "",
     doc_id: str = "",
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Semantic Memory Search skill.
 

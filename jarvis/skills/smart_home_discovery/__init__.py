@@ -26,7 +26,7 @@ def execute(
     subnet: str = "",
     target_ip: str = "",
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Smart Home Auto-Discovery skill.
 

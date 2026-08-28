@@ -11,7 +11,7 @@ from __future__ import annotations
 import io
 import logging
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union
+from typing import Any
 
 try:
     from PIL import Image
@@ -40,7 +40,7 @@ class DesktopOCR:
 
     def __init__(
         self,
-        vision_manager: Optional[ScreenVisionManager] = None,
+        vision_manager: ScreenVisionManager | None = None,
         default_lang: str = "eng+vie",
     ) -> None:
         self.vision_manager = vision_manager or ScreenVisionManager()
@@ -70,8 +70,8 @@ class DesktopOCR:
 
     def extract_text(
         self,
-        image_input: Union[bytes, Any, str],
-        lang: Optional[str] = None,
+        image_input: bytes | Any | str,
+        lang: str | None = None,
     ) -> str:
         """
         Extracts plain text from image bytes, PIL Image, or file path.
@@ -104,14 +104,14 @@ class DesktopOCR:
 
         return ""
 
-    def extract_text_from_screen(self, roi: Optional[Tuple[int, int, int, int]] = None) -> str:
+    def extract_text_from_screen(self, roi: tuple[int, int, int, int] | None = None) -> str:
         """
         Captures the screen (or ROI) and extracts all visible text.
         """
         raw_bytes, _ = self.vision_manager.capture_screenshot(max_dim=1920, roi=roi)
         return self.extract_text(raw_bytes)
 
-    def _load_image(self, image_input: Union[bytes, Any, str]) -> Optional[Any]:
+    def _load_image(self, image_input: bytes | Any | str) -> Any | None:
         """Normalizes various input formats into a PIL Image object."""
         if not PIL_AVAILABLE or Image is None:
             return None
@@ -128,7 +128,7 @@ class DesktopOCR:
 
         return None
 
-    def _get_image_bytes(self, image_input: Union[bytes, Any, str], loaded_img: Optional[Any]) -> Optional[bytes]:
+    def _get_image_bytes(self, image_input: bytes | Any | str, loaded_img: Any | None) -> bytes | None:
         """Converts image input to JPEG bytes for Vision LLM payload."""
         if isinstance(image_input, (bytes, bytearray)):
             return bytes(image_input)

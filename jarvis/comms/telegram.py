@@ -7,12 +7,11 @@ Covers Feature:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import logging
-import queue
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from dataclasses import dataclass, field
+from typing import Any
 
 log = logging.getLogger("jarvis.comms.telegram")
 
@@ -20,8 +19,8 @@ log = logging.getLogger("jarvis.comms.telegram")
 @dataclass
 class TelegramConfig:
     bot_token: str = ""
-    whitelist_user_ids: Set[int] = field(default_factory=set)
-    whitelist_chat_ids: Set[int] = field(default_factory=set)
+    whitelist_user_ids: set[int] = field(default_factory=set)
+    whitelist_chat_ids: set[int] = field(default_factory=set)
     poll_interval_s: float = 1.0
     timeout_s: float = 30.0
     enabled: bool = True
@@ -33,10 +32,10 @@ class TelegramUpdate:
     user_id: int
     chat_id: int
     username: str
-    text: Optional[str] = None
-    voice_file_id: Optional[str] = None
-    photo_file_ids: List[str] = field(default_factory=list)
-    raw_payload: Dict[str, Any] = field(default_factory=dict)
+    text: str | None = None
+    voice_file_id: str | None = None
+    photo_file_ids: list[str] = field(default_factory=list)
+    raw_payload: dict[str, Any] = field(default_factory=dict)
 
 
 class TelegramBotController:
@@ -47,24 +46,24 @@ class TelegramBotController:
 
     def __init__(
         self,
-        allowed_user_ids: Optional[Set[int]] = None,
+        allowed_user_ids: set[int] | None = None,
         bot_token: str = "",
-        win32_platform: Optional[Any] = None,
-        dispatcher: Optional[Any] = None,
-        stt_engine: Optional[Any] = None,
-        tts_engine: Optional[Any] = None,
-        http_client: Optional[Any] = None,
+        win32_platform: Any | None = None,
+        dispatcher: Any | None = None,
+        stt_engine: Any | None = None,
+        tts_engine: Any | None = None,
+        http_client: Any | None = None,
     ) -> None:
-        self.allowed_user_ids: Set[int] = allowed_user_ids or set()
+        self.allowed_user_ids: set[int] = allowed_user_ids or set()
         self.bot_token = bot_token
         self.win32 = win32_platform
         self.dispatcher = dispatcher
         self.stt_engine = stt_engine
         self.tts_engine = tts_engine
         self.http_client = http_client
-        self.security_violations: List[int] = []
+        self.security_violations: list[int] = []
         self._is_polling = False
-        self._poll_thread: Optional[threading.Thread] = None
+        self._poll_thread: threading.Thread | None = None
 
     def is_user_authorized(self, user_id: int) -> bool:
         """Validates user against whitelist."""
@@ -74,8 +73,8 @@ class TelegramBotController:
         self,
         user_id: int,
         text: str,
-        chat_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        chat_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         Processes an incoming text message from Telegram.
         Enforces whitelist; dispatches /status, /lock, /exec, /healing, /help.
@@ -193,8 +192,8 @@ class TelegramBotController:
         self,
         user_id: int,
         voice_bytes: bytes,
-        chat_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        chat_id: int | None = None,
+    ) -> dict[str, Any]:
         """Transcribes inbound voice note via STT, routes intent, and returns response."""
         if not self.is_user_authorized(user_id):
             self.security_violations.append(user_id)
@@ -216,8 +215,8 @@ class TelegramBotController:
         self,
         chat_id: int,
         text: str,
-        mock_http: Optional[Any] = None,
-    ) -> Dict[str, Any]:
+        mock_http: Any | None = None,
+    ) -> dict[str, Any]:
         """Sends text message to specified chat ID."""
         client = mock_http or self.http_client
         if client and hasattr(client, "handle_telegram_send_message"):
@@ -229,15 +228,15 @@ class TelegramBotController:
         chat_id: int,
         photo_bytes: bytes,
         caption: str = "",
-        mock_http: Optional[Any] = None,
-    ) -> Dict[str, Any]:
+        mock_http: Any | None = None,
+    ) -> dict[str, Any]:
         """Dispatches photo (e.g. intruder alert snapshot) to whitelisted chat."""
         client = mock_http or self.http_client
         if client and hasattr(client, "handle_telegram_send_photo"):
             return client.handle_telegram_send_photo(chat_id, photo_bytes, caption)
         return {"ok": True, "result": {"chat_id": chat_id, "caption": caption, "photo_size": len(photo_bytes)}}
 
-    def poll_once(self, mock_http: Optional[Any] = None) -> List[Dict[str, Any]]:
+    def poll_once(self, mock_http: Any | None = None) -> list[dict[str, Any]]:
         """Processes pending updates from queue or HTTP API."""
         client = mock_http or self.http_client
         if client and hasattr(client, "telegram_inbound_queue"):

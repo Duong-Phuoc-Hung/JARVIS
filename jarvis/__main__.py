@@ -4,6 +4,7 @@ Main execution entry point: python -m jarvis
 from __future__ import annotations
 
 import sys
+
 from jarvis.cli import main
 
 if __name__ == "__main__":

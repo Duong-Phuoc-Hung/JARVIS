@@ -19,13 +19,14 @@ Features:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import logging
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 from jarvis.automation.control import ComputerController
-from jarvis.vision.computer_use import BoundingBox, ComputerUseVision, UIElement
+from jarvis.vision.computer_use import ComputerUseVision, UIElement
 from jarvis.vision.screen import ScreenVisionManager
 from jarvis.vision.visual_verifier import VisualDiffResult, VisualVerifier
 
@@ -39,29 +40,29 @@ class GUIActionResult:
     target_query: str
     success: bool
     element_found: bool = False
-    grounded_element: Optional[UIElement] = None
-    target_pixel_pos: Optional[Tuple[int, int]] = None
-    verification: Optional[VisualDiffResult] = None
+    grounded_element: UIElement | None = None
+    target_pixel_pos: tuple[int, int] | None = None
+    verification: VisualDiffResult | None = None
     retries_used: int = 0
-    error_message: Optional[str] = None
+    error_message: str | None = None
     execution_time_ms: float = 0.0
 
     @property
-    def element(self) -> Optional[UIElement]:
+    def element(self) -> UIElement | None:
         """Convenience alias for grounded_element."""
         return self.grounded_element
 
     @property
-    def visual_result(self) -> Optional[VisualDiffResult]:
+    def visual_result(self) -> VisualDiffResult | None:
         """Convenience alias for verification."""
         return self.verification
 
     @property
-    def error(self) -> Optional[str]:
+    def error(self) -> str | None:
         """Convenience alias for error_message."""
         return self.error_message
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "action": self.action,
             "target_query": self.target_query,
@@ -85,12 +86,12 @@ class GUIActor:
 
     def __init__(
         self,
-        computer_use: Optional[ComputerUseVision] = None,
-        controller: Optional[ComputerController] = None,
-        verifier: Optional[VisualVerifier] = None,
-        vision_manager: Optional[ScreenVisionManager] = None,
-        vision: Optional[Any] = None,
-        safety_gate: Optional[Any] = None,
+        computer_use: ComputerUseVision | None = None,
+        controller: ComputerController | None = None,
+        verifier: VisualVerifier | None = None,
+        vision_manager: ScreenVisionManager | None = None,
+        vision: Any | None = None,
+        safety_gate: Any | None = None,
         **kwargs: Any,
     ) -> None:
         self.safety_gate = safety_gate
@@ -105,10 +106,10 @@ class GUIActor:
             self.computer_use = cu or ComputerUseVision(vision_manager=self.vision_manager)
         self.controller = controller or ComputerController()
         self.verifier = verifier or VisualVerifier(vision_manager=self.vision_manager)
-        self._action_history: List[GUIActionResult] = []
+        self._action_history: list[GUIActionResult] = []
 
     @property
-    def action_history(self) -> List[GUIActionResult]:
+    def action_history(self) -> list[GUIActionResult]:
         """History of executed GUI actions."""
         return list(self._action_history)
 
@@ -123,7 +124,7 @@ class GUIActor:
         right_click: bool = False,
         verify: bool = True,
         max_retries: int = 2,
-        expected_effect: Optional[str] = None,
+        expected_effect: str | None = None,
         button: str = "left",
         clicks: int = 1,
         **kwargs: Any,
@@ -487,8 +488,8 @@ class GUIActor:
     def perform_verified_action(
         self,
         action_fn: Callable[[], Any],
-        expected_effect: Optional[str] = None,
-        target_roi: Optional[Tuple[int, int, int, int]] = None,
+        expected_effect: str | None = None,
+        target_roi: tuple[int, int, int, int] | None = None,
         max_retries: int = 2,
     ) -> bool:
         """

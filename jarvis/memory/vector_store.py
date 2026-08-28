@@ -18,9 +18,9 @@ import re
 import threading
 import time
 from collections import Counter
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 log = logging.getLogger("jarvis.memory.vector_store")
 
@@ -45,8 +45,8 @@ class VectorStoreConfig:
 class DocumentVector:
     doc_id: str
     content: str
-    tokens: List[str]
-    tf: Dict[str, float]      # Term frequency
+    tokens: list[str]
+    tf: dict[str, float]      # Term frequency
     category: str = "general"
     timestamp: float = field(default_factory=time.time)
 
@@ -58,7 +58,7 @@ class SearchResult:
     score: float
     category: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"doc_id": self.doc_id, "content": self.content, "score": self.score, "category": self.category}
 
 
@@ -69,13 +69,13 @@ class SemanticVectorStore:
     Optional FAISS backend for 10x speedup when available.
     """
 
-    def __init__(self, config: Optional[VectorStoreConfig] = None) -> None:
+    def __init__(self, config: VectorStoreConfig | None = None) -> None:
         self.config = config or VectorStoreConfig()
-        self._documents: Dict[str, DocumentVector] = {}
-        self._idf: Dict[str, float] = {}
+        self._documents: dict[str, DocumentVector] = {}
+        self._idf: dict[str, float] = {}
         self._lock = threading.Lock()
-        self._faiss_index: Optional[Any] = None
-        self._faiss_id_map: List[str] = []
+        self._faiss_index: Any | None = None
+        self._faiss_id_map: list[str] = []
         self._load()
         log.info("SemanticVectorStore initialized (%d documents)", len(self._documents))
 
@@ -105,8 +105,8 @@ class SemanticVectorStore:
         self,
         query: str,
         k: int = 5,
-        category_filter: Optional[str] = None,
-    ) -> List[SearchResult]:
+        category_filter: str | None = None,
+    ) -> list[SearchResult]:
         """Return top-k semantically similar documents."""
         if not query.strip() or not self._documents:
             return []
@@ -118,7 +118,7 @@ class SemanticVectorStore:
         q_tf = self._compute_tf(q_tokens)
         q_tfidf = self._compute_tfidf_vec(q_tf)
 
-        results: List[SearchResult] = []
+        results: list[SearchResult] = []
         with self._lock:
             for doc in self._documents.values():
                 if category_filter and doc.category != category_filter:
@@ -146,7 +146,7 @@ class SemanticVectorStore:
             self.save()
         return True
 
-    def get_document(self, doc_id: str) -> Optional[DocumentVector]:
+    def get_document(self, doc_id: str) -> DocumentVector | None:
         return self._documents.get(doc_id)
 
     def clear(self) -> None:
@@ -159,7 +159,7 @@ class SemanticVectorStore:
     def size(self) -> int:
         return len(self._documents)
 
-    def categories(self) -> List[str]:
+    def categories(self) -> list[str]:
         return list({d.category for d in self._documents.values()})
 
     # ------------------------------------------------------------------
@@ -211,14 +211,14 @@ class SemanticVectorStore:
     # Internals
     # ------------------------------------------------------------------
 
-    def _tokenize(self, text: str) -> List[str]:
+    def _tokenize(self, text: str) -> list[str]:
         """Tokenize and clean Vietnamese/English text."""
         text = text.lower()
         text = re.sub(r"[^\w\s\u00C0-\u1EF9]", " ", text)
         tokens = text.split()
         return [t for t in tokens if len(t) > 1 and t not in _VIETNAMESE_STOPWORDS]
 
-    def _compute_tf(self, tokens: List[str]) -> Dict[str, float]:
+    def _compute_tf(self, tokens: list[str]) -> dict[str, float]:
         """Term frequency: count / total."""
         if not tokens:
             return {}
@@ -240,14 +240,14 @@ class SemanticVectorStore:
         self._idf = {term: math.log((n + 1) / (cnt + 0.5)) for term, cnt in df.items()}
 
 
-    def _compute_tfidf_vec(self, tf: Dict[str, float]) -> Dict[str, float]:
+    def _compute_tfidf_vec(self, tf: dict[str, float]) -> dict[str, float]:
         """Compute TF-IDF vector."""
         return {term: val * self._idf.get(term, 0.0) for term, val in tf.items()}
 
     def _cosine_similarity(
         self,
-        vec_a: Dict[str, float],
-        vec_b: Dict[str, float],
+        vec_a: dict[str, float],
+        vec_b: dict[str, float],
     ) -> float:
         """Cosine similarity between two TF-IDF vectors."""
         if not vec_a or not vec_b:

@@ -10,16 +10,14 @@ Covers Features:
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass, field
-from enum import Enum
 import io
 import math
-import os
-from pathlib import Path
-import re
-from typing import Any, Dict, List, Optional, Tuple, Union
 import xml.etree.ElementTree as ET
 import zipfile
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -67,9 +65,9 @@ class DescriptiveStats:
 @dataclass
 class CorrelationResult:
     """Pearson and Spearman correlation matrices across tabular columns."""
-    columns: List[str]
-    pearson_matrix: List[List[float]]
-    spearman_matrix: List[List[float]]
+    columns: list[str]
+    pearson_matrix: list[list[float]]
+    spearman_matrix: list[list[float]]
 
 
 @dataclass
@@ -87,7 +85,7 @@ class AnomalyReport:
     column_name: str
     method: str
     total_anomalies: int
-    anomalies: List[AnomalyItem]
+    anomalies: list[AnomalyItem]
 
 
 @dataclass
@@ -98,7 +96,7 @@ class TrendResult:
     intercept: float
     r_squared: float
     direction: str  # INCREASING, DECREASING, STABLE
-    cagr_percent: Optional[float]
+    cagr_percent: float | None
 
 
 @dataclass
@@ -109,13 +107,13 @@ class MonteCarloConfig:
     iterations: int = 5000
     mean_return: float = 0.05
     volatility: float = 0.15
-    target_value: Optional[float] = 110.0
-    triangular_low: Optional[float] = None
-    triangular_high: Optional[float] = None
-    triangular_mode: Optional[float] = None
-    uniform_low: Optional[float] = None
-    uniform_high: Optional[float] = None
-    random_seed: Optional[int] = 42
+    target_value: float | None = 110.0
+    triangular_low: float | None = None
+    triangular_high: float | None = None
+    triangular_mode: float | None = None
+    uniform_low: float | None = None
+    uniform_high: float | None = None
+    random_seed: int | None = 42
 
 
 @dataclass
@@ -146,10 +144,10 @@ class MonteCarloResult:
 class TabularDataset:
     """Represents a structured 2D tabular dataset."""
 
-    def __init__(self, headers: List[str], rows: List[List[Any]]):
-        self.headers: List[str] = headers
-        self.rows: List[List[Any]] = rows
-        self.numeric_columns: Dict[str, np.ndarray] = {}
+    def __init__(self, headers: list[str], rows: list[list[Any]]):
+        self.headers: list[str] = headers
+        self.rows: list[list[Any]] = rows
+        self.numeric_columns: dict[str, np.ndarray] = {}
         self._extract_numeric_columns()
 
     def _extract_numeric_columns(self) -> None:
@@ -178,7 +176,7 @@ class TabularDataset:
 class DataAnalyticsEngine:
     """Statistical analytics engine for CSV and XLSX files."""
 
-    def load_csv(self, file_path: Union[str, Path]) -> TabularDataset:
+    def load_csv(self, file_path: str | Path) -> TabularDataset:
         """Parses CSV with delimiter sniffing, comment stripping, and type inference."""
         p = Path(file_path)
         if not p.exists() or p.stat().st_size == 0:
@@ -209,7 +207,7 @@ class DataAnalyticsEngine:
         data_rows = rows[1:] if len(rows) > 1 else []
         return TabularDataset(headers=headers, rows=data_rows)
 
-    def load_xlsx(self, file_path: Union[str, Path], sheet_index: int = 0) -> TabularDataset:
+    def load_xlsx(self, file_path: str | Path, sheet_index: int = 0) -> TabularDataset:
         """Pure-Python standard-library XLSX reader using zipfile + xml.etree.ElementTree."""
         p = Path(file_path)
         if not p.exists() or p.stat().st_size == 0:
@@ -217,7 +215,7 @@ class DataAnalyticsEngine:
 
         with zipfile.ZipFile(p, "r") as z:
             # 1. Read shared strings
-            shared_strings: List[str] = []
+            shared_strings: list[str] = []
             if "xl/sharedStrings.xml" in z.namelist():
                 xml_content = z.read("xl/sharedStrings.xml")
                 root = ET.fromstring(xml_content)
@@ -239,12 +237,12 @@ class DataAnalyticsEngine:
             sheet_root = ET.fromstring(sheet_xml)
             ns = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
-            rows_data: List[List[Any]] = []
+            rows_data: list[list[Any]] = []
             row_elements = sheet_root.findall(".//main:row", ns) or sheet_root.findall(".//row")
 
             for r in row_elements:
                 c_elements = r.findall(".//main:c", ns) or r.findall(".//c")
-                row_vals: Dict[int, Any] = {}
+                row_vals: dict[int, Any] = {}
                 max_col = 0
                 for c in c_elements:
                     r_attr = c.attrib.get("r", "A1")
@@ -370,7 +368,7 @@ class DataAnalyticsEngine:
             kurtosis=kurt_val,
         )
 
-    def compute_all_statistics(self, dataset: TabularDataset) -> Dict[str, DescriptiveStats]:
+    def compute_all_statistics(self, dataset: TabularDataset) -> dict[str, DescriptiveStats]:
         """Computes descriptive stats across all numeric columns."""
         res = {}
         for col in dataset.numeric_columns.keys():
@@ -444,7 +442,7 @@ class DataAnalyticsEngine:
             raise ValueError(f"Numeric column '{column}' not found")
 
         arr = dataset.numeric_columns[column]
-        anomalies: List[AnomalyItem] = []
+        anomalies: list[AnomalyItem] = []
 
         if method.lower() == "iqr":
             q25 = float(np.percentile(arr, 25))
@@ -547,13 +545,13 @@ class MonteCarloEngine:
         mean_return: float = 0.05,
         volatility: float = 0.15,
         target_value: float = 110.0,
-        distribution: Union[str, DistributionType] = DistributionType.NORMAL,
-        triangular_low: Optional[float] = None,
-        triangular_high: Optional[float] = None,
-        triangular_mode: Optional[float] = None,
-        uniform_low: Optional[float] = None,
-        uniform_high: Optional[float] = None,
-        random_seed: Optional[int] = 42,
+        distribution: str | DistributionType = DistributionType.NORMAL,
+        triangular_low: float | None = None,
+        triangular_high: float | None = None,
+        triangular_mode: float | None = None,
+        uniform_low: float | None = None,
+        uniform_high: float | None = None,
+        random_seed: int | None = 42,
     ) -> MonteCarloResult:
         """Executes Monte Carlo simulation and computes risk percentiles."""
         if iterations < 1000:

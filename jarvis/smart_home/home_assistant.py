@@ -9,11 +9,9 @@ from __future__ import annotations
 
 import json
 import logging
-import threading
-import time
-from typing import Any, Callable, Dict, List, Optional, Union
 import urllib.error
 import urllib.request
+from typing import Any
 
 log = logging.getLogger("jarvis.smart_home.ha")
 
@@ -25,13 +23,13 @@ class HomeAssistantClient:
         self,
         base_url: str = "http://homeassistant.local:8123",
         access_token: str = "token_xyz",
-        entity_aliases: Optional[Dict[str, str]] = None,
+        entity_aliases: dict[str, str] | None = None,
         timeout: float = 5.0,
     ):
         self.base_url = base_url.rstrip("/")
         self.token = access_token
         self.timeout = timeout
-        self.entity_aliases: Dict[str, str] = entity_aliases or {
+        self.entity_aliases: dict[str, str] = entity_aliases or {
             "living_room_light": "light.living_room",
             "living room light": "light.living_room",
             "đèn phòng khách": "light.living_room",
@@ -48,7 +46,7 @@ class HomeAssistantClient:
         clean = alias_or_id.lower().strip()
         return self.entity_aliases.get(clean, alias_or_id)
 
-    def get_state(self, entity_id: str, mock_http: Optional[Any] = None) -> Optional[Dict[str, Any]]:
+    def get_state(self, entity_id: str, mock_http: Any | None = None) -> dict[str, Any] | None:
         """Fetches current state and attributes for an entity."""
         resolved = self.resolve_entity(entity_id)
         if mock_http is not None:
@@ -74,9 +72,9 @@ class HomeAssistantClient:
         self,
         domain: str,
         service: str,
-        service_data: Dict[str, Any],
-        mock_http: Optional[Any] = None,
-    ) -> Dict[str, Any]:
+        service_data: dict[str, Any],
+        mock_http: Any | None = None,
+    ) -> dict[str, Any]:
         """Calls a Home Assistant domain service (e.g. light/turn_on, climate/set_temperature)."""
         resolved_data = dict(service_data)
         if "entity_id" in resolved_data:
@@ -107,22 +105,22 @@ class HomeAssistantClient:
     def turn_on(
         self,
         entity: str,
-        brightness: Optional[int] = None,
-        mock_http: Optional[Any] = None,
-    ) -> Dict[str, Any]:
+        brightness: int | None = None,
+        mock_http: Any | None = None,
+    ) -> dict[str, Any]:
         resolved = self.resolve_entity(entity)
         domain = resolved.split(".")[0] if "." in resolved else "light"
-        payload: Dict[str, Any] = {"entity_id": resolved}
+        payload: dict[str, Any] = {"entity_id": resolved}
         if brightness is not None:
             payload["brightness"] = brightness
         return self.call_service(domain, "turn_on", payload, mock_http=mock_http)
 
-    def turn_off(self, entity: str, mock_http: Optional[Any] = None) -> Dict[str, Any]:
+    def turn_off(self, entity: str, mock_http: Any | None = None) -> dict[str, Any]:
         resolved = self.resolve_entity(entity)
         domain = resolved.split(".")[0] if "." in resolved else "light"
         return self.call_service(domain, "turn_off", {"entity_id": resolved}, mock_http=mock_http)
 
-    def toggle(self, entity: str, mock_http: Optional[Any] = None) -> Dict[str, Any]:
+    def toggle(self, entity: str, mock_http: Any | None = None) -> dict[str, Any]:
         resolved = self.resolve_entity(entity)
         domain = resolved.split(".")[0] if "." in resolved else "light"
         return self.call_service(domain, "toggle", {"entity_id": resolved}, mock_http=mock_http)
@@ -131,8 +129,8 @@ class HomeAssistantClient:
         self,
         entity: str,
         temperature: float,
-        mock_http: Optional[Any] = None,
-    ) -> Dict[str, Any]:
+        mock_http: Any | None = None,
+    ) -> dict[str, Any]:
         resolved = self.resolve_entity(entity)
         domain = resolved.split(".")[0] if "." in resolved else "climate"
         return self.call_service(

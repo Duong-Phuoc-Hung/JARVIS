@@ -16,14 +16,13 @@ Features:
 from __future__ import annotations
 
 import ctypes
-from dataclasses import dataclass, field
 import io
 import json
 import logging
 import re
 import sys
-import time
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from dataclasses import dataclass, field
+from typing import Any
 
 try:
     from PIL import Image, ImageDraw
@@ -86,7 +85,7 @@ class BoundingBox:
             self.xmin, self.xmax = self.xmax, self.xmin
 
     @property
-    def center_norm(self) -> Tuple[int, int]:
+    def center_norm(self) -> tuple[int, int]:
         """Returns (center_x, center_y) in normalized [0, 1000] coordinates."""
         return (self.xmin + self.xmax) // 2, (self.ymin + self.ymax) // 2
 
@@ -105,7 +104,7 @@ class BoundingBox:
         """Returns area in normalized units squared."""
         return self.width_norm * self.height_norm
 
-    def to_pixel_coords(self, screen_w: int, screen_h: int) -> Tuple[int, int, int, int]:
+    def to_pixel_coords(self, screen_w: int, screen_h: int) -> tuple[int, int, int, int]:
         """
         Converts normalized bounding box to physical screen pixel coordinates.
         Returns: (left, top, right, bottom)
@@ -124,7 +123,7 @@ class BoundingBox:
         bottom = max(top, min(screen_h, bottom))
         return left, top, right, bottom
 
-    def center_pixel(self, screen_w: int, screen_h: int) -> Tuple[int, int]:
+    def center_pixel(self, screen_w: int, screen_h: int) -> tuple[int, int]:
         """
         Returns center point in physical screen pixel coordinates (cx, cy).
         """
@@ -173,19 +172,19 @@ class UIElement:
     name: str
     element_type: str  # button, text_box, menu_item, checkbox, link, icon, window, generic
     bbox: BoundingBox
-    text: Optional[str] = None
+    text: str | None = None
     confidence: float = 1.0
     source: str = "vision_llm"  # vision_llm | ocr | win32_uia | template_match | synthetic
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
-    def center_norm(self) -> Tuple[int, int]:
+    def center_norm(self) -> tuple[int, int]:
         return self.bbox.center_norm
 
-    def center_pixel(self, screen_w: int, screen_h: int) -> Tuple[int, int]:
+    def center_pixel(self, screen_w: int, screen_h: int) -> tuple[int, int]:
         return self.bbox.center_pixel(screen_w, screen_h)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "element_type": self.element_type,
@@ -212,7 +211,7 @@ class CoordinateMapper:
         self.default_width = default_width
         self.default_height = default_height
 
-    def get_screen_size(self) -> Tuple[int, int]:
+    def get_screen_size(self) -> tuple[int, int]:
         """Resolves active screen resolution (Width, Height)."""
         if sys.platform == "win32" and hasattr(ctypes, "windll") and hasattr(ctypes.windll, "user32"):
             try:
@@ -225,8 +224,8 @@ class CoordinateMapper:
         return self.default_width, self.default_height
 
     def norm_to_pixel(
-        self, x_norm: int, y_norm: int, screen_w: Optional[int] = None, screen_h: Optional[int] = None
-    ) -> Tuple[int, int]:
+        self, x_norm: int, y_norm: int, screen_w: int | None = None, screen_h: int | None = None
+    ) -> tuple[int, int]:
         """Converts normalized (0-1000) point to physical screen pixel coordinates (x_px, y_px)."""
         w, h = (screen_w, screen_h) if screen_w and screen_h else self.get_screen_size()
         x_px = int(round(max(0, min(1000, x_norm)) * w / 1000.0))
@@ -234,8 +233,8 @@ class CoordinateMapper:
         return max(0, min(w - 1, x_px)), max(0, min(h - 1, y_px))
 
     def pixel_to_norm(
-        self, x_px: int, y_px: int, screen_w: Optional[int] = None, screen_h: Optional[int] = None
-    ) -> Tuple[int, int]:
+        self, x_px: int, y_px: int, screen_w: int | None = None, screen_h: int | None = None
+    ) -> tuple[int, int]:
         """Converts physical screen pixel coordinates (x_px, y_px) to normalized (0-1000) point."""
         w, h = (screen_w, screen_h) if screen_w and screen_h else self.get_screen_size()
         if w <= 0 or h <= 0:
@@ -260,9 +259,9 @@ class UIElementDetector:
 
     def __init__(
         self,
-        vision_manager: Optional[ScreenVisionManager] = None,
-        ocr_engine: Optional[DesktopOCR] = None,
-        coordinate_mapper: Optional[CoordinateMapper] = None,
+        vision_manager: ScreenVisionManager | None = None,
+        ocr_engine: DesktopOCR | None = None,
+        coordinate_mapper: CoordinateMapper | None = None,
     ) -> None:
         self.vision_manager = vision_manager or ScreenVisionManager()
         self.ocr_engine = ocr_engine or DesktopOCR(vision_manager=self.vision_manager)
@@ -272,7 +271,7 @@ class UIElementDetector:
 
     def detect_via_vision_llm(
         self, query: str, image_bytes: bytes, screen_w: int, screen_h: int
-    ) -> List[UIElement]:
+    ) -> list[UIElement]:
         """
         Tier 1: Queries Vision LLM with structured coordinate grounding prompt.
         Expects normalized coordinates [ymin, xmin, ymax, xmax] in 0-1000 scale.
@@ -307,9 +306,9 @@ class UIElementDetector:
             logger.warning("Vision LLM grounding failed: %s", exc)
             return []
 
-    def _parse_llm_grounding_response(self, response_text: str) -> List[UIElement]:
+    def _parse_llm_grounding_response(self, response_text: str) -> list[UIElement]:
         """Extracts JSON array of detected bounding boxes from LLM output."""
-        elements: List[UIElement] = []
+        elements: list[UIElement] = []
         json_str = response_text.strip()
 
         # Strip markdown code fences if present
@@ -355,12 +354,12 @@ class UIElementDetector:
     # ── Tier 2: Local OCR Bounding Boxes ─────────────────────────────────────
 
     def detect_via_ocr(
-        self, query: str, image_input: Union[bytes, Any], screen_w: int, screen_h: int
-    ) -> List[UIElement]:
+        self, query: str, image_input: bytes | Any, screen_w: int, screen_h: int
+    ) -> list[UIElement]:
         """
         Tier 2: Uses local OCR (pytesseract or PIL image data) to locate exact text bounding boxes.
         """
-        elements: List[UIElement] = []
+        elements: list[UIElement] = []
         img = self._to_pil_image(image_input)
         if img is None:
             return elements
@@ -426,11 +425,11 @@ class UIElementDetector:
 
     # ── Tier 3: Win32 UIAutomation / Native Child Windows ────────────────────
 
-    def detect_via_win32_uia(self, query: str, screen_w: int, screen_h: int) -> List[UIElement]:
+    def detect_via_win32_uia(self, query: str, screen_w: int, screen_h: int) -> list[UIElement]:
         """
         Tier 3: Enumerates visible native Windows controls (buttons, edit boxes, child windows).
         """
-        elements: List[UIElement] = []
+        elements: list[UIElement] = []
         if sys.platform != "win32" or not WIN32GUI_AVAILABLE or win32gui is None:
             return elements
 
@@ -478,13 +477,13 @@ class UIElementDetector:
     # ── Tier 4: Template Matching & Synthetic UI Fallback ────────────────────
 
     def detect_via_template_and_heuristics(
-        self, query: str, image_input: Optional[Union[bytes, Any]], screen_w: int, screen_h: int
-    ) -> List[UIElement]:
+        self, query: str, image_input: bytes | Any | None, screen_w: int, screen_h: int
+    ) -> list[UIElement]:
         """
         Tier 4: Geometric heuristics & standard UI control patterns fallback.
         Recognizes common system elements: close button, search bar, center dialog, etc.
         """
-        elements: List[UIElement] = []
+        elements: list[UIElement] = []
         q = query.strip().lower()
 
         # Heuristic 1: Window Close button (top right)
@@ -551,7 +550,7 @@ class UIElementDetector:
 
         return elements
 
-    def _to_pil_image(self, image_input: Optional[Union[bytes, Any]]) -> Optional[Any]:
+    def _to_pil_image(self, image_input: bytes | Any | None) -> Any | None:
         if not PIL_AVAILABLE or Image is None or image_input is None:
             return None
         try:
@@ -577,10 +576,10 @@ class ComputerUseVision:
 
     def __init__(
         self,
-        vision_manager: Optional[ScreenVisionManager] = None,
-        ocr_engine: Optional[DesktopOCR] = None,
-        detector: Optional[UIElementDetector] = None,
-        coord_mapper: Optional[CoordinateMapper] = None,
+        vision_manager: ScreenVisionManager | None = None,
+        ocr_engine: DesktopOCR | None = None,
+        detector: UIElementDetector | None = None,
+        coord_mapper: CoordinateMapper | None = None,
     ) -> None:
         self.vision_manager = vision_manager or ScreenVisionManager()
         self.ocr_engine = ocr_engine or DesktopOCR(vision_manager=self.vision_manager)
@@ -594,11 +593,11 @@ class ComputerUseVision:
     def locate_element(
         self,
         query: str,
-        screenshot_bytes: Optional[bytes] = None,
-        preferred_tier: Optional[int] = None,
-        screen_w: Optional[int] = None,
-        screen_h: Optional[int] = None,
-    ) -> Optional[UIElement]:
+        screenshot_bytes: bytes | None = None,
+        preferred_tier: int | None = None,
+        screen_w: int | None = None,
+        screen_h: int | None = None,
+    ) -> UIElement | None:
         """
         Locates a single best-matching UI element for the given query.
         Cascades through Tiers 1 -> 2 -> 3 -> 4.
@@ -615,11 +614,11 @@ class ComputerUseVision:
     def locate_elements(
         self,
         query: str,
-        screenshot_bytes: Optional[bytes] = None,
-        preferred_tier: Optional[int] = None,
-        screen_w: Optional[int] = None,
-        screen_h: Optional[int] = None,
-    ) -> List[UIElement]:
+        screenshot_bytes: bytes | None = None,
+        preferred_tier: int | None = None,
+        screen_w: int | None = None,
+        screen_h: int | None = None,
+    ) -> list[UIElement]:
         """
         Locates all matching UI elements for the given query using 4-tier grounding cascade.
         """
@@ -660,17 +659,17 @@ class ComputerUseVision:
         return []
 
     def norm_to_pixel(
-        self, x_norm: int, y_norm: int, screen_w: Optional[int] = None, screen_h: Optional[int] = None
-    ) -> Tuple[int, int]:
+        self, x_norm: int, y_norm: int, screen_w: int | None = None, screen_h: int | None = None
+    ) -> tuple[int, int]:
         """Converts normalized (0-1000) point to physical screen pixel coordinates."""
         return self.coord_mapper.norm_to_pixel(x_norm, y_norm, screen_w, screen_h)
 
     def pixel_to_norm(
-        self, x_px: int, y_px: int, screen_w: Optional[int] = None, screen_h: Optional[int] = None
-    ) -> Tuple[int, int]:
+        self, x_px: int, y_px: int, screen_w: int | None = None, screen_h: int | None = None
+    ) -> tuple[int, int]:
         """Converts physical screen pixel coordinates to normalized (0-1000) point."""
         return self.coord_mapper.pixel_to_norm(x_px, y_px, screen_w, screen_h)
 
-    def get_screen_size(self) -> Tuple[int, int]:
+    def get_screen_size(self) -> tuple[int, int]:
         """Returns physical screen dimensions (Width, Height)."""
         return self.coord_mapper.get_screen_size()

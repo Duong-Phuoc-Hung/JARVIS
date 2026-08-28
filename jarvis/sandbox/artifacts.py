@@ -5,15 +5,15 @@ after sandbox script execution.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import hashlib
 import logging
 import mimetypes
 import os
-from pathlib import Path
 import shutil
 import time
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger("jarvis.sandbox.artifacts")
 
@@ -27,9 +27,9 @@ class ArtifactInfo:
     size_bytes: int
     mime_type: str
     created_at: float = field(default_factory=time.time)
-    checksum_sha256: Optional[str] = None
+    checksum_sha256: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "filename": self.filename,
             "file_path": self.file_path,
@@ -47,7 +47,7 @@ class ArtifactManager:
     produced inside the sandbox execution environment.
     """
 
-    EXTENSION_MAP: Dict[str, Tuple[str, str]] = {
+    EXTENSION_MAP: dict[str, tuple[str, str]] = {
         ".png": ("image", "image/png"),
         ".jpg": ("image", "image/jpeg"),
         ".jpeg": ("image", "image/jpeg"),
@@ -71,24 +71,24 @@ class ArtifactManager:
         ".gz": ("archive", "application/gzip"),
     }
 
-    IGNORED_FILENAMES: Set[str] = {
+    IGNORED_FILENAMES: set[str] = {
         "script.py",
         "script.ps1",
         "__main__.py",
         ".gitkeep",
     }
 
-    IGNORED_EXTENSIONS: Set[str] = {
+    IGNORED_EXTENSIONS: set[str] = {
         ".pyc",
         ".pyo",
         ".pyd",
     }
 
-    def __init__(self, scratch_dir: Union[str, Path]) -> None:
+    def __init__(self, scratch_dir: str | Path) -> None:
         self.scratch_dir = Path(scratch_dir).resolve()
         mimetypes.init()
 
-    def snapshot_directory(self) -> Set[Path]:
+    def snapshot_directory(self) -> set[Path]:
         """
         Take a snapshot of all files currently existing in the scratch directory.
         
@@ -98,7 +98,7 @@ class ArtifactManager:
         if not self.scratch_dir.exists():
             return set()
 
-        files: Set[Path] = set()
+        files: set[Path] = set()
         for root, dirs, filenames in os.walk(self.scratch_dir):
             # Skip __pycache__ directories
             if "__pycache__" in dirs:
@@ -108,7 +108,7 @@ class ArtifactManager:
                 files.add(file_path.resolve())
         return files
 
-    def detect_new_artifacts(self, pre_snapshot: Set[Path]) -> List[ArtifactInfo]:
+    def detect_new_artifacts(self, pre_snapshot: set[Path]) -> list[ArtifactInfo]:
         """
         Detect all new or updated files generated since the pre_snapshot.
         
@@ -121,7 +121,7 @@ class ArtifactManager:
         if not self.scratch_dir.exists():
             return []
 
-        artifacts: List[ArtifactInfo] = []
+        artifacts: list[ArtifactInfo] = []
         current_snapshot = self.snapshot_directory()
         new_files = current_snapshot - pre_snapshot
 
@@ -140,7 +140,7 @@ class ArtifactManager:
                 size_bytes = file_path.stat().st_size
                 checksum = self.compute_sha256(file_path)
                 file_type, mime_type = self.classify_file(file_path)
-                
+
                 artifact = ArtifactInfo(
                     filename=file_path.name,
                     file_path=str(file_path),
@@ -157,7 +157,7 @@ class ArtifactManager:
 
         return artifacts
 
-    def classify_file(self, file_path: Union[str, Path]) -> Tuple[str, str]:
+    def classify_file(self, file_path: str | Path) -> tuple[str, str]:
         """
         Determine high-level file type and MIME type based on extension.
         
@@ -185,7 +185,7 @@ class ArtifactManager:
         return "binary", mime
 
     @staticmethod
-    def compute_sha256(file_path: Union[str, Path]) -> str:
+    def compute_sha256(file_path: str | Path) -> str:
         """Calculate SHA256 hex digest for a file."""
         hasher = hashlib.sha256()
         with open(file_path, "rb") as f:
@@ -195,9 +195,9 @@ class ArtifactManager:
 
     def export_artifacts(
         self,
-        artifacts: List[ArtifactInfo],
-        destination_dir: Union[str, Path]
-    ) -> List[Path]:
+        artifacts: list[ArtifactInfo],
+        destination_dir: str | Path
+    ) -> list[Path]:
         """
         Copy generated artifacts from scratch directory to persistent storage directory.
         
@@ -210,7 +210,7 @@ class ArtifactManager:
         """
         dest_path = Path(destination_dir).resolve()
         dest_path.mkdir(parents=True, exist_ok=True)
-        exported: List[Path] = []
+        exported: list[Path] = []
 
         for artifact in artifacts:
             src = Path(artifact.file_path)

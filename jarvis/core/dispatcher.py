@@ -11,8 +11,9 @@ import inspect
 import logging
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Union
 import uuid
+from collections.abc import Callable
+from typing import Any
 
 from jarvis.core.models import (
     ActionDefinition,
@@ -32,8 +33,8 @@ class EventBus:
     """
 
     def __init__(self) -> None:
-        self._subscribers: Dict[str, List[SubscriptionRecord]] = {}
-        self._sub_id_map: Dict[str, SubscriptionRecord] = {}
+        self._subscribers: dict[str, list[SubscriptionRecord]] = {}
+        self._sub_id_map: dict[str, SubscriptionRecord] = {}
         self._lock = threading.RLock()
 
     def subscribe(
@@ -91,16 +92,16 @@ class EventBus:
             record = self._sub_id_map.pop(subscription_id, None)
             if not record:
                 return False
-            
+
             sub_list = self._subscribers.get(record.event_name, [])
             self._subscribers[record.event_name] = [s for s in sub_list if s.subscription_id != subscription_id]
             if not self._subscribers[record.event_name]:
                 del self._subscribers[record.event_name]
-                
+
         logger.debug("Unsubscribed %s from '%s'", subscription_id, record.event_name)
         return True
 
-    def unsubscribe_all(self, event_name: Optional[str] = None) -> int:
+    def unsubscribe_all(self, event_name: str | None = None) -> int:
         """Clear all subscribers for a given topic or all topics entirely."""
         with self._lock:
             if event_name is not None:
@@ -114,9 +115,9 @@ class EventBus:
                 self._sub_id_map.clear()
                 return count
 
-    def _get_matching_subscribers(self, event_name: str) -> List[SubscriptionRecord]:
+    def _get_matching_subscribers(self, event_name: str) -> list[SubscriptionRecord]:
         """Collect and sort all matching exact and wildcard subscribers."""
-        matched: List[SubscriptionRecord] = []
+        matched: list[SubscriptionRecord] = []
         with self._lock:
             for pattern, records in self._subscribers.items():
                 if pattern == event_name or pattern == "*" or fnmatch.fnmatch(event_name, pattern):
@@ -130,12 +131,12 @@ class EventBus:
                     deduped.append(sub)
             return deduped
 
-    def publish(self, event_name: str, **payload) -> List[HandlerResult]:
+    def publish(self, event_name: str, **payload) -> list[HandlerResult]:
         """
         Synchronously publish an event to all subscribers with strict error isolation.
         """
         subscribers = self._get_matching_subscribers(event_name)
-        results: List[HandlerResult] = []
+        results: list[HandlerResult] = []
 
         for sub in subscribers:
             t0 = time.perf_counter()
@@ -145,7 +146,7 @@ class EventBus:
                         loop = asyncio.get_running_loop()
                     except RuntimeError:
                         loop = None
-                    
+
                     if loop and loop.is_running():
                         future = asyncio.run_coroutine_threadsafe(sub.handler(**payload), loop)
                         res = future.result(timeout=10.0)
@@ -153,7 +154,7 @@ class EventBus:
                         res = asyncio.run(sub.handler(**payload))
                 else:
                     res = sub.handler(**payload)
-                    
+
                 elapsed = (time.perf_counter() - t0) * 1000.0
                 results.append(HandlerResult(
                     subscription_id=sub.subscription_id,
@@ -180,13 +181,13 @@ class EventBus:
 
         return results
 
-    async def publish_async(self, event_name: str, **payload) -> List[HandlerResult]:
+    async def publish_async(self, event_name: str, **payload) -> list[HandlerResult]:
         """
         Asynchronously publish an event to all subscribers, awaiting coroutines
         and executing synchronous handlers in the thread pool.
         """
         subscribers = self._get_matching_subscribers(event_name)
-        results: List[HandlerResult] = []
+        results: list[HandlerResult] = []
         loop = asyncio.get_running_loop()
 
         for sub in subscribers:
@@ -225,7 +226,7 @@ class EventBus:
 
 def default_privilege_interceptor(
     action_name: str,
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     context: RequesterContext,
     required_privilege: PrivilegeLevel
 ) -> bool:
@@ -241,12 +242,12 @@ class ActionDispatcher:
 
     def __init__(
         self,
-        event_bus: Optional[EventBus] = None,
-        privilege_interceptor: Optional[Callable[..., bool]] = None,
+        event_bus: EventBus | None = None,
+        privilege_interceptor: Callable[..., bool] | None = None,
         bypass_security: bool = False
     ) -> None:
         self.event_bus = event_bus or EventBus()
-        self._actions: Dict[str, ActionDefinition] = {}
+        self._actions: dict[str, ActionDefinition] = {}
         self._privilege_interceptor = privilege_interceptor or default_privilege_interceptor
         self.bypass_security = bypass_security
         self._lock = threading.RLock()
@@ -257,9 +258,9 @@ class ActionDispatcher:
         handler: Callable[..., Any],
         required_privilege: PrivilegeLevel = PrivilegeLevel.NORMAL,
         description: str = "",
-        schema: Optional[Dict[str, Any]] = None,
-        timeout_seconds: Optional[float] = None,
-        plugin_name: Optional[str] = None
+        schema: dict[str, Any] | None = None,
+        timeout_seconds: float | None = None,
+        plugin_name: str | None = None
     ) -> None:
         """Register a new callable action."""
         if not name or not isinstance(name, str):
@@ -298,12 +299,12 @@ class ActionDispatcher:
         self.event_bus.publish("dispatcher.action_unregistered", action_name=name)
         return True
 
-    def get_action(self, name: str) -> Optional[ActionDefinition]:
+    def get_action(self, name: str) -> ActionDefinition | None:
         """Retrieve action definition by name."""
         with self._lock:
             return self._actions.get(name)
 
-    def list_actions(self) -> Dict[str, ActionDefinition]:
+    def list_actions(self) -> dict[str, ActionDefinition]:
         """List all registered actions."""
         with self._lock:
             return dict(self._actions)
@@ -318,7 +319,7 @@ class ActionDispatcher:
         self,
         action_name: str,
         context: RequesterContext,
-        payload: Optional[Dict[str, Any]] = None
+        payload: dict[str, Any] | None = None
     ) -> bool:
         """Check if the given context is authorized to execute the action."""
         if self.bypass_security:
@@ -336,9 +337,9 @@ class ActionDispatcher:
     def dispatch_action(
         self,
         action_name: str,
-        payload: Optional[Dict[str, Any]] = None,
-        requester: Union[str, RequesterContext] = "system",
-        timeout: Optional[float] = None
+        payload: dict[str, Any] | None = None,
+        requester: str | RequesterContext = "system",
+        timeout: float | None = None
     ) -> ActionResult:
         """Synchronously dispatch and execute an action."""
         t0 = time.perf_counter()
@@ -438,9 +439,9 @@ class ActionDispatcher:
     async def dispatch_action_async(
         self,
         action_name: str,
-        payload: Optional[Dict[str, Any]] = None,
-        requester: Union[str, RequesterContext] = "system",
-        timeout: Optional[float] = None
+        payload: dict[str, Any] | None = None,
+        requester: str | RequesterContext = "system",
+        timeout: float | None = None
     ) -> ActionResult:
         """Asynchronously dispatch and execute an action with non-blocking concurrency."""
         t0 = time.perf_counter()

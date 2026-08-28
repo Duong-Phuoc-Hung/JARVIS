@@ -11,17 +11,18 @@ Coordinates:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import datetime
 import logging
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 from jarvis.proactive.briefing_scheduler import DailyBriefingScheduler
-from jarvis.proactive.health_monitor import HealthAlert, SystemHealthMonitor
+from jarvis.proactive.health_monitor import SystemHealthMonitor
 from jarvis.proactive.inactivity import InactivityMonitor
-from jarvis.proactive.pomodoro import PomodoroStatus, PomodoroTimer
+from jarvis.proactive.pomodoro import PomodoroTimer
 from jarvis.proactive.reminders import ReminderScheduler, ScheduledReminder
 
 logger = logging.getLogger("jarvis.proactive.engine")
@@ -51,7 +52,7 @@ class ProactiveConfig:
     daily_briefing_enabled: bool = True
     daily_briefing_time: str = "08:00"
     daily_briefing_interval_s: float = 10.0
-    daily_briefing_city: Optional[str] = None
+    daily_briefing_city: str | None = None
 
     inactivity_greeting_enabled: bool = True
     inactivity_timeout_s: float = 7200.0  # 2 hours
@@ -60,7 +61,7 @@ class ProactiveConfig:
     inactivity_interval_s: float = 10.0
 
     @classmethod
-    def from_dict(cls, cfg: Optional[Dict[str, Any]]) -> ProactiveConfig:
+    def from_dict(cls, cfg: dict[str, Any] | None) -> ProactiveConfig:
         """Parses flat or nested YAML/JSON config dictionary."""
         if not cfg:
             return cls()
@@ -115,13 +116,13 @@ class ProactiveEngine:
 
     def __init__(
         self,
-        app_context: Optional[Any] = None,
-        config: Optional[Dict[str, Any] | ProactiveConfig] = None,
-        tts_callback: Optional[Callable[[str], None]] = None,
-        overlay_callback: Optional[Callable[[str, str], None]] = None,
-        web_hub: Optional[Any] = None,
-        hardware_monitor: Optional[Any] = None,
-        telemetry_provider: Optional[Any] = None,
+        app_context: Any | None = None,
+        config: dict[str, Any] | ProactiveConfig | None = None,
+        tts_callback: Callable[[str], None] | None = None,
+        overlay_callback: Callable[[str, str], None] | None = None,
+        web_hub: Any | None = None,
+        hardware_monitor: Any | None = None,
+        telemetry_provider: Any | None = None,
     ) -> None:
         self.app_context = app_context
         self.raw_config = config or {}
@@ -277,7 +278,7 @@ class ProactiveEngine:
         self,
         text: str,
         delay_seconds: float,
-        callback: Optional[Callable[[ScheduledReminder], None]] = None,
+        callback: Callable[[ScheduledReminder], None] | None = None,
     ) -> str:
         """Schedules a new reminder via ReminderScheduler."""
         return self.reminders.add_reminder(text=text, delay_seconds=delay_seconds, callback=callback)
@@ -286,14 +287,14 @@ class ProactiveEngine:
         """Cancels a pending reminder."""
         return self.reminders.cancel_reminder(reminder_id)
 
-    def get_pending_reminders(self) -> List[Dict[str, Any]]:
+    def get_pending_reminders(self) -> list[dict[str, Any]]:
         """Returns pending reminders."""
         return self.reminders.get_pending_reminders()
 
     def start_pomodoro(
         self,
-        work_minutes: Optional[float] = None,
-        break_minutes: Optional[float] = None,
+        work_minutes: float | None = None,
+        break_minutes: float | None = None,
         cycles: int = 1,
     ) -> str:
         """Starts Pomodoro focus session."""
@@ -311,7 +312,7 @@ class ProactiveEngine:
         """Stops and resets Pomodoro timer."""
         return self.pomodoro.stop()
 
-    def get_pomodoro_status(self) -> Dict[str, Any]:
+    def get_pomodoro_status(self) -> dict[str, Any]:
         """Returns current Pomodoro status."""
         return self.pomodoro.get_status().to_dict()
 
@@ -323,15 +324,15 @@ class ProactiveEngine:
         """Returns True if a notification should be suppressed."""
         return self.pomodoro.should_suppress_notification(is_critical=is_critical)
 
-    def record_user_activity(self, now: Optional[float] = None) -> None:
+    def record_user_activity(self, now: float | None = None) -> None:
         """Registers user interaction to reset inactivity timer."""
         self.inactivity.record_activity(now=now)
 
-    def trigger_briefing(self, city: Optional[str] = None) -> Dict[str, Any]:
+    def trigger_briefing(self, city: str | None = None) -> dict[str, Any]:
         """Manually triggers morning briefing synthesis."""
         return self.briefing_scheduler.trigger_now(city=city)
 
-    def check_health_now(self) -> List[Dict[str, Any]]:
+    def check_health_now(self) -> list[dict[str, Any]]:
         """Performs on-demand telemetry check and returns alerts."""
         alerts = self.health_monitor.check_telemetry()
         return [a.to_dict() for a in alerts]
@@ -347,9 +348,9 @@ class ProactiveEngine:
 
     def tick(
         self,
-        now: Optional[float] = None,
-        current_dt: Optional[datetime.datetime] = None,
-    ) -> Dict[str, Any]:
+        now: float | None = None,
+        current_dt: datetime.datetime | None = None,
+    ) -> dict[str, Any]:
         """
         Executes a synchronous tick across all sub-engines.
         Useful for unit tests and deterministic simulation without real time sleep.

@@ -10,18 +10,18 @@ Provides:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum
 import logging
 import os
-import queue
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
 import numpy as np
 
-from jarvis.audio.dsp import AudioDSPProcessor, calculate_rms
+from jarvis.audio.dsp import calculate_rms
 
 logger = logging.getLogger("jarvis.audio.engine")
 
@@ -53,7 +53,7 @@ class AudioDeviceInfo:
     is_default_output: bool = False
     probed_rms: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "index": self.index,
             "name": self.name,
@@ -75,7 +75,7 @@ class MicrophoneProbeManager:
 
     def __init__(
         self,
-        devices: Optional[List[Dict[str, Any]]] = None,
+        devices: list[dict[str, Any]] | None = None,
         probe_duration_s: float = 0.5,
         silent_rms_threshold: float = 0.001,
         sample_rate: int = 44100,
@@ -87,7 +87,7 @@ class MicrophoneProbeManager:
         self.sample_rate = sample_rate
         self.channels = channels
 
-    def get_input_devices(self, sd_module: Any = None) -> List[Dict[str, Any]]:
+    def get_input_devices(self, sd_module: Any = None) -> list[dict[str, Any]]:
         """Query and return all input-capable devices."""
         def _valid_input_device(d: Any) -> bool:
             if not isinstance(d, dict):
@@ -158,7 +158,7 @@ class MicrophoneProbeManager:
             logger.debug("Probing device [%d] failed: %s", device_idx, e)
             return 0.0
 
-    def select_best_device(self, sd_module: Any = None, override: Optional[Union[str, int]] = None) -> int:
+    def select_best_device(self, sd_module: Any = None, override: str | int | None = None) -> int:
         """
         Selects best input device index using priority resolution:
           1. Explicit override (digit or name substring).
@@ -183,7 +183,7 @@ class MicrophoneProbeManager:
                     return dev_idx
 
         # 2. Check default device
-        default_idx: Optional[int] = None
+        default_idx: int | None = None
         if isinstance(sd_mod, dict) and "default" in sd_mod:
             def_dev = sd_mod["default"].get("device", [None])[0]
             if def_dev is not None and def_dev >= 0:
@@ -227,14 +227,14 @@ class AudioEngine:
         sample_rate: int = 44100,
         block_ms: int = 40,
         channels: int = 1,
-        input_device: Optional[Union[str, int]] = None,
+        input_device: str | int | None = None,
         probe_seconds: float = 0.5,
         silent_rms_threshold: float = 0.001,
         mode: AudioEngineMode = AudioEngineMode.LIVE,
-        event_bus: Optional[Any] = None,
-        config_manager: Optional[Any] = None,
-        on_audio_block: Optional[Callable[[np.ndarray], None]] = None,
-        device_spec: Optional[str] = None,
+        event_bus: Any | None = None,
+        config_manager: Any | None = None,
+        on_audio_block: Callable[[np.ndarray], None] | None = None,
+        device_spec: str | None = None,
     ) -> None:
         self.sample_rate = int(sample_rate)
         self.block_ms = int(block_ms)
@@ -254,9 +254,9 @@ class AudioEngine:
             channels=self.channels,
         )
 
-        self._active_device_index: Optional[int] = None
-        self._active_device_info: Optional[AudioDeviceInfo] = None
-        self._callbacks: List[Callable[[np.ndarray], None]] = []
+        self._active_device_index: int | None = None
+        self._active_device_info: AudioDeviceInfo | None = None
+        self._callbacks: list[Callable[[np.ndarray], None]] = []
         if on_audio_block:
             self._callbacks.append(on_audio_block)
 
@@ -264,7 +264,7 @@ class AudioEngine:
         self._stop_event = threading.Event()
         self._pause_event = threading.Event()
         self._pause_event.set()  # Not paused
-        self._worker_thread: Optional[threading.Thread] = None
+        self._worker_thread: threading.Thread | None = None
         self._is_running: bool = False
 
         # Apply config overrides if ConfigManager present
@@ -294,7 +294,7 @@ class AudioEngine:
         logger.info("Hot-reloading AudioEngine settings from config update.")
         self._load_from_config()
 
-    def probe_devices(self) -> List[AudioDeviceInfo]:
+    def probe_devices(self) -> list[AudioDeviceInfo]:
         """Enumerate and return all available input audio endpoints."""
         if not SOUNDDEVICE_AVAILABLE:
             return [
@@ -330,7 +330,7 @@ class AudioEngine:
             logger.warning("Error enumerating devices: %s", e)
             return []
 
-    def get_active_device(self) -> Optional[AudioDeviceInfo]:
+    def get_active_device(self) -> AudioDeviceInfo | None:
         """Return currently active audio input device info."""
         with self._lock:
             return self._active_device_info
@@ -347,7 +347,7 @@ class AudioEngine:
             if cb in self._callbacks:
                 self._callbacks.remove(cb)
 
-    def start_stream(self, callback: Optional[Callable[[np.ndarray], None]] = None) -> None:
+    def start_stream(self, callback: Callable[[np.ndarray], None] | None = None) -> None:
         """
         Start the audio input capture stream on a background daemon thread.
         """
@@ -393,7 +393,7 @@ class AudioEngine:
                     block_size=self.block_size,
                 )
 
-    def start(self, callback: Optional[Callable[[np.ndarray], None]] = None) -> None:
+    def start(self, callback: Callable[[np.ndarray], None] | None = None) -> None:
         """Alias for start_stream."""
         self.start_stream(callback)
 
@@ -451,7 +451,7 @@ class AudioEngine:
         """
         self.feed_audio(buffer, virtual_time=virtual_time)
 
-    def _dispatch_block(self, block: np.ndarray, timestamp: Optional[float] = None) -> None:
+    def _dispatch_block(self, block: np.ndarray, timestamp: float | None = None) -> None:
         """Deliver audio block to all registered callbacks and event bus."""
         if not self._pause_event.is_set():
             return

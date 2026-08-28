@@ -4,10 +4,11 @@ Defines worker tasks, execution lifecycle statuses, and real-time telemetry pack
 """
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-import time
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any
 
 
 class WorkerStatus(str, Enum):
@@ -34,18 +35,18 @@ class WorkerTask:
     task_id: str
     name: str
     task_type: str = "generic_task"
-    payload: Dict[str, Any] = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
     priority: WorkerPriority = WorkerPriority.NORMAL
     timeout_seconds: float = 300.0
-    target_callable: Optional[Callable[..., Any]] = None
-    action_name: Optional[str] = None
+    target_callable: Callable[..., Any] | None = None
+    action_name: str | None = None
     notify_tts: bool = True
     notify_overlay: bool = True
     notify_telegram: bool = False
-    telegram_chat_id: Optional[int] = None
+    telegram_chat_id: int | None = None
     created_at: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serializes the WorkerTask specification to a dictionary."""
         return {
             "task_id": self.task_id,
@@ -63,7 +64,7 @@ class WorkerTask:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> WorkerTask:
+    def from_dict(cls, data: dict[str, Any]) -> WorkerTask:
         """Constructs a WorkerTask from a dictionary."""
         raw_pri = data.get("priority", 0)
         try:
@@ -97,15 +98,15 @@ class WorkerTelemetry:
     progress_pct: float = 0.0          # Range 0.0 to 100.0
     current_step: str = ""
     elapsed_seconds: float = 0.0
-    estimated_remaining_seconds: Optional[float] = None
-    artifacts: List[str] = field(default_factory=list)
-    error: Optional[str] = None
+    estimated_remaining_seconds: float | None = None
+    artifacts: list[str] = field(default_factory=list)
+    error: str | None = None
     result_data: Any = None
     heartbeat_timestamp: float = field(default_factory=time.time)
-    started_at: Optional[float] = None
-    finished_at: Optional[float] = None
+    started_at: float | None = None
+    finished_at: float | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serializes telemetry status into JSON-compatible dictionary."""
         return {
             "worker_id": self.worker_id,

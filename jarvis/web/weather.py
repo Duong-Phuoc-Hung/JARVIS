@@ -8,7 +8,6 @@ Caches results in TTLCache for 10 minutes (600s).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import json
 import logging
 import os
@@ -16,7 +15,8 @@ import re
 import time
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, Optional
+from dataclasses import dataclass, field
+from typing import Any
 
 try:
     import requests
@@ -95,13 +95,13 @@ class WeatherData:
     condition: str
     humidity: int
     wind_kph: float
-    uv_index: Optional[float] = None
-    pressure_hpa: Optional[int] = None
-    visibility_km: Optional[float] = None
+    uv_index: float | None = None
+    pressure_hpa: int | None = None
+    visibility_km: float | None = None
     source: str = "wttr.in"
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "city": self.city,
             "temp_c": self.temp_c,
@@ -127,9 +127,9 @@ class WeatherProvider:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         default_city: str = DEFAULT_CITY,
-        cache: Optional[TTLCache] = None,
+        cache: TTLCache | None = None,
         cache_ttl: float = 600.0,
         timeout_seconds: float = 8.0,
     ) -> None:
@@ -143,7 +143,7 @@ class WeatherProvider:
         self.cache_ttl = cache_ttl
         self.timeout_seconds = timeout_seconds
 
-    def normalize_city_name(self, city: Optional[str]) -> str:
+    def normalize_city_name(self, city: str | None) -> str:
         """Standardizes user city string into formal Vietnamese city name."""
         if not city or not city.strip():
             return self.default_city
@@ -163,7 +163,7 @@ class WeatherProvider:
 
         return CITY_ALIASES.get(cleaned, city.strip())
 
-    def get_weather(self, city: Optional[str] = None) -> WeatherData:
+    def get_weather(self, city: str | None = None) -> WeatherData:
         """
         Fetches current weather for the specified city, checking cache first.
         """
@@ -177,7 +177,7 @@ class WeatherProvider:
                 return WeatherData(**cached)
             return cached
 
-        weather_data: Optional[WeatherData] = None
+        weather_data: WeatherData | None = None
 
         # 1. Tier 1: OpenWeatherMap (if API key configured)
         if self.api_key:
@@ -208,7 +208,7 @@ class WeatherProvider:
         self.cache.set(cache_key, weather_data.to_dict(), ttl=self.cache_ttl)
         return weather_data
 
-    def get_weather_speech(self, city: Optional[str] = None) -> str:
+    def get_weather_speech(self, city: str | None = None) -> str:
         """Convenience method returning vocalizable text."""
         data = self.get_weather(city)
         return self.format_weather_speech(data)
@@ -292,7 +292,7 @@ class WeatherProvider:
         url = f"https://wttr.in/{urllib.parse.quote(query_city)}?format=j1"
         headers = {"User-Agent": "curl/7.68.0"}
 
-        data: Dict[str, Any] = {}
+        data: dict[str, Any] = {}
         if REQUESTS_AVAILABLE and requests is not None:
             resp = requests.get(url, headers=headers, timeout=self.timeout_seconds)
             resp.raise_for_status()
@@ -313,7 +313,7 @@ class WeatherProvider:
 
         desc_list = current.get("lang_vi", current.get("weatherDesc", [{}]))
         raw_desc = desc_list[0].get("value", "Nhiều mây") if desc_list else "Nhiều mây"
-        
+
         # Translate condition if English
         translated = CONDITION_TRANSLATIONS.get(raw_desc.lower(), raw_desc)
 

@@ -6,7 +6,7 @@ CLI shell execution plugin with ADMIN privilege enforcement and timeout protecti
 from __future__ import annotations
 
 import subprocess
-from typing import Any, Dict
+from typing import Any
 
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import PluginMetadata, PrivilegeLevel
@@ -24,7 +24,7 @@ class ShellPlugin(BasePlugin):
             required_permissions=["ADMIN"],
         )
 
-    def initialize(self, config: Dict[str, Any], dispatcher: ActionDispatcher) -> None:
+    def initialize(self, config: dict[str, Any], dispatcher: ActionDispatcher) -> None:
         self.config = config or {}
         self.dispatcher = dispatcher
         self.register_action(
@@ -34,7 +34,7 @@ class ShellPlugin(BasePlugin):
             description="Execute shell command",
         )
 
-    def exec_command(self, command: str, timeout: float = 5.0, **kwargs) -> Dict[str, Any]:
+    def exec_command(self, command: str, timeout: float = 5.0, **kwargs) -> dict[str, Any]:
         """Runs shell command with timeout limit."""
         try:
             proc = subprocess.run(

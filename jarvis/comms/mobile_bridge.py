@@ -10,9 +10,8 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 log = logging.getLogger("jarvis.comms.mobile_bridge")
 
@@ -38,7 +37,7 @@ class MobileFileBridge:
         self,
         save_directory: str = "",
         max_file_size_mb: int = _MAX_FILE_SIZE_MB,
-        telegram_controller: Optional[Any] = None,
+        telegram_controller: Any | None = None,
     ) -> None:
         self.save_dir = Path(save_directory) if save_directory else _DEFAULT_SAVE_DIR
         self.save_dir.mkdir(parents=True, exist_ok=True)
@@ -54,8 +53,8 @@ class MobileFileBridge:
         self,
         file_bytes: bytes,
         filename: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Save an incoming file from mobile to the configured directory.
 
@@ -90,8 +89,8 @@ class MobileFileBridge:
 
     def send_clipboard_to_mobile(
         self,
-        telegram_chat_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        telegram_chat_id: int | None = None,
+    ) -> dict[str, Any]:
         """Read system clipboard and send as text message to Telegram."""
         text = self._get_clipboard_text()
         if not text:
@@ -111,8 +110,8 @@ class MobileFileBridge:
 
     def send_screenshot_to_mobile(
         self,
-        telegram_chat_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        telegram_chat_id: int | None = None,
+    ) -> dict[str, Any]:
         """Capture screenshot and send to Telegram as image."""
         png_bytes = self._capture_screenshot()
         if not png_bytes:
@@ -132,7 +131,7 @@ class MobileFileBridge:
         self._log_transfer("screenshot_send", "screen", "telegram", size_kb)
         return {"success": True, "saved_path": str(temp_path), "size_kb": size_kb}
 
-    def get_file_transfer_history(self) -> List[Dict[str, Any]]:
+    def get_file_transfer_history(self) -> list[dict[str, Any]]:
         """Return recent file transfer records."""
         if not _TRANSFER_LOG.exists():
             return []
@@ -145,7 +144,7 @@ class MobileFileBridge:
     # Internals
     # ------------------------------------------------------------------
 
-    def _validate_file(self, filename: str, size_bytes: int) -> Optional[str]:
+    def _validate_file(self, filename: str, size_bytes: int) -> str | None:
         suffix = Path(filename).suffix.lower()
         if suffix not in _ALLOWED_EXTENSIONS:
             return f"Định dạng file '{suffix}' không được phép."
@@ -153,7 +152,7 @@ class MobileFileBridge:
             return f"File quá lớn ({size_bytes // 1024 // 1024}MB > {self.max_size_bytes // 1024 // 1024}MB)."
         return None
 
-    def _get_clipboard_text(self) -> Optional[str]:
+    def _get_clipboard_text(self) -> str | None:
         try:
             import ctypes
             ctypes.windll.user32.OpenClipboard(0)
@@ -174,7 +173,7 @@ class MobileFileBridge:
         except Exception:
             return None
 
-    def _capture_screenshot(self) -> Optional[bytes]:
+    def _capture_screenshot(self) -> bytes | None:
         try:
             import mss
             import mss.tools
@@ -185,6 +184,7 @@ class MobileFileBridge:
             pass
         try:
             import io
+
             from PIL import ImageGrab
             buf = io.BytesIO()
             ImageGrab.grab().save(buf, format="PNG")

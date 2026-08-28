@@ -14,14 +14,12 @@ Cài đặt: pip install playwright && playwright install chromium
 """
 from __future__ import annotations
 
-import base64
-import json
 import logging
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 log = logging.getLogger("jarvis.browser.cdp")
 
@@ -34,7 +32,7 @@ class BrowserConfig:
     timeout_ms: int = 15000         # Timeout mặc định
     screenshot_dir: str = "logs/screenshots"
     user_data_dir: str = ""         # Giữ cookie/session
-    proxy: Optional[str] = None
+    proxy: str | None = None
 
 
 @dataclass
@@ -43,7 +41,7 @@ class PageInfo:
     title: str
     content_md: str = ""
     screenshot_path: str = ""
-    links: List[str] = field(default_factory=list)
+    links: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -64,14 +62,14 @@ class BrowserCDPController:
 
     def __init__(
         self,
-        config: Optional[BrowserConfig] = None,
+        config: BrowserConfig | None = None,
         is_mock: bool = False,
     ) -> None:
         self.config = config or BrowserConfig()
         self.is_mock = is_mock
-        self._playwright: Optional[Any] = None
-        self._browser: Optional[Any] = None
-        self._page: Optional[Any] = None
+        self._playwright: Any | None = None
+        self._browser: Any | None = None
+        self._page: Any | None = None
         self._lock = threading.Lock()
         Path(self.config.screenshot_dir).mkdir(parents=True, exist_ok=True)
         log.info("BrowserCDPController initialized (mock=%s, headless=%s)", is_mock, self.config.headless)
@@ -104,7 +102,7 @@ class BrowserCDPController:
             from playwright.sync_api import sync_playwright  # type: ignore[import]
             self._playwright = sync_playwright().__enter__()
             browser_launcher = getattr(self._playwright, self.config.browser_type)
-            launch_kwargs: Dict[str, Any] = {
+            launch_kwargs: dict[str, Any] = {
                 "headless": self.config.headless,
                 "slow_mo": self.config.slow_mo_ms,
             }
@@ -174,7 +172,7 @@ class BrowserCDPController:
     # Interaction
     # ------------------------------------------------------------------
 
-    def click(self, selector: str, timeout_ms: Optional[int] = None) -> bool:
+    def click(self, selector: str, timeout_ms: int | None = None) -> bool:
         """Click an element by CSS selector or text."""
         if self.is_mock:
             log.info("Mock click: %s", selector)
@@ -302,7 +300,7 @@ class BrowserCDPController:
             log.error("Content extraction error: %s", exc)
             return ""
 
-    def get_page_links(self, limit: int = 20) -> List[str]:
+    def get_page_links(self, limit: int = 20) -> list[str]:
         """Get all links on the current page."""
         if self.is_mock:
             return ["https://mock.jarvis.local/link1", "https://mock.jarvis.local/link2"]

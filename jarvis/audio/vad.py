@@ -19,7 +19,7 @@ import struct
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any
 
 log = logging.getLogger("jarvis.audio.vad")
 
@@ -54,13 +54,13 @@ class VoiceActivityDetector:
 
     def __init__(
         self,
-        config: Optional[VoiceActivityConfig] = None,
+        config: VoiceActivityConfig | None = None,
         is_mock: bool = False,
     ) -> None:
         self.config = config or VoiceActivityConfig()
         self.is_mock = is_mock
         self._lock = threading.Lock()
-        self._vad_backend: Optional[Any] = None
+        self._vad_backend: Any | None = None
         if not is_mock:
             self._init_backend()
         log.info(
@@ -80,7 +80,7 @@ class VoiceActivityDetector:
         except Exception as exc:
             log.warning("webrtcvad init failed (%s) — using energy fallback", exc)
 
-    def is_speech(self, audio_chunk: bytes, sample_rate: Optional[int] = None) -> bool:
+    def is_speech(self, audio_chunk: bytes, sample_rate: int | None = None) -> bool:
         """Returns True if audio_chunk contains speech (PCM 16-bit signed mono)."""
         if self.is_mock:
             return False
@@ -112,8 +112,8 @@ class VoiceActivityDetector:
         self,
         stream: Any,
         timeout_s: float = 10.0,
-        frame_size: Optional[int] = None,
-    ) -> Optional[SpeechSegment]:
+        frame_size: int | None = None,
+    ) -> SpeechSegment | None:
         """
         Reads from audio stream until a complete utterance is detected.
         Returns SpeechSegment or None on timeout.
@@ -130,8 +130,8 @@ class VoiceActivityDetector:
         min_sp_fr = cfg.min_speech_duration_ms // cfg.frame_duration_ms
         max_fr = cfg.max_utterance_ms // cfg.frame_duration_ms
 
-        pre_buffer: List[bytes] = []
-        speech_buffer: List[bytes] = []
+        pre_buffer: list[bytes] = []
+        speech_buffer: list[bytes] = []
         in_speech = False
         silence_frames = speech_frames = 0
         deadline = time.monotonic() + timeout_s

@@ -10,19 +10,18 @@ Provides:
 """
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 import io
-import json
 import logging
 import os
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import threading
-import time
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 import wave
+from abc import ABC, abstractmethod
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -68,7 +67,7 @@ def resample_audio(samples: np.ndarray, orig_sr: int, target_sr: int) -> np.ndar
 
 
 def audio_to_float32(
-    audio: Union[np.ndarray, bytes, Path, io.BytesIO, str],
+    audio: np.ndarray | bytes | Path | io.BytesIO | str,
     sample_rate: int = 16000,
 ) -> np.ndarray:
     """
@@ -201,12 +200,12 @@ class VADSegmenter:
         self.min_speech_samples = int(self.sample_rate * self.min_speech_s)
         self.max_speech_samples = int(self.sample_rate * self.max_speech_s)
 
-        self._pre_buffer: List[float] = []
-        self._active_buffer: List[float] = []
+        self._pre_buffer: list[float] = []
+        self._active_buffer: list[float] = []
         self._is_speech_active: bool = False
         self._samples_count: int = 0
-        self._silence_start_sample: Optional[int] = None
-        self._speech_start_sample: Optional[int] = None
+        self._silence_start_sample: int | None = None
+        self._speech_start_sample: int | None = None
         self._lock = threading.RLock()
 
     def reset(self) -> None:
@@ -219,7 +218,7 @@ class VADSegmenter:
             self._silence_start_sample = None
             self._speech_start_sample = None
 
-    def is_speech(self, block: Optional[np.ndarray], threshold: Optional[float] = None) -> bool:
+    def is_speech(self, block: np.ndarray | None, threshold: float | None = None) -> bool:
         """Evaluates whether an audio block exceeds the RMS speech threshold."""
         if block is None or getattr(block, "size", 0) == 0:
             return False
@@ -227,7 +226,7 @@ class VADSegmenter:
         th = threshold if threshold is not None else self.vad_threshold
         return rms >= th
 
-    def feed_block(self, block: np.ndarray) -> Optional[np.ndarray]:
+    def feed_block(self, block: np.ndarray) -> np.ndarray | None:
         """
         Feed an incoming audio frame.
         Returns a complete 1D float32 audio segment when an utterance completes, or None.
@@ -297,13 +296,13 @@ class VADSegmenter:
 class BaseSTTEngine(ABC):
     """Abstract interface that all STT providers must implement."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
-        self.config: Dict[str, Any] = config or {}
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        self.config: dict[str, Any] = config or {}
 
     @abstractmethod
     def transcribe(
         self,
-        audio: Union[np.ndarray, bytes, Path, io.BytesIO, str],
+        audio: np.ndarray | bytes | Path | io.BytesIO | str,
         language: str = "vi",
         **kwargs: Any,
     ) -> str:
@@ -331,7 +330,7 @@ class BaseSTTEngine(ABC):
         pass
 
     @property
-    def supported_languages(self) -> List[str]:
+    def supported_languages(self) -> list[str]:
         return ["vi", "en"]
 
 
@@ -342,7 +341,7 @@ class BaseSTTEngine(ABC):
 class OpenAIWhisperSTT(BaseSTTEngine):
     """OpenAI Whisper API speech-to-text engine via direct HTTP REST."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         if "api_key" in self.config:
             self.api_key = self.config["api_key"]
@@ -365,9 +364,9 @@ class OpenAIWhisperSTT(BaseSTTEngine):
 
     def transcribe(
         self,
-        audio: Union[np.ndarray, bytes, Path, io.BytesIO, str],
+        audio: np.ndarray | bytes | Path | io.BytesIO | str,
         language: str = "vi",
-        mock_http: Optional[Any] = None,
+        mock_http: Any | None = None,
         **kwargs: Any,
     ) -> str:
         arr = audio_to_float32(audio)
@@ -429,13 +428,13 @@ OpenAIWhisperAPI = OpenAIWhisperSTT
 class FasterWhisperSTT(BaseSTTEngine):
     """Local offline speech transcriber using faster-whisper (CTranslate2)."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.model_size = self.config.get("model_size", "base")
         self.device = self.config.get("device", "auto")
         self.compute_type = self.config.get("compute_type", "default")
         self.download_root = self.config.get("download_root", ".cache/whisper")
-        self._model: Optional[Any] = None
+        self._model: Any | None = None
         self._lock = threading.RLock()
 
     @property
@@ -460,7 +459,7 @@ class FasterWhisperSTT(BaseSTTEngine):
 
     def transcribe(
         self,
-        audio: Union[np.ndarray, bytes, Path, io.BytesIO, str],
+        audio: np.ndarray | bytes | Path | io.BytesIO | str,
         language: str = "vi",
         **kwargs: Any,
     ) -> str:
@@ -492,7 +491,7 @@ LocalWhisperSTT = FasterWhisperSTT
 class WindowsSpeechSTT(BaseSTTEngine):
     """Offline Windows Speech Recognition via PowerShell System.Speech / SAPI."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.timeout_s = float(self.config.get("timeout_s", 5.0))
 
@@ -505,7 +504,7 @@ class WindowsSpeechSTT(BaseSTTEngine):
 
     def transcribe(
         self,
-        audio: Union[np.ndarray, bytes, Path, io.BytesIO, str],
+        audio: np.ndarray | bytes | Path | io.BytesIO | str,
         language: str = "vi",
         **kwargs: Any,
     ) -> str:
@@ -561,9 +560,9 @@ class MockSTTEngine(BaseSTTEngine):
 
     def __init__(
         self,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
         default_transcript: str = "bật đèn phòng khách",
-        canned_transcripts: Optional[Dict[str, str]] = None,
+        canned_transcripts: dict[str, str] | None = None,
     ) -> None:
         super().__init__(config)
         self.default_transcript = default_transcript
@@ -573,7 +572,7 @@ class MockSTTEngine(BaseSTTEngine):
             "hệ thống": "tình trạng hệ thống",
             "quét mạng": "quét mạng nội bộ",
         }
-        self.call_history: List[Dict[str, Any]] = []
+        self.call_history: list[dict[str, Any]] = []
 
     @property
     def engine_name(self) -> str:
@@ -588,7 +587,7 @@ class MockSTTEngine(BaseSTTEngine):
 
     def transcribe(
         self,
-        audio: Union[np.ndarray, bytes, Path, io.BytesIO, str],
+        audio: np.ndarray | bytes | Path | io.BytesIO | str,
         language: str = "vi",
         **kwargs: Any,
     ) -> str:
@@ -623,12 +622,12 @@ class STTEngine:
 
     def __init__(
         self,
-        config: Optional[Dict[str, Any]] = None,
-        provider: Optional[str] = None,
-        primary_engine: Optional[BaseSTTEngine] = None,
-        fallback_engine: Optional[BaseSTTEngine] = None,
-        event_bus: Optional[Any] = None,
-        config_manager: Optional[Any] = None,
+        config: dict[str, Any] | None = None,
+        provider: str | None = None,
+        primary_engine: BaseSTTEngine | None = None,
+        fallback_engine: BaseSTTEngine | None = None,
+        event_bus: Any | None = None,
+        config_manager: Any | None = None,
     ) -> None:
         self.config = config or {}
         self.event_bus = event_bus
@@ -687,15 +686,15 @@ class STTEngine:
                 self.vad.vad_threshold = self.vad_threshold
                 self.primary_engine = self._resolve_engine(self.provider_name)
 
-    def is_speech_present(self, audio_buffer: Optional[np.ndarray], threshold: Optional[float] = None) -> bool:
+    def is_speech_present(self, audio_buffer: np.ndarray | None, threshold: float | None = None) -> bool:
         """Fast RMS check to verify speech presence."""
         th = threshold if threshold is not None else self.vad_threshold
         return self.vad.is_speech(audio_buffer, threshold=th)
 
     def transcribe(
         self,
-        audio: Union[np.ndarray, bytes, Path, io.BytesIO, str],
-        language: Optional[str] = None,
+        audio: np.ndarray | bytes | Path | io.BytesIO | str,
+        language: str | None = None,
         **kwargs: Any,
     ) -> str:
         """
@@ -739,7 +738,7 @@ class STTEngine:
     def transcribe_stream(
         self,
         audio_generator: Iterator[np.ndarray],
-        language: Optional[str] = None,
+        language: str | None = None,
         sample_rate: int = 16000,
     ) -> str:
         """
@@ -753,7 +752,7 @@ class STTEngine:
                 return self.transcribe(segment, language=language)
         return ""
 
-    def feed_audio_block(self, block: np.ndarray) -> Optional[str]:
+    def feed_audio_block(self, block: np.ndarray) -> str | None:
         """
         Feeds a real-time frame from AudioEngine.
         Returns transcribed text if an utterance completed on this block, otherwise None.

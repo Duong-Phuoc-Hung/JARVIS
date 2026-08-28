@@ -8,10 +8,10 @@ from jarvis.platform.hotkeys import GlobalHotkeyManager, HotkeyRegistration
 from jarvis.platform.windows import (
     INPUT,
     KEYBDINPUT,
-    MOUSEINPUT,
-    RECT,
-    POINT,
     MONITORINFOEXW,
+    MOUSEINPUT,
+    POINT,
+    RECT,
     WindowsPlatformAPI,
     close_window,
     focus_window,

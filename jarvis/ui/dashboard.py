@@ -14,20 +14,18 @@ import collections
 import http.server
 import json
 import logging
-import os
-from pathlib import Path
-import socket
-import sys
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Set, Union
 import urllib.parse
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger("jarvis.ui.dashboard")
 
 # Optional websockets library check
 try:
     import asyncio
+
     import websockets
     WEBSOCKETS_AVAILABLE = True
 except ImportError:
@@ -360,7 +358,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 class DashboardHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     """Zero-dependency HTTP Handler servicing Dark UI and REST API."""
 
-    server_instance: Optional[DashboardServer] = None
+    server_instance: DashboardServer | None = None
 
     def log_message(self, format: str, *args: Any) -> None:
         """Suppress default stdout logging or route to debug."""
@@ -473,9 +471,9 @@ class DashboardServer:
         host: str = "127.0.0.1",
         port: int = 8080,
         ws_port: int = 8765,
-        app: Optional[Any] = None,
-        config_manager: Optional[Any] = None,
-        dispatcher: Optional[Any] = None,
+        app: Any | None = None,
+        config_manager: Any | None = None,
+        dispatcher: Any | None = None,
     ) -> None:
         self.host = host
         self.port = int(port)
@@ -485,20 +483,20 @@ class DashboardServer:
         self.dispatcher = dispatcher
 
         self._is_running: bool = False
-        self._httpd: Optional[http.server.ThreadingHTTPServer] = None
-        self._http_thread: Optional[threading.Thread] = None
-        self._ws_thread: Optional[threading.Thread] = None
+        self._httpd: http.server.ThreadingHTTPServer | None = None
+        self._http_thread: threading.Thread | None = None
+        self._ws_thread: threading.Thread | None = None
         self._lock = threading.RLock()
 
-        self.last_broadcast_payload: Optional[Dict[str, Any]] = None
+        self.last_broadcast_payload: dict[str, Any] | None = None
         self._event_history: collections.deque = collections.deque(maxlen=200)
-        self._ws_clients: Set[Any] = set()
+        self._ws_clients: set[Any] = set()
 
     @property
     def is_running(self) -> bool:
         return self._is_running
 
-    def start(self, host: Optional[str] = None, port: Optional[int] = None) -> None:
+    def start(self, host: str | None = None, port: int | None = None) -> None:
         """Start embedded HTTP and WebSocket servers in background threads."""
         with self._lock:
             if self._is_running:
@@ -583,12 +581,12 @@ class DashboardServer:
 
         logger.info("DashboardServer stopped.")
 
-    def broadcast_telemetry(self, telemetry_data: Dict[str, Any]) -> None:
+    def broadcast_telemetry(self, telemetry_data: dict[str, Any]) -> None:
         """Broadcast live hardware metrics to all subscribers."""
         with self._lock:
             self.last_broadcast_payload = dict(telemetry_data)
 
-    def broadcast_event(self, event_data: Dict[str, Any]) -> None:
+    def broadcast_event(self, event_data: dict[str, Any]) -> None:
         """Record and broadcast a trigger or action execution event."""
         with self._lock:
             self._event_history.append({
@@ -599,7 +597,7 @@ class DashboardServer:
     # -----------------------------------------------------------------------
     # API Data Providers
     # -----------------------------------------------------------------------
-    def get_status_summary(self) -> Dict[str, Any]:
+    def get_status_summary(self) -> dict[str, Any]:
         """Provides status summary satisfying test assertions."""
         with self._lock:
             return {
@@ -612,7 +610,7 @@ class DashboardServer:
                 "llm_provider": "openai",
             }
 
-    def get_latest_telemetry(self) -> Dict[str, Any]:
+    def get_latest_telemetry(self) -> dict[str, Any]:
         with self._lock:
             if self.last_broadcast_payload:
                 return self.last_broadcast_payload
@@ -627,7 +625,7 @@ class DashboardServer:
                 "timestamp": time.time(),
             }
 
-    def get_registered_actions(self) -> List[Dict[str, Any]]:
+    def get_registered_actions(self) -> list[dict[str, Any]]:
         disp = self.dispatcher or (self.app and getattr(self.app, "dispatcher", None))
         if not disp:
             return [
@@ -646,13 +644,13 @@ class DashboardServer:
             for act in actions.values()
         ]
 
-    def get_config_dict(self) -> Dict[str, Any]:
+    def get_config_dict(self) -> dict[str, Any]:
         cfg_mgr = self.config_manager or (self.app and getattr(self.app, "config", None))
         if cfg_mgr and hasattr(cfg_mgr, "to_dict"):
             return cfg_mgr.to_dict()
         return {}
 
-    def update_config_dict(self, new_cfg: Dict[str, Any]) -> Dict[str, Any]:
+    def update_config_dict(self, new_cfg: dict[str, Any]) -> dict[str, Any]:
         cfg_mgr = self.config_manager or (self.app and getattr(self.app, "config", None))
         if cfg_mgr and hasattr(cfg_mgr, "_config_data"):
             with self._lock:
@@ -660,18 +658,18 @@ class DashboardServer:
             return {"success": True, "message": "Configuration updated and reloaded in memory."}
         return {"success": False, "error": "ConfigManager unavailable."}
 
-    def get_recent_logs(self, max_lines: int = 50) -> List[str]:
+    def get_recent_logs(self, max_lines: int = 50) -> list[str]:
         log_path = Path("logs/jarvis.log")
         if not log_path.exists():
             return ["[INFO] Log file empty or initializing."]
         try:
-            with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(log_path, encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
                 return [line.strip() for line in lines[-max_lines:]]
         except Exception as e:
             return [f"[ERROR] Could not read log file: {e}"]
 
-    def execute_user_command(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def execute_user_command(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Execute text command or direct action invocation."""
         cmd_text = payload.get("command", "")
         direct_action = payload.get("action", "")
@@ -695,26 +693,26 @@ class DashboardServer:
 
         return {"success": True, "response_text": f"Đã nhận lệnh: '{cmd_text}'"}
 
-    def get_skills(self) -> List[Dict[str, Any]]:
+    def get_skills(self) -> list[dict[str, Any]]:
         """Returns list of registered skills with metadata."""
         registry = getattr(self.app, "skill_registry", None)
         if registry:
             return [meta.to_dict() for meta in registry.list_skills()]
         return []
 
-    def invoke_skill(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def invoke_skill(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Directly invoke a skill via REST API."""
         skill_name = payload.get("skill_name", payload.get("name", ""))
         params = payload.get("parameters", payload.get("params", {}))
-        
+
         registry = getattr(self.app, "skill_registry", None)
         if not registry:
             return {"success": False, "error": "SkillRegistry is not available."}
-        
+
         res = registry.invoke_skill(skill_name, **params)
         return res.to_dict()
 
-    def get_memory_facts(self) -> Dict[str, Any]:
+    def get_memory_facts(self) -> dict[str, Any]:
         """Returns stored long-term memory facts and recent history."""
         mem = getattr(self.app, "memory_manager", None)
         if not mem:
@@ -724,7 +722,7 @@ class DashboardServer:
             "episodes": mem.get_today_episodes(),
         }
 
-    def store_memory_fact(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def store_memory_fact(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Stores a new fact into memory store."""
         key = payload.get("key", "")
         value = payload.get("value", "")
@@ -735,7 +733,7 @@ class DashboardServer:
         ok = mem.store_fact(key=key, value=value, category=category)
         return {"success": ok, "key": key, "value": value}
 
-    def get_hotkeys(self) -> List[Dict[str, Any]]:
+    def get_hotkeys(self) -> list[dict[str, Any]]:
         """Returns list of active global keyboard shortcuts."""
         hk = getattr(self.app, "hotkey_manager", None)
         if hk:

@@ -11,11 +11,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-from pathlib import Path
-import threading
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -38,10 +36,10 @@ except ImportError:
 class FaceEmbeddingStorage:
     """Manages persistent local storage for enrolled face embeddings."""
 
-    def __init__(self, storage_path: Union[str, Path] = ".cache/biometrics/faces.json"):
+    def __init__(self, storage_path: str | Path = ".cache/biometrics/faces.json"):
         self.storage_path = Path(storage_path)
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
-        self.enrolled_faces: Dict[str, List[float]] = {}
+        self.enrolled_faces: dict[str, list[float]] = {}
         self._load()
 
     def _load(self) -> None:
@@ -62,7 +60,7 @@ class FaceEmbeddingStorage:
         self.enrolled_faces[label] = embedding.tolist()
         self.save()
 
-    def get_embeddings(self) -> List[np.ndarray]:
+    def get_embeddings(self) -> list[np.ndarray]:
         return [np.array(v, dtype=np.float64) for v in self.enrolled_faces.values()]
 
 
@@ -71,10 +69,10 @@ class BiometricsEngine:
 
     def __init__(
         self,
-        camera_feed: Optional[Any] = None,
+        camera_feed: Any | None = None,
         bypass_mode: bool = False,
         tolerance: float = 0.60,
-        storage: Optional[FaceEmbeddingStorage] = None,
+        storage: FaceEmbeddingStorage | None = None,
     ):
         self.camera = camera_feed
         self.bypass_mode = bypass_mode
@@ -82,7 +80,7 @@ class BiometricsEngine:
         self.storage = storage or FaceEmbeddingStorage()
 
         # In-memory enrolled embeddings list
-        self.enrolled_embeddings: List[np.ndarray] = []
+        self.enrolled_embeddings: list[np.ndarray] = []
         if self.camera and hasattr(self.camera, "owner_encoding"):
             self.enrolled_embeddings.append(np.array(self.camera.owner_encoding, dtype=np.float64))
 
@@ -102,7 +100,7 @@ class BiometricsEngine:
         self.storage.add_face(label, enc)
         return True
 
-    def _extract_encodings(self, frame: np.ndarray) -> List[np.ndarray]:
+    def _extract_encodings(self, frame: np.ndarray) -> list[np.ndarray]:
         """Extracts 128D encodings via camera_feed mock, face_recognition, or fallback."""
         if self.camera and hasattr(self.camera, "get_face_encodings"):
             return self.camera.get_face_encodings(frame)
@@ -116,7 +114,7 @@ class BiometricsEngine:
                 return []
         return []
 
-    def verify_frame(self, frame: Optional[np.ndarray]) -> bool:
+    def verify_frame(self, frame: np.ndarray | None) -> bool:
         """Verifies if the given frame matches any enrolled owner face."""
         if self.bypass_mode:
             return True
@@ -139,12 +137,12 @@ class BiometricsEngine:
 
     def process_surveillance_frame(
         self,
-        frame: Optional[np.ndarray],
-        win32_platform: Optional[Any] = None,
-        http_server: Optional[Any] = None,
-        telegram_bot: Optional[Any] = None,
+        frame: np.ndarray | None,
+        win32_platform: Any | None = None,
+        http_server: Any | None = None,
+        telegram_bot: Any | None = None,
         chat_id: int = 123456789,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Processes live surveillance frame: checks for intruder and triggers auto-lock."""
         if self.bypass_mode:
             return {"status": "bypassed"}
@@ -205,9 +203,9 @@ class BiometricPrivilegeGate:
     def __init__(self, biometrics: BiometricsEngine, session_ttl_s: float = 300.0):
         self.biometrics = biometrics
         self.session_ttl_s = session_ttl_s
-        self._active_session: Optional[Tuple[RequesterContext, float]] = None
+        self._active_session: tuple[RequesterContext, float] | None = None
 
-    def authenticate(self, frame: Optional[np.ndarray]) -> Optional[RequesterContext]:
+    def authenticate(self, frame: np.ndarray | None) -> RequesterContext | None:
         """Authenticates face in frame and returns RequesterContext."""
         if self.biometrics.verify_frame(frame):
             ctx = RequesterContext.user(requester_id="owner_face", authenticated=True)
@@ -224,7 +222,7 @@ class BiometricPrivilegeGate:
         self._active_session = None
         return False
 
-    def is_allowed(self, action_name: str, context: Optional[RequesterContext]) -> bool:
+    def is_allowed(self, action_name: str, context: RequesterContext | None) -> bool:
         """Determines if the action is authorized under current context."""
         if not context:
             if self.is_session_valid():

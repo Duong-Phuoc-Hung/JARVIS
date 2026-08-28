@@ -5,19 +5,19 @@ runs the self-healing self-reflection loop, and reports telemetry.
 """
 from __future__ import annotations
 
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 import logging
 import time
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 import uuid
+from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
+from typing import Any
 
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
-from jarvis.core.models import ActionResult, RequesterContext
+from jarvis.core.models import ActionResult
 from jarvis.planner.dag import TaskDAG
 from jarvis.planner.models import (
     PlanMode,
     PlanResult,
-    RecoveryStrategy,
     StepStatus,
     TaskNode,
 )
@@ -36,13 +36,13 @@ class ReActTaskEngine:
 
     def __init__(
         self,
-        dispatcher: Optional[ActionDispatcher] = None,
-        safety_interceptor: Optional[SafetyGateInterceptor] = None,
-        reflection_engine: Optional[SelfReflectionEngine] = None,
-        event_bus: Optional[EventBus] = None,
+        dispatcher: ActionDispatcher | None = None,
+        safety_interceptor: SafetyGateInterceptor | None = None,
+        reflection_engine: SelfReflectionEngine | None = None,
+        event_bus: EventBus | None = None,
         max_parallel_workers: int = 4,
         default_timeout_seconds: float = 300.0,
-        custom_action_handlers: Optional[Dict[str, Callable[..., Any]]] = None,
+        custom_action_handlers: dict[str, Callable[..., Any]] | None = None,
     ) -> None:
         self.dispatcher = dispatcher
         self.event_bus = event_bus or (dispatcher.event_bus if dispatcher else EventBus())
@@ -50,7 +50,7 @@ class ReActTaskEngine:
         self.reflection_engine = reflection_engine or SelfReflectionEngine()
         self.max_parallel_workers = max(1, int(max_parallel_workers))
         self.default_timeout_seconds = float(default_timeout_seconds)
-        self._action_handlers: Dict[str, Callable[..., Any]] = dict(custom_action_handlers or {})
+        self._action_handlers: dict[str, Callable[..., Any]] = dict(custom_action_handlers or {})
 
     def register_action_handler(self, action_name: str, handler: Callable[..., Any]) -> None:
         """Registers a direct Python callable handler for a specific action."""
@@ -59,7 +59,7 @@ class ReActTaskEngine:
     def create_plan(
         self,
         goal: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> TaskDAG:
         """
         Decomposes a user goal into an executable TaskDAG.
@@ -122,7 +122,7 @@ class ReActTaskEngine:
         self,
         dag: TaskDAG,
         mode: PlanMode = PlanMode.FULLY_AUTONOMOUS,
-        timeout_seconds: Optional[float] = None,
+        timeout_seconds: float | None = None,
     ) -> PlanResult:
         """
         Executes the provided TaskDAG according to the chosen PlanMode.
@@ -153,7 +153,7 @@ class ReActTaskEngine:
         )
 
         with ThreadPoolExecutor(max_workers=self.max_parallel_workers, thread_name_prefix="ReActPlanner") as pool:
-            active_futures: Dict[Future[ActionResult], TaskNode] = {}
+            active_futures: dict[Future[ActionResult], TaskNode] = {}
 
             while not dag.is_finished():
                 if time.time() > deadline:
@@ -184,7 +184,7 @@ class ReActTaskEngine:
                 ready_nodes = dag.get_ready_nodes()
 
                 # 3. Handle Safety Gate Interceptions in SAFETY_GATE mode
-                executable_nodes: List[TaskNode] = []
+                executable_nodes: list[TaskNode] = []
                 for node in ready_nodes:
                     if mode == PlanMode.SAFETY_GATE and self.safety_interceptor.is_high_risk_node(node):
                         # Only intercept if not already confirmed
@@ -352,7 +352,7 @@ class ReActTaskEngine:
             )
             self.reflection_engine.apply_reflection(reflection, node, dag)
 
-    def execute_step(self, node: TaskNode, dag: Optional[TaskDAG] = None) -> ActionResult:
+    def execute_step(self, node: TaskNode, dag: TaskDAG | None = None) -> ActionResult:
         """
         Executes a single discrete step action.
         Routes to direct handler or ActionDispatcher.

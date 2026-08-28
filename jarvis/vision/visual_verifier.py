@@ -15,11 +15,12 @@ Provides:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import io
 import logging
 import time
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
 
 try:
     from PIL import Image, ImageChops, ImageStat
@@ -43,14 +44,14 @@ class VisualDiffResult:
     """
     state_changed: bool
     diff_ratio: float = 0.0  # 0.0 to 1.0 (fraction of pixels changed)
-    changed_roi: Optional[Tuple[int, int, int, int]] = None  # (left, top, right, bottom)
+    changed_roi: tuple[int, int, int, int] | None = None  # (left, top, right, bottom)
     expected_change_detected: bool = False
     semantic_verification: str = ""
     before_img_bytes: bytes = b""
     after_img_bytes: bytes = b""
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "state_changed": self.state_changed,
             "diff_ratio": round(self.diff_ratio, 6),
@@ -72,8 +73,8 @@ class VisualVerifier:
     def __init__(
         self,
         diff_threshold: float = 0.002,  # 0.2% change threshold
-        vision_manager: Optional[ScreenVisionManager] = None,
-        ocr_engine: Optional[DesktopOCR] = None,
+        vision_manager: ScreenVisionManager | None = None,
+        ocr_engine: DesktopOCR | None = None,
     ) -> None:
         self.diff_threshold = diff_threshold
         self.vision_manager = vision_manager or ScreenVisionManager()
@@ -85,10 +86,10 @@ class VisualVerifier:
 
     def compute_pixel_diff(
         self,
-        before_img: Union[bytes, Any],
-        after_img: Union[bytes, Any],
+        before_img: bytes | Any,
+        after_img: bytes | Any,
         color_tolerance: int = 15,
-    ) -> Tuple[float, Optional[Tuple[int, int, int, int]], Dict[str, Any]]:
+    ) -> tuple[float, tuple[int, int, int, int] | None, dict[str, Any]]:
         """
         Computes pixel difference ratio, changed bounding box ROI, and MSE between two images.
         
@@ -100,7 +101,7 @@ class VisualVerifier:
         Returns:
             Tuple of (diff_ratio, changed_roi, details_dict).
         """
-        details: Dict[str, Any] = {
+        details: dict[str, Any] = {
             "total_pixels": 0,
             "changed_pixels": 0,
             "mse": 0.0,
@@ -201,8 +202,8 @@ class VisualVerifier:
 
     def check_roi_overlap(
         self,
-        changed_roi: Optional[Tuple[int, int, int, int]],
-        target_roi: Tuple[int, int, int, int],
+        changed_roi: tuple[int, int, int, int] | None,
+        target_roi: tuple[int, int, int, int],
         margin: int = 30,
     ) -> bool:
         """
@@ -233,9 +234,9 @@ class VisualVerifier:
         before_bytes: bytes,
         after_bytes: bytes,
         expected_effect: str,
-        target_roi: Optional[Tuple[int, int, int, int]] = None,
-        changed_roi: Optional[Tuple[int, int, int, int]] = None,
-    ) -> Tuple[bool, str]:
+        target_roi: tuple[int, int, int, int] | None = None,
+        changed_roi: tuple[int, int, int, int] | None = None,
+    ) -> tuple[bool, str]:
         """
         Evaluates whether a specific expected UI transition occurred.
         
@@ -306,13 +307,13 @@ class VisualVerifier:
 
     def verify_action(
         self,
-        before_bytes: Optional[bytes] = None,
-        after_bytes: Optional[bytes] = None,
+        before_bytes: bytes | None = None,
+        after_bytes: bytes | None = None,
         action_type: str = "click",
-        target_roi: Optional[Tuple[int, int, int, int]] = None,
-        expected_effect: Optional[str] = None,
-        before_img: Optional[bytes] = None,
-        after_img: Optional[bytes] = None,
+        target_roi: tuple[int, int, int, int] | None = None,
+        expected_effect: str | None = None,
+        before_img: bytes | None = None,
+        after_img: bytes | None = None,
         **kwargs: Any,
     ) -> VisualDiffResult:
         """
@@ -361,8 +362,8 @@ class VisualVerifier:
         before_bytes: bytes,
         max_wait_s: float = 3.0,
         poll_interval_s: float = 0.2,
-        target_roi: Optional[Tuple[int, int, int, int]] = None,
-        expected_effect: Optional[str] = None,
+        target_roi: tuple[int, int, int, int] | None = None,
+        expected_effect: str | None = None,
     ) -> VisualDiffResult:
         """
         Polls screen capture until a visual state change is detected or timeout expires.
@@ -394,7 +395,7 @@ class VisualVerifier:
 
         return last_result
 
-    def _to_pil_image(self, img_input: Union[bytes, Any]) -> Optional[Any]:
+    def _to_pil_image(self, img_input: bytes | Any) -> Any | None:
         if not PIL_AVAILABLE or Image is None or img_input is None:
             return None
         try:

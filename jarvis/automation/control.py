@@ -5,15 +5,15 @@ screen brightness, bounded file search, and system folder launch.
 """
 from __future__ import annotations
 
-from collections import deque
 import ctypes
-from datetime import datetime
 import os
 import re
 import subprocess
 import sys
 import time
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from collections import deque
+from datetime import datetime
+from typing import Any
 
 from jarvis.platform.windows import WindowsPlatformAPI, platform_win32
 
@@ -23,7 +23,7 @@ class ComputerController:
     High-level Windows OS Controller for JARVIS.
     """
 
-    SYSTEM_FOLDER_MAP: Dict[str, str] = {
+    SYSTEM_FOLDER_MAP: dict[str, str] = {
         "downloads": "Downloads",
         "tải về": "Downloads",
         "tai ve": "Downloads",
@@ -62,7 +62,7 @@ class ComputerController:
         ".cache", "build", "dist", ".idea", ".vscode"
     }
 
-    def __init__(self, win32: Optional[WindowsPlatformAPI] = None) -> None:
+    def __init__(self, win32: WindowsPlatformAPI | None = None) -> None:
         self.win32 = win32 or platform_win32
         self._current_volume: int = 50
         self._is_muted: bool = False
@@ -71,7 +71,7 @@ class ComputerController:
     # -----------------------------------------------------------------------
     # Window Management
     # -----------------------------------------------------------------------
-    def get_active_window(self) -> Dict[str, Any]:
+    def get_active_window(self) -> dict[str, Any]:
         """Returns metadata of the current foreground top-level window."""
         win = self.win32.get_active_window()
         if not win:
@@ -99,7 +99,7 @@ class ComputerController:
             return bool(self.win32.close_window(win.hwnd))
         return bool(self.win32.send_hotkey("alt", "f4"))
 
-    def close_window(self, hwnd: Optional[int] = None) -> bool:
+    def close_window(self, hwnd: int | None = None) -> bool:
         """Closes window with specified HWND, or active window if None."""
         if hwnd is not None and hwnd > 0:
             return bool(self.win32.close_window(hwnd))
@@ -109,10 +109,10 @@ class ComputerController:
         """Closes the active tab in current application (Ctrl+W)."""
         return bool(self.win32.send_hotkey("ctrl", "w"))
 
-    def list_windows(self, visible_only: bool = True) -> List[Dict[str, Any]]:
+    def list_windows(self, visible_only: bool = True) -> list[dict[str, Any]]:
         """Lists active top-level windows."""
         windows = self.win32.list_windows(visible_only=visible_only)
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         for w in windows:
             results.append({
                 "hwnd": w.hwnd,
@@ -154,7 +154,7 @@ class ComputerController:
             return self.focus_window_by_pid(int(target))
         return self.focus_window_by_title(str(target))
 
-    def get_monitors(self) -> List[Any]:
+    def get_monitors(self) -> list[Any]:
         """Enumerates active physical displays/monitors."""
         if hasattr(self.win32, "get_monitors"):
             return self.win32.get_monitors()
@@ -165,8 +165,8 @@ class ComputerController:
     # -----------------------------------------------------------------------
     def mouse_click(
         self,
-        x: Optional[int] = None,
-        y: Optional[int] = None,
+        x: int | None = None,
+        y: int | None = None,
         button: str = "left",
         clicks: int = 1,
     ) -> bool:
@@ -331,7 +331,7 @@ class ComputerController:
         time.sleep(0.1)
         return self.get_clipboard_text()
 
-    def paste_text(self, text: Optional[str] = None) -> bool:
+    def paste_text(self, text: str | None = None) -> bool:
         """Pastes text (or current clipboard contents) via Ctrl+V."""
         if text is not None:
             self.set_clipboard_text(text)
@@ -391,7 +391,7 @@ class ComputerController:
 
         return self._current_volume
 
-    def mute_volume(self, mute: Optional[bool] = None) -> bool:
+    def mute_volume(self, mute: bool | None = None) -> bool:
         """Toggles or sets master audio mute state."""
         if mute is None:
             self._is_muted = not self._is_muted
@@ -458,10 +458,10 @@ class ComputerController:
     def search_files(
         self,
         filename: str,
-        root_dir: Optional[str] = None,
+        root_dir: str | None = None,
         max_depth: int = 4,
         max_results: int = 20,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Fast bounded local file search using os.scandir.
         Limits search depth to `max_depth` (default 4) and filters ignored directories.
@@ -477,10 +477,10 @@ class ComputerController:
             return []
 
         pattern = filename.strip().lower()
-        matches: List[str] = []
+        matches: list[str] = []
 
         # (current_path, current_depth)
-        queue: deque[Tuple[str, int]] = deque([(os.path.abspath(search_root), 0)])
+        queue: deque[tuple[str, int]] = deque([(os.path.abspath(search_root), 0)])
 
         while queue and len(matches) < max_results:
             current_path, depth = queue.popleft()
@@ -509,7 +509,7 @@ class ComputerController:
 
         return matches
 
-    def resolve_folder_path(self, folder_name_or_path: str) -> Optional[str]:
+    def resolve_folder_path(self, folder_name_or_path: str) -> str | None:
         """Resolves shortcut names and aliases to absolute folder paths."""
         raw = folder_name_or_path.strip().lower()
         if raw in self.SYSTEM_FOLDER_MAP:
@@ -548,7 +548,7 @@ class ComputerController:
         except Exception:
             return False
 
-    def take_screenshot(self, output_path: Optional[str] = None) -> str:
+    def take_screenshot(self, output_path: str | None = None) -> str:
         """Captures screenshot and saves to Desktop by default."""
         target = output_path
         if not target:
@@ -580,7 +580,7 @@ class ComputerController:
     # -----------------------------------------------------------------------
     # Universal Application & Website Opener
     # -----------------------------------------------------------------------
-    APP_MAP: Dict[str, Union[str, List[str]]] = {
+    APP_MAP: dict[str, Union[str, list[str]]] = {
         "chrome": ["chrome", "google-chrome", "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"],
         "google chrome": ["chrome", "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"],
         "trình duyệt": ["chrome", "msedge"],
@@ -632,7 +632,7 @@ class ComputerController:
         "quản lý file": "explorer.exe",
     }
 
-    WEBSITE_MAP: Dict[str, str] = {
+    WEBSITE_MAP: dict[str, str] = {
         "youtube": "https://www.youtube.com",
         "yt": "https://www.youtube.com",
         "google": "https://www.google.com",
@@ -668,7 +668,7 @@ class ComputerController:
         "translate": "https://translate.google.com",
     }
 
-    def open_app(self, app_name: str) -> Dict[str, Any]:
+    def open_app(self, app_name: str) -> dict[str, Any]:
         """Launches target application by friendly name, alias, or executable path."""
         if not app_name:
             return {"success": False, "error": "Application name is empty"}
@@ -690,7 +690,7 @@ class ComputerController:
             }
 
         # Resolve candidate executables
-        candidates: List[str] = []
+        candidates: list[str] = []
         if clean_name in self.APP_MAP:
             mapped = self.APP_MAP[clean_name]
             candidates = mapped if isinstance(mapped, list) else [mapped]
@@ -733,7 +733,7 @@ class ComputerController:
         except Exception as exc:
             return {"success": False, "app": clean_name, "error": str(exc), "message": f"Không thể mở {clean_name}: {exc}"}
 
-    def open_website(self, target: str) -> Dict[str, Any]:
+    def open_website(self, target: str) -> dict[str, Any]:
         """Opens a website URL, search query, or friendly domain in the default browser."""
         if not target:
             return {"success": False, "error": "Website target is empty"}
@@ -745,7 +745,8 @@ class ComputerController:
         yt_search = re.search(r"(?:youtube|yt)\s+(?:xem|nghe|tìm|bài)?\s*(.+)", clean)
         if yt_search:
             q = yt_search.group(1).strip()
-            url = f"https://www.youtube.com/results?search_query={subprocess.list2cmdline([q]).strip('\"')}"
+            _q_encoded = subprocess.list2cmdline([q]).strip('"')
+            url = f"https://www.youtube.com/results?search_query={_q_encoded}"
         elif clean.startswith(("tìm kiếm ", "search ", "tra cứu ")):
             q = re.sub(r"^(?:tìm kiếm|search|tra cứu)\s+", "", clean).strip()
             url = f"https://www.google.com/search?q={q}"

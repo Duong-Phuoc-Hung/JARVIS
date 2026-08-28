@@ -9,13 +9,16 @@ Features:
 from __future__ import annotations
 
 import logging
-import os
-from pathlib import Path
 import time
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any
 
 from jarvis.core.models import PrivilegeLevel, RequesterContext
-from jarvis.security.scanner import HostScanResult, PacketCaptureResult, ScanReport, Vulnerability, VulnerabilitySeverity
+from jarvis.security.scanner import (
+    PacketCaptureResult,
+    ScanReport,
+    VulnerabilitySeverity,
+)
 
 log = logging.getLogger("jarvis.security.report")
 
@@ -26,7 +29,7 @@ class SecurityPrivilegeGate:
     """
 
     @staticmethod
-    def verify_privilege(context: Optional[RequesterContext], action_name: str = "security_scan") -> bool:
+    def verify_privilege(context: RequesterContext | None, action_name: str = "security_scan") -> bool:
         """
         Validates if requester context possesses verified biometric authentication and admin privilege.
         """
@@ -38,7 +41,7 @@ class SecurityPrivilegeGate:
         return bool(context.is_authenticated and context.granted_privilege >= PrivilegeLevel.ADMIN)
 
     @staticmethod
-    def enforce(context: Optional[RequesterContext], action_name: str = "security_scan") -> None:
+    def enforce(context: RequesterContext | None, action_name: str = "security_scan") -> None:
         """
         Raises PermissionError if requester is not biometrically authorized.
         """
@@ -57,9 +60,9 @@ class SecurityReportGenerator:
         self,
         scan: ScanReport,
         output_dir: Path,
-        capture: Optional[PacketCaptureResult] = None,
+        capture: PacketCaptureResult | None = None,
         lang: str = "vi",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Builds Markdown report file and returns summary dictionary.
         Returns: {"report_path": Path, "voice_summary": str, "total_hosts": int}
@@ -82,7 +85,7 @@ class SecurityReportGenerator:
     def format_markdown_report(
         self,
         scan: ScanReport,
-        capture: Optional[PacketCaptureResult] = None,
+        capture: PacketCaptureResult | None = None,
     ) -> str:
         """Formats full Markdown security assessment document."""
         now_str = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(scan.timestamp))
@@ -136,7 +139,7 @@ class SecurityReportGenerator:
 
         if is_en:
             if scan.status == "TOOL_NOT_FOUND":
-                return f"Security scan failed: Nmap binary not found on host."
+                return "Security scan failed: Nmap binary not found on host."
             if vuln_count > 0:
                 return (
                     f"Security Alert: Audit completed for network {scan.target}. "
@@ -151,7 +154,7 @@ class SecurityReportGenerator:
 
         # Vietnamese voice summary matching R8, F-25 and test suite assertions
         if scan.status == "TOOL_NOT_FOUND":
-            return f"Không thể thực hiện quét: Công cụ Nmap chưa được cài đặt trên hệ thống."
+            return "Không thể thực hiện quét: Công cụ Nmap chưa được cài đặt trên hệ thống."
 
         if vuln_count > 0:
             return (

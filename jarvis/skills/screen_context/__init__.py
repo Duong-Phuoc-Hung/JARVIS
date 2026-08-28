@@ -17,7 +17,7 @@ from typing import Any, Dict, Optional
 log = logging.getLogger("jarvis.skills.screen_context")
 
 
-def _capture_screenshot() -> Optional[bytes]:
+def _capture_screenshot() -> bytes | None:
     """Capture current screen as PNG bytes."""
     try:
         import mss  # type: ignore[import]
@@ -59,7 +59,7 @@ def execute(
     language: str = "vi",
     save_screenshot: bool = False,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Analyze current screen content using Vision AI.
 

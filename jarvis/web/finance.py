@@ -8,13 +8,13 @@ Integrates with TTLCache for 10-minute caching and graceful offline fallback.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import json
 import logging
 import time
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass, field
+from typing import Any
 
 try:
     import requests
@@ -37,7 +37,7 @@ class CryptoQuote:
     change_24h_pct: float = 0.0
     updated_at: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "symbol": self.symbol,
             "name": self.name,
@@ -57,7 +57,7 @@ class StockQuote:
     company_name: str = ""
     updated_at: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "ticker": self.ticker,
             "price": self.price,
@@ -78,7 +78,7 @@ class FinanceTracker:
 
     def __init__(
         self,
-        cache: Optional[TTLCache] = None,
+        cache: TTLCache | None = None,
         cache_ttl: float = 600.0,
         timeout_seconds: float = 8.0,
     ) -> None:
@@ -137,7 +137,7 @@ class FinanceTracker:
     # 2. Cryptocurrency Rates
     # ──────────────────────────────────────────────────────────────────────────
 
-    def get_crypto_price(self, symbol: str = "BTC", vs_currency: str = "USD") -> Dict[str, Any]:
+    def get_crypto_price(self, symbol: str = "BTC", vs_currency: str = "USD") -> dict[str, Any]:
         """
         Retrieves crypto price and 24h change for a given symbol (BTC, ETH, SOL).
         """
@@ -166,13 +166,13 @@ class FinanceTracker:
         self.cache.set(cache_key, result, ttl=self.cache_ttl)
         return result
 
-    def get_crypto_quotes(self, symbols: Optional[List[str]] = None) -> List[CryptoQuote]:
+    def get_crypto_quotes(self, symbols: list[str] | None = None) -> list[CryptoQuote]:
         """
         Retrieves quotes for multiple cryptocurrencies (default: BTC, ETH).
         """
         syms = symbols or ["BTC", "ETH"]
         usd_vnd = self.get_exchange_rate("USD", "VND")
-        quotes: List[CryptoQuote] = []
+        quotes: list[CryptoQuote] = []
         for s in syms:
             quotes.append(self._fetch_crypto_quote(s.upper(), usd_vnd))
         return quotes

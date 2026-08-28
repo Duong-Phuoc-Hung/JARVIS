@@ -10,13 +10,13 @@ and graceful fallback when API key is absent.
 from __future__ import annotations
 
 import base64
-from dataclasses import dataclass, field
 import io
 import logging
 import os
-from pathlib import Path
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 try:
     from PIL import Image, ImageGrab
@@ -65,18 +65,18 @@ class ScreenVisionManager:
 
     DEFAULT_FALLBACK_MESSAGE = "Tôi chưa thể nhìn thấy màn hình do chưa cấu hình Vision API key, thưa Ngài."
     OFFLINE_MESSAGE = "Xin lỗi Ngài, tôi không thể phân tích màn hình do không có kết nối mạng."
-    gemini_api_key: Optional[str] = None
-    openai_api_key: Optional[str] = None
+    gemini_api_key: str | None = None
+    openai_api_key: str | None = None
 
     def __init__(
         self,
-        gemini_api_key: Optional[str] = None,
-        openai_api_key: Optional[str] = None,
+        gemini_api_key: str | None = None,
+        openai_api_key: str | None = None,
         default_provider: str = "gemini",
         gemini_model: str = "gemini-1.5-flash",
         openai_model: str = "gpt-4o",
         timeout_seconds: float = 10.0,
-        dialog_detector: Optional[ErrorDialogDetector] = None,
+        dialog_detector: ErrorDialogDetector | None = None,
     ) -> None:
         self.gemini_api_key = (
             gemini_api_key
@@ -106,9 +106,9 @@ class ScreenVisionManager:
         self,
         max_dim: int = 1920,
         monitor_index: int = 1,
-        roi: Optional[Tuple[int, int, int, int]] = None,
+        roi: tuple[int, int, int, int] | None = None,
         quality: int = 80,
-    ) -> Tuple[bytes, str]:
+    ) -> tuple[bytes, str]:
         """
         Captures desktop screen or ROI, resizes if larger than max_dim,
         and compresses to JPEG q80 in memory.
@@ -134,14 +134,14 @@ class ScreenVisionManager:
         self,
         max_dim: int = 1920,
         monitor_index: int = 1,
-        roi: Optional[Tuple[int, int, int, int]] = None,
+        roi: tuple[int, int, int, int] | None = None,
         quality: int = 80,
     ) -> ScreenCaptureResult:
         """
         Full screen capture pipeline returning telemetry metadata.
         """
         t0 = time.perf_counter()
-        img: Optional[Any] = None
+        img: Any | None = None
 
         # 1. Primary Capture: mss
         if self._has_mss and mss is not None:
@@ -219,7 +219,7 @@ class ScreenVisionManager:
             else:
                 new_h = max_dim
                 new_w = int(orig_w * (max_dim / orig_h))
-            
+
             resample_filter = getattr(Image, "Resampling", Image).LANCZOS if hasattr(Image, "Resampling") else getattr(Image, "LANCZOS", 1)
             img = img.resize((new_w, new_h), resample=resample_filter)
 
@@ -243,7 +243,7 @@ class ScreenVisionManager:
             total_time_ms=total_ms,
         )
 
-    def save_screenshot(self, filepath: Optional[str] = None, quality: int = 90) -> str:
+    def save_screenshot(self, filepath: str | None = None, quality: int = 90) -> str:
         """
         Captures the screen and writes it to a file.
         Returns the absolute path to the saved file.
@@ -268,8 +268,8 @@ class ScreenVisionManager:
     def analyze_screen(
         self,
         query: str = "Mô tả những gì đang hiển thị trên màn hình",
-        image_bytes: Optional[bytes] = None,
-        provider: Optional[str] = None,
+        image_bytes: bytes | None = None,
+        provider: str | None = None,
     ) -> str:
         """
         Captures screenshot (or uses provided bytes) and sends visual query to Vision LLM.
@@ -384,7 +384,7 @@ class ScreenVisionManager:
     # 3. High-Level Perception Actions
     # ──────────────────────────────────────────────────────────────────────────
 
-    def detect_error_dialog(self) -> Optional[Dict[str, Any]]:
+    def detect_error_dialog(self) -> dict[str, Any] | None:
         """Scans for active Win32 error dialogs or warning popups."""
         return self.dialog_detector.get_active_error_dialog()
 
@@ -402,7 +402,7 @@ class ScreenVisionManager:
                 "Hãy giải thích ngắn gọn nguyên nhân lỗi này và hướng dẫn 1-2 bước khắc phục bằng tiếng Việt."
             )
             return self.analyze_screen(prompt)
-        
+
         # Fallback to full screen visual analysis
         prompt = (
             "Hãy kiểm tra xem trên màn hình có xuất hiện thông báo lỗi, cảnh báo, exception hoặc crash nào không. "

@@ -6,8 +6,7 @@ Spotify music launcher plugin for JARVIS.
 from __future__ import annotations
 
 import os
-import sys
-from typing import Any, Dict, Optional
+from typing import Any
 
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import PluginMetadata
@@ -24,7 +23,7 @@ class SpotifyPlugin(BasePlugin):
             description="Spotify music launcher",
         )
 
-    def initialize(self, config: Dict[str, Any], dispatcher: ActionDispatcher) -> None:
+    def initialize(self, config: dict[str, Any], dispatcher: ActionDispatcher) -> None:
         self.config = config or {}
         self.dispatcher = dispatcher
         self.default_song_uri = (
@@ -49,7 +48,7 @@ class SpotifyPlugin(BasePlugin):
             description="Play default configured song",
         )
 
-    def play_track(self, song_uri: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def play_track(self, song_uri: str | None = None, **kwargs) -> dict[str, Any]:
         """Launches target Spotify track or URL."""
         target = (song_uri or self.default_song_uri).strip()
         if not target:

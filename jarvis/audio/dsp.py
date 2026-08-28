@@ -10,15 +10,15 @@ Provides:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
 import time
-from typing import Any, Dict, Optional, Tuple, Union
+from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 
 
-def calculate_rms(block: Optional[np.ndarray]) -> float:
+def calculate_rms(block: np.ndarray | None) -> float:
     """
     Calculates Root Mean Square (RMS) energy level for 1D or 2D audio arrays.
 
@@ -78,7 +78,7 @@ class DSPBlockResult:
     is_quiet_gated: bool
     timestamp: float = field(default_factory=time.monotonic)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert telemetry to standard dictionary matching test expectations."""
         return {
             "rms": self.rms,
@@ -107,8 +107,8 @@ class NoiseFloorTracker:
     def __init__(
         self,
         alpha: float = 0.992,
-        alpha_rise: Optional[float] = None,
-        alpha_fall: Optional[float] = None,
+        alpha_rise: float | None = None,
+        alpha_fall: float | None = None,
         quiet_gate_mult: float = 2.2,
         min_floor: float = 1e-7,
         max_floor: float = 1.0,
@@ -122,7 +122,7 @@ class NoiseFloorTracker:
         self.max_floor = float(max_floor)
         self.noise_floor = max(self.min_floor, min(float(initial_floor), self.max_floor))
 
-    def update(self, rms_level: float) -> Tuple[float, bool]:
+    def update(self, rms_level: float) -> tuple[float, bool]:
         """
         Updates the estimated noise floor with a new RMS measurement.
 
@@ -167,7 +167,7 @@ class SchmittTrigger:
         self.min_rms = float(min_rms)
         self.is_armed: bool = True
 
-    def evaluate(self, rms_level: float, noise_floor: float) -> Tuple[bool, bool, float, float]:
+    def evaluate(self, rms_level: float, noise_floor: float) -> tuple[bool, bool, float, float]:
         """
         Evaluates current RMS level against dynamic Schmitt thresholds.
 
@@ -260,7 +260,7 @@ class AudioDSPProcessor:
     def quiet_gate_mult(self) -> float:
         return self.tracker.quiet_gate_mult
 
-    def process_block(self, block: np.ndarray) -> Dict[str, Any]:
+    def process_block(self, block: np.ndarray) -> dict[str, Any]:
         """
         Process a single audio buffer and return dictionary of metrics.
         Matches exact contract expected by test suite and legacy callers.

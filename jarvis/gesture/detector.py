@@ -9,7 +9,9 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Union
+from collections.abc import Callable
+from typing import Any
+
 import numpy as np
 
 from jarvis.audio.dsp import AudioDSPProcessor
@@ -47,12 +49,12 @@ class GestureDetector:
         triple_clap_gap_s: float = 0.40,
         pause_min_s: float = 0.50,
         pause_max_s: float = 1.20,
-        disambiguation_timeout_s: Optional[float] = None,
-        dsp: Optional[AudioDSPProcessor] = None,
-        dispatcher: Optional[Any] = None,
-        event_bus: Optional[Any] = None,
-        config: Optional[Dict[str, Any]] = None,
-        on_gesture: Optional[Callable[[str, float], None]] = None,
+        disambiguation_timeout_s: float | None = None,
+        dsp: AudioDSPProcessor | None = None,
+        dispatcher: Any | None = None,
+        event_bus: Any | None = None,
+        config: dict[str, Any] | None = None,
+        on_gesture: Callable[[str, float], None] | None = None,
     ) -> None:
         self._lock = threading.RLock()
         self.dsp = dsp or AudioDSPProcessor()
@@ -72,7 +74,7 @@ class GestureDetector:
         )
 
         # Pattern registrations
-        self._patterns: Dict[GestureType, GesturePatternConfig] = get_default_patterns(
+        self._patterns: dict[GestureType, GesturePatternConfig] = get_default_patterns(
             min_double_gap_s=self.min_double_gap_s,
             max_double_gap_s=self.max_double_gap_s,
             cooldown_s=self.cooldown_s,
@@ -86,11 +88,11 @@ class GestureDetector:
 
         # State machine internals
         self._state: DetectorState = DetectorState.IDLE
-        self._clap_buffer: List[ClapEvent] = []
+        self._clap_buffer: list[ClapEvent] = []
         self._last_trigger_time: float = -100.0
         self._last_raw_clap_time: float = -100.0  # Tracks every transient for chatter suppression
         self._pending_deadline: float = 0.0
-        self._callbacks: List[Callable[[GestureResult], None]] = []
+        self._callbacks: list[Callable[[GestureResult], None]] = []
 
     def register_pattern(self, pattern: GesturePatternConfig) -> None:
         """Register or update a gesture pattern configuration."""
@@ -114,7 +116,7 @@ class GestureDetector:
             if hasattr(self.dsp, "reset"):
                 self.dsp.reset()
 
-    def configure_from_dict(self, cfg: Dict[str, Any]) -> None:
+    def configure_from_dict(self, cfg: dict[str, Any]) -> None:
         """Update detector thresholds dynamically from configuration dictionary."""
         with self._lock:
             dsp_cfg = cfg.get("dsp", cfg)
@@ -145,18 +147,18 @@ class GestureDetector:
                     if "pause_max_s" in p_val:
                         p.pause_max_s = float(p_val["pause_max_s"])
 
-    def process_block(self, block: np.ndarray) -> Optional[GestureResult]:
+    def process_block(self, block: np.ndarray) -> GestureResult | None:
         """Alias for feed_audio_block."""
         return self.feed_audio_block(block)
 
-    def feed_audio_block(self, block: np.ndarray, timestamp: Optional[float] = None) -> Optional[GestureResult]:
+    def feed_audio_block(self, block: np.ndarray, timestamp: float | None = None) -> GestureResult | None:
         """
         Process a real-time audio block through DSP and state machine.
         """
         now = timestamp if timestamp is not None else time.monotonic()
         dsp_res = self.dsp.process_block(block)
 
-        result: Optional[GestureResult] = None
+        result: GestureResult | None = None
 
         if dsp_res.get("is_transient"):
             clap = ClapEvent(
@@ -175,7 +177,7 @@ class GestureDetector:
 
         return result
 
-    def feed_clap(self, clap: ClapEvent) -> Optional[GestureResult]:
+    def feed_clap(self, clap: ClapEvent) -> GestureResult | None:
         """
         Ingest a transient clap event into the pattern state machine.
         Enforces chatter suppression, epsilon-tolerant boundary validation,
@@ -286,7 +288,7 @@ class GestureDetector:
         p = self._patterns.get(GestureType.CLAP_PAUSE_CLAP)
         return bool(p and p.enabled and (p.pause_min_s - EPS) <= gap <= (p.pause_max_s + EPS))
 
-    def tick(self, now: Optional[float] = None) -> Optional[GestureResult]:
+    def tick(self, now: float | None = None) -> GestureResult | None:
         """
         Periodic clock tick checking for disambiguation timeouts.
         """
@@ -314,8 +316,8 @@ class GestureDetector:
     def _emit_trigger(
         self,
         gesture_type: GestureType,
-        claps: List[ClapEvent],
-        intervals: List[float],
+        claps: list[ClapEvent],
+        intervals: list[float],
         timestamp: float,
     ) -> GestureResult:
         """Construct GestureResult, enter cooldown, notify dispatcher and subscribers."""
@@ -393,7 +395,7 @@ class GestureDetector:
             except Exception as exc:
                 logger.error("Error in gesture callback: %s", exc)
 
-    def process_stream(self, buffer: np.ndarray, block_size: int = 1764) -> List[GestureResult]:
+    def process_stream(self, buffer: np.ndarray, block_size: int = 1764) -> list[GestureResult]:
         """
         Process an entire continuous PCM buffer (used in unit testing and offline stream evaluation).
         """
@@ -417,7 +419,7 @@ class GestureDetector:
             cur_time += dt
 
         # Classify collected transient hit times
-        events: List[GestureResult] = []
+        events: list[GestureResult] = []
         i = 0
         while i < len(hit_times):
             # Check Triple Clap (3 hits)
@@ -474,7 +476,7 @@ class GestureDetector:
             i += 1
 
         # Apply cooldown filter between recognized events
-        filtered: List[GestureResult] = []
+        filtered: list[GestureResult] = []
         for ev in events:
             if not filtered or (ev.timestamp - filtered[-1].timestamp) >= (self.cooldown_s - EPS):
                 filtered.append(ev)

@@ -18,8 +18,8 @@ from typing import Any, Dict, Optional
 
 log = logging.getLogger("jarvis.skills.browser_control")
 
-_BROWSER: Optional[Any] = None
-_QUICK_URLS: Dict[str, str] = {
+_BROWSER: Any | None = None
+_QUICK_URLS: dict[str, str] = {
     "youtube":   "https://www.youtube.com",
     "google":    "https://www.google.com",
     "facebook":  "https://www.facebook.com",
@@ -57,7 +57,7 @@ def execute(
     key: str = "Enter",
     filename: str = "",
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Browser Control skill — điều khiển Chrome bằng giọng nói.
 

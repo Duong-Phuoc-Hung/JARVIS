@@ -5,7 +5,7 @@ Workspace, OS Automation, Computer Control, Natural Language Shell, and Safety S
 """
 
 from jarvis.automation.control import ComputerController
-from jarvis.automation.gui_actor import GUIActor, GUIActionResult
+from jarvis.automation.gui_actor import GUIActionResult, GUIActor
 from jarvis.automation.safety_gate import PendingConfirmation, SafetyGate
 from jarvis.automation.shell_assistant import ShellAssistant
 from jarvis.automation.vm import HypervisorType, VMActionResult, VMOrchestrator, VMState

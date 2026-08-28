@@ -8,13 +8,13 @@ from __future__ import annotations
 import importlib.util
 import json
 import logging
-import os
-from pathlib import Path
 import shutil
 import sys
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import PrivilegeLevel
@@ -29,7 +29,7 @@ class SkillRegistry:
     telemetry persistence, and ActionDispatcher registration.
     """
 
-    BUILTIN_FILES: Set[str] = {
+    BUILTIN_FILES: set[str] = {
         "__init__.py",
         "models.py",
         "registry.py",
@@ -38,8 +38,8 @@ class SkillRegistry:
 
     def __init__(
         self,
-        skills_dir: Optional[Union[str, Path]] = None,
-        dispatcher: Optional[ActionDispatcher] = None,
+        skills_dir: str | Path | None = None,
+        dispatcher: ActionDispatcher | None = None,
         auto_discover: bool = True,
     ) -> None:
         if skills_dir:
@@ -49,20 +49,20 @@ class SkillRegistry:
 
         self.skills_dir.mkdir(parents=True, exist_ok=True)
         self.dispatcher = dispatcher
-        self._skills: Dict[str, SkillDefinition] = {}
+        self._skills: dict[str, SkillDefinition] = {}
         self._lock = threading.RLock()
 
         if auto_discover:
             self.discover_skills()
 
-    def discover_skills(self) -> Dict[str, SkillDefinition]:
+    def discover_skills(self) -> dict[str, SkillDefinition]:
         """
         Scan skills directory, discovering and loading all packaged skills.
         
         Returns:
             Dictionary mapping skill_name to loaded SkillDefinition.
         """
-        discovered: Dict[str, SkillDefinition] = {}
+        discovered: dict[str, SkillDefinition] = {}
         if not self.skills_dir.exists():
             return discovered
 
@@ -93,7 +93,7 @@ class SkillRegistry:
         logger.info("SkillRegistry discovered %d skills in '%s'", len(discovered), self.skills_dir)
         return discovered
 
-    def load_skill_from_directory(self, skill_dir: Path) -> Optional[SkillDefinition]:
+    def load_skill_from_directory(self, skill_dir: Path) -> SkillDefinition | None:
         """Load a skill packaged in a sub-folder."""
         metadata_file = skill_dir / "metadata.json"
         entry_file = skill_dir / "__init__.py"
@@ -127,11 +127,11 @@ class SkillRegistry:
             metadata=metadata,
         )
 
-    def load_skill_from_file(self, file_path: Path) -> Optional[SkillDefinition]:
+    def load_skill_from_file(self, file_path: Path) -> SkillDefinition | None:
         """Load a skill defined in a standalone Python file."""
         skill_name = file_path.stem
         meta_file = file_path.parent / f"{skill_name}.json"
-        
+
         metadata = None
         if meta_file.exists():
             try:
@@ -158,7 +158,7 @@ class SkillRegistry:
         file_path: Path,
         metadata: SkillMetadata,
         entrypoint_function: str = "execute",
-    ) -> Optional[SkillDefinition]:
+    ) -> SkillDefinition | None:
         """Dynamically import a Python file and validate its execute entrypoint."""
         try:
             module_name = f"jarvis_dynamic_skill_{skill_name}"
@@ -220,7 +220,7 @@ class SkillRegistry:
                 skill_dir.mkdir(parents=True, exist_ok=True)
                 module_file = skill_dir / "__init__.py"
                 module_file.write_text(skill_def.entrypoint_code, encoding="utf-8")
-                
+
                 meta_file = skill_dir / "metadata.json"
                 meta_file.write_text(
                     json.dumps(skill_def.metadata.to_dict(), indent=2, ensure_ascii=False),
@@ -265,12 +265,12 @@ class SkillRegistry:
         logger.info("Unregistered skill '%s'", skill_name)
         return True
 
-    def get_skill(self, skill_name: str) -> Optional[SkillDefinition]:
+    def get_skill(self, skill_name: str) -> SkillDefinition | None:
         """Retrieve loaded skill by name."""
         with self._lock:
             return self._skills.get(skill_name)
 
-    def load_skill(self, skill_name: str) -> Optional[SkillDefinition]:
+    def load_skill(self, skill_name: str) -> SkillDefinition | None:
         """Load or reload skill by name."""
         with self._lock:
             skill_dir = self.skills_dir / skill_name
@@ -293,11 +293,11 @@ class SkillRegistry:
 
             return self._skills.get(skill_name)
 
-    def reload_skill(self, skill_name: str) -> Optional[SkillDefinition]:
+    def reload_skill(self, skill_name: str) -> SkillDefinition | None:
         """Hot-reload an existing skill from disk."""
         return self.load_skill(skill_name)
 
-    def list_skills(self) -> List[SkillMetadata]:
+    def list_skills(self) -> list[SkillMetadata]:
         """Return list of all registered skill metadata objects."""
         with self._lock:
             return [s.metadata for s in self._skills.values()]
@@ -390,7 +390,7 @@ class SkillRegistry:
 
         action_name = f"skill_{skill_def.metadata.name}"
         handler = self._create_dispatcher_handler(skill_def.metadata.name)
-        
+
         self.dispatcher.register_action(
             name=action_name,
             handler=handler,
@@ -400,7 +400,7 @@ class SkillRegistry:
         )
         logger.debug("Registered skill action '%s' into ActionDispatcher", action_name)
 
-    def register_all_into_dispatcher(self, dispatcher: Optional[ActionDispatcher] = None) -> int:
+    def register_all_into_dispatcher(self, dispatcher: ActionDispatcher | None = None) -> int:
         """Register all loaded skills into the provided or configured ActionDispatcher."""
         disp = dispatcher or self.dispatcher
         if not disp:
@@ -415,7 +415,7 @@ class SkillRegistry:
                     count += 1
         return count
 
-    def get_metrics(self, skill_name: Optional[str] = None) -> Dict[str, Any]:
+    def get_metrics(self, skill_name: str | None = None) -> dict[str, Any]:
         """Get telemetry metrics for a specific skill or all skills."""
         with self._lock:
             if skill_name:
@@ -434,7 +434,7 @@ class SkillRegistry:
             total_invocations = sum(s.metadata.invocation_count for s in self._skills.values())
             total_success = sum(s.metadata.success_count for s in self._skills.values())
             total_failure = sum(s.metadata.failure_count for s in self._skills.values())
-            
+
             return {
                 "total_skills": len(self._skills),
                 "total_invocations": total_invocations,

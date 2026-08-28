@@ -5,10 +5,10 @@ Launches and focuses common desktop applications.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 # Known executable mapping
@@ -28,7 +28,7 @@ KNOWN_APPS = {
 }
 
 
-def _find_executable(candidates: list[str]) -> Optional[str]:
+def _find_executable(candidates: list[str]) -> str | None:
     """Find the first available executable candidate."""
     for c in candidates:
         if c.startswith("ms-settings:"):
@@ -45,7 +45,7 @@ def execute(
     app_name: str = "notepad",
     args: str = "",
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Launch requested desktop application.
     """
@@ -61,7 +61,7 @@ def execute(
         if exe_target.startswith("ms-settings:"):
             if sys.platform == "win32":
                 os.startfile(exe_target)
-            msg = f"🚀 Đã mở Cài đặt Windows Settings."
+            msg = "🚀 Đã mở Cài đặt Windows Settings."
             return {"text": msg, "output": msg, "target": exe_target, "success": True}
 
         cmd = [exe_target]

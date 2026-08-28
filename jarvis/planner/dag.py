@@ -5,11 +5,10 @@ and recursive dynamic parameter interpolation ({{steps.node_id.output.path}}).
 """
 from __future__ import annotations
 
-from collections import deque
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any
 
 from jarvis.planner.models import StepStatus, TaskNode
 
@@ -37,17 +36,17 @@ class TaskDAG:
     Manages node dependencies, topological scheduling, and variable resolution.
     """
 
-    def __init__(self, plan_id: Optional[str] = None, goal: str = "") -> None:
+    def __init__(self, plan_id: str | None = None, goal: str = "") -> None:
         self.plan_id = plan_id or ""
         self.goal = goal
-        self._nodes: Dict[str, TaskNode] = {}
+        self._nodes: dict[str, TaskNode] = {}
         # Forward edges: parent -> set of child step_ids
-        self._dependents: Dict[str, Set[str]] = {}
+        self._dependents: dict[str, set[str]] = {}
         # Reverse edges: child -> set of parent step_ids
-        self._dependencies: Dict[str, Set[str]] = {}
+        self._dependencies: dict[str, set[str]] = {}
 
     @property
-    def nodes(self) -> Dict[str, TaskNode]:
+    def nodes(self) -> dict[str, TaskNode]:
         """Returns dictionary of all nodes in the DAG."""
         return self._nodes
 
@@ -109,7 +108,7 @@ class TaskDAG:
             self._dependents[parent_id].remove(child_id)
             raise CycleDetectedException(f"Adding dependency '{parent_id}' -> '{child_id}' creates a cycle.")
 
-    def get_node(self, step_id: str) -> Optional[TaskNode]:
+    def get_node(self, step_id: str) -> TaskNode | None:
         """Retrieves a TaskNode by its step_id, or None if not found."""
         return self._nodes.get(step_id)
 
@@ -118,7 +117,7 @@ class TaskDAG:
         Checks whether the graph contains any circular dependencies using DFS graph coloring.
         0 = UNVISITED, 1 = VISITING (in recursion stack), 2 = VISITED.
         """
-        state: Dict[str, int] = {step_id: 0 for step_id in self._nodes}
+        state: dict[str, int] = {step_id: 0 for step_id in self._nodes}
 
         def _dfs(u: str) -> bool:
             state[u] = 1  # VISITING
@@ -159,7 +158,7 @@ class TaskDAG:
         if self.has_cycle():
             raise CycleDetectedException("TaskDAG contains a circular dependency.")
 
-    def topological_sort(self) -> List[List[TaskNode]]:
+    def topological_sort(self) -> list[list[TaskNode]]:
         """
         Calculates level-by-level topological waves of execution using Kahn's algorithm.
         Each inner list contains nodes that can be executed concurrently in parallel.
@@ -172,13 +171,13 @@ class TaskDAG:
         """
         self.validate()
 
-        in_degree: Dict[str, int] = {
+        in_degree: dict[str, int] = {
             step_id: len([p for p in node.depends_on if p in self._nodes])
             for step_id, node in self._nodes.items()
         }
 
-        current_level: List[str] = [sid for sid, deg in in_degree.items() if deg == 0]
-        waves: List[List[TaskNode]] = []
+        current_level: list[str] = [sid for sid, deg in in_degree.items() if deg == 0]
+        waves: list[list[TaskNode]] = []
         processed_count = 0
 
         while current_level:
@@ -186,7 +185,7 @@ class TaskDAG:
             waves.append(level_nodes)
             processed_count += len(current_level)
 
-            next_level: List[str] = []
+            next_level: list[str] = []
             for u in current_level:
                 for v in self._dependents.get(u, set()):
                     if v in in_degree:
@@ -200,15 +199,15 @@ class TaskDAG:
 
         return waves
 
-    def get_linear_topological_sort(self) -> List[TaskNode]:
+    def get_linear_topological_sort(self) -> list[TaskNode]:
         """Returns a flat, linearly ordered list of TaskNodes honoring dependencies."""
         waves = self.topological_sort()
-        linear: List[TaskNode] = []
+        linear: list[TaskNode] = []
         for wave in waves:
             linear.extend(wave)
         return linear
 
-    def get_ready_nodes(self) -> List[TaskNode]:
+    def get_ready_nodes(self) -> list[TaskNode]:
         """
         Finds all nodes ready for immediate execution:
         - Node status is PENDING, READY, or RETRYING.
@@ -217,7 +216,7 @@ class TaskDAG:
         Returns:
             List of executable TaskNodes.
         """
-        ready: List[TaskNode] = []
+        ready: list[TaskNode] = []
         for step_id, node in self._nodes.items():
             if node.status in (StepStatus.PENDING, StepStatus.READY, StepStatus.RETRYING):
                 parents_completed = True
@@ -235,7 +234,7 @@ class TaskDAG:
         step_id: str,
         status: StepStatus,
         result_data: Any = None,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
         execution_time_ms: float = 0.0,
     ) -> None:
         """Updates status and result data of a specific node."""
@@ -250,17 +249,17 @@ class TaskDAG:
         if execution_time_ms > 0:
             node.execution_time_ms = execution_time_ms
 
-    def get_downstream_nodes(self, step_id: str) -> List[TaskNode]:
+    def get_downstream_nodes(self, step_id: str) -> list[TaskNode]:
         """Returns all direct downstream dependents of a step."""
         child_ids = self._dependents.get(step_id, set())
         return [self._nodes[cid] for cid in child_ids if cid in self._nodes]
 
-    def get_upstream_nodes(self, step_id: str) -> List[TaskNode]:
+    def get_upstream_nodes(self, step_id: str) -> list[TaskNode]:
         """Returns all direct upstream prerequisite nodes of a step."""
         parent_ids = self._dependencies.get(step_id, set())
         return [self._nodes[pid] for pid in parent_ids if pid in self._nodes]
 
-    def get_completed_outputs(self) -> Dict[str, Any]:
+    def get_completed_outputs(self) -> dict[str, Any]:
         """
         Builds a comprehensive dictionary of all completed step outputs.
         Provides both direct access and structured namespaces:
@@ -269,8 +268,8 @@ class TaskDAG:
         - context['steps']['step_1']['result_data']
         - context['nodes']['step_1']
         """
-        steps_dict: Dict[str, Any] = {}
-        nodes_dict: Dict[str, Any] = {}
+        steps_dict: dict[str, Any] = {}
+        nodes_dict: dict[str, Any] = {}
 
         for sid, node in self._nodes.items():
             nodes_dict[sid] = node.to_dict()
@@ -303,8 +302,8 @@ class TaskDAG:
     def interpolate_node_params(
         self,
         node: TaskNode,
-        additional_context: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        additional_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Resolves variable references in node parameters using outputs from completed steps.
         
@@ -364,7 +363,7 @@ class TaskDAG:
             node.started_at = None
             node.finished_at = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serializes the entire TaskDAG to a dictionary."""
         return {
             "plan_id": self.plan_id,
@@ -373,7 +372,7 @@ class TaskDAG:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> TaskDAG:
+    def from_dict(cls, data: dict[str, Any]) -> TaskDAG:
         """Constructs a TaskDAG from a dictionary."""
         dag = cls(plan_id=data.get("plan_id"), goal=data.get("goal", ""))
         for raw_node in data.get("nodes", []):
@@ -394,7 +393,7 @@ class TaskDAG:
         return cls.from_dict(json.loads(json_str))
 
 
-def _lookup_path(path: str, context: Dict[str, Any]) -> Any:
+def _lookup_path(path: str, context: dict[str, Any]) -> Any:
     """
     Traverses a dot/bracket separated path into a nested dictionary/list structure.
     Examples:
@@ -437,7 +436,7 @@ def _lookup_path(path: str, context: Dict[str, Any]) -> Any:
     return curr
 
 
-def interpolate_parameters(params: Any, context: Dict[str, Any]) -> Any:
+def interpolate_parameters(params: Any, context: dict[str, Any]) -> Any:
     """
     Recursively replaces `{{path}}` expressions in dictionary values, lists, or strings
     with resolved values from the execution context.

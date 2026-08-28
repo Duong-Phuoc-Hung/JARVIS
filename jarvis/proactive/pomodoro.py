@@ -14,12 +14,13 @@ Features:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum
 import logging
 import threading
 import time
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
 logger = logging.getLogger("jarvis.proactive.pomodoro")
 
@@ -44,7 +45,7 @@ class PomodoroStatus:
     elapsed_seconds: float
     is_suppressing_notifications: bool
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "state": self.state.value,
             "current_cycle": self.current_cycle,
@@ -64,8 +65,8 @@ class PomodoroTimer:
 
     def __init__(
         self,
-        tts_callback: Optional[Callable[[str], None]] = None,
-        overlay_callback: Optional[Callable[[str, str], None]] = None,
+        tts_callback: Callable[[str], None] | None = None,
+        overlay_callback: Callable[[str, str], None] | None = None,
         check_interval_seconds: float = 0.5,
         default_work_minutes: float = 25.0,
         default_break_minutes: float = 5.0,
@@ -91,7 +92,7 @@ class PomodoroTimer:
 
         self._lock = threading.RLock()
         self._stop_event = threading.Event()
-        self._worker_thread: Optional[threading.Thread] = None
+        self._worker_thread: threading.Thread | None = None
 
     # ──────────────────────────────────────────────────────────────────────────
     # State & Control API
@@ -99,8 +100,8 @@ class PomodoroTimer:
 
     def start(
         self,
-        work_minutes: Optional[float] = None,
-        break_minutes: Optional[float] = None,
+        work_minutes: float | None = None,
+        break_minutes: float | None = None,
         cycles: int = 1,
     ) -> str:
         """
@@ -250,13 +251,13 @@ class PomodoroTimer:
     # Ticking & Phase Transitions
     # ──────────────────────────────────────────────────────────────────────────
 
-    def tick(self, now: Optional[float] = None) -> Optional[str]:
+    def tick(self, now: float | None = None) -> str | None:
         """
         Evaluates elapsed time and executes state transitions.
         Returns event string ('WORK_FINISHED', 'BREAK_FINISHED', 'COMPLETED') or None.
         """
         current_time = time.time() if now is None else float(now)
-        event_fired: Optional[str] = None
+        event_fired: str | None = None
         announcement_title = ""
         announcement_msg = ""
 

@@ -9,17 +9,17 @@ Features:
 """
 from __future__ import annotations
 
-from jarvis.healing.watchdog import (
-    HungProcessInfo,
-    ResourceWatchdog,
-    UnresponsiveAppDetector,
-)
 from jarvis.healing.terminator import (
+    PROTECTED_PROCESS_WHITELIST,
     AutonomousTerminator,
     HealingEngine,
     HealingMode,
     HealingReport,
-    PROTECTED_PROCESS_WHITELIST,
+)
+from jarvis.healing.watchdog import (
+    HungProcessInfo,
+    ResourceWatchdog,
+    UnresponsiveAppDetector,
 )
 
 __all__ = [

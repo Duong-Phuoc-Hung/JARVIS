@@ -10,16 +10,15 @@ Features:
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
-from dataclasses import dataclass, field
 import json
 import logging
-import os
 import shutil
 import subprocess
 import sys
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from ctypes import wintypes
+from dataclasses import dataclass, field
+from typing import Any
 
 try:
     import psutil
@@ -70,17 +69,17 @@ class DiskSmartMetrics:
     status: str = "PASSED"                      # "PASSED", "WARNING", "FAILING", "UNKNOWN"
     model: str = ""                             # e.g. "NVMe SSD"
     media_type: str = "SSD"                     # "SSD", "HDD", "NVMe"
-    temperature_c: Optional[int] = None         # Storage temperature in °C
+    temperature_c: int | None = None         # Storage temperature in °C
     total_bytes: int = 0
     used_bytes: int = 0
     free_bytes: int = 0
     percent_used: float = 0.0
     reallocated_sectors: int = 0
     reported_uncorrectable_errors: int = 0
-    wear_range_delta_life_pct: Optional[int] = None
-    power_on_hours: Optional[int] = None
+    wear_range_delta_life_pct: int | None = None
+    power_on_hours: int | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "drive": self.drive,
             "status": self.status,
@@ -106,23 +105,23 @@ DiskSmartStatus = DiskSmartMetrics
 class HardwareMetrics:
     """Comprehensive snapshot of hardware sensor metrics."""
     cpu_percent: float                          # Total CPU utilization (0.0 to 100.0)
-    cpu_temp_c: Optional[float]                 # CPU package temperature in °C (or None)
-    gpu_percent: Optional[float]                # GPU utilization % (or None if no dedicated GPU)
-    gpu_temp_c: Optional[float]                 # GPU temperature in °C (or None)
+    cpu_temp_c: float | None                 # CPU package temperature in °C (or None)
+    gpu_percent: float | None                # GPU utilization % (or None if no dedicated GPU)
+    gpu_temp_c: float | None                 # GPU temperature in °C (or None)
     ram_percent: float                          # RAM utilization (0.0 to 100.0)
-    vram_used_gb: Optional[float]               # VRAM used in GB (or None)
+    vram_used_gb: float | None               # VRAM used in GB (or None)
     smart_status: str                           # Overall S.M.A.R.T. health ("PASSED", "WARNING", "FAILING")
-    per_cpu_percent: List[float] = field(default_factory=list)
-    cpu_freq_mhz: Optional[float] = None
-    gpu_fan_speed_rpm: Optional[int] = None
-    gpu_fan_percent: Optional[int] = None
-    vram_total_gb: Optional[float] = None
+    per_cpu_percent: list[float] = field(default_factory=list)
+    cpu_freq_mhz: float | None = None
+    gpu_fan_speed_rpm: int | None = None
+    gpu_fan_percent: int | None = None
+    vram_total_gb: float | None = None
     ram_total_bytes: int = 0
     ram_used_bytes: int = 0
-    disks: Dict[str, DiskSmartMetrics] = field(default_factory=dict)
+    disks: dict[str, DiskSmartMetrics] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert metrics to JSON-serializable dictionary."""
         return {
             "cpu_percent": round(self.cpu_percent, 1),
@@ -157,13 +156,13 @@ class HardwareMonitor:
 
     def __init__(
         self,
-        provider: Optional[Any] = None,
+        provider: Any | None = None,
         cpu_temp_threshold: float = 85.0,
         ram_threshold: float = 90.0,
         gpu_temp_threshold: float = 85.0,
         disk_free_threshold_gb: float = 10.0,
         alert_cooldown_s: float = 5.0,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         self.provider = provider
         self.config = config or {}
@@ -180,22 +179,22 @@ class HardwareMonitor:
 
         # Alert tracking
         self.last_alert_time: float = 0.0
-        self.last_alert_times: Dict[str, float] = {}
+        self.last_alert_times: dict[str, float] = {}
 
         # CPU calculation state for kernel32.GetSystemTimes
-        self._prev_idle_time: Optional[int] = None
-        self._prev_kernel_time: Optional[int] = None
-        self._prev_user_time: Optional[int] = None
+        self._prev_idle_time: int | None = None
+        self._prev_kernel_time: int | None = None
+        self._prev_user_time: int | None = None
         self._prev_times_ts: float = 0.0
 
         # Subprocess cache for PowerShell CIM queries to avoid spamming
-        self._cached_cim_temp: Optional[float] = None
+        self._cached_cim_temp: float | None = None
         self._cached_cim_temp_ts: float = 0.0
-        self._cached_disks: Dict[str, DiskSmartMetrics] = {}
+        self._cached_disks: dict[str, DiskSmartMetrics] = {}
         self._cached_disks_ts: float = 0.0
 
         # Check nvidia-smi presence
-        self._nvidia_smi_path: Optional[str] = shutil.which("nvidia-smi")
+        self._nvidia_smi_path: str | None = shutil.which("nvidia-smi")
 
     # -----------------------------------------------------------------------
     # Core Telemetry Collection
@@ -268,7 +267,7 @@ class HardwareMonitor:
         ram_used = getattr(p, "ram_used_bytes", 0)
 
         # Disk & S.M.A.R.T.
-        disks: Dict[str, DiskSmartMetrics] = {}
+        disks: dict[str, DiskSmartMetrics] = {}
         if hasattr(p, "smart_drives") and isinstance(p.smart_drives, dict):
             for k, v in p.smart_drives.items():
                 if isinstance(v, DiskSmartMetrics):
@@ -313,7 +312,7 @@ class HardwareMonitor:
     # Probing Layers
     # -----------------------------------------------------------------------
 
-    def _probe_ram(self) -> Tuple[float, int, int]:
+    def _probe_ram(self) -> tuple[float, int, int]:
         """Probes RAM percentage, total bytes, and used bytes via Win32 ctypes / psutil."""
         # Method A: Win32 GlobalMemoryStatusEx (sub-millisecond)
         if sys.platform == "win32":
@@ -341,7 +340,7 @@ class HardwareMonitor:
 
         return 0.0, 0, 0
 
-    def _probe_cpu(self) -> Tuple[float, List[float], Optional[float]]:
+    def _probe_cpu(self) -> tuple[float, list[float], float | None]:
         """Probes CPU total percent, per-CPU percent list, and frequency."""
         # Method A: psutil if available
         if HAS_PSUTIL:
@@ -398,7 +397,7 @@ class HardwareMonitor:
 
         return 0.0, [], None
 
-    def _probe_cpu_temperature(self) -> Optional[float]:
+    def _probe_cpu_temperature(self) -> float | None:
         """Probes CPU package temperature via psutil / PowerShell CIM ThermalZone."""
         # 1. psutil sensors_temperatures (Linux or Windows with compatible drivers)
         if HAS_PSUTIL and hasattr(psutil, "sensors_temperatures"):
@@ -445,7 +444,7 @@ class HardwareMonitor:
 
         return None
 
-    def _probe_gpu(self) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[int], Optional[int]]:
+    def _probe_gpu(self) -> tuple[float | None, float | None, float | None, float | None, int | None, int | None]:
         """
         Probes dedicated GPU telemetry via nvidia-smi CLI.
         Returns: (gpu_percent, gpu_temp_c, vram_used_gb, vram_total_gb, fan_rpm, fan_pct)
@@ -464,7 +463,7 @@ class HardwareMonitor:
                 line = proc.stdout.strip().splitlines()[0]
                 tokens = [t.strip() for t in line.split(",")]
                 if len(tokens) >= 4:
-                    def _parse_flt(val: str) -> Optional[float]:
+                    def _parse_flt(val: str) -> float | None:
                         try:
                             return float(val) if val not in ("[N/A]", "N/A", "") else None
                         except ValueError:
@@ -493,7 +492,7 @@ class HardwareMonitor:
     # S.M.A.R.T. Disk Health Probing (F-21)
     # -----------------------------------------------------------------------
 
-    def get_disk_smart_status(self, use_cache: bool = True) -> Dict[str, DiskSmartMetrics]:
+    def get_disk_smart_status(self, use_cache: bool = True) -> dict[str, DiskSmartMetrics]:
         """Query detailed S.M.A.R.T. and volume metrics for all disks."""
         if self.provider is not None:
             metrics = self._get_metrics_from_provider()
@@ -503,7 +502,7 @@ class HardwareMonitor:
         if use_cache and (now - self._cached_disks_ts < 5.0) and self._cached_disks:
             return self._cached_disks
 
-        disks: Dict[str, DiskSmartMetrics] = {}
+        disks: dict[str, DiskSmartMetrics] = {}
 
         # 1. Query Partitions & Free Space via psutil or Win32 GetDiskFreeSpaceExW
         if HAS_PSUTIL:
@@ -583,7 +582,7 @@ class HardwareMonitor:
         self._cached_disks_ts = now
         return disks
 
-    def _aggregate_smart_status(self, disks: Dict[str, DiskSmartMetrics]) -> str:
+    def _aggregate_smart_status(self, disks: dict[str, DiskSmartMetrics]) -> str:
         """Aggregates overall SMART status across all monitored drives."""
         if not disks:
             return "PASSED"
@@ -600,13 +599,13 @@ class HardwareMonitor:
     # Threshold Analyzer & Voice Alerts (F-22)
     # -----------------------------------------------------------------------
 
-    def check_thresholds(self) -> List[Dict[str, Any]]:
+    def check_thresholds(self) -> list[dict[str, Any]]:
         """
         Evaluate current metrics against thresholds with debouncing.
         Returns list of structured alert objects.
         """
         metrics = self.get_metrics(use_cache=False)
-        alerts: List[Dict[str, Any]] = []
+        alerts: list[dict[str, Any]] = []
         now = time.time()
 
         # 1. CPU Temperature Check

@@ -5,9 +5,10 @@ and execution telemetry.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import time
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -16,9 +17,9 @@ class SkillMetadata:
     name: str
     version: str = "1.0.0"
     description: str = ""
-    parameters_schema: Dict[str, Any] = field(default_factory=dict)
-    return_schema: Optional[Dict[str, Any]] = None
-    tags: List[str] = field(default_factory=list)
+    parameters_schema: dict[str, Any] = field(default_factory=dict)
+    return_schema: dict[str, Any] | None = None
+    tags: list[str] = field(default_factory=list)
     synthesized_by: str = "jarvis_agentic_synthesizer"
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
@@ -51,7 +52,7 @@ class SkillMetadata:
         self.total_latency_ms += latency_ms
         self.updated_at = time.time()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "version": self.version,
@@ -71,7 +72,7 @@ class SkillMetadata:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> SkillMetadata:
+    def from_dict(cls, data: dict[str, Any]) -> SkillMetadata:
         return cls(
             name=data.get("name", "unnamed_skill"),
             version=data.get("version", "1.0.0"),
@@ -95,11 +96,11 @@ class SkillDefinition:
     metadata: SkillMetadata
     entrypoint_code: str = ""
     entrypoint_function: str = "execute"
-    file_path: Optional[str] = None
+    file_path: str | None = None
     is_loaded: bool = False
-    handler: Optional[Callable[..., Any]] = None
+    handler: Callable[..., Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "metadata": self.metadata.to_dict(),
             "entrypoint_code": self.entrypoint_code,
@@ -109,7 +110,7 @@ class SkillDefinition:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> SkillDefinition:
+    def from_dict(cls, data: dict[str, Any]) -> SkillDefinition:
         metadata_dict = data.get("metadata", {})
         metadata = SkillMetadata.from_dict(metadata_dict) if metadata_dict else SkillMetadata(name="unnamed")
         return cls(
@@ -127,12 +128,12 @@ class SkillExecutionResult:
     skill_name: str
     success: bool
     data: Any = None
-    artifacts: List[Dict[str, Any]] = field(default_factory=list)
-    error: Optional[str] = None
+    artifacts: list[dict[str, Any]] = field(default_factory=list)
+    error: str | None = None
     execution_time_ms: float = 0.0
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "skill_name": self.skill_name,
             "success": self.success,

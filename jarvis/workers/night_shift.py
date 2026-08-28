@@ -22,7 +22,7 @@ import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 log = logging.getLogger("jarvis.workers.night_shift")
 
@@ -48,14 +48,14 @@ class NightShiftTask:
     task_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     title: str = ""
     description: str = ""
-    steps: List[str] = field(default_factory=list)
+    steps: list[str] = field(default_factory=list)
     scheduled_time: str = "23:00"
     report_time: str = "07:00"
     status: str = "pending"        # pending | running | completed | failed | cancelled
-    result: Optional[Dict[str, Any]] = None
+    result: dict[str, Any] | None = None
     created_at: float = field(default_factory=time.time)
-    completed_at: Optional[float] = None
-    error: Optional[str] = None
+    completed_at: float | None = None
+    error: str | None = None
 
 
 class NightShiftWorker:
@@ -65,9 +65,9 @@ class NightShiftWorker:
 
     def __init__(self, is_mock: bool = False) -> None:
         self.is_mock = is_mock
-        self._tasks: Dict[str, NightShiftTask] = {}
+        self._tasks: dict[str, NightShiftTask] = {}
         self._lock = threading.RLock()
-        self._timers: Dict[str, threading.Timer] = {}
+        self._timers: dict[str, threading.Timer] = {}
         self._load_tasks()
         log.info("NightShiftWorker initialized (%d tasks loaded)", len(self._tasks))
 
@@ -97,7 +97,7 @@ class NightShiftWorker:
         log.info("Night shift task added: '%s' (ID=%s, scheduled=%s)", title, task.task_id, scheduled_time)
         return task
 
-    def decompose_task(self, description: str) -> List[str]:
+    def decompose_task(self, description: str) -> list[str]:
         """Split description into actionable sub-steps."""
         import re
         lower = description.lower()
@@ -112,7 +112,7 @@ class NightShiftWorker:
 
         return detected or [f"[auto] {description[:100]}"]
 
-    def execute_task(self, task: NightShiftTask) -> Dict[str, Any]:
+    def execute_task(self, task: NightShiftTask) -> dict[str, Any]:
         """Execute all steps of a task and collect results."""
         task.status = "running"
         self._save_tasks()
@@ -143,7 +143,7 @@ class NightShiftWorker:
         log.info("Night shift task '%s' completed in %.1fs", task.task_id, elapsed)
         return {"success": all_success, "report": report, "task": asdict(task)}
 
-    def _execute_step(self, step: str) -> Dict[str, Any]:
+    def _execute_step(self, step: str) -> dict[str, Any]:
         """Execute a single step (mock or real dispatch)."""
         import re
         step_type_match = re.match(r"\[([^\]]+)\]", step)
@@ -176,25 +176,25 @@ class NightShiftWorker:
         steps_done = result.get("steps_completed", len(task.steps))
 
         lines = [
-            f"# 🌙 JARVIS Night Shift Report",
+            "# 🌙 JARVIS Night Shift Report",
             f"**Nhiệm vụ:** {task.title}",
             f"**Hoàn thành lúc:** {now}",
             f"**Trạng thái:** {status_emoji} {task.status.upper()}",
             f"**Thời gian thực thi:** {elapsed:.1f}s",
-            f"",
-            f"## Mô tả:",
+            "",
+            "## Mô tả:",
             f"{task.description}",
-            f"",
+            "",
             f"## Kết quả từng bước ({steps_done}/{len(task.steps)}):",
         ]
         for i, step_res in enumerate(result.get("step_results", []), 1):
             ok = "✅" if step_res.get("success") else "❌"
             lines.append(f"{i}. {ok} [{step_res.get('type', '?')}] {step_res.get('result', step_res.get('error', ''))}")
 
-        lines += ["", "---", f"*Báo cáo được tạo tự động bởi JARVIS Night Shift Worker*"]
+        lines += ["", "---", "*Báo cáo được tạo tự động bởi JARVIS Night Shift Worker*"]
         return "\n".join(lines)
 
-    def list_tasks(self) -> List[NightShiftTask]:
+    def list_tasks(self) -> list[NightShiftTask]:
         with self._lock:
             return list(self._tasks.values())
 
@@ -210,7 +210,7 @@ class NightShiftWorker:
         self._save_tasks()
         return True
 
-    def run_task_now(self, task_id: str) -> Dict[str, Any]:
+    def run_task_now(self, task_id: str) -> dict[str, Any]:
         """Immediately execute a task (for testing or manual trigger)."""
         with self._lock:
             task = self._tasks.get(task_id)

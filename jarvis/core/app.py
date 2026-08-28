@@ -24,72 +24,68 @@ Wires together:
 """
 from __future__ import annotations
 
-import inspect
-import json
 import logging
 import os
-from pathlib import Path
 import signal
-import sys
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Union
+from collections.abc import Callable
+from typing import Any
+
 import numpy as np
 
-from jarvis.audio.engine import AudioEngine, AudioEngineMode
+from jarvis.audio.engine import AudioEngine
+
+# Expansion Subsystems (Milestones 1-6)
+from jarvis.audio.wake_word import WakeWordDetector
+from jarvis.automation.control import ComputerController
+from jarvis.automation.gui_actor import GUIActor
+from jarvis.automation.safety_gate import SafetyGate
+from jarvis.automation.shell_assistant import ShellAssistant
+from jarvis.browser.agent import BrowserAgent
+from jarvis.browser.models import BrowserActionResult, ScrapeResult
+from jarvis.browser.session import BrowserSessionManager
 from jarvis.core.config import ConfigManager
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
 from jarvis.core.logger import log_interaction as _global_log_interaction
-from jarvis.core.models import ActionResult, PrivilegeLevel, RequesterContext
+from jarvis.core.models import RequesterContext
 from jarvis.core.plugin import PluginRegistry
 from jarvis.gesture.detector import GestureDetector
+from jarvis.hardware.monitor import HardwareMetrics
+from jarvis.hardware.reporter import HardwareReporter
+from jarvis.llm.client import LLMClient
+from jarvis.llm.router import LLMIntentRouter
+from jarvis.memory.manager import MemoryManager
+
+# Autonomous Superpower Subsystems (Milestones 1-5)
+from jarvis.planner.engine import ReActTaskEngine
+from jarvis.planner.models import PlanMode, PlanResult
+from jarvis.planner.reflection import SelfReflectionEngine
+from jarvis.planner.safety_interceptor import SafetyGateInterceptor
+from jarvis.platform.hotkeys import GlobalHotkeyManager
 from jarvis.plugins.chrome import ChromeMultiMonitorPlugin
 from jarvis.plugins.cursor import CursorPlugin
 from jarvis.plugins.shell import ShellPlugin
 from jarvis.plugins.spotify import SpotifyPlugin
 from jarvis.plugins.webhook import WebhookPlugin
-from jarvis.tts.manager import TTSManager
-from jarvis.hardware.monitor import HardwareMetrics
-from jarvis.hardware.reporter import HardwareReporter
+from jarvis.proactive.engine import ProactiveEngine
+from jarvis.sandbox.interpreter import CodeInterpreterSandbox, SandboxResult
+from jarvis.skills.models import SkillMetadata
+from jarvis.skills.registry import SkillRegistry
+from jarvis.skills.synthesizer import DynamicSkillSynthesizer
 
 # Subsystems
 from jarvis.stt.engine import STTEngine
-from jarvis.llm.client import LLMClient
-from jarvis.llm.router import LLMIntentRouter
-from jarvis.ui.tray import SystemTrayController, TrayStatus
+from jarvis.tts.manager import TTSManager
 from jarvis.ui.dashboard import DashboardServer
-from jarvis.ui.overlay import AlwaysOnOverlay, JarvisOverlay, OverlayMode, OverlayState
-
-# Expansion Subsystems (Milestones 1-6)
-from jarvis.audio.wake_word import WakeWordDetector
-from jarvis.memory.manager import MemoryManager
-from jarvis.memory.sqlite_store import SQLiteMemoryStore
+from jarvis.ui.overlay import AlwaysOnOverlay
+from jarvis.ui.tray import SystemTrayController, TrayStatus
+from jarvis.vision.computer_use import ComputerUseVision
 from jarvis.vision.screen import ScreenVisionManager
-from jarvis.web.hub import WebIntelligenceHub
-from jarvis.automation.control import ComputerController
-from jarvis.automation.safety_gate import SafetyGate
-from jarvis.automation.shell_assistant import ShellAssistant
-from jarvis.platform.hotkeys import GlobalHotkeyManager
-from jarvis.proactive.engine import ProactiveEngine
-
-# Autonomous Superpower Subsystems (Milestones 1-5)
-from jarvis.planner.dag import TaskDAG
-from jarvis.planner.engine import ReActTaskEngine
-from jarvis.planner.models import PlanMode, PlanResult, StepStatus, TaskNode
-from jarvis.planner.reflection import SelfReflectionEngine
-from jarvis.planner.safety_interceptor import SafetyGateInterceptor
-from jarvis.sandbox.interpreter import CodeInterpreterSandbox, SandboxResult
-from jarvis.skills.models import SkillDefinition, SkillMetadata
-from jarvis.skills.registry import SkillRegistry
-from jarvis.skills.synthesizer import DynamicSkillSynthesizer
-from jarvis.browser.agent import BrowserAgent
-from jarvis.browser.models import BrowserActionResult, ScrapeResult
-from jarvis.browser.session import BrowserSessionManager
-from jarvis.vision.computer_use import ComputerUseVision, UIElement
 from jarvis.vision.visual_verifier import VisualVerifier
-from jarvis.automation.gui_actor import GUIActor, GUIActionResult
+from jarvis.web.hub import WebIntelligenceHub
 from jarvis.workers.manager import SubAgentManager
-from jarvis.workers.models import WorkerPriority, WorkerStatus, WorkerTask, WorkerTelemetry
+from jarvis.workers.models import WorkerPriority, WorkerTask
 from jarvis.workers.notifications import WorkerNotificationDispatcher
 
 log = logging.getLogger("jarvis.core.app")
@@ -100,7 +96,7 @@ class JarvisApp:
 
     def __init__(
         self,
-        config_path: Optional[str] = None,
+        config_path: str | None = None,
         headless: bool = False,
         no_hot_reload: bool = False,
     ) -> None:
@@ -118,60 +114,60 @@ class JarvisApp:
         self.plugin_registry = PluginRegistry(self.dispatcher)
 
         # 2. Audio & Speech Subsystems
-        self.tts_manager: Optional[TTSManager] = None
-        self.audio_engine: Optional[AudioEngine] = None
-        self.gesture_detector: Optional[GestureDetector] = None
-        self.wake_word_detector: Optional[WakeWordDetector] = None
-        self.stt_engine: Optional[STTEngine] = None
+        self.tts_manager: TTSManager | None = None
+        self.audio_engine: AudioEngine | None = None
+        self.gesture_detector: GestureDetector | None = None
+        self.wake_word_detector: WakeWordDetector | None = None
+        self.stt_engine: STTEngine | None = None
 
         # 3. AI, Memory & Reasoning Subsystems
-        self.llm_client: Optional[LLMClient] = None
-        self.llm_router: Optional[LLMIntentRouter] = None
-        self.memory_manager: Optional[MemoryManager] = None
+        self.llm_client: LLMClient | None = None
+        self.llm_router: LLMIntentRouter | None = None
+        self.memory_manager: MemoryManager | None = None
 
         # 4. Perception & Web Intelligence Subsystems
-        self.vision_manager: Optional[ScreenVisionManager] = None
-        self.web_hub: Optional[WebIntelligenceHub] = None
+        self.vision_manager: ScreenVisionManager | None = None
+        self.web_hub: WebIntelligenceHub | None = None
 
         # 5. OS Automation & Dev Shell Subsystems
-        self.computer_controller: Optional[ComputerController] = None
-        self.safety_gate: Optional[SafetyGate] = None
-        self.shell_assistant: Optional[ShellAssistant] = None
+        self.computer_controller: ComputerController | None = None
+        self.safety_gate: SafetyGate | None = None
+        self.shell_assistant: ShellAssistant | None = None
 
         # 6. Proactive Intelligence Engine
-        self.proactive_engine: Optional[ProactiveEngine] = None
+        self.proactive_engine: ProactiveEngine | None = None
 
         # 7. User Interfaces
-        self.tray_controller: Optional[SystemTrayController] = None
-        self.dashboard_server: Optional[DashboardServer] = None
-        self.overlay: Optional[AlwaysOnOverlay] = None
+        self.tray_controller: SystemTrayController | None = None
+        self.dashboard_server: DashboardServer | None = None
+        self.overlay: AlwaysOnOverlay | None = None
 
         # 8. Hardware Telemetry & Diagnostics
-        self.hardware_reporter: Optional[HardwareReporter] = None
+        self.hardware_reporter: HardwareReporter | None = None
 
         # 8b. System-Wide Hotkey Shortcuts
-        self.hotkey_manager: Optional[GlobalHotkeyManager] = None
+        self.hotkey_manager: GlobalHotkeyManager | None = None
 
         # 9. Autonomous Superpower Subsystems (Milestones 1-5)
-        self.safety_interceptor: Optional[SafetyGateInterceptor] = None
-        self.reflection_engine: Optional[SelfReflectionEngine] = None
-        self.planner_engine: Optional[ReActTaskEngine] = None
-        self.react_planner: Optional[ReActTaskEngine] = None  # Alias
-        self.sandbox: Optional[CodeInterpreterSandbox] = None
-        self.skill_registry: Optional[SkillRegistry] = None
-        self.skill_synthesizer: Optional[DynamicSkillSynthesizer] = None
-        self.browser_session_manager: Optional[BrowserSessionManager] = None
-        self.browser_agent: Optional[BrowserAgent] = None
-        self.computer_use_vision: Optional[ComputerUseVision] = None
-        self.visual_verifier: Optional[VisualVerifier] = None
-        self.gui_actor: Optional[GUIActor] = None
-        self.worker_notifications: Optional[WorkerNotificationDispatcher] = None
-        self.subagent_manager: Optional[SubAgentManager] = None
-        self.worker_pool: Optional[SubAgentManager] = None  # Alias
+        self.safety_interceptor: SafetyGateInterceptor | None = None
+        self.reflection_engine: SelfReflectionEngine | None = None
+        self.planner_engine: ReActTaskEngine | None = None
+        self.react_planner: ReActTaskEngine | None = None  # Alias
+        self.sandbox: CodeInterpreterSandbox | None = None
+        self.skill_registry: SkillRegistry | None = None
+        self.skill_synthesizer: DynamicSkillSynthesizer | None = None
+        self.browser_session_manager: BrowserSessionManager | None = None
+        self.browser_agent: BrowserAgent | None = None
+        self.computer_use_vision: ComputerUseVision | None = None
+        self.visual_verifier: VisualVerifier | None = None
+        self.gui_actor: GUIActor | None = None
+        self.worker_notifications: WorkerNotificationDispatcher | None = None
+        self.subagent_manager: SubAgentManager | None = None
+        self.worker_pool: SubAgentManager | None = None  # Alias
 
         self._initialized: bool = False
         self.welcome_executed = False
-        self._pattern_last_fired: Dict[str, float] = {}
+        self._pattern_last_fired: dict[str, float] = {}
         self._action_fanout_cooldown_s: float = 3.0
 
     def log_interaction(
@@ -320,7 +316,7 @@ class JarvisApp:
         )
 
         # 14. AudioEngine with Multi-Subscriber Dispatch
-        def _on_audio_blocks_dispatch(block: np.ndarray, timestamp: Optional[float] = None) -> None:
+        def _on_audio_blocks_dispatch(block: np.ndarray, timestamp: float | None = None) -> None:
             if self.gesture_detector:
                 try:
                     self.gesture_detector.feed_audio_block(block, timestamp=timestamp)
@@ -784,7 +780,7 @@ class JarvisApp:
 
     # ── Action Handlers ──────────────────────────────────────────────────────
 
-    def _handle_tts_welcome(self, **kwargs) -> Dict[str, Any]:
+    def _handle_tts_welcome(self, **kwargs) -> dict[str, Any]:
         """Dispatches welcome speech via TTSManager."""
         if self.tts_manager:
             delay = float(self.config.get("tts.welcome.delay_after_song_s", 1.0))
@@ -792,7 +788,7 @@ class JarvisApp:
             return {"status": "welcome_spoken"}
         return {"status": "tts_unavailable"}
 
-    def _handle_system_status(self, **kwargs) -> Dict[str, Any]:
+    def _handle_system_status(self, **kwargs) -> dict[str, Any]:
         """Vocalizes and returns system health status with live CPU and RAM metrics."""
         lang = "vi"
         if self.config:
@@ -800,7 +796,7 @@ class JarvisApp:
             lang = "en" if locale.startswith("en") else "vi"
 
         msg = ""
-        metrics_dict: Dict[str, Any] = {}
+        metrics_dict: dict[str, Any] = {}
         if self.hardware_reporter:
             try:
                 if self.hardware_reporter.monitor.provider is not None:
@@ -848,42 +844,42 @@ class JarvisApp:
             "metrics": metrics_dict,
         }
 
-    def _handle_toggle_mute(self, **kwargs) -> Dict[str, Any]:
+    def _handle_toggle_mute(self, **kwargs) -> dict[str, Any]:
         """Toggles microphone mute state."""
         if self.tray_controller:
             self.tray_controller._on_toggle_mute()
             return {"muted": self.tray_controller._is_mic_muted}
         return {"muted": False}
 
-    def _handle_show_overlay(self, **kwargs) -> Dict[str, Any]:
+    def _handle_show_overlay(self, **kwargs) -> dict[str, Any]:
         """Shows the JARVIS chat overlay window."""
         if self.overlay:
             self.overlay.show_listening()
             return {"status": "overlay_shown"}
         return {"status": "overlay_unavailable"}
 
-    def _handle_toggle_sidebar(self, **kwargs) -> Dict[str, Any]:
+    def _handle_toggle_sidebar(self, **kwargs) -> dict[str, Any]:
         """Toggles overlay sidebar mode."""
         if self.overlay:
             self.overlay.toggle_sidebar()
             return {"status": "sidebar_toggled", "mode": self.overlay.mode.value}
         return {"status": "overlay_unavailable"}
 
-    def _handle_collapse_sidebar(self, **kwargs) -> Dict[str, Any]:
+    def _handle_collapse_sidebar(self, **kwargs) -> dict[str, Any]:
         """Collapses sidebar to 40px ribbon."""
         if self.overlay:
             self.overlay.collapse_sidebar()
             return {"status": "sidebar_collapsed"}
         return {"status": "overlay_unavailable"}
 
-    def _handle_expand_sidebar(self, **kwargs) -> Dict[str, Any]:
+    def _handle_expand_sidebar(self, **kwargs) -> dict[str, Any]:
         """Expands sidebar back to full width."""
         if self.overlay:
             self.overlay.expand_sidebar()
             return {"status": "sidebar_expanded"}
         return {"status": "overlay_unavailable"}
 
-    def _handle_screen_capture(self, filepath: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_screen_capture(self, filepath: str | None = None, **kwargs) -> dict[str, Any]:
         """Captures screen and saves to file."""
         if self.vision_manager:
             try:
@@ -894,35 +890,35 @@ class JarvisApp:
                 return {"status": "failed", "error": str(e), "message": f"Không thể chụp màn hình: {e}"}
         return {"status": "failed", "message": "Vision subsystem unavailable"}
 
-    def _handle_screen_analyze(self, query: str = "Mô tả những gì đang hiển thị trên màn hình", **kwargs) -> Dict[str, Any]:
+    def _handle_screen_analyze(self, query: str = "Mô tả những gì đang hiển thị trên màn hình", **kwargs) -> dict[str, Any]:
         """Performs visual analysis of the screen."""
         if self.vision_manager:
             res = self.vision_manager.analyze_screen(query=query)
             return {"status": "success", "analysis": res, "message": res}
         return {"status": "failed", "message": "Tôi chưa thể nhìn thấy màn hình do chưa cấu hình Vision API key, thưa Ngài."}
 
-    def _handle_screen_explain_error(self, **kwargs) -> Dict[str, Any]:
+    def _handle_screen_explain_error(self, **kwargs) -> dict[str, Any]:
         """Scans for error dialog and explains remediation."""
         if self.vision_manager:
             res = self.vision_manager.explain_error_on_screen()
             return {"status": "success", "explanation": res, "message": res}
         return {"status": "failed", "message": "Vision subsystem unavailable"}
 
-    def _handle_screen_summarize(self, **kwargs) -> Dict[str, Any]:
+    def _handle_screen_summarize(self, **kwargs) -> dict[str, Any]:
         """Summarizes open document on screen."""
         if self.vision_manager:
             res = self.vision_manager.summarize_document_on_screen()
             return {"status": "success", "summary": res, "message": res}
         return {"status": "failed", "message": "Vision subsystem unavailable"}
 
-    def _handle_web_search(self, query: str, **kwargs) -> Dict[str, Any]:
+    def _handle_web_search(self, query: str, **kwargs) -> dict[str, Any]:
         """Searches the web and returns summary."""
         if self.web_hub:
             res = self.web_hub.search(query=query)
             return {"status": "success", "result": res, "message": res}
         return {"status": "failed", "message": "Web intelligence hub unavailable"}
 
-    def _handle_weather_query(self, city: str = "Hanoi", location: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_weather_query(self, city: str = "Hanoi", location: str | None = None, **kwargs) -> dict[str, Any]:
         """Fetches weather forecast."""
         target_city = location or city
         if self.web_hub:
@@ -930,7 +926,7 @@ class JarvisApp:
             return {"status": "success", "weather": res, "message": res}
         return {"status": "failed", "message": "Weather service unavailable"}
 
-    def _handle_news_headlines(self, limit: int = 3, **kwargs) -> Dict[str, Any]:
+    def _handle_news_headlines(self, limit: int = 3, **kwargs) -> dict[str, Any]:
         """Fetches top technology news headlines."""
         if self.web_hub:
             headlines = self.web_hub.get_top_news(limit=limit)
@@ -938,7 +934,7 @@ class JarvisApp:
             return {"status": "success", "news": headlines, "message": msg}
         return {"status": "failed", "message": "News aggregator unavailable"}
 
-    def _handle_crypto_rates(self, **kwargs) -> Dict[str, Any]:
+    def _handle_crypto_rates(self, **kwargs) -> dict[str, Any]:
         """Fetches crypto and currency rates."""
         if self.web_hub:
             rates = self.web_hub.get_crypto_rates()
@@ -946,7 +942,7 @@ class JarvisApp:
             return {"status": "success", "rates": rates, "message": summary}
         return {"status": "failed", "message": "Financial tracker unavailable"}
 
-    def _handle_morning_briefing(self, city: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_morning_briefing(self, city: str | None = None, **kwargs) -> dict[str, Any]:
         """Generates comprehensive morning briefing."""
         if self.web_hub:
             briefing = self.web_hub.generate_morning_briefing(city=city)
@@ -959,21 +955,21 @@ class JarvisApp:
             }
         return {"status": "failed", "message": "Web intelligence hub unavailable"}
 
-    def _handle_window_active(self, **kwargs) -> Dict[str, Any]:
+    def _handle_window_active(self, **kwargs) -> dict[str, Any]:
         """Returns active foreground window info."""
         if self.computer_controller:
             win = self.computer_controller.get_active_window()
             return {"status": "success", "window": win, "message": f"Cửa sổ hiện tại: {win.get('title', 'N/A')}"}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
-    def _handle_window_minimize_all(self, **kwargs) -> Dict[str, Any]:
+    def _handle_window_minimize_all(self, **kwargs) -> dict[str, Any]:
         """Minimizes all windows."""
         if self.computer_controller:
             ok = self.computer_controller.minimize_all()
             return {"status": "success" if ok else "failed", "message": "Đã thu nhỏ tất cả các cửa sổ xuống màn hình Desktop, thưa Ngài."}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
-    def _handle_system_volume(self, delta: Optional[int] = None, level: Optional[int] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_system_volume(self, delta: int | None = None, level: int | None = None, **kwargs) -> dict[str, Any]:
         """Adjusts or sets master audio volume."""
         if self.computer_controller:
             if level is not None:
@@ -984,7 +980,7 @@ class JarvisApp:
             return {"status": "success", "volume": vol, "message": f"Đã điều chỉnh âm lượng lên {vol}%, thưa Ngài."}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
-    def _handle_system_brightness(self, delta: Optional[int] = None, level: Optional[int] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_system_brightness(self, delta: int | None = None, level: int | None = None, **kwargs) -> dict[str, Any]:
         """Adjusts or sets screen brightness."""
         if self.computer_controller:
             if level is not None:
@@ -995,7 +991,7 @@ class JarvisApp:
             return {"status": "success", "brightness": b, "message": f"Đã điều chỉnh độ sáng màn hình thành {b}%, thưa Ngài."}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
-    def _handle_file_search(self, filename: Optional[str] = None, pattern: Optional[str] = None, directory: Optional[str] = None, root_dir: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_file_search(self, filename: str | None = None, pattern: str | None = None, directory: str | None = None, root_dir: str | None = None, **kwargs) -> dict[str, Any]:
         """Searches local files."""
         target_name = pattern or filename or "*.*"
         target_root = directory or root_dir
@@ -1008,7 +1004,7 @@ class JarvisApp:
             return {"status": "success", "matches": matches, "files": matches, "message": msg}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
-    def _handle_folder_open(self, folder: str, **kwargs) -> Dict[str, Any]:
+    def _handle_folder_open(self, folder: str, **kwargs) -> dict[str, Any]:
         """Opens folder in Explorer."""
         if self.computer_controller:
             ok = self.computer_controller.open_folder(folder)
@@ -1016,7 +1012,7 @@ class JarvisApp:
             return {"status": "success" if ok else "failed", "message": msg}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
-    def _handle_app_open(self, app_name: Optional[str] = None, name: Optional[str] = None, app: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_app_open(self, app_name: str | None = None, name: str | None = None, app: str | None = None, **kwargs) -> dict[str, Any]:
         """Opens desktop application by name or alias."""
         target = app_name or name or app or kwargs.get("query") or ""
         if self.computer_controller:
@@ -1025,7 +1021,7 @@ class JarvisApp:
             return {"status": "success" if res.get("success") else "failed", "result": res, "message": msg}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
-    def _handle_web_open(self, url: Optional[str] = None, target: Optional[str] = None, query: Optional[str] = None, site: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_web_open(self, url: str | None = None, target: str | None = None, query: str | None = None, site: str | None = None, **kwargs) -> dict[str, Any]:
         """Opens target website or search query in browser."""
         dest = url or target or site or query or kwargs.get("website") or ""
         if self.computer_controller:
@@ -1034,7 +1030,7 @@ class JarvisApp:
             return {"status": "success" if res.get("success") else "failed", "result": res, "message": msg}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
-    def _handle_shell_execute(self, query: str, cwd: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_shell_execute(self, query: str, cwd: str | None = None, **kwargs) -> dict[str, Any]:
         """Executes natural language shell command."""
         if self.shell_assistant:
             res = self.shell_assistant.execute_natural_command(query=query, cwd=cwd)
@@ -1042,7 +1038,7 @@ class JarvisApp:
             return {"status": "success" if res.get("success") else "failed", "result": res, "message": msg}
         return {"status": "failed", "message": "Shell assistant unavailable"}
 
-    def _handle_safety_gate_confirm(self, token: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_safety_gate_confirm(self, token: str | None = None, **kwargs) -> dict[str, Any]:
         """Confirms pending high-risk action."""
         if self.safety_gate:
             t = token or (self.safety_gate.get_latest_pending().token if self.safety_gate.get_latest_pending() else "")
@@ -1051,7 +1047,7 @@ class JarvisApp:
             return {"status": "success" if ok else "failed", "message": msg}
         return {"status": "failed", "message": "Safety gate unavailable"}
 
-    def _handle_safety_gate_reject(self, token: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_safety_gate_reject(self, token: str | None = None, **kwargs) -> dict[str, Any]:
         """Rejects pending high-risk action."""
         if self.safety_gate:
             t = token or (self.safety_gate.get_latest_pending().token if self.safety_gate.get_latest_pending() else "")
@@ -1060,7 +1056,7 @@ class JarvisApp:
             return {"status": "success" if ok else "failed", "message": msg}
         return {"status": "failed", "message": "Safety gate unavailable"}
 
-    def _handle_proactive_reminder(self, message: str, delay_seconds: Optional[float] = None, delay_minutes: Optional[float] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_proactive_reminder(self, message: str, delay_seconds: float | None = None, delay_minutes: float | None = None, **kwargs) -> dict[str, Any]:
         """Schedules timed reminder."""
         sec = float(delay_seconds if delay_seconds is not None else ((delay_minutes or 5.0) * 60.0))
         if self.proactive_engine:
@@ -1069,7 +1065,7 @@ class JarvisApp:
             return {"status": "success", "reminder_id": r_id, "message": msg}
         return {"status": "failed", "message": "Proactive engine unavailable"}
 
-    def _handle_proactive_pomodoro_start(self, work_minutes: float = 25.0, break_minutes: float = 5.0, **kwargs) -> Dict[str, Any]:
+    def _handle_proactive_pomodoro_start(self, work_minutes: float = 25.0, break_minutes: float = 5.0, **kwargs) -> dict[str, Any]:
         """Starts Pomodoro timer."""
         if self.proactive_engine:
             res = self.proactive_engine.start_pomodoro(work_minutes=work_minutes, break_minutes=break_minutes)
@@ -1077,14 +1073,14 @@ class JarvisApp:
             return {"status": "success", "message": msg}
         return {"status": "failed", "message": "Proactive engine unavailable"}
 
-    def _handle_proactive_pomodoro_stop(self, **kwargs) -> Dict[str, Any]:
+    def _handle_proactive_pomodoro_stop(self, **kwargs) -> dict[str, Any]:
         """Stops Pomodoro timer."""
         if self.proactive_engine:
             self.proactive_engine.stop_pomodoro()
             return {"status": "success", "message": "Đã dừng phiên tập trung Focus Mode, thưa Ngài."}
         return {"status": "failed", "message": "Proactive engine unavailable"}
 
-    def _handle_memory_save_fact(self, key: Optional[str] = None, value: Optional[str] = None, text: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_memory_save_fact(self, key: str | None = None, value: str | None = None, text: str | None = None, **kwargs) -> dict[str, Any]:
         """Saves persistent fact."""
         if self.memory_manager:
             if text:
@@ -1101,7 +1097,7 @@ class JarvisApp:
             return {"status": "success" if res.get("success") else "failed", "message": res.get("message", "")}
         return {"status": "failed", "message": "Memory manager unavailable"}
 
-    def _handle_memory_summarize_daily(self, text: str = "", **kwargs) -> Dict[str, Any]:
+    def _handle_memory_summarize_daily(self, text: str = "", **kwargs) -> dict[str, Any]:
         """Summarizes today's episodic memory logs."""
         if self.memory_manager:
             res = self.memory_manager.handle_today_summary(text)
@@ -1110,7 +1106,7 @@ class JarvisApp:
 
     # ── Autonomous Superpower Action Handlers ────────────────────────────────
 
-    def _handle_generic_task(self, **kwargs) -> Dict[str, Any]:
+    def _handle_generic_task(self, **kwargs) -> dict[str, Any]:
         """Generic fallback task handler for autonomous plan execution."""
         return {"status": "completed", "details": kwargs, "message": "Tác vụ tự trị đã hoàn thành."}
 
@@ -1118,9 +1114,9 @@ class JarvisApp:
         self,
         goal: str,
         mode: str = "fully_autonomous",
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Constructs and executes an autonomous multi-step Task DAG."""
         if not self.planner_engine:
             return {"status": "failed", "message": "ReAct Planner Subsystem is unavailable."}
@@ -1173,12 +1169,12 @@ class JarvisApp:
     def _handle_subagent_spawn(
         self,
         name: str,
-        payload: Optional[Dict[str, Any]] = None,
-        target_callable: Optional[Callable[..., Any]] = None,
+        payload: dict[str, Any] | None = None,
+        target_callable: Callable[..., Any] | None = None,
         priority: str = "normal",
         timeout_seconds: float = 300.0,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Spawns an autonomous background sub-agent worker."""
         if not self.subagent_manager:
             return {"status": "failed", "message": "SubAgent Manager is unavailable."}
@@ -1195,7 +1191,7 @@ class JarvisApp:
         msg = f"Đã khởi chạy background worker '{name}' (ID: {worker_id}), thưa Ngài."
         return {"status": "success", "worker_id": worker_id, "name": name, "message": msg}
 
-    def _handle_subagent_cancel(self, worker_id: str, **kwargs) -> Dict[str, Any]:
+    def _handle_subagent_cancel(self, worker_id: str, **kwargs) -> dict[str, Any]:
         """Cancels an active background sub-agent worker."""
         if not self.subagent_manager:
             return {"status": "failed", "message": "SubAgent Manager is unavailable."}
@@ -1203,7 +1199,7 @@ class JarvisApp:
         msg = f"Đã hủy worker {worker_id} thành công." if ok else f"Không tìm thấy worker {worker_id} hoặc worker đã dừng."
         return {"status": "success" if ok else "failed", "worker_id": worker_id, "message": msg}
 
-    def _handle_subagent_status(self, worker_id: str, **kwargs) -> Dict[str, Any]:
+    def _handle_subagent_status(self, worker_id: str, **kwargs) -> dict[str, Any]:
         """Queries status telemetry for a sub-agent worker."""
         if not self.subagent_manager:
             return {"status": "failed", "message": "SubAgent Manager is unavailable."}
@@ -1218,7 +1214,7 @@ class JarvisApp:
         language: str = "python",
         timeout_seconds: float = 15.0,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Executes code safely in the isolated sandbox."""
         if not self.sandbox:
             return {"status": "failed", "message": "Code Interpreter Sandbox is unavailable."}
@@ -1260,10 +1256,10 @@ class JarvisApp:
         code: str,
         description: str = "",
         category: str = "custom",
-        requirements: Optional[List[str]] = None,
+        requirements: list[str] | None = None,
         overwrite: bool = True,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Synthesizes, tests, and packages code as a reusable persistent skill."""
         if not self.skill_synthesizer:
             return {"status": "failed", "message": "Skill Synthesizer is unavailable."}
@@ -1285,7 +1281,7 @@ class JarvisApp:
             return {"status": "success", "skill_name": name, "module_path": skill_def.file_path, "message": msg}
         return {"status": "failed", "skill_name": name, "message": f"Không thể đóng gói kỹ năng '{name}' do lỗi kiểm thử hoặc cú pháp."}
 
-    def _handle_skill_invoke(self, skill_name: str, **kwargs) -> Dict[str, Any]:
+    def _handle_skill_invoke(self, skill_name: str, **kwargs) -> dict[str, Any]:
         """Invokes a packaged persistent skill from library."""
         if not self.skill_registry:
             return {"status": "failed", "message": "Skill Registry is unavailable."}
@@ -1295,7 +1291,7 @@ class JarvisApp:
         except Exception as e:
             return {"status": "failed", "error": str(e), "message": f"Lỗi khi thực thi kỹ năng '{skill_name}': {e}"}
 
-    def _handle_browser_navigate(self, url: str, **kwargs) -> Dict[str, Any]:
+    def _handle_browser_navigate(self, url: str, **kwargs) -> dict[str, Any]:
         """Navigates browser to target URL and captures page state."""
         if not self.browser_agent:
             return {"status": "failed", "message": "Browser Agent is unavailable."}
@@ -1303,7 +1299,7 @@ class JarvisApp:
         msg = f"Đã điều hướng tới {url} ({res.title or 'Sẵn sàng'})." if res.success else f"Không thể điều hướng tới {url}: {res.error}"
         return {"status": "success" if res.success else "failed", "url": url, "title": res.title, "message": msg}
 
-    def _handle_browser_scrape(self, url: str, extract_tables: bool = True, **kwargs) -> Dict[str, Any]:
+    def _handle_browser_scrape(self, url: str, extract_tables: bool = True, **kwargs) -> dict[str, Any]:
         """Scrapes and parses structured markdown from web page."""
         if not self.browser_agent:
             return {"status": "failed", "message": "Browser Agent is unavailable."}
@@ -1321,10 +1317,10 @@ class JarvisApp:
     def _handle_browser_fill_form(
         self,
         url: str,
-        fields: Dict[str, str],
-        submit_selector: Optional[str] = None,
+        fields: dict[str, str],
+        submit_selector: str | None = None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Fills and submits web forms automatically."""
         if not self.browser_agent:
             return {"status": "failed", "message": "Browser Agent is unavailable."}
@@ -1332,7 +1328,7 @@ class JarvisApp:
         msg = f"Đã điền tự động {len(fields)} trường dữ liệu trên {url}." if res.success else f"Lỗi điền form: {res.error}"
         return {"status": "success" if res.success else "failed", "url": url, "fields": fields, "message": msg}
 
-    def _handle_browser_compare_prices(self, product: str, stores: Optional[List[str]] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_browser_compare_prices(self, product: str, stores: list[str] | None = None, **kwargs) -> dict[str, Any]:
         """Scrapes multiple eCommerce sites and compares prices."""
         if not self.browser_agent:
             return {"status": "failed", "message": "Browser Agent is unavailable."}
@@ -1341,7 +1337,7 @@ class JarvisApp:
         msg = f"Đã so sánh giá cho '{product}' trên {len(target_stores)} sàn TMĐT, tìm thấy {len(items)} kết quả."
         return {"status": "success", "product": product, "items": [i.to_dict() if hasattr(i, "to_dict") else i for i in items], "message": msg}
 
-    def _handle_vision_click_ui(self, query: str, verify: bool = True, button: str = "left", clicks: int = 1, **kwargs) -> Dict[str, Any]:
+    def _handle_vision_click_ui(self, query: str, verify: bool = True, button: str = "left", clicks: int = 1, **kwargs) -> dict[str, Any]:
         """Locates target UI element visually and clicks it."""
         if not self.gui_actor:
             return {"status": "failed", "message": "GUIActor subsystem is unavailable."}
@@ -1357,7 +1353,7 @@ class JarvisApp:
         msg = f"Đã click vào phần tử '{query}' trên màn hình." if is_success else f"Không thể click vào '{query}': {err_msg or 'Thao tác không thành công'}"
         return {"status": "success" if is_success else "failed", "element": elem.to_dict() if elem and hasattr(elem, "to_dict") else None, "message": msg}
 
-    def _handle_vision_type_ui(self, query: str, text: str, verify: bool = True, press_enter: bool = False, **kwargs) -> Dict[str, Any]:
+    def _handle_vision_type_ui(self, query: str, text: str, verify: bool = True, press_enter: bool = False, **kwargs) -> dict[str, Any]:
         """Locates target UI field visually and types text."""
         if not self.gui_actor:
             return {"status": "failed", "message": "GUIActor subsystem is unavailable."}
@@ -1373,7 +1369,7 @@ class JarvisApp:
         msg = f"Đã nhập văn bản vào '{query}'." if is_success else f"Không thể nhập vào '{query}': {err_msg or 'Thao tác không thành công'}"
         return {"status": "success" if is_success else "failed", "element": elem.to_dict() if elem and hasattr(elem, "to_dict") else None, "message": msg}
 
-    def _handle_vision_verify_state(self, query: Optional[str] = None, expected_condition: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    def _handle_vision_verify_state(self, query: str | None = None, expected_condition: str | None = None, **kwargs) -> dict[str, Any]:
         """Performs visual verification check on screen state."""
         if not self.visual_verifier:
             return {"status": "failed", "message": "Visual Verifier is unavailable."}
@@ -1395,8 +1391,8 @@ class JarvisApp:
 
     def record_audio(
         self,
-        duration_s: Optional[float] = None,
-        sample_rate: Optional[int] = None,
+        duration_s: float | None = None,
+        sample_rate: int | None = None,
     ) -> np.ndarray:
         """
         Captures an audio buffer from the microphone with fast energy-based silence cutoff.
@@ -1410,7 +1406,7 @@ class JarvisApp:
         try:
             import sounddevice as _sd
             chunk_size = int(sr * 0.15)  # 150ms chunks
-            recorded_chunks: List[np.ndarray] = []
+            recorded_chunks: list[np.ndarray] = []
             max_chunks = int(max_dur / 0.15)
             silence_chunks_after_speech = 0
             has_speech_started = False
@@ -1616,7 +1612,7 @@ class JarvisApp:
             )
             return
 
-        action_names: List[str] = self.config.get(f"gesture.patterns.{pattern_name}.actions", [])
+        action_names: list[str] = self.config.get(f"gesture.patterns.{pattern_name}.actions", [])
         for act in action_names:
             try:
                 self.dispatcher.dispatch_action(act, requester=RequesterContext.system())
@@ -1631,7 +1627,7 @@ class JarvisApp:
                 status="success",
             )
 
-    def process_voice_command(self, audio_buffer: np.ndarray) -> Dict[str, Any]:
+    def process_voice_command(self, audio_buffer: np.ndarray) -> dict[str, Any]:
         """
         End-to-End Voice Loop:
         Record Audio -> STT Transcribe -> LLM Intent Parse / Autonomous Plan -> Dispatch Action -> TTS Speak.
@@ -1655,7 +1651,7 @@ class JarvisApp:
         log.info("Voice Transcript: '%s'", transcript)
         return self.process_text_command(transcript, requester="voice")
 
-    def process_text_command(self, text: str, requester: str = "user") -> Dict[str, Any]:
+    def process_text_command(self, text: str, requester: str = "user") -> dict[str, Any]:
         """
         Executes text command:
         Inactivity Reset -> Short-Term Memory Turn -> Intent Parsing / Multi-step ReAct Planning -> Action Dispatch ->

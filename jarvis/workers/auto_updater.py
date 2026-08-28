@@ -13,19 +13,17 @@ Lệnh thoại:
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
-import shutil
 import subprocess
 import sys
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from urllib.request import urlopen, Request
+from typing import Any
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 log = logging.getLogger("jarvis.workers.auto_updater")
 
@@ -43,7 +41,7 @@ class ReleaseInfo:
     name: str
     body: str
     published_at: str
-    assets: List[Dict[str, Any]] = field(default_factory=list)
+    assets: list[dict[str, Any]] = field(default_factory=list)
     download_url: str = ""
     is_prerelease: bool = False
 
@@ -53,7 +51,7 @@ class UpdateStatus:
     current_version: str
     latest_version: str
     update_available: bool
-    release: Optional[ReleaseInfo] = None
+    release: ReleaseInfo | None = None
     checked_at: str = ""
     error: str = ""
 
@@ -76,8 +74,8 @@ class AutoUpdater:
         self.auto_apply = auto_apply
         self.is_mock = is_mock
         self._running = False
-        self._thread: Optional[threading.Thread] = None
-        self._last_status: Optional[UpdateStatus] = None
+        self._thread: threading.Thread | None = None
+        self._last_status: UpdateStatus | None = None
         _BACKUP_DIR.mkdir(parents=True, exist_ok=True)
         Path("logs").mkdir(exist_ok=True)
 
@@ -100,7 +98,7 @@ class AutoUpdater:
     # GitHub API
     # ------------------------------------------------------------------
 
-    def fetch_latest_release(self) -> Optional[ReleaseInfo]:
+    def fetch_latest_release(self) -> ReleaseInfo | None:
         """Fetch latest release info from GitHub API."""
         if self.is_mock:
             return ReleaseInfo(
@@ -183,7 +181,7 @@ class AutoUpdater:
         except ValueError:
             return new != old
 
-    def apply_update(self, release: ReleaseInfo) -> Dict[str, Any]:
+    def apply_update(self, release: ReleaseInfo) -> dict[str, Any]:
         """Download and apply update (git pull in dev mode)."""
         if self.is_mock:
             return {"success": True, "message": f"Mock: đã cập nhật lên {release.tag}", "new_version": release.tag}
@@ -213,7 +211,7 @@ class AutoUpdater:
             log.error("Apply update error: %s", exc)
             return {"success": False, "message": str(exc)}
 
-    def rollback(self) -> Dict[str, Any]:
+    def rollback(self) -> dict[str, Any]:
         """Rollback to the previous backup version."""
         if self.is_mock:
             return {"success": True, "message": "Mock: rollback thành công"}
@@ -243,7 +241,7 @@ class AutoUpdater:
         backup_file.write_text(f"version={current}\nbackup_time={ts}\n")
         log.info("Backup marker: %s", backup_file)
 
-    def _save_update_log(self, status: Optional[UpdateStatus], applied: bool = False) -> None:
+    def _save_update_log(self, status: UpdateStatus | None, applied: bool = False) -> None:
         """Append update check to history log."""
         if status is None:
             return
@@ -264,7 +262,7 @@ class AutoUpdater:
         except Exception as exc:
             log.debug("Save update log error: %s", exc)
 
-    def get_update_history(self) -> List[Dict]:
+    def get_update_history(self) -> list[dict]:
         """Return last N update check records."""
         try:
             if _UPDATE_LOG.exists():
@@ -273,7 +271,7 @@ class AutoUpdater:
             pass
         return []
 
-    def get_last_status(self) -> Optional[UpdateStatus]:
+    def get_last_status(self) -> UpdateStatus | None:
         return self._last_status
 
     # ------------------------------------------------------------------

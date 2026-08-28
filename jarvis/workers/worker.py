@@ -9,8 +9,9 @@ import inspect
 import logging
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Union
 import uuid
+from collections.abc import Callable
+from typing import Any
 
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
 from jarvis.healing.watchdog import ResourceWatchdog
@@ -33,11 +34,11 @@ class BackgroundWorker:
     def __init__(
         self,
         task: WorkerTask,
-        worker_id: Optional[str] = None,
-        watchdog: Optional[ResourceWatchdog] = None,
-        event_bus: Optional[EventBus] = None,
-        dispatcher: Optional[ActionDispatcher] = None,
-        on_complete_callback: Optional[Callable[[WorkerTelemetry, WorkerTask], None]] = None,
+        worker_id: str | None = None,
+        watchdog: ResourceWatchdog | None = None,
+        event_bus: EventBus | None = None,
+        dispatcher: ActionDispatcher | None = None,
+        on_complete_callback: Callable[[WorkerTelemetry, WorkerTask], None] | None = None,
     ) -> None:
         self.task = task
         self.worker_id = worker_id or f"worker_{uuid.uuid4().hex[:8]}"
@@ -51,7 +52,7 @@ class BackgroundWorker:
         self._pause_event.set()  # Not paused by default (set means running)
 
         self._lock = threading.RLock()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
         self._telemetry = WorkerTelemetry(
             worker_id=self.worker_id,
@@ -149,8 +150,8 @@ class BackgroundWorker:
         self,
         pct: float,
         step: str = "",
-        artifacts: Optional[List[str]] = None,
-        estimated_remaining_seconds: Optional[float] = None,
+        artifacts: list[str] | None = None,
+        estimated_remaining_seconds: float | None = None,
         data: Any = None,
     ) -> None:
         """
@@ -263,7 +264,7 @@ class BackgroundWorker:
         if self.task.target_callable and callable(self.task.target_callable):
             fn = self.task.target_callable
             sig = inspect.signature(fn)
-            kwargs: Dict[str, Any] = dict(self.task.payload)
+            kwargs: dict[str, Any] = dict(self.task.payload)
 
             # Pass worker or helper dependencies if requested in parameters
             if "worker" in sig.parameters:
@@ -295,7 +296,7 @@ class BackgroundWorker:
                 self.update_progress(i * 20.0, step=f"Đang xử lý bước {i}/5")
             return {"status": "success", "message": f"Task {self.task.name} completed successfully."}
 
-    def join(self, timeout: Optional[float] = None) -> None:
+    def join(self, timeout: float | None = None) -> None:
         """Blocks until the worker thread terminates."""
         if self._thread:
             self._thread.join(timeout=timeout)

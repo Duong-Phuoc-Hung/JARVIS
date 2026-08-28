@@ -16,9 +16,10 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 log = logging.getLogger("jarvis.agent.graph")
 
@@ -38,7 +39,7 @@ class ThoughtStep:
     step_type: str      # "thought" | "action" | "observation" | "reflection"
     content: str
     tool_name: str = ""
-    tool_args: Dict[str, Any] = field(default_factory=dict)
+    tool_args: dict[str, Any] = field(default_factory=dict)
     tool_result: str = ""
     timestamp: float = field(default_factory=time.time)
 
@@ -47,7 +48,7 @@ class ThoughtStep:
 class AgentTask:
     task_id: str
     goal: str
-    steps: List[ThoughtStep] = field(default_factory=list)
+    steps: list[ThoughtStep] = field(default_factory=list)
     state: AgentState = AgentState.IDLE
     result: str = ""
     error: str = ""
@@ -61,7 +62,7 @@ class Tool:
     name: str
     description: str
     fn: Callable
-    args_schema: Dict[str, str] = field(default_factory=dict)
+    args_schema: dict[str, str] = field(default_factory=dict)
 
 
 class ReActAgent:
@@ -73,14 +74,14 @@ class ReActAgent:
 
     def __init__(
         self,
-        tools: Optional[List[Tool]] = None,
+        tools: list[Tool] | None = None,
         max_iterations: int = 10,
         is_mock: bool = False,
     ) -> None:
-        self.tools: Dict[str, Tool] = {t.name: t for t in (tools or [])}
+        self.tools: dict[str, Tool] = {t.name: t for t in (tools or [])}
         self.max_iterations = max_iterations
         self.is_mock = is_mock
-        self._tasks: Dict[str, AgentTask] = {}
+        self._tasks: dict[str, AgentTask] = {}
         self._register_default_tools()
         log.info("ReActAgent initialized with %d tools (mock=%s)", len(self.tools), is_mock)
 
@@ -107,7 +108,7 @@ class ReActAgent:
         for name, desc, fn in skill_tools:
             self.tools[name] = Tool(name=name, description=desc, fn=fn)
 
-    def register_tool(self, name: str, description: str, fn: Callable, args_schema: Optional[Dict] = None) -> None:
+    def register_tool(self, name: str, description: str, fn: Callable, args_schema: dict | None = None) -> None:
         self.tools[name] = Tool(name=name, description=description, fn=fn, args_schema=args_schema or {})
 
     # ------------------------------------------------------------------
@@ -171,7 +172,7 @@ class ReActAgent:
         task.completed_at = time.time()
         log.info("Task %s reached max iterations", task.task_id)
 
-    def _think(self, task: AgentTask) -> Tuple[str, str, Dict[str, Any]]:
+    def _think(self, task: AgentTask) -> tuple[str, str, dict[str, Any]]:
         """Generate next thought + tool call using LLM."""
         # Build context
         context = self._build_context(task)
@@ -199,7 +200,7 @@ class ReActAgent:
             # Simple heuristic fallback
             return self._heuristic_think(task)
 
-    def _heuristic_think(self, task: AgentTask) -> Tuple[str, str, Dict[str, Any]]:
+    def _heuristic_think(self, task: AgentTask) -> tuple[str, str, dict[str, Any]]:
         """Simple keyword-based tool selection when LLM unavailable."""
         goal_lower = task.goal.lower()
         if not task.steps:
@@ -217,12 +218,12 @@ class ReActAgent:
         # Default: done
         return ("Đã hoàn thành phân tích", "DONE", {})
 
-    def _parse_react_response(self, response: str) -> Tuple[str, str, Dict[str, Any]]:
+    def _parse_react_response(self, response: str) -> tuple[str, str, dict[str, Any]]:
         """Parse LLM ReAct response into (thought, tool_name, args)."""
         lines = response.strip().splitlines()
         thought = ""
         tool_name = "DONE"
-        args: Dict[str, Any] = {}
+        args: dict[str, Any] = {}
         for line in lines:
             if line.startswith("Suy nghĩ:") or line.startswith("Thought:"):
                 thought = line.split(":", 1)[-1].strip()
@@ -237,7 +238,7 @@ class ReActAgent:
                     args = {"query": raw}
         return thought or "Phân tích tiếp theo...", tool_name, args
 
-    def _act(self, tool_name: str, args: Dict[str, Any]) -> str:
+    def _act(self, tool_name: str, args: dict[str, Any]) -> str:
         """Execute a tool and return string observation."""
         tool = self.tools.get(tool_name)
         if not tool:
@@ -289,21 +290,21 @@ class ReActAgent:
     # Built-in Tools
     # ------------------------------------------------------------------
 
-    def _tool_web_search(self, query: str = "", **kw) -> Dict:
+    def _tool_web_search(self, query: str = "", **kw) -> dict:
         try:
             from jarvis.skills.briefing import execute as b
             return b(action="news", query=query)
         except Exception:
             return {"output": f"Tìm kiếm: {query} (web không khả dụng trong mock)"}
 
-    def _tool_take_note(self, text: str = "", **kw) -> Dict:
+    def _tool_take_note(self, text: str = "", **kw) -> dict:
         try:
             from jarvis.skills.note_taker import execute as n
             return n(action="add", text=text)
         except Exception:
             return {"output": f"Ghi chú: {text}"}
 
-    def _tool_read_file(self, path: str = ".", **kw) -> Dict:
+    def _tool_read_file(self, path: str = ".", **kw) -> dict:
         from pathlib import Path
         try:
             p = Path(path)
@@ -313,7 +314,7 @@ class ReActAgent:
         except Exception as exc:
             return {"output": str(exc)}
 
-    def _tool_write_file(self, path: str = "", content: str = "", **kw) -> Dict:
+    def _tool_write_file(self, path: str = "", content: str = "", **kw) -> dict:
         from pathlib import Path
         try:
             Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -322,38 +323,38 @@ class ReActAgent:
         except Exception as exc:
             return {"output": str(exc)}
 
-    def _tool_run_python(self, code: str = "", **kw) -> Dict:
+    def _tool_run_python(self, code: str = "", **kw) -> dict:
         import ast
         try:
             ast.parse(code)  # syntax check
-            exec_globals: Dict[str, Any] = {}
+            exec_globals: dict[str, Any] = {}
             exec(code, exec_globals)
             return {"output": str(exec_globals.get("result", "Code chạy thành công"))}
         except Exception as exc:
             return {"output": f"Lỗi: {exc}"}
 
-    def _tool_browser(self, url: str = "", **kw) -> Dict:
+    def _tool_browser(self, url: str = "", **kw) -> dict:
         try:
             from jarvis.skills.browser_control import execute as br
             return br(action="open", url=url)
         except Exception as exc:
             return {"output": str(exc)}
 
-    def _tool_screenshot(self, **kw) -> Dict:
+    def _tool_screenshot(self, **kw) -> dict:
         try:
             from jarvis.skills.system_control import execute as sc
             return sc(action="screenshot")
         except Exception as exc:
             return {"output": str(exc)}
 
-    def _tool_calc(self, expression: str = "", **kw) -> Dict:
+    def _tool_calc(self, expression: str = "", **kw) -> dict:
         try:
             from jarvis.skills.calculator import execute as c
             return c(action="calculate", expression=expression)
         except Exception as exc:
             return {"output": str(exc)}
 
-    def _tool_memory_search(self, query: str = "", **kw) -> Dict:
+    def _tool_memory_search(self, query: str = "", **kw) -> dict:
         try:
             from jarvis.memory.manager import MemoryManager
             mgr = MemoryManager()
@@ -362,7 +363,7 @@ class ReActAgent:
         except Exception as exc:
             return {"output": str(exc)}
 
-    def _tool_send_telegram(self, message: str = "", **kw) -> Dict:
+    def _tool_send_telegram(self, message: str = "", **kw) -> dict:
         try:
             from jarvis.comms.telegram import TelegramController
             tg = TelegramController()
@@ -371,7 +372,7 @@ class ReActAgent:
         except Exception as exc:
             return {"output": str(exc)}
 
-    def _tool_list_dir(self, path: str = ".", **kw) -> Dict:
+    def _tool_list_dir(self, path: str = ".", **kw) -> dict:
         from pathlib import Path
         try:
             items = [str(p.name) for p in Path(path).iterdir()][:20]
@@ -379,7 +380,7 @@ class ReActAgent:
         except Exception as exc:
             return {"output": str(exc)}
 
-    def _tool_git_status(self, **kw) -> Dict:
+    def _tool_git_status(self, **kw) -> dict:
         import subprocess
         try:
             r = subprocess.run(["git", "status", "--short"], capture_output=True, text=True, timeout=5)
@@ -391,10 +392,10 @@ class ReActAgent:
     # Queries
     # ------------------------------------------------------------------
 
-    def get_task(self, task_id: str) -> Optional[AgentTask]:
+    def get_task(self, task_id: str) -> AgentTask | None:
         return self._tasks.get(task_id)
 
-    def list_tasks(self) -> List[Dict[str, Any]]:
+    def list_tasks(self) -> list[dict[str, Any]]:
         return [
             {"task_id": t.task_id, "goal": t.goal[:80], "state": t.state.value,
              "steps": len(t.steps), "result": t.result[:100]}

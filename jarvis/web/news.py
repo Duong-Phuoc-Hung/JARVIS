@@ -8,14 +8,13 @@ Caches results in TTLCache (10-minute TTL).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import html
 import logging
 import re
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
 
 try:
     import requests
@@ -55,7 +54,7 @@ class NewsArticle:
     published_at: str = ""
     source: str = ""
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         return {
             "title": self.title,
             "link": self.link,
@@ -72,8 +71,8 @@ class NewsAggregator:
 
     def __init__(
         self,
-        custom_feeds: Optional[Dict[str, List[Dict[str, str]]]] = None,
-        cache: Optional[TTLCache] = None,
+        custom_feeds: dict[str, list[dict[str, str]]] | None = None,
+        cache: TTLCache | None = None,
         cache_ttl: float = 600.0,
         timeout_seconds: float = 8.0,
     ) -> None:
@@ -82,7 +81,7 @@ class NewsAggregator:
         self.cache_ttl = cache_ttl
         self.timeout_seconds = timeout_seconds
 
-    def get_top_news(self, category: str = "tech", limit: int = 3) -> List[NewsArticle]:
+    def get_top_news(self, category: str = "tech", limit: int = 3) -> list[NewsArticle]:
         """
         Retrieves top news articles for a given category (tech, crypto, world, business).
         Checks TTLCache first before making network calls.
@@ -96,7 +95,7 @@ class NewsAggregator:
             return [NewsArticle(**item) if isinstance(item, dict) else item for item in cached]
 
         feed_list = self.feeds.get(clean_cat, self.feeds.get("tech", []))
-        articles: List[NewsArticle] = []
+        articles: list[NewsArticle] = []
 
         for feed_info in feed_list:
             feed_url = feed_info.get("url", "")
@@ -121,12 +120,12 @@ class NewsAggregator:
         self.cache.set(cache_key, [a.to_dict() for a in final_articles], ttl=self.cache_ttl)
         return final_articles
 
-    def get_news_headlines(self, category: str = "tech", limit: int = 3) -> List[str]:
+    def get_news_headlines(self, category: str = "tech", limit: int = 3) -> list[str]:
         """
         Returns a list of headline strings formatted as 'Title (Source)'.
         """
         articles = self.get_top_news(category=category, limit=limit)
-        headlines: List[str] = []
+        headlines: list[str] = []
         for a in articles:
             if a.source:
                 headlines.append(f"{a.title} ({a.source})")
@@ -134,7 +133,7 @@ class NewsAggregator:
                 headlines.append(a.title)
         return headlines
 
-    def format_news_summary(self, articles: Optional[List[NewsArticle]] = None, category: str = "tech") -> str:
+    def format_news_summary(self, articles: list[NewsArticle] | None = None, category: str = "tech") -> str:
         """
         Formats top news articles into a spoken Vietnamese summary.
         """
@@ -149,7 +148,7 @@ class NewsAggregator:
 
         return "\n".join(lines)
 
-    def fetch_feed(self, url: str, source_name: str = "") -> List[NewsArticle]:
+    def fetch_feed(self, url: str, source_name: str = "") -> list[NewsArticle]:
         """
         Fetches and parses an XML RSS/Atom feed from a URL.
         """
@@ -169,12 +168,12 @@ class NewsAggregator:
 
         return self.parse_feed_xml(xml_data, source_name=source_name)
 
-    def parse_feed_xml(self, xml_content: str, source_name: str = "") -> List[NewsArticle]:
+    def parse_feed_xml(self, xml_content: str, source_name: str = "") -> list[NewsArticle]:
         """
         Parses XML string into a list of NewsArticle objects using standard library xml.etree.
         Supports both RSS 2.0 (<rss><channel><item>) and Atom (<feed><entry>).
         """
-        articles: List[NewsArticle] = []
+        articles: list[NewsArticle] = []
         if not xml_content or not xml_content.strip():
             return articles
 
@@ -273,7 +272,7 @@ class NewsAggregator:
         text = re.sub(r"<[^>]+>", " ", text)
         return self._clean_text(text)
 
-    def _get_offline_fallback(self, category: str, limit: int) -> List[NewsArticle]:
+    def _get_offline_fallback(self, category: str, limit: int) -> list[NewsArticle]:
         """Provides informative fallback headlines when network is unreachable."""
         fallbacks = {
             "tech": [

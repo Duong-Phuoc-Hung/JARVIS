@@ -5,8 +5,6 @@ Default gesture patterns and definitions.
 """
 from __future__ import annotations
 
-from typing import Dict, List
-
 from jarvis.gesture.models import GesturePatternConfig, GestureType
 
 
@@ -17,7 +15,7 @@ def get_default_patterns(
     triple_clap_gap_s: float = 0.40,
     pause_min_s: float = 0.50,
     pause_max_s: float = 1.20,
-) -> Dict[GestureType, GesturePatternConfig]:
+) -> dict[GestureType, GesturePatternConfig]:
     """Build default gesture patterns matching system configuration."""
     return {
         GestureType.DOUBLE_CLAP: GesturePatternConfig(

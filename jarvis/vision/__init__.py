@@ -9,6 +9,14 @@ from jarvis.vision.biometrics import (
     BiometricsEngine,
     FaceEmbeddingStorage,
 )
+from jarvis.vision.computer_use import (
+    BoundingBox,
+    ComputerUseVision,
+    CoordinateMapper,
+    UIElement,
+    UIElementDetector,
+)
+from jarvis.vision.dialog_detector import ErrorDialogDetector
 from jarvis.vision.hands import (
     GestureType,
     HandGestureClassifier,
@@ -16,17 +24,8 @@ from jarvis.vision.hands import (
     HandLandmarkTracker,
     NormalizedLandmark,
 )
-
-from jarvis.vision.dialog_detector import ErrorDialogDetector
 from jarvis.vision.ocr import DesktopOCR
 from jarvis.vision.screen import ScreenCaptureResult, ScreenVisionManager
-from jarvis.vision.computer_use import (
-    BoundingBox,
-    CoordinateMapper,
-    UIElement,
-    UIElementDetector,
-    ComputerUseVision,
-)
 from jarvis.vision.visual_verifier import (
     VisualDiffResult,
     VisualVerifier,

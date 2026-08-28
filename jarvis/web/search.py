@@ -6,14 +6,12 @@ Results are cached in TTLCache (10-minute TTL) to safeguard against rate limits.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import html
-import json
 import logging
 import re
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
 
 try:
     import requests
@@ -40,7 +38,7 @@ class SearchResultItem:
     url: str
     snippet: str
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         return {
             "title": self.title,
             "url": self.url,
@@ -62,9 +60,9 @@ class WebSearcher:
 
     def __init__(
         self,
-        cache: Optional[TTLCache] = None,
+        cache: TTLCache | None = None,
         cache_ttl: float = 600.0,
-        serpapi_key: Optional[str] = None,
+        serpapi_key: str | None = None,
         timeout_seconds: float = 8.0,
     ) -> None:
         self.cache = cache or TTLCache(default_ttl_seconds=cache_ttl)
@@ -72,7 +70,7 @@ class WebSearcher:
         self.serpapi_key = serpapi_key
         self.timeout_seconds = timeout_seconds
 
-    def search(self, query: str, max_results: int = 5) -> List[Dict[str, str]]:
+    def search(self, query: str, max_results: int = 5) -> list[dict[str, str]]:
         """
         Executes a web search for the query, checking cache first.
         Returns a list of dicts with keys 'title', 'url', 'snippet'.
@@ -87,7 +85,7 @@ class WebSearcher:
             logger.debug("Returning cached search results for '%s'", clean_query)
             return cached_res
 
-        results: List[SearchResultItem] = []
+        results: list[SearchResultItem] = []
 
         # 1. Tier 1: DDGS Python SDK
         if DDGS_AVAILABLE and DDGS is not None:
@@ -126,7 +124,7 @@ class WebSearcher:
         results = self.search(query, max_results=max_results)
         return self.format_search_summary(query, results)
 
-    def format_search_summary(self, query: str, results: List[Dict[str, str]]) -> str:
+    def format_search_summary(self, query: str, results: list[dict[str, str]]) -> str:
         """
         Formats search results into a clean, spoken summary and itemized list.
         """
@@ -154,9 +152,9 @@ class WebSearcher:
     # Search Engine Implementations
     # ──────────────────────────────────────────────────────────────────────────
 
-    def _search_ddgs(self, query: str, max_results: int) -> List[SearchResultItem]:
+    def _search_ddgs(self, query: str, max_results: int) -> list[SearchResultItem]:
         """Queries DuckDuckGo via DDGS."""
-        items: List[SearchResultItem] = []
+        items: list[SearchResultItem] = []
         with DDGS() as ddgs:
             raw_results = list(ddgs.text(query, max_results=max_results))
             for r in raw_results:
@@ -167,7 +165,7 @@ class WebSearcher:
                     items.append(SearchResultItem(title=title, url=url, snippet=snippet))
         return items
 
-    def _search_html(self, query: str, max_results: int) -> List[SearchResultItem]:
+    def _search_html(self, query: str, max_results: int) -> list[SearchResultItem]:
         """Queries DuckDuckGo HTML endpoint with lightweight regex extraction."""
         encoded_query = urllib.parse.quote(query)
         url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
@@ -185,7 +183,7 @@ class WebSearcher:
             with urllib.request.urlopen(req, timeout=self.timeout_seconds) as response:
                 html_content = response.read().decode("utf-8", errors="ignore")
 
-        items: List[SearchResultItem] = []
+        items: list[SearchResultItem] = []
         # Match result blocks: <a class="result__snippet" ...>...</a> and <a class="result__url" ...>
         # Match link & title
         link_matches = re.findall(
@@ -228,7 +226,7 @@ class WebSearcher:
 
         return items
 
-    def _search_serpapi(self, query: str, max_results: int) -> List[SearchResultItem]:
+    def _search_serpapi(self, query: str, max_results: int) -> list[SearchResultItem]:
         """Queries SerpAPI REST endpoint."""
         if not REQUESTS_AVAILABLE or requests is None or not self.serpapi_key:
             return []
@@ -243,7 +241,7 @@ class WebSearcher:
         resp.raise_for_status()
         data = resp.json()
 
-        items: List[SearchResultItem] = []
+        items: list[SearchResultItem] = []
         for r in data.get("organic_results", [])[:max_results]:
             title = r.get("title", "")
             link = r.get("link", "")

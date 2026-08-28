@@ -9,16 +9,16 @@ and standardized error recovery.
 import base64
 import logging
 import os
-from pathlib import Path
 import time
-from typing import Any, Callable, Dict, List, Optional
 import urllib.parse
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
 from jarvis.browser.driver import BaseBrowserDriver
 from jarvis.browser.models import (
     BrowserActionResult,
     DownloadProgress,
-    PageElement,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,13 +38,13 @@ class BrowserActions:
         action: str,
         success: bool,
         start_time: float,
-        url: Optional[str] = None,
-        title: Optional[str] = None,
+        url: str | None = None,
+        title: str | None = None,
         extracted_data: Any = None,
-        downloaded_file: Optional[str] = None,
-        error_message: Optional[str] = None,
+        downloaded_file: str | None = None,
+        error_message: str | None = None,
         include_screenshot: bool = False,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> BrowserActionResult:
         """Helper to create standardized BrowserActionResult with timing."""
         elapsed_ms = (time.time() - start_time) * 1000.0
@@ -185,9 +185,9 @@ class BrowserActions:
 
     def fill_and_submit_form(
         self,
-        fields: Dict[str, str],
-        submit_selector: Optional[str] = None,
-        url: Optional[str] = None,
+        fields: dict[str, str],
+        submit_selector: str | None = None,
+        url: str | None = None,
     ) -> BrowserActionResult:
         """
         Populate multiple form input fields and trigger submission.
@@ -198,7 +198,7 @@ class BrowserActions:
             if not nav_res.success:
                 return nav_res
 
-        filled_fields: List[str] = []
+        filled_fields: list[str] = []
         for field_name, value in fields.items():
             # Try multiple selector variations (id, name, css)
             selectors = [
@@ -237,8 +237,8 @@ class BrowserActions:
     def download_file(
         self,
         url: str,
-        target_path: Optional[str] = None,
-        on_progress: Optional[Callable[[DownloadProgress], None]] = None,
+        target_path: str | None = None,
+        on_progress: Callable[[DownloadProgress], None] | None = None,
     ) -> BrowserActionResult:
         """
         Download a remote file or asset stream with progress reporting.

@@ -9,13 +9,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
-from jarvis.tts.base import BaseTTSEngine
-from jarvis.tts.cache import LocalTTSCache, TTSAudioCache
+from jarvis.tts.cache import LocalTTSCache
 from jarvis.tts.elevenlabs import ElevenLabsTTS
 from jarvis.tts.fallback import SAPI5FallbackTTS
-from jarvis.tts.manager import TTSManager
 
 log = logging.getLogger("jarvis.tts.engine")
 
@@ -27,18 +25,18 @@ class TTSEngine:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         voice_id: str = "EXAVITQu4vr4xnSDxMaL",
         model_id: str = "eleven_multilingual_v2",
-        cache_dir: Optional[Union[str, Path]] = None,
-        config: Optional[Dict[str, Any]] = None,
+        cache_dir: str | Path | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         self.api_key = api_key or ""
         self.voice_id = voice_id
         self.model_id = model_id
         c_path = Path(cache_dir) if cache_dir else Path(".cache")
         self.cache = LocalTTSCache(c_path)
-        self.offline_calls: List[str] = []
+        self.offline_calls: list[str] = []
         self.played_audio_count: int = 0
 
         self.elevenlabs_engine = ElevenLabsTTS({
@@ -48,7 +46,7 @@ class TTSEngine:
         })
         self.fallback_engine = SAPI5FallbackTTS()
 
-    def speak(self, text: str, wait: bool = False, mock_http: Optional[Any] = None) -> bool:
+    def speak(self, text: str, wait: bool = False, mock_http: Any | None = None) -> bool:
         """
         Synthesizes and vocalizes text with cache check, ElevenLabs API, and offline fallback.
         """

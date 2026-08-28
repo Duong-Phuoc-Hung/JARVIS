@@ -6,10 +6,10 @@ window placement & focus, 64-bit aligned SendInput keystrokes, and workstation l
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
 import os
 import sys
-from typing import Optional, Sequence, Tuple
+from collections.abc import Sequence
+from ctypes import wintypes
 
 from jarvis.core.models import MonitorInfo, WindowInfo
 
@@ -443,7 +443,7 @@ class WindowsPlatformAPI:
         self,
         visible_only: bool = True,
         include_cloaked: bool = False,
-        min_size: Tuple[int, int] = (80, 80),
+        min_size: tuple[int, int] = (80, 80),
     ) -> list[WindowInfo]:
         """Enumerates top-level desktop windows matching criteria."""
         if not self.is_windows or not self.user32 or not hasattr(self.user32, "EnumWindows"):
@@ -692,4 +692,3 @@ is_window_cloaked = platform_win32.is_window_cloaked
 is_window_hung = platform_win32.is_window_hung
 
 # Forward autostart helpers
-from jarvis.platform.autostart import get_autostart_status, set_autostart

@@ -4,11 +4,10 @@ Configures Windows Startup execution via HKCU Run registry key.
 """
 from __future__ import annotations
 
-from enum import Enum
 import logging
 import os
 import sys
-from typing import List, Optional, Tuple
+from enum import Enum
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ class AutoStartMode(str, Enum):
 class AutostartStatus:
     """Represents autostart state; behaves both as a boolean and a tuple (enabled, command)."""
 
-    def __init__(self, enabled: bool, command: Optional[str] = None) -> None:
+    def __init__(self, enabled: bool, command: str | None = None) -> None:
         self.enabled = enabled
         self.command = command
 
@@ -42,7 +41,7 @@ class AutostartStatus:
         return f"AutostartStatus(enabled={self.enabled}, command={self.command!r})"
 
 
-def set_autostart(app_name: str = DEFAULT_APP_NAME, exe_path: Optional[str] = None, enabled: bool = True) -> bool:
+def set_autostart(app_name: str = DEFAULT_APP_NAME, exe_path: str | None = None, enabled: bool = True) -> bool:
     """Configures Windows Startup execution via HKCU Run registry key."""
     if sys.platform != "win32":
         log.warning("set_autostart is only supported on Windows.")
@@ -154,7 +153,7 @@ class AutoStartManager:
         self.app_name = app_name
         self.mode = mode
 
-    def enable(self, command_args: Optional[List[str]] = None) -> bool:
+    def enable(self, command_args: list[str] | None = None) -> bool:
         py_exe = sys.executable
         args_str = " " + " ".join(command_args) if command_args else " run"
         exe_path = f'"{py_exe}" -m jarvis{args_str}'

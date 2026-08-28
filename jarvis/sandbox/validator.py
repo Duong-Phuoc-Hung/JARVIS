@@ -6,10 +6,10 @@ memory inspection, destructive filesystem modifications, and unsafe module impor
 from __future__ import annotations
 
 import ast
-from dataclasses import dataclass, field
 import logging
 import re
-from typing import Any, Dict, List, Optional, Set
+from dataclasses import dataclass, field
+from typing import Any
 
 logger = logging.getLogger("jarvis.sandbox.validator")
 
@@ -18,11 +18,11 @@ logger = logging.getLogger("jarvis.sandbox.validator")
 class ValidationResult:
     """Outcome of static code validation."""
     is_safe: bool
-    violations: List[str] = field(default_factory=list)
-    error_message: Optional[str] = None
+    violations: list[str] = field(default_factory=list)
+    error_message: str | None = None
     syntax_valid: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "is_safe": self.is_safe,
             "violations": self.violations,
@@ -39,18 +39,18 @@ class _PythonASTSafetyVisitor(ast.NodeVisitor):
 
     def __init__(
         self,
-        forbidden_modules: Set[str],
-        forbidden_calls: Set[str],
-        forbidden_os_attributes: Set[str],
-        forbidden_sys_attributes: Set[str],
-        forbidden_dunder_attributes: Set[str],
+        forbidden_modules: set[str],
+        forbidden_calls: set[str],
+        forbidden_os_attributes: set[str],
+        forbidden_sys_attributes: set[str],
+        forbidden_dunder_attributes: set[str],
     ) -> None:
         self.forbidden_modules = forbidden_modules
         self.forbidden_calls = forbidden_calls
         self.forbidden_os_attributes = forbidden_os_attributes
         self.forbidden_sys_attributes = forbidden_sys_attributes
         self.forbidden_dunder_attributes = forbidden_dunder_attributes
-        self.violations: List[str] = []
+        self.violations: list[str] = []
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
@@ -131,7 +131,7 @@ class ASTCodeValidator:
     """
 
     # Forbidden Python modules (low-level OS tampering, ctypes, win32, raw sockets)
-    DEFAULT_FORBIDDEN_MODULES: Set[str] = {
+    DEFAULT_FORBIDDEN_MODULES: set[str] = {
         "ctypes",
         "_ctypes",
         "win32api",
@@ -151,7 +151,7 @@ class ASTCodeValidator:
     }
 
     # Forbidden Python built-in functions
-    DEFAULT_FORBIDDEN_CALLS: Set[str] = {
+    DEFAULT_FORBIDDEN_CALLS: set[str] = {
         "eval",
         "exec",
         "compile",
@@ -163,7 +163,7 @@ class ASTCodeValidator:
     }
 
     # Forbidden OS attributes / dangerous process spawners
-    DEFAULT_FORBIDDEN_OS_ATTRIBUTES: Set[str] = {
+    DEFAULT_FORBIDDEN_OS_ATTRIBUTES: set[str] = {
         "system",
         "popen",
         "popen2",
@@ -196,7 +196,7 @@ class ASTCodeValidator:
     }
 
     # Forbidden Sys attributes
-    DEFAULT_FORBIDDEN_SYS_ATTRIBUTES: Set[str] = {
+    DEFAULT_FORBIDDEN_SYS_ATTRIBUTES: set[str] = {
         "_getframe",
         "settrace",
         "setprofile",
@@ -204,7 +204,7 @@ class ASTCodeValidator:
     }
 
     # Forbidden Dunder attributes (prevents sandbox escaping via class hierarchy reflection)
-    DEFAULT_FORBIDDEN_DUNDER_ATTRIBUTES: Set[str] = {
+    DEFAULT_FORBIDDEN_DUNDER_ATTRIBUTES: set[str] = {
         "__subclasses__",
         "__bases__",
         "__base__",
@@ -215,7 +215,7 @@ class ASTCodeValidator:
     }
 
     # PowerShell dangerous command regex patterns
-    POWERSHELL_DANGEROUS_PATTERNS: List[re.Pattern] = [
+    POWERSHELL_DANGEROUS_PATTERNS: list[re.Pattern] = [
         re.compile(r"\b(Format-Volume|Format-Disk|Clear-Disk|Initialize-Disk)\b", re.IGNORECASE),
         re.compile(r"\b(Stop-Computer|Restart-Computer)\b", re.IGNORECASE),
         re.compile(r"\bSet-ExecutionPolicy\b", re.IGNORECASE),
@@ -230,11 +230,11 @@ class ASTCodeValidator:
 
     def __init__(
         self,
-        forbidden_modules: Optional[Set[str]] = None,
-        forbidden_calls: Optional[Set[str]] = None,
-        forbidden_os_attributes: Optional[Set[str]] = None,
-        forbidden_sys_attributes: Optional[Set[str]] = None,
-        forbidden_dunder_attributes: Optional[Set[str]] = None,
+        forbidden_modules: set[str] | None = None,
+        forbidden_calls: set[str] | None = None,
+        forbidden_os_attributes: set[str] | None = None,
+        forbidden_sys_attributes: set[str] | None = None,
+        forbidden_dunder_attributes: set[str] | None = None,
     ) -> None:
         self.forbidden_modules = forbidden_modules or set(self.DEFAULT_FORBIDDEN_MODULES)
         self.forbidden_calls = forbidden_calls or set(self.DEFAULT_FORBIDDEN_CALLS)
@@ -305,7 +305,7 @@ class ASTCodeValidator:
         if not script or not script.strip():
             return ValidationResult(is_safe=True, violations=[])
 
-        violations: List[str] = []
+        violations: list[str] = []
         for pattern in self.POWERSHELL_DANGEROUS_PATTERNS:
             match = pattern.search(script)
             if match:

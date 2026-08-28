@@ -9,13 +9,13 @@ Provides:
 - WebScraper: High-level scraper producing comprehensive ScrapeResult objects.
 """
 
-from html.parser import HTMLParser
 import html as html_module
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple
 import urllib.parse
+from html.parser import HTMLParser
+from typing import Any
 
 from jarvis.browser.models import (
     PriceComparisonItem,
@@ -39,22 +39,22 @@ class HTMLToMarkdownConverter(HTMLParser):
 
     def __init__(self) -> None:
         super().__init__()
-        self._output_chunks: List[str] = []
-        self._tag_stack: List[str] = []
+        self._output_chunks: list[str] = []
+        self._tag_stack: list[str] = []
         self._skip_depth: int = 0
         self._list_depth: int = 0
-        self._list_index: List[int] = []
+        self._list_index: list[int] = []
         self._in_pre: bool = False
         self._in_code: bool = False
-        self._current_href: Optional[str] = None
-        self._current_link_text: List[str] = []
-        self._table_rows: List[List[str]] = []
-        self._current_row: List[str] = []
+        self._current_href: str | None = None
+        self._current_link_text: list[str] = []
+        self._table_rows: list[list[str]] = []
+        self._current_row: list[str] = []
         self._in_table: bool = False
         self._in_cell: bool = False
-        self._current_cell_text: List[str] = []
+        self._current_cell_text: list[str] = []
 
-    def handle_starttag(self, tag: str, attrs: List[Tuple[str, Optional[str]]]) -> None:
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attr_dict = {k.lower(): (v or "") for k, v in attrs}
         tag_lower = tag.lower()
 
@@ -204,7 +204,7 @@ class HTMLToMarkdownConverter(HTMLParser):
         if col_count == 0:
             return
 
-        md_table: List[str] = ["\n\n| " + " | ".join(header) + " |"]
+        md_table: list[str] = ["\n\n| " + " | ".join(header) + " |"]
         md_table.append("| " + " | ".join(["---"] * col_count) + " |")
 
         for row in self._table_rows[1:]:
@@ -233,12 +233,12 @@ class HTMLTableParser:
     """Extracts structured tables from raw HTML into List[List[Dict[str, str]]]."""
 
     @staticmethod
-    def parse_tables(html_content: str) -> List[List[Dict[str, str]]]:
+    def parse_tables(html_content: str) -> list[list[dict[str, str]]]:
         """
         Parses all <table> tags and returns a list of tables.
         Each table is represented as a list of dicts keyed by header names.
         """
-        tables: List[List[Dict[str, str]]] = []
+        tables: list[list[dict[str, str]]] = []
         table_blocks = re.findall(r"<table[^>]*>(.*?)</table>", html_content, re.IGNORECASE | re.DOTALL)
 
         for tbl in table_blocks:
@@ -246,7 +246,7 @@ class HTMLTableParser:
             if not rows:
                 continue
 
-            parsed_rows: List[List[str]] = []
+            parsed_rows: list[list[str]] = []
             for row in rows:
                 cells = re.findall(r"<(?:td|th)[^>]*>(.*?)</(?:td|th)>", row, re.IGNORECASE | re.DOTALL)
                 clean_cells = [
@@ -261,10 +261,10 @@ class HTMLTableParser:
 
             # Treat first row as headers
             headers = parsed_rows[0]
-            table_dict_rows: List[Dict[str, str]] = []
+            table_dict_rows: list[dict[str, str]] = []
 
             for row in parsed_rows[1:]:
-                row_dict: Dict[str, str] = {}
+                row_dict: dict[str, str] = {}
                 for idx, h in enumerate(headers):
                     key = h if h else f"col_{idx+1}"
                     row_dict[key] = row[idx] if idx < len(row) else ""
@@ -284,8 +284,8 @@ class StructuredDataExtractor:
     """Extracts OpenGraph, Twitter Cards, Schema.org JSON-LD, and metadata from HTML."""
 
     @staticmethod
-    def extract_structured_data(html_content: str, base_url: str = "") -> Dict[str, Any]:
-        result: Dict[str, Any] = {
+    def extract_structured_data(html_content: str, base_url: str = "") -> dict[str, Any]:
+        result: dict[str, Any] = {
             "opengraph": {},
             "twitter": {},
             "json_ld": [],
@@ -323,10 +323,10 @@ class StructuredDataExtractor:
         return result
 
     @staticmethod
-    def extract_links_and_images(html_content: str, base_url: str = "") -> Tuple[List[str], List[str]]:
+    def extract_links_and_images(html_content: str, base_url: str = "") -> tuple[list[str], list[str]]:
         """Extract all unique hyperlinks and image URLs resolved to absolute paths."""
-        links: List[str] = []
-        images: List[str] = []
+        links: list[str] = []
+        images: list[str] = []
 
         link_matches = re.findall(r'<a\s+[^>]*?href=[\'"]([^\'"]+)[\'"]', html_content, re.IGNORECASE)
         for href in link_matches:
@@ -358,7 +358,7 @@ class PriceComparisonAggregator:
     """
 
     @staticmethod
-    def parse_price_value(price_str: str) -> Optional[float]:
+    def parse_price_value(price_str: str) -> float | None:
         """
         Normalize price string (e.g. '$1,299.99', '24.990.000 ₫', '1500000 VND') to float.
         """
@@ -405,11 +405,11 @@ class PriceComparisonAggregator:
         store_name: str,
         html_content: str,
         base_url: str = "",
-    ) -> List[PriceComparisonItem]:
+    ) -> list[PriceComparisonItem]:
         """
         Extracts product items and prices from a store's HTML listing.
         """
-        items: List[PriceComparisonItem] = []
+        items: list[PriceComparisonItem] = []
 
         # 1. Try extracting from JSON-LD Schema (Product / Offer)
         json_ld_blocks = re.findall(
@@ -504,7 +504,7 @@ class PriceComparisonAggregator:
         return items
 
     @classmethod
-    def aggregate_and_sort(cls, items: List[PriceComparisonItem]) -> List[PriceComparisonItem]:
+    def aggregate_and_sort(cls, items: list[PriceComparisonItem]) -> list[PriceComparisonItem]:
         """Sort items by price ascending and tag lowest price."""
         if not items:
             return []

@@ -7,12 +7,11 @@ Ensures 100% speech availability without internet connection.
 from __future__ import annotations
 
 import logging
-import os
 import subprocess
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from jarvis.tts.base import BaseTTSEngine, TTSError
+from jarvis.tts.base import BaseTTSEngine
 
 log = logging.getLogger("jarvis.tts.fallback")
 
@@ -20,19 +19,19 @@ log = logging.getLogger("jarvis.tts.fallback")
 class SAPI5FallbackTTS(BaseTTSEngine):
     """Windows native SAPI5 speech synthesis with cross-platform mock support."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.voice_name = self.config.get("voice_name", "Microsoft David Desktop")
         self.rate = int(self.config.get("rate", 0))       # SAPI: -10 to +10
         self.volume = int(self.config.get("volume", 100)) # 0 to 100
-        self._spoken_history: List[str] = []
+        self._spoken_history: list[str] = []
 
     @property
-    def offline_calls(self) -> List[str]:
+    def offline_calls(self) -> list[str]:
         return self._spoken_history
 
     @property
-    def spoken_history(self) -> List[str]:
+    def spoken_history(self) -> list[str]:
         return self._spoken_history
 
     @property
@@ -43,7 +42,7 @@ class SAPI5FallbackTTS(BaseTTSEngine):
         """Available on Windows or in simulated test/mock mode."""
         return True
 
-    def speak(self, text: str, voice_id: Optional[str] = None, wait: bool = False, **kwargs) -> bool:
+    def speak(self, text: str, voice_id: str | None = None, wait: bool = False, **kwargs) -> bool:
         """Speak via Windows SAPI5 or PowerShell System.Speech."""
         if not text or not text.strip():
             return False
@@ -121,7 +120,7 @@ class SAPI5FallbackTTS(BaseTTSEngine):
         log.info("[SAPI5 Mock TTS Spoke]: %s", text)
         return True
 
-    def synthesize_to_bytes(self, text: str, voice_id: Optional[str] = None, **kwargs) -> bytes:
+    def synthesize_to_bytes(self, text: str, voice_id: str | None = None, **kwargs) -> bytes:
         """Returns mock PCM byte buffer for testing offline pipeline."""
         import numpy as np
         duration_s = 0.5

@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any
+
 import numpy as np
 
 from jarvis.tts.base import BaseTTSEngine, TTSError
@@ -18,7 +19,7 @@ log = logging.getLogger("jarvis.tts.elevenlabs")
 class ElevenLabsTTS(BaseTTSEngine):
     """High-fidelity neural voice synthesis via ElevenLabs API."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         if "api_key" in self.config:
             self.api_key = str(self.config.get("api_key") or "").strip()
@@ -56,10 +57,10 @@ class ElevenLabsTTS(BaseTTSEngine):
     def synthesize_to_bytes(
         self,
         text: str,
-        voice_id: Optional[str] = None,
-        model_id: Optional[str] = None,
-        output_format: Optional[str] = None,
-        mock_http: Optional[Any] = None,
+        voice_id: str | None = None,
+        model_id: str | None = None,
+        output_format: str | None = None,
+        mock_http: Any | None = None,
         **kwargs,
     ) -> bytes:
         """Fetches raw PCM bytes from ElevenLabs API or mock HTTP handler."""
@@ -113,7 +114,7 @@ class ElevenLabsTTS(BaseTTSEngine):
         except Exception as e:
             raise TTSError(f"ElevenLabs synthesis failed: {e}") from e
 
-    def speak(self, text: str, voice_id: Optional[str] = None, wait: bool = False, **kwargs) -> bool:
+    def speak(self, text: str, voice_id: str | None = None, wait: bool = False, **kwargs) -> bool:
         """Synthesize and play immediately using sounddevice."""
         try:
             pcm_bytes = self.synthesize_to_bytes(text, voice_id=voice_id, **kwargs)

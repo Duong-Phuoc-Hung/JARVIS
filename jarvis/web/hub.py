@@ -7,12 +7,10 @@ Implements unified 10-minute TTL caching and Morning Briefing generation.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import datetime
 import logging
 import socket
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from jarvis.web.cache import TTLCache
 from jarvis.web.finance import FinanceTracker
@@ -31,13 +29,13 @@ class WebIntelligenceHub:
     def __init__(
         self,
         cache_ttl_seconds: float = 600.0,
-        weather_api_key: Optional[str] = None,
+        weather_api_key: str | None = None,
         default_city: str = "Hà Nội",
-        search_engine: Optional[WebSearcher] = None,
-        weather_provider: Optional[WeatherProvider] = None,
-        news_aggregator: Optional[NewsAggregator] = None,
-        finance_tracker: Optional[FinanceTracker] = None,
-        cache: Optional[TTLCache] = None,
+        search_engine: WebSearcher | None = None,
+        weather_provider: WeatherProvider | None = None,
+        news_aggregator: NewsAggregator | None = None,
+        finance_tracker: FinanceTracker | None = None,
+        cache: TTLCache | None = None,
     ) -> None:
         self.cache = cache or TTLCache(default_ttl_seconds=cache_ttl_seconds)
         self.searcher = search_engine or WebSearcher(cache=self.cache, cache_ttl=cache_ttl_seconds)
@@ -82,13 +80,13 @@ class WebIntelligenceHub:
         """
         return self.weather.get_weather_speech(city)
 
-    def get_top_news(self, limit: int = 3) -> List[str]:
+    def get_top_news(self, limit: int = 3) -> list[str]:
         """
         Returns top technology news headline strings.
         """
         return self.news.get_news_headlines(category="tech", limit=limit)
 
-    def get_crypto_rates(self) -> Dict[str, float]:
+    def get_crypto_rates(self) -> dict[str, float]:
         """
         Returns realtime cryptocurrency prices in USD.
         """
@@ -103,7 +101,7 @@ class WebIntelligenceHub:
     # Morning Briefing Synthesis ("JARVIS, briefing sáng nay")
     # ──────────────────────────────────────────────────────────────────────────
 
-    def generate_morning_briefing(self, city: Optional[str] = None) -> Dict[str, Any]:
+    def generate_morning_briefing(self, city: str | None = None) -> dict[str, Any]:
         """
         Synthesizes a daily briefing composed of:
           - Weather forecast
@@ -133,7 +131,7 @@ class WebIntelligenceHub:
         # 4. Spoken Summary Formulation
         now = datetime.datetime.now()
         greeting = "Chào buổi sáng thưa Ngài." if now.hour < 12 else "Chào buổi chiều thưa Ngài."
-        
+
         spoken_parts = [
             f"{greeting} Sau đây là bản tin tổng hợp hôm nay:",
             weather_speech,

@@ -85,7 +85,7 @@ def _safe_eval(node: ast.AST) -> float:
             if func_name in _SAFE_FUNCTIONS:
                 args = [_safe_eval(arg) for arg in node.args]
                 return float(_SAFE_FUNCTIONS[func_name](*args))
-        raise ValueError(f"Function call is not supported.")
+        raise ValueError("Function call is not supported.")
     else:
         raise ValueError(f"Unsupported AST node: {type(node).__name__}")
 
@@ -95,7 +95,7 @@ def evaluate_expression(expr: str) -> float:
     cleaned = expr.replace("^", "**").replace("x", "*").replace("X", "*")
     cleaned = cleaned.replace("×", "*").replace("÷", "/")
     cleaned = re.sub(r'(\d+(?:\.\d+)?)\s*%', r'(\1/100)', cleaned)
-    
+
     tree = ast.parse(cleaned, mode="eval")
     return _safe_eval(tree)
 
@@ -107,7 +107,7 @@ def execute(
     currency_from: str = "USD",
     currency_to: str = "VND",
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Execute mathematical calculation or currency conversion.
     """
@@ -116,14 +116,14 @@ def execute(
     if act == "convert_currency" or (currency_from and currency_to and currency_from.upper() != currency_to.upper() and not expression):
         c_from = currency_from.upper().strip()
         c_to = currency_to.upper().strip()
-        
+
         rate_from = EXCHANGE_RATES_TO_USD.get(c_from)
         rate_to = EXCHANGE_RATES_TO_USD.get(c_to)
 
         if not rate_from or not rate_to:
             msg = f"Không hỗ trợ mã tiền tệ '{c_from}' hoặc '{c_to}'. Hỗ trợ: {', '.join(EXCHANGE_RATES_TO_USD.keys())}"
             return {"data": {"text": msg, "success": False}, "output": msg}
-        
+
         val_usd = amount * rate_from
         converted = val_usd / rate_to
 
@@ -154,7 +154,7 @@ def execute(
         if not expression.strip():
             msg = "Vui lòng cung cấp biểu thức toán học cần tính."
             return {"data": {"text": msg, "success": False}, "output": msg}
-        
+
         try:
             result = evaluate_expression(expression)
             if result.is_integer():

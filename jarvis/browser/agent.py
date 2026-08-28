@@ -7,8 +7,9 @@ and web scraping into an autonomous, self-healing browser automation agent.
 
 import logging
 import time
-from typing import Any, Callable, Dict, List, Optional
 import urllib.parse
+from collections.abc import Callable
+from typing import Any
 
 from jarvis.browser.actions import BrowserActions
 from jarvis.browser.driver import (
@@ -42,9 +43,9 @@ class BrowserAgent:
 
     def __init__(
         self,
-        config: Optional[BrowserConfig] = None,
-        driver: Optional[BaseBrowserDriver] = None,
-        session_manager: Optional[BrowserSessionManager] = None,
+        config: BrowserConfig | None = None,
+        driver: BaseBrowserDriver | None = None,
+        session_manager: BrowserSessionManager | None = None,
     ) -> None:
         self.config = config or BrowserConfig()
         self._driver: BaseBrowserDriver = driver or DriverFactory.create_driver(config=self.config)
@@ -131,8 +132,8 @@ class BrowserAgent:
     def fill_form(
         self,
         url: str,
-        form_fields: Dict[str, str],
-        submit_selector: Optional[str] = None,
+        form_fields: dict[str, str],
+        submit_selector: str | None = None,
     ) -> BrowserActionResult:
         """
         Navigate to a form page, populate fields, and submit.
@@ -149,8 +150,8 @@ class BrowserAgent:
     def download_resource(
         self,
         url: str,
-        target_path: Optional[str] = None,
-        on_progress: Optional[Callable[[DownloadProgress], None]] = None,
+        target_path: str | None = None,
+        on_progress: Callable[[DownloadProgress], None] | None = None,
     ) -> BrowserActionResult:
         """
         Download a file stream or asset with real-time progress callbacks.
@@ -164,10 +165,10 @@ class BrowserAgent:
 
     def compare_prices(
         self,
-        product_name: Optional[str] = None,
-        stores: Optional[List[str]] = None,
-        product: Optional[str] = None,
-    ) -> List[PriceComparisonItem]:
+        product_name: str | None = None,
+        stores: list[str] | None = None,
+        product: str | None = None,
+    ) -> list[PriceComparisonItem]:
         """
         Search for a product across specified or default eCommerce storefronts
         and aggregate a sorted list of price comparison offers.
@@ -176,7 +177,7 @@ class BrowserAgent:
         target_product = product or product_name or ""
         self.start()
         target_stores = stores or ["Shopee", "Lazada", "Tiki", "CellphoneS", "GearVN"]
-        all_items: List[PriceComparisonItem] = []
+        all_items: list[PriceComparisonItem] = []
 
         store_url_templates = {
             "shopee": "https://shopee.vn/search?q={query}",
@@ -222,7 +223,7 @@ class BrowserAgent:
 
         return PriceComparisonAggregator.aggregate_and_sort(all_items)
 
-    def execute_workflow(self, steps: List[Dict[str, Any]]) -> BrowserActionResult:
+    def execute_workflow(self, steps: list[dict[str, Any]]) -> BrowserActionResult:
         """
         Execute a multi-step sequence of browser actions.
         Step format:
@@ -240,12 +241,12 @@ class BrowserAgent:
         """
         self.start()
         t0 = time.time()
-        executed_steps: List[Dict[str, Any]] = []
+        executed_steps: list[dict[str, Any]] = []
         last_extracted_data: Any = None
 
         for idx, step in enumerate(steps):
             act = step.get("action", "").lower()
-            step_record: Dict[str, Any] = {"step_index": idx, "action": act, "success": True}
+            step_record: dict[str, Any] = {"step_index": idx, "action": act, "success": True}
 
             try:
                 if act == "navigate":
@@ -345,8 +346,8 @@ class BrowserAgent:
     def _workflow_failure(
         self,
         action: str,
-        error_msg: Optional[str],
-        executed_steps: List[Dict[str, Any]],
+        error_msg: str | None,
+        executed_steps: list[dict[str, Any]],
         start_time: float,
     ) -> BrowserActionResult:
         elapsed_ms = (time.time() - start_time) * 1000.0

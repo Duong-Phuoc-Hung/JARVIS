@@ -8,11 +8,11 @@ for multi-turn dialogue reasoning and system prompt injection.
 from __future__ import annotations
 
 import collections
-from dataclasses import dataclass, field
 import threading
 import time
-from typing import Any, Dict, List, Optional
 import uuid
+from dataclasses import dataclass, field
+from typing import Any
 
 from jarvis.llm.client import ChatMessage
 
@@ -24,11 +24,11 @@ class ConversationTurn:
     content: str
     timestamp: float = field(default_factory=time.time)
     turn_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
-    action_name: Optional[str] = None
-    parameters: Optional[Dict[str, Any]] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    action_name: str | None = None
+    parameters: dict[str, Any] | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converts turn to dictionary format."""
         return {
             "turn_id": self.turn_id,
@@ -47,7 +47,7 @@ class SessionContextManager:
     Maintains up to `max_turns` conversation dialogue turns (user + assistant pairs).
     """
 
-    def __init__(self, max_turns: int = 10, session_id: Optional[str] = None) -> None:
+    def __init__(self, max_turns: int = 10, session_id: str | None = None) -> None:
         self.max_turns = max_turns
         self.session_id = session_id or str(uuid.uuid4())
         # A conversation turn usually consists of (user, assistant).
@@ -59,9 +59,9 @@ class SessionContextManager:
         self,
         role: str,
         content: str,
-        action_name: Optional[str] = None,
-        parameters: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        action_name: str | None = None,
+        parameters: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> ConversationTurn:
         """
@@ -88,14 +88,14 @@ class SessionContextManager:
     def add_assistant_turn(
         self,
         content: str,
-        action_name: Optional[str] = None,
-        parameters: Optional[Dict[str, Any]] = None,
+        action_name: str | None = None,
+        parameters: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> ConversationTurn:
         """Convenience method for assistant response."""
         return self.add_turn("assistant", content, action_name=action_name, parameters=parameters, **kwargs)
 
-    def get_history(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    def get_history(self, limit: int | None = None) -> list[dict[str, Any]]:
         """Returns turns as a list of dictionaries."""
         with self._lock:
             items = list(self._history)
@@ -103,7 +103,7 @@ class SessionContextManager:
                 items = items[-limit:]
             return [t.to_dict() for t in items]
 
-    def get_turns(self, limit: Optional[int] = None) -> List[ConversationTurn]:
+    def get_turns(self, limit: int | None = None) -> list[ConversationTurn]:
         """Returns raw ConversationTurn objects."""
         with self._lock:
             items = list(self._history)
@@ -111,7 +111,7 @@ class SessionContextManager:
                 items = items[-limit:]
             return list(items)
 
-    def get_context_turns(self, limit: Optional[int] = None) -> List[ChatMessage]:
+    def get_context_turns(self, limit: int | None = None) -> list[ChatMessage]:
         """Converts recent turns to LLM ChatMessage objects."""
         with self._lock:
             items = list(self._history)
@@ -119,7 +119,7 @@ class SessionContextManager:
                 items = items[-limit:]
             return [ChatMessage(role=t.role, content=t.content) for t in items]
 
-    def get_formatted_context(self, limit: Optional[int] = None) -> str:
+    def get_formatted_context(self, limit: int | None = None) -> str:
         """
         Formats recent turns into a structured string suitable for system prompt injection.
         """

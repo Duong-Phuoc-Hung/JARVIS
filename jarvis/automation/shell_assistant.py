@@ -11,7 +11,7 @@ import os
 import re
 import subprocess
 import sys
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 from jarvis.automation.safety_gate import SafetyGate
 
@@ -22,7 +22,7 @@ class ShellAssistant:
     Provides NL-to-CLI translation, execution, safety filtering, and TTS summarization.
     """
 
-    DANGEROUS_PATTERNS: List[re.Pattern] = [
+    DANGEROUS_PATTERNS: list[re.Pattern] = [
         re.compile(r"\brm\s+-[rf]{1,2}\b", re.IGNORECASE),
         re.compile(r"\brmdir\s+/[sq]\b", re.IGNORECASE),
         re.compile(r"\bdel\s+/[sqf]\b", re.IGNORECASE),
@@ -44,10 +44,10 @@ class ShellAssistant:
 
     def __init__(
         self,
-        default_cwd: Optional[str] = None,
-        safety_gate: Optional[SafetyGate] = None,
-        dispatcher: Optional[Any] = None,
-        config: Optional[Dict[str, Any]] = None,
+        default_cwd: str | None = None,
+        safety_gate: SafetyGate | None = None,
+        dispatcher: Any | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         self.default_cwd = os.path.abspath(default_cwd or os.getcwd())
         self.safety_gate = safety_gate or SafetyGate()
@@ -76,7 +76,7 @@ class ShellAssistant:
     # -----------------------------------------------------------------------
     # Dev Server Command Resolver
     # -----------------------------------------------------------------------
-    def resolve_dev_server_command(self, cwd: Optional[str] = None) -> Optional[str]:
+    def resolve_dev_server_command(self, cwd: str | None = None) -> str | None:
         """
         Analyzes project files in target directory and infers development server command.
         Supports Node.js, Django, FastAPI/Uvicorn, Flask, Rust, Go, Docker Compose.
@@ -89,7 +89,7 @@ class ShellAssistant:
         pkg_json = os.path.join(target_dir, "package.json")
         if os.path.isfile(pkg_json):
             try:
-                with open(pkg_json, "r", encoding="utf-8") as f:
+                with open(pkg_json, encoding="utf-8") as f:
                     data = json.load(f)
                     scripts = data.get("scripts", {})
                     if "dev" in scripts:
@@ -111,7 +111,7 @@ class ShellAssistant:
             entry_path = os.path.join(target_dir, entry_name)
             if os.path.isfile(entry_path):
                 try:
-                    with open(entry_path, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(entry_path, encoding="utf-8", errors="ignore") as f:
                         content = f.read()
                         if "FastAPI" in content or "uvicorn" in content:
                             module_name = os.path.splitext(entry_name)[0]
@@ -146,7 +146,7 @@ class ShellAssistant:
     # -----------------------------------------------------------------------
     # Natural Language Command Translator
     # -----------------------------------------------------------------------
-    def translate_nl_command(self, query: str, cwd: Optional[str] = None) -> Tuple[str, str]:
+    def translate_nl_command(self, query: str, cwd: str | None = None) -> tuple[str, str]:
         """
         Translates a natural language query (Vietnamese/English) into an inferred shell command.
         Returns (command_str, category_name).
@@ -294,7 +294,7 @@ class ShellAssistant:
         if total_changes == 0 or "working tree clean" in output.lower():
             return f"Nhánh {branch}: Working tree sạch, không có thay đổi nào chưa commit, thưa Ngài."
 
-        parts: List[str] = []
+        parts: list[str] = []
         if staged_count > 0:
             parts.append(f"{staged_count} tệp đã sẵn sàng commit")
         if modified_count > 0:
@@ -307,7 +307,7 @@ class ShellAssistant:
         summary_details = ", ".join(parts)
         return f"Nhánh {branch}: Đang có {summary_details}, thưa Ngài."
 
-    def git_status(self, repo_dir: Optional[str] = None) -> str:
+    def git_status(self, repo_dir: str | None = None) -> str:
         """Runs git status and returns Vietnamese TTS summary."""
         target_dir = os.path.abspath(repo_dir or self.default_cwd)
         try:
@@ -337,7 +337,7 @@ class ShellAssistant:
     def check_port(self, port: int) -> str:
         """Inspects network port binding and identifies holding process."""
         port_num = int(port)
-        cmd = f"netstat -ano"
+        cmd = "netstat -ano"
         try:
             res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
             lines = res.stdout.splitlines() if res.stdout else []
@@ -390,8 +390,8 @@ class ShellAssistant:
     # Package Installer
     # -----------------------------------------------------------------------
     def install_package(
-        self, package_name: str, manager: str = "auto", cwd: Optional[str] = None
-    ) -> Tuple[bool, str]:
+        self, package_name: str, manager: str = "auto", cwd: str | None = None
+    ) -> tuple[bool, str]:
         """Installs a package via pip or npm and returns Vietnamese summary."""
         pkg = package_name.strip()
         target_dir = os.path.abspath(cwd or self.default_cwd)
@@ -518,7 +518,7 @@ class ShellAssistant:
     # -----------------------------------------------------------------------
     # Main Execution Engine
     # -----------------------------------------------------------------------
-    def execute_natural_command(self, query: str, cwd: Optional[str] = None) -> Dict[str, Any]:
+    def execute_natural_command(self, query: str, cwd: str | None = None) -> dict[str, Any]:
         """
         Translates NL query, performs destructive safety checks, executes command,
         and returns structured result with Vietnamese summary.

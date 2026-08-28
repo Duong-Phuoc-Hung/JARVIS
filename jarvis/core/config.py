@@ -7,12 +7,11 @@ import copy
 import json
 import logging
 import os
-import re
-import sys
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 try:
     import yaml
@@ -35,7 +34,7 @@ except ImportError:
 log = logging.getLogger("jarvis.core.config")
 
 # Legacy environment variable to internal dot-notation key mapping
-LEGACY_ENV_MAPPING: Dict[str, Tuple[str, type]] = {
+LEGACY_ENV_MAPPING: dict[str, tuple[str, type]] = {
     "ELEVENLABS_API_KEY": ("tts.elevenlabs.api_key", str),
     "ELEVENLABS_VOICE_ID": ("tts.elevenlabs.voice_id", str),
     "ELEVENLABS_MODEL_ID": ("tts.elevenlabs.model_id", str),
@@ -73,7 +72,7 @@ LEGACY_ENV_MAPPING: Dict[str, Tuple[str, type]] = {
 }
 
 
-def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Recursively merge override dictionary into base dictionary."""
     result = copy.deepcopy(base)
     for key, val in override.items():
@@ -84,7 +83,7 @@ def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any
     return result
 
 
-def _parse_bool(val: Union[str, bool, int]) -> bool:
+def _parse_bool(val: str | bool | int) -> bool:
     """Parse boolean value from various string representations."""
     if isinstance(val, bool):
         return val
@@ -137,16 +136,16 @@ def _parse_scalar(val_str: str) -> Any:
     return s
 
 
-def _simple_yaml_parse(text: str) -> Dict[str, Any]:
+def _simple_yaml_parse(text: str) -> dict[str, Any]:
     """
     Pure-Python indentation-aware YAML parser supporting mappings, lists, scalars, comments.
     Guarantees zero external dependency crash when PyYAML is unavailable.
     """
     lines = text.splitlines()
 
-    def parse_block(line_idx: int, min_indent: int) -> Tuple[Any, int]:
-        result_dict: Dict[str, Any] = {}
-        result_list: List[Any] = []
+    def parse_block(line_idx: int, min_indent: int) -> tuple[Any, int]:
+        result_dict: dict[str, Any] = {}
+        result_list: list[Any] = []
         is_list_context = False
 
         while line_idx < len(lines):
@@ -267,7 +266,7 @@ def _simple_yaml_parse(text: str) -> Dict[str, Any]:
 class ConfigNode:
     """Wrapper that enables both attribute and dictionary access."""
 
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         self._data = data or {}
         for k, v in list(self._data.items()):
             if isinstance(v, dict):
@@ -299,7 +298,7 @@ class ConfigNode:
     def get(self, key: str, default: Any = None) -> Any:
         return self._data.get(key, default)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return copy.deepcopy(self._data)
 
     def __repr__(self) -> str:
@@ -307,7 +306,7 @@ class ConfigNode:
 
 
 class AudioConfig(ConfigNode):
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "sample_rate": 44100,
             "block_ms": 40,
@@ -327,7 +326,7 @@ class AudioConfig(ConfigNode):
 
 
 class TTSConfig(ConfigNode):
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "provider": "elevenlabs",
             "welcome_enabled": True,
@@ -350,7 +349,7 @@ class TTSConfig(ConfigNode):
 
 
 class WindowsConfig(ConfigNode):
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "claude_monitor": 1,
             "binance_monitor": 3,
@@ -363,7 +362,7 @@ class WindowsConfig(ConfigNode):
 
 
 class LoggingConfig(ConfigNode):
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "level": "INFO",
             "file": "logs/jarvis.log",
@@ -377,7 +376,7 @@ class LoggingConfig(ConfigNode):
 
 
 class WakeWordConfig(ConfigNode):
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "enabled": True,
             "sensitivity": 0.5,
@@ -391,7 +390,7 @@ class WakeWordConfig(ConfigNode):
 
 
 class MemoryConfig(ConfigNode):
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "enabled": True,
             "db_path": "logs/memory.db",
@@ -403,7 +402,7 @@ class MemoryConfig(ConfigNode):
 
 
 class VisionConfig(ConfigNode):
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "enabled": True,
             "provider": "gemini",
@@ -418,7 +417,7 @@ class VisionConfig(ConfigNode):
 
 
 class WebConfig(ConfigNode):
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "enabled": True,
             "cache_ttl_s": 600.0,
@@ -431,7 +430,7 @@ class WebConfig(ConfigNode):
 
 
 class AutomationConfig(ConfigNode):
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "enabled": True,
             "safety_gate_timeout_s": 30.0,
@@ -443,7 +442,7 @@ class AutomationConfig(ConfigNode):
 
 
 class ProactiveConfigNode(ConfigNode):
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "enabled": True,
             "reminders": {"enabled": True, "check_interval_s": 0.5},
@@ -482,7 +481,7 @@ class ProactiveConfigNode(ConfigNode):
 
 
 class OverlayConfig(ConfigNode):
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "enabled": True,
             "sidebar_mode": True,
@@ -497,7 +496,7 @@ class OverlayConfig(ConfigNode):
 class JarvisConfig(ConfigNode):
     """Structured root configuration schema."""
 
-    def __init__(self, data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
         raw = copy.deepcopy(data or {})
 
         audio_data = copy.deepcopy(raw.get("audio", {}))
@@ -549,28 +548,28 @@ class ConfigManager:
 
     def __init__(
         self,
-        config_path: Optional[Union[str, Path]] = None,
-        default_config_path: Optional[Union[str, Path]] = None,
-        env_file_path: Optional[Union[str, Path]] = None,
+        config_path: str | Path | None = None,
+        default_config_path: str | Path | None = None,
+        env_file_path: str | Path | None = None,
     ) -> None:
         self._lock = threading.RLock()
-        self._callbacks: List[Callable[[Any], None]] = []
+        self._callbacks: list[Callable[[Any], None]] = []
 
         root_dir = Path(__file__).resolve().parent.parent.parent
         self._default_config_path = Path(default_config_path or (root_dir / "config" / "default_config.yaml"))
         self._config_path = Path(config_path) if config_path else None
         self._env_file_path = Path(env_file_path or (root_dir / ".env"))
 
-        self._data: Dict[str, Any] = {}
-        self._structured_config: Optional[JarvisConfig] = None
-        self._raw_default_data: Dict[str, Any] = {}
-        self._raw_custom_data: Dict[str, Any] = {}
+        self._data: dict[str, Any] = {}
+        self._structured_config: JarvisConfig | None = None
+        self._raw_default_data: dict[str, Any] = {}
+        self._raw_custom_data: dict[str, Any] = {}
 
         # Hot reload state
-        self._watcher_thread: Optional[threading.Thread] = None
+        self._watcher_thread: threading.Thread | None = None
         self._stop_watcher_event = threading.Event()
         self._last_mtime: float = 0.0
-        self._active_watch_path: Optional[Path] = None
+        self._active_watch_path: Path | None = None
 
     def load(self) -> JarvisConfig:
         """Load all configuration layers according to hierarchy."""
@@ -627,7 +626,7 @@ class ConfigManager:
         except Exception as e:
             log.warning("Could not manually parse .env file '%s': %s", path, e)
 
-    def _read_file(self, path: Path) -> Dict[str, Any]:
+    def _read_file(self, path: Path) -> dict[str, Any]:
         """Parse YAML, JSON, or TOML file safely with validation and fallback."""
         if not path.is_file():
             log.warning("Config file not found: %s", path)
@@ -670,7 +669,7 @@ class ConfigManager:
             log.error("Failed to parse config file '%s': %s", path, e)
             raise ValueError(f"Config syntax error in {path}: {e}") from e
 
-    def _apply_env_overrides(self, target: Dict[str, Any]) -> None:
+    def _apply_env_overrides(self, target: dict[str, Any]) -> None:
         """Map OS environment variables into target dict."""
         for env_key, (dot_key, expected_type) in LEGACY_ENV_MAPPING.items():
             val = os.environ.get(env_key)
@@ -700,7 +699,7 @@ class ConfigManager:
                 typed_val = _parse_scalar(val)
                 self._set_dot_key(target, dot_key, typed_val)
 
-    def _set_dot_key(self, target: Dict[str, Any], dot_key: str, value: Any) -> None:
+    def _set_dot_key(self, target: dict[str, Any], dot_key: str, value: Any) -> None:
         """Internal helper to set nested value by dot path."""
         keys = dot_key.split(".")
         current = target
@@ -733,7 +732,7 @@ class ConfigManager:
             self._set_dot_key(self._data, key, value)
             self._structured_config = JarvisConfig(self._data)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Return full deep copy of current configuration dictionary."""
         with self._lock:
             return copy.deepcopy(self._data)
@@ -824,7 +823,7 @@ class ConfigManager:
                 log.debug("Watcher probe error on '%s': %s", target, e)
 
 
-def load_config(path: Union[str, Path]) -> Dict[str, Any]:
+def load_config(path: str | Path) -> dict[str, Any]:
     """Convenience function to load configuration dictionary from file path."""
     mgr = ConfigManager(config_path=path)
     mgr.load()
@@ -832,11 +831,11 @@ def load_config(path: Union[str, Path]) -> Dict[str, Any]:
 
 
 # Global singleton instance
-_GLOBAL_CONFIG: Optional[ConfigManager] = None
+_GLOBAL_CONFIG: ConfigManager | None = None
 _GLOBAL_LOCK = threading.Lock()
 
 
-def get_config(config_path: Optional[Union[str, Path]] = None) -> ConfigManager:
+def get_config(config_path: str | Path | None = None) -> ConfigManager:
     """Retrieve or initialize the global singleton ConfigManager."""
     global _GLOBAL_CONFIG
     with _GLOBAL_LOCK:

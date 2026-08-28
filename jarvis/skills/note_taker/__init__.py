@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import datetime
 import json
-from pathlib import Path
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
@@ -20,7 +20,7 @@ def _get_notes_file() -> Path:
     return p
 
 
-def _load_notes() -> List[Dict[str, Any]]:
+def _load_notes() -> list[dict[str, Any]]:
     p = _get_notes_file()
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
@@ -29,7 +29,7 @@ def _load_notes() -> List[Dict[str, Any]]:
         return []
 
 
-def _save_notes(notes: List[Dict[str, Any]]) -> None:
+def _save_notes(notes: list[dict[str, Any]]) -> None:
     p = _get_notes_file()
     p.write_text(json.dumps(notes, indent=2, ensure_ascii=False), encoding="utf-8")
 
@@ -40,7 +40,7 @@ def execute(
     tag: str = "general",
     query: str = "",
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Execute note management operations.
     """
@@ -50,7 +50,7 @@ def execute(
         if not content.strip():
             msg = "Nội dung ghi chú trống. Vui lòng cung cấp nội dung."
             return {"data": {"text": msg, "success": False}, "output": msg}
-        
+
         now = datetime.datetime.now()
         new_note = {
             "id": len(notes) + 1,
@@ -61,7 +61,7 @@ def execute(
         }
         notes.append(new_note)
         _save_notes(notes)
-        
+
         msg = f"Đã lưu ghi chú #{new_note['id']} [{new_note['tag']}]: \"{new_note['content']}\""
         return {
             "data": {
@@ -77,11 +77,11 @@ def execute(
         if not notes:
             msg = "Hiện tại chưa có ghi chú nào được lưu."
             return {"data": {"text": msg, "notes": [], "success": True}, "output": msg}
-        
+
         lines = [f"Danh sách {len(notes)} ghi chú:"]
         for n in notes[-10:]:
             lines.append(f"  • #{n['id']} [{n.get('tag', 'general')}] ({n.get('created_at', '')}): {n['content']}")
-        
+
         summary = "\n".join(lines)
         return {
             "data": {
@@ -95,7 +95,7 @@ def execute(
     elif action == "search":
         q = (query or content).lower().strip()
         matched = [n for n in notes if q in n.get("content", "").lower() or q in n.get("tag", "").lower()]
-        
+
         if matched:
             lines = [f"Tìm thấy {len(matched)} ghi chú khớp với '{q}':"]
             for n in matched:
@@ -103,7 +103,7 @@ def execute(
             summary = "\n".join(lines)
         else:
             summary = f"Không tìm thấy ghi chú nào khớp với '{q}'."
-            
+
         return {
             "data": {
                 "text": summary,

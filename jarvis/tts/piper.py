@@ -14,7 +14,6 @@ import logging
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 log = logging.getLogger("jarvis.tts.piper")
 
@@ -41,12 +40,12 @@ class PiperTTSEngine:
 
     def __init__(
         self,
-        config: Optional[PiperConfig] = None,
+        config: PiperConfig | None = None,
         is_mock: bool = False,
     ) -> None:
         self.config = config or PiperConfig()
         self.is_mock = is_mock
-        self._model: Optional[object] = None
+        self._model: object | None = None
         self._lock = threading.Lock()
         log.info(
             "PiperTTSEngine initialized (model=%s, available=%s)",
@@ -117,8 +116,8 @@ class PiperTTSEngine:
             return header + b"\x00" * data_size
 
         try:
-            from piper_phonemize import phonemize_espeak  # type: ignore[import]
             import numpy as np  # type: ignore[import]
+            from piper_phonemize import phonemize_espeak  # type: ignore[import]
         except ImportError as exc:
             raise PiperNotAvailableError(
                 f"piper_phonemize or numpy not installed: {exc}. "
@@ -175,8 +174,8 @@ class PiperTTSEngine:
         """Synthesize and play through speakers (blocking)."""
         try:
             wav_bytes = self.synthesize(text)
+            import numpy as np  # type: ignore[import]
             import sounddevice as sd  # type: ignore[import]
-            import numpy as np        # type: ignore[import]
             audio = np.frombuffer(wav_bytes[44:], dtype=np.int16).astype(np.float32) / 32768.0
             sd.play(audio, samplerate=self.config.sample_rate, blocking=True)
         except PiperNotAvailableError as exc:

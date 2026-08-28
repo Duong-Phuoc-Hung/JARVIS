@@ -5,9 +5,9 @@ Searches files, lists folder contents, and resolves system directory paths.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
@@ -15,7 +15,7 @@ def _get_known_folder(name: str) -> Path:
     """Resolve known user folders on Windows."""
     user_home = Path.home()
     lower = name.lower().strip()
-    
+
     if lower in ("downloads", "download", "tai_ve", "tải về"):
         return user_home / "Downloads"
     elif lower in ("documents", "document", "tai_lieu", "tài liệu"):
@@ -31,7 +31,7 @@ def _get_known_folder(name: str) -> Path:
     elif lower in ("workspace", "code", "projects"):
         ws = Path("d:/Software GitCode/JARVIS")
         return ws if ws.exists() else user_home
-    
+
     p = Path(name)
     if p.exists():
         return p
@@ -45,7 +45,7 @@ def execute(
     extension: str = "",
     max_results: int = 10,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     File search and management execution handler.
     """
@@ -79,7 +79,7 @@ def execute(
                 })
                 if len(entries) >= max_results:
                     break
-            
+
             summary = f"Danh sách {len(entries)} mục trong {target_dir.name}:\n" + "\n".join(
                 [f"- {'📁' if e['is_dir'] else '📄'} {e['name']}" for e in entries]
             )
@@ -96,7 +96,7 @@ def execute(
         try:
             for root, dirs, files in os.walk(str(target_dir)):
                 dirs[:] = [d for d in dirs if not d.startswith((".", "$", "__")) and d not in ("node_modules", ".git", ".venv")]
-                
+
                 for f in files:
                     f_lower = f.lower()
                     match = True
@@ -104,7 +104,7 @@ def execute(
                         match = False
                     if ext_clean and not f_lower.endswith(f".{ext_clean}"):
                         match = False
-                    
+
                     if match:
                         full_p = Path(root) / f
                         found.append({

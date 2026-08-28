@@ -7,15 +7,15 @@ Uses pure HTTP REST via `requests` (zero mandatory vendor SDKs).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum
 import json
 import logging
 import os
 import re
 import time
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 import uuid
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
 
 try:
     import requests
@@ -72,7 +72,7 @@ class TokenUsage:
     total_tokens: int = 0
     estimated_cost_usd: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
@@ -85,10 +85,10 @@ class TokenUsage:
 class ToolCall:
     id: str
     name: str
-    arguments: Dict[str, Any] = field(default_factory=dict)
+    arguments: dict[str, Any] = field(default_factory=dict)
     raw_arguments: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -101,12 +101,12 @@ class ToolCall:
 class ChatMessage:
     role: str  # "system", "user", "assistant", "tool"
     content: str
-    name: Optional[str] = None
-    tool_calls: Optional[List[ToolCall]] = None
-    tool_call_id: Optional[str] = None
+    name: str | None = None
+    tool_calls: list[ToolCall] | None = None
+    tool_call_id: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
-        res: Dict[str, Any] = {"role": self.role, "content": self.content}
+    def to_dict(self) -> dict[str, Any]:
+        res: dict[str, Any] = {"role": self.role, "content": self.content}
         if self.name:
             res["name"] = self.name
         if self.tool_calls:
@@ -119,15 +119,15 @@ class ChatMessage:
 @dataclass
 class LLMResponse:
     content: str = ""
-    tool_calls: List[ToolCall] = field(default_factory=list)
+    tool_calls: list[ToolCall] = field(default_factory=list)
     provider: str = "openai"
     model: str = ""
     usage: TokenUsage = field(default_factory=TokenUsage)
-    raw_response: Dict[str, Any] = field(default_factory=dict)
+    raw_response: dict[str, Any] = field(default_factory=dict)
     latency_ms: float = 0.0
     finish_reason: str = "stop"
     success: bool = True
-    error: Optional[str] = None
+    error: str | None = None
 
     def __str__(self) -> str:
         """Enables string compatibility with assertions (e.g. `assert 'gemini' in res`)."""
@@ -176,10 +176,10 @@ class LLMClient:
 
     def __init__(
         self,
-        provider: Union[LLMProvider, str] = "gemini",
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        base_url: Optional[str] = None,
+        provider: LLMProvider | str = "gemini",
+        api_key: str | None = None,
+        model: str | None = None,
+        base_url: str | None = None,
         timeout: float = 30.0,
         max_retries: int = 2,
         default_temperature: float = 0.7,
@@ -211,20 +211,20 @@ class LLMClient:
         self.mock_mode = mock_mode
 
         self.session = requests.Session() if REQUESTS_AVAILABLE else None
-        self.call_history: List[Dict[str, Any]] = []
+        self.call_history: list[dict[str, Any]] = []
         self._total_usage = TokenUsage()
 
         # Mocking controls
-        self._mock_rules: Dict[str, Any] = {}
-        self._canned_responses: List[LLMResponse] = []
-        self._mock_error: Optional[str] = None
+        self._mock_rules: dict[str, Any] = {}
+        self._canned_responses: list[LLMResponse] = []
+        self._mock_error: str | None = None
         self._mock_delay_s: float = 0.0
 
     def set_mock_behavior(
         self,
-        rules: Optional[Dict[str, Any]] = None,
-        canned_responses: Optional[List[LLMResponse]] = None,
-        mock_error: Optional[str] = None,
+        rules: dict[str, Any] | None = None,
+        canned_responses: list[LLMResponse] | None = None,
+        mock_error: str | None = None,
         mock_delay_s: float = 0.0,
     ) -> None:
         """Configures mock engine behavior for deterministic unit & E2E tests."""
@@ -246,10 +246,10 @@ class LLMClient:
         self,
         prompt: str,
         system_prompt: str = "",
-        tools: Optional[List[Dict[str, Any]]] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        mock_http: Optional[Any] = None,
+        tools: list[dict[str, Any]] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        mock_http: Any | None = None,
     ) -> LLMResponse:
         """Convenience method sending a single prompt, returning LLMResponse."""
         messages = []
@@ -267,14 +267,14 @@ class LLMClient:
 
     def chat(
         self,
-        messages: List[Union[ChatMessage, Dict[str, str]]],
-        tools: Optional[List[Dict[str, Any]]] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        mock_http: Optional[Any] = None,
+        messages: list[ChatMessage | dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        mock_http: Any | None = None,
     ) -> LLMResponse:
         """Executes a chat completion across configured provider with error isolation & retries."""
-        normalized_messages: List[ChatMessage] = []
+        normalized_messages: list[ChatMessage] = []
         for m in messages:
             if isinstance(m, ChatMessage):
                 normalized_messages.append(m)
@@ -357,9 +357,9 @@ class LLMClient:
 
     def _execute_mock(
         self,
-        messages: List[ChatMessage],
-        tools: Optional[List[Dict[str, Any]]],
-        mock_http: Optional[Any] = None,
+        messages: list[ChatMessage],
+        tools: list[dict[str, Any]] | None,
+        mock_http: Any | None = None,
     ) -> LLMResponse:
         """Deterministic mock response synthesizer."""
         if self._mock_delay_s > 0:
@@ -419,14 +419,14 @@ class LLMClient:
         )
 
     # Provider HTTP REST Implementations (OpenAI, Gemini, Claude, Ollama)
-    def _call_openai(self, messages: List[ChatMessage], tools: Optional[List[Dict[str, Any]]], temperature: float, max_tokens: int) -> LLMResponse:
+    def _call_openai(self, messages: list[ChatMessage], tools: list[dict[str, Any]] | None, temperature: float, max_tokens: int) -> LLMResponse:
         url = self.base_url or self.DEFAULT_ENDPOINTS[LLMProvider.OPENAI]
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
         formatted_messages = [m.to_dict() for m in messages]
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": self.model,
             "messages": formatted_messages,
             "temperature": temperature,
@@ -444,7 +444,7 @@ class LLMClient:
         msg = choice.get("message", {})
         content = msg.get("content") or ""
 
-        tool_calls: List[ToolCall] = []
+        tool_calls: list[ToolCall] = []
         if "tool_calls" in msg:
             for tc in msg["tool_calls"]:
                 raw_args = tc.get("function", {}).get("arguments", "{}")
@@ -473,7 +473,7 @@ class LLMClient:
             success=True,
         )
 
-    def _call_gemini(self, messages: List[ChatMessage], tools: Optional[List[Dict[str, Any]]], temperature: float, max_tokens: int) -> LLMResponse:
+    def _call_gemini(self, messages: list[ChatMessage], tools: list[dict[str, Any]] | None, temperature: float, max_tokens: int) -> LLMResponse:
         endpoint = self.DEFAULT_ENDPOINTS[LLMProvider.GEMINI].format(model=self.model)
         url = f"{endpoint}?key={self.api_key}" if not self.base_url else self.base_url
         headers = {"Content-Type": "application/json"}
@@ -487,7 +487,7 @@ class LLMClient:
                 role = "model" if m.role == "assistant" else "user"
                 contents.append({"role": role, "parts": [{"text": m.content}]})
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "contents": contents,
             "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
         }
@@ -509,7 +509,7 @@ class LLMClient:
         data = res.json()
 
         content = ""
-        tool_calls: List[ToolCall] = []
+        tool_calls: list[ToolCall] = []
         candidates = data.get("candidates", [])
         if candidates:
             parts = candidates[0].get("content", {}).get("parts", [])
@@ -542,7 +542,7 @@ class LLMClient:
             success=True,
         )
 
-    def _call_claude(self, messages: List[ChatMessage], tools: Optional[List[Dict[str, Any]]], temperature: float, max_tokens: int) -> LLMResponse:
+    def _call_claude(self, messages: list[ChatMessage], tools: list[dict[str, Any]] | None, temperature: float, max_tokens: int) -> LLMResponse:
         url = self.base_url or self.DEFAULT_ENDPOINTS[LLMProvider.CLAUDE]
         headers = {
             "x-api-key": self.api_key,
@@ -557,7 +557,7 @@ class LLMClient:
             else:
                 formatted_messages.append({"role": m.role, "content": m.content})
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": self.model,
             "messages": formatted_messages,
             "max_tokens": max_tokens,
@@ -581,7 +581,7 @@ class LLMClient:
         data = res.json()
 
         content = ""
-        tool_calls: List[ToolCall] = []
+        tool_calls: list[ToolCall] = []
         for block in data.get("content", []):
             if block.get("type") == "text":
                 content += block.get("text", "")
@@ -613,11 +613,11 @@ class LLMClient:
             success=True,
         )
 
-    def _call_ollama(self, messages: List[ChatMessage], tools: Optional[List[Dict[str, Any]]], temperature: float, max_tokens: int) -> LLMResponse:
+    def _call_ollama(self, messages: list[ChatMessage], tools: list[dict[str, Any]] | None, temperature: float, max_tokens: int) -> LLMResponse:
         url = self.base_url or self.DEFAULT_ENDPOINTS[LLMProvider.OLLAMA]
         headers = {"Content-Type": "application/json"}
         formatted_messages = [m.to_dict() for m in messages]
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": self.model,
             "messages": formatted_messages,
             "stream": False,
@@ -632,7 +632,7 @@ class LLMClient:
 
         msg = data.get("message", {})
         content = msg.get("content", "")
-        tool_calls: List[ToolCall] = []
+        tool_calls: list[ToolCall] = []
         if "tool_calls" in msg:
             for tc in msg["tool_calls"]:
                 fn = tc.get("function", {})
@@ -661,7 +661,7 @@ class LLMClient:
             success=True,
         )
 
-    def _clean_and_parse_json(self, raw_str: str) -> Dict[str, Any]:
+    def _clean_and_parse_json(self, raw_str: str) -> dict[str, Any]:
         """Cleans and robustly parses JSON with markdown strip and regex fallback."""
         if not raw_str or not isinstance(raw_str, str):
             return {}

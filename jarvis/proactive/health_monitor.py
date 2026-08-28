@@ -16,12 +16,13 @@ Features:
 from __future__ import annotations
 
 import ctypes
-from dataclasses import dataclass, field
 import logging
 import sys
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
 
 try:
     import psutil
@@ -40,10 +41,10 @@ class HealthAlert:
     value: float               # Observed metric value
     threshold: float           # Violated threshold
     message: str               # Spoken alert in Vietnamese
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "alert_type": self.alert_type,
             "level": self.level,
@@ -62,10 +63,10 @@ class SystemHealthMonitor:
 
     def __init__(
         self,
-        hardware_monitor: Optional[Any] = None,
-        telemetry_provider: Optional[Any] = None,
-        tts_callback: Optional[Callable[[str], None]] = None,
-        overlay_callback: Optional[Callable[[str, str], None]] = None,
+        hardware_monitor: Any | None = None,
+        telemetry_provider: Any | None = None,
+        tts_callback: Callable[[str], None] | None = None,
+        overlay_callback: Callable[[str, str], None] | None = None,
         check_interval_seconds: float = 5.0,
         cpu_threshold: float = 90.0,
         ram_threshold: float = 85.0,
@@ -93,8 +94,8 @@ class SystemHealthMonitor:
         self.enabled = enabled
 
         # State tracking for debouncing & hysteresis
-        self._last_alert_times: Dict[str, float] = {}
-        self._active_alert_states: Dict[str, bool] = {
+        self._last_alert_times: dict[str, float] = {}
+        self._active_alert_states: dict[str, bool] = {
             "cpu": False,
             "ram": False,
             "disk": False,
@@ -104,14 +105,14 @@ class SystemHealthMonitor:
 
         self._lock = threading.RLock()
         self._stop_event = threading.Event()
-        self._worker_thread: Optional[threading.Thread] = None
-        self._last_metrics: Dict[str, Any] = {}
+        self._worker_thread: threading.Thread | None = None
+        self._last_metrics: dict[str, Any] = {}
 
     # ──────────────────────────────────────────────────────────────────────────
     # Telemetry Acquisition
     # ──────────────────────────────────────────────────────────────────────────
 
-    def collect_telemetry(self) -> Dict[str, Any]:
+    def collect_telemetry(self) -> dict[str, Any]:
         """
         Gathers system telemetry from injected hardware monitor, provider, psutil, or win32 ctypes.
         """
@@ -201,7 +202,7 @@ class SystemHealthMonitor:
             "battery_plugged": batt_plugged,
         }
 
-    def _probe_battery(self) -> Tuple[Optional[float], bool]:
+    def _probe_battery(self) -> tuple[float | None, bool]:
         """Probes battery percentage and AC charging state."""
         # 1. psutil
         if HAS_PSUTIL:
@@ -240,7 +241,7 @@ class SystemHealthMonitor:
     # Telemetry Analysis & Alert Dispatching
     # ──────────────────────────────────────────────────────────────────────────
 
-    def check_telemetry(self, now: Optional[float] = None) -> List[HealthAlert]:
+    def check_telemetry(self, now: float | None = None) -> list[HealthAlert]:
         """
         Gathers current metrics, evaluates against thresholds with hysteresis & cooldown,
         and fires alerts if violated.
@@ -251,7 +252,7 @@ class SystemHealthMonitor:
 
         current_time = time.time() if now is None else float(now)
         telemetry = self.collect_telemetry()
-        alerts: List[HealthAlert] = []
+        alerts: list[HealthAlert] = []
 
         with self._lock:
             self._last_metrics = telemetry
@@ -376,7 +377,7 @@ class SystemHealthMonitor:
             except Exception as e:
                 logger.error("Error dispatching health alert overlay: %s", e)
 
-    def get_latest_metrics(self) -> Dict[str, Any]:
+    def get_latest_metrics(self) -> dict[str, Any]:
         """Returns the most recent collected metrics snapshot."""
         with self._lock:
             return dict(self._last_metrics)

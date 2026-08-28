@@ -7,14 +7,12 @@ Covers Feature:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
 import logging
-import os
-from pathlib import Path
 import shutil
 import subprocess
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("jarvis.automation.vm")
 
@@ -47,8 +45,8 @@ class VMOrchestrator:
     def __init__(
         self,
         default_hypervisor: str = "vmware",
-        vmrun_path: Optional[str] = None,
-        vboxmanage_path: Optional[str] = None,
+        vmrun_path: str | None = None,
+        vboxmanage_path: str | None = None,
         dry_run: bool = True,
     ):
         self.default_hypervisor = default_hypervisor
@@ -59,9 +57,9 @@ class VMOrchestrator:
     def start_vm(
         self,
         vm_name: str,
-        hypervisor: Optional[str] = None,
+        hypervisor: str | None = None,
         gui_mode: str = "nogui",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Starts the specified virtual machine."""
         hyp = (hypervisor or self.default_hypervisor).lower()
         if self.dry_run or not (shutil.which(self.vmrun_path) or shutil.which(self.vboxmanage_path)):
@@ -102,9 +100,9 @@ class VMOrchestrator:
     def stop_vm(
         self,
         vm_name: str,
-        hypervisor: Optional[str] = None,
+        hypervisor: str | None = None,
         mode: str = "soft",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Stops the specified virtual machine."""
         hyp = (hypervisor or self.default_hypervisor).lower()
         if self.dry_run or not (shutil.which(self.vmrun_path) or shutil.which(self.vboxmanage_path)):
@@ -146,8 +144,8 @@ class VMOrchestrator:
     def suspend_vm(
         self,
         vm_name: str,
-        hypervisor: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        hypervisor: str | None = None,
+    ) -> dict[str, Any]:
         """Suspends the specified virtual machine."""
         hyp = (hypervisor or self.default_hypervisor).lower()
         if self.dry_run or not (shutil.which(self.vmrun_path) or shutil.which(self.vboxmanage_path)):
@@ -171,8 +169,8 @@ class VMOrchestrator:
         self,
         vm_name: str,
         snapshot_name: str,
-        hypervisor: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        hypervisor: str | None = None,
+    ) -> dict[str, Any]:
         """Creates a snapshot for the VM."""
         hyp = (hypervisor or self.default_hypervisor).lower()
         return {

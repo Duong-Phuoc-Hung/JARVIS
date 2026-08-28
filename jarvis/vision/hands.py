@@ -8,11 +8,11 @@ Covers Features:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
 import logging
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
 import numpy as np
 
@@ -37,7 +37,7 @@ class GestureType(str, Enum):
 class HandLandmarkTracker:
     """Extracts 21 landmarks per hand from camera frames or test feeds."""
 
-    def __init__(self, camera_feed: Optional[Any] = None):
+    def __init__(self, camera_feed: Any | None = None):
         self.camera = camera_feed
         self.mp_hands = None
         self._init_mediapipe()
@@ -54,7 +54,7 @@ class HandLandmarkTracker:
         except Exception:
             self.mp_hands = None
 
-    def get_landmarks(self, frame: Optional[np.ndarray] = None) -> Optional[List[NormalizedLandmark]]:
+    def get_landmarks(self, frame: np.ndarray | None = None) -> list[NormalizedLandmark] | None:
         """Retrieves 21 landmarks from camera_feed mock or live frame."""
         if self.camera and hasattr(self.camera, "get_hand_landmarks"):
             return self.camera.get_hand_landmarks()
@@ -76,9 +76,9 @@ class HandGestureClassifier:
         self.debounce_cooldown_s = debounce_cooldown_s
         self.last_gesture: GestureType = GestureType.NONE
         self.last_trigger_time: float = 0.0
-        self.position_history: List[Tuple[float, float]] = []  # (x, timestamp)
+        self.position_history: list[tuple[float, float]] = []  # (x, timestamp)
 
-    def classify(self, landmarks: Optional[List[NormalizedLandmark]]) -> GestureType:
+    def classify(self, landmarks: list[NormalizedLandmark] | None) -> GestureType:
         if not landmarks or len(landmarks) < 21:
             self.position_history.clear()
             return GestureType.NONE
@@ -147,16 +147,16 @@ class HandGestureEngine:
 
     def __init__(
         self,
-        camera_feed: Optional[Any] = None,
+        camera_feed: Any | None = None,
         enabled: bool = True,
-        win32_platform: Optional[Any] = None,
+        win32_platform: Any | None = None,
     ):
         self.tracker = HandLandmarkTracker(camera_feed)
         self.classifier = HandGestureClassifier()
         self.enabled = enabled
         self.win32 = win32_platform
 
-    def process_frame(self, frame: Optional[np.ndarray] = None) -> Optional[GestureType]:
+    def process_frame(self, frame: np.ndarray | None = None) -> GestureType | None:
         """Processes frame, classifies gesture, and invokes configured desktop actions."""
         if not self.enabled:
             return None

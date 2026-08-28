@@ -66,7 +66,7 @@ def execute(
     action: str = "read",
     text: str = "",
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Execute clipboard read or write operations.
     """
@@ -76,7 +76,7 @@ def execute(
         if not text:
             msg = "Vui lòng cung cấp văn bản cần sao chép."
             return {"text": msg, "output": msg, "success": False}
-        
+
         ok = _set_clipboard_text(text)
         if ok:
             msg = f"📋 Đã sao chép vào clipboard: \"{text[:100]}{'...' if len(text) > 100 else ''}\""
@@ -95,7 +95,7 @@ def execute(
         if not clip_content.strip():
             msg = "📋 Clipboard hiện đang trống."
             return {"text": msg, "output": msg, "content": "", "success": True}
-        
+
         preview = clip_content[:200] + ("..." if len(clip_content) > 200 else "")
         msg = f"📋 Nội dung trong clipboard ({len(clip_content)} ký tự):\n\"{preview}\""
         return {

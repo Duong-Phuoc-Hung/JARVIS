@@ -8,11 +8,10 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
-from pathlib import Path
 import sys
-from typing import Optional, Union
 import wave
+from pathlib import Path
+
 import numpy as np
 
 log = logging.getLogger("jarvis.tts.cache")
@@ -21,7 +20,7 @@ log = logging.getLogger("jarvis.tts.cache")
 class TTSAudioCache:
     """Manages persistent SHA-256 WAV cache and audio playback."""
 
-    def __init__(self, cache_dir: Optional[Union[str, Path]] = None, enabled: bool = True) -> None:
+    def __init__(self, cache_dir: str | Path | None = None, enabled: bool = True) -> None:
         if cache_dir:
             self.cache_dir = Path(cache_dir).expanduser().resolve()
             if not self.cache_dir.name == "jarvis_welcome" and not (self.cache_dir / "jarvis_welcome").exists():
@@ -45,7 +44,7 @@ class TTSAudioCache:
         key = f"{text}|{voice_id}|{model_id}|{output_format}"
         """
         clean_text = text.strip()
-        raw = f"{clean_text}|{voice_id}|{model_id}|{output_format}".encode("utf-8")
+        raw = f"{clean_text}|{voice_id}|{model_id}|{output_format}".encode()
         return hashlib.sha256(raw).hexdigest()[:24]
 
     def get_cache_path(
@@ -64,7 +63,7 @@ class TTSAudioCache:
         voice_id: str = "",
         model_id: str = "eleven_multilingual_v2",
         output_format: str = "pcm_24000",
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Returns Path to valid cached WAV file if exists and uncorrupted, otherwise None."""
         if not self.enabled:
             return None
@@ -89,7 +88,7 @@ class TTSAudioCache:
         voice_id: str = "",
         model_id: str = "eleven_multilingual_v2",
         output_format: str = "pcm_24000",
-    ) -> Optional[bytes]:
+    ) -> bytes | None:
         """Returns raw bytes of cached WAV if valid."""
         if not self.enabled:
             return None
@@ -119,7 +118,7 @@ class TTSAudioCache:
             return self.get_cache_path(text, voice_id, model_id, output_format)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         path = self.get_cache_path(text, voice_id, model_id, output_format)
-        
+
         import threading
         import time
         thread_id = threading.get_ident()
@@ -177,7 +176,7 @@ class TTSAudioCache:
             sample_rate=sample_rate,
         )
 
-    def play_wav(self, path: Union[str, Path], wait: bool = True) -> bool:
+    def play_wav(self, path: str | Path, wait: bool = True) -> bool:
         """Plays a WAV file via sounddevice with winsound/system fallbacks."""
         wav_path = Path(path)
         if not wav_path.is_file():
@@ -231,5 +230,5 @@ class LocalTTSCache(TTSAudioCache):
         voice_id: str = "",
         model_id: str = "eleven_multilingual_v2",
         output_format: str = "pcm_24000",
-    ) -> Optional[bytes]:
+    ) -> bytes | None:
         return self.get_bytes(text, voice_id, model_id, output_format)

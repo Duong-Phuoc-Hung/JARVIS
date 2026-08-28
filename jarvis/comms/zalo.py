@@ -28,10 +28,9 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-from urllib.parse import urlencode
-from urllib.request import urlopen, Request
+from typing import Any
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 log = logging.getLogger("jarvis.comms.zalo")
 
@@ -44,7 +43,7 @@ class ZaloConfig:
     access_token: str = ""
     oa_id: str = ""
     webhook_secret: str = ""
-    whitelist_user_ids: List[str] = field(default_factory=list)
+    whitelist_user_ids: list[str] = field(default_factory=list)
     webhook_port: int = 8765
 
 
@@ -72,16 +71,16 @@ class ZaloBotController:
 
     def __init__(
         self,
-        config: Optional[ZaloConfig] = None,
+        config: ZaloConfig | None = None,
         is_mock: bool = False,
     ) -> None:
         self.config = config or ZaloConfig()
         self.is_mock = is_mock
         self._running = False
-        self._webhook_thread: Optional[threading.Thread] = None
-        self.sent_messages: List[Dict[str, Any]] = []
-        self.received_messages: List[ZaloMessage] = []
-        self.security_violations: List[Dict] = []
+        self._webhook_thread: threading.Thread | None = None
+        self.sent_messages: list[dict[str, Any]] = []
+        self.received_messages: list[ZaloMessage] = []
+        self.security_violations: list[dict] = []
         log.info("ZaloBotController initialized (mock=%s)", is_mock)
 
     # ------------------------------------------------------------------
@@ -113,7 +112,7 @@ class ZaloBotController:
     # Message Handling
     # ------------------------------------------------------------------
 
-    def handle_message(self, user_id: str, user_name: str, text: str) -> Dict[str, Any]:
+    def handle_message(self, user_id: str, user_name: str, text: str) -> dict[str, Any]:
         """Process incoming Zalo message, return reply dict."""
         if not self.is_user_authorized(user_id):
             self.security_violations.append({"user_id": user_id, "text": text, "time": time.time()})
@@ -272,7 +271,7 @@ class ZaloBotController:
             return ZaloSendResult(success=True, message_id="mock_img_id")
         return ZaloSendResult(success=True, message_id="img_not_implemented")
 
-    def broadcast(self, text: str, user_ids: Optional[List[str]] = None) -> List[ZaloSendResult]:
+    def broadcast(self, text: str, user_ids: list[str] | None = None) -> list[ZaloSendResult]:
         """Send message to all whitelisted users or provided list."""
         targets = user_ids or self.config.whitelist_user_ids
         if not targets:
@@ -304,7 +303,7 @@ class ZaloBotController:
                 time.sleep(1)
             return
 
-        from http.server import HTTPServer, BaseHTTPRequestHandler
+        from http.server import BaseHTTPRequestHandler, HTTPServer
 
         controller = self
 

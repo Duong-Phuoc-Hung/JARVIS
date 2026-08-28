@@ -7,10 +7,9 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import re
 import time
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any
 
 from jarvis.planner.dag import TaskDAG
 from jarvis.planner.models import RecoveryStrategy, ReflectionResult, StepStatus, TaskNode
@@ -24,7 +23,7 @@ class SelfReflectionEngine:
     Employs deterministic heuristic triage with optional LLM reasoning fallback.
     """
 
-    DEFAULT_TOOL_FALLBACKS: Dict[str, str] = {
+    DEFAULT_TOOL_FALLBACKS: dict[str, str] = {
         "browser_scrape": "web_search_direct",
         "playwright_navigate": "http_fetch",
         "web_crawler": "web_search_direct",
@@ -37,10 +36,10 @@ class SelfReflectionEngine:
 
     def __init__(
         self,
-        llm_client: Optional[Any] = None,
+        llm_client: Any | None = None,
         base_backoff_seconds: float = 1.0,
         max_backoff_seconds: float = 30.0,
-        tool_fallbacks: Optional[Dict[str, str]] = None,
+        tool_fallbacks: dict[str, str] | None = None,
     ) -> None:
         self.llm_client = llm_client
         self.base_backoff_seconds = float(base_backoff_seconds)
@@ -57,9 +56,9 @@ class SelfReflectionEngine:
     def reflect(
         self,
         node: TaskNode,
-        error: Union[str, Exception],
-        dag: Optional[TaskDAG] = None,
-        context: Optional[Dict[str, Any]] = None,
+        error: str | Exception,
+        dag: TaskDAG | None = None,
+        context: dict[str, Any] | None = None,
     ) -> ReflectionResult:
         """
         Main reflection entrypoint. Analyzes step failure and determines recovery plan.
@@ -193,9 +192,9 @@ class SelfReflectionEngine:
         self,
         node: TaskNode,
         err_msg: str,
-        dag: Optional[TaskDAG],
-        context: Optional[Dict[str, Any]],
-    ) -> Optional[ReflectionResult]:
+        dag: TaskDAG | None,
+        context: dict[str, Any] | None,
+    ) -> ReflectionResult | None:
         """Queries LLM for intelligent failure reasoning and recovery proposal."""
         prompt = (
             f"You are the JARVIS Autonomous ReAct Reflection Agent.\n"

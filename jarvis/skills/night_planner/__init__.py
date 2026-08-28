@@ -30,7 +30,7 @@ def execute(
     report_time: str = "07:00",
     task_id: str = "",
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Night Shift Task Planner.
 

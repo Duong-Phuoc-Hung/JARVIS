@@ -15,10 +15,10 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 import sqlite3
 import threading
-from typing import Any, Dict, List, Optional, Union
+from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 logger = logging.getLogger("jarvis.memory.sqlite_store")
@@ -31,7 +31,7 @@ class SQLiteMemoryStore:
 
     def __init__(
         self,
-        db_path: Union[str, Path] = "logs/memory.db",
+        db_path: str | Path = "logs/memory.db",
         timeout: float = 10.0,
     ) -> None:
         self.db_path = Path(db_path)
@@ -212,7 +212,7 @@ class SQLiteMemoryStore:
             finally:
                 conn.close()
 
-    def get_fact(self, key: str, category: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get_fact(self, key: str, category: str | None = None) -> dict[str, Any] | None:
         """
         Retrieves a fact by key (and optional category).
         Updates access count and last_accessed_at timestamp.
@@ -249,9 +249,9 @@ class SQLiteMemoryStore:
 
     def list_facts(
         self,
-        category: Optional[str] = None,
+        category: str | None = None,
         limit: int = 50,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Lists stored facts filtered by category, ordered by updated_at descending."""
         with self._lock:
             conn = self._get_connection()
@@ -270,7 +270,7 @@ class SQLiteMemoryStore:
             finally:
                 conn.close()
 
-    def delete_fact(self, key: str, category: Optional[str] = None) -> bool:
+    def delete_fact(self, key: str, category: str | None = None) -> bool:
         """Deletes a fact by key and optional category."""
         with self._lock:
             conn = self._get_connection()
@@ -301,8 +301,8 @@ class SQLiteMemoryStore:
         session_id: str = "",
         trigger_type: str = "VOICE",
         latency_ms: float = 0.0,
-        error_message: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        error_message: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         """
         Logs an interaction episode to the SQLite database.
@@ -338,16 +338,16 @@ class SQLiteMemoryStore:
 
     def get_episodes(
         self,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Queries episodes within optional date ranges."""
         with self._lock:
             conn = self._get_connection()
             try:
                 query = "SELECT * FROM episodes"
-                params: List[Any] = []
+                params: list[Any] = []
                 conditions = []
 
                 if start_date:
@@ -368,7 +368,7 @@ class SQLiteMemoryStore:
             finally:
                 conn.close()
 
-    def get_today_episodes(self) -> List[Dict[str, Any]]:
+    def get_today_episodes(self) -> list[dict[str, Any]]:
         """Retrieves all episodes logged today (local time)."""
         with self._lock:
             conn = self._get_connection()
@@ -391,8 +391,8 @@ class SQLiteMemoryStore:
         self,
         habit_key: str,
         habit_type: str = "general",
-        typical_hour: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        typical_hour: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Records or updates user habit observation frequency."""
         meta_str = json.dumps(metadata or {}, ensure_ascii=False)
@@ -414,7 +414,7 @@ class SQLiteMemoryStore:
             finally:
                 conn.close()
 
-    def get_habits(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_habits(self, limit: int = 20) -> list[dict[str, Any]]:
         """Returns user habits ordered by frequency descending."""
         with self._lock:
             conn = self._get_connection()
@@ -433,15 +433,15 @@ class SQLiteMemoryStore:
         self,
         task_id: str,
         goal: str,
-        dag_json: Optional[Union[str, Dict[str, Any]]] = None,
+        dag_json: str | dict[str, Any] | None = None,
         status: str = "completed",
         duration: float = 0.0,
-        duration_seconds: Optional[float] = None,
-        plan_dag_json: Optional[Union[str, Dict[str, Any]]] = None,
-        execution_trace: Optional[Union[str, List[Any], Dict[str, Any]]] = None,
-        execution_trace_json: Optional[Union[str, List[Any], Dict[str, Any]]] = None,
-        created_at: Optional[str] = None,
-        completed_at: Optional[str] = None,
+        duration_seconds: float | None = None,
+        plan_dag_json: str | dict[str, Any] | None = None,
+        execution_trace: str | list[Any] | dict[str, Any] | None = None,
+        execution_trace_json: str | list[Any] | dict[str, Any] | None = None,
+        created_at: str | None = None,
+        completed_at: str | None = None,
     ) -> bool:
         """
         Records or updates a task execution record in the `task_history` table.
@@ -501,8 +501,8 @@ class SQLiteMemoryStore:
     def get_task_history(
         self,
         limit: int = 50,
-        status: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Retrieves task execution history ordered by created_at descending."""
         with self._lock:
             conn = self._get_connection()
@@ -521,7 +521,7 @@ class SQLiteMemoryStore:
             finally:
                 conn.close()
 
-    def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
+    def get_task(self, task_id: str) -> dict[str, Any] | None:
         """Retrieves a specific task execution by task_id."""
         with self._lock:
             conn = self._get_connection()
@@ -549,9 +549,9 @@ class SQLiteMemoryStore:
     def save_browser_session(
         self,
         domain: str,
-        cookies: Union[str, List[Dict[str, Any]]],
-        storage: Optional[Union[str, Dict[str, Any]]] = None,
-        local_storage: Optional[Union[str, Dict[str, Any]]] = None,
+        cookies: str | list[dict[str, Any]],
+        storage: str | dict[str, Any] | None = None,
+        local_storage: str | dict[str, Any] | None = None,
         user_agent: str = "",
     ) -> bool:
         """Saves browser cookies, local storage, and user agent per domain."""
@@ -587,7 +587,7 @@ class SQLiteMemoryStore:
             finally:
                 conn.close()
 
-    def get_browser_session(self, domain: str) -> Optional[Dict[str, Any]]:
+    def get_browser_session(self, domain: str) -> dict[str, Any] | None:
         """Loads stored browser session for a domain."""
         norm_domain = self._normalize_domain(domain)
         with self._lock:
@@ -633,7 +633,7 @@ class SQLiteMemoryStore:
             finally:
                 conn.close()
 
-    def list_browser_sessions(self) -> List[str]:
+    def list_browser_sessions(self) -> list[str]:
         """Lists all domains with saved browser sessions."""
         with self._lock:
             conn = self._get_connection()
@@ -651,8 +651,8 @@ class SQLiteMemoryStore:
         name: str,
         description: str = "",
         trigger_pattern: str = "",
-        steps_template: Optional[Union[str, Dict[str, Any], List[Any]]] = None,
-        steps_template_json: Optional[Union[str, Dict[str, Any], List[Any]]] = None,
+        steps_template: str | dict[str, Any] | list[Any] | None = None,
+        steps_template_json: str | dict[str, Any] | list[Any] | None = None,
     ) -> bool:
         """Stores or updates a learned reusable workflow."""
         actual_template = steps_template_json if steps_template_json is not None else (steps_template or "[]")
@@ -691,7 +691,7 @@ class SQLiteMemoryStore:
             finally:
                 conn.close()
 
-    def get_learned_workflows(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_learned_workflows(self, limit: int = 50) -> list[dict[str, Any]]:
         """Retrieves learned workflows ordered by usage_count descending."""
         with self._lock:
             conn = self._get_connection()
@@ -712,7 +712,7 @@ class SQLiteMemoryStore:
             finally:
                 conn.close()
 
-    def get_learned_workflow(self, workflow_id: str) -> Optional[Dict[str, Any]]:
+    def get_learned_workflow(self, workflow_id: str) -> dict[str, Any] | None:
         """Retrieves a single learned workflow by workflow_id."""
         with self._lock:
             conn = self._get_connection()

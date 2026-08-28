@@ -16,7 +16,7 @@ _PLAYER = None
 def _get_player():
     global _PLAYER
     if _PLAYER is None:
-        from jarvis.audio.sound_effects import SoundEffectsPlayer, SoundConfig
+        from jarvis.audio.sound_effects import SoundConfig, SoundEffectsPlayer
         _PLAYER = SoundEffectsPlayer(config=SoundConfig(enabled=True, volume=0.4))
     return _PLAYER
 
@@ -45,7 +45,7 @@ def execute(
     frequency: float = 440.0,
     duration: float = 0.1,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Sound Board skill — play Stark UI audio feedback tones.
 

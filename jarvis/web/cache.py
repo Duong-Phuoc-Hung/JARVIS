@@ -6,13 +6,14 @@ Default 600.0s (10-minute) TTL to strictly safeguard against third-party API rat
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
 import logging
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any, TypeVar
 
 logger = logging.getLogger("jarvis.web.cache")
 
@@ -39,7 +40,7 @@ class TTLCache:
     def __init__(self, default_ttl_seconds: float = 600.0, max_size: int = 1000) -> None:
         self.default_ttl = float(default_ttl_seconds)
         self.max_size = max_size
-        self._cache: Dict[str, CacheEntry] = {}
+        self._cache: dict[str, CacheEntry] = {}
         self._lock = threading.RLock()
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -56,7 +57,7 @@ class TTLCache:
                 return default
             return entry.value
 
-    def set(self, key: str, value: Any, ttl: Optional[float] = None) -> None:
+    def set(self, key: str, value: Any, ttl: float | None = None) -> None:
         """
         Stores value in cache with specified TTL in seconds (or default_ttl).
         """
@@ -110,13 +111,13 @@ class TTLCache:
             self.cleanup_expired()
             return len(self._cache)
 
-    def keys(self) -> List[str]:
+    def keys(self) -> list[str]:
         """Returns list of all active, unexpired cache keys."""
         with self._lock:
             self.cleanup_expired()
             return list(self._cache.keys())
 
-    def items(self) -> Dict[str, Any]:
+    def items(self) -> dict[str, Any]:
         """Returns copy of all active, unexpired key-value pairs."""
         with self._lock:
             self.cleanup_expired()
@@ -126,7 +127,7 @@ class TTLCache:
         self,
         key: str,
         factory: Callable[[], T],
-        ttl: Optional[float] = None,
+        ttl: float | None = None,
     ) -> T:
         """
         Thread-safe fetch-or-compute: retrieves cached item or executes factory function

@@ -7,8 +7,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from pathlib import Path
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from jarvis import __version__
 from jarvis.core.config import ConfigManager
@@ -132,8 +131,8 @@ def run_health_check(config: ConfigManager) -> int:
 
     # 5. Screen Vision Subsystem (R3 / Milestone 3)
     try:
-        from jarvis.vision.screen import ScreenVisionManager
         from jarvis.vision.dialog_detector import ErrorDialogDetector
+        from jarvis.vision.screen import ScreenVisionManager
         vis_mgr = ScreenVisionManager()
         cap_ok = False
         try:
@@ -217,7 +216,6 @@ def run_health_check(config: ConfigManager) -> int:
 
     # 13. Browser Automation Agent (R3 / Milestone 3)
     try:
-        from jarvis.browser.agent import BrowserAgent
         from jarvis.browser.driver import DriverFactory
         driver_type = DriverFactory.detect_best_driver()
         _safe_print(f"[+] Browser Automation Agent: READY (Driver={driver_type.value}, Session/Cookie Persistence & Markdown Scraper OK)")
@@ -226,8 +224,8 @@ def run_health_check(config: ConfigManager) -> int:
 
     # 14. Computer-Use Vision & GUI Actor (R4 / Milestone 4)
     try:
-        from jarvis.vision.computer_use import ComputerUseVision
         from jarvis.automation.gui_actor import GUIActor
+        from jarvis.vision.computer_use import ComputerUseVision
         cuv = ComputerUseVision()
         actor = GUIActor(vision=cuv)
         _safe_print("[+] Computer-Use Vision & GUI Actor: READY (1000x1000 Coordinate Grounding & Visual Verification Loop Active)")
@@ -255,7 +253,7 @@ def run_health_check(config: ConfigManager) -> int:
     return 0
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     """CLI main entry point."""
     parser = build_parser()
     args = parser.parse_args(argv)

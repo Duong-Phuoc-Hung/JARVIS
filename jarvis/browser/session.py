@@ -5,14 +5,14 @@ Manages persistent browser sessions, cookies, local storage, and authentication 
 across session lifecycles using JSON file storage and SQLite WAL backing stores.
 """
 
-from datetime import datetime
 import json
 import logging
 import os
-from pathlib import Path
 import sqlite3
 import threading
-from typing import Any, Dict, List, Optional, Union
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 from jarvis.browser.driver import BaseBrowserDriver
 
@@ -29,7 +29,7 @@ class BrowserSessionManager:
     def __init__(
         self,
         storage_dir: str = "logs/browser_sessions",
-        db_path: Optional[str] = "logs/memory.db",
+        db_path: str | None = "logs/memory.db",
     ) -> None:
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
@@ -75,9 +75,9 @@ class BrowserSessionManager:
     def save_session(
         self,
         domain: str,
-        cookies: List[Dict[str, Any]],
-        local_storage: Optional[Dict[str, Any]] = None,
-        user_agent: Optional[str] = None,
+        cookies: list[dict[str, Any]],
+        local_storage: dict[str, Any] | None = None,
+        user_agent: str | None = None,
     ) -> bool:
         """
         Persist session data for a domain to JSON file and SQLite database.
@@ -134,7 +134,7 @@ class BrowserSessionManager:
         logger.info("Saved browser session for %s with %d cookies.", norm_domain, len(cookies))
         return True
 
-    def load_session(self, domain: str) -> Optional[Dict[str, Any]]:
+    def load_session(self, domain: str) -> dict[str, Any] | None:
         """
         Load stored session payload for a domain from JSON file or SQLite fallback.
         """
@@ -145,7 +145,7 @@ class BrowserSessionManager:
             # Try JSON file first
             if json_path.exists():
                 try:
-                    with open(json_path, "r", encoding="utf-8") as f:
+                    with open(json_path, encoding="utf-8") as f:
                         return json.load(f)
                 except Exception as exc:
                     logger.warning("Error reading session JSON for %s: %s", norm_domain, exc)
@@ -203,7 +203,7 @@ class BrowserSessionManager:
 
         return success
 
-    def list_sessions(self) -> List[str]:
+    def list_sessions(self) -> list[str]:
         """List all saved domain session keys."""
         domains = set()
         with self._lock:
@@ -266,8 +266,8 @@ class BrowserSessionManager:
     def export_cookies_netscape(
         self,
         domain: str,
-        output_path: Optional[Union[str, Path]] = None,
-    ) -> Union[str, bool]:
+        output_path: str | Path | None = None,
+    ) -> str | bool:
         """Export stored domain cookies in Netscape format (compatible with curl / wget)."""
         session_data = self.load_session(domain)
         if not session_data:
@@ -302,7 +302,7 @@ class BrowserSessionManager:
 
     def import_cookies_netscape(self, domain: str, netscape_text: str) -> bool:
         """Parse Netscape cookie format string and store into domain session."""
-        cookies: List[Dict[str, Any]] = []
+        cookies: list[dict[str, Any]] = []
         for line in netscape_text.splitlines():
             line = line.strip()
             if not line or line.startswith("#"):

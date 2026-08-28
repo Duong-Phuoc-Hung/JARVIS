@@ -8,10 +8,10 @@ from __future__ import annotations
 import ast
 import json
 import logging
-from pathlib import Path
 import re
 import time
-from typing import Any, Dict, List, Optional, Union
+from pathlib import Path
+from typing import Any
 
 from jarvis.skills.models import SkillDefinition, SkillMetadata
 
@@ -44,8 +44,8 @@ class DynamicSkillSynthesizer:
 
     def __init__(
         self,
-        skills_dir: Optional[Union[str, Path]] = None,
-        registry: Optional[Any] = None,
+        skills_dir: str | Path | None = None,
+        registry: Any | None = None,
         **kwargs: Any,
     ) -> None:
         self.registry = registry
@@ -62,7 +62,7 @@ class DynamicSkillSynthesizer:
         self,
         code: str,
         function_name: str = "execute"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Inspect code AST to infer parameters schema and required fields from function signature.
         
@@ -73,7 +73,7 @@ class DynamicSkillSynthesizer:
         Returns:
             JSON schema dictionary describing inputs.
         """
-        schema: Dict[str, Any] = {
+        schema: dict[str, Any] = {
             "type": "object",
             "properties": {},
             "required": [],
@@ -85,7 +85,7 @@ class DynamicSkillSynthesizer:
             logger.warning("Could not parse AST to extract schema: %s", exc)
             return schema
 
-        target_func: Optional[ast.FunctionDef] = None
+        target_func: ast.FunctionDef | None = None
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef) and (node.name == function_name or target_func is None):
                 target_func = node
@@ -115,7 +115,7 @@ class DynamicSkillSynthesizer:
                 except Exception:
                     type_str = "string"
 
-            prop_def: Dict[str, Any] = {
+            prop_def: dict[str, Any] = {
                 "type": type_str,
                 "description": f"Parameter '{arg_name}'",
             }
@@ -140,7 +140,7 @@ class DynamicSkillSynthesizer:
         name: str,
         code: str,
         description: str,
-        parameters_schema: Dict[str, Any],
+        parameters_schema: dict[str, Any],
         entrypoint_function: str = "execute",
     ) -> str:
         """
@@ -202,10 +202,10 @@ logger = logging.getLogger("jarvis.skills.{name}")
         name: str,
         code: str,
         description: str = "",
-        parameters_schema: Optional[Dict[str, Any]] = None,
-        tags: Optional[List[str]] = None,
+        parameters_schema: dict[str, Any] | None = None,
+        tags: list[str] | None = None,
         entrypoint_function: str = "execute",
-        target_dir: Optional[Union[str, Path]] = None,
+        target_dir: str | Path | None = None,
     ) -> SkillDefinition:
         """
         Synthesize, format, and package source code into a permanent SkillDefinition and save to disk.
@@ -267,7 +267,7 @@ logger = logging.getLogger("jarvis.skills.{name}")
     def package_and_save(
         self,
         skill_def: SkillDefinition,
-        target_dir: Optional[Union[str, Path]] = None,
+        target_dir: str | Path | None = None,
     ) -> Path:
         """
         Save skill module file, metadata.json, and SKILL.md into package directory.

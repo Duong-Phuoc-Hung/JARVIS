@@ -7,13 +7,9 @@ Covers Feature:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import logging
-import os
-from pathlib import Path
-import subprocess
-import time
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Any
 
 log = logging.getLogger("jarvis.automation.workspace")
 
@@ -23,19 +19,19 @@ class WindowPlacementRecipe:
     app_name: str
     monitor_index: int = 1
     fullscreen: bool = False
-    rect: Optional[Tuple[int, int, int, int]] = None
+    rect: tuple[int, int, int, int] | None = None
 
 
 @dataclass
 class WorkspaceRecipe:
     name: str
     description: str = ""
-    ide: Optional[str] = "cursor.exe"
+    ide: str | None = "cursor.exe"
     project_dir: str = "d:/Software GitCode/JARVIS"
-    terminal_tabs: List[Dict[str, str]] = field(default_factory=list)
-    browser_urls: List[Dict[str, Any]] = field(default_factory=list)
-    vm_to_start: Optional[str] = None
-    background_apps: List[str] = field(default_factory=list)
+    terminal_tabs: list[dict[str, str]] = field(default_factory=list)
+    browser_urls: list[dict[str, Any]] = field(default_factory=list)
+    vm_to_start: str | None = None
+    background_apps: list[str] = field(default_factory=list)
 
 
 class WorkspaceRecipeManager:
@@ -43,12 +39,12 @@ class WorkspaceRecipeManager:
 
     def __init__(
         self,
-        win32_platform: Optional[Any] = None,
-        vm_orchestrator: Optional[Any] = None,
+        win32_platform: Any | None = None,
+        vm_orchestrator: Any | None = None,
     ):
         self.win32 = win32_platform
         self.vm = vm_orchestrator
-        self.recipes: Dict[str, Dict[str, Any]] = {
+        self.recipes: dict[str, dict[str, Any]] = {
             "ai_development": {
                 "name": "ai_development",
                 "description": "Full-stack AI Development Workspace",
@@ -65,11 +61,11 @@ class WorkspaceRecipeManager:
             },
         }
 
-    def register_recipe(self, name: str, recipe_dict: Dict[str, Any]) -> None:
+    def register_recipe(self, name: str, recipe_dict: dict[str, Any]) -> None:
         """Registers or updates a workspace recipe."""
         self.recipes[name] = recipe_dict
 
-    def prepare_workspace(self, recipe: str = "ai_development") -> Dict[str, Any]:
+    def prepare_workspace(self, recipe: str = "ai_development") -> dict[str, Any]:
         """Launches configured IDE, terminal tabs, browser pages, and optional VM."""
         cfg = self.recipes.get(
             recipe,

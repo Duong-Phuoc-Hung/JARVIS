@@ -6,14 +6,13 @@ context menu actions, and 3-tier fallback (pystray -> pure Win32 -> headless moc
 """
 from __future__ import annotations
 
-from enum import Enum
 import logging
 import os
 import sys
 import threading
-import time
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import webbrowser
+from enum import Enum
+from typing import Any
 
 logger = logging.getLogger("jarvis.ui.tray")
 
@@ -42,7 +41,7 @@ class TrayStatus(str, Enum):
     DISABLED = "disabled"      # Standby / disabled (Slate Gray)
 
 
-def create_status_icon(status: Union[TrayStatus, str] = TrayStatus.ACTIVE, size: Tuple[int, int] = (64, 64)) -> Any:
+def create_status_icon(status: TrayStatus | str = TrayStatus.ACTIVE, size: tuple[int, int] = (64, 64)) -> Any:
     """
     Generates a dynamic RGBA status icon with glowing arc-reactor aesthetics.
     If PIL is unavailable, returns a minimal raw image or None.
@@ -89,9 +88,9 @@ class SystemTrayController:
 
     def __init__(
         self,
-        app: Optional[Any] = None,
-        config_manager: Optional[Any] = None,
-        event_bus: Optional[Any] = None,
+        app: Any | None = None,
+        config_manager: Any | None = None,
+        event_bus: Any | None = None,
         tooltip: str = "JARVIS Desktop Assistant",
         dashboard_url: str = "http://127.0.0.1:8080",
     ) -> None:
@@ -108,10 +107,10 @@ class SystemTrayController:
         self._wakeword_enabled: bool = True
         self._lock = threading.RLock()
         self._icon: Any = None
-        self._worker_thread: Optional[threading.Thread] = None
+        self._worker_thread: threading.Thread | None = None
 
         # Standard menu items list for contract compatibility
-        self.menu_items: List[str] = [
+        self.menu_items: list[str] = [
             "Toggle HUD Overlay",
             "Morning Briefing",
             "Focus Mode (Pomodoro)",
@@ -135,7 +134,7 @@ class SystemTrayController:
     def status(self) -> str:
         return self._status.value
 
-    def update_status(self, status: Union[TrayStatus, str]) -> None:
+    def update_status(self, status: TrayStatus | str) -> None:
         """Dynamically update tray status icon and tooltip."""
         with self._lock:
             if isinstance(status, str):

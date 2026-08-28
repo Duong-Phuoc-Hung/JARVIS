@@ -16,8 +16,9 @@ import importlib.util
 import json
 import logging
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 log = logging.getLogger("jarvis.plugins.loader")
 
@@ -34,7 +35,7 @@ class PluginManifest:
         self.source = source       # "folder" | "pip"
         self.execute_fn = execute_fn
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "version": self.version,
@@ -52,19 +53,19 @@ class PluginLoader:
 
     def __init__(
         self,
-        plugin_dir: Optional[Path] = None,
+        plugin_dir: Path | None = None,
         is_mock: bool = False,
     ) -> None:
         self.plugin_dir = plugin_dir or _DEFAULT_PLUGIN_DIR
         self.is_mock = is_mock
-        self._plugins: Dict[str, PluginManifest] = {}
+        self._plugins: dict[str, PluginManifest] = {}
         self.plugin_dir.mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------
     # Loading
     # ------------------------------------------------------------------
 
-    def load_all(self) -> List[PluginManifest]:
+    def load_all(self) -> list[PluginManifest]:
         """Scan plugin_dir and pip entry_points, load all valid plugins."""
         loaded = []
         loaded.extend(self._load_folder_plugins())
@@ -72,7 +73,7 @@ class PluginLoader:
         log.info("Loaded %d plugins total.", len(loaded))
         return loaded
 
-    def _load_folder_plugins(self) -> List[PluginManifest]:
+    def _load_folder_plugins(self) -> list[PluginManifest]:
         """Load plugins from ~/.jarvis/plugins/*/"""
         loaded = []
         if self.is_mock:
@@ -121,7 +122,7 @@ class PluginLoader:
                 log.error("Failed to load plugin %s: %s", plugin_path.name, exc)
         return loaded
 
-    def _load_pip_plugins(self) -> List[PluginManifest]:
+    def _load_pip_plugins(self) -> list[PluginManifest]:
         """Load plugins installed as pip packages via entry_points."""
         loaded = []
         try:
@@ -162,13 +163,13 @@ class PluginLoader:
     # Queries
     # ------------------------------------------------------------------
 
-    def list_plugins(self) -> List[Dict[str, Any]]:
+    def list_plugins(self) -> list[dict[str, Any]]:
         return [p.to_dict() for p in self._plugins.values()]
 
-    def get_plugin(self, name: str) -> Optional[PluginManifest]:
+    def get_plugin(self, name: str) -> PluginManifest | None:
         return self._plugins.get(name)
 
-    def call_plugin(self, name: str, **kwargs: Any) -> Dict[str, Any]:
+    def call_plugin(self, name: str, **kwargs: Any) -> dict[str, Any]:
         plugin = self._plugins.get(name)
         if not plugin:
             return {"data": {"text": f"Plugin '{name}' không tồn tại.", "success": False}, "output": "not found"}

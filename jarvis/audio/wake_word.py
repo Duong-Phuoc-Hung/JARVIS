@@ -14,15 +14,15 @@ Provides:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum
 import json
 import logging
-import math
 import os
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
 
 import numpy as np
 
@@ -70,7 +70,7 @@ class WakeWordResult:
     timestamp: float = field(default_factory=time.monotonic)
     engine: str = WakeWordEngineType.ACOUSTIC_FALLBACK.value
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "keyword": self.keyword,
             "confidence": self.confidence,
@@ -181,7 +181,7 @@ class AcousticSpectralDetector:
         self.high_bins = (int(2800 / self.bin_hz), int(7200 / self.bin_hz))                   # 2800-7200 Hz (Fricatives)
         self._window = np.hanning(self.frame_size).astype(np.float32)
 
-    def analyze_window(self, buffer: np.ndarray, sensitivity: float = 0.5) -> Tuple[bool, str, float]:
+    def analyze_window(self, buffer: np.ndarray, sensitivity: float = 0.5) -> tuple[bool, str, float]:
         """
         Analyzes a 1.0-1.5s audio buffer for the 'Hey JARVIS' / 'JARVIS' acoustic signature.
 
@@ -206,7 +206,7 @@ class AcousticSpectralDetector:
         mid_energies = np.zeros(num_frames, dtype=np.float32)
         high_energies = np.zeros(num_frames, dtype=np.float32)
         zcrs = np.zeros(num_frames, dtype=np.float32)
-        flatness_list: List[float] = []
+        flatness_list: list[float] = []
 
         for i in range(num_frames):
             start = i * self.hop_size
@@ -305,15 +305,15 @@ class WakeWordDetector:
 
     def __init__(
         self,
-        callback: Optional[Callable[[], None]] = None,
+        callback: Callable[[], None] | None = None,
         sensitivity: float = 0.5,
         enabled: bool = True,
         sample_rate: int = 44100,
         target_sample_rate: int = 16000,
         window_duration_s: float = 1.2,
         cooldown_s: float = 1.5,
-        on_wake_word: Optional[Callable[[str, float], None]] = None,
-        config: Optional[Dict[str, Any]] = None,
+        on_wake_word: Callable[[str, float], None] | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         self.callback = callback
         self.sensitivity = max(0.0, min(1.0, float(sensitivity)))
@@ -338,7 +338,7 @@ class WakeWordDetector:
             sample_rate=self.target_sample_rate,
             min_rms=float(self.config.get("min_rms", 0.005)),
         )
-        self._tier1_engine: Optional[Any] = None
+        self._tier1_engine: Any | None = None
         self._engine_type: WakeWordEngineType = self._init_tier1()
 
         logger.info(
@@ -428,7 +428,7 @@ class WakeWordDetector:
     # -----------------------------------------------------------------------
     # Audio Ingestion & Processing
     # -----------------------------------------------------------------------
-    def process_audio_block(self, audio_data: Optional[np.ndarray]) -> bool:
+    def process_audio_block(self, audio_data: np.ndarray | None) -> bool:
         """
         Processes an incoming audio block (44.1kHz or 16kHz, float32 or int16).
         Returns True if a wake word was detected in this block, False otherwise.
@@ -438,9 +438,9 @@ class WakeWordDetector:
 
     def feed_audio_block(
         self,
-        block: Optional[np.ndarray],
-        timestamp: Optional[float] = None,
-    ) -> Optional[WakeWordResult]:
+        block: np.ndarray | None,
+        timestamp: float | None = None,
+    ) -> WakeWordResult | None:
         """
         Ingests an audio block into the sliding buffer, classifies wake words,
         enforces refractory cooldowns, and dispatches callbacks.

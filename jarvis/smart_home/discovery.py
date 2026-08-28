@@ -13,11 +13,10 @@ import logging
 import socket
 import threading
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("jarvis.smart_home.discovery")
 
@@ -31,7 +30,7 @@ class DiscoveredDevice:
     ip: str
     port: int
     protocol: str           # "home_assistant" | "tasmota" | "tuya" | "generic_http"
-    capabilities: List[str] = field(default_factory=list)
+    capabilities: list[str] = field(default_factory=list)
     entity_id: str = ""
     last_seen: float = field(default_factory=time.time)
     is_online: bool = True
@@ -41,7 +40,7 @@ class DiscoveredDevice:
 class DiscoveryConfig:
     scan_subnet: str = "192.168.1.0/24"
     scan_timeout_s: float = 1.5
-    scan_ports: List[int] = field(default_factory=lambda: [80, 8080, 8123, 1880])
+    scan_ports: list[int] = field(default_factory=lambda: [80, 8080, 8123, 1880])
     auto_register: bool = True
     discovery_interval_s: float = 3600.0
     max_devices: int = 256
@@ -55,14 +54,14 @@ class SmartHomeDiscovery:
 
     def __init__(
         self,
-        config: Optional[DiscoveryConfig] = None,
+        config: DiscoveryConfig | None = None,
         is_mock: bool = False,
     ) -> None:
         self.config = config or DiscoveryConfig()
         self.is_mock = is_mock
-        self._devices: Dict[str, DiscoveredDevice] = {}
+        self._devices: dict[str, DiscoveredDevice] = {}
         self._lock = threading.Lock()
-        self._bg_thread: Optional[threading.Thread] = None
+        self._bg_thread: threading.Thread | None = None
         self._running = False
         self._load_registry()
         log.info(
@@ -75,7 +74,7 @@ class SmartHomeDiscovery:
     # Public API
     # ------------------------------------------------------------------
 
-    def scan_network(self) -> List[DiscoveredDevice]:
+    def scan_network(self) -> list[DiscoveredDevice]:
         """
         Perform a full subnet scan to discover smart devices.
         Returns list of discovered devices.
@@ -96,8 +95,8 @@ class SmartHomeDiscovery:
             hosts = hosts[:cfg.max_devices]
 
         log.info("Scanning %d hosts on %s...", len(hosts), cfg.scan_subnet)
-        found: List[DiscoveredDevice] = []
-        threads: List[threading.Thread] = []
+        found: list[DiscoveredDevice] = []
+        threads: list[threading.Thread] = []
         results_lock = threading.Lock()
 
         def _probe_host(ip_str: str) -> None:
@@ -124,7 +123,7 @@ class SmartHomeDiscovery:
         log.info("Scan complete: %d devices found", len(found))
         return found
 
-    def _probe_all(self, ip: str) -> Optional[DiscoveredDevice]:
+    def _probe_all(self, ip: str) -> DiscoveredDevice | None:
         """Try probing a host with all known device fingerprints."""
         for port in self.config.scan_ports:
             if not self._port_open(ip, port, timeout=self.config.scan_timeout_s):
@@ -142,10 +141,10 @@ class SmartHomeDiscovery:
         try:
             with socket.create_connection((ip, port), timeout=timeout):
                 return True
-        except (socket.timeout, ConnectionRefusedError, OSError):
+        except (TimeoutError, ConnectionRefusedError, OSError):
             return False
 
-    def probe_home_assistant(self, ip: str, port: int) -> Optional[DiscoveredDevice]:
+    def probe_home_assistant(self, ip: str, port: int) -> DiscoveredDevice | None:
         """Probe for Home Assistant API endpoint."""
         try:
             url = f"http://{ip}:{port}/api/"
@@ -165,7 +164,7 @@ class SmartHomeDiscovery:
             pass
         return None
 
-    def probe_tasmota(self, ip: str) -> Optional[DiscoveredDevice]:
+    def probe_tasmota(self, ip: str) -> DiscoveredDevice | None:
         """Probe for Tasmota firmware endpoint."""
         for port in [80, 8080]:
             try:
@@ -193,7 +192,7 @@ class SmartHomeDiscovery:
                 pass
         return None
 
-    def probe_generic_http(self, ip: str, port: int) -> Optional[DiscoveredDevice]:
+    def probe_generic_http(self, ip: str, port: int) -> DiscoveredDevice | None:
         """Generic HTTP device probe (last resort)."""
         try:
             url = f"http://{ip}:{port}/"
@@ -213,7 +212,7 @@ class SmartHomeDiscovery:
             pass
         return None
 
-    def register_devices(self, devices: List[DiscoveredDevice]) -> int:
+    def register_devices(self, devices: list[DiscoveredDevice]) -> int:
         """Register discovered devices to the local registry."""
         count = 0
         with self._lock:
@@ -224,7 +223,7 @@ class SmartHomeDiscovery:
         log.info("Registered %d devices", count)
         return count
 
-    def get_registered_devices(self) -> List[DiscoveredDevice]:
+    def get_registered_devices(self) -> list[DiscoveredDevice]:
         with self._lock:
             return list(self._devices.values())
 

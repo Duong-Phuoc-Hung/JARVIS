@@ -6,7 +6,7 @@ Abstract Base Class for JARVIS Text-To-Speech (TTS) Engines.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class TTSError(Exception):
@@ -17,11 +17,11 @@ class TTSError(Exception):
 class BaseTTSEngine(ABC):
     """Abstract interface that all TTS engines must implement."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
-        self.config: Dict[str, Any] = config or {}
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        self.config: dict[str, Any] = config or {}
 
     @abstractmethod
-    def speak(self, text: str, voice_id: Optional[str] = None, wait: bool = False, **kwargs) -> bool:
+    def speak(self, text: str, voice_id: str | None = None, wait: bool = False, **kwargs) -> bool:
         """
         Synthesize text and play audio immediately.
 
@@ -36,7 +36,7 @@ class BaseTTSEngine(ABC):
         pass
 
     @abstractmethod
-    def synthesize_to_bytes(self, text: str, voice_id: Optional[str] = None, **kwargs) -> bytes:
+    def synthesize_to_bytes(self, text: str, voice_id: str | None = None, **kwargs) -> bytes:
         """
         Synthesize text into raw PCM or WAV audio bytes without playing.
 

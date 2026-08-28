@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import collections
 import logging
-from pathlib import Path
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+from pathlib import Path
+from typing import Any
 
 from jarvis.memory.session import ConversationTurn, SessionContextManager
 from jarvis.memory.sqlite_store import SQLiteMemoryStore
@@ -30,7 +30,7 @@ class MemoryManager:
 
     def __init__(
         self,
-        db_path: Union[str, Path] = "logs/memory.db",
+        db_path: str | Path = "logs/memory.db",
         max_session_turns: int = 10,
     ) -> None:
         self.db_path = Path(db_path)
@@ -54,9 +54,9 @@ class MemoryManager:
         self,
         role: str,
         content: str,
-        action_name: Optional[str] = None,
-        parameters: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        action_name: str | None = None,
+        parameters: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> ConversationTurn:
         """Adds a turn to the session FIFO sliding window."""
@@ -69,20 +69,20 @@ class MemoryManager:
             **kwargs,
         )
 
-    def get_session_history(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    def get_session_history(self, limit: int | None = None) -> list[dict[str, Any]]:
         """Returns conversation turns as a list of dicts."""
         lim = limit if limit is not None else self.max_session_turns
         return self.session.get_history(limit=lim)
 
-    def get_session_turns(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    def get_session_turns(self, limit: int | None = None) -> list[dict[str, Any]]:
         """Alias for get_session_history."""
         return self.get_session_history(limit=limit)
 
-    def list_episodes(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def list_episodes(self, limit: int = 100) -> list[dict[str, Any]]:
         """Lists episodic interaction records."""
         return self.store.get_episodes(limit=limit)
 
-    def get_session_context(self, limit: Optional[int] = None) -> str:
+    def get_session_context(self, limit: int | None = None) -> str:
         """Returns formatted conversation history for prompt injection."""
         return self.session.get_formatted_context(limit=limit)
 
@@ -109,19 +109,19 @@ class MemoryManager:
             source=source,
         )
 
-    def get_fact(self, key: str, category: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get_fact(self, key: str, category: str | None = None) -> dict[str, Any] | None:
         """Retrieves a persistent fact."""
         return self.store.get_fact(key=key, category=category)
 
     def list_facts(
         self,
-        category: Optional[str] = None,
+        category: str | None = None,
         limit: int = 20,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Lists stored facts."""
         return self.store.list_facts(category=category, limit=limit)
 
-    def delete_fact(self, key: str, category: Optional[str] = None) -> bool:
+    def delete_fact(self, key: str, category: str | None = None) -> bool:
         """Deletes a stored fact."""
         return self.store.delete_fact(key=key, category=category)
 
@@ -133,11 +133,11 @@ class MemoryManager:
         intent: str,
         outcome: str,
         success: bool = True,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
         trigger_type: str = "VOICE",
         latency_ms: float = 0.0,
-        error_message: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        error_message: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         """Logs an interaction episode into the SQLite store."""
         sess_id = session_id or self.session.session_id
@@ -153,7 +153,7 @@ class MemoryManager:
             metadata=metadata,
         )
 
-    def get_today_episodes(self) -> List[Dict[str, Any]]:
+    def get_today_episodes(self) -> list[dict[str, Any]]:
         """Retrieves all episodes logged today."""
         return self.store.get_today_episodes()
 
@@ -163,7 +163,7 @@ class MemoryManager:
         self,
         query: str,
         limit: int = 5,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Retrieves most relevant facts scored against the given user query.
         Always prioritizes user identity/profile facts.
@@ -173,8 +173,8 @@ class MemoryManager:
             return []
 
         q_tokens = set(re.findall(r"\w+", query.lower())) if query else set()
-        
-        scored: List[Tuple[float, Dict[str, Any]]] = []
+
+        scored: list[tuple[float, dict[str, Any]]] = []
         for f in all_facts:
             score = 0.0
             cat = str(f.get("category", "")).lower()
@@ -200,13 +200,13 @@ class MemoryManager:
         self,
         max_facts: int = 10,
         max_turns: int = 5,
-        query: Optional[str] = None,
+        query: str | None = None,
     ) -> str:
         """
         Assembles persistent user profile / facts and recent conversational turns
         into a clean markdown block for LLM system prompt injection.
         """
-        sections: List[str] = []
+        sections: list[str] = []
 
         # 1. Long-term Facts & User Profile (Query-ranked if query is given)
         if query:
@@ -240,7 +240,7 @@ class MemoryManager:
         """Checks if user input asks for today's interaction summary."""
         return bool(self._today_summary_regex.search(text.strip()))
 
-    def _extract_fact_entities(self, payload: str) -> Tuple[str, str, str]:
+    def _extract_fact_entities(self, payload: str) -> tuple[str, str, str]:
         """
         Extracts (category, key, value) from raw memory payload using semantic heuristics.
         """
@@ -349,7 +349,7 @@ class MemoryManager:
         success_count = sum(1 for e in episodes if e.get("success"))
 
         # Aggregate intents / actions
-        action_counts: Dict[str, int] = collections.Counter()
+        action_counts: dict[str, int] = collections.Counter()
         for e in episodes:
             intent = e.get("intent") or "tác vụ"
             action_counts[intent] += 1
@@ -412,8 +412,8 @@ class MemoryManager:
         self,
         query: str,
         k: int = 5,
-        category_filter: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        category_filter: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Search memory semantically using TF-IDF cosine similarity.
         Returns list of dicts with keys: doc_id, content, score, category.
@@ -458,6 +458,6 @@ class MemoryCommandResult(str):
     def get(self, key: str, default: Any = None) -> Any:
         return self._data.get(key, default)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return dict(self._data)
 

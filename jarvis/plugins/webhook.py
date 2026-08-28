@@ -6,7 +6,7 @@ HTTP Webhook JSON dispatching plugin for JARVIS.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import PluginMetadata
@@ -25,7 +25,7 @@ class WebhookPlugin(BasePlugin):
             description="HTTP Webhook dispatcher",
         )
 
-    def initialize(self, config: Dict[str, Any], dispatcher: ActionDispatcher) -> None:
+    def initialize(self, config: dict[str, Any], dispatcher: ActionDispatcher) -> None:
         self.config = config or {}
         self.dispatcher = dispatcher
         self.register_action(
@@ -37,11 +37,11 @@ class WebhookPlugin(BasePlugin):
     def send_payload(
         self,
         url: str,
-        payload: Dict[str, Any],
-        mock_http: Optional[Any] = None,
+        payload: dict[str, Any],
+        mock_http: Any | None = None,
         timeout: float = 5.0,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Sends HTTP POST request with JSON payload."""
         if mock_http is not None:
             mock_http.last_webhook_payload = payload

@@ -7,12 +7,11 @@ from __future__ import annotations
 
 import datetime
 import logging
-import os
-from pathlib import Path
 import sys
 import threading
 from logging.handlers import RotatingFileHandler
-from typing import Any, Dict, Optional, Union
+from pathlib import Path
+from typing import Any
 
 
 # ANSI escape sequences for colorized console output
@@ -101,11 +100,11 @@ _INTERACTION_LOCK = threading.Lock()
 
 
 def setup_logging(
-    level: Optional[str] = None,
-    log_dir: Optional[Union[str, Path]] = None,
-    log_file_name: Optional[str] = None,
-    log_file: Optional[Union[str, Path]] = None,
-    log_level: Optional[str] = None,
+    level: str | None = None,
+    log_dir: str | Path | None = None,
+    log_file_name: str | None = None,
+    log_file: str | Path | None = None,
+    log_level: str | None = None,
     max_bytes: int = 10 * 1024 * 1024,  # 10 MB
     backup_count: int = 5,
     enable_console_colors: bool = True,
@@ -200,7 +199,7 @@ def log_interaction(
     action: str,
     response: str,
     status: str = "success",
-    log_file: Optional[Union[str, Path]] = None,
+    log_file: str | Path | None = None,
 ) -> str:
     """
     Structured interaction logger for R6, R4 & M3 compliance.
@@ -251,10 +250,10 @@ class JarvisLoggerAdapter(logging.LoggerAdapter):
     - log_interaction(trigger, input_text, action, response, status, log_file=None)
     """
 
-    def log_trigger(self, trigger_type: str, details: Dict[str, Any]) -> None:
+    def log_trigger(self, trigger_type: str, details: dict[str, Any]) -> None:
         self.info("[TRIGGER:%s] %s", trigger_type, details)
 
-    def log_action(self, action_name: str, result: str, duration_ms: float = 0.0, error: Optional[str] = None) -> None:
+    def log_action(self, action_name: str, result: str, duration_ms: float = 0.0, error: str | None = None) -> None:
         if error:
             self.error("[ACTION:%s] [RESULT:%s] [TIME:%.1fms] Error: %s", action_name, result, duration_ms, error)
         else:
@@ -267,7 +266,7 @@ class JarvisLoggerAdapter(logging.LoggerAdapter):
         action: str,
         response: str,
         status: str = "success",
-        log_file: Optional[Union[str, Path]] = None,
+        log_file: str | Path | None = None,
     ) -> str:
         return log_interaction(
             trigger=trigger,
@@ -310,7 +309,7 @@ def log_trigger(trigger_type: str, details: Any = "", **kwargs: Any) -> None:
         logger.info("[TRIGGER:%s] %s", trigger_type, details)
 
 
-def log_action(action_name: str, result: str, duration_ms: float = 0.0, error: Optional[str] = None) -> None:
+def log_action(action_name: str, result: str, duration_ms: float = 0.0, error: str | None = None) -> None:
     """Convenience helper to log action outcomes."""
     logger = get_logger("jarvis.action")
     logger.log_action(action_name, result, duration_ms, error)

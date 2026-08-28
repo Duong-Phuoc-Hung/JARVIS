@@ -7,10 +7,8 @@ No audio files required: generates WAV bytes dynamically using numpy.
 from __future__ import annotations
 
 import logging
-import math
 import threading
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 log = logging.getLogger("jarvis.audio.sound_effects")
 
@@ -29,7 +27,7 @@ class SoundEffectsPlayer:
     Falls back silently if audio hardware is unavailable.
     """
 
-    def __init__(self, config: Optional[SoundConfig] = None, is_mock: bool = False) -> None:
+    def __init__(self, config: SoundConfig | None = None, is_mock: bool = False) -> None:
         self.config = config or SoundConfig()
         self.is_mock = is_mock
         self._lock = threading.Lock()
@@ -67,7 +65,7 @@ class SoundEffectsPlayer:
     # Internal
     # ------------------------------------------------------------------
 
-    def _synthesize_tone(self, frequency_hz: float, duration_s: float) -> Optional[object]:
+    def _synthesize_tone(self, frequency_hz: float, duration_s: float) -> object | None:
         """Generate a sine wave as numpy array."""
         try:
             import numpy as np  # type: ignore[import]
@@ -86,15 +84,15 @@ class SoundEffectsPlayer:
             log.debug("Tone synthesis error: %s", exc)
             return None
 
-    def _play_sequence(self, tones: List[Tuple[float, float]], gap_ms: int = 0) -> None:
+    def _play_sequence(self, tones: list[tuple[float, float]], gap_ms: int = 0) -> None:
         """Play a sequence of (frequency_hz, duration_s) tones."""
         if self.is_mock or not self.config.enabled:
             return
 
         def _worker() -> None:
             try:
+                import numpy as np  # type: ignore[import]
                 import sounddevice as sd  # type: ignore[import]
-                import numpy as np        # type: ignore[import]
                 sr = self.config.sample_rate
                 gap_samples = int(sr * gap_ms / 1000)
 

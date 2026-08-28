@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import PluginMetadata
@@ -27,7 +27,7 @@ class CursorPlugin(BasePlugin):
             description="Cursor IDE controller",
         )
 
-    def initialize(self, config: Dict[str, Any], dispatcher: ActionDispatcher) -> None:
+    def initialize(self, config: dict[str, Any], dispatcher: ActionDispatcher) -> None:
         self.config = config or {}
         self.dispatcher = dispatcher
         self.focus_existing = bool(self.config.get("focus_existing", True))
@@ -50,7 +50,7 @@ class CursorPlugin(BasePlugin):
             description="Launch or focus Cursor IDE",
         )
 
-    def _get_cursor_exe(self) -> Optional[str]:
+    def _get_cursor_exe(self) -> str | None:
         """Finds Cursor executable location."""
         if sys.platform == "win32":
             local = os.environ.get("LOCALAPPDATA", "")
@@ -61,14 +61,19 @@ class CursorPlugin(BasePlugin):
                         return p
         return shutil.which("cursor") or shutil.which("cursor.exe")
 
-    def focus_cursor(self, fullscreen: Optional[bool] = None, **kwargs) -> Dict[str, Any]:
+    def focus_cursor(self, fullscreen: bool | None = None, **kwargs) -> dict[str, Any]:
         """Focuses active Cursor window or launches a new Cursor instance."""
         target_fs = self.fullscreen if fullscreen is None else bool(fullscreen)
 
         # 1. Search for active Cursor window on Windows
         if sys.platform == "win32" and self.focus_existing:
             try:
-                from jarvis.platform.windows import focus_window, list_windows, restore_window, send_hotkey
+                from jarvis.platform.windows import (
+                    focus_window,
+                    list_windows,
+                    restore_window,
+                    send_hotkey,
+                )
                 windows = [
                     w for w in list_windows()
                     if "cursor" in w.process_name.lower() and w.width >= 200 and w.height >= 200
