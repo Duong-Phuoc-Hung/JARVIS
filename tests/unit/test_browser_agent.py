@@ -17,11 +17,11 @@ from __future__ import annotations
 
 import base64
 import json
-from pathlib import Path
 import tempfile
 import time
-from typing import Any, Dict, List, Optional
 import unittest
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
 from jarvis.browser.actions import BrowserActions

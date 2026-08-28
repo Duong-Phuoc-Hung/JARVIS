@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import fnmatch
+import functools
 import inspect
 import logging
 import threading
@@ -196,7 +197,7 @@ class EventBus:
                 if sub.is_async:
                     res = await sub.handler(**payload)
                 else:
-                    res = await loop.run_in_executor(None, lambda s=sub: s.handler(**payload))
+                    res = await loop.run_in_executor(None, functools.partial(sub.handler, **payload))
                 elapsed = (time.perf_counter() - t0) * 1000.0
                 results.append(HandlerResult(
                     subscription_id=sub.subscription_id,

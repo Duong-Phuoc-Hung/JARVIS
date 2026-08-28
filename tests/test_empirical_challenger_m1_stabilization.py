@@ -43,8 +43,7 @@ from jarvis.stt.engine import (
     float32_to_pcm16_wav_bytes,
 )
 from jarvis.tts.fallback import SAPI5FallbackTTS
-from jarvis.tts.manager import TTSManager, WELCOME_PHRASES
-
+from jarvis.tts.manager import WELCOME_PHRASES, TTSManager
 
 # ============================================================================
 # 1. DOUBLE-CLAP WELCOME VS VOICE-LOOP PROGRESSION

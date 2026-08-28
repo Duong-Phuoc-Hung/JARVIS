@@ -18,22 +18,19 @@ import time
 import unittest
 from unittest.mock import MagicMock, patch
 
-from jarvis.web.cache import TTLCache
-from jarvis.web.weather import WeatherProvider, WeatherData
-from jarvis.web.news import NewsAggregator, NewsArticle
-from jarvis.web.finance import FinanceTracker, CryptoQuote, StockQuote
-from jarvis.web.hub import WebIntelligenceHub
-
-from jarvis.proactive.reminders import ReminderScheduler, ScheduledReminder
-from jarvis.proactive.health_monitor import SystemHealthMonitor, HealthAlert
-from jarvis.proactive.pomodoro import PomodoroTimer, PomodoroState
-from jarvis.proactive.inactivity import InactivityMonitor
-from jarvis.proactive.engine import ProactiveEngine
-
-from jarvis.automation.shell_assistant import ShellAssistant
 from jarvis.automation.safety_gate import SafetyGate
-
-from jarvis.ui.overlay import AlwaysOnOverlay, OverlayState, OverlayMode, TurnRecord
+from jarvis.automation.shell_assistant import ShellAssistant
+from jarvis.proactive.engine import ProactiveEngine
+from jarvis.proactive.health_monitor import HealthAlert, SystemHealthMonitor
+from jarvis.proactive.inactivity import InactivityMonitor
+from jarvis.proactive.pomodoro import PomodoroState, PomodoroTimer
+from jarvis.proactive.reminders import ReminderScheduler, ScheduledReminder
+from jarvis.ui.overlay import AlwaysOnOverlay, OverlayMode, OverlayState, TurnRecord
+from jarvis.web.cache import TTLCache
+from jarvis.web.finance import CryptoQuote, FinanceTracker, StockQuote
+from jarvis.web.hub import WebIntelligenceHub
+from jarvis.web.news import NewsAggregator, NewsArticle
+from jarvis.web.weather import WeatherData, WeatherProvider
 
 
 class TestR5WebIntelligenceAdversarial(unittest.TestCase):
@@ -52,7 +49,7 @@ class TestR5WebIntelligenceAdversarial(unittest.TestCase):
                     cache.set(key, val, ttl=0.5 if (i % 2 == 0) else 600.0)
                     _ = cache.get(key)
                     _ = cache.has(key)
-                    _ = cache.get_or_set(f"comp_{i % 10}", lambda: f"computed_{i}")
+                    _ = cache.get_or_set(f"comp_{i % 10}", lambda i=i: f"computed_{i}")
                     if i % 10 == 0:
                         cache.cleanup_expired()
                         _ = cache.size()

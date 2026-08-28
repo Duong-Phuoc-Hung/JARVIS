@@ -33,7 +33,7 @@ try:
     import requests
     REQUESTS_AVAILABLE = True
 except ImportError:
-    requests = None
+    requests = None  # type: ignore[assignment]
     REQUESTS_AVAILABLE = False
 
 try:
@@ -266,7 +266,7 @@ class VADSegmenter:
 
                 # Hard cutoff if maximum duration exceeded
                 if speech_len >= self.max_speech_samples:
-                    segment = np.array(self._active_buffer, dtype=np.float32)
+                    segment: np.ndarray | None = np.array(self._active_buffer, dtype=np.float32)
                     self.reset()
                     return segment
 

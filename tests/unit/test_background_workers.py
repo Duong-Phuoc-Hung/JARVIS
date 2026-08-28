@@ -9,8 +9,8 @@ import os
 import tempfile
 import threading
 import time
-from typing import Any, Dict, List, Optional
 import unittest
+from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 
 from jarvis.core.dispatcher import ActionDispatcher, EventBus

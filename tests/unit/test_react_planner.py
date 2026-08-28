@@ -6,8 +6,8 @@ self-reflection triage, and safety gate interception.
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List
 import unittest
+from typing import Any, Dict, List
 from unittest.mock import MagicMock
 
 from jarvis.automation.safety_gate import SafetyGate

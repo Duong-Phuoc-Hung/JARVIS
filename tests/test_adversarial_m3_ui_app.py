@@ -28,14 +28,14 @@ import json
 import logging
 import math
 import os
-from pathlib import Path
 import socket
 import sys
 import threading
 import time
-from typing import Any, Dict, List, Optional
 import urllib.error
 import urllib.request
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
 import numpy as np

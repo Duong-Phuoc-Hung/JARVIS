@@ -24,6 +24,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from jarvis import __version__
@@ -39,7 +40,15 @@ from jarvis.core.logger import (
     setup_logging,
     shutdown_logging,
 )
-from jarvis.core.models import ActionDefinition, ActionResult, PluginHealth, PluginMetadata, PluginStatus, PrivilegeLevel, RequesterContext
+from jarvis.core.models import (
+    ActionDefinition,
+    ActionResult,
+    PluginHealth,
+    PluginMetadata,
+    PluginStatus,
+    PrivilegeLevel,
+    RequesterContext,
+)
 from jarvis.core.plugin import BasePlugin, PluginRegistry
 from jarvis.platform.autostart import AutoStartManager
 from jarvis.platform.windows import (
@@ -56,7 +65,6 @@ from jarvis.platform.windows import (
     set_window_pos,
 )
 from tests.mocks.win32_mocks import MockWinreg
-
 
 # ============================================================================
 # ADVERSARIAL TEST 1: ConfigManager Extreme Concurrency (25+ Threads)

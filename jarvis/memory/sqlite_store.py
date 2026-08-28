@@ -329,7 +329,7 @@ class SQLiteMemoryStore:
                         error_message,
                         meta_str,
                     ))
-                    return cursor.lastrowid
+                    return cursor.lastrowid if cursor.lastrowid is not None else -1
             except Exception as e:
                 logger.error("Failed to log episode: %s", e)
                 return -1

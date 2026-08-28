@@ -12,6 +12,7 @@ import re
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from typing import Any
 
 try:
     import requests
@@ -232,7 +233,7 @@ class WebSearcher:
             return []
 
         url = "https://serpapi.com/search.json"
-        params = {
+        params: dict[str, Any] = {
             "q": query,
             "api_key": self.serpapi_key,
             "num": max_results,

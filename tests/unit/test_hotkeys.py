@@ -6,12 +6,12 @@ Unit tests for JARVIS Global Keyboard Hotkeys manager and keybinding parser.
 import pytest
 
 from jarvis.platform.hotkeys import (
-    GlobalHotkeyManager,
     MOD_ALT,
     MOD_CONTROL,
     MOD_NOREPEAT,
     MOD_SHIFT,
     MOD_WIN,
+    GlobalHotkeyManager,
 )
 
 

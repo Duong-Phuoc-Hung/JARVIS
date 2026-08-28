@@ -10,15 +10,16 @@ Comprehensive test suite for Milestone M3 UX Polish & Interaction Logging:
 from __future__ import annotations
 
 import concurrent.futures
-from pathlib import Path
 import threading
 import time
+from pathlib import Path
 from typing import Any, Dict, List
+
 import pytest
 
 from jarvis.core.app import JarvisApp
 from jarvis.core.logger import log_interaction
-from jarvis.tts.manager import TTSManager, WELCOME_PHRASES
+from jarvis.tts.manager import WELCOME_PHRASES, TTSManager
 from jarvis.ui.overlay import JarvisOverlay, OverlayState
 
 

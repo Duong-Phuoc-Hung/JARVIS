@@ -23,13 +23,12 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import MagicMock, patch
 
-from PIL import Image
 import pytest
+from PIL import Image
 
-from jarvis.vision.dialog_detector import ErrorDialogDetector, WIN32_DIALOG_CLASS
+from jarvis.vision.dialog_detector import WIN32_DIALOG_CLASS, ErrorDialogDetector
 from jarvis.vision.ocr import DesktopOCR
 from jarvis.vision.screen import ScreenCaptureResult, ScreenVisionManager
-
 
 # ============================================================================
 # 1. SCREEN CAPTURE & COMPRESSION TESTS

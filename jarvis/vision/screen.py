@@ -308,7 +308,7 @@ class ScreenVisionManager:
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent?key={self.gemini_api_key}"
         headers = {"Content-Type": "application/json"}
-        payload = {
+        payload: dict[str, Any] = {
             "contents": [
                 {
                     "parts": [
@@ -350,7 +350,7 @@ class ScreenVisionManager:
             "Authorization": f"Bearer {self.openai_api_key}",
             "Content-Type": "application/json",
         }
-        payload = {
+        payload: dict[str, Any] = {
             "model": self.openai_model,
             "messages": [
                 {

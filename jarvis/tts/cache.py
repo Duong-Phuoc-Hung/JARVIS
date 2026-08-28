@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import sys
 import wave
 from pathlib import Path
@@ -183,6 +184,10 @@ class TTSAudioCache:
             log.warning("Cannot play missing audio file: %s", wav_path)
             return False
 
+        if os.environ.get("JARVIS_MOCK_AUDIO") == "1":
+            log.debug("JARVIS_MOCK_AUDIO=1: skipping physical playback for %s", wav_path)
+            return True
+
         # Method 1: sounddevice (high-fidelity float32 streaming)
         try:
             import sounddevice as sd
@@ -224,7 +229,7 @@ class LocalTTSCache(TTSAudioCache):
     expecting get() -> bytes.
     """
 
-    def get(
+    def get(  # type: ignore[override]
         self,
         text: str,
         voice_id: str = "",

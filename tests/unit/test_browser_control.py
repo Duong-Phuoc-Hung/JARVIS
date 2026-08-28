@@ -4,7 +4,9 @@ tests/unit/test_browser_control.py
 Unit tests for Browser CDP Controller (mock mode — no real browser).
 """
 from __future__ import annotations
+
 from pathlib import Path
+
 import pytest
 
 from jarvis.browser.cdp_controller import BrowserCDPController, BrowserConfig, PageInfo

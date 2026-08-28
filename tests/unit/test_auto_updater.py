@@ -4,7 +4,9 @@ tests/unit/test_auto_updater.py
 Unit tests for AutoUpdater daemon (mock mode — no real GitHub calls).
 """
 from __future__ import annotations
+
 from pathlib import Path
+
 import pytest
 
 from jarvis.workers.auto_updater import AutoUpdater, ReleaseInfo, UpdateStatus

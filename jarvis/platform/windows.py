@@ -692,3 +692,41 @@ is_window_cloaked = platform_win32.is_window_cloaked
 is_window_hung = platform_win32.is_window_hung
 
 # Forward autostart helpers
+_AUTOSTART_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+
+
+def set_autostart(app_name: str, app_path: str, enabled: bool = True) -> bool:
+    """Registers or removes `app_name` in the HKCU Run key for Windows startup."""
+    try:
+        import winreg
+
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, _AUTOSTART_RUN_KEY, 0, winreg.KEY_SET_VALUE
+        ) as key:
+            if enabled:
+                winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, app_path)
+            else:
+                try:
+                    winreg.DeleteValue(key, app_name)
+                except FileNotFoundError:
+                    pass
+            return True
+    except Exception:
+        return False
+
+
+def get_autostart_status(app_name: str) -> bool:
+    """Returns True if `app_name` is registered in the HKCU Run key."""
+    try:
+        import winreg
+
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, _AUTOSTART_RUN_KEY, 0, winreg.KEY_READ
+        ) as key:
+            winreg.QueryValueEx(key, app_name)
+            return True
+    except FileNotFoundError:
+        return False
+    except Exception:
+        return False
+

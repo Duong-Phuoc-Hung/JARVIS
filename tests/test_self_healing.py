@@ -10,21 +10,21 @@ Covering:
 
 import time
 from typing import Any, Dict, List, Optional
+
 import pytest
 
+from jarvis.healing.terminator import (
+    PROTECTED_PROCESS_WHITELIST,
+    AutonomousTerminator,
+    HealingEngine,
+    HealingMode,
+    HealingReport,
+)
 from jarvis.healing.watchdog import (
     HungProcessInfo,
     ResourceWatchdog,
     UnresponsiveAppDetector,
 )
-from jarvis.healing.terminator import (
-    AutonomousTerminator,
-    HealingEngine,
-    HealingMode,
-    HealingReport,
-    PROTECTED_PROCESS_WHITELIST,
-)
-
 
 # ============================================================================
 # TIER 1: FEATURE COVERAGE HAPPY PATHS

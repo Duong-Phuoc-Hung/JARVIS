@@ -17,17 +17,17 @@ from __future__ import annotations
 import base64
 import io
 import json
-from pathlib import Path
 import tempfile
 import time
-from typing import Any, Dict, List, Optional
 import unittest
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
 from PIL import Image, ImageDraw
 
 from jarvis.automation.control import ComputerController
-from jarvis.automation.gui_actor import GUIActor, GUIActionResult
+from jarvis.automation.gui_actor import GUIActionResult, GUIActor
 from jarvis.automation.safety_gate import SafetyGate
 from jarvis.browser.actions import BrowserActions
 from jarvis.browser.agent import BrowserAgent

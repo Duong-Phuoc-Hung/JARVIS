@@ -39,7 +39,8 @@ class ElevenLabsTTS(BaseTTSEngine):
         ).strip()
         self._sample_rate = int(
             self.config.get("sample_rate")
-            or os.environ.get("ELEVENLABS_PCM_SAMPLE_RATE", 24000)
+            or os.environ.get("ELEVENLABS_PCM_SAMPLE_RATE")
+            or 24000
         )
 
     @property

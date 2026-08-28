@@ -39,7 +39,6 @@ from jarvis.audio.wake_word import (
 )
 from jarvis.ui.tray import SystemTrayController, TrayStatus
 
-
 # ============================================================================
 # 1. INITIALIZATION & STATE MANAGEMENT TESTS
 # ============================================================================

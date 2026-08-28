@@ -256,7 +256,7 @@ class DataAnalyticsEngine:
 
                     t_attr = c.attrib.get("t", "")
                     v_elem = c.find(".//main:v", ns) or c.find(".//v")
-                    raw_val = v_elem.text if v_elem is not None else ""
+                    raw_val = v_elem.text if v_elem is not None and v_elem.text is not None else ""
 
                     if t_attr == "s" and raw_val.isdigit():
                         idx = int(raw_val)

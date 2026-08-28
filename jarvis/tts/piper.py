@@ -14,6 +14,7 @@ import logging
 import threading
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 log = logging.getLogger("jarvis.tts.piper")
 
@@ -67,7 +68,7 @@ class PiperTTSEngine:
         except ImportError:
             return False
 
-    def _load_model(self) -> object:
+    def _load_model(self) -> Any:
         """Lazy-load the ONNX voice model."""
         with self._lock:
             if self._model is None:

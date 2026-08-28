@@ -8,23 +8,23 @@ import ctypes
 import math
 import os
 import sys
-import time
 import threading
+import time
+
 import numpy as np
 import pytest
 
 from tests.conftest import (
     AudioSynthesizer,
     MockAudioStream,
-    MockHardwareProvider,
-    MockWin32Platform,
-    MockHttpServer,
     MockCameraFeed,
+    MockHardwareProvider,
+    MockHttpServer,
+    MockWin32Platform,
     _to_hwnd_int,
 )
-from tests.test_audio_dsp import rms_mono, AudioDSPProcessor, MicrophoneProbeManager
 from tests.mocks.win32_mocks import MockWinreg
-
+from tests.test_audio_dsp import AudioDSPProcessor, MicrophoneProbeManager, rms_mono
 
 # ============================================================================
 # CHALLENGE 1: ACOUSTIC DSP SYNTHESIS MATH VERIFICATION

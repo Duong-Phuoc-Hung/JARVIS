@@ -26,14 +26,16 @@ import io
 import json
 import logging
 import os
-from pathlib import Path
 import sqlite3
 import tempfile
 import threading
 import time
-from typing import Any, Dict, List, Optional
 import unittest
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
+from jarvis.automation.control import ComputerController
+from jarvis.automation.gui_actor import GUIActionResult, GUIActor
 from jarvis.browser.actions import BrowserActions
 from jarvis.browser.agent import BrowserAgent
 from jarvis.browser.driver import (
@@ -59,7 +61,10 @@ from jarvis.browser.scraper import (
     WebScraper,
 )
 from jarvis.browser.session import BrowserSessionManager
-
+from jarvis.cli import run_health_check
+from jarvis.core.config import ConfigManager
+from jarvis.memory.sqlite_store import SQLiteMemoryStore
+from jarvis.ui.overlay import AlwaysOnOverlay, OverlayMode, OverlayState
 from jarvis.vision.computer_use import (
     BoundingBox,
     ComputerUseVision,
@@ -68,13 +73,6 @@ from jarvis.vision.computer_use import (
     UIElementDetector,
 )
 from jarvis.vision.visual_verifier import VisualDiffResult, VisualVerifier
-from jarvis.automation.control import ComputerController
-from jarvis.automation.gui_actor import GUIActor, GUIActionResult
-
-from jarvis.memory.sqlite_store import SQLiteMemoryStore
-from jarvis.ui.overlay import AlwaysOnOverlay, OverlayMode, OverlayState
-from jarvis.core.config import ConfigManager
-from jarvis.cli import run_health_check
 
 logger = logging.getLogger(__name__)
 

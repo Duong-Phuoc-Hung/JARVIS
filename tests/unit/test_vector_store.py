@@ -5,17 +5,17 @@ Unit tests for the Semantic Vector Store (TF-IDF cosine similarity).
 """
 from __future__ import annotations
 
-import time
 import json
+import time
 from pathlib import Path
 
 import pytest
 
 from jarvis.memory.vector_store import (
-    SemanticVectorStore,
-    VectorStoreConfig,
     DocumentVector,
     SearchResult,
+    SemanticVectorStore,
+    VectorStoreConfig,
 )
 
 

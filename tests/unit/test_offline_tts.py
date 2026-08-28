@@ -12,7 +12,7 @@ import pytest
 
 piper_mod = pytest.importorskip("jarvis.tts.piper", reason="Piper TTS module not available")
 
-from jarvis.tts.piper import PiperConfig, PiperTTSEngine, PiperNotAvailableError
+from jarvis.tts.piper import PiperConfig, PiperNotAvailableError, PiperTTSEngine
 
 
 class TestPiperConfig:

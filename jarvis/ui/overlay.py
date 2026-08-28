@@ -474,6 +474,18 @@ class AlwaysOnOverlay:
         dur = duration_s if duration_s is not None else self._auto_hide_s
         self._schedule(lambda: self._do_show_response(actual_transcript, actual_response, dur, hint, action))
 
+    def show(self) -> None:
+        """Deiconifies the overlay window, making it visible."""
+        self._schedule(self._do_show)
+
+    def _do_show(self) -> None:
+        self._visible = True
+        if self._root:
+            try:
+                self._root.deiconify()
+            except Exception:
+                pass
+
     def hide(self) -> None:
         """Cancels active animations and withdraws the overlay window."""
         self._schedule(self._do_hide)

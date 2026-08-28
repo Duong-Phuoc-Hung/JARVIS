@@ -8,7 +8,7 @@ import time
 from typing import Any, Dict, Optional
 
 # Module-level state for standalone skill usage
-_POMODORO_STATE = {
+_POMODORO_STATE: Dict[str, Any] = {
     "is_running": False,
     "is_paused": False,
     "mode": "idle",  # "work", "break", "idle"

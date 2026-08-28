@@ -5,19 +5,20 @@ Comprehensive Adversarial Stress Test Suite for Milestone 4 Security Subsystem.
 Written by Challenger 2.
 """
 
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 
 import pytest
 
 from jarvis.core.models import PrivilegeLevel, RequesterContext
+from jarvis.security.report import SecurityPrivilegeGate, SecurityReportGenerator
 from jarvis.security.scanner import (
     HostScanResult,
     NetworkScanner,
@@ -31,8 +32,6 @@ from jarvis.security.scanner import (
     resolve_nmap_binary,
     resolve_tshark_binary,
 )
-from jarvis.security.report import SecurityPrivilegeGate, SecurityReportGenerator
-
 
 # ============================================================================
 # ADVERSARIAL VECTOR 1: BIOMETRIC PRIVILEGE GATING BYPASS ATTEMPTS

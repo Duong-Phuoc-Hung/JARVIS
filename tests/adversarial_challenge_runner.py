@@ -7,8 +7,9 @@ Executes mathematical verification, safety barrier auditing, and fixture isolati
 import math
 import os
 import sys
-import time
 import threading
+import time
+
 import numpy as np
 import pytest
 
@@ -20,14 +21,14 @@ if WORKSPACE_ROOT not in sys.path:
 from tests.conftest import (
     AudioSynthesizer,
     MockAudioStream,
-    MockHardwareProvider,
-    MockWin32Platform,
-    MockHttpServer,
     MockCameraFeed,
+    MockHardwareProvider,
+    MockHttpServer,
+    MockWin32Platform,
     _to_hwnd_int,
 )
-from tests.test_audio_dsp import rms_mono, AudioDSPProcessor, MicrophoneProbeManager
 from tests.mocks.win32_mocks import MockWinreg
+from tests.test_audio_dsp import AudioDSPProcessor, MicrophoneProbeManager, rms_mono
 
 
 def run_dsp_math_challenges():
@@ -233,7 +234,7 @@ def run_win32_safety_challenges():
     reg.DeleteValue(None, "JARVIS_AUTORUN")
     try:
         reg.QueryValueEx(None, "JARVIS_AUTORUN")
-        assert False, "Should have raised FileNotFoundError"
+        raise AssertionError("Should have raised FileNotFoundError")
     except FileNotFoundError:
         pass
     print("  --> PASS: MockWinreg operations purely in-memory dictionary; zero Windows registry modifications.")

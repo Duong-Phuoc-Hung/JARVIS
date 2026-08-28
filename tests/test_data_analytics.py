@@ -10,15 +10,16 @@ Covering:
 
 import csv
 import math
+import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import zipfile
+
 import numpy as np
 import pytest
 
 from jarvis.data.document import (
-    DocxReportBuilder,
     DocumentExporter,
+    DocxReportBuilder,
     PdfReportBuilder,
     VoiceSummaryGenerator,
 )
@@ -36,7 +37,6 @@ from jarvis.data.stats import (
     TabularDataset,
     TrendResult,
 )
-
 
 # ============================================================================
 # TIER 1: FEATURE COVERAGE HAPPY PATHS

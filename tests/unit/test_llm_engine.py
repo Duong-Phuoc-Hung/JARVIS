@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
@@ -38,7 +39,6 @@ from jarvis.llm.router import (
     build_jarvis_system_prompt,
     generate_tool_schema_from_dispatcher,
 )
-
 
 # ============================================================================
 # 1. LLMCLIENT INITIALIZATION & MULTI-PROVIDER TESTS

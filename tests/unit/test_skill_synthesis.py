@@ -8,11 +8,11 @@ Covers:
 - SkillRegistry auto-discovery, dynamic module import, ActionDispatcher integration, and telemetry.
 """
 import json
-from pathlib import Path
 import sys
 import tempfile
 import time
 import unittest
+from pathlib import Path
 
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
 from jarvis.sandbox.artifacts import ArtifactInfo, ArtifactManager

@@ -16,14 +16,20 @@ Adversarial Stress Test Suite for Milestone 5:
 import csv
 import io
 import math
-from pathlib import Path
 import tempfile
-import zipfile
 import xml.etree.ElementTree as ET
+import zipfile
+from pathlib import Path
 
 import numpy as np
 import pytest
 
+from jarvis.data.document import (
+    DocumentExporter,
+    DocxReportBuilder,
+    PdfReportBuilder,
+    VoiceSummaryGenerator,
+)
 from jarvis.data.stats import (
     AnomalyReport,
     CorrelationResult,
@@ -37,13 +43,6 @@ from jarvis.data.stats import (
     TabularDataset,
     TrendResult,
 )
-from jarvis.data.document import (
-    DocxReportBuilder,
-    DocumentExporter,
-    PdfReportBuilder,
-    VoiceSummaryGenerator,
-)
-
 
 # ============================================================================
 # SECTION 1: ADVERSARIAL DATA ANALYTICS & STATISTICAL EDGE CASES

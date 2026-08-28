@@ -45,7 +45,7 @@ def execute(
         # Crypto
         if include_crypto:
             try:
-                c_res = hub.get_crypto_prices(["BTC", "ETH"])
+                c_res = hub.get_crypto_rates()
                 if isinstance(c_res, dict):
                     parts = [f"{k}: ${v:,.0f}" if isinstance(v, (int, float)) else f"{k}: {v}" for k, v in c_res.items()]
                     if parts:

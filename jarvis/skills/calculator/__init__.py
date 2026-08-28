@@ -8,7 +8,7 @@ import ast
 import math
 import operator
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 EXCHANGE_RATES_TO_USD = {
     "USD": 1.0,
@@ -21,7 +21,7 @@ EXCHANGE_RATES_TO_USD = {
     "SGD": 0.75,
 }
 
-_SAFE_OPERATORS = {
+_SAFE_OPERATORS: Dict[type, Callable[..., Any]] = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
     ast.Mult: operator.mul,
@@ -33,7 +33,7 @@ _SAFE_OPERATORS = {
     ast.UAdd: operator.pos,
 }
 
-_SAFE_FUNCTIONS = {
+_SAFE_FUNCTIONS: Dict[str, Callable[..., Any]] = {
     "abs": abs,
     "round": round,
     "sqrt": math.sqrt,
@@ -69,11 +69,11 @@ def _safe_eval(node: ast.AST) -> float:
         right = _safe_eval(node.right)
         return _SAFE_OPERATORS[op_type](left, right)
     elif isinstance(node, ast.UnaryOp):
-        op_type = type(node.op)
-        if op_type not in _SAFE_OPERATORS:
-            raise ValueError(f"Unary operator {op_type.__name__} is not supported.")
+        unary_op_type = type(node.op)
+        if unary_op_type not in _SAFE_OPERATORS:
+            raise ValueError(f"Unary operator {unary_op_type.__name__} is not supported.")
         operand = _safe_eval(node.operand)
-        return _SAFE_OPERATORS[op_type](operand)
+        return _SAFE_OPERATORS[unary_op_type](operand)
     elif isinstance(node, ast.Name):
         name_lower = node.id.lower()
         if name_lower in _SAFE_CONSTANTS:

@@ -20,6 +20,7 @@ import os
 import sys
 import time
 from typing import Any, Dict, List
+
 import numpy as np
 import pytest
 
@@ -29,7 +30,6 @@ from jarvis.core.app import JarvisApp
 from jarvis.core.config import ConfigManager
 from jarvis.core.models import RequesterContext
 from jarvis.ui.tray import TrayStatus
-
 
 # ============================================================================
 # 1. Subsystem Boot & Wiring Tests

@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=72", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "jarvis-assistant"
@@ -157,6 +157,11 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["jarvis"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test files intentionally do sys.path.insert() before importing local
+# test helpers, which ruff flags as E402 (module import not at top).
+"tests/**" = ["E402"]
 
 [tool.mypy]
 python_version = "3.10"

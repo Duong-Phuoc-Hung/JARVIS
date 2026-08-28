@@ -4,8 +4,10 @@ tests/unit/test_tts_cache.py
 Unit tests for Local TTS Audio Cache (jarvis.tts.cache).
 """
 import hashlib
-from pathlib import Path
 import wave
+from pathlib import Path
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 
@@ -84,3 +86,46 @@ def test_local_tts_cache_bytes_interface(tmp_path):
     assert wav_bytes is not None
     assert isinstance(wav_bytes, bytes)
     assert len(wav_bytes) > 44
+
+
+def _write_minimal_wav(path: Path) -> None:
+    with wave.open(str(path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(24000)
+        wf.writeframes(np.zeros(100, dtype=np.int16).tobytes())
+
+
+def test_play_wav_mock_audio_bypasses_physical_playback(tmp_path, monkeypatch):
+    """
+    Verify JARVIS_MOCK_AUDIO=1 makes play_wav() succeed without touching any
+    physical playback backend, matching headless CI runners with no audio device.
+    """
+    monkeypatch.setenv("JARVIS_MOCK_AUDIO", "1")
+    cache = TTSAudioCache(cache_dir=tmp_path)
+    wav_path = tmp_path / "mock_audio.wav"
+    _write_minimal_wav(wav_path)
+
+    with patch("sounddevice.play", side_effect=RuntimeError("no audio device")) as mock_sd_play, \
+         patch("winsound.PlaySound", side_effect=RuntimeError("Failed to play sound")) as mock_winsound:
+        assert cache.play_wav(wav_path, wait=True) is True
+
+    mock_sd_play.assert_not_called()
+    mock_winsound.assert_not_called()
+
+
+def test_play_wav_without_mock_audio_still_attempts_physical_playback(tmp_path, monkeypatch):
+    """
+    Verify that without JARVIS_MOCK_AUDIO set, play_wav() still exercises the
+    real sounddevice/winsound backends (unchanged real-playback behavior).
+    """
+    monkeypatch.delenv("JARVIS_MOCK_AUDIO", raising=False)
+    cache = TTSAudioCache(cache_dir=tmp_path)
+    wav_path = tmp_path / "real_audio.wav"
+    _write_minimal_wav(wav_path)
+
+    with patch("sounddevice.play", side_effect=RuntimeError("no audio device")), \
+         patch("winsound.PlaySound", side_effect=RuntimeError("Failed to play sound")) as mock_winsound:
+        assert cache.play_wav(wav_path, wait=True) is False
+
+    mock_winsound.assert_called_once()

@@ -154,6 +154,7 @@ class BrowserCDPController:
         if not self._ensure_launched():
             return PageInfo(url=url, title="Error", content_md="Browser không khởi động được.")
 
+        assert self._page is not None
         try:
             self._page.goto(url, timeout=self.config.timeout_ms)
             self._page.wait_for_load_state("domcontentloaded")
@@ -179,6 +180,7 @@ class BrowserCDPController:
             return True
         if not self._ensure_launched():
             return False
+        assert self._page is not None
         try:
             t = timeout_ms or self.config.timeout_ms
             # Try CSS selector first
@@ -199,6 +201,7 @@ class BrowserCDPController:
             return True
         if not self._ensure_launched():
             return False
+        assert self._page is not None
         try:
             elem = self._page.locator(selector).first
             if clear_first:
@@ -215,6 +218,7 @@ class BrowserCDPController:
             return True
         if not self._ensure_launched():
             return False
+        assert self._page is not None
         try:
             self._page.keyboard.press(key)
             return True
@@ -228,6 +232,7 @@ class BrowserCDPController:
             return True
         if not self._ensure_launched():
             return False
+        assert self._page is not None
         try:
             delta = amount if direction == "down" else -amount
             self._page.evaluate(f"window.scrollBy(0, {delta})")
@@ -269,6 +274,7 @@ class BrowserCDPController:
 
         if not self._ensure_launched():
             return ""
+        assert self._page is not None
         try:
             self._page.screenshot(path=str(path), full_page=False)
             log.info("Screenshot saved: %s", path)
@@ -284,6 +290,7 @@ class BrowserCDPController:
 
         if not self._ensure_launched():
             return ""
+        assert self._page is not None
         try:
             # Get all visible text
             content = self._page.evaluate("""() => {
@@ -306,6 +313,7 @@ class BrowserCDPController:
             return ["https://mock.jarvis.local/link1", "https://mock.jarvis.local/link2"]
         if not self._ensure_launched():
             return []
+        assert self._page is not None
         try:
             links = self._page.evaluate("""() => {
                 return Array.from(document.querySelectorAll('a[href]'))
@@ -326,6 +334,7 @@ class BrowserCDPController:
             return True
         if not self._ensure_launched():
             return False
+        assert self._browser is not None
         try:
             self._page = self._browser.new_page()
             return True
@@ -338,6 +347,8 @@ class BrowserCDPController:
             return True
         if not self._ensure_launched():
             return False
+        assert self._page is not None
+        assert self._browser is not None
         try:
             self._page.close()
             pages = self._browser.pages

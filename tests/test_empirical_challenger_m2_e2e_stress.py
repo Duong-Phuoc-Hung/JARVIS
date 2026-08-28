@@ -22,19 +22,25 @@ import gc
 import logging
 import math
 import os
-from pathlib import Path
 import queue
 import signal
 import sys
 import threading
 import time
-from typing import Any, Dict, List, Optional
 import unittest.mock as mock
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pytest
 
 from jarvis.audio.dsp import AudioDSPProcessor, calculate_rms
-from jarvis.audio.engine import AudioDeviceInfo, AudioEngine, AudioEngineMode, MicrophoneProbeManager
+from jarvis.audio.engine import (
+    AudioDeviceInfo,
+    AudioEngine,
+    AudioEngineMode,
+    MicrophoneProbeManager,
+)
 from jarvis.core.app import JarvisApp
 from jarvis.core.config import ConfigManager
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
@@ -52,7 +58,6 @@ from jarvis.tts.cache import TTSAudioCache
 from jarvis.tts.elevenlabs import ElevenLabsTTS
 from jarvis.tts.fallback import SAPI5FallbackTTS
 from jarvis.tts.manager import TTSManager
-
 
 # ============================================================================
 # HELPER: SYNTHETIC AUDIO WAVEFORM GENERATOR
@@ -402,8 +407,11 @@ def test_stress_shutdown_signal_handling_under_active_load(tmp_path):
 
         def feed_loop():
             pcm_chunk = np.zeros(1764, dtype=np.float32)
-            while streaming:
-                app.audio_engine.feed_virtual_audio(pcm_chunk, virtual_time=False)
+            # `streaming` is intentionally read live each iteration as the
+            # thread's stop flag (set False below); `app` is safe because
+            # `feeder.join()` completes before the next cycle rebinds it.
+            while streaming:  # noqa: B023
+                app.audio_engine.feed_virtual_audio(pcm_chunk, virtual_time=False)  # noqa: B023
                 time.sleep(0.01)
 
         feeder = threading.Thread(target=feed_loop, daemon=True)

@@ -48,7 +48,7 @@ def execute(
 
         # Run scan in background to avoid blocking
         import threading
-        results_holder = {"devices": [], "done": False}
+        results_holder: Dict[str, Any] = {"devices": [], "done": False}
 
         def _scan():
             results_holder["devices"] = disc.scan_network()

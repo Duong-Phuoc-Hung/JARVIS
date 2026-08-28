@@ -11,22 +11,21 @@ import json
 from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import MagicMock, patch
 
-from PIL import Image, ImageDraw
 import pytest
+from PIL import Image, ImageDraw
 
 from jarvis.automation.control import ComputerController
-from jarvis.automation.gui_actor import GUIActor, GUIActionResult
+from jarvis.automation.gui_actor import GUIActionResult, GUIActor
 from jarvis.vision.computer_use import (
     BoundingBox,
+    ComputerUseVision,
     CoordinateMapper,
     UIElement,
     UIElementDetector,
-    ComputerUseVision,
 )
 from jarvis.vision.ocr import DesktopOCR
 from jarvis.vision.screen import ScreenVisionManager
 from jarvis.vision.visual_verifier import VisualDiffResult, VisualVerifier
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Fixtures & Helpers

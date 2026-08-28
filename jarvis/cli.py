@@ -140,8 +140,8 @@ def run_health_check(config: ConfigManager) -> int:
             cap_ok = shot is not None and len(shot[0]) > 0
         except Exception:
             cap_ok = True
-        detector = ErrorDialogDetector()
-        diag_ok = detector.is_available() if hasattr(detector, "is_available") else True
+        dialog_detector = ErrorDialogDetector()
+        diag_ok = dialog_detector.is_available() if hasattr(dialog_detector, "is_available") else True
         vis_key = bool(vis_mgr.gemini_api_key or vis_mgr.openai_api_key)
         key_status = "API Key Active" if vis_key else "Polite Fallback Mode"
         _safe_print(f"[+] Screen Vision: Engine READY (Capture={'mss/PIL' if cap_ok else 'Ready'}, Win32 Dialog Detector={'Ready' if diag_ok else 'N/A'}, {key_status})")

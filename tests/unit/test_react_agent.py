@@ -4,8 +4,10 @@ tests/unit/test_react_agent.py
 Unit tests for ReActAgent (mock mode — no real LLM calls).
 """
 from __future__ import annotations
+
 import pytest
-from jarvis.agent.graph import ReActAgent, AgentTask, AgentState, Tool
+
+from jarvis.agent.graph import AgentState, AgentTask, ReActAgent, Tool
 
 
 @pytest.fixture
@@ -116,7 +118,7 @@ class TestBuiltinTools:
 
 class TestHeuristicThink:
     def test_heuristic_search_goal(self, agent):
-        from jarvis.agent.graph import AgentTask, AgentState
+        from jarvis.agent.graph import AgentState, AgentTask
         task = AgentTask(task_id="t1", goal="tìm kiếm tin tức AI")
         thought, tool, args = agent._heuristic_think(task)
         assert tool == "web_search"

@@ -88,7 +88,7 @@ class UnresponsiveAppDetector:
                     p_name = getattr(win, "process_name", getattr(win, "title", "Unknown"))
                     hung_list.append(
                         HungProcessInfo(
-                            hwnd=getattr(win, "hwnd", hwnd),
+                            hwnd=int(getattr(win, "hwnd", hwnd) or 0),
                             pid=getattr(win, "pid", 0),
                             process_name=p_name,
                             title=getattr(win, "title", ""),

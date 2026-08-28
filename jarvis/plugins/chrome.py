@@ -42,11 +42,13 @@ class ChromeMultiMonitorPlugin(BasePlugin):
         )
         self.claude_monitor = int(
             self.config.get("claude_monitor")
-            or os.environ.get("CLAUDE_CHROME_MONITOR", 1)
+            or os.environ.get("CLAUDE_CHROME_MONITOR")
+            or 1
         )
         self.binance_monitor = int(
             self.config.get("binance_monitor")
-            or os.environ.get("BINANCE_CHROME_MONITOR", 3)
+            or os.environ.get("BINANCE_CHROME_MONITOR")
+            or 3
         )
         self.fullscreen = bool(self.config.get("fullscreen", True))
 

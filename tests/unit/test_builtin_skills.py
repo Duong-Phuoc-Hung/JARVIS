@@ -5,6 +5,7 @@ Unit tests for JARVIS v2.0.0 built-in skills library and SkillRegistry integrati
 """
 import os
 from pathlib import Path
+
 import pytest
 
 from jarvis.skills.models import SkillDefinition, SkillMetadata

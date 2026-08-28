@@ -49,12 +49,12 @@ import io
 import json
 import logging
 import os
-from pathlib import Path
 import queue
 import re
 import sys
 import threading
 import time
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from unittest.mock import MagicMock, patch
 
@@ -63,7 +63,12 @@ import pytest
 
 # Core subsystems imports
 from jarvis.audio.dsp import AudioDSPProcessor, calculate_rms
-from jarvis.audio.engine import AudioDeviceInfo, AudioEngine, AudioEngineMode, MicrophoneProbeManager
+from jarvis.audio.engine import (
+    AudioDeviceInfo,
+    AudioEngine,
+    AudioEngineMode,
+    MicrophoneProbeManager,
+)
 from jarvis.automation.control import ComputerController
 from jarvis.automation.safety_gate import PendingConfirmation, SafetyGate
 from jarvis.automation.shell_assistant import ShellAssistant
@@ -86,7 +91,6 @@ from jarvis.web.hub import WebIntelligenceHub
 from jarvis.web.news import NewsAggregator
 from jarvis.web.search import WebSearcher
 from jarvis.web.weather import WeatherData, WeatherProvider
-
 
 # ============================================================================
 # PROGRESSIVE / CONTRACT FALLBACK COMPONENT IMPLEMENTATIONS

@@ -4,8 +4,10 @@ tests/unit/test_notification_hub.py
 Unit tests for NotificationHub (mock mode).
 """
 from __future__ import annotations
+
 import pytest
-from jarvis.workers.notification_hub import NotificationHub, Notification, Priority, Channel
+
+from jarvis.workers.notification_hub import Channel, Notification, NotificationHub, Priority
 
 
 @pytest.fixture

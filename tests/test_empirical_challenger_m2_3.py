@@ -18,6 +18,7 @@ import math
 import threading
 import time
 from typing import Any, Callable, Dict, List, Optional
+
 import numpy as np
 import pytest
 
@@ -37,7 +38,7 @@ from jarvis.audio.engine import (
 )
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
 from jarvis.core.models import ActionDefinition, ActionResult, PrivilegeLevel, RequesterContext
-from jarvis.gesture.detector import GestureDetector, EPS
+from jarvis.gesture.detector import EPS, GestureDetector
 from jarvis.gesture.models import (
     ClapEvent,
     DetectorState,
@@ -46,7 +47,6 @@ from jarvis.gesture.models import (
     GestureType,
 )
 from jarvis.gesture.patterns import get_default_patterns
-
 
 # ============================================================================
 # 1. RAPID CHATTER BURST EMPIRICAL STRESS TESTS (<50ms)

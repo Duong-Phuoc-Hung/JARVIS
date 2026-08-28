@@ -16,6 +16,7 @@ import subprocess
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 import pytest
 
 from jarvis.core.dispatcher import ActionDispatcher
@@ -28,7 +29,6 @@ from jarvis.core.models import (
     RequesterContext,
 )
 from jarvis.core.plugin import BasePlugin, PluginRegistry
-
 
 # ============================================================================
 # Standard Plugin Implementations for Contract Verification

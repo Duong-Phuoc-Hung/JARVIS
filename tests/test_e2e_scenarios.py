@@ -13,6 +13,7 @@ import subprocess
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pytest
 
@@ -23,7 +24,6 @@ from jarvis.data.document import DocumentExporter
 from jarvis.data.stats import DataAnalyticsEngine, DataStatsReport, MonteCarloEngine
 from jarvis.smart_home.home_assistant import HomeAssistantClient
 from jarvis.vision.biometrics import BiometricPrivilegeGate, BiometricsEngine
-
 from tests.test_audio_dsp import AudioDSPProcessor
 from tests.test_gesture_detector import GestureDetector
 from tests.test_hardware_monitor import HardwareMonitor
@@ -31,7 +31,6 @@ from tests.test_llm_router import LLMClient, LLMIntentRouter, STTEngine
 from tests.test_security_scanner import NmapScannerWrapper, SecurityReportGenerator
 from tests.test_self_healing import HealingEngine
 from tests.test_tts_engine import TTSEngine
-
 
 # ============================================================================
 # TIER 1: FEATURE COVERAGE HAPPY PATHS

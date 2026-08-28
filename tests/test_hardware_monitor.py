@@ -10,6 +10,7 @@ Covering:
 
 import time
 from typing import Any, Dict, List, Optional
+
 import pytest
 
 from jarvis.hardware.monitor import (
@@ -19,7 +20,6 @@ from jarvis.hardware.monitor import (
     HardwareMonitor,
 )
 from jarvis.hardware.reporter import HardwareReporter
-
 
 # ============================================================================
 # TIER 1: FEATURE COVERAGE HAPPY PATHS
