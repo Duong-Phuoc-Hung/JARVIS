@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jarvis-assistant"
-version = "4.0.0"
+version = "4.0.1"
 description = "Autonomous AI Personal Assistant for Windows — Voice, Multi-channel, Self-evolving"
 readme = "README.md"
 license = { file = "LICENSE" }
