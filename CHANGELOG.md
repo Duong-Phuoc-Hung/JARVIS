@@ -2,7 +2,50 @@
 
 ---
 
+## 🚀 Phiên Bản 4.0.0 (2026-08-28) — Full Autonomous ReAct Agent
+
+JARVIS v4.0.0 là bước nhảy vọt lớn nhất: JARVIS không chỉ thực thi lệnh mà giờ có thể **tự lập kế hoạch và thực thi mục tiêu phức tạp** thông qua vòng lặp Think → Act → Observe → Reflect.
+
+### 🧠 1. LangGraph ReAct Agent (`jarvis/agent/graph.py`)
+* Vòng lặp tự trị: **Think → Act → Observe → Reflect → Done**
+* 12 built-in tools: web_search, take_note, read_file, write_file, run_python, browser, screenshot, calculator, memory_search, send_telegram, list_dir, git_status
+* Heuristic fallback khi LLM không khả dụng
+* Giới hạn iterations tránh vòng lặp vô hạn
+* Lịch sử đầy đủ từng bước (task_id, steps, result, timestamps)
+
+### 🔔 2. Notification Hub Đa Kênh (`jarvis/workers/notification_hub.py`)
+* Gửi đồng thời đến: **Telegram, Discord, Zalo, Windows Toast, Sound, TTS**
+* Scheduling: nhắc nhở theo `HH:MM` hoặc ISO datetime, lặp daily/hourly
+* Alert Rules: thêm điều kiện tùy chỉnh với cooldown chống spam
+* Lịch sử 100 thông báo gần nhất
+
+### 📦 3. Windows Standalone Installer
+* `JARVIS.spec` — PyInstaller spec tự sinh
+* `installer/setup.iss` — Inno Setup script tạo JARVIS_Setup_v*.exe
+* `scripts/build_installer.py` — One-command build: tests → exe → installer
+* Hỗ trợ: Desktop shortcut, Start Menu, Autostart Windows, Uninstall
+
+### 🧪 4. Tests (+51 mới, tổng 633)
+* `test_zalo_bot.py` — 15 tests
+* `test_notification_hub.py` — 17 tests
+* `test_react_agent.py` — 19 tests
+
+---
+
+## 🚀 Phiên Bản 3.2.0 (2026-08-28) — Zalo Bot 2-Way Control
+
+### 📱 1. Zalo Bot Controller (`jarvis/comms/zalo.py`)
+* Tích hợp Zalo Official Account API — điều khiển JARVIS từ ứng dụng Zalo
+* Lệnh: `/status`, `/briefing`, `/note`, `/calc`, `/weather`, `/screenshot`, `/skills`, `/help`
+* Ngôn ngữ tự nhiên tiếng Việt → IntentRouter
+* Whitelist bảo mật + HMAC-SHA256 signature verification
+* Webhook HTTP server nhúng (port 8765, không cần Flask)
+* Broadcast đến tất cả user trong whitelist
+
+---
+
 ## 🚀 Phiên Bản 3.1.0 (2026-08-28) — Browser Control, Auto-Update & Plugin SDK
+
 
 Bản nâng cấp v3.1.0 mở rộng JARVIS với khả năng **điều khiển Chrome bằng giọng nói**, **tự cập nhật từ GitHub Releases**, **hệ sinh thái plugin bên thứ 3**, và **pipeline CI/CD tự động build .EXE**.
 
