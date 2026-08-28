@@ -53,5 +53,7 @@ psutil>=5.9,<7                       # System info (CPU, RAM, disk)
 pyperclip>=1.8,<2                    # Clipboard access
 
 # ── Optional: ElevenLabs TTS ─────────────────────────────────
-# elevenlabs>=1.50,<3                # Cloud TTS (tuỳ chọn)
+# elevenlabs>=1.50,<3                # Cloud TTS (optional for prod, required for tests)
+elevenlabs>=1.50,<3                  # Required: conftest.py mocks this for TTS tests
+ỳ chọn)
 # websockets>=13                     # WebSocket (tuỳ chọn)
