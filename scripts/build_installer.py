@@ -87,9 +87,10 @@ def build_exe(clean: bool = True) -> bool:
         shutil.rmtree(BUILD)
         print("  🧹 Build cache cleared")
 
-    # Ensure spec file exists
-    if not SPEC_FILE.exists():
-        _generate_spec_file()
+    # Always regenerate the spec file so a stale entry point or data path
+    # (e.g. from a cached checkout or an older version of this script) can
+    # never silently linger across builds.
+    _generate_spec_file()
 
     result = subprocess.run(
         [sys.executable, "-m", "PyInstaller", str(SPEC_FILE), "--noconfirm"],
@@ -110,10 +111,35 @@ def build_exe(clean: bool = True) -> bool:
 
 
 def _generate_spec_file() -> None:
-    """Generate JARVIS.spec if it doesn't exist."""
+    """
+    (Re)generate JARVIS.spec, always overwriting any existing file so a stale
+    entry point or data path can never silently linger across builds.
+    """
+    entry_point = ROOT / "jarvis" / "__main__.py"
+    if not entry_point.exists():
+        raise FileNotFoundError(
+            f"JARVIS entry point not found: {entry_point} "
+            "(expected the package's __main__.py, matching pyproject.toml's "
+            "[project.scripts] jarvis = \"jarvis.__main__:main\")"
+        )
+
     icon_arg = f"'{ICON_FILE}'" if ICON_FILE.exists() else "None"
+
+    # Data files are collected by absolute path so the spec behaves
+    # identically regardless of the working directory it's invoked from.
+    # "assets/" is optional — only reference it if it actually exists,
+    # since PyInstaller raises a fatal SystemExit for any non-glob datas
+    # source path that doesn't exist on disk.
+    datas: list[str] = [
+        f"({repr(str(ROOT / 'jarvis' / 'skills' / '*' / 'metadata.json'))}, 'jarvis/skills')",
+    ]
+    if (ROOT / "assets").is_dir():
+        datas.append(f"({repr(str(ROOT / 'assets'))}, 'assets')")
+    datas_block = ",\n        ".join(datas)
+
     spec_content = f'''# -*- mode: python ; coding: utf-8 -*-
 # JARVIS.spec — PyInstaller Spec File (tự sinh bởi build_installer.py)
+# Regenerated on every build — do not hand-edit, changes will be overwritten.
 
 from PyInstaller.utils.hooks import collect_submodules
 
@@ -134,18 +160,21 @@ hiddenimports = (
 )
 
 a = Analysis(
-    ["main.py"],
+    [{repr(str(entry_point))}],
     pathex=[{repr(str(ROOT))}],
     binaries=[],
     datas=[
-        ("jarvis/skills/*/metadata.json", "jarvis/skills"),
-        ("assets", "assets"),
+        {datas_block}
     ],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={{}},
     runtime_hooks=[],
-    excludes=["tkinter", "matplotlib", "scipy", "numpy.testing"],
+    # NOTE: tkinter must NOT be excluded — jarvis.ui.overlay and
+    # jarvis.skills.clipboard import it unconditionally at module level,
+    # so excluding it produces an exe that crashes with ModuleNotFoundError
+    # as soon as either module loads.
+    excludes=["matplotlib", "scipy", "numpy.testing"],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -178,7 +207,7 @@ exe = EXE(
 )
 '''
     SPEC_FILE.write_text(spec_content, encoding="utf-8")
-    print(f"  📄 JARVIS.spec generated")
+    print("  📄 JARVIS.spec generated")
 
 
 def build_installer() -> bool:
