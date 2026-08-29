@@ -83,13 +83,19 @@ class DiscordBotController:
                  "set" if bot_token else "not_set", len(self.whitelist))
 
     # ------------------------------------------------------------------
-    # Security
+    # Security (Fail-Close Model)
     # ------------------------------------------------------------------
 
     def is_user_authorized(self, user_id: int) -> bool:
-        """Return True if user_id is in whitelist (or whitelist is empty = allow all)."""
+        """
+        Validate user against configured Discord whitelist.
+        Enforces Fail-Close: If whitelist is unconfigured/empty, all requests are rejected.
+        """
+        if not user_id:
+            return False
         if not self.whitelist:
-            return True
+            log.warning("Discord security rejection: whitelist is unconfigured or empty.")
+            return False
         return user_id in self.whitelist
 
     # ------------------------------------------------------------------
@@ -108,11 +114,19 @@ class DiscordBotController:
         Response: {"status": 200, "text": str, "embed": dict|None}
         """
         if not self.is_user_authorized(user_id):
-            self.security_violations.append({
-                "user_id": user_id, "username": username,
-                "content": content, "timestamp": time.time()
-            })
-            log.warning("Unauthorized Discord user: %s (ID=%d)", username, user_id)
+            import hashlib
+            sha256_prefix = hashlib.sha256(content.encode("utf-8", errors="replace")).hexdigest()[:12]
+            audit_entry = {
+                "event": "UNAUTHORIZED_DISCORD_ACCESS",
+                "user_id": user_id,
+                "username": username,
+                "payload_sha256_prefix": sha256_prefix,
+                "payload_length": len(content),
+                "timestamp": time.time(),
+            }
+            self.security_violations.append(audit_entry)
+            log.warning("Unauthorized Discord user rejected: %s (ID=%d, len=%d, hash_prefix=%s)",
+                        username, user_id, len(content), sha256_prefix)
             return {"status": 403, "text": "⛔ Bạn không có quyền điều khiển JARVIS.", "embed": None}
 
         content = content.strip()

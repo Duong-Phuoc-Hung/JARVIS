@@ -19,8 +19,8 @@ _TRANSFER_LOG = Path("logs/mobile_transfers.json")
 _DEFAULT_SAVE_DIR = Path("downloads")
 
 _ALLOWED_EXTENSIONS = {
-    ".pdf", ".docx", ".xlsx", ".txt", ".md", ".py", ".json",
-    ".png", ".jpg", ".jpeg", ".gif", ".mp3", ".mp4", ".zip",
+    ".pdf", ".docx", ".xlsx", ".txt", ".md", ".json", ".csv",
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp3", ".wav", ".mp4",
 }
 _MAX_FILE_SIZE_MB = 50
 

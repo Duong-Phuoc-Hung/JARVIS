@@ -103,9 +103,11 @@ class ZaloBotController:
 
     def verify_webhook_signature(self, payload: bytes, signature: str) -> bool:
         """
-        Verify Zalo webhook HMAC-SHA256 signature using constant-time comparison.
-        Enforces Fail-Close: If webhook_secret is empty, unauthenticated calls are rejected.
+        Verify Zalo webhook signature using constant-time comparison.
+        Enforces Fail-Close: If webhook_secret is empty or signature is missing, returns False.
+        Supports both hexadecimal and base64 digest representations.
         """
+        import base64
         if self.is_mock:
             return True
         if not self.config.webhook_secret:
@@ -113,13 +115,24 @@ class ZaloBotController:
             return False
         if not signature:
             return False
+
+        clean_sig = signature.strip()
         try:
-            expected = hmac.new(
+            raw_hmac = hmac.new(
                 self.config.webhook_secret.encode("utf-8"),
                 payload,
                 hashlib.sha256,
-            ).hexdigest()
-            return hmac.compare_digest(expected.lower(), signature.lower())
+            )
+            expected_hex = raw_hmac.hexdigest()
+            expected_b64 = base64.b64encode(raw_hmac.digest()).decode("ascii")
+
+            # Check hex representation (case-insensitive for 0-9a-f)
+            if len(clean_sig) == 64 and hmac.compare_digest(expected_hex.lower(), clean_sig.lower()):
+                return True
+            # Check base64 representation (case-sensitive)
+            if hmac.compare_digest(expected_b64, clean_sig):
+                return True
+            return False
         except Exception as exc:
             log.error("Error during webhook signature verification: %s", exc)
             return False
@@ -129,9 +142,20 @@ class ZaloBotController:
     # ------------------------------------------------------------------
 
     def handle_message(self, user_id: str, user_name: str, text: str) -> dict[str, Any]:
-        """Process incoming Zalo message, return reply dict."""
+        """Process incoming Zalo message with redacted security audit logging."""
         if not self.is_user_authorized(user_id):
-            self.security_violations.append({"user_id": user_id, "text": text, "time": time.time()})
+            sha256_prefix = hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()[:12]
+            audit_entry = {
+                "event": "UNAUTHORIZED_ZALO_ACCESS",
+                "user_id": user_id,
+                "user_name": user_name,
+                "payload_sha256_prefix": sha256_prefix,
+                "payload_length": len(text),
+                "timestamp": time.time(),
+            }
+            self.security_violations.append(audit_entry)
+            log.warning("Unauthorized Zalo access rejected: user_id=%s, len=%d, hash_prefix=%s",
+                        user_id, len(text), sha256_prefix)
             return {"status": 403, "text": "⛔ Bạn không có quyền sử dụng JARVIS qua Zalo."}
 
         msg = ZaloMessage(user_id=user_id, user_name=user_name, text=text, timestamp=time.time())

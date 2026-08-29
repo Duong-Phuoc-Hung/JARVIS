@@ -16,8 +16,16 @@ from jarvis.comms.discord import DiscordBotController, DiscordConfig, DiscordEmb
 @pytest.fixture
 def bot():
     return DiscordBotController(
+        bot_token="mock_token",
+        whitelist_user_ids=[1, 12345, 99999],
+    )
+
+
+@pytest.fixture
+def bot_unconfigured():
+    return DiscordBotController(
         bot_token="",
-        whitelist_user_ids=[],   # Empty = allow all
+        whitelist_user_ids=[],
     )
 
 
@@ -30,19 +38,26 @@ def bot_whitelist():
 
 
 class TestAuthorization:
-    def test_empty_whitelist_allows_all(self, bot):
-        assert bot.is_user_authorized(111) is True
-        assert bot.is_user_authorized(999999) is True
+    def test_empty_whitelist_blocks_all(self, bot_unconfigured):
+        """Verify Fail-Close: If whitelist is not configured, all access is denied."""
+        assert bot_unconfigured.is_user_authorized(111) is False
+        assert bot_unconfigured.is_user_authorized(999999) is False
+        assert bot_unconfigured.is_user_authorized(0) is False
 
     def test_whitelist_allows_only_listed_users(self, bot_whitelist):
         assert bot_whitelist.is_user_authorized(12345) is True
         assert bot_whitelist.is_user_authorized(99999) is True
         assert bot_whitelist.is_user_authorized(77777) is False
 
-    def test_unauthorized_message_returns_403(self, bot_whitelist):
-        result = bot_whitelist.handle_message(77777, "stranger", "!status", 0)
+    def test_unauthorized_message_returns_403_and_redacts_log(self, bot_whitelist):
+        result = bot_whitelist.handle_message(77777, "stranger", "!status secret_password_123", 0)
         assert result["status"] == 403
         assert "không có quyền" in result["text"].lower() or "⛔" in result["text"]
+        assert len(bot_whitelist.security_violations) == 1
+        violation = bot_whitelist.security_violations[0]
+        assert violation["user_id"] == 77777
+        assert "payload_sha256_prefix" in violation
+        assert "secret_password_123" not in str(violation)
 
 
 class TestCommandDispatch:
