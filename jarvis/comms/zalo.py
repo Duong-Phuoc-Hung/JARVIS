@@ -45,6 +45,7 @@ class ZaloConfig:
     webhook_secret: str = ""
     whitelist_user_ids: list[str] = field(default_factory=list)
     webhook_port: int = 8765
+    host: str = "127.0.0.1"
 
 
 @dataclass
@@ -67,6 +68,7 @@ class ZaloBotController:
     """
     Zalo Official Account 2-way bot.
     Receives messages via webhook, sends replies via OA API.
+    Enforces strict Fail-Close authorization and HMAC-SHA256 signature verification.
     """
 
     def __init__(
@@ -84,28 +86,42 @@ class ZaloBotController:
         log.info("ZaloBotController initialized (mock=%s)", is_mock)
 
     # ------------------------------------------------------------------
-    # Authorization
+    # Authorization (Fail-Close Security Model)
     # ------------------------------------------------------------------
 
     def is_user_authorized(self, user_id: str) -> bool:
+        """
+        Validate user against configured whitelist.
+        Enforces Fail-Close: If whitelist is empty, all access is denied.
+        """
+        if not user_id:
+            return False
         if not self.config.whitelist_user_ids:
-            return True
+            log.warning("Zalo security rejection: whitelist_user_ids is unconfigured or empty.")
+            return False
         return user_id in self.config.whitelist_user_ids
 
     def verify_webhook_signature(self, payload: bytes, signature: str) -> bool:
-        """Verify Zalo webhook HMAC-SHA256 signature."""
+        """
+        Verify Zalo webhook HMAC-SHA256 signature using constant-time comparison.
+        Enforces Fail-Close: If webhook_secret is empty, unauthenticated calls are rejected.
+        """
         if self.is_mock:
             return True
         if not self.config.webhook_secret:
-            return True  # No secret configured → allow all
+            log.error("Zalo webhook rejection: webhook_secret is not configured.")
+            return False
+        if not signature:
+            return False
         try:
             expected = hmac.new(
-                self.config.webhook_secret.encode(),
+                self.config.webhook_secret.encode("utf-8"),
                 payload,
                 hashlib.sha256,
             ).hexdigest()
-            return hmac.compare_digest(expected, signature)
-        except Exception:
+            return hmac.compare_digest(expected.lower(), signature.lower())
+        except Exception as exc:
+            log.error("Error during webhook signature verification: %s", exc)
             return False
 
     # ------------------------------------------------------------------
@@ -348,7 +364,8 @@ class ZaloBotController:
                 pass  # Suppress default HTTP logs
 
         try:
-            server = HTTPServer(("0.0.0.0", controller.config.webhook_port), ZaloWebhookHandler)
+            server = HTTPServer((controller.config.host, controller.config.webhook_port), ZaloWebhookHandler)
+            log.info("Zalo webhook server listening on http://%s:%d", controller.config.host, controller.config.webhook_port)
             while controller._running:
                 server.handle_request()
         except Exception as exc:

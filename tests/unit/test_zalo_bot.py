@@ -12,7 +12,13 @@ from jarvis.comms.zalo import ZaloBotController, ZaloConfig, ZaloMessage, ZaloSe
 
 @pytest.fixture
 def bot():
-    return ZaloBotController(is_mock=True)
+    cfg = ZaloConfig(whitelist_user_ids=["u1", "user_001", "user_002"], webhook_secret="test_secret_123")
+    return ZaloBotController(config=cfg, is_mock=True)
+
+
+@pytest.fixture
+def bot_unconfigured():
+    return ZaloBotController(config=ZaloConfig(), is_mock=False)
 
 
 @pytest.fixture
@@ -22,8 +28,10 @@ def bot_whitelist():
 
 
 class TestAuthorization:
-    def test_no_whitelist_allows_all(self, bot):
-        assert bot.is_user_authorized("anyone") is True
+    def test_unconfigured_whitelist_blocks_all(self, bot_unconfigured):
+        """Verify Fail-Close: If whitelist is not configured, all access is denied."""
+        assert bot_unconfigured.is_user_authorized("anyone") is False
+        assert bot_unconfigured.is_user_authorized("") is False
 
     def test_whitelist_allows_member(self, bot_whitelist):
         assert bot_whitelist.is_user_authorized("user_001") is True
@@ -33,6 +41,20 @@ class TestAuthorization:
 
     def test_mock_webhook_signature_always_valid(self, bot):
         assert bot.verify_webhook_signature(b"payload", "signature") is True
+
+    def test_real_webhook_signature_fails_when_secret_empty(self, bot_unconfigured):
+        """Verify Fail-Close: Missing secret rejects all webhooks."""
+        assert bot_unconfigured.verify_webhook_signature(b"payload", "sig") is False
+
+    def test_real_webhook_signature_validates_correctly(self):
+        import hashlib, hmac
+        secret = "super_secret_key"
+        cfg = ZaloConfig(webhook_secret=secret, whitelist_user_ids=["u1"])
+        controller = ZaloBotController(config=cfg, is_mock=False)
+        payload = b'{"event":"test"}'
+        valid_sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+        assert controller.verify_webhook_signature(payload, valid_sig) is True
+        assert controller.verify_webhook_signature(payload, "invalid_signature_hex") is False
 
 
 class TestCommandDispatch:
@@ -78,8 +100,8 @@ class TestSendMessage:
         assert len(results) == 2
         assert all(r.success for r in results)
 
-    def test_broadcast_no_users_returns_empty(self, bot):
-        results = bot.broadcast("Test")
+    def test_broadcast_no_users_returns_empty(self, bot_unconfigured):
+        results = bot_unconfigured.broadcast("Test")
         assert results == []
 
 
