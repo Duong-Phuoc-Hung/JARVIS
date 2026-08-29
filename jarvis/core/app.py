@@ -1931,6 +1931,11 @@ class JarvisApp:
             self.dashboard_server.stop()
         if self.audio_engine:
             self.audio_engine.stop_stream()
+        if self.wake_word_detector:
+            try:
+                self.wake_word_detector.shutdown()
+            except Exception as e:
+                log.debug("Error shutting down wake word detector: %s", e)
         if self.tts_manager:
             self.tts_manager.stop()
         if not self.no_hot_reload:

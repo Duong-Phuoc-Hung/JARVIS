@@ -291,6 +291,45 @@ class AcousticSpectralDetector:
         return False, "", 0.0
 
 
+class _PorcupineFrameBuffer:
+    """
+    Adapts arbitrary-sized incoming audio blocks to Porcupine's fixed-frame
+    contract: ``porcupine.process()`` requires exactly ``frame_length`` int16
+    samples per call and advances the engine's internal detection state on
+    every call, so partial frames must be carried over (never dropped or
+    duplicated) and every complete frame must be processed in order.
+    """
+
+    def __init__(self, engine: Any, frame_length: int, sample_rate: int) -> None:
+        self.engine = engine
+        self.frame_length = int(frame_length)
+        self.sample_rate = int(sample_rate)
+        self._pending: np.ndarray = np.empty(0, dtype=np.int16)
+
+    def process(self, pcm_int16: np.ndarray) -> int:
+        """
+        Buffers new int16 PCM samples and runs every complete frame through
+        Porcupine in order. Returns the first detected keyword index observed
+        in this call, or -1 if none of the processed frames matched.
+        """
+        if pcm_int16.size:
+            self._pending = np.concatenate([self._pending, pcm_int16])
+
+        detected_index = -1
+        while len(self._pending) >= self.frame_length:
+            frame = self._pending[: self.frame_length]
+            self._pending = self._pending[self.frame_length :]
+            idx = self.engine.process(frame.tolist())
+            if idx >= 0 and detected_index < 0:
+                detected_index = idx
+
+        return detected_index
+
+    def reset(self) -> None:
+        """Drop any buffered partial frame (used on detector reset())."""
+        self._pending = np.empty(0, dtype=np.int16)
+
+
 class WakeWordDetector:
     """
     Real-time, multi-tier Wake Word Detector for JARVIS.
@@ -339,6 +378,7 @@ class WakeWordDetector:
             min_rms=float(self.config.get("min_rms", 0.005)),
         )
         self._tier1_engine: Any | None = None
+        self._porcupine_frame_buffer: _PorcupineFrameBuffer | None = None
         self._engine_type: WakeWordEngineType = self._init_tier1()
 
         logger.info(
@@ -380,31 +420,93 @@ class WakeWordDetector:
         if PORCUPINE_AVAILABLE:
             access_key = self.config.get("porcupine_access_key", os.environ.get("PORCUPINE_ACCESS_KEY"))
             if access_key:
+                # Build the native engine and its frame-buffer adapter in local
+                # variables first, and only attach them to `self` once BOTH
+                # steps have fully succeeded. If anything fails after
+                # pvporcupine.create() itself succeeded, the native handle
+                # would otherwise be leaked (constructed but never attached,
+                # so shutdown()'s engine_type==PORCUPINE guard would never
+                # see it) — release it here instead.
+                porcupine_engine = None
                 try:
-                    porcupine = pvporcupine.create(
+                    porcupine_engine = pvporcupine.create(
                         access_key=access_key,
                         keywords=["jarvis"],
                         sensitivities=[self.sensitivity],
                     )
-                    self._tier1_engine = porcupine
+                    frame_buffer = _PorcupineFrameBuffer(
+                        porcupine_engine,
+                        frame_length=porcupine_engine.frame_length,
+                        sample_rate=porcupine_engine.sample_rate,
+                    )
+                    self._tier1_engine = porcupine_engine
+                    self._porcupine_frame_buffer = frame_buffer
                     return WakeWordEngineType.PORCUPINE
                 except Exception as e:
                     logger.warning("Porcupine init failed: %s; falling back to Tier 2.", e)
+                    if porcupine_engine is not None:
+                        try:
+                            porcupine_engine.delete()
+                        except Exception as delete_err:
+                            logger.debug(
+                                "Porcupine delete() failed while cleaning up a partial init: %s",
+                                delete_err,
+                            )
 
         return WakeWordEngineType.ACOUSTIC_FALLBACK
 
     # -----------------------------------------------------------------------
     # State & Control
     # -----------------------------------------------------------------------
+    def _reset_stream_state_locked(self) -> None:
+        """
+        Clear the two caller-owned streaming buffers (the sliding ring
+        buffer and any pending partial Porcupine frame) on an enable/disable
+        transition, so caller-side PCM from before the transition is never
+        concatenated with caller-side PCM from after it.
+
+        This does NOT reset the native Porcupine engine's own internal
+        state: no reset API is used or exists in the audited upstream
+        contract short of full reinitialization, which is intentionally out
+        of scope here. Whatever detection history the native engine keeps
+        internally may still span the disabled interval — this is the
+        deliberate, narrow lifecycle guarantee being made, not a known bug.
+
+        Caller must already hold `self._lock`. Deliberately does NOT reset
+        `_last_trigger_time`: cooldown is a real-time debounce against
+        duplicate triggers, independent of the enable toggle, so quickly
+        toggling disabled/enabled must not be usable to bypass it.
+        """
+        self._ring_buffer.fill(0.0)
+        if self._porcupine_frame_buffer is not None:
+            self._porcupine_frame_buffer.reset()
+
     def set_enabled(self, enabled: bool) -> None:
         """Enable or disable wake word detection live without restart."""
         with self._lock:
-            self._enabled = bool(enabled)
+            new_value = bool(enabled)
+            changed = new_value != self._enabled
+            self._enabled = new_value
+            if changed:
+                self._reset_stream_state_locked()
             logger.info("WakeWordDetector enabled set to: %s", self._enabled)
 
     def is_enabled(self) -> bool:
         """Return current enabled status."""
         with self._lock:
+            return self._enabled
+
+    def toggle_enabled(self) -> bool:
+        """
+        Thread-safe flip of the enabled state (True<->False) without restart.
+        Returns the resulting enabled state. Shares its buffer-clearing
+        transition logic with `set_enabled()` via `_reset_stream_state_locked()`
+        so the two cannot diverge.
+        """
+        with self._lock:
+            self._enabled = not self._enabled
+            self._reset_stream_state_locked()
+            logger.info("WakeWordDetector enabled toggled to: %s", self._enabled)
             return self._enabled
 
     @property
@@ -422,8 +524,84 @@ class WakeWordDetector:
     def reset(self) -> None:
         """Reset internal buffers and timers."""
         with self._lock:
-            self._ring_buffer.fill(0.0)
+            self._reset_stream_state_locked()
             self._last_trigger_time = 0.0
+
+    def _release_porcupine_native(self) -> None:
+        """
+        Release the native Porcupine engine exactly once, if one is attached.
+        Idempotent (a second call finds `_tier1_engine` already `None` and is
+        a no-op) and safe to call from `shutdown()` or after a runtime
+        `process()` failure — the two paths that need this same lifecycle
+        logic. Caller must already hold `self._lock` (re-entrant, so it is
+        also safe to call standalone).
+        """
+        with self._lock:
+            engine = self._tier1_engine
+            self._tier1_engine = None
+            self._porcupine_frame_buffer = None
+            if engine is not None:
+                try:
+                    engine.delete()
+                except Exception as e:
+                    logger.debug("Porcupine delete() failed during release: %s", e)
+
+    def shutdown(self) -> None:
+        """
+        Release native Tier 1 backend resources (currently: Porcupine).
+        Idempotent — safe to call multiple times, after a failed/partial
+        initialization, or when no native backend was ever created.
+        """
+        with self._lock:
+            if self._engine_type == WakeWordEngineType.PORCUPINE:
+                self._release_porcupine_native()
+
+    # -----------------------------------------------------------------------
+    # Porcupine backend helpers
+    # -----------------------------------------------------------------------
+    def _degrade_porcupine_to_acoustic_fallback(self, error: Exception) -> None:
+        """
+        Permanently switch this detector off the native Porcupine backend for
+        the rest of its lifecycle after a `process()` runtime failure:
+        release native resources exactly once, drop any buffered PCM, and
+        fall back to Tier 2 for every subsequent call — retrying a
+        known-failed native engine on later audio callbacks is not safe.
+        Caller must already hold `self._lock`.
+        """
+        logger.warning(
+            "Porcupine process() failed: %s; permanently switching this detector "
+            "to the Tier 2 acoustic fallback.",
+            error,
+        )
+        self._release_porcupine_native()
+        self._engine_type = WakeWordEngineType.ACOUSTIC_FALLBACK
+
+    def _process_porcupine_tier(self, resampled: np.ndarray, arr: np.ndarray, in_sr: int) -> bool:
+        """
+        Feed audio through the Porcupine frame buffer. Caller must hold
+        `self._lock`. Porcupine is a streaming engine, so this always
+        consumes every complete frame regardless of cooldown state — cooldown
+        only ever suppresses whether a resulting detection is emitted as a
+        `WakeWordResult`, never whether Porcupine keeps receiving audio.
+        Returns whether a keyword was detected in this call. A native
+        runtime failure permanently degrades this detector to the Tier 2
+        acoustic fallback (see `_degrade_porcupine_to_acoustic_fallback`)
+        rather than retrying the known-bad engine on a later call.
+        """
+        if not self._tier1_engine or self._porcupine_frame_buffer is None:
+            return False
+        try:
+            porcupine_sr = self._porcupine_frame_buffer.sample_rate
+            if porcupine_sr == self.target_sample_rate:
+                pcm_source = resampled
+            else:
+                pcm_source = resample_audio(arr, in_sr, porcupine_sr)
+            int16_pcm = (np.clip(pcm_source, -1.0, 1.0) * 32767.0).astype(np.int16)
+            keyword_index = self._porcupine_frame_buffer.process(int16_pcm)
+            return keyword_index >= 0
+        except Exception as e:
+            self._degrade_porcupine_to_acoustic_fallback(e)
+            return False
 
     # -----------------------------------------------------------------------
     # Audio Ingestion & Processing
@@ -444,6 +622,12 @@ class WakeWordDetector:
         """
         Ingests an audio block into the sliding buffer, classifies wake words,
         enforces refractory cooldowns, and dispatches callbacks.
+
+        Porcupine is a streaming engine: it keeps consuming every complete
+        frame even while the cooldown is suppressing event emission, so its
+        internal detection state and this detector's frame buffer never
+        desync from the live audio. Vosk and the Tier 2 acoustic fallback are
+        skipped entirely during cooldown, matching prior behavior.
         """
         if block is None or getattr(block, "size", 0) == 0:
             return None
@@ -452,15 +636,22 @@ class WakeWordDetector:
             if not self._enabled:
                 return None
 
-        # Sanitize and convert format
+        # Sanitize and convert format. Integer PCM must be normalized to
+        # [-1.0, 1.0] BEFORE any multi-channel downmix: np.mean() on an
+        # integer array promotes to float64, which would make the later
+        # `np.issubdtype(arr.dtype, np.integer)` check false and silently
+        # skip normalization -- leaving stereo int16 PCM at raw amplitude
+        # scale (roughly [-32768, 32767]) instead of [-1.0, 1.0]. Mono
+        # int16/float input is unaffected by this ordering.
         arr = np.nan_to_num(block, nan=0.0, posinf=0.0, neginf=0.0)
-        if arr.ndim > 1:
-            arr = np.mean(arr, axis=1)
 
         if np.issubdtype(arr.dtype, np.integer):
             arr = arr.astype(np.float32) / 32768.0
         elif arr.dtype != np.float32:
             arr = arr.astype(np.float32)
+
+        if arr.ndim > 1:
+            arr = np.mean(arr, axis=1)
 
         in_sr = self.sample_rate
         resampled = resample_audio(arr, in_sr, self.target_sample_rate)
@@ -477,9 +668,18 @@ class WakeWordDetector:
             self._ring_buffer[-n:] = resampled[-n:]
 
             now = timestamp if timestamp is not None else time.monotonic()
+            in_cooldown = (now - self._last_trigger_time) < self.cooldown_s
 
-            # Refractory period / cooldown guard
-            if (now - self._last_trigger_time) < self.cooldown_s:
+            # Porcupine must keep streaming through cooldown (native engine
+            # state / our frame buffer must never desync from live audio);
+            # Vosk and Tier 2 are skipped entirely during cooldown (unchanged).
+            porcupine_hit = False
+            if self._engine_type == WakeWordEngineType.PORCUPINE:
+                porcupine_hit = self._process_porcupine_tier(resampled, arr, in_sr)
+
+            # Refractory period / cooldown guard — suppresses event emission
+            # only; Porcupine consumption above already happened either way.
+            if in_cooldown:
                 return None
 
             # Run Tier 1 if present
@@ -488,7 +688,12 @@ class WakeWordDetector:
             confidence = 0.0
             engine_name = self._engine_type.value
 
-            if self._engine_type == WakeWordEngineType.VOSK and self._tier1_engine:
+            if porcupine_hit:
+                detected = True
+                keyword = "hey_jarvis"
+                confidence = 1.0
+                engine_name = WakeWordEngineType.PORCUPINE.value
+            elif self._engine_type == WakeWordEngineType.VOSK and self._tier1_engine:
                 try:
                     int16_pcm = (resampled * 32767.0).astype(np.int16).tobytes()
                     if self._tier1_engine.AcceptWaveform(int16_pcm):
