@@ -2,6 +2,55 @@
 
 ---
 
+## 🚀 Chưa phát hành (2026-08-30) — Windows Sandbox CI Compatibility Fix
+
+> Nhánh làm việc: `fix/sandbox-windows-ci-compat`, dựa trên `origin/main` v4.1.0 (commit `2455fb6`). Đây là một nhánh sửa lỗi **riêng biệt, độc lập**, không liên quan đến nhánh Wake Word Phase 1 (`feat/porcupine-wakeword-hardening`) — không đụng tới `jarvis/audio/wake_word.py`, Porcupine, hay PR #8. Mục này đã trải qua một vòng rà soát bảo mật bổ sung sau bản sửa đầu tiên (3 "blocker" bên dưới); nội dung mô tả trạng thái cuối cùng sau vòng đó.
+
+Bisect thủ công lịch sử GitHub Actions xác nhận commit đầu tiên gây lỗi CI (first bad commit) là `adab40d` ("resolve all 4 sandbox bypasses with true OS Restricted Tokens..."), thay thế đường dẫn `subprocess.Popen` đã hoạt động tốt (commit `3039bb4`/`dfa2eaf`, GitHub Actions run #38/#39 SUCCESS) bằng `CreateRestrictedToken` + `CreateProcessAsUserW`. Từ run #40 trở đi, đúng 6 test bắt đầu fail và vẫn còn fail trên v4.1.0/PR #8. Kết quả CI quan sát được: mã thoát `3221225794` (`0xC0000142` — `STATUS_DLL_INIT_FAILED`) — tiến trình con chết trong lúc tự khởi tạo/nạp DLL trước khi bất kỳ mã người dùng nào chạy được **trong đa số trường hợp** — nhưng bản thân mã STATUS_* đó, đứng một mình, **không phải bằng chứng chắc chắn** không có mã người dùng nào đã chạy (xem "Ranh giới sẵn sàng" bên dưới).
+
+### Nguyên nhân gốc
+
+Hợp đồng `CreateProcessAsUser` của Microsoft cho phép lệnh gọi báo thành công **trước khi** tiến trình con hoàn tất khởi tạo của chính nó. `spawn_low_integrity_process()` trước đây coi việc launcher trả về là dấu hiệu thực thi thành công (`spawned_via_token = True`), nên khi tiến trình con chết ngay do `STATUS_DLL_INIT_FAILED`, JARVIS diễn giải nhầm đây là "backend hạn chế đã chạy và trả về mã thoát lạ" thay vì "OS isolation chưa từng được thiết lập."
+
+### Ranh giới sẵn sàng (readiness handshake) — ranh giới an toàn-để-thử-lại THỰC SỰ
+
+Rà soát bảo mật bổ sung chỉ ra: **chỉ riêng mã NTSTATUS không đủ để chứng minh không có mã người dùng nào đã chạy** — một tiến trình con có thể đã bắt đầu chạy preamble bảo mật hoặc thậm chí mã người dùng, rồi mới gặp lỗi native DLL sau đó. `GetExitCodeProcess()` một mình không thể phân biệt "chết trước khi chạy gì cả" với "chạy một lúc rồi crash với mã tình cờ trùng khớp." Sửa bằng một handshake sẵn sàng thực sự:
+
+- Preamble bảo mật được inject (`SANDBOX_BOOTSTRAP_PREAMBLE`) giờ ghi một **sentinel nội bộ** ra stdout (qua writer đã bị giới hạn 1MB) ngay sau khi TẤT CẢ các guard bảo mật đã cài đặt thành công, và ngay TRƯỚC khi mã người dùng được nối vào bắt đầu chạy. Vì Python chạy với `-u` (unbuffered), việc ghi này quan sát được ngay từ phía cha mà không có nhập nhằng buffering.
+- `strip_sandbox_ready_sentinel()` gỡ bỏ dòng sentinel này khỏi mọi output trước khi đưa vào `SandboxResult`/hiển thị cho người dùng/parse kết quả có cấu trúc — áp dụng cho cả đường Restricted Token lẫn đường compat Popen (cả hai chạy chung một file script đã inject preamble).
+- Ngữ nghĩa chính xác: **mã STATUS_* đã biết + sentinel KHÔNG quan sát được** → xác nhận lỗi bootstrap trước-mã-người-dùng → `RestrictedProcessBootstrapError` → đủ điều kiện cho compat fallback tường minh. **Mã STATUS_* đã biết + sentinel CÓ quan sát được** → tiến trình con đã vượt ranh giới mã người dùng → coi là kết quả thực thi thật (dù bất thường) → **KHÔNG BAO GIỜ** retry qua compat, trả về mã thoát nguyên văn như mọi lần thực thi khác.
+
+### Ngoại lệ chung/không phân loại được KHÔNG BAO GIỜ được retry
+
+- `RestrictedProcessBootstrapError` giờ có thuộc tính `retry_safe` (mặc định `True`, chỉ đúng tại những nơi CHỨNG MINH ĐƯỢC lỗi xảy ra trước khi tiến trình con thực thi bất kỳ lệnh nào). Lỗi từ `WaitForSingleObject`/`GetExitCodeProcess` xảy ra **sau khi** tiến trình con đã được resume — không thể chứng minh là trước-mã-người-dùng — nên raise với `retry_safe=False`.
+- Một exception chung/không phân loại (không phải `RestrictedProcessBootstrapError`) từ launcher — **không bao giờ** kích hoạt compat fallback, dù cờ `JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK=1` có bật hay không. Đã cập nhật/thay thế test `test_unexpected_launcher_exception_falls_back_when_explicitly_enabled` (trước đây enforce hành vi KHÔNG an toàn) bằng test xác nhận nó không bao giờ retry.
+
+### Job Object không được fail open + tiến trình con tạo SUSPENDED
+
+- Trình tự khởi chạy giờ là: `CreateProcessAsUserW` với cờ `CREATE_SUSPENDED` (tiến trình con chưa thực thi lệnh nào) → gán Job Object cho tiến trình con **đang suspended** → **chỉ khi** gán thành công mới `ResumeThread`. Điều này đóng race window trước đây (tiến trình con có thể đã chạy trước khi được gán Job Object).
+- Nếu gán Job Object thất bại: `TerminateProcess` tiến trình con đang suspended, **không bao giờ gọi `ResumeThread`**, raise `RestrictedProcessBootstrapError(retry_safe=True)` — an toàn để retry vì tiến trình con chưa từng thực thi một lệnh nào (chứng minh được hình thức).
+- `ResumeThread`'s giá trị trả về giờ được kiểm tra (`0xFFFFFFFF` = thất bại) — nếu thất bại, tiến trình con **chưa từng được resume**, cũng chứng minh được là trước-mã-người-dùng nên `retry_safe=True`. **Sửa một bug thực sự**: cả `WaitForSingleObject` lẫn `ResumeThread` trước đây thiếu khai báo `restype` tường minh, khiến ctypes mặc định trả về `int` có dấu — biến `0xFFFFFFFF` (sentinel lỗi DWORD) thành `-1`, khiến so sánh `== 0xFFFFFFFF` không bao giờ khớp. Đã thêm `restype = wintypes.DWORD` cho cả hai.
+- Đường compat Popen (fallback) cũng không được fail open: nếu `AssignProcessToJobObject` thất bại ở đó, tiến trình bị `kill()` ngay và trả về từ chối — **không** âm thầm tự nhận là "Job-Object + môi trường lọc sạch" khi thực ra Job Object chưa được gán. Có ghi chú tường minh: khác với đường Restricted Token (gán Job Object cho tiến trình còn đang suspended trước khi resume), `subprocess.Popen` không có tương đương `CREATE_SUSPENDED`, nên có một race window ngắn không thể tránh khỏi giữa lúc tạo tiến trình và lúc kiểm tra — đây là đặc tính yếu hơn đã biết, được ghi nhận, của đường compat opt-in này (không xuất hiện ở đường chính).
+
+### Dọn dẹp tài nguyên (không đổi từ bản sửa trước, rà soát lại sau thay đổi CREATE_SUSPENDED)
+
+- Toàn bộ handle Win32 (token, restricted token, process, thread, pipe) và con trỏ SID cấp phát (`LocalFree`) vẫn được giải phóng đúng một lần qua một khối `finally`/`_cleanup()` duy nhất trên mọi đường thoát — bao gồm các đường raise mới quanh CREATE_SUSPENDED/Job Object/ResumeThread. Không double-close.
+- Giữ nguyên hoàn toàn: Windows Job Object, `ActiveProcessLimit`, giới hạn bộ nhớ, lọc sạch biến môi trường, chặn `sys.meta_path`/`sys.modules`, allowlist thư mục, chặn COM/win32, mã SACL Low Integrity, mã `TokenIntegrityLevel`, bảo vệ chống introspection, giới hạn stdout, và toàn bộ công việc an ninh Zalo/mobile. Đây vẫn là bản sửa tương thích/phân loại lỗi, **không phải** rollback về an ninh trước v4.1.
+
+### Cấu hình CI (`.github/workflows/ci.yml`)
+
+- Chỉ job **Unit Tests** được bật `JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK=1` (job-level `env:`), vì GitHub-hosted Windows Server runner đã cho thấy không tương thích với đường launch Restricted Token này. Các job khác (Syntax Check, Import Validation, và mọi workflow release/package/security validation khác) **không** bật cờ này.
+- **Điều này không xác nhận Low Integrity đã được kiểm chứng end-to-end trên GitHub-hosted runner** — nó chỉ xác nhận đường Job-Object + môi trường lọc sạch (đã hoạt động tốt trước `adab40d`) chạy được ở đó, và chỉ áp dụng cho lỗi bootstrap CHỨNG MINH ĐƯỢC là trước-mã-người-dùng. Xác nhận runner thực tế đòi hỏi GitHub Actions chạy thật sau khi review/push (chưa thực hiện trong phiên này).
+
+### Test hồi quy (`tests/unit/test_sandbox_compat_fallback.py`)
+
+- File có **40 test hồi quy mocked/xác định** (deterministic, collected — 30 hàm test, trong đó 2 hàm được `@pytest.mark.parametrize` mở rộng thành 12 case), không cần token admin thật hay quyền OS đặc biệt (một vài test yêu cầu `ctypes.windll` tồn tại nên chỉ chạy trên Windows, không yêu cầu privilege đặc biệt). Bao gồm: phân loại `STATUS_DLL_INIT_FAILED`; **`retry_safe` mặc định là `False`** ("unknown state => never retry" — 5 test riêng cho contract này); parsing biến môi trường compat-fallback; fail-closed mặc định; compat fallback chỉ chạy khi bật tường minh VÀ lỗi được xác nhận `retry_safe=True`; `retry_safe=False` không bao giờ retry dù cờ bật; exception chung không bao giờ retry (thay thế test cũ enforce hành vi sai); mã thoát khác 0 hợp lệ và timeout không bao giờ bị retry; test thuần cho `strip_sandbox_ready_sentinel()`; test mô phỏng tiến trình con phát sentinel RỒI thoát với `STATUS_DLL_INIT_FAILED` — xác nhận `subprocess.Popen` KHÔNG được gọi dù cờ compat bật; 3 test cho trình tự CREATE_SUSPENDED/Job Object/ResumeThread (gán thất bại → terminate, không resume; gán thành công → resume đúng một lần; ResumeThread thất bại → terminate, retry_safe=True); test Job Object fail-closed ở đường compat Popen; và test `SetTokenInformation` thất bại.
+- Kết quả xác nhận thực tế (chạy cục bộ, chưa chạy trên GitHub Actions): 6 test lịch sử fail trên CI — **đều pass cục bộ** (như dự kiến, máy Windows dev thường không tái hiện được `STATUS_DLL_INIT_FAILED` của GitHub-hosted runner). Các file sandbox liên quan cùng chạy — **100 passed, 46 subtests passed**. Toàn bộ `tests/unit/` — **691 passed, 46 subtests passed, 0 failed** (baseline v4.1.0 thực đo là 651 — không phải 647 như một số tài liệu cũ ghi — cộng 40 test mới của bản sửa này).
+- Ruff (`jarvis/sandbox`, file test sandbox liên quan) và mypy (`jarvis`) đều sạch. `git diff --check` sạch.
+- **Không** claim CI đã chạy xanh — CI cho nhánh này **chưa được chạy**. Xác nhận cuối cùng đòi hỏi GitHub Actions thật sau khi review/push.
+
+---
+
 ## 🛡️ Phiên Bản 4.1.0 (2026-08-30) — OS-Level Kernel Isolation & Master Technical Audit Hardening
 
 Sau 13 vòng kiểm toán đối kháng (Adversarial Technical Audit), phiên bản 4.1.0 mang đến cuộc đại tu kiến trúc an ninh lớn nhất từ trước đến nay cho JARVIS, chuyển đổi ranh giới bảo mật từ monkey-patching tầng ứng dụng sang **Ranh giới Cấp Kernel Hệ Điều Hành (OS Kernel Boundaries)** trên Windows x64.
