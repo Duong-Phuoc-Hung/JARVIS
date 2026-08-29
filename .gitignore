@@ -30,6 +30,7 @@ logs/
 *.lnk
 
 # Temporary and Scratch files
+workspace/
 scratch/
 temp/
 tmp/

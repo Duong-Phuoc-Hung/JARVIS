@@ -40,11 +40,11 @@
   ],
   "synthesized_by": "jarvis_builtin_system",
   "created_at": 1787839217.2987947,
-  "updated_at": 1787930878.5260565,
-  "invocation_count": 36,
-  "success_count": 36,
+  "updated_at": 1788032662.284617,
+  "invocation_count": 58,
+  "success_count": 58,
   "failure_count": 0,
-  "total_latency_ms": 158.23100000153545,
+  "total_latency_ms": 165.52730000313431,
   "success_rate": 1.0,
-  "avg_latency_ms": 4.4
+  "avg_latency_ms": 2.85
 }

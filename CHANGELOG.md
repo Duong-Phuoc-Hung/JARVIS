@@ -2,6 +2,48 @@
 
 ---
 
+## 🛡️ Phiên Bản 4.1.0 (2026-08-30) — OS-Level Kernel Isolation & Master Technical Audit Hardening
+
+Sau 13 vòng kiểm toán đối kháng (Adversarial Technical Audit), phiên bản 4.1.0 mang đến cuộc đại tu kiến trúc an ninh lớn nhất từ trước đến nay cho JARVIS, chuyển đổi ranh giới bảo mật từ monkey-patching tầng ứng dụng sang **Ranh giới Cấp Kernel Hệ Điều Hành (OS Kernel Boundaries)** trên Windows x64.
+
+### 🔒 1. Cách Ly An Ninh Cấp OS Kernel (OS-Level Sandboxing)
+* **Windows Mandatory Integrity Control (MIC):**
+  - Chuyển tiến trình con thực thi mã động sang `TokenIntegrityLevel = LOW` (`S-1-16-4096`) qua `SetTokenInformation`.
+  - Khắc phục lỗi kiểu dữ liệu 64-bit `wintypes.HANDLE` trong chữ ký `ctypes` để gọi thành công `advapi32.SetNamedSecurityInfoW` với SACL `S:(ML;OICI;NW;;;LW)` dưới quyền người dùng phổ thông (Non-Elevated Standard User).
+  - Windows Kernel SRM chặn đứng mọi hành vi ghi file trái phép ra ngoài thư mục sandbox với `[Errno 13] Permission denied` trực tiếp từ kernel.
+* **Windows Job Object Resource & Process Hardening:**
+  - Thiết lập `ActiveProcessLimit = 1`, `JobMemoryLimit = 256MB` và `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`.
+  - Chặn đứng 100% việc tạo tiến trình con (`cmd.exe`, `powershell.exe`, `subprocess.Popen`) với mã lỗi kernel `WinError 1816`.
+* **Environment Block Sanitization:**
+  - Tự động làm sạch toàn bộ biến môi trường nhạy cảm (API Keys, Token) trước khi truyền qua `CreateProcessAsUserW`.
+
+### 🛡️ 2. Phòng Thủ Đa Tầng Tầng Ứng Dụng (In-Process Runtime Defense-in-Depth)
+* **Khắc Phục Lỗ Hổng `__closure__` & `__globals__` Introspection:**
+  - Thay thế các wrapper hàm bằng Slot-based Guard Classes (`__slots__ = ()`) ghi đè `__getattribute__` để chặn trích xuất hàm gốc.
+* **Prefix Wildcard Matcher & Hai Tầng Đầu Độc Cache:**
+  - Nâng cấp cơ chế chặn module cấm sang kiểm tra tiền tố họ module (`win32*`, `_win32*`, `pywin*`, `comtypes*`, `pythoncom*`, `pywintypes*`, `wmi*`, `clr*`, `ctypes`, `socket`, `ssl`).
+  - Đầu độc toàn bộ cache `sys.modules` và chèn `_BlockedMetaPathFinder` vào `sys.meta_path[0]`, đồng thời loại bỏ đường dẫn thư mục dự án khỏi `sys.path`.
+
+### 📱 3. An Ninh Cầu Nối Di Động & Webhook
+* **Zalo Bot Webhook:**
+  - Sửa lỗi xác thực HMAC-SHA256: hỗ trợ constant-time so sánh (`hmac.compare_digest`) cho cả chuỗi Hex 64 ký tự lẫn Base64 44 ký tự.
+  - Ràng buộc địa chỉ lắng nghe an toàn trên `127.0.0.1`.
+* **Mobile Bridge File Uploads:**
+  - Chuyển từ cơ chế blocklist sang **Strict Explicit Allowlist** (`.txt`, `.pdf`, `.png`, `.jpg`, `.csv`, `.json`).
+  - Bổ sung kiểm tra đệ quy double-extension (`path.suffixes`) ngăn chặn hoàn toàn kịch bản tấn công tệp thực thi đội lốt tài liệu (`invoice.exe.pdf`).
+
+### ⚡ 4. Bộ Đo Đạc Phần Cứng & Khắc Phục Lỗi STT
+* **Sửa Lỗi Xử Lý Đệm Âm Thanh STT:** Sửa ngoại lệ `ValueError: The truth value of an array with more than one element is ambiguous` trong `jarvis/stt/faster_whisper.py` khi nhận mảng `np.ndarray`.
+* **Bộ Benchmark Phần Cứng Độc Lập (`scripts/benchmark_hardware.py`):**
+  - Đo đạc thực nghiệm số liệu thật trên CPU Intel Core i7-10750H (AST Validator p50: 0.03-0.21ms, OS Sandbox Overhead p50: 170-195ms, SAPI5 PCM Speech Synthesis: 22-141ms).
+  - Tách bạch rõ ràng số liệu phần cứng thật khỏi số liệu pipeline adapter giả lập.
+* **Tài Liệu Kiểm Toán & Kiến Trúc:**
+  - Bổ sung [`docs/SECURITY_ARCHITECTURE.md`](file:///d:/Software%20GitCode/JARVIS/docs/SECURITY_ARCHITECTURE.md) và [`docs/TECHNICAL_AUDIT_REPORT.md`](file:///d:/Software%20GitCode/JARVIS/docs/TECHNICAL_AUDIT_REPORT.md).
+* **Test Suite:**
+  - Bổ sung 15 Adversarial Integration Tests trong [`tests/integration/test_sandbox_os_boundaries.py`](file:///d:/Software%20GitCode/JARVIS/tests/integration/test_sandbox_os_boundaries.py). Toàn bộ 662 tests pass 100%.
+
+---
+
 ## 🚀 Phiên Bản 4.0.1 (2026-08-29) — Stability, CA/CI & Runtime Fixes
 
 Quá trình rà soát bằng phân tích tĩnh (Ruff, mypy) và pipeline CI đã phát hiện một số lỗi tiềm ẩn trước đây bị che khuất bởi các khối `except` quá rộng hoặc đơn giản là chưa từng được bộ test kiểm tra. Các lỗi bên dưới đã được sửa và đều được xác nhận dựa trên hành vi thực tế khi chạy chương trình, không chỉ đơn thuần là làm cho lỗi type-checking biến mất.

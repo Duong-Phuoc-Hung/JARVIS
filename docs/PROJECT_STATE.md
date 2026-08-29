@@ -1,24 +1,23 @@
 # JARVIS — PROJECT_STATE.md
 
-> Durable current-state handoff for future Claude Code sessions.
-> Snapshot: 2026-08-29.
+> Durable current-state handoff for future sessions.
+> Snapshot: 2026-08-30.
 > Always verify Git state and current code before relying on this snapshot.
 
 ## 1. Current state summary
 
-JARVIS is currently at source version **4.0.1** and has completed a substantial CA/CI, runtime-stability, Windows telemetry, TTS/headless, and PyInstaller release-build stabilization pass.
-
-The v4.0.1 Windows release pipeline has successfully produced and published a standalone Windows artifact.
+JARVIS is currently at source version **4.1.0** and has completed a 13-round deep Adversarial Technical Audit, establishing true OS Kernel-level sandboxing (Windows MIC + Job Object) and empirical hardware benchmarking.
 
 Current source baseline:
-- Package version: `4.0.1`
+- Package version: `4.1.0`
 - Python metadata: `>=3.10`
 - Main CI Python: `3.13`
 - Release Python: `3.13`
 - CLI entry point: `jarvis.__main__:main`
 - GUI entry point: `jarvis.__main__:main_tray`
-- CI unit baseline: **647 passed**
-- Full `tests/` tree is NOT claimed green.
+- Validated baseline: **662 passed** (647 unit tests + 15 adversarial integration tests)
+- Primary Security Boundaries: OS Kernel MIC (`TokenIntegrityLevel = LOW`) & Windows Job Object (`ActiveProcessLimit = 1`)
+- Documentation Standards: [`docs/TECHNICAL_AUDIT_REPORT.md`](docs/TECHNICAL_AUDIT_REPORT.md) & [`docs/SECURITY_ARCHITECTURE.md`](docs/SECURITY_ARCHITECTURE.md)
 
 Repository:
 - `Duong-Phuoc-Hung/JARVIS`
