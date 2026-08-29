@@ -138,6 +138,19 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 25
     needs: syntax
+    env:
+      # GitHub-hosted Windows Server runners have shown incompatibility with
+      # the OS Restricted Token (CreateProcessAsUserW) sandbox launch path:
+      # the child process reports STATUS_DLL_INIT_FAILED during its own
+      # startup before any user code can run. This explicit, narrow opt-in
+      # allows sandbox tests to fall back to the Job-Object + scrubbed-
+      # environment subprocess.Popen compatibility path in CI ONLY.
+      # Production code paths default to fail-closed and do not read this
+      # from environment auto-detection (e.g. GITHUB_ACTIONS) -- it must be
+      # set explicitly, as it is here. This does NOT validate Low Integrity
+      # Restricted Token isolation end-to-end on this runner; see
+      # docs/PROJECT_STATE.md for the confirmed root cause and scope.
+      JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK: "1"
 
     steps:
       - uses: actions/checkout@v4

@@ -20,10 +20,14 @@ from typing import Any
 
 from jarvis.sandbox.artifacts import ArtifactInfo, ArtifactManager
 from jarvis.sandbox.security import (
+    SANDBOX_COMPAT_FALLBACK_ENV_VAR,
+    RestrictedProcessBootstrapError,
     WindowsJobObject,
     inject_security_preamble,
+    is_compat_fallback_enabled,
     prepare_scrubbed_environment,
     spawn_low_integrity_process,
+    strip_sandbox_ready_sentinel,
 )
 from jarvis.sandbox.validator import ASTCodeValidator
 
@@ -231,7 +235,15 @@ class CodeInterpreterSandbox:
         job = WindowsJobObject(active_process_limit=1, memory_limit_mb=256)
         try:
             is_win = sys.platform == "win32"
-            spawned_via_token = False
+            # True once exit_code/stdout/stderr/timed_out below are final --
+            # either genuine execution under OS Restricted Token isolation
+            # (any exit code, including nonzero, and including a timeout),
+            # or a deliberate fail-closed refusal. Only stays False when the
+            # legacy Job-Object+Popen path still needs to run (non-Windows,
+            # or an explicitly-allowed compatibility retry after a CONFIRMED
+            # pre-user-code bootstrap failure -- see below).
+            execution_handled = False
+
             if is_win:
                 try:
                     exit_code, stdout, stderr, timed_out = spawn_low_integrity_process(
@@ -241,11 +253,87 @@ class CodeInterpreterSandbox:
                         job=job,
                         timeout_seconds=timeout,
                     )
-                    spawned_via_token = True
-                except Exception as ex_token:
-                    logger.debug("spawn_low_integrity_process fallback: %s", ex_token)
+                except RestrictedProcessBootstrapError as ex_token:
+                    reason = str(ex_token)
+                    logger.warning(
+                        "OS Restricted Token sandbox isolation unavailable "
+                        "(retry_safe=%s): %s",
+                        ex_token.retry_safe,
+                        reason,
+                    )
+                    if ex_token.retry_safe and is_compat_fallback_enabled():
+                        logger.warning(
+                            "%s is set: falling back to Job-Object + scrubbed-environment "
+                            "compatibility isolation for this CONFIRMED pre-user-code "
+                            "bootstrap failure. This provides WEAKER isolation than OS "
+                            "Restricted Token Low Integrity execution and must never be "
+                            "enabled in production.",
+                            SANDBOX_COMPAT_FALLBACK_ENV_VAR,
+                        )
+                        # Falls through to the legacy Popen path below --
+                        # safe ONLY because RestrictedProcessBootstrapError
+                        # is raised with retry_safe=True exclusively where
+                        # spawn_low_integrity_process() can formally prove
+                        # the child never crossed the readiness boundary
+                        # (CREATE_SUSPENDED never resumed, or the readiness
+                        # sentinel was never observed).
+                    else:
+                        # FAIL CLOSED: either not retry-eligible (a failure
+                        # that could have occurred after the child started
+                        # running/producing side effects) or the operator
+                        # has not opted in -- either way, refuse to run the
+                        # script with weaker isolation.
+                        if ex_token.retry_safe:
+                            advice = (
+                                f"Set {SANDBOX_COMPAT_FALLBACK_ENV_VAR}=1 to explicitly allow a "
+                                "reduced-isolation compatibility fallback for this confirmed "
+                                "pre-user-code failure (non-production only)."
+                            )
+                        else:
+                            advice = "This failure is not classified as safe to retry with weaker isolation."
+                        exit_code = -1
+                        stdout = ""
+                        stderr = (
+                            "Sandbox execution refused: OS Restricted Token isolation failed "
+                            f"to initialize or could not be confirmed safe ({reason}). {advice}"
+                        )
+                        timed_out = False
+                        execution_handled = True
+                except Exception as ex_unexpected:
+                    # Unclassified failure from the launcher: could have
+                    # occurred at any point, including after the child
+                    # crossed the readiness boundary. NEVER eligible for
+                    # compatibility retry, regardless of
+                    # JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK -- always fail
+                    # closed, unconditionally.
+                    logger.error(
+                        "Unexpected OS Restricted Token launcher error (failing closed, "
+                        "not retry-eligible): %s",
+                        ex_unexpected,
+                        exc_info=True,
+                    )
+                    exit_code = -1
+                    stdout = ""
+                    stderr = (
+                        "Sandbox execution refused: an unclassified error occurred in the "
+                        f"OS Restricted Token launcher ({ex_unexpected}). This failure mode "
+                        "is not confirmed to have occurred before user code could run, so it "
+                        "is never eligible for the compatibility fallback."
+                    )
+                    timed_out = False
+                    execution_handled = True
+                else:
+                    # Genuine execution under OS Restricted Token isolation:
+                    # whatever exit code/timeout the user script itself
+                    # produced is final -- never retried via compatibility.
+                    stdout, _ = strip_sandbox_ready_sentinel(stdout)
+                    execution_handled = True
 
-            if not spawned_via_token:
+            if not execution_handled:
+                # Legacy Job-Object + scrubbed subprocess.Popen path: used on
+                # non-Windows platforms, or as an explicitly-allowed
+                # compatibility retry after a CONFIRMED pre-user-code
+                # bootstrap failure (see above). Never reached silently.
                 import ctypes
                 process = subprocess.Popen(
                     cmd_list,
@@ -257,22 +345,57 @@ class CodeInterpreterSandbox:
                     encoding="utf-8",
                     errors="replace",
                 )
+
+                # The Job Object is a declared security/resource boundary
+                # and must not fail open here either. Unlike the restricted-
+                # token path, subprocess.Popen provides no CREATE_SUSPENDED
+                # equivalent, so there is an unavoidable brief race window
+                # between process creation and this check during which the
+                # child could already be running -- a known, documented,
+                # weaker property of this explicit-opt-in, non-production
+                # compatibility path (it is not present in the primary
+                # Restricted Token path, which assigns the Job Object to a
+                # still-suspended child before ever resuming it).
+                job_ok = not is_win
                 if is_win and process.pid:
                     kernel32 = ctypes.windll.kernel32
                     h_proc = kernel32.OpenProcess(0x1FFFFF, False, process.pid)
                     if h_proc:
-                        job.assign_process(h_proc)
+                        job_ok = job.assign_process(h_proc)
                         kernel32.CloseHandle(h_proc)
+                    if not job_ok:
+                        logger.error(
+                            "Compatibility isolation Job Object assignment failed; "
+                            "refusing to let the process continue without the declared "
+                            "resource bounds (ActiveProcessLimit/JobMemoryLimit)."
+                        )
 
-                try:
-                    stdout, stderr = process.communicate(timeout=timeout)
-                    exit_code = process.returncode
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    stdout, stderr = process.communicate()
-                    timed_out = True
+                if not job_ok:
+                    try:
+                        process.kill()
+                        process.communicate()
+                    except Exception:
+                        pass
                     exit_code = -1
-                    logger.warning("Code execution timed out after %s seconds.", timeout)
+                    stdout = ""
+                    stderr = (
+                        "Sandbox execution refused: compatibility isolation Job Object "
+                        "assignment failed; refusing to run without the declared "
+                        "ActiveProcessLimit/JobMemoryLimit resource bounds."
+                    )
+                    timed_out = False
+                else:
+                    try:
+                        stdout, stderr = process.communicate(timeout=timeout)
+                        exit_code = process.returncode
+                        stdout, _ = strip_sandbox_ready_sentinel(stdout)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        stdout, stderr = process.communicate()
+                        stdout, _ = strip_sandbox_ready_sentinel(stdout)
+                        timed_out = True
+                        exit_code = -1
+                        logger.warning("Code execution timed out after %s seconds.", timeout)
         except Exception as exc:
             exit_code = -1
             stderr = f"Subprocess invocation failed: {str(exc)}"

@@ -273,6 +273,140 @@ class SECURITY_ATTRIBUTES(ctypes.Structure):
     ]
 
 
+class RestrictedProcessBootstrapError(OSError):
+    """
+    Raised when the OS Restricted Token backend could not get a child
+    process to actually start running user code -- either a Win32 launcher
+    API failed before the child was created, or the child was created but
+    terminated during its own process/DLL initialization before any user
+    code could have run (see `is_restricted_process_bootstrap_failure`).
+
+    This is distinct from, and must never be conflated with:
+      - a normal (possibly nonzero) exit code from the user's own script,
+      - a timeout,
+      - an AST validator rejection,
+      - an explicit Python exception raised by the user's script.
+    Callers must treat this as "OS Restricted Token isolation could not be
+    established for this run" -- never as "the script executed and merely
+    returned an unusual exit code."
+
+    `retry_safe` distinguishes failures that are FORMALLY PROVEN to have
+    occurred before the child could execute any instructions (True -- the
+    only case eligible for the explicit compatibility fallback) from
+    failures where that cannot be proven (False -- e.g. a failure querying
+    the child's state *after* it was resumed, where the child may already
+    be running or may already have run user code with side effects).
+
+    SECURITY RULE: unknown state => never retry. Defaults to **False**.
+    `retry_safe=True` must be passed explicitly, and only at a call site
+    that holds formal proof the child executed zero instructions (e.g. any
+    failure strictly before `CreateProcessAsUserW` creates the child; Job
+    Object assignment failing on a still-suspended child, terminated
+    before ever being resumed; `ResumeThread` itself failing; or a known
+    bootstrap-failure exit code observed with the readiness sentinel never
+    written). Every raise site in this module states its reasoning
+    explicitly -- do not add a new raise site without doing the same.
+    """
+
+    def __init__(self, message: str, *, retry_safe: bool = False) -> None:
+        super().__init__(message)
+        self.retry_safe = retry_safe
+
+
+# Windows NTSTATUS values (as returned via GetExitCodeProcess -- an
+# unsigned 32-bit DWORD) that indicate a child process died during its own
+# process/DLL initialization, before any user code could have run. Per
+# Microsoft's documented CreateProcessAsUser contract, the call can report
+# success before the child's own initialization has completed; if a
+# required DLL fails to load/initialize, the child terminates afterward
+# and this is how that is observed. Confirmed on GitHub-hosted Windows
+# Server 2025 CI runners under this restricted-token launch path.
+STATUS_DLL_INIT_FAILED = 0xC0000142
+STATUS_DLL_NOT_FOUND = 0xC0000135
+STATUS_ENTRYPOINT_NOT_FOUND = 0xC0000139
+
+_PROCESS_BOOTSTRAP_FAILURE_STATUS_CODES: frozenset[int] = frozenset(
+    {STATUS_DLL_INIT_FAILED, STATUS_DLL_NOT_FOUND, STATUS_ENTRYPOINT_NOT_FOUND}
+)
+
+
+def is_restricted_process_bootstrap_failure(exit_code: int) -> bool:
+    """
+    True if `exit_code` (an unsigned 32-bit value, as returned by
+    GetExitCodeProcess) is a known Windows NTSTATUS code indicating the
+    child process terminated during its own startup/DLL initialization --
+    never a legitimate outcome of user script code actually running. Do
+    not use this to classify a normal nonzero script exit code, a timeout,
+    an AST rejection, or an explicit Python exception; those are handled
+    through entirely separate code paths and must not reach here.
+    """
+    return exit_code in _PROCESS_BOOTSTRAP_FAILURE_STATUS_CODES
+
+
+# ----------------------------------------------------------------------
+# Readiness handshake: the REAL retry-safety boundary.
+#
+# A bootstrap-failure-shaped exit code (see above) is NOT by itself proof
+# that no user code ran -- a child can cross into the injected preamble or
+# even the user's own script and only later hit a native DLL load/init
+# failure. GetExitCodeProcess() alone cannot distinguish "died before any
+# code ran" from "ran for a while, then crashed with a status code that
+# happens to match." The injected sandbox preamble (see
+# SANDBOX_BOOTSTRAP_PREAMBLE below) writes this sentinel to stdout, through
+# the already-installed 1MB-capped writer, as the LAST thing it does --
+# immediately after every security guard has been installed and
+# immediately before the appended user code begins. Because the child is
+# launched with `-u` (unbuffered), this write is observable by the parent
+# without buffering ambiguity.
+#
+# Only "known bootstrap-failure exit code" AND "sentinel never observed"
+# is treated as a confirmed pre-user-code failure eligible for retry.
+# ----------------------------------------------------------------------
+_SANDBOX_READY_SENTINEL = "\x02JARVIS_SANDBOX_READY_v1\x03"
+_SANDBOX_READY_LINE = _SANDBOX_READY_SENTINEL + "\n"
+
+
+def strip_sandbox_ready_sentinel(output: str) -> tuple[str, bool]:
+    """
+    Remove the internal readiness sentinel line from captured child stdout
+    before it reaches SandboxResult / any user-visible output / structured-
+    result parsing. Returns (cleaned_output, was_sentinel_observed).
+    """
+    if _SANDBOX_READY_SENTINEL not in output:
+        return output, False
+    return output.replace(_SANDBOX_READY_LINE, ""), True
+
+
+# ----------------------------------------------------------------------
+# Explicit, narrow, opt-in compatibility fallback switch.
+#
+# Production default is FAIL-CLOSED: if OS Restricted Token isolation
+# cannot be established, JARVIS refuses to execute the untrusted script
+# rather than silently downgrading to weaker isolation. Some CI
+# environments (observed: GitHub-hosted Windows Server 2025 runners) are
+# currently incompatible with the Restricted Token launch path itself
+# (see `RestrictedProcessBootstrapError`/`is_restricted_process_bootstrap_failure`),
+# so an explicit, narrowly-scoped opt-in exists for those environments only.
+# This must never be enabled in production and never auto-detected from
+# environment signals such as GITHUB_ACTIONS -- it is opt-in only.
+# ----------------------------------------------------------------------
+SANDBOX_COMPAT_FALLBACK_ENV_VAR = "JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK"
+_TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
+
+
+def is_compat_fallback_enabled() -> bool:
+    """
+    True only if the operator has explicitly set
+    `JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK` to a truthy value. Disabled
+    (fail-closed) by default. When enabled, a confirmed OS Restricted Token
+    bootstrap failure (see `RestrictedProcessBootstrapError`) is allowed to
+    fall back to the Job-Object + scrubbed-environment `subprocess.Popen`
+    compatibility path, which provides weaker isolation and must only be
+    used in non-production environments such as CI.
+    """
+    return os.environ.get(SANDBOX_COMPAT_FALLBACK_ENV_VAR, "").strip().lower() in _TRUTHY_ENV_VALUES
+
+
 def set_low_integrity_sacl(directory_path: str) -> bool:
     """
     Set the Mandatory Label SACL of a directory to Low Integrity (S-1-16-4096).
@@ -336,9 +470,20 @@ def spawn_low_integrity_process(
     """
     Spawn a child process under a Win32 Low Integrity Restricted Token (S-1-16-4096)
     with ActiveProcessLimit=1 Job Object, scrubbed environment block, and anonymous pipe redirection.
-    
+
     Returns:
-        tuple of (exit_code, stdout_str, stderr_str, timed_out)
+        tuple of (exit_code, stdout_str, stderr_str, timed_out) -- ONLY when the
+        restricted child genuinely started and either ran to completion (any
+        exit code, including nonzero) or was terminated on timeout.
+
+    Raises:
+        RestrictedProcessBootstrapError: if any Win32 call required to
+            establish Low Integrity isolation fails before the child is
+            created, or if the child is created but terminates during its
+            own process/DLL initialization before any user code could have
+            run (see `is_restricted_process_bootstrap_failure`). Callers
+            must never treat this as "the script ran and returned an odd
+            exit code" -- OS isolation itself could not be established.
     """
     if sys.platform != "win32":
         raise NotImplementedError("Low Integrity processes are only supported on Windows.")
@@ -373,130 +518,270 @@ def spawn_low_integrity_process(
     ]
     advapi32.CreateProcessAsUserW.restype = wintypes.BOOL
 
-    # Step 1: Set scratch directory SACL to Low Integrity Level
-    set_low_integrity_sacl(cwd)
+    # DWORD (unsigned) restypes are mandatory here: ctypes defaults an
+    # unannotated call to a signed 32-bit int, which would silently turn
+    # the 0xFFFFFFFF failure sentinels these two APIs use into -1 and break
+    # every `== 0xFFFFFFFF` comparison below.
+    kernel32.ResumeThread.argtypes = [wintypes.HANDLE]
+    kernel32.ResumeThread.restype = wintypes.DWORD
+    kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    kernel32.WaitForSingleObject.restype = wintypes.DWORD
 
-    # Step 2: Open current process token
-    TOKEN_ALL_ACCESS = 0xF01FF
-    DISABLE_MAX_PRIVILEGE = 0x1
-    LUA_TOKEN = 0x4
-
+    # All Win32 resources acquired below are released exactly once via
+    # `_cleanup()`, called from `finally` on every exit path (normal
+    # return, an early `RestrictedProcessBootstrapError`, or any other
+    # exception). Handles/pointers default to falsy (NULL) values so
+    # `_cleanup()` only closes/frees what was actually acquired; `h_write`
+    # is explicitly cleared to NULL once the parent's copy is closed so it
+    # is never double-closed.
     h_token = wintypes.HANDLE()
-    if not advapi32.OpenProcessToken(kernel32.GetCurrentProcess(), TOKEN_ALL_ACCESS, ctypes.byref(h_token)):
-        raise OSError(f"OpenProcessToken failed with code {kernel32.GetLastError()}")
-
-    # Step 3: Create Restricted Token (Strip Admin + Strip Privileges)
     h_restricted = wintypes.HANDLE()
-    res_restr = advapi32.CreateRestrictedToken(
-        h_token,
-        DISABLE_MAX_PRIVILEGE | LUA_TOKEN,
-        0, None, 0, None, 0, None,
-        ctypes.byref(h_restricted)
-    )
-    if not res_restr:
-        kernel32.CloseHandle(h_token)
-        raise OSError(f"CreateRestrictedToken failed with code {kernel32.GetLastError()}")
-
-    # Step 4: Apply Low Integrity Level SID (S-1-16-4096) to Restricted Token
-    pSid = ctypes.c_void_p()
-    ConvertStringSidToSidW("S-1-16-4096", ctypes.byref(pSid))
-
-    class SID_AND_ATTRIBUTES(ctypes.Structure):
-        _fields_ = [("Sid", ctypes.c_void_p), ("Attributes", wintypes.DWORD)]
-
-    class TOKEN_MANDATORY_LABEL(ctypes.Structure):
-        _fields_ = [("Label", SID_AND_ATTRIBUTES)]
-
-    label = TOKEN_MANDATORY_LABEL()
-    label.Label.Sid = pSid
-    label.Label.Attributes = 0x00000020  # SE_GROUP_INTEGRITY
-    TokenIntegrityLevel = 25
-    advapi32.SetTokenInformation(h_restricted, TokenIntegrityLevel, ctypes.byref(label), ctypes.sizeof(label))
-    kernel32.LocalFree(pSid)
-
-    # Step 5: Create anonymous pipes for I/O capture
-    sa = SECURITY_ATTRIBUTES()
-    sa.nLength = ctypes.sizeof(SECURITY_ATTRIBUTES)
-    sa.bInheritHandle = True
-
+    p_sid = ctypes.c_void_p()
     h_read = wintypes.HANDLE()
     h_write = wintypes.HANDLE()
-    kernel32.CreatePipe(ctypes.byref(h_read), ctypes.byref(h_write), ctypes.byref(sa), 0)
-    kernel32.SetHandleInformation(h_read, 1, 0)  # Do not inherit read handle
-
-    si = STARTUPINFOW()
-    si.cb = ctypes.sizeof(STARTUPINFOW)
-    si.dwFlags = 0x00000100  # STARTF_USESTDHANDLES
-    si.hStdOutput = h_write
-    si.hStdError = h_write
     pi = PROCESS_INFORMATION()
 
-    CREATE_NO_WINDOW = 0x08000000
-    CREATE_UNICODE_ENVIRONMENT = 0x00000400
-    flags = CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT
+    def _cleanup() -> None:
+        for handle in (pi.hThread, pi.hProcess, h_write, h_read, h_restricted, h_token):
+            if handle:
+                try:
+                    kernel32.CloseHandle(handle)
+                except Exception:
+                    pass
+        if p_sid:
+            try:
+                kernel32.LocalFree(p_sid)
+            except Exception:
+                pass
 
-    # Prepare scrubbed unicode environment block
-    clean_env = prepare_scrubbed_environment(env)
-    env_str = "\0".join(f"{k}={v}" for k, v in clean_env.items()) + "\0\0"
-    lp_env = ctypes.c_wchar_p(env_str)
+    try:
+        # Step 1: Set scratch directory SACL to Low Integrity Level
+        set_low_integrity_sacl(cwd)
 
-    # Step 6: Launch via CreateProcessAsUserW
-    success = advapi32.CreateProcessAsUserW(
-        h_restricted,
-        None,
-        cmd,
-        None,
-        None,
-        True,
-        flags,
-        lp_env,
-        cwd,
-        ctypes.byref(si),
-        ctypes.byref(pi),
-    )
-    kernel32.CloseHandle(h_write)
+        # Step 2: Open current process token
+        TOKEN_ALL_ACCESS = 0xF01FF
+        DISABLE_MAX_PRIVILEGE = 0x1
+        LUA_TOKEN = 0x4
 
-    if not success:
-        err = kernel32.GetLastError()
-        kernel32.CloseHandle(h_read)
-        kernel32.CloseHandle(h_restricted)
-        kernel32.CloseHandle(h_token)
-        raise OSError(f"CreateProcessAsUserW failed with error {err}")
+        if not advapi32.OpenProcessToken(kernel32.GetCurrentProcess(), TOKEN_ALL_ACCESS, ctypes.byref(h_token)):
+            # Proven pre-user-code: no child has been created yet.
+            raise RestrictedProcessBootstrapError(
+                f"OpenProcessToken failed with error {kernel32.GetLastError()}",
+                retry_safe=True,
+            )
 
-    # Step 7: Assign child process to Job Object
-    if job:
-        job.assign_process(pi.hProcess)
+        # Step 3: Create Restricted Token (Strip Admin + Strip Privileges)
+        res_restr = advapi32.CreateRestrictedToken(
+            h_token,
+            DISABLE_MAX_PRIVILEGE | LUA_TOKEN,
+            0, None, 0, None, 0, None,
+            ctypes.byref(h_restricted)
+        )
+        if not res_restr:
+            # Proven pre-user-code: no child has been created yet.
+            raise RestrictedProcessBootstrapError(
+                f"CreateRestrictedToken failed with error {kernel32.GetLastError()}",
+                retry_safe=True,
+            )
 
-    # Step 8: Wait for completion with timeout
-    timeout_ms = int(timeout_seconds * 1000)
-    wait_res = kernel32.WaitForSingleObject(pi.hProcess, timeout_ms)
-    timed_out = False
-    exit_code_val = 0
+        # Step 4: Apply Low Integrity Level SID (S-1-16-4096) to Restricted Token
+        if not ConvertStringSidToSidW("S-1-16-4096", ctypes.byref(p_sid)):
+            # Proven pre-user-code: no child has been created yet.
+            raise RestrictedProcessBootstrapError(
+                f"ConvertStringSidToSidW failed with error {kernel32.GetLastError()}",
+                retry_safe=True,
+            )
 
-    if wait_res == 0x00000102:  # WAIT_TIMEOUT
-        timed_out = True
-        kernel32.TerminateProcess(pi.hProcess, 1)
-        exit_code_val = -1
-    else:
-        dw_exit = wintypes.DWORD()
-        kernel32.GetExitCodeProcess(pi.hProcess, ctypes.byref(dw_exit))
-        exit_code_val = dw_exit.value
+        class SID_AND_ATTRIBUTES(ctypes.Structure):
+            _fields_ = [("Sid", ctypes.c_void_p), ("Attributes", wintypes.DWORD)]
 
-    # Step 9: Read captured pipe output
-    output_chunks: list[bytes] = []
-    buf = ctypes.create_string_buffer(8192)
-    bytes_read = wintypes.DWORD()
-    while kernel32.ReadFile(h_read, buf, 8192, ctypes.byref(bytes_read), None) and bytes_read.value > 0:
-        output_chunks.append(buf.raw[: bytes_read.value])
+        class TOKEN_MANDATORY_LABEL(ctypes.Structure):
+            _fields_ = [("Label", SID_AND_ATTRIBUTES)]
 
-    kernel32.CloseHandle(pi.hProcess)
-    kernel32.CloseHandle(pi.hThread)
-    kernel32.CloseHandle(h_read)
-    kernel32.CloseHandle(h_restricted)
-    kernel32.CloseHandle(h_token)
+        label = TOKEN_MANDATORY_LABEL()
+        label.Label.Sid = p_sid
+        label.Label.Attributes = 0x00000020  # SE_GROUP_INTEGRITY
+        TokenIntegrityLevel = 25
+        if not advapi32.SetTokenInformation(
+            h_restricted, TokenIntegrityLevel, ctypes.byref(label), ctypes.sizeof(label)
+        ):
+            # CRITICAL: never proceed to launch the child if this failed --
+            # doing so would run it WITHOUT Low Integrity applied while
+            # JARVIS believes isolation is active. Proven pre-user-code: no
+            # child has been created yet.
+            raise RestrictedProcessBootstrapError(
+                f"SetTokenInformation(TokenIntegrityLevel) failed with error {kernel32.GetLastError()}",
+                retry_safe=True,
+            )
 
-    full_output = b"".join(output_chunks).decode("utf-8", errors="replace")
-    return exit_code_val, full_output, "", timed_out
+        # Step 5: Create anonymous pipes for I/O capture
+        sa = SECURITY_ATTRIBUTES()
+        sa.nLength = ctypes.sizeof(SECURITY_ATTRIBUTES)
+        sa.bInheritHandle = True
+
+        if not kernel32.CreatePipe(ctypes.byref(h_read), ctypes.byref(h_write), ctypes.byref(sa), 0):
+            # Proven pre-user-code: no child has been created yet.
+            raise RestrictedProcessBootstrapError(
+                f"CreatePipe failed with error {kernel32.GetLastError()}",
+                retry_safe=True,
+            )
+        if not kernel32.SetHandleInformation(h_read, 1, 0):  # Do not inherit read handle
+            # Does not weaken Low Integrity isolation itself -- only I/O
+            # capture reliability -- so this is logged, not fail-closed.
+            log.warning(
+                "SetHandleInformation(read pipe, non-inheritable) failed (LastError=%d); "
+                "the child may inherit the pipe read handle.",
+                kernel32.GetLastError(),
+            )
+
+        si = STARTUPINFOW()
+        si.cb = ctypes.sizeof(STARTUPINFOW)
+        si.dwFlags = 0x00000100  # STARTF_USESTDHANDLES
+        si.hStdOutput = h_write
+        si.hStdError = h_write
+
+        CREATE_NO_WINDOW = 0x08000000
+        CREATE_UNICODE_ENVIRONMENT = 0x00000400
+        CREATE_SUSPENDED = 0x00000004
+        flags = CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED
+
+        # Prepare scrubbed unicode environment block
+        clean_env = prepare_scrubbed_environment(env)
+        env_str = "\0".join(f"{k}={v}" for k, v in clean_env.items()) + "\0\0"
+        lp_env = ctypes.c_wchar_p(env_str)
+
+        # Step 6: Launch via CreateProcessAsUserW, SUSPENDED. The child
+        # executes zero instructions until ResumeThread() succeeds below --
+        # this closes the race where a child could start running before the
+        # Job Object's ActiveProcessLimit/JobMemoryLimit bounds are applied.
+        success = advapi32.CreateProcessAsUserW(
+            h_restricted,
+            None,
+            cmd,
+            None,
+            None,
+            True,
+            flags,
+            lp_env,
+            cwd,
+            ctypes.byref(si),
+            ctypes.byref(pi),
+        )
+        # Parent's copy of the write end is closed immediately regardless
+        # of outcome -- on failure there is no child to hold the other
+        # reference either way; ReadFile() below relies on this close so
+        # EOF is observed once the child (the only remaining writer) exits.
+        kernel32.CloseHandle(h_write)
+        h_write = wintypes.HANDLE()  # cleared: _cleanup() must not double-close
+
+        if not success:
+            # No child was created at all: proven pre-user-code.
+            raise RestrictedProcessBootstrapError(
+                f"CreateProcessAsUserW failed with error {kernel32.GetLastError()}",
+                retry_safe=True,
+            )
+
+        # Step 7: Assign the still-SUSPENDED child to the Job Object BEFORE
+        # resuming it. The Job Object is a declared security/resource
+        # boundary (ActiveProcessLimit=1, JobMemoryLimit=256MB,
+        # KillOnJobClose) -- it must never fail open. If assignment fails,
+        # the child has still executed zero instructions, so terminating it
+        # here (without ever resuming) is formally provable to be a
+        # pre-user-code failure -- retry_safe=True is correct.
+        child_resumed = False
+        try:
+            if job is not None and not job.assign_process(pi.hProcess):
+                raise RestrictedProcessBootstrapError(
+                    "AssignProcessToJobObject failed; refusing to resume the "
+                    "suspended child without the declared Job Object resource "
+                    f"bounds in effect (LastError={kernel32.GetLastError()})",
+                    retry_safe=True,
+                )
+
+            # Step 8: Resume the child now that Job Object bounds (if any
+            # were requested) are confirmed active. Check the return value:
+            # ResumeThread() returns 0xFFFFFFFF on failure, in which case
+            # the thread was NEVER resumed and the child executed no
+            # instructions -- also formally provable to be pre-user-code.
+            resume_result = kernel32.ResumeThread(pi.hThread)
+            if resume_result == 0xFFFFFFFF:
+                raise RestrictedProcessBootstrapError(
+                    f"ResumeThread failed with error {kernel32.GetLastError()}; "
+                    "the child was never resumed and executed no instructions",
+                    retry_safe=True,
+                )
+            child_resumed = True
+        finally:
+            if not child_resumed:
+                if not kernel32.TerminateProcess(pi.hProcess, 1):
+                    log.warning(
+                        "TerminateProcess on suspended child failed (LastError=%d); "
+                        "child remains suspended and will never execute.",
+                        kernel32.GetLastError(),
+                    )
+
+        # Step 9: Wait for completion with timeout.
+        WAIT_TIMEOUT = 0x00000102
+        WAIT_FAILED = 0xFFFFFFFF
+        timeout_ms = int(timeout_seconds * 1000)
+        wait_res = kernel32.WaitForSingleObject(pi.hProcess, timeout_ms)
+        timed_out = False
+
+        if wait_res == WAIT_TIMEOUT:
+            timed_out = True
+            kernel32.TerminateProcess(pi.hProcess, 1)
+            exit_code_val = -1
+        elif wait_res == WAIT_FAILED:
+            # The child was already resumed and may be running or may
+            # already have run user code with side effects -- this cannot
+            # be proven to be pre-user-code, so it is NEVER retry-safe.
+            raise RestrictedProcessBootstrapError(
+                f"WaitForSingleObject failed with error {kernel32.GetLastError()}",
+                retry_safe=False,
+            )
+        else:
+            dw_exit = wintypes.DWORD()
+            if not kernel32.GetExitCodeProcess(pi.hProcess, ctypes.byref(dw_exit)):
+                # Same reasoning as WAIT_FAILED above: the child was
+                # resumed and ran for some (unknown) duration.
+                raise RestrictedProcessBootstrapError(
+                    f"GetExitCodeProcess failed with error {kernel32.GetLastError()}",
+                    retry_safe=False,
+                )
+            exit_code_val = dw_exit.value
+
+        # Step 10: Read captured pipe output.
+        output_chunks: list[bytes] = []
+        buf = ctypes.create_string_buffer(8192)
+        bytes_read = wintypes.DWORD()
+        while kernel32.ReadFile(h_read, buf, 8192, ctypes.byref(bytes_read), None) and bytes_read.value > 0:
+            output_chunks.append(buf.raw[: bytes_read.value])
+        full_output = b"".join(output_chunks).decode("utf-8", errors="replace")
+        full_output, ready_observed = strip_sandbox_ready_sentinel(full_output)
+
+        # A bootstrap-failure-shaped exit code is NOT by itself proof that
+        # no user code ran -- the child could have crossed the readiness
+        # boundary (preamble fully installed, sentinel written) and only
+        # later hit a native DLL failure. Only classify this as a
+        # pre-user-code bootstrap failure (and thus retry-eligible) when
+        # the readiness sentinel was NEVER observed. If it WAS observed,
+        # this is a genuine (if unusual) execution outcome -- return it
+        # normally, exactly like any other exit code, never retry-eligible.
+        if not timed_out and is_restricted_process_bootstrap_failure(exit_code_val) and not ready_observed:
+            # Proven pre-user-code: known bootstrap-failure exit code AND
+            # the readiness sentinel (written as the last preamble step,
+            # before user code) was never observed.
+            snippet = f"; partial output: {full_output[:200]!r}" if full_output else ""
+            raise RestrictedProcessBootstrapError(
+                "restricted child process terminated during startup/DLL "
+                f"initialization (status=0x{exit_code_val:08X}); the readiness "
+                f"sentinel was never observed, so no user code ran{snippet}",
+                retry_safe=True,
+            )
+
+        return exit_code_val, full_output, "", timed_out
+    finally:
+        _cleanup()
 
 
 # ----------------------------------------------------------------------
@@ -634,8 +919,17 @@ def _capped_stdout_write(s):
     return _original_stdout_write(s)
 
 sys.stdout.write = _capped_stdout_write
+
+# 7. Readiness handshake: written LAST, after every guard above has been
+# installed successfully, and BEFORE any appended user code runs. This is
+# the parent's only reliable signal that the child crossed from "sandbox
+# bootstrap" into "user code" -- see strip_sandbox_ready_sentinel() in
+# jarvis/sandbox/security.py, which strips this line before any output is
+# surfaced to the caller or parsed as structured result data.
+sys.stdout.write(%r)
+sys.stdout.flush()
 # ====================================================================
-"""
+""" % (_SANDBOX_READY_LINE,)
 
 
 def inject_security_preamble(code: str) -> str:
