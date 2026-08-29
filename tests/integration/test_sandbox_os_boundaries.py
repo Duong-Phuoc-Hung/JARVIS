@@ -96,6 +96,52 @@ except Exception as exc:
         assert "OS_OPEN_BLOCKED" in result.stdout
         assert "OS_OPEN_LEAKED" not in result.stdout
 
+    def test_adversarial_closure_introspection_blocked(self, os_test_sandbox):
+        """
+        Verify that attempting __closure__ or attribute introspection on open/io.open
+        to steal underlying unpatched functions is blocked (no __closure__ attribute).
+        """
+        code = """
+import io, os, builtins
+try:
+    has_closure = hasattr(builtins.open, "__closure__")
+    closure_val = getattr(builtins.open, "__closure__", None)
+    if has_closure and closure_val is not None:
+        print("CLOSURE_EXPOSED")
+    else:
+        print("CLOSURE_PROTECTED")
+except Exception as exc:
+    print(f"CLOSURE_BLOCKED: {type(exc).__name__}")
+"""
+        result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
+        assert result.success is True
+        assert ("CLOSURE_PROTECTED" in result.stdout or "CLOSURE_BLOCKED" in result.stdout)
+        assert "CLOSURE_EXPOSED" not in result.stdout
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows MIC requires Win32")
+    def test_adversarial_mic_kernel_write_denied(self, os_test_sandbox, tmp_path):
+        """
+        Verify that Windows Kernel SRM blocks writes from Low Integrity Token to Medium
+        Integrity directories directly at the OS layer ([Errno 13] Permission denied).
+        """
+        evil_dest = tmp_path / "medium_integrity_target.txt"
+        target_path_str = str(evil_dest).replace("\\", "/")
+
+        code = f"""
+try:
+    with open("{target_path_str}", "w") as f:
+        f.write("Evil data")
+    print("MIC_WRITE_LEAKED")
+except PermissionError as exc:
+    print(f"MIC_WRITE_BLOCKED: {{type(exc).__name__}}")
+except Exception as exc:
+    print(f"MIC_WRITE_OTHER: {{type(exc).__name__}}")
+"""
+        result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
+        assert result.success is True
+        assert "MIC_WRITE_BLOCKED" in result.stdout
+        assert "MIC_WRITE_LEAKED" not in result.stdout
+
     def test_adversarial_precached_module_import_blocked(self, os_test_sandbox):
         """
         Verify that even if socket was pre-cached in sys.modules before user code runs,

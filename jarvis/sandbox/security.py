@@ -273,6 +273,59 @@ class SECURITY_ATTRIBUTES(ctypes.Structure):
     ]
 
 
+def set_low_integrity_sacl(directory_path: str) -> bool:
+    """
+    Set the Mandatory Label SACL of a directory to Low Integrity (S-1-16-4096).
+    On Windows, the owner of a directory can set the Mandatory Label without SeSecurityPrivilege.
+    """
+    if sys.platform != "win32":
+        return False
+    try:
+        advapi32 = ctypes.windll.advapi32
+        kernel32 = ctypes.windll.kernel32
+
+        ConvertStringSD = advapi32.ConvertStringSecurityDescriptorToSecurityDescriptorW
+        ConvertStringSD.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_void_p)]
+        ConvertStringSD.restype = wintypes.BOOL
+
+        GetSecurityDescriptorSacl = advapi32.GetSecurityDescriptorSacl
+        GetSecurityDescriptorSacl.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.BOOL), ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(wintypes.BOOL)]
+        GetSecurityDescriptorSacl.restype = wintypes.BOOL
+
+        SetNamedSecurityInfoW = advapi32.SetNamedSecurityInfoW
+        SetNamedSecurityInfoW.argtypes = [
+            wintypes.LPWSTR, wintypes.DWORD, wintypes.DWORD,
+            ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p
+        ]
+        SetNamedSecurityInfoW.restype = wintypes.DWORD
+
+        LABEL_SECURITY_INFORMATION = 0x00000010
+        SE_FILE_OBJECT = 1
+
+        pSD = ctypes.c_void_p()
+        # SDDL: Object Inherit (OI) + Container Inherit (CI) + No Write Up (NW) + Low Integrity (LW)
+        if not ConvertStringSD("S:(ML;OICI;NW;;;LW)", 1, ctypes.byref(pSD), None):
+            return False
+
+        sacl_present = wintypes.BOOL()
+        sacl_defaulted = wintypes.BOOL()
+        pSacl = ctypes.c_void_p()
+        GetSecurityDescriptorSacl(pSD, ctypes.byref(sacl_present), ctypes.byref(pSacl), ctypes.byref(sacl_defaulted))
+
+        err = SetNamedSecurityInfoW(
+            os.path.abspath(directory_path),
+            SE_FILE_OBJECT,
+            LABEL_SECURITY_INFORMATION,
+            None, None, None,
+            pSacl
+        )
+        kernel32.LocalFree(pSD)
+        return err == 0
+    except Exception as exc:
+        log.debug("set_low_integrity_sacl failed on %s: %s", directory_path, exc)
+        return False
+
+
 def spawn_low_integrity_process(
     cmd: str,
     cwd: str,
@@ -320,7 +373,10 @@ def spawn_low_integrity_process(
     ]
     advapi32.CreateProcessAsUserW.restype = wintypes.BOOL
 
-    # Step 1: Open current process token
+    # Step 1: Set scratch directory SACL to Low Integrity Level
+    set_low_integrity_sacl(cwd)
+
+    # Step 2: Open current process token
     TOKEN_ALL_ACCESS = 0xF01FF
     DISABLE_MAX_PRIVILEGE = 0x1
     LUA_TOKEN = 0x4
@@ -329,7 +385,7 @@ def spawn_low_integrity_process(
     if not advapi32.OpenProcessToken(kernel32.GetCurrentProcess(), TOKEN_ALL_ACCESS, ctypes.byref(h_token)):
         raise OSError(f"OpenProcessToken failed with code {kernel32.GetLastError()}")
 
-    # Step 2: Create Restricted Token (Strip Admin + Strip Privileges)
+    # Step 3: Create Restricted Token (Strip Admin + Strip Privileges)
     h_restricted = wintypes.HANDLE()
     res_restr = advapi32.CreateRestrictedToken(
         h_token,
@@ -341,7 +397,24 @@ def spawn_low_integrity_process(
         kernel32.CloseHandle(h_token)
         raise OSError(f"CreateRestrictedToken failed with code {kernel32.GetLastError()}")
 
-    # Step 3: Create anonymous pipes for I/O capture
+    # Step 4: Apply Low Integrity Level SID (S-1-16-4096) to Restricted Token
+    pSid = ctypes.c_void_p()
+    ConvertStringSidToSidW("S-1-16-4096", ctypes.byref(pSid))
+
+    class SID_AND_ATTRIBUTES(ctypes.Structure):
+        _fields_ = [("Sid", ctypes.c_void_p), ("Attributes", wintypes.DWORD)]
+
+    class TOKEN_MANDATORY_LABEL(ctypes.Structure):
+        _fields_ = [("Label", SID_AND_ATTRIBUTES)]
+
+    label = TOKEN_MANDATORY_LABEL()
+    label.Label.Sid = pSid
+    label.Label.Attributes = 0x00000020  # SE_GROUP_INTEGRITY
+    TokenIntegrityLevel = 25
+    advapi32.SetTokenInformation(h_restricted, TokenIntegrityLevel, ctypes.byref(label), ctypes.sizeof(label))
+    kernel32.LocalFree(pSid)
+
+    # Step 5: Create anonymous pipes for I/O capture
     sa = SECURITY_ATTRIBUTES()
     sa.nLength = ctypes.sizeof(SECURITY_ATTRIBUTES)
     sa.bInheritHandle = True
@@ -367,7 +440,7 @@ def spawn_low_integrity_process(
     env_str = "\0".join(f"{k}={v}" for k, v in clean_env.items()) + "\0\0"
     lp_env = ctypes.c_wchar_p(env_str)
 
-    # Step 5: Launch via CreateProcessAsUserW
+    # Step 6: Launch via CreateProcessAsUserW
     success = advapi32.CreateProcessAsUserW(
         h_restricted,
         None,
@@ -390,11 +463,11 @@ def spawn_low_integrity_process(
         kernel32.CloseHandle(h_token)
         raise OSError(f"CreateProcessAsUserW failed with error {err}")
 
-    # Step 6: Assign child process to Job Object
+    # Step 7: Assign child process to Job Object
     if job:
         job.assign_process(pi.hProcess)
 
-    # Step 7: Wait for completion with timeout
+    # Step 8: Wait for completion with timeout
     timeout_ms = int(timeout_seconds * 1000)
     wait_res = kernel32.WaitForSingleObject(pi.hProcess, timeout_ms)
     timed_out = False
@@ -409,7 +482,7 @@ def spawn_low_integrity_process(
         kernel32.GetExitCodeProcess(pi.hProcess, ctypes.byref(dw_exit))
         exit_code_val = dw_exit.value
 
-    # Step 8: Read captured pipe output
+    # Step 9: Read captured pipe output
     output_chunks: list[bytes] = []
     buf = ctypes.create_string_buffer(8192)
     bytes_read = wintypes.DWORD()
@@ -475,50 +548,64 @@ sys.meta_path.insert(0, _BlockedMetaPathFinder())
 # 4. Strip JARVIS and Workspace Paths from sys.path (Blocks internal package import)
 sys.path = [p for p in sys.path if "jarvis" not in p.lower()]
 
-# 5. Strict Directory-Allowlist Filesystem Scoping Guard (Encapsulated in closure)
-def _install_filesystem_guards():
-    _orig_builtin_open = builtins.open
-    _orig_io_open = io.open
-    _orig_os_open = os.open
-    _SANDBOX_ROOT_DIR = os.path.abspath(os.getcwd())
-    _PYTHON_STDLIB_PREFIX = os.path.abspath(sys.prefix).lower()
+# 5. Closure-Free Slot-Based Filesystem Guard (Introspection Resilient)
+_SANDBOX_ROOT_DIR = os.path.abspath(os.getcwd())
+_PYTHON_STDLIB_PREFIX = os.path.abspath(sys.prefix).lower()
+_orig_builtin_open = builtins.open
+_orig_io_open = io.open
+_orig_os_open = os.open
 
-    def _check_path(target_path, is_write=False):
-        try:
-            path_str = os.fspath(target_path) if hasattr(os, "fspath") else str(target_path)
-            abs_target = os.path.abspath(path_str)
-            if abs_target.startswith(_SANDBOX_ROOT_DIR):
-                return
-            if not is_write and abs_target.lower().startswith(_PYTHON_STDLIB_PREFIX):
-                return
-        except Exception:
-            pass
-        action = "write to" if is_write else "read from"
-        raise PermissionError(f"Access Denied: Cannot {action} outside sandbox root: '{target_path}'")
+def _check_sandbox_path(target_path, is_write=False):
+    try:
+        path_str = os.fspath(target_path) if hasattr(os, "fspath") else str(target_path)
+        abs_target = os.path.abspath(path_str)
+        if abs_target.startswith(_SANDBOX_ROOT_DIR):
+            return
+        if not is_write and abs_target.lower().startswith(_PYTHON_STDLIB_PREFIX):
+            return
+    except Exception:
+        pass
+    action = "write to" if is_write else "read from"
+    raise PermissionError(f"Access Denied: Cannot {action} outside sandbox root: '{target_path}'")
 
-    def _scoped_builtin_open(file, *args, **kwargs):
+class _ScopedBuiltinOpenGuard:
+    __slots__ = ()
+    def __call__(self, file, *args, **kwargs):
         mode = args[0] if args else kwargs.get("mode", "r")
         is_write = any(m in str(mode) for m in ("w", "a", "+", "x"))
-        _check_path(file, is_write=is_write)
+        _check_sandbox_path(file, is_write=is_write)
         return _orig_builtin_open(file, *args, **kwargs)
+    def __getattribute__(self, name):
+        if name in ("__closure__", "__code__", "__globals__", "__func__", "__self__", "__dict__", "_fn", "_orig"):
+            raise AttributeError(f"Access Denied: Introspection attribute '{name}' is forbidden.")
+        return super().__getattribute__(name)
 
-    def _scoped_io_open(file, *args, **kwargs):
+class _ScopedIOOpenGuard:
+    __slots__ = ()
+    def __call__(self, file, *args, **kwargs):
         mode = args[0] if args else kwargs.get("mode", "r")
         is_write = any(m in str(mode) for m in ("w", "a", "+", "x"))
-        _check_path(file, is_write=is_write)
+        _check_sandbox_path(file, is_write=is_write)
         return _orig_io_open(file, *args, **kwargs)
+    def __getattribute__(self, name):
+        if name in ("__closure__", "__code__", "__globals__", "__func__", "__self__", "__dict__", "_fn", "_orig"):
+            raise AttributeError(f"Access Denied: Introspection attribute '{name}' is forbidden.")
+        return super().__getattribute__(name)
 
-    def _scoped_os_open(path, flags, *args, **kwargs):
+class _ScopedOSOpenGuard:
+    __slots__ = ()
+    def __call__(self, path, flags, *args, **kwargs):
         is_write = bool(flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC))
-        _check_path(path, is_write=is_write)
+        _check_sandbox_path(path, is_write=is_write)
         return _orig_os_open(path, flags, *args, **kwargs)
+    def __getattribute__(self, name):
+        if name in ("__closure__", "__code__", "__globals__", "__func__", "__self__", "__dict__", "_fn", "_orig"):
+            raise AttributeError(f"Access Denied: Introspection attribute '{name}' is forbidden.")
+        return super().__getattribute__(name)
 
-    builtins.open = _scoped_builtin_open
-    io.open = _scoped_io_open
-    os.open = _scoped_os_open
-
-_install_filesystem_guards()
-del _install_filesystem_guards
+builtins.open = _ScopedBuiltinOpenGuard()
+io.open = _ScopedIOOpenGuard()
+os.open = _ScopedOSOpenGuard()
 
 # 6. Protect Stdout from Memory Flood (1MB Stream Truncation)
 _original_stdout_write = sys.stdout.write
