@@ -4,42 +4,37 @@
 
 ## 🚀 Phiên Bản 4.0.1 (2026-08-29) — Stability, CA/CI & Runtime Fixes
 
-Audit pass over static analysis (Ruff, mypy) and the CI pipeline surfaced a
-number of latent bugs that were previously masked by broad `except` clauses
-or simply never exercised by the test suite. Fixed below, all confirmed
-against the actual runtime behavior (not just silenced type errors).
+Quá trình rà soát bằng phân tích tĩnh (Ruff, mypy) và pipeline CI đã phát hiện một số lỗi tiềm ẩn trước đây bị che khuất bởi các khối `except` quá rộng hoặc đơn giản là chưa từng được bộ test kiểm tra. Các lỗi bên dưới đã được sửa và đều được xác nhận dựa trên hành vi thực tế khi chạy chương trình, không chỉ đơn thuần là làm cho lỗi type-checking biến mất.
 
-### Build & dependencies
-* Fixed a corrupted line in `requirements.txt` that broke `pip install -r requirements.txt` entirely
-* Fixed an invalid `build-backend` in `pyproject.toml` (`setuptools.backends.legacy:build` does not exist) that broke any PEP 517 build (`pip install .`, `python -m build`)
+### Build & thư viện phụ thuộc
 
-### Runtime bugs
-* Fixed broken Telegram integration (`jarvis/agent/graph.py`, `jarvis/workers/notification_hub.py`) — referenced a nonexistent `TelegramController` class with the wrong `send_message` signature
-* Fixed broken LLM intent-routing calls (`jarvis/agent/graph.py`, `jarvis/comms/zalo.py`) — referenced a nonexistent `IntentRouter` class
-* Implemented Windows autostart (`jarvis/platform/windows.py`) — `set_autostart`/`get_autostart_status` were referenced by the CLI but never defined
-* Fixed Windows volume control (`jarvis/automation/control.py`) — wrong `CLSCTX_ALL` constant source silently broke all volume get/set/mute calls
-* Fixed several API/signature mismatches in `jarvis/core/app.py` (wrong enum member, missing required argument, stale skill-synthesis and form-fill call signatures, duplicate lookups)
-* Fixed plugin registration (`jarvis/core/plugin.py`) — a duplicate `stop_all()` definition silently shadowed the first, and `register_plugin()` could return `None` instead of a proper `bool`
-* Fixed Discord/Zalo skill-listing commands (`jarvis/comms/discord.py`, `jarvis/comms/zalo.py`) — `SkillMetadata` was being accessed like a dict instead of a dataclass
-* Fixed the morning briefing skill's crypto-price lookup (`jarvis/skills/briefing`) — called a nonexistent method
-* Fixed the visual verifier (`jarvis/vision/visual_verifier.py`) building its result from unresolved `None` image bytes instead of the already-computed fallback values
-* Added the missing `show()` method on the always-on overlay (`jarvis/ui/overlay.py`) — `toggle()` called it but it didn't exist
-* Fixed invalid battery telemetry on headless/VM systems (`jarvis/ui/overlay.py`) — `_safe_probe_battery()` now treats an invalid sentinel percentage (e.g. `-1` reported by psutil when no real battery is present) as unavailable (`None`) instead of returning it raw, while still preserving the AC-charging state; added 3 regression tests covering a valid percentage, the invalid sentinel, and no battery present
-* Windows battery telemetry is now version-independent and safely handles both `-1` and `255` unknown-battery sentinels from `GetSystemPowerStatus` (`ctypes.wintypes.BYTE` flipped from signed to unsigned between Python 3.11 and 3.12, which previously let `-1` slip past the range check)
+- Sửa một dòng bị lỗi trong `requirements.txt` khiến lệnh `pip install -r requirements.txt` không thể chạy được.
+- Sửa `build-backend` không hợp lệ trong `pyproject.toml` (`setuptools.backends.legacy:build` không tồn tại), vốn làm hỏng mọi quy trình build theo chuẩn PEP 517 như `pip install .` và `python -m build`.
 
-### Code quality
-* Full Ruff + mypy cleanup across `jarvis/` and `tests/` (import ordering, closure-variable binding, Optional-narrowing, etc.) — no functional changes
-* Fixed headless/mock TTS playback for GitHub Actions — `JARVIS_MOCK_AUDIO=1` now bypasses physical audio playback while preserving synthesis/cache validation
-* CI unit suite (`tests/unit/`) verified green: **647 passed**
-* GitHub Actions verified on Python 3.13: **Syntax Check, Unit Tests, Import Validation, and Pipeline Summary all passed**
-* Release workflow now uses Python 3.13, matching the main CI pipeline
+### Lỗi khi chạy chương trình
 
-> **Note:** this does **not** claim the entire `tests/` tree is green. The
-> broader, non-CI test suites (adversarial/challenger stress tests,
-> biometrics, e2e scenarios) still contain pre-existing failures unrelated
-> to this pass — several require optional dependencies not installed in CI
-> (e.g. `cv2`), and others test features that were never implemented.
+- Sửa tích hợp Telegram bị lỗi (`jarvis/agent/graph.py`, `jarvis/workers/notification_hub.py`) — mã nguồn tham chiếu đến class `TelegramController` không tồn tại và sử dụng sai chữ ký của hàm `send_message`.
+- Sửa các lời gọi định tuyến intent bằng LLM (`jarvis/agent/graph.py`, `jarvis/comms/zalo.py`) — mã nguồn tham chiếu đến class `IntentRouter` không tồn tại.
+- Bổ sung chức năng tự khởi động cùng Windows (`jarvis/platform/windows.py`) — `set_autostart` và `get_autostart_status` đã được CLI sử dụng nhưng trước đó chưa hề được định nghĩa.
+- Sửa chức năng điều khiển âm lượng Windows (`jarvis/automation/control.py`) — sử dụng sai nguồn của hằng số `CLSCTX_ALL`, khiến các thao tác lấy âm lượng, đặt âm lượng và tắt tiếng đều âm thầm thất bại.
+- Sửa nhiều lỗi không khớp API/chữ ký hàm trong `jarvis/core/app.py` như sử dụng sai thành viên enum, thiếu đối số bắt buộc, chữ ký cũ của chức năng sinh skill và điền form, cũng như các thao tác tra cứu bị lặp.
+- Sửa đăng ký plugin (`jarvis/core/plugin.py`) — có hai định nghĩa `stop_all()` khiến định nghĩa sau ghi đè định nghĩa trước, đồng thời `register_plugin()` có thể trả về `None` thay vì giá trị `bool` đúng chuẩn.
+- Sửa các lệnh liệt kê skill trên Discord/Zalo (`jarvis/comms/discord.py`, `jarvis/comms/zalo.py`) — `SkillMetadata` trước đó bị truy cập như một `dict` thay vì một `dataclass`.
+- Sửa chức năng lấy giá tiền mã hóa trong skill bản tin buổi sáng (`jarvis/skills/briefing`) — mã nguồn gọi đến một phương thức không tồn tại.
+- Sửa bộ xác minh hình ảnh (`jarvis/vision/visual_verifier.py`) — trước đó kết quả được tạo từ dữ liệu ảnh `None` chưa được xử lý thay vì sử dụng các giá trị fallback đã được tính sẵn.
+- Bổ sung phương thức `show()` còn thiếu cho overlay luôn hiển thị (`jarvis/ui/overlay.py`) — hàm `toggle()` có gọi đến phương thức này nhưng trước đó nó không tồn tại.
+- Sửa dữ liệu pin không hợp lệ trên hệ thống headless/VM (`jarvis/ui/overlay.py`) — `_safe_probe_battery()` giờ coi phần trăm pin sentinel không hợp lệ (ví dụ `-1` do psutil trả về khi hệ thống không có pin thực) là không khả dụng (`None`) thay vì trả trực tiếp giá trị sai, đồng thời vẫn giữ đúng trạng thái đang cắm nguồn AC; bổ sung 3 regression test cho phần trăm hợp lệ, sentinel không hợp lệ và trường hợp không có pin.
+- Dữ liệu pin trên Windows giờ hoạt động ổn định giữa các phiên bản Python và xử lý an toàn cả hai giá trị sentinel `-1` và `255` từ `GetSystemPowerStatus`. Nguyên nhân là `ctypes.wintypes.BYTE` đã thay đổi từ kiểu signed sang unsigned giữa Python 3.11 và 3.12, khiến giá trị `-1` trước đây có thể lọt qua bước kiểm tra phạm vi.
 
+### Chất lượng mã nguồn
+
+- Dọn dẹp toàn bộ cảnh báo Ruff + mypy trong `jarvis/` và `tests/` như thứ tự import, binding biến trong closure, thu hẹp kiểu `Optional`, v.v. — không làm thay đổi chức năng.
+- Sửa TTS ở chế độ headless/mock trên GitHub Actions — `JARVIS_MOCK_AUDIO=1` giờ bỏ qua việc phát âm thanh vật lý nhưng vẫn giữ nguyên quá trình kiểm tra tổng hợp giọng nói và bộ nhớ đệm.
+- Bộ unit test của CI (`tests/unit/`) đã được xác nhận chạy thành công: **647 test passed**.
+- GitHub Actions đã được xác nhận hoạt động thành công trên Python 3.13: **Syntax Check, Unit Tests, Import Validation và Pipeline Summary đều passed**.
+- Workflow phát hành hiện sử dụng Python 3.13, đồng bộ với pipeline CI chính.
+
+> **Lưu ý:** Điều này **không có nghĩa toàn bộ cây `tests/` đều đang xanh**. Các bộ test mở rộng không thuộc CI như adversarial/challenger stress test, biometrics và các kịch bản e2e vẫn còn một số lỗi tồn tại từ trước, không liên quan đến đợt rà soát này. Một số test yêu cầu các thư viện tùy chọn không được cài trong CI (ví dụ `cv2`), trong khi một số khác kiểm tra những tính năng vốn chưa từng được triển khai.
 ---
 
 ## 🚀 Phiên Bản 4.0.0 (2026-08-28) — Full Autonomous ReAct Agent
