@@ -132,7 +132,7 @@ class FasterWhisperSTTEngine:
                 is_mock=True,
             )
 
-        if not audio_bytes:
+        if audio_bytes is None or len(audio_bytes) == 0:
             return TranscriptionResult(
                 text="",
                 language=self.config.language,
@@ -146,9 +146,12 @@ class FasterWhisperSTTEngine:
 
             import numpy as np  # type: ignore[import]
 
-            # Convert PCM bytes to float32 numpy array
-            audio_int16 = np.frombuffer(audio_bytes, dtype=np.int16)
-            audio_float = audio_int16.astype(np.float32) / 32768.0
+            if isinstance(audio_bytes, np.ndarray):
+                audio_float = audio_bytes.astype(np.float32)
+            else:
+                # Convert PCM bytes to float32 numpy array
+                audio_int16 = np.frombuffer(audio_bytes, dtype=np.int16)
+                audio_float = audio_int16.astype(np.float32) / 32768.0
 
             model = self._load_model()
             cfg = self.config
