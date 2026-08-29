@@ -232,29 +232,56 @@ class WindowsJobObject:
 
 
 # ----------------------------------------------------------------------
-# 3. Network Denial & Security Bootstrap Preamble
+# ----------------------------------------------------------------------
+# 3. Deep Zero-Trust Network Denial & Filesystem Scoping Preamble
 # ----------------------------------------------------------------------
 
 SANDBOX_BOOTSTRAP_PREAMBLE = """
 # ====================================================================
-# JARVIS Sandbox In-Process Security Guard (Deny-by-Default Network Hook)
+# JARVIS Sandbox In-Process Security Guard (Deep Multi-Layer Defense)
 # ====================================================================
 import sys
+import os
+import builtins
 
-# 1. Disable Outbound Socket / Network Access
-def _sandbox_blocked_network(*args, **kwargs):
-    raise PermissionError("Network connection denied: Subprocess running under Zero-Trust Network Sandbox.")
+# 1. Unlink & Poison Low-Level C-Extension Network & Reflection Modules
+class _BlockedSecurityModule:
+    def __init__(self, name):
+        self._name = name
+    def __getattr__(self, attr):
+        raise PermissionError(f"Access Denied: Low-level module '{self._name}' is disabled in JARVIS Sandbox.")
+    def __call__(self, *args, **kwargs):
+        raise PermissionError(f"Access Denied: Low-level module '{self._name}' is disabled in JARVIS Sandbox.")
 
-try:
-    import socket
-    socket.socket = _sandbox_blocked_network
-    socket.create_connection = _sandbox_blocked_network
-    socket.getaddrinfo = _sandbox_blocked_network
-    socket.socketpair = _sandbox_blocked_network
-except Exception:
-    pass
+for _mod_name in ["_socket", "socket", "_ctypes", "ctypes", "_ssl", "ssl"]:
+    sys.modules[_mod_name] = _BlockedSecurityModule(_mod_name)
 
-# 2. Protect Stdout from Memory Flood
+# 2. Strict Filesystem Scoping Guard (.env and External Write Protection)
+_orig_builtin_open = builtins.open
+_SANDBOX_ROOT_DIR = os.path.abspath(os.getcwd())
+
+def _scoped_sandbox_open(file, *args, **kwargs):
+    try:
+        target_str = os.fspath(file) if hasattr(os, "fspath") else str(file)
+        abs_path = os.path.abspath(target_str)
+        base_name = os.path.basename(abs_path).lower()
+        # Block reading sensitive configuration (.env, credentials, secrets)
+        if base_name in {".env", ".env.local", "secrets.json", "credentials.json"} or base_name.endswith(".env"):
+            raise PermissionError(f"Access Denied: Attempt to read sensitive file '{base_name}'.")
+        # Block writing outside sandbox scratch root
+        mode = args[0] if args else kwargs.get("mode", "r")
+        if any(m in str(mode) for m in ("w", "a", "+", "x")):
+            if not abs_path.startswith(_SANDBOX_ROOT_DIR):
+                raise PermissionError(f"Access Denied: Cannot write outside sandbox root '{_SANDBOX_ROOT_DIR}'.")
+    except PermissionError:
+        raise
+    except Exception:
+        pass
+    return _orig_builtin_open(file, *args, **kwargs)
+
+builtins.open = _scoped_sandbox_open
+
+# 3. Protect Stdout from Memory Flood (1MB Stream Truncation)
 _original_stdout_write = sys.stdout.write
 _written_bytes_count = [0]
 _MAX_STDOUT_BYTES = 1024 * 1024  # 1MB cap
@@ -274,5 +301,5 @@ sys.stdout.write = _capped_stdout_write
 
 
 def inject_security_preamble(code: str) -> str:
-    """Inject zero-trust network denial and stdout memory flood guards into user code."""
+    """Inject zero-trust network denial, filesystem scoping, and output caps into user code."""
     return f"{SANDBOX_BOOTSTRAP_PREAMBLE}\n{code}"
