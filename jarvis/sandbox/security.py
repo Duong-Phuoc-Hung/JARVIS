@@ -439,12 +439,30 @@ import os
 import io
 import builtins
 
-# 1. Meta-Path Importer Interceptor (Blocks del sys.modules re-import evasion)
+# 1. Blocked Sandbox Modules Definition
 _BLOCKED_SANDBOX_MODULES = {
     "socket", "_socket", "ctypes", "_ctypes", "_winapi", "winapi",
-    "mmap", "_ssl", "ssl", "urllib", "requests", "http", "subprocess"
+    "mmap", "_ssl", "ssl", "urllib", "requests", "http", "subprocess",
+    "jarvis",
 }
 
+class _BlockedSecurityModule:
+    def __init__(self, name):
+        self._name = name
+    def __getattr__(self, attr):
+        raise PermissionError(f"Access Denied: Low-level module '{self._name}' is disabled in JARVIS Sandbox.")
+    def __call__(self, *args, **kwargs):
+        raise PermissionError(f"Access Denied: Low-level module '{self._name}' is disabled in JARVIS Sandbox.")
+
+# 2. Poison ALL Existing Cached Modules in sys.modules (Pre-cached import defense)
+for _mod_name in list(sys.modules.keys()):
+    if _mod_name.split(".")[0] in _BLOCKED_SANDBOX_MODULES:
+        sys.modules[_mod_name] = _BlockedSecurityModule(_mod_name)
+
+for _mod_name in _BLOCKED_SANDBOX_MODULES:
+    sys.modules[_mod_name] = _BlockedSecurityModule(_mod_name)
+
+# 3. Meta-Path Importer Interceptor (Blocks fresh / re-import evasion)
 class _BlockedMetaPathFinder:
     def find_spec(self, fullname, path, target=None):
         top_name = fullname.split(".")[0]
@@ -454,64 +472,55 @@ class _BlockedMetaPathFinder:
 
 sys.meta_path.insert(0, _BlockedMetaPathFinder())
 
-# 2. Unlink & Poison Low-Level C-Extension Network & Reflection Modules
-class _BlockedSecurityModule:
-    def __init__(self, name):
-        self._name = name
-    def __getattr__(self, attr):
-        raise PermissionError(f"Access Denied: Low-level module '{self._name}' is disabled in JARVIS Sandbox.")
-    def __call__(self, *args, **kwargs):
-        raise PermissionError(f"Access Denied: Low-level module '{self._name}' is disabled in JARVIS Sandbox.")
+# 4. Strip JARVIS and Workspace Paths from sys.path (Blocks internal package import)
+sys.path = [p for p in sys.path if "jarvis" not in p.lower()]
 
-for _mod_name in _BLOCKED_SANDBOX_MODULES:
-    sys.modules[_mod_name] = _BlockedSecurityModule(_mod_name)
+# 5. Strict Directory-Allowlist Filesystem Scoping Guard (Encapsulated in closure)
+def _install_filesystem_guards():
+    _orig_builtin_open = builtins.open
+    _orig_io_open = io.open
+    _orig_os_open = os.open
+    _SANDBOX_ROOT_DIR = os.path.abspath(os.getcwd())
+    _PYTHON_STDLIB_PREFIX = os.path.abspath(sys.prefix).lower()
 
-# 3. Strict Directory-Allowlist Filesystem Scoping Guard (builtins, io, os)
-_orig_builtin_open = builtins.open
-_orig_io_open = io.open
-_orig_os_open = os.open
-_orig_os_fdopen = getattr(os, "fdopen", None)
+    def _check_path(target_path, is_write=False):
+        try:
+            path_str = os.fspath(target_path) if hasattr(os, "fspath") else str(target_path)
+            abs_target = os.path.abspath(path_str)
+            if abs_target.startswith(_SANDBOX_ROOT_DIR):
+                return
+            if not is_write and abs_target.lower().startswith(_PYTHON_STDLIB_PREFIX):
+                return
+        except Exception:
+            pass
+        action = "write to" if is_write else "read from"
+        raise PermissionError(f"Access Denied: Cannot {action} outside sandbox root: '{target_path}'")
 
-_SANDBOX_ROOT_DIR = os.path.abspath(os.getcwd())
-_PYTHON_STDLIB_PREFIX = os.path.abspath(sys.prefix).lower()
+    def _scoped_builtin_open(file, *args, **kwargs):
+        mode = args[0] if args else kwargs.get("mode", "r")
+        is_write = any(m in str(mode) for m in ("w", "a", "+", "x"))
+        _check_path(file, is_write=is_write)
+        return _orig_builtin_open(file, *args, **kwargs)
 
-def _check_sandbox_path_allowlist(target_path, is_write=False):
-    try:
-        path_str = os.fspath(target_path) if hasattr(os, "fspath") else str(target_path)
-        abs_target = os.path.abspath(path_str)
-        # Inside sandbox root directory -> Allowed
-        if abs_target.startswith(_SANDBOX_ROOT_DIR):
-            return
-        # Read-only inside Python stdlib/site-packages -> Allowed for core imports
-        if not is_write and abs_target.lower().startswith(_PYTHON_STDLIB_PREFIX):
-            return
-    except Exception:
-        pass
-    action = "write to" if is_write else "read from"
-    raise PermissionError(f"Access Denied: Cannot {action} outside sandbox root: '{target_path}'")
+    def _scoped_io_open(file, *args, **kwargs):
+        mode = args[0] if args else kwargs.get("mode", "r")
+        is_write = any(m in str(mode) for m in ("w", "a", "+", "x"))
+        _check_path(file, is_write=is_write)
+        return _orig_io_open(file, *args, **kwargs)
 
-def _scoped_builtin_open(file, *args, **kwargs):
-    mode = args[0] if args else kwargs.get("mode", "r")
-    is_write = any(m in str(mode) for m in ("w", "a", "+", "x"))
-    _check_sandbox_path_allowlist(file, is_write=is_write)
-    return _orig_builtin_open(file, *args, **kwargs)
+    def _scoped_os_open(path, flags, *args, **kwargs):
+        is_write = bool(flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC))
+        _check_path(path, is_write=is_write)
+        return _orig_os_open(path, flags, *args, **kwargs)
 
-def _scoped_io_open(file, *args, **kwargs):
-    mode = args[0] if args else kwargs.get("mode", "r")
-    is_write = any(m in str(mode) for m in ("w", "a", "+", "x"))
-    _check_sandbox_path_allowlist(file, is_write=is_write)
-    return _orig_io_open(file, *args, **kwargs)
+    builtins.open = _scoped_builtin_open
+    io.open = _scoped_io_open
+    os.open = _scoped_os_open
 
-def _scoped_os_open(path, flags, *args, **kwargs):
-    is_write = bool(flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC))
-    _check_sandbox_path_allowlist(path, is_write=is_write)
-    return _orig_os_open(path, flags, *args, **kwargs)
+_install_filesystem_guards()
+del _install_filesystem_guards
 
-builtins.open = _scoped_builtin_open
-io.open = _scoped_io_open
-os.open = _scoped_os_open
-
-# 4. Protect Stdout from Memory Flood (1MB Stream Truncation)
+# 6. Protect Stdout from Memory Flood (1MB Stream Truncation)
 _original_stdout_write = sys.stdout.write
 _written_bytes_count = [0]
 _MAX_STDOUT_BYTES = 1024 * 1024  # 1MB cap

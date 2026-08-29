@@ -96,6 +96,41 @@ except Exception as exc:
         assert "OS_OPEN_BLOCKED" in result.stdout
         assert "OS_OPEN_LEAKED" not in result.stdout
 
+    def test_adversarial_precached_module_import_blocked(self, os_test_sandbox):
+        """
+        Verify that even if socket was pre-cached in sys.modules before user code runs,
+        the cache poisoning step renders it completely disabled.
+        """
+        code = """
+try:
+    import socket
+    s = socket.socket()
+    print("PRECACHED_SOCKET_SUCCESS")
+except Exception as exc:
+    print(f"PRECACHED_SOCKET_BLOCKED: {type(exc).__name__}")
+"""
+        result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
+        assert result.success is True
+        assert "PRECACHED_SOCKET_BLOCKED" in result.stdout
+        assert "PRECACHED_SOCKET_SUCCESS" not in result.stdout
+
+    def test_adversarial_import_jarvis_internals_blocked(self, os_test_sandbox):
+        """
+        Verify that untrusted code cannot import jarvis.sandbox.security to steal
+        original unpatched I/O function references.
+        """
+        code = """
+try:
+    import jarvis.sandbox.security
+    print("JARVIS_IMPORT_SUCCESS")
+except Exception as exc:
+    print(f"JARVIS_IMPORT_BLOCKED: {type(exc).__name__}")
+"""
+        result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
+        assert result.success is True
+        assert "JARVIS_IMPORT_BLOCKED" in result.stdout
+        assert "JARVIS_IMPORT_SUCCESS" not in result.stdout
+
     def test_adversarial_del_sys_modules_meta_path_reimport_blocked(self, os_test_sandbox):
         """
         Verify that clearing sys.modules and attempting to re-import socket
