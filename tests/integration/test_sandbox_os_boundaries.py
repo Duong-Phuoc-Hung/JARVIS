@@ -160,6 +160,24 @@ except Exception as exc:
         assert "PRECACHED_SOCKET_BLOCKED" in result.stdout
         assert "PRECACHED_SOCKET_SUCCESS" not in result.stdout
 
+    def test_adversarial_com_automation_network_bypass_blocked(self, os_test_sandbox):
+        """
+        Verify that attempting in-process COM automation (win32com, pythoncom, comtypes)
+        to bypass socket restrictions is intercepted and blocked.
+        """
+        code = """
+try:
+    import win32com.client
+    http = win32com.client.Dispatch("WinHttp.WinHttpRequest.5.1")
+    print("COM_HTTP_SUCCESS")
+except Exception as exc:
+    print(f"COM_HTTP_BLOCKED: {type(exc).__name__}")
+"""
+        result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
+        assert result.success is True
+        assert "COM_HTTP_BLOCKED" in result.stdout
+        assert "COM_HTTP_SUCCESS" not in result.stdout
+
     def test_adversarial_import_jarvis_internals_blocked(self, os_test_sandbox):
         """
         Verify that untrusted code cannot import jarvis.sandbox.security to steal

@@ -516,7 +516,7 @@ import builtins
 _BLOCKED_SANDBOX_MODULES = {
     "socket", "_socket", "ctypes", "_ctypes", "_winapi", "winapi",
     "mmap", "_ssl", "ssl", "urllib", "requests", "http", "subprocess",
-    "jarvis",
+    "jarvis", "win32com", "pythoncom", "pywintypes", "comtypes", "clr", "wmi", "winreg", "_winreg"
 }
 
 class _BlockedSecurityModule:
