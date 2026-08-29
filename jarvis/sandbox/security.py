@@ -512,12 +512,25 @@ import os
 import io
 import builtins
 
-# 1. Blocked Sandbox Modules Definition
+# 1. Blocked Sandbox Modules Definition & Prefix Pattern Matcher
 _BLOCKED_SANDBOX_MODULES = {
     "socket", "_socket", "ctypes", "_ctypes", "_winapi", "winapi",
     "mmap", "_ssl", "ssl", "urllib", "requests", "http", "subprocess",
-    "jarvis", "win32com", "pythoncom", "pywintypes", "comtypes", "clr", "wmi", "winreg", "_winreg"
+    "jarvis", "win32com", "pythoncom", "pywintypes", "comtypes", "clr",
+    "wmi", "winreg", "_winreg", "_overlapped"
 }
+
+_BLOCKED_MODULE_PREFIXES = (
+    "win32", "_win32", "pywin", "comtypes", "pythoncom", "pywintypes", "wmi"
+)
+
+def _is_module_blocked(fullname: str) -> bool:
+    top_name = fullname.split(".")[0].lower()
+    if top_name in _BLOCKED_SANDBOX_MODULES:
+        return True
+    if any(top_name.startswith(pfx) for pfx in _BLOCKED_MODULE_PREFIXES):
+        return True
+    return False
 
 class _BlockedSecurityModule:
     def __init__(self, name):
@@ -529,7 +542,7 @@ class _BlockedSecurityModule:
 
 # 2. Poison ALL Existing Cached Modules in sys.modules (Pre-cached import defense)
 for _mod_name in list(sys.modules.keys()):
-    if _mod_name.split(".")[0] in _BLOCKED_SANDBOX_MODULES:
+    if _is_module_blocked(_mod_name):
         sys.modules[_mod_name] = _BlockedSecurityModule(_mod_name)
 
 for _mod_name in _BLOCKED_SANDBOX_MODULES:
@@ -538,8 +551,7 @@ for _mod_name in _BLOCKED_SANDBOX_MODULES:
 # 3. Meta-Path Importer Interceptor (Blocks fresh / re-import evasion)
 class _BlockedMetaPathFinder:
     def find_spec(self, fullname, path, target=None):
-        top_name = fullname.split(".")[0]
-        if top_name in _BLOCKED_SANDBOX_MODULES:
+        if _is_module_blocked(fullname):
             raise PermissionError(f"Access Denied: Module '{fullname}' is forbidden in JARVIS Sandbox.")
         return None
 

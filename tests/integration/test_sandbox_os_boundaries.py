@@ -178,6 +178,24 @@ except Exception as exc:
         assert "COM_HTTP_BLOCKED" in result.stdout
         assert "COM_HTTP_SUCCESS" not in result.stdout
 
+    def test_adversarial_win32api_dll_injection_bypass_blocked(self, os_test_sandbox):
+        """
+        Verify that attempting to load win32api/win32file/win32process to invoke LoadLibrary
+        or native FFI DLL bindings is intercepted and blocked by prefix pattern matching.
+        """
+        code = """
+try:
+    import win32api
+    h = win32api.LoadLibrary("ws2_32.dll")
+    print("WIN32API_LOADED")
+except Exception as exc:
+    print(f"WIN32API_BLOCKED: {type(exc).__name__}")
+"""
+        result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
+        assert result.success is True
+        assert "WIN32API_BLOCKED" in result.stdout
+        assert "WIN32API_LOADED" not in result.stdout
+
     def test_adversarial_import_jarvis_internals_blocked(self, os_test_sandbox):
         """
         Verify that untrusted code cannot import jarvis.sandbox.security to steal
