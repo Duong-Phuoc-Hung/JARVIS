@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-08-30 02:55:36",
+  "timestamp": "2026-08-30 03:00:21",
   "hardware": {
     "os": "Windows 11 (Build 10.0.26200)",
     "python": "3.13.13",
@@ -12,104 +12,118 @@
       "NVIDIA GeForce GTX 1650 with Max-Q Design"
     ]
   },
-  "ast_validator": {
-    "small": {
-      "p50_ms": 0.0346,
-      "p95_ms": 0.0795,
-      "p99_ms": 0.3159,
-      "min_ms": 0.0309,
-      "max_ms": 0.3159
+  "verified_hardware_measurements": {
+    "ast_validator": {
+      "small": {
+        "p50_ms": 0.0325,
+        "p95_ms": 0.058,
+        "p99_ms": 0.314,
+        "min_ms": 0.0308,
+        "max_ms": 0.314
+      },
+      "medium": {
+        "p50_ms": 0.1079,
+        "p95_ms": 0.1938,
+        "p99_ms": 0.8251,
+        "min_ms": 0.097,
+        "max_ms": 0.8251
+      },
+      "complex": {
+        "p50_ms": 0.2129,
+        "p95_ms": 0.3693,
+        "p99_ms": 0.6582,
+        "min_ms": 0.1891,
+        "max_ms": 0.6582
+      }
     },
-    "medium": {
-      "p50_ms": 0.1171,
-      "p95_ms": 0.2696,
-      "p99_ms": 1.1061,
-      "min_ms": 0.1026,
-      "max_ms": 1.1061
+    "sandbox_isolation_win32": {
+      "null_execution": {
+        "p50_ms": 194.62,
+        "p95_ms": 397.29,
+        "min_ms": 114.35,
+        "max_ms": 397.29
+      },
+      "compute_execution": {
+        "p50_ms": 192.79,
+        "p95_ms": 254.99,
+        "min_ms": 171.68,
+        "max_ms": 254.99
+      },
+      "artifact_io_execution": {
+        "p50_ms": 171.89,
+        "p95_ms": 235.67,
+        "min_ms": 131.47,
+        "max_ms": 235.67
+      }
     },
-    "complex": {
-      "p50_ms": 0.2092,
-      "p95_ms": 0.344,
-      "p99_ms": 0.4607,
-      "min_ms": 0.1903,
-      "max_ms": 0.4607
+    "tts_real_sapi5_pcm": {
+      "sapi5_real_synth_short": {
+        "char_count": 33,
+        "generated_pcm_bytes": 159822,
+        "p50_ms": 22.79,
+        "p95_ms": 189.43,
+        "min_ms": 19.06,
+        "max_ms": 189.43,
+        "measurement_type": "REAL_SYNCHRONOUS_PCM_SYNTHESIS"
+      },
+      "sapi5_real_synth_medium": {
+        "char_count": 84,
+        "generated_pcm_bytes": 333998,
+        "p50_ms": 42.66,
+        "p95_ms": 60.04,
+        "min_ms": 34.83,
+        "max_ms": 60.04,
+        "measurement_type": "REAL_SYNCHRONOUS_PCM_SYNTHESIS"
+      },
+      "sapi5_real_synth_long": {
+        "char_count": 239,
+        "generated_pcm_bytes": 839058,
+        "p50_ms": 141.79,
+        "p95_ms": 172.71,
+        "min_ms": 93.59,
+        "max_ms": 172.71,
+        "measurement_type": "REAL_SYNCHRONOUS_PCM_SYNTHESIS"
+      }
     }
   },
-  "sandbox_isolation": {
-    "null_execution": {
-      "p50_ms": 151.21,
-      "p95_ms": 212.6,
-      "min_ms": 117.62,
-      "max_ms": 212.6
+  "framework_and_adapter_baselines": {
+    "audio_cache_lookup": {
+      "p50_ms": 0.1742,
+      "p95_ms": 0.3271,
+      "min_ms": 0.1364,
+      "max_ms": 0.3945,
+      "measurement_type": "IN_MEMORY_AND_DISK_HASH_LOOKUP"
     },
-    "compute_execution": {
-      "p50_ms": 160.41,
-      "p95_ms": 269.16,
-      "min_ms": 143.31,
-      "max_ms": 269.16
-    },
-    "artifact_io_execution": {
-      "p50_ms": 157.88,
-      "p95_ms": 192.99,
-      "min_ms": 136.96,
-      "max_ms": 192.99
-    }
-  },
-  "tts_engine": {
-    "sapi5_synth_short": {
-      "char_count": 33,
-      "p50_ms": 0.0,
-      "p95_ms": 0.52,
-      "min_ms": 0.0,
-      "max_ms": 0.52
-    },
-    "sapi5_synth_medium": {
-      "char_count": 84,
-      "p50_ms": 0.0,
-      "p95_ms": 0.0,
-      "min_ms": 0.0,
-      "max_ms": 0.0
-    },
-    "sapi5_synth_long": {
-      "char_count": 239,
-      "p50_ms": 0.0,
-      "p95_ms": 0.0,
-      "min_ms": 0.0,
-      "max_ms": 0.0
-    },
-    "cache_lookup": {
-      "p50_ms": 0.1616,
-      "p95_ms": 0.3172,
-      "min_ms": 0.1476,
-      "max_ms": 0.5411
-    }
-  },
-  "stt_engine": {
-    "init_time_ms": 0.72,
-    "is_mock": false,
-    "audio_1s": {
-      "duration_s": 1.0,
-      "p50_ms": 0.66,
-      "p95_ms": 2.14,
-      "min_ms": 0.63,
-      "max_ms": 2.14,
-      "real_time_factor_rtf": 0.0007
-    },
-    "audio_3s": {
-      "duration_s": 3.0,
-      "p50_ms": 1.11,
-      "p95_ms": 1.64,
-      "min_ms": 0.89,
-      "max_ms": 1.64,
-      "real_time_factor_rtf": 0.0004
-    },
-    "audio_5s": {
-      "duration_s": 5.0,
-      "p50_ms": 0.83,
-      "p95_ms": 1.06,
-      "min_ms": 0.67,
-      "max_ms": 1.06,
-      "real_time_factor_rtf": 0.0002
+    "stt_pipeline_adapter": {
+      "init_time_ms": 0.53,
+      "engine_mode": "MOCK_PIPELINE_ADAPTER_FALLBACK",
+      "audio_1s": {
+        "duration_s": 1.0,
+        "p50_ms": 1.02,
+        "p95_ms": 2.11,
+        "min_ms": 0.95,
+        "max_ms": 2.11,
+        "real_time_factor_rtf": 0.001,
+        "measurement_note": "Synthetic float32 PCM adapter pass-through"
+      },
+      "audio_3s": {
+        "duration_s": 3.0,
+        "p50_ms": 0.98,
+        "p95_ms": 2.05,
+        "min_ms": 0.98,
+        "max_ms": 2.05,
+        "real_time_factor_rtf": 0.0003,
+        "measurement_note": "Synthetic float32 PCM adapter pass-through"
+      },
+      "audio_5s": {
+        "duration_s": 5.0,
+        "p50_ms": 0.92,
+        "p95_ms": 1.37,
+        "min_ms": 0.58,
+        "max_ms": 1.37,
+        "real_time_factor_rtf": 0.0002,
+        "measurement_note": "Synthetic float32 PCM adapter pass-through"
+      }
     }
   }
 }

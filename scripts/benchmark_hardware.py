@@ -196,7 +196,17 @@ def benchmark_stt_engine(iterations: int = 5) -> dict[str, Any]:
     stt = FasterWhisperSTTEngine(config=FasterWhisperConfig(model_size="base", device="cpu", compute_type="int8"))
     init_time_ms = (time.perf_counter() - t0) * 1000.0
     results["init_time_ms"] = round(init_time_ms, 2)
-    results["is_mock"] = getattr(stt, "is_mock", False)
+    
+    is_real_faster_whisper = False
+    try:
+        import faster_whisper  # noqa: F401
+        is_real_faster_whisper = True
+    except ImportError:
+        is_real_faster_whisper = False
+
+    results["engine_mode"] = (
+        "REAL_FASTER_WHISPER_MODEL" if is_real_faster_whisper else "MOCK_PIPELINE_ADAPTER_FALLBACK"
+    )
 
     # Generate synthetic 16kHz float32 audio buffers (1s, 3s, 5s)
     sample_rate = 16000
@@ -218,15 +228,19 @@ def benchmark_stt_engine(iterations: int = 5) -> dict[str, Any]:
             "min_ms": round(min(timings), 2),
             "max_ms": round(max(timings), 2),
             "real_time_factor_rtf": round(rtf, 4),
+            "measurement_note": (
+                "Synthetic float32 PCM adapter pass-through"
+                if not is_real_faster_whisper
+                else "Real CTranslate2 neural inference"
+            ),
         }
 
     return results
 
 
 def benchmark_tts_engine(tmp_path: Path, iterations: int = 10) -> dict[str, Any]:
-    """Measure TTS synthesis latency and audio cache lookup latency."""
+    """Measure real SAPI5 audio synthesis latency and audio cache lookup latency."""
     cache = LocalTTSCache(tmp_path / "tts_cache")
-    sapi5 = SAPI5FallbackTTS()
 
     short_text = "Xin chào tôi là trợ lý ảo JARVIS."
     medium_text = "Đã cập nhật hệ thống bảo mật cấp OS thành công. Sẵn sàng nhận lệnh tiếp theo từ bạn."
@@ -238,23 +252,37 @@ def benchmark_tts_engine(tmp_path: Path, iterations: int = 10) -> dict[str, Any]
 
     results: dict[str, Any] = {}
 
-    # Benchmark SAPI5 offline synthesis
-    for label, text in [("short", short_text), ("medium", medium_text), ("long", long_text)]:
-        timings = []
-        for _ in range(iterations):
-            t0 = time.perf_counter()
-            sapi5.synthesize_to_bytes(text)
-            timings.append((time.perf_counter() - t0) * 1000.0)
-        timings.sort()
-        results[f"sapi5_synth_{label}"] = {
-            "char_count": len(text),
-            "p50_ms": round(statistics.median(timings), 2),
-            "p95_ms": round(timings[int(len(timings) * 0.95)], 2),
-            "min_ms": round(min(timings), 2),
-            "max_ms": round(max(timings), 2),
-        }
+    # 1. Real SAPI5 Speech Synthesis to Memory Stream
+    try:
+        import win32com.client
+        speaker = win32com.client.Dispatch("SAPI.SpVoice")
+        speaker.Rate = 0
+        speaker.Volume = 100
 
-    # Benchmark Local TTS Audio Cache lookup
+        for label, text in [("short", short_text), ("medium", medium_text), ("long", long_text)]:
+            timings = []
+            audio_sizes = []
+            for _ in range(iterations):
+                stream = win32com.client.Dispatch("SAPI.SpMemoryStream")
+                speaker.AudioOutputStream = stream
+                t0 = time.perf_counter()
+                speaker.Speak(text, 0)  # 0 = SVSFDefault (synchronous full phoneme-to-PCM rendering)
+                timings.append((time.perf_counter() - t0) * 1000.0)
+                audio_sizes.append(len(bytes(stream.GetData())))
+            timings.sort()
+            results[f"sapi5_real_synth_{label}"] = {
+                "char_count": len(text),
+                "generated_pcm_bytes": audio_sizes[0],
+                "p50_ms": round(statistics.median(timings), 2),
+                "p95_ms": round(timings[int(len(timings) * 0.95)], 2),
+                "min_ms": round(min(timings), 2),
+                "max_ms": round(max(timings), 2),
+                "measurement_type": "REAL_SYNCHRONOUS_PCM_SYNTHESIS",
+            }
+    except Exception as exc:
+        results["sapi5_error"] = str(exc)
+
+    # 2. Benchmark Local TTS Audio Cache lookup
     cache.put(short_text, "voice1", "model1", b"MOCK_WAV_HEADER_DATA_STREAM" * 50)
     cache_timings = []
     for _ in range(100):
@@ -267,6 +295,7 @@ def benchmark_tts_engine(tmp_path: Path, iterations: int = 10) -> dict[str, Any]
         "p95_ms": round(cache_timings[int(len(cache_timings) * 0.95)], 4),
         "min_ms": round(min(cache_timings), 4),
         "max_ms": round(max(cache_timings), 4),
+        "measurement_type": "IN_MEMORY_AND_DISK_HASH_LOOKUP",
     }
 
     return results
@@ -279,7 +308,7 @@ def run_full_benchmark() -> dict[str, Any]:
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 70)
-    print("  JARVIS REAL HARDWARE BENCHMARK & SYSTEM PROFILING SUITE")
+    print("  JARVIS EMPIRICAL HARDWARE BENCHMARK & SYSTEM PROFILING SUITE")
     print("=" * 70)
 
     print("[1/4] Inspecting host system specifications...")
@@ -290,39 +319,47 @@ def run_full_benchmark() -> dict[str, Any]:
     if hw_info.get("gpus"):
         print(f"      GPU: {', '.join(hw_info['gpus'])}")
 
-    print("[2/4] Benchmarking AST Code Validator...")
+    print("\n--- SECTION A: VERIFIED REAL HARDWARE MEASUREMENTS ---")
+    print("[2/5] Benchmarking AST Code Validator (100 runs)...")
     ast_res = benchmark_ast_validator(iterations=100)
     print(f"      Small AST  p50: {ast_res['small']['p50_ms']} ms | p95: {ast_res['small']['p95_ms']} ms")
     print(f"      Medium AST p50: {ast_res['medium']['p50_ms']} ms | p95: {ast_res['medium']['p95_ms']} ms")
     print(f"      Complex AST p50: {ast_res['complex']['p50_ms']} ms | p95: {ast_res['complex']['p95_ms']} ms")
 
-    print("[3/4] Benchmarking Win32 OS-Level Sandbox Process Isolation...")
+    print("[3/5] Benchmarking Win32 OS-Level Sandbox Process Isolation...")
     sb_res = benchmark_os_sandbox_isolation(tmp_dir, iterations=10)
     print(f"      Null Process Launch    p50: {sb_res['null_execution']['p50_ms']} ms")
     print(f"      Compute (50k Math Ops) p50: {sb_res['compute_execution']['p50_ms']} ms")
     print(f"      Artifact I/O (CSV Gen) p50: {sb_res['artifact_io_execution']['p50_ms']} ms")
 
-    print("[4/5] Benchmarking TTS Audio Synthesis & Cache Engine...")
-    tts_res = benchmark_tts_engine(tmp_dir, iterations=15)
-    print(f"      SAPI5 Short Synth      p50: {tts_res['sapi5_synth_short']['p50_ms']} ms")
-    print(f"      SAPI5 Medium Synth     p50: {tts_res['sapi5_synth_medium']['p50_ms']} ms")
-    print(f"      SAPI5 Long Synth       p50: {tts_res['sapi5_synth_long']['p50_ms']} ms")
-    print(f"      Audio Cache Lookup     p50: {tts_res['cache_lookup']['p50_ms']} ms")
+    print("[4/5] Benchmarking Real SAPI5 Speech Synthesis to Memory...")
+    tts_res = benchmark_tts_engine(tmp_dir, iterations=10)
+    if "sapi5_real_synth_short" in tts_res:
+        print(f"      Real SAPI5 Short (33 chars)  p50: {tts_res['sapi5_real_synth_short']['p50_ms']} ms ({tts_res['sapi5_real_synth_short']['generated_pcm_bytes']} PCM bytes)")
+        print(f"      Real SAPI5 Medium (84 chars) p50: {tts_res['sapi5_real_synth_medium']['p50_ms']} ms ({tts_res['sapi5_real_synth_medium']['generated_pcm_bytes']} PCM bytes)")
+        print(f"      Real SAPI5 Long (239 chars)  p50: {tts_res['sapi5_real_synth_long']['p50_ms']} ms ({tts_res['sapi5_real_synth_long']['generated_pcm_bytes']} PCM bytes)")
 
-    print("[5/5] Benchmarking Audio STT Pipeline...")
+    print("\n--- SECTION B: PIPELINE ADAPTER & FRAMEWORK OVERHEADS ---")
+    print("[5/5] Benchmarking Audio Cache & STT Pipeline Adapter...")
     stt_res = benchmark_stt_engine(iterations=5)
-    print(f"      STT Engine Init Time   : {stt_res['init_time_ms']} ms (is_mock={stt_res['is_mock']})")
-    print(f"      STT 1.0s Audio Buffer  p50: {stt_res['audio_1s']['p50_ms']} ms (RTF: {stt_res['audio_1s']['real_time_factor_rtf']})")
-    print(f"      STT 3.0s Audio Buffer  p50: {stt_res['audio_3s']['p50_ms']} ms (RTF: {stt_res['audio_3s']['real_time_factor_rtf']})")
-    print(f"      STT 5.0s Audio Buffer  p50: {stt_res['audio_5s']['p50_ms']} ms (RTF: {stt_res['audio_5s']['real_time_factor_rtf']})")
+    print(f"      Audio Cache Lookup Latency   p50: {tts_res['cache_lookup']['p50_ms']} ms")
+    print(f"      STT Mode                     : {stt_res['engine_mode']}")
+    print(f"      STT 1.0s Buffer Adapter      p50: {stt_res['audio_1s']['p50_ms']} ms (RTF: {stt_res['audio_1s']['real_time_factor_rtf']})")
+    print(f"      STT 3.0s Buffer Adapter      p50: {stt_res['audio_3s']['p50_ms']} ms (RTF: {stt_res['audio_3s']['real_time_factor_rtf']})")
+    print(f"      STT 5.0s Buffer Adapter      p50: {stt_res['audio_5s']['p50_ms']} ms (RTF: {stt_res['audio_5s']['real_time_factor_rtf']})")
 
     full_report = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "hardware": hw_info,
-        "ast_validator": ast_res,
-        "sandbox_isolation": sb_res,
-        "tts_engine": tts_res,
-        "stt_engine": stt_res,
+        "verified_hardware_measurements": {
+            "ast_validator": ast_res,
+            "sandbox_isolation_win32": sb_res,
+            "tts_real_sapi5_pcm": {k: v for k, v in tts_res.items() if k.startswith("sapi5_real_synth")},
+        },
+        "framework_and_adapter_baselines": {
+            "audio_cache_lookup": tts_res["cache_lookup"],
+            "stt_pipeline_adapter": stt_res,
+        }
     }
 
     report_file = _PROJECT_ROOT / "benchmark_report.json"
@@ -330,7 +367,7 @@ def run_full_benchmark() -> dict[str, Any]:
         json.dump(full_report, f, indent=2)
 
     print("=" * 70)
-    print(f"  Benchmark complete. Raw results saved to: {report_file}")
+    print(f"  Benchmark complete. Structured report saved to: {report_file}")
     print("=" * 70)
     return full_report
 
