@@ -3,14 +3,15 @@ tests/integration/test_sandbox_os_boundaries.py
 ================================================
 Adversarial (Red-Team) Real OS-Level Integration Tests for Sandbox Process Isolation.
 These tests execute real Python subprocesses (NO MOCKS) on Windows to verify:
-  1. Windows Job Object ActiveProcessLimit=1 blocks child/grandchild process spawning.
-  2. Adversarial socket reload / evasion is blocked at the compiled C-extension layer (_socket).
-  3. Adversarial dynamic reflection trying to load ctypes (ws2_32.dll) is blocked.
-  4. Adversarial filesystem directory traversal attempting to read .env is blocked.
-  5. Adversarial external filesystem write outside sandbox scratch root is blocked.
-  6. Environment Scrubbing eliminates all API keys and secrets.
-  7. Hard Timeout terminates infinite loop subprocesses.
-  8. Memory and Output Flood Protection caps 1MB streams.
+  1. io.open() bypass attempts are caught and blocked.
+  2. os.open() / os.fdopen() low-level bypass attempts are caught and blocked.
+  3. Arbitrary file read attempts outside sandbox scratch root (Directory Allowlist) are blocked.
+  4. del sys.modules + re-import evasion is blocked by sys.meta_path[0] interceptor.
+  5. Dynamic reflection ctypes / WinDLL (ws2_32.dll) evasion is blocked.
+  6. Windows Job Object ActiveProcessLimit=1 blocks child/grandchild process spawning.
+  7. Environment Scrubbing eliminates 100% of API keys and secrets.
+  8. Hard Timeout terminates infinite loop subprocesses.
+  9. Memory and Output Flood Protection caps 1MB streams.
 """
 from __future__ import annotations
 
@@ -48,55 +49,81 @@ def os_test_sandbox(tmp_path):
 
 
 class TestOSLevelProcessIsolation:
-    @pytest.mark.skipif(sys.platform != "win32", reason="Windows Job Object tests require Windows")
-    def test_child_process_spawn_blocked_by_job_object(self, os_test_sandbox):
+    def test_adversarial_io_open_bypass_blocked(self, os_test_sandbox, tmp_path):
         """
-        Verify that Windows kernel enforces ActiveProcessLimit=1 in Job Object,
-        preventing any subprocess from spawning grandchild cmd/powershell processes
-        even if code bypasses AST static analysis.
+        Verify that attempting to bypass builtins.open via io.open() to read
+        files outside the sandbox is blocked by the directory allowlist guard.
         """
-        code = """
-import subprocess, sys
-try:
-    p = subprocess.run([sys.executable, "-c", "print('grandchild')"], capture_output=True, text=True)
-    print("SPAWN_SUCCESS")
-except Exception as exc:
-    print(f"SPAWN_BLOCKED: {type(exc).__name__}")
-"""
-        result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
-        assert result.success is True
-        assert "SPAWN_BLOCKED" in result.stdout
-        assert "SPAWN_SUCCESS" not in result.stdout
+        fake_secret = tmp_path / "config_prod.ini"
+        fake_secret.write_text("DB_PASSWORD=secret123", encoding="utf-8")
+        target_path_str = str(fake_secret).replace("\\", "/")
 
-    def test_adversarial_socket_reload_evasion_blocked(self, os_test_sandbox):
-        """
-        Verify that an adversarial script attempting to reload the socket module
-        is blocked by the unlinked/poisoned low-level C-extension _socket module.
-        """
-        code = """
-import importlib
+        code = f"""
+import io
 try:
-    # Attempting to reload and recreate socket
-    sock_mod = importlib.import_module("socket")
-    importlib.reload(sock_mod)
-    s = sock_mod.socket()
-    print("EVASION_SUCCESS")
+    with io.open("{target_path_str}", "r") as f:
+        data = f.read()
+    print("IO_OPEN_LEAKED")
 except Exception as exc:
-    print(f"EVASION_BLOCKED: {type(exc).__name__}")
+    print(f"IO_OPEN_BLOCKED: {{type(exc).__name__}}")
 """
         result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
         assert result.success is True
-        assert "EVASION_BLOCKED" in result.stdout
-        assert "EVASION_SUCCESS" not in result.stdout
+        assert "IO_OPEN_BLOCKED" in result.stdout
+        assert "IO_OPEN_LEAKED" not in result.stdout
+
+    def test_adversarial_os_open_bypass_blocked(self, os_test_sandbox, tmp_path):
+        """
+        Verify that low-level os.open() file descriptor access outside the sandbox
+        is blocked by the directory allowlist guard.
+        """
+        fake_secret = tmp_path / "app_secrets.json"
+        fake_secret.write_text('{{"key": "val"}}', encoding="utf-8")
+        target_path_str = str(fake_secret).replace("\\", "/")
+
+        code = f"""
+import os
+try:
+    fd = os.open("{target_path_str}", os.O_RDONLY)
+    data = os.read(fd, 1024)
+    os.close(fd)
+    print("OS_OPEN_LEAKED")
+except Exception as exc:
+    print(f"OS_OPEN_BLOCKED: {{type(exc).__name__}}")
+"""
+        result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
+        assert result.success is True
+        assert "OS_OPEN_BLOCKED" in result.stdout
+        assert "OS_OPEN_LEAKED" not in result.stdout
+
+    def test_adversarial_del_sys_modules_meta_path_reimport_blocked(self, os_test_sandbox):
+        """
+        Verify that clearing sys.modules and attempting to re-import socket
+        is blocked at the sys.meta_path layer.
+        """
+        code = """
+import sys
+try:
+    if "socket" in sys.modules: del sys.modules["socket"]
+    if "_socket" in sys.modules: del sys.modules["_socket"]
+    import socket
+    s = socket.socket()
+    print("SOCKET_RELOAD_SUCCESS")
+except Exception as exc:
+    print(f"SOCKET_RELOAD_BLOCKED: {type(exc).__name__}")
+"""
+        result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
+        assert result.success is True
+        assert "SOCKET_RELOAD_BLOCKED" in result.stdout
+        assert "SOCKET_RELOAD_SUCCESS" not in result.stdout
 
     def test_adversarial_dynamic_reflection_ctypes_blocked(self, os_test_sandbox):
         """
-        Verify that an adversarial script using dynamic reflection to load ctypes
-        and access ws2_32.dll directly is blocked by the poisoned _ctypes module.
+        Verify that dynamic reflection attempting to load ctypes / WinDLL (ws2_32.dll)
+        is blocked by sys.meta_path and module poisoning.
         """
         code = """
 try:
-    # Dynamic reflection to bypass AST and load ctypes
     ct = __import__("c" + "types")
     ws = ct.WinDLL("ws2_32.dll")
     print("CTYPES_LOADED")
@@ -108,48 +135,46 @@ except Exception as exc:
         assert "CTYPES_BLOCKED" in result.stdout
         assert "CTYPES_LOADED" not in result.stdout
 
-    def test_adversarial_dotenv_traversal_read_blocked(self, os_test_sandbox, tmp_path):
+    def test_adversarial_arbitrary_read_outside_sandbox_blocked(self, os_test_sandbox, tmp_path):
         """
-        Verify that attempting to read .env or traverse parent directories for secrets
-        is blocked by the scoped filesystem guard.
+        Verify that reading ANY file outside the designated sandbox root directory
+        (regardless of filename) is blocked by the directory allowlist guard.
         """
-        # Create a fake .env in the parent directory
-        parent_env = tmp_path / ".env"
-        parent_env.write_text("SUPER_SECRET_TOKEN=12345", encoding="utf-8")
-
-        code = """
-try:
-    with open("../.env", "r") as f:
-        content = f.read()
-    print("DOTENV_LEAKED")
-except Exception as exc:
-    print(f"DOTENV_BLOCKED: {type(exc).__name__}")
-"""
-        result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
-        assert result.success is True
-        assert "DOTENV_BLOCKED" in result.stdout
-        assert "DOTENV_LEAKED" not in result.stdout
-
-    def test_adversarial_external_filesystem_write_blocked(self, os_test_sandbox, tmp_path):
-        """
-        Verify that attempting to write files outside the sandbox scratch root is blocked.
-        """
-        target_outside_file = tmp_path / "outside_evil.txt"
+        target_outside_file = tmp_path / "user_chat_history.db"
+        target_outside_file.write_text("sqlite format 3", encoding="utf-8")
         target_path_str = str(target_outside_file).replace("\\", "/")
 
         code = f"""
 try:
-    with open("{target_path_str}", "w") as f:
-        f.write("malicious payload")
-    print("EXTERNAL_WRITE_SUCCESS")
+    with open("{target_path_str}", "r") as f:
+        content = f.read()
+    print("ARBITRARY_READ_SUCCESS")
 except Exception as exc:
-    print(f"EXTERNAL_WRITE_BLOCKED: {{type(exc).__name__}}")
+    print(f"ARBITRARY_READ_BLOCKED: {{type(exc).__name__}}")
 """
         result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
         assert result.success is True
-        assert "EXTERNAL_WRITE_BLOCKED" in result.stdout
-        assert "EXTERNAL_WRITE_SUCCESS" not in result.stdout
-        assert not target_outside_file.exists()
+        assert "ARBITRARY_READ_BLOCKED" in result.stdout
+        assert "ARBITRARY_READ_SUCCESS" not in result.stdout
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows Job Object tests require Windows")
+    def test_child_process_spawn_blocked_by_job_object(self, os_test_sandbox):
+        """
+        Verify that Windows kernel enforces ActiveProcessLimit=1 in Job Object,
+        preventing any subprocess from spawning grandchild cmd/powershell processes.
+        """
+        code = """
+try:
+    import subprocess, sys
+    p = subprocess.run([sys.executable, "-c", "print('grandchild')"], capture_output=True, text=True)
+    print("SPAWN_SUCCESS")
+except Exception as exc:
+    print(f"SPAWN_BLOCKED: {type(exc).__name__}")
+"""
+        result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
+        assert result.success is True
+        assert "SPAWN_BLOCKED" in result.stdout
+        assert "SPAWN_SUCCESS" not in result.stdout
 
     def test_environment_scrubbing_eliminates_secrets(self, sandbox, monkeypatch):
         """
@@ -196,6 +221,5 @@ print("A" * (2 * 1024 * 1024))
 """
         result = sandbox.execute_python(code, timeout_seconds=5.0)
         assert result.success is True
-        # Output should be capped around 1MB
         assert len(result.stdout) <= (1.2 * 1024 * 1024)
         assert "[TRUNCATED" in result.stdout

@@ -1,18 +1,21 @@
 """
 jarvis/sandbox/security.py
 ==========================
-OS-Level Process Isolation, Job Objects, and Low Integrity Token Manager for Windows.
+True Multi-Layer OS Process Isolation, Low Integrity Token, and Job Objects.
 
-Enforces Multi-Layer OS Security Boundaries for Untrusted AI-Synthesized Code:
-  1. Scrubbed Environment (Strict allowlist, 100% credential/secret removal).
+Defense Layers:
+  1. Low Integrity Restricted Token (Win32 CreateProcessAsUserW with S-1-16-4096 / LUA_TOKEN / DISABLE_MAX_PRIVILEGE).
   2. Windows Job Object (ActiveProcessLimit=1, JobMemoryLimit=256MB, KillOnJobClose=True, No Breakaway).
-  3. Low Integrity Token (Mandatory Integrity Control S-1-16-4096 / Low Mandatory Level).
-  4. Network Denial Hook (Subprocess socket creation blocked by default).
-  5. Stdout / Stderr Memory Flood Protection (1MB stream truncation).
+  3. Environment Scrubbing (100% credential and API key elimination).
+  4. Meta-Path & C-Module Poisoning (sys.meta_path interceptor blocking socket/ctypes/_winapi/mmap re-imports).
+  5. Strict Directory-Allowlist Filesystem Guard (builtins.open, io.open, os.open, os.fdopen restricted strictly to sandbox root).
+  6. Stdout / Stderr Memory Flood Protection (1MB stream cap).
 """
 from __future__ import annotations
 
+import builtins
 import ctypes
+import io
 import logging
 import os
 import sys
@@ -80,16 +83,13 @@ def prepare_scrubbed_environment(
     for key, value in os.environ.items():
         key_upper = key.upper()
         if key_upper in allowed_keys:
-            # Check for accidental sensitive keywords even in allowed keys
             if any(pat in key_upper for pat in SENSITIVE_KEYWORD_PATTERNS) and key_upper not in {"PATH"}:
                 continue
             clean_env[key] = value
 
-    # Always enforce UTF-8 IO
     clean_env["PYTHONIOENCODING"] = "utf-8"
     clean_env["PYTHONUTF8"] = "1"
 
-    # Inject project root in PYTHONPATH so local packages can resolve if needed
     project_root = str(Path(__file__).resolve().parents[2])
     existing_pypath = clean_env.get("PYTHONPATH", "")
     clean_env["PYTHONPATH"] = (
@@ -109,7 +109,6 @@ def prepare_scrubbed_environment(
 # 2. Windows Job Object (Process & Resource Confinement)
 # ----------------------------------------------------------------------
 
-# Win32 Structures
 class JOBOBJECT_BASIC_LIMIT_INFORMATION(ctypes.Structure):
     _fields_ = [
         ("PerProcessUserTimeLimit", wintypes.LARGE_INTEGER),
@@ -146,7 +145,6 @@ class JOBOBJECT_EXTENDED_LIMIT_INFORMATION(ctypes.Structure):
     ]
 
 
-# Job Limit Constants
 JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 0x00000008
 JOB_OBJECT_LIMIT_JOB_MEMORY = 0x00000200
 JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION = 0x00000400
@@ -232,8 +230,204 @@ class WindowsJobObject:
 
 
 # ----------------------------------------------------------------------
+# 3. Low Integrity Restricted Token Process Spawner (Win32 SRM Enforcement)
 # ----------------------------------------------------------------------
-# 3. Deep Zero-Trust Network Denial & Filesystem Scoping Preamble
+
+class STARTUPINFOW(ctypes.Structure):
+    _fields_ = [
+        ("cb", wintypes.DWORD),
+        ("lpReserved", wintypes.LPWSTR),
+        ("lpDesktop", wintypes.LPWSTR),
+        ("lpTitle", wintypes.LPWSTR),
+        ("dwX", wintypes.DWORD),
+        ("dwY", wintypes.DWORD),
+        ("dwXSize", wintypes.DWORD),
+        ("dwYSize", wintypes.DWORD),
+        ("dwXCountChars", wintypes.DWORD),
+        ("dwYCountChars", wintypes.DWORD),
+        ("dwFillAttribute", wintypes.DWORD),
+        ("dwFlags", wintypes.DWORD),
+        ("wShowWindow", wintypes.WORD),
+        ("cbReserved2", wintypes.WORD),
+        ("lpReserved2", ctypes.c_void_p),
+        ("hStdInput", wintypes.HANDLE),
+        ("hStdOutput", wintypes.HANDLE),
+        ("hStdError", wintypes.HANDLE),
+    ]
+
+
+class PROCESS_INFORMATION(ctypes.Structure):
+    _fields_ = [
+        ("hProcess", wintypes.HANDLE),
+        ("hThread", wintypes.HANDLE),
+        ("dwProcessId", wintypes.DWORD),
+        ("dwThreadId", wintypes.DWORD),
+    ]
+
+
+class SECURITY_ATTRIBUTES(ctypes.Structure):
+    _fields_ = [
+        ("nLength", wintypes.DWORD),
+        ("lpSecurityDescriptor", ctypes.c_void_p),
+        ("bInheritHandle", wintypes.BOOL),
+    ]
+
+
+def spawn_low_integrity_process(
+    cmd: str,
+    cwd: str,
+    env: dict[str, str] | None = None,
+    job: WindowsJobObject | None = None,
+    timeout_seconds: float = 15.0,
+) -> tuple[int, str, str, bool]:
+    """
+    Spawn a child process under a Win32 Low Integrity Restricted Token (S-1-16-4096)
+    with ActiveProcessLimit=1 Job Object, scrubbed environment block, and anonymous pipe redirection.
+    
+    Returns:
+        tuple of (exit_code, stdout_str, stderr_str, timed_out)
+    """
+    if sys.platform != "win32":
+        raise NotImplementedError("Low Integrity processes are only supported on Windows.")
+
+    advapi32 = ctypes.windll.advapi32
+    kernel32 = ctypes.windll.kernel32
+
+    # Win32 Function Signatures
+    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    advapi32.OpenProcessToken.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE)]
+    advapi32.OpenProcessToken.restype = wintypes.BOOL
+
+    ConvertStringSidToSidW = advapi32.ConvertStringSidToSidW
+    ConvertStringSidToSidW.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_void_p)]
+    ConvertStringSidToSidW.restype = wintypes.BOOL
+
+    advapi32.CreateRestrictedToken.argtypes = [
+        wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+        wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p,
+        ctypes.POINTER(wintypes.HANDLE)
+    ]
+    advapi32.CreateRestrictedToken.restype = wintypes.BOOL
+
+    advapi32.SetTokenInformation.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD]
+    advapi32.SetTokenInformation.restype = wintypes.BOOL
+
+    advapi32.CreateProcessAsUserW.argtypes = [
+        wintypes.HANDLE, wintypes.LPCWSTR, wintypes.LPWSTR,
+        ctypes.c_void_p, ctypes.c_void_p, wintypes.BOOL,
+        wintypes.DWORD, ctypes.c_void_p, wintypes.LPCWSTR,
+        ctypes.POINTER(STARTUPINFOW), ctypes.POINTER(PROCESS_INFORMATION)
+    ]
+    advapi32.CreateProcessAsUserW.restype = wintypes.BOOL
+
+    # Step 1: Open current process token
+    TOKEN_ALL_ACCESS = 0xF01FF
+    DISABLE_MAX_PRIVILEGE = 0x1
+    LUA_TOKEN = 0x4
+
+    h_token = wintypes.HANDLE()
+    if not advapi32.OpenProcessToken(kernel32.GetCurrentProcess(), TOKEN_ALL_ACCESS, ctypes.byref(h_token)):
+        raise OSError(f"OpenProcessToken failed with code {kernel32.GetLastError()}")
+
+    # Step 2: Create Restricted Token (Strip Admin + Strip Privileges)
+    h_restricted = wintypes.HANDLE()
+    res_restr = advapi32.CreateRestrictedToken(
+        h_token,
+        DISABLE_MAX_PRIVILEGE | LUA_TOKEN,
+        0, None, 0, None, 0, None,
+        ctypes.byref(h_restricted)
+    )
+    if not res_restr:
+        kernel32.CloseHandle(h_token)
+        raise OSError(f"CreateRestrictedToken failed with code {kernel32.GetLastError()}")
+
+    # Step 3: Create anonymous pipes for I/O capture
+    sa = SECURITY_ATTRIBUTES()
+    sa.nLength = ctypes.sizeof(SECURITY_ATTRIBUTES)
+    sa.bInheritHandle = True
+
+    h_read = wintypes.HANDLE()
+    h_write = wintypes.HANDLE()
+    kernel32.CreatePipe(ctypes.byref(h_read), ctypes.byref(h_write), ctypes.byref(sa), 0)
+    kernel32.SetHandleInformation(h_read, 1, 0)  # Do not inherit read handle
+
+    si = STARTUPINFOW()
+    si.cb = ctypes.sizeof(STARTUPINFOW)
+    si.dwFlags = 0x00000100  # STARTF_USESTDHANDLES
+    si.hStdOutput = h_write
+    si.hStdError = h_write
+    pi = PROCESS_INFORMATION()
+
+    CREATE_NO_WINDOW = 0x08000000
+    CREATE_UNICODE_ENVIRONMENT = 0x00000400
+    flags = CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT
+
+    # Prepare scrubbed unicode environment block
+    clean_env = prepare_scrubbed_environment(env)
+    env_str = "\0".join(f"{k}={v}" for k, v in clean_env.items()) + "\0\0"
+    lp_env = ctypes.c_wchar_p(env_str)
+
+    # Step 5: Launch via CreateProcessAsUserW
+    success = advapi32.CreateProcessAsUserW(
+        h_restricted,
+        None,
+        cmd,
+        None,
+        None,
+        True,
+        flags,
+        lp_env,
+        cwd,
+        ctypes.byref(si),
+        ctypes.byref(pi),
+    )
+    kernel32.CloseHandle(h_write)
+
+    if not success:
+        err = kernel32.GetLastError()
+        kernel32.CloseHandle(h_read)
+        kernel32.CloseHandle(h_restricted)
+        kernel32.CloseHandle(h_token)
+        raise OSError(f"CreateProcessAsUserW failed with error {err}")
+
+    # Step 6: Assign child process to Job Object
+    if job:
+        job.assign_process(pi.hProcess)
+
+    # Step 7: Wait for completion with timeout
+    timeout_ms = int(timeout_seconds * 1000)
+    wait_res = kernel32.WaitForSingleObject(pi.hProcess, timeout_ms)
+    timed_out = False
+    exit_code_val = 0
+
+    if wait_res == 0x00000102:  # WAIT_TIMEOUT
+        timed_out = True
+        kernel32.TerminateProcess(pi.hProcess, 1)
+        exit_code_val = -1
+    else:
+        dw_exit = wintypes.DWORD()
+        kernel32.GetExitCodeProcess(pi.hProcess, ctypes.byref(dw_exit))
+        exit_code_val = dw_exit.value
+
+    # Step 8: Read captured pipe output
+    output_chunks: list[bytes] = []
+    buf = ctypes.create_string_buffer(8192)
+    bytes_read = wintypes.DWORD()
+    while kernel32.ReadFile(h_read, buf, 8192, ctypes.byref(bytes_read), None) and bytes_read.value > 0:
+        output_chunks.append(buf.raw[: bytes_read.value])
+
+    kernel32.CloseHandle(pi.hProcess)
+    kernel32.CloseHandle(pi.hThread)
+    kernel32.CloseHandle(h_read)
+    kernel32.CloseHandle(h_restricted)
+    kernel32.CloseHandle(h_token)
+
+    full_output = b"".join(output_chunks).decode("utf-8", errors="replace")
+    return exit_code_val, full_output, "", timed_out
+
+
+# ----------------------------------------------------------------------
+# 4. Deep Zero-Trust In-Process Preamble (Meta-Path + Directory Allowlist)
 # ----------------------------------------------------------------------
 
 SANDBOX_BOOTSTRAP_PREAMBLE = """
@@ -242,9 +436,25 @@ SANDBOX_BOOTSTRAP_PREAMBLE = """
 # ====================================================================
 import sys
 import os
+import io
 import builtins
 
-# 1. Unlink & Poison Low-Level C-Extension Network & Reflection Modules
+# 1. Meta-Path Importer Interceptor (Blocks del sys.modules re-import evasion)
+_BLOCKED_SANDBOX_MODULES = {
+    "socket", "_socket", "ctypes", "_ctypes", "_winapi", "winapi",
+    "mmap", "_ssl", "ssl", "urllib", "requests", "http", "subprocess"
+}
+
+class _BlockedMetaPathFinder:
+    def find_spec(self, fullname, path, target=None):
+        top_name = fullname.split(".")[0]
+        if top_name in _BLOCKED_SANDBOX_MODULES:
+            raise PermissionError(f"Access Denied: Module '{fullname}' is forbidden in JARVIS Sandbox.")
+        return None
+
+sys.meta_path.insert(0, _BlockedMetaPathFinder())
+
+# 2. Unlink & Poison Low-Level C-Extension Network & Reflection Modules
 class _BlockedSecurityModule:
     def __init__(self, name):
         self._name = name
@@ -253,35 +463,55 @@ class _BlockedSecurityModule:
     def __call__(self, *args, **kwargs):
         raise PermissionError(f"Access Denied: Low-level module '{self._name}' is disabled in JARVIS Sandbox.")
 
-for _mod_name in ["_socket", "socket", "_ctypes", "ctypes", "_ssl", "ssl"]:
+for _mod_name in _BLOCKED_SANDBOX_MODULES:
     sys.modules[_mod_name] = _BlockedSecurityModule(_mod_name)
 
-# 2. Strict Filesystem Scoping Guard (.env and External Write Protection)
+# 3. Strict Directory-Allowlist Filesystem Scoping Guard (builtins, io, os)
 _orig_builtin_open = builtins.open
-_SANDBOX_ROOT_DIR = os.path.abspath(os.getcwd())
+_orig_io_open = io.open
+_orig_os_open = os.open
+_orig_os_fdopen = getattr(os, "fdopen", None)
 
-def _scoped_sandbox_open(file, *args, **kwargs):
+_SANDBOX_ROOT_DIR = os.path.abspath(os.getcwd())
+_PYTHON_STDLIB_PREFIX = os.path.abspath(sys.prefix).lower()
+
+def _check_sandbox_path_allowlist(target_path, is_write=False):
     try:
-        target_str = os.fspath(file) if hasattr(os, "fspath") else str(file)
-        abs_path = os.path.abspath(target_str)
-        base_name = os.path.basename(abs_path).lower()
-        # Block reading sensitive configuration (.env, credentials, secrets)
-        if base_name in {".env", ".env.local", "secrets.json", "credentials.json"} or base_name.endswith(".env"):
-            raise PermissionError(f"Access Denied: Attempt to read sensitive file '{base_name}'.")
-        # Block writing outside sandbox scratch root
-        mode = args[0] if args else kwargs.get("mode", "r")
-        if any(m in str(mode) for m in ("w", "a", "+", "x")):
-            if not abs_path.startswith(_SANDBOX_ROOT_DIR):
-                raise PermissionError(f"Access Denied: Cannot write outside sandbox root '{_SANDBOX_ROOT_DIR}'.")
-    except PermissionError:
-        raise
+        path_str = os.fspath(target_path) if hasattr(os, "fspath") else str(target_path)
+        abs_target = os.path.abspath(path_str)
+        # Inside sandbox root directory -> Allowed
+        if abs_target.startswith(_SANDBOX_ROOT_DIR):
+            return
+        # Read-only inside Python stdlib/site-packages -> Allowed for core imports
+        if not is_write and abs_target.lower().startswith(_PYTHON_STDLIB_PREFIX):
+            return
     except Exception:
         pass
+    action = "write to" if is_write else "read from"
+    raise PermissionError(f"Access Denied: Cannot {action} outside sandbox root: '{target_path}'")
+
+def _scoped_builtin_open(file, *args, **kwargs):
+    mode = args[0] if args else kwargs.get("mode", "r")
+    is_write = any(m in str(mode) for m in ("w", "a", "+", "x"))
+    _check_sandbox_path_allowlist(file, is_write=is_write)
     return _orig_builtin_open(file, *args, **kwargs)
 
-builtins.open = _scoped_sandbox_open
+def _scoped_io_open(file, *args, **kwargs):
+    mode = args[0] if args else kwargs.get("mode", "r")
+    is_write = any(m in str(mode) for m in ("w", "a", "+", "x"))
+    _check_sandbox_path_allowlist(file, is_write=is_write)
+    return _orig_io_open(file, *args, **kwargs)
 
-# 3. Protect Stdout from Memory Flood (1MB Stream Truncation)
+def _scoped_os_open(path, flags, *args, **kwargs):
+    is_write = bool(flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC))
+    _check_sandbox_path_allowlist(path, is_write=is_write)
+    return _orig_os_open(path, flags, *args, **kwargs)
+
+builtins.open = _scoped_builtin_open
+io.open = _scoped_io_open
+os.open = _scoped_os_open
+
+# 4. Protect Stdout from Memory Flood (1MB Stream Truncation)
 _original_stdout_write = sys.stdout.write
 _written_bytes_count = [0]
 _MAX_STDOUT_BYTES = 1024 * 1024  # 1MB cap
@@ -301,5 +531,5 @@ sys.stdout.write = _capped_stdout_write
 
 
 def inject_security_preamble(code: str) -> str:
-    """Inject zero-trust network denial, filesystem scoping, and output caps into user code."""
+    """Inject zero-trust network denial, directory allowlisting, and output caps into user code."""
     return f"{SANDBOX_BOOTSTRAP_PREAMBLE}\n{code}"

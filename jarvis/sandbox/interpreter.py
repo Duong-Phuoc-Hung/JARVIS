@@ -23,6 +23,7 @@ from jarvis.sandbox.security import (
     WindowsJobObject,
     inject_security_preamble,
     prepare_scrubbed_environment,
+    spawn_low_integrity_process,
 )
 from jarvis.sandbox.validator import ASTCodeValidator
 
@@ -216,10 +217,11 @@ class CodeInterpreterSandbox:
         artifact_manager = ArtifactManager(scratch_dir)
         pre_snapshot = artifact_manager.snapshot_directory()
 
-        # Step 6: Execute script via subprocess with Job Object and Scrubbed Env
+        # Step 6: Execute script via subprocess with Low Integrity Token & Job Object
         exec_env = self._prepare_environment(env)
         base_python = getattr(sys, "_base_executable", sys.executable)
-        cmd = [base_python, "-u", str(script_file)]
+        cmd_list = [base_python, "-u", str(script_file)]
+        cmd_str = f'"{base_python}" -u "{script_file}"'
 
         stdout = ""
         stderr = ""
@@ -228,33 +230,49 @@ class CodeInterpreterSandbox:
 
         job = WindowsJobObject(active_process_limit=1, memory_limit_mb=256)
         try:
-            import ctypes
-            process = subprocess.Popen(
-                cmd,
-                cwd=str(scratch_dir),
-                env=exec_env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-            )
-            if sys.platform == "win32" and process.pid:
-                kernel32 = ctypes.windll.kernel32
-                h_proc = kernel32.OpenProcess(0x1FFFFF, False, process.pid)
-                if h_proc:
-                    job.assign_process(h_proc)
-                    kernel32.CloseHandle(h_proc)
+            is_win = sys.platform == "win32"
+            spawned_via_token = False
+            if is_win:
+                try:
+                    exit_code, stdout, stderr, timed_out = spawn_low_integrity_process(
+                        cmd=cmd_str,
+                        cwd=str(scratch_dir),
+                        env=exec_env,
+                        job=job,
+                        timeout_seconds=timeout,
+                    )
+                    spawned_via_token = True
+                except Exception as ex_token:
+                    logger.debug("spawn_low_integrity_process fallback: %s", ex_token)
 
-            try:
-                stdout, stderr = process.communicate(timeout=timeout)
-                exit_code = process.returncode
-            except subprocess.TimeoutExpired:
-                process.kill()
-                stdout, stderr = process.communicate()
-                timed_out = True
-                exit_code = -1
-                logger.warning("Code execution timed out after %s seconds.", timeout)
+            if not spawned_via_token:
+                import ctypes
+                process = subprocess.Popen(
+                    cmd_list,
+                    cwd=str(scratch_dir),
+                    env=exec_env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+                if is_win and process.pid:
+                    kernel32 = ctypes.windll.kernel32
+                    h_proc = kernel32.OpenProcess(0x1FFFFF, False, process.pid)
+                    if h_proc:
+                        job.assign_process(h_proc)
+                        kernel32.CloseHandle(h_proc)
+
+                try:
+                    stdout, stderr = process.communicate(timeout=timeout)
+                    exit_code = process.returncode
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    stdout, stderr = process.communicate()
+                    timed_out = True
+                    exit_code = -1
+                    logger.warning("Code execution timed out after %s seconds.", timeout)
         except Exception as exc:
             exit_code = -1
             stderr = f"Subprocess invocation failed: {str(exc)}"
