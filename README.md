@@ -983,6 +983,7 @@ PyInstaller tạo file `.exe` từ Python thường bị một số antivirus fl
 
 | Phiên bản | Ngày | Điểm nổi bật |
 |-----------|------|-------------|
+| **v4.0.1** | 2026-08-29 | Stability · CA/CI Fixes · Battery Fix · PyInstaller Release Build |
 | **v4.0.0** | 2026-08-28 | ReAct Autonomous Agent · Notification Hub · Windows Installer · pyproject.toml |
 | v3.2.0 | 2026-08-28 | Zalo Bot 2-Way Control |
 | v3.1.0 | 2026-08-28 | Browser CDP · Auto-Update · Plugin SDK · GitHub Release CI |
