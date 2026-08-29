@@ -19,9 +19,15 @@ from pathlib import Path
 from typing import Any
 
 from jarvis.sandbox.artifacts import ArtifactInfo, ArtifactManager
+from jarvis.sandbox.security import (
+    WindowsJobObject,
+    inject_security_preamble,
+    prepare_scrubbed_environment,
+)
 from jarvis.sandbox.validator import ASTCodeValidator
 
 logger = logging.getLogger("jarvis.sandbox.interpreter")
+_MAX_STDOUT_CAPTURE_BYTES = 1024 * 1024  # 1MB output cap
 
 
 @dataclass
@@ -111,21 +117,7 @@ class CodeInterpreterSandbox:
 
     def _prepare_environment(self, custom_env: dict[str, str] | None = None) -> dict[str, str]:
         """Prepare sanitized environment variables for subprocess execution."""
-        env = os.environ.copy()
-        # Set UTF-8 encoding for Python subprocesses
-        env["PYTHONIOENCODING"] = "utf-8"
-        env["PYTHONUTF8"] = "1"
-        # Ensure project root is in PYTHONPATH if needed
-        project_root = str(Path(__file__).resolve().parents[2])
-        existing_pythonpath = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = (
-            f"{project_root}{os.pathsep}{existing_pythonpath}"
-            if existing_pythonpath
-            else project_root
-        )
-        if custom_env:
-            env.update(custom_env)
-        return env
+        return prepare_scrubbed_environment(custom_env)
 
     def _extract_structured_data(self, stdout: str) -> Any:
         """
@@ -216,49 +208,65 @@ class CodeInterpreterSandbox:
                 else:
                     dest_file.write_text(content, encoding="utf-8")
 
-        # Step 4: Write main script
+        # Step 4: Write main script with injected security preamble
         script_file = scratch_dir / "script.py"
-        script_file.write_text(code, encoding="utf-8")
+        script_file.write_text(inject_security_preamble(code), encoding="utf-8")
 
         # Step 5: Snapshot directory before execution
         artifact_manager = ArtifactManager(scratch_dir)
         pre_snapshot = artifact_manager.snapshot_directory()
 
-        # Step 6: Execute script via subprocess
+        # Step 6: Execute script via subprocess with Job Object and Scrubbed Env
         exec_env = self._prepare_environment(env)
-        cmd = [sys.executable, "-u", str(script_file)]
+        base_python = getattr(sys, "_base_executable", sys.executable)
+        cmd = [base_python, "-u", str(script_file)]
 
         stdout = ""
         stderr = ""
         exit_code = 0
         timed_out = False
 
+        job = WindowsJobObject(active_process_limit=1, memory_limit_mb=256)
         try:
-            process = subprocess.run(
+            import ctypes
+            process = subprocess.Popen(
                 cmd,
                 cwd=str(scratch_dir),
                 env=exec_env,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=timeout,
                 encoding="utf-8",
                 errors="replace",
             )
-            stdout = process.stdout
-            stderr = process.stderr
-            exit_code = process.returncode
-        except subprocess.TimeoutExpired as texc:
-            timed_out = True
-            exit_code = -1
-            raw_stdout = texc.stdout or ""
-            raw_stderr = texc.stderr or ""
-            stdout = raw_stdout.decode("utf-8", errors="replace") if isinstance(raw_stdout, bytes) else raw_stdout
-            stderr = raw_stderr.decode("utf-8", errors="replace") if isinstance(raw_stderr, bytes) else raw_stderr
-            logger.warning("Code execution timed out after %s seconds.", timeout)
+            if sys.platform == "win32" and process.pid:
+                kernel32 = ctypes.windll.kernel32
+                h_proc = kernel32.OpenProcess(0x1FFFFF, False, process.pid)
+                if h_proc:
+                    job.assign_process(h_proc)
+                    kernel32.CloseHandle(h_proc)
+
+            try:
+                stdout, stderr = process.communicate(timeout=timeout)
+                exit_code = process.returncode
+            except subprocess.TimeoutExpired:
+                process.kill()
+                stdout, stderr = process.communicate()
+                timed_out = True
+                exit_code = -1
+                logger.warning("Code execution timed out after %s seconds.", timeout)
         except Exception as exc:
             exit_code = -1
             stderr = f"Subprocess invocation failed: {str(exc)}"
             logger.error("Execution failed: %s", exc, exc_info=True)
+        finally:
+            job.close()
+
+        # Enforce output capture size caps
+        if len(stdout) > _MAX_STDOUT_CAPTURE_BYTES:
+            stdout = stdout[:_MAX_STDOUT_CAPTURE_BYTES] + "\n[TRUNCATED: Output exceeded 1MB limit]"
+        if len(stderr) > _MAX_STDOUT_CAPTURE_BYTES:
+            stderr = stderr[:_MAX_STDOUT_CAPTURE_BYTES] + "\n[TRUNCATED: Stderr exceeded 1MB limit]"
 
         elapsed = (time.perf_counter() - t0) * 1000.0
 

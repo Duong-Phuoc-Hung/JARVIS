@@ -56,6 +56,22 @@ class TestReceiveFile:
         result = bridge.receive_file(b"exec content", "malware.exe")
         assert result["success"] is False
 
+    def test_double_extension_attack_rejected(self, bridge):
+        result1 = bridge.receive_file(b"evil", "invoice.exe.pdf")
+        assert result1["success"] is False
+        assert "phần mở rộng nguy hiểm" in result1["error"] or "Double Extension" in result1["error"]
+
+        result2 = bridge.receive_file(b"evil", "photo.py.png")
+        assert result2["success"] is False
+
+        result3 = bridge.receive_file(b"evil", "document.ps1.docx")
+        assert result3["success"] is False
+
+    def test_script_extensions_rejected(self, bridge):
+        assert bridge.receive_file(b"print(1)", "code.py")["success"] is False
+        assert bridge.receive_file(b"zip", "archive.zip")["success"] is False
+        assert bridge.receive_file(b"sh", "run.sh")["success"] is False
+
     def test_allowed_extension_accepted(self, bridge):
         result = bridge.receive_file(b"# markdown", "readme.md")
         assert result["success"] is True

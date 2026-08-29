@@ -145,9 +145,17 @@ class MobileFileBridge:
     # ------------------------------------------------------------------
 
     def _validate_file(self, filename: str, size_bytes: int) -> str | None:
-        suffix = Path(filename).suffix.lower()
+        path_obj = Path(filename)
+        suffix = path_obj.suffix.lower()
         if suffix not in _ALLOWED_EXTENSIONS:
             return f"Định dạng file '{suffix}' không được phép."
+        
+        # Check against dangerous intermediate extensions (double extension attack, e.g. payload.exe.pdf)
+        dangerous_suffixes = {".exe", ".bat", ".cmd", ".ps1", ".vbs", ".js", ".dll", ".scr", ".msi", ".jar", ".py", ".zip", ".sh"}
+        all_suffixes = [s.lower() for s in path_obj.suffixes]
+        if any(s in dangerous_suffixes for s in all_suffixes):
+            return "Phát hiện cấu trúc tệp chứa phần mở rộng nguy hiểm (Double Extension)."
+
         if size_bytes > self.max_size_bytes:
             return f"File quá lớn ({size_bytes // 1024 // 1024}MB > {self.max_size_bytes // 1024 // 1024}MB)."
         return None
