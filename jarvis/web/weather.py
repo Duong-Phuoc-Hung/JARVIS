@@ -94,7 +94,7 @@ class WeatherData:
     feels_like_c: float
     condition: str
     humidity: int
-    wind_kph: float
+    wind_kph: float = 0.0          # Wind speed in km/h (optional, 0 if unavailable)
     uv_index: float | None = None
     pressure_hpa: int | None = None
     visibility_km: float | None = None
@@ -222,7 +222,7 @@ class WeatherProvider:
         feels_like = data.feels_like_c
         cond = data.condition.lower()
         humidity = data.humidity
-        wind = data.wind_kph
+        wind = getattr(data, "wind_kph", 0.0)  # Optional field, default to 0
 
         # Format temperature to 1 decimal place or int
         temp_str = f"{temp:.1f}".rstrip("0").rstrip(".") if isinstance(temp, float) else str(temp)
@@ -232,7 +232,10 @@ class WeatherProvider:
         if abs(temp - feels_like) >= 2.0:
             msg += f" (cảm giác như {feels_str}°C)"
         msg += f", {cond}."
-        msg += f" Độ ẩm {humidity}%, sức gió {wind:.1f} km/h, thưa Ngài."
+        if wind and wind > 0:
+            msg += f" Độ ẩm {humidity}%, sức gió {wind:.1f} km/h, thưa Ngài."
+        else:
+            msg += f" Độ ẩm {humidity}%, thưa Ngài."
         return msg
 
     # ──────────────────────────────────────────────────────────────────────────
