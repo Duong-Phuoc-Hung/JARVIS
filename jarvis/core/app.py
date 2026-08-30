@@ -91,6 +91,36 @@ from jarvis.workers.notifications import WorkerNotificationDispatcher
 log = logging.getLogger("jarvis.core.app")
 
 
+def get_jarvis_data_dir() -> "Path":
+    """
+    Returns the writable per-user data directory for JARVIS.
+
+    Priority:
+      1. %LOCALAPPDATA%\\JARVIS  (Windows standard, always writable)
+      2. %APPDATA%\\JARVIS       (roaming, fallback)
+      3. ~/.jarvis               (Unix / last resort)
+
+    This is used instead of relative paths (e.g. 'logs/') which fail
+    when JARVIS is installed in protected directories like C:\\Program Files\\.
+    """
+    from pathlib import Path  # local import so module-level stays clean
+
+    local_app = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+    if local_app:
+        data_dir = Path(local_app) / "JARVIS"
+    else:
+        data_dir = Path.home() / ".jarvis"
+
+    # Create on first access — never raises because these locations are writable
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        (data_dir / "logs").mkdir(exist_ok=True)
+    except OSError:
+        pass
+
+    return data_dir
+
+
 class JarvisApp:
     """Central daemon coordinating JARVIS runtime lifecycle."""
 
@@ -183,7 +213,7 @@ class JarvisApp:
         """
         Structured interaction logger compliant with R6, R4, and M3 specification.
         """
-        log_file = self.config.get("logging.file", "logs/jarvis.log") if self.config else "logs/jarvis.log"
+        log_file = self.config.get("logging.file") or str(get_jarvis_data_dir() / "logs" / "jarvis.log")
         return _global_log_interaction(
             trigger=trigger,
             input_text=input_text,
@@ -223,7 +253,7 @@ class JarvisApp:
         self.plugin_registry.initialize_all(plugin_configs)
 
         # 4. Persistent Memory Subsystem (R2 & R6)
-        mem_db = self.config.get("memory.db_path", "logs/memory.db")
+        mem_db = self.config.get("memory.db_path") or str(get_jarvis_data_dir() / "memory.db")
         max_turns = int(self.config.get("memory.max_session_turns", 10))
         self.memory_manager = MemoryManager(db_path=mem_db, max_session_turns=max_turns)
 
@@ -359,7 +389,7 @@ class JarvisApp:
         # 16. Code Interpreter Sandbox (M2 / Requirement R2)
         sandbox_cfg = self.config.get("sandbox", {})
         self.sandbox = CodeInterpreterSandbox(
-            base_scratch_dir=sandbox_cfg.get("scratch_dir", "logs/sandbox"),
+            base_scratch_dir=sandbox_cfg.get("scratch_dir") or str(get_jarvis_data_dir() / "sandbox"),
             max_execution_seconds=float(sandbox_cfg.get("timeout_s", 15.0)),
         )
 
@@ -378,7 +408,7 @@ class JarvisApp:
         # 18. Browser Automation Agent & Session Manager (M3 / Requirement R3)
         browser_cfg = self.config.get("browser", {})
         self.browser_session_manager = BrowserSessionManager(
-            storage_dir=browser_cfg.get("session_dir", "logs/browser_sessions"),
+            storage_dir=browser_cfg.get("session_dir") or str(get_jarvis_data_dir() / "browser_sessions"),
             db_path=mem_db,
         )
         self.browser_agent = BrowserAgent(

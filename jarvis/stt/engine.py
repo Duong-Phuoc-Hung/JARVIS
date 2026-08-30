@@ -431,9 +431,14 @@ class FasterWhisperSTT(BaseSTTEngine):
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.model_size = self.config.get("model_size", "base")
-        self.device = self.config.get("device", "auto")
-        self.compute_type = self.config.get("compute_type", "default")
-        self.download_root = self.config.get("download_root", ".cache/whisper")
+        self.device = self.config.get("device", "cpu")
+        self.compute_type = self.config.get("compute_type", "int8")
+        _raw_root = self.config.get("download_root", "") or ""
+        if not _raw_root:
+            _appdata = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+            _base = Path(_appdata) / "JARVIS" if _appdata else Path.home() / ".jarvis"
+            _raw_root = str(_base / "cache" / "whisper")
+        self.download_root = _raw_root
         self._model: Any | None = None
         self._lock = threading.RLock()
 

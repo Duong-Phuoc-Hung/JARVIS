@@ -45,7 +45,14 @@ class TTSManager:
     ) -> None:
         self.config = config or {}
         cache_enabled = self.config.get("cache", {}).get("enabled", True)
-        c_dir = cache_dir or self.config.get("cache", {}).get("dir") or ".cache/jarvis_welcome"
+        _raw_dir = cache_dir or self.config.get("cache", {}).get("dir") or ""
+        if not _raw_dir:
+            import os
+            _appdata = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+            from pathlib import Path as _Path
+            _base = _Path(_appdata) / "JARVIS" if _appdata else _Path.home() / ".jarvis"
+            _raw_dir = str(_base / "cache" / "tts")
+        c_dir = _raw_dir
 
         self.cache = TTSAudioCache(cache_dir=c_dir, enabled=cache_enabled)
         self.primary_engine: BaseTTSEngine = (

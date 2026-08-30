@@ -363,9 +363,11 @@ class WindowsConfig(ConfigNode):
 
 class LoggingConfig(ConfigNode):
     def __init__(self, data: dict[str, Any] | None = None) -> None:
+        _appdata = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        _data_dir = Path(_appdata) / "JARVIS" if _appdata else Path.home() / ".jarvis"
         defaults = {
             "level": "INFO",
-            "file": "logs/jarvis.log",
+            "file": str(_data_dir / "logs" / "jarvis.log"),
             "max_bytes": 10485760,
             "backup_count": 5,
             "console_colors": True,
@@ -391,9 +393,11 @@ class WakeWordConfig(ConfigNode):
 
 class MemoryConfig(ConfigNode):
     def __init__(self, data: dict[str, Any] | None = None) -> None:
+        _appdata = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        _data_dir = Path(_appdata) / "JARVIS" if _appdata else Path.home() / ".jarvis"
         defaults = {
             "enabled": True,
-            "db_path": "logs/memory.db",
+            "db_path": str(_data_dir / "memory.db"),
             "max_session_turns": 10,
         }
         if data:

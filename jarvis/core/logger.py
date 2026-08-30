@@ -126,8 +126,12 @@ def setup_logging(
         else:
             effective_file_name = log_file_name or "jarvis.log"
             if log_dir is None:
-                workspace_root = Path(__file__).resolve().parent.parent.parent
-                effective_log_dir = workspace_root / "logs"
+                import os
+                _appdata = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+                if _appdata:
+                    effective_log_dir = Path(_appdata) / "JARVIS" / "logs"
+                else:
+                    effective_log_dir = Path.home() / ".jarvis" / "logs"
             else:
                 effective_log_dir = Path(log_dir)
 
@@ -228,8 +232,12 @@ def log_interaction(
     if log_file:
         target_path = Path(log_file)
     else:
-        workspace_root = Path(__file__).resolve().parent.parent.parent
-        target_path = workspace_root / "logs" / "jarvis.log"
+        import os
+        _appdata = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        if _appdata:
+            target_path = Path(_appdata) / "JARVIS" / "logs" / "jarvis.log"
+        else:
+            target_path = Path.home() / ".jarvis" / "logs" / "jarvis.log"
 
     with _INTERACTION_LOCK:
         try:

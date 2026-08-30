@@ -15,7 +15,9 @@ system:
 
 logging:
   level: "INFO"               # DEBUG, INFO, WARNING, ERROR, CRITICAL
-  file: "logs/jarvis.log"
+  # Ghi chú: đường dẫn tương đối "logs/" sẽ fail khi cài trong Program Files.
+  # Để trống ("") để tự động dùng %LOCALAPPDATA%\JARVIS\logs\jarvis.log
+  file: ""                    # "" = tự động %LOCALAPPDATA%\JARVIS\logs\jarvis.log
   max_bytes: 10485760         # 10 MB
   backup_count: 5
   console_colors: true
@@ -74,7 +76,7 @@ tts:
     sample_rate: 24000
   cache:
     enabled: true
-    dir: ".cache/jarvis_welcome"
+    dir: ""                     # "" = tự động %LOCALAPPDATA%\JARVIS\cache\tts
   welcome:
     enabled: true
     startup_phrase: "Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS."
@@ -103,7 +105,7 @@ stt:
     model_size: "base"          # tiny, base, small, medium, large-v2 (base là đủ tốt cho tiếng Việt)
     device: "cpu"               # "cpu" hoặc "cuda" nếu có GPU
     compute_type: "int8"        # int8 = nhanh nhất trên CPU
-    download_root: ".cache/whisper"
+    download_root: ""           # "" = tự động %LOCALAPPDATA%\JARVIS\cache\whisper
   web_speech:
     timeout_s: 5.0
 
