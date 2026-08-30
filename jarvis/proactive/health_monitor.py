@@ -67,13 +67,13 @@ class SystemHealthMonitor:
         telemetry_provider: Any | None = None,
         tts_callback: Callable[[str], None] | None = None,
         overlay_callback: Callable[[str, str], None] | None = None,
-        check_interval_seconds: float = 5.0,
-        cpu_threshold: float = 90.0,
-        ram_threshold: float = 85.0,
-        disk_min_free_gb: float = 10.0,
-        temp_threshold_c: float = 85.0,
-        battery_min_percent: float = 20.0,
-        cooldown_seconds: float = 60.0,
+        check_interval_seconds: float = 30.0,   # Raised from 5.0 — check every 30s is enough
+        cpu_threshold: float = 92.0,             # Raised from 90.0
+        ram_threshold: float = 92.0,             # Raised from 85.0
+        disk_min_free_gb: float = 5.0,           # Lowered from 10.0 — more practical
+        temp_threshold_c: float = 92.0,          # Raised from 85.0 — 85-90°C is normal for laptops
+        battery_min_percent: float = 15.0,       # Lowered from 20.0 — less false positives
+        cooldown_seconds: float = 600.0,         # Raised from 60.0 — 10 minutes between voice alerts
         hysteresis_delta: float = 5.0,
         enabled: bool = True,
     ) -> None:

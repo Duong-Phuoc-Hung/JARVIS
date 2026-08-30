@@ -157,11 +157,11 @@ class HardwareMonitor:
     def __init__(
         self,
         provider: Any | None = None,
-        cpu_temp_threshold: float = 85.0,
-        ram_threshold: float = 90.0,
-        gpu_temp_threshold: float = 85.0,
-        disk_free_threshold_gb: float = 10.0,
-        alert_cooldown_s: float = 5.0,
+        cpu_temp_threshold: float = 92.0,   # Raised from 85.0 — modern laptops run 85-90°C under load
+        ram_threshold: float = 92.0,         # Raised from 90.0
+        gpu_temp_threshold: float = 92.0,   # Raised from 85.0
+        disk_free_threshold_gb: float = 5.0, # Lowered from 10.0 — 5 GB is more practical
+        alert_cooldown_s: float = 300.0,    # Raised from 5.0 — 5 minutes between alerts
         config: dict[str, Any] | None = None,
     ) -> None:
         self.provider = provider
@@ -617,7 +617,7 @@ class HardwareMonitor:
         if metrics.cpu_temp_c is not None and metrics.cpu_temp_c >= self.cpu_temp_threshold:
             last_t = self.last_alert_times.get("cpu", self.last_alert_time)
             level = "CRITICAL" if metrics.cpu_temp_c >= 95.0 else "WARNING"
-            if (now - last_t) >= self.alert_cooldown_s or (level == "CRITICAL" and (now - last_t) >= 1.0):
+            if (now - last_t) >= self.alert_cooldown_s:
                 alerts.append({
                     "component": "cpu",
                     "level": level,
