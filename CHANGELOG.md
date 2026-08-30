@@ -2,6 +2,86 @@
 
 ---
 
+## 🚀 Chưa phát hành (2026-08-31) — Gesture/Data Reference-Hardening Sprint
+
+> Nhánh làm việc: `feat/gesture-data-reference-hardening`, dựa trên `main` tại `e4bcd6d`. Sprint có giới hạn thời gian (~3 giờ). **Chỉ thêm file mới + export bổ sung** trong `jarvis/gesture/` và `jarvis/data/`; không sửa `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/comms/mobile_bridge.py`, `jarvis/proactive/**`, `jarvis/hardware/**`, `jarvis/stt/**`, `jarvis/audio/**`, `jarvis/automation/**`, `jarvis/security/scanner.py`, `jarvis/vision/biometrics.py`, `installer/**`, `scripts/build_installer.py`. Không wiring vào core/app, router, automation, hay dispatcher trong sprint này.
+
+### Tham khảo thượng nguồn (kiến trúc/API/thuật toán only — không sao chép mã nguồn/model đã huấn luyện)
+
+- **`kinivi/hand-gesture-recognition-mediapipe`**: tham khảo kiến trúc pipeline (landmark 21 điểm MediaPipe → chuẩn hóa → phân loại tĩnh + point-history cho cử chỉ động). Bộ phân loại thực tế trong JARVIS là một heuristic hình học tất định tự viết (tỉ lệ khoảng cách đầu ngón tay/khớp so với cổ tay), **không phải** cổng lại classifier đã huấn luyện của repo tham khảo.
+- **`Sinaptik-AI/pandas-ai`**: chỉ tham khảo sự phân tách tầng data loading → data model → agent/analysis → execution/sandbox boundary. Không import mã nguồn PandasAI, không thêm PandasAI làm dependency runtime, không thêm bất kỳ cơ chế thực thi mã Python sinh bởi LLM nào.
+
+### Hand-gesture pipeline mới (`jarvis/gesture/hand_models.py`, `hand_preprocess.py`, `hand_tracker.py`)
+
+- Bộ phát hiện cử chỉ tay **hoàn toàn tách biệt** khỏi `jarvis/gesture/detector.py` (bộ phát hiện vỗ tay bằng âm thanh hiện có — **không sửa một dòng nào**, không đổi tên/kiểu dữ liệu dùng chung).
+- `HandLandmarks`/`HandLandmarkPoint` — dataclass `frozen=True`, bắt buộc đúng 21 điểm (ném `ValueError` nếu sai số lượng).
+- `jarvis/gesture/hand_preprocess.py` — các hàm thuần túy, tất định, **không phụ thuộc MediaPipe/OpenCV/camera**: `normalize_landmarks()` (dời gốc về cổ tay + chuẩn hóa tỉ lệ), `classify_static_shape()` (OPEN_PALM/FIST theo tỉ lệ khoảng cách đầu ngón/khớp so với cổ tay), `classify_dynamic_gesture()` (SWIPE_LEFT/SWIPE_RIGHT theo độ dịch chuyển ngang của điểm theo dõi qua một cửa sổ point-history).
+- `HandGestureTracker` — vòng đời thread-safe (`RLock`), ngưỡng độ tin cậy (`confidence_threshold`), ổn định hóa thời gian/debounce cho cử chỉ tĩnh (`stabilization_frames` khung liên tiếp giống nhau), cooldown chống lặp trigger (`cooldown_s`), chỉ phát ra `HandGestureResult`/callback ngữ nghĩa — **không thực hiện hành động OS trực tiếp**.
+- OpenCV/MediaPipe là dependency **tùy chọn, import trễ** (`CV2_AVAILABLE`/`MEDIAPIPE_AVAILABLE`, theo đúng khuôn mẫu graceful-degradation đã dùng cho Porcupine trong `jarvis/audio/wake_word.py`). Thiếu dependency hoặc không mở được webcam → `HandTrackerState.UNAVAILABLE`, không bao giờ raise. `start()`/`_capture_loop()`/`stop()` tồn tại cho việc dùng camera thật sau này nhưng **không được test cần webcam thật** — `ingest_landmarks()` là điểm vào tất định dùng trong test.
+- `pyproject.toml`: thêm optional extra `gestures = ["opencv-python>=4.8,<5", "mediapipe>=0.10,<1"]`, **cố ý không đưa vào `all`** (mediapipe có hỗ trợ wheel Python 3.13 không ổn định; tránh làm bất ổn ma trận cài đặt mặc định).
+
+### Data Analysis Service facade mới (`jarvis/data/analysis_service.py`)
+
+- `DataAnalysisService` — facade tất định, mỏng, bọc `DataAnalyticsEngine`/`MonteCarloEngine` hiện có trong `jarvis/data/stats.py` (**không sửa file này**) bằng model request/result có cấu trúc: `DataAnalysisRequest`, `DataAnalysisResult`, `AnalysisOperation` (DESCRIBE/CORRELATION/ANOMALY/TREND/MONTE_CARLO/CHART).
+- Bounded file handling: `max_file_size_bytes` (mặc định 50MB) kiểm tra trước khi load CSV/XLSX, ném `FileTooLargeError` rõ ràng khi vượt giới hạn; phần mở rộng file không hỗ trợ ném `UnsupportedOperationError`.
+- Chart specification/rendering an toàn: `ChartSpec`/`ChartSeries` là mô tả biểu đồ **tất định, độc lập thư viện vẽ** — hữu ích ngay cả khi matplotlib chưa cài. `render_chart()` import matplotlib trễ với backend `Agg` (headless-safe); nếu thiếu matplotlib, trả về `ChartRenderResult(rendered=False, error=...)` thay vì raise.
+- Độc lập hoàn toàn với `jarvis/llm/router.py` — chỉ ánh xạ request có cấu trúc sang một trong các operation tất định cố định. **Không `eval()`/`exec()`, không sinh lệnh shell, không thực thi mã Python do LLM sinh ra.** Việc ánh xạ ngôn ngữ tự nhiên sang các operation này để lại cho một Phase 3 sau này.
+- `pyproject.toml`: thêm optional extra `charts = ["matplotlib>=3.7,<4"]`, **có** đưa vào `all` (rủi ro thấp, hỗ trợ wheel rộng rãi kể cả Python 3.13).
+
+### Test mới
+
+- `tests/unit/test_hand_gesture.py` — **24 test**, tất định, không cần MediaPipe/OpenCV/webcam thật: model landmarks (bất biến, đúng 21 điểm), chuẩn hóa (dời gốc + bất biến tỉ lệ), phân loại tĩnh (OPEN_PALM/FIST), phân loại động (SWIPE_LEFT/SWIPE_RIGHT, loại các trường hợp không phải swipe ngang), debounce/ổn định hóa + cooldown của `HandGestureTracker`, và trạng thái `UNAVAILABLE` khi thiếu dependency (mock qua `monkeypatch`).
+- `tests/unit/test_data_analysis_service.py` — **22 test**, tất định: describe/correlation/anomaly/trend qua fixture CSV nhỏ, Monte Carlo tất định với `random_seed` cố định, giới hạn kích thước file, phần mở rộng không hỗ trợ, `render_chart()` với và không có matplotlib (mock `ImportError` qua `monkeypatch`), và `execute()` dispatch có cấu trúc.
+
+### Kết quả kiểm chứng thực tế (chạy cục bộ, phiên này)
+
+```text
+tests/unit/test_hand_gesture.py          — 24 passed
+tests/unit/test_data_analysis_service.py — 22 passed
+tests/unit/test_gesture_detector.py      — 8 passed (không hồi quy trên bộ phát hiện vỗ tay âm thanh)
+
+ruff check jarvis/gesture jarvis/data tests/unit/test_hand_gesture.py \
+  tests/unit/test_data_analysis_service.py pyproject.toml            — All checks passed!
+mypy jarvis/gesture jarvis/data                                      — Success: no issues found in 11 source files
+py_compile (toàn bộ file đã sửa)                                     — exit 0
+git diff --check                                                     — exit 0 (không có output)
+
+tests/unit/ toàn bộ — 782 collected, 773 passed, 9 failed
+```
+
+- **9 lỗi còn lại đều thuộc baseline không liên quan, đã biết từ trước** (nằm trong các khu vực NO-TOUCH của sprint này): 8 lỗi trong `tests/unit/test_mobile_bridge.py` (`TestReceiveFile`/`TestTransferHistory`, `AttributeError: 'NoneType' object has no attribute 'exists'` từ `jarvis/comms/mobile_bridge.py`) và 1 lỗi trong `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`. Không file nào trong hai khu vực này bị chạm trong sprint. Tổng số test tăng đúng 46 (782 − 736 baseline trước sprint = 46, khớp với 24 + 22 test mới); **không có hồi quy mới nào do sprint này gây ra**.
+
+### Rà soát pre-commit (cùng phiên, trước khi commit) — 4 lỗi thật đã phát hiện và sửa
+
+Một lượt rà soát đúng-đắn/vòng-đời/an-toàn-tài-nguyên trên chính diff của sprint (không thêm tính năng mới) phát hiện và sửa 4 lỗi thật, tất cả đều nằm trong các file mới của sprint — **không chạm vào bất kỳ file NO-TOUCH nào**:
+
+1. **`render_chart()` rò rỉ figure của matplotlib khi render lỗi.** `plt.close(fig)` trước đây chỉ chạy ở nhánh thành công; một `ChartSpec` có độ dài `x`/`y` không khớp giữa các series sẽ ném lỗi sau khi `plt.subplots()` đã tạo figure, khiến figure đó không bao giờ được đóng — rò rỉ tài nguyên thật, lặp lại ở mỗi lần render lỗi. Đã sửa bằng `try/finally` đảm bảo đóng figure trên mọi nhánh.
+2. **`execute()` báo sai thành công khi render biểu đồ thất bại.** Với `AnalysisOperation.CHART`, `execute()` luôn trả về `success=True` bất kể `render_result.rendered`, phá vỡ đúng hợp đồng "kết quả đồng nhất" mà facade này được thiết kế để cung cấp. Đã sửa: `success=render_result.rendered`, `error=render_result.error`.
+3. **`HandGestureTracker._capture_loop()` không hồi phục sau lỗi worker.** Nếu `cap.read()`/`hands.process()` ném lỗi, thread chỉ log và thoát, nhưng `self._state` vẫn giữ `RUNNING`, tài nguyên camera/MediaPipe không được giải phóng, và `self._capture_thread` không được xóa — khiến lần gọi `start()` sau đó thấy `state == RUNNING` và bỏ qua, để tracker chết âm thầm vĩnh viễn trong khi vẫn báo cáo đang chạy. Đã sửa: nhánh xử lý lỗi giờ giải phóng tài nguyên qua `_release_backend_locked()`, xóa `_capture_thread`, và chuyển state về `HandTrackerState.UNAVAILABLE` để `start()` sau đó thực sự khởi động lại.
+4. **`start()` không xóa buffer phân loại cũ khi (khởi động lại).** `_point_history`/`_recent_static`/`_last_emit_time` từ trước lần `stop()` trước đó vẫn tồn tại sang lần `start()` kế tiếp, khiến một landmark từ rất lâu trước khi restart có thể kết hợp với khung hình đầu tiên sau restart thành một cử chỉ giả. Đã sửa: `start()` giờ xóa cả ba trước khi khởi chạy lại capture thread.
+
+Cả 4 lỗi đều có test hồi quy mới, tất định, dùng backend giả lập (không cần camera/MediaPipe thật, không cần matplotlib vắng mặt thật): `test_render_chart_error_path_does_not_leak_figure`, `test_execute_chart_success_reflects_actual_render_outcome`, `test_execute_chart_failure_is_not_reported_as_success`, `test_capture_loop_exception_releases_resources_and_updates_state`, `test_start_after_worker_exception_actually_restarts` (kiểm tra đầu-cuối thật: crash → tự hồi phục → restart thật), `test_start_clears_stale_classification_state_from_before_restart`. Các test này lấp đúng lỗ hổng coverage: 46 test ban đầu chưa từng gọi `execute()` với `AnalysisOperation.CHART`, và chưa từng test vòng đời `HandGestureTracker` với backend giả lập (chỉ test trường hợp backend vắng mặt).
+
+```text
+tests/unit/test_hand_gesture.py             — 27 passed (24 + 3 mới)
+tests/unit/test_data_analysis_service.py    — 25 passed (22 + 3 mới)
+tests/unit/test_gesture_detector.py         — 8 passed (không ảnh hưởng)
+
+ruff / mypy jarvis/gesture jarvis/data / py_compile / git diff --check — như trên, đều sạch
+tests/unit/ toàn bộ (sau rà soát) — 788 collected, 779 passed, 9 failed (vẫn đúng 9 lỗi baseline cũ, không có hồi quy mới)
+```
+
+Phát hiện không chặn (non-blocking), **chưa sửa** trong lượt này: `_check_file_bounds()` chưa kiểm tra `is_file()` (đường dẫn thư mục cho lỗi hơi khó hiểu); `render_chart()`'s `except ImportError` chưa bọc luôn lỗi hiếm gặp từ `matplotlib.use()`; `matplotlib.use("Agg", force=True)` gọi lại mỗi lần render (vô hại vì chưa có nơi nào khác trong JARVIS dùng matplotlib); hướng SWIPE_LEFT/SWIPE_RIGHT tính trực tiếp từ tọa độ x thô của ảnh, giả định khung hình không bị lật gương — webcam "selfie-view" điển hình có thể đảo ngược cảm nhận hướng; chưa được xác thực vì chưa có test camera thật.
+
+### Giới hạn đã biết
+
+- Hand-gesture pipeline chưa wiring vào `jarvis/core/dispatcher.py`, `jarvis/core/app.py`, hay bất kỳ luồng ActionDispatcher/automation nào — theo đúng phạm vi sprint (chỉ phát ra `HandGestureResult`/callback ngữ nghĩa).
+- `HandGestureTracker.start()`/`_capture_loop()` (đường dùng webcam/MediaPipe thật) được viết nhưng **chưa được xác thực với webcam/MediaPipe thật** — nằm ngoài phạm vi "no real webcam requirement in tests" của sprint này.
+- `DataAnalysisService` chưa có đường ánh xạ ngôn ngữ tự nhiên → operation có cấu trúc (dự kiến Phase 3, không thuộc phạm vi sprint này).
+- 9 lỗi baseline không liên quan (mobile_bridge, proactive health-monitor) vẫn còn nguyên — không được sửa theo đúng chỉ thị của sprint.
+
+---
+
 ## 🚀 Chưa phát hành (2026-08-30) — Central Safety-Layer Hardening (Phase 2)
 
 > Nhánh làm việc: `feat/safety-layer-hardening`, dựa trên `main` sau khi cả PR #8 (Wake Word Phase 1) và PR #9 (Sandbox CI Compatibility Fix) đã được merge (`35713b9`). Nhánh này **độc lập** với hai PR trên — không đụng `jarvis/sandbox/*` hay `jarvis/audio/wake_word.py`.
