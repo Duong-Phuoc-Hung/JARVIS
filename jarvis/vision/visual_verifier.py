@@ -150,7 +150,8 @@ class VisualVerifier:
 
                 # Get bounding box of changed area
                 bbox = diff.getbbox()  # (left, upper, right, lower)
-                if bbox is None or mean_diff < 0.5:
+                if bbox is None:
+                    # No pixel change detected at all
                     details["execution_ms"] = round((time.perf_counter() - t0) * 1000, 2)
                     return 0.0, None, details
 

@@ -17,6 +17,8 @@ class SkillMetadata:
     name: str
     version: str = "1.0.0"
     description: str = ""
+    category: str = "general"         # Skill category e.g. 'data_analysis', 'automation'
+    author: str = "jarvis_agentic_synthesizer"  # Who created/synthesized this skill
     parameters_schema: dict[str, Any] = field(default_factory=dict)
     return_schema: dict[str, Any] | None = None
     tags: list[str] = field(default_factory=list)
