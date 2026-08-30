@@ -16,6 +16,7 @@ Core goals:
 
 Authoritative package metadata:
 - Package: `jarvis-assistant`
+- Current source version: `4.1.0` (previous stable was `4.0.1`; see note below)
 - Current source version: `4.1.0` (previous stable was `4.0.1`; sections below referencing v4.0.1 are historical release record, kept for context — see `docs/PROJECT_STATE.md` for the current baseline)
 - Declared Python: `>=3.10`
 - Main CI / release Python: `3.13`
@@ -25,6 +26,8 @@ Authoritative package metadata:
 Repository:
 - `Duong-Phuoc-Hung/JARVIS`
 - Default branch: `main`
+
+> **v4.1.0 baseline note:** `main` has advanced past the v4.0.1 baseline described in sections 4/7/9/10 below (OS-level kernel sandboxing/security hardening from a separate contributor; see `CHANGELOG.md`'s v4.1.0 entry, `docs/SECURITY_ARCHITECTURE.md`, and `docs/TECHNICAL_AUDIT_REPORT.md` for that work — not reproduced here). Sections 4, 7, 9, and 10 below are **historical v4.0.1 release record**, kept for context; do not read them as describing the current `main`. Always trust `docs/PROJECT_STATE.md` and actual Git state for the current baseline.
 
 ## 2. Startup procedure for every new Claude Code session
 
@@ -81,7 +84,9 @@ Generated artifacts that stay untracked:
 
 For work after v4.0.1, prefer a new semantic version (`v4.0.2`, `v4.1.0`, etc.) instead of moving the already-published `v4.0.1`.
 
-## 4. Current Git/release baseline
+## 4. Historical v4.0.1 Git/release baseline
+
+> This section describes the state as of the v4.0.1 release only. `main` has since advanced to v4.1.0 (see the baseline note in section 1) and further. Kept for historical context; not the current baseline.
 
 Snapshot: 2026-08-29.
 
@@ -98,7 +103,7 @@ At snapshot time:
 
 `main` is ahead of the v4.0.1 tag by documentation-only commits. This is expected. Do not retag v4.0.1 just to include docs.
 
-## 5. CI baseline
+## 5. CI baseline (v4.0.1-era number; see `docs/PROJECT_STATE.md` for current)
 
 Workflow: `.github/workflows/ci.yml`
 
@@ -229,7 +234,26 @@ Historical design docs:
 
 Use them for context, not as current truth.
 
-### 8.1 Sandbox process isolation & CI compatibility policy (`jarvis/sandbox/security.py`, `jarvis/sandbox/interpreter.py`)
+### 8.1 Wake word backend architecture (`jarvis/audio/wake_word.py`)
+
+`WakeWordDetector` is a two-tier cascade: an optional Tier 1 local engine (Vosk, OpenWakeWord, or Porcupine — first one available/configured wins, checked in that order in `_init_tier1()`), falling back to the zero-dependency `AcousticSpectralDetector` (Tier 2) whenever Tier 1 is absent, unavailable, initialization-failed, or permanently degraded. This cascade only runs at all while the detector itself is enabled — a disabled `WakeWordDetector` short-circuits in `feed_audio_block()` and performs no detection through either tier.
+
+Porcupine lifecycle/runtime contract (verified against the upstream `pvporcupine` Python API staged locally at `.references/porcupine/binding/python/` and not committed — see `docs/PROJECT_STATE.md`). The staged upstream's own `setup.py` identifies it as `pvporcupine==4.0.3`; the `pyproject.toml` optional dependency constraint (`>=4.0.3,<5`) is pinned to match that audited major version exactly — do not widen it to include 3.x without independently re-auditing that API surface first:
+- `pvporcupine.create(access_key=..., keywords=[...], sensitivities=[...])` returns an engine exposing `.sample_rate`, `.frame_length`, `.process(pcm)`, `.delete()`. Treat `.sample_rate`/`.frame_length` as authoritative — do not assume they equal `target_sample_rate` (16000) even though that is true in practice today.
+- `.process()` requires **exactly** `frame_length` int16 PCM samples per call (`ValueError` otherwise) and returns the matched keyword index (`>= 0`) or `-1` for no match. It advances native engine state on every call, so every complete frame must be processed in order — never skipped.
+- JARVIS audio callbacks do not align to Porcupine's frame size, so `feed_audio_block()` buffers PCM through the internal `_PorcupineFrameBuffer` helper (drains every complete frame each call, carries over the remainder) rather than assuming one callback == one frame. Verified against the actual production `AudioEngine` default (`sample_rate=44100`, `block_ms=40` → 1764 raw samples/callback → exactly 640 resampled samples/callback at `target_sample_rate=16000`).
+- **Cooldown suppresses event emission, not Porcupine's audio consumption.** Porcupine is a streaming engine and must keep receiving every complete frame during the post-detection cooldown window, or its native state / the frame buffer would desync from live audio. `feed_audio_block()` always runs the Porcupine branch first, then applies the cooldown gate to decide whether to emit a `WakeWordResult`/callback. Vosk and Tier 2 keep the older behavior of being skipped entirely during cooldown — do not change that without a similar streaming-continuity justification.
+- **A `porcupine.process()` runtime failure permanently degrades this detector for the rest of its lifecycle** — not just for that one block. It releases the native engine exactly once, clears the pending frame buffer, and flips `_engine_type` to `ACOUSTIC_FALLBACK`, so a known-bad native engine is never invoked again on a later callback. Tier 2 keeps working normally afterward. Do not revert this to a per-block-only fallback; a native failure that repeats on every callback is the failure mode this specifically prevents.
+- Partial initialization (e.g. `pvporcupine.create()` succeeds but reading `frame_length`/`sample_rate` or constructing the frame-buffer adapter fails) releases the just-created native engine inline before falling back — `_init_tier1()` only attaches the engine/buffer to `self` after every setup step has fully succeeded, so a half-built Porcupine backend is never left both attached and un-tracked.
+- `porcupine.delete()` must be called exactly once to release native resources; `WakeWordDetector._release_porcupine_native()` is the single shared helper both `shutdown()` and the runtime-failure degradation path call, so this logic cannot diverge between the two. It is idempotent (safe to call repeatedly, after a partial/failed init, or after a runtime degradation) and protected by the detector's own `RLock` — the same lock `feed_audio_block()` holds while calling `porcupine.process()`, so `delete()` can never run concurrently with an in-flight `process()` call even under multi-threaded shutdown. `jarvis/core/app.py`'s `stop()` calls `wake_word_detector.shutdown()` **after** `audio_engine.stop_stream()` (which joins the audio worker thread) — preserve that ordering if `stop()` is ever restructured; correctness does not strictly depend on the join completing in time (the shared lock covers that), but keep the ordering anyway.
+- `set_enabled()` and `toggle_enabled()` share one transition helper (`_reset_stream_state_locked()`) so they cannot diverge: on an actual enabled-state change, the ring buffer and any pending partial Porcupine frame are cleared, so caller-owned PCM from before an arbitrarily long disabled gap is never concatenated with caller-owned PCM from after it. `_last_trigger_time` (the cooldown timer) is deliberately **not** reset on enable/disable — cooldown is a real-time debounce independent of the toggle, so rapid disable/enable must not bypass it. This does **not** reset the native Porcupine engine's own internal state — no reset API is used or exists in the audited upstream contract short of full reinitialization, which is intentionally out of scope; whatever detection history the native engine keeps internally may still span the disabled interval. This narrow, JARVIS-owned-buffers-only guarantee is deliberate, not a known gap — do not describe it as clearing "all" state spanning the toggle.
+
+Policy:
+- `pvporcupine` is an **optional** dependency (`pyproject.toml` `[project.optional-dependencies].wakeword`, pinned `>=4.0.3,<5`). Normal startup, and CI, must work with it absent and without a real Picovoice access key (`PORCUPINE_ACCESS_KEY` env or `config["porcupine_access_key"]`); missing either just yields the Tier 2 fallback.
+- `WakeWordDetector.toggle_enabled()` (thread-safe, returns the resulting `enabled` bool) exists alongside `set_enabled()`/`is_enabled()`/the `enabled` property — `jarvis/core/app.py`'s global hotkey toggle callback depends on `toggle_enabled()` specifically; do not remove it without updating that caller.
+- Wake-word tests must never require real microphone hardware or a real Picovoice access key — mock `PORCUPINE_AVAILABLE`/`pvporcupine`/`VOSK_AVAILABLE`/`OPENWAKEWORD_AVAILABLE` and use deterministic PCM (zeros/constants), not `generate_wake_word_signal()`'s random content, whenever a mock — not genuine acoustic analysis — is what determines the test's outcome. Real-microphone / spoken "Hey JARVIS" / real-AccessKey end-to-end validation is **intentionally deferred** until explicitly requested in a future task — its absence is not a Phase 1 defect.
+- OpenWakeWord has the same "initialized but never processed" shape of defect as Porcupine had (confirmed by code inspection: `feed_audio_block()` only branches on `WakeWordEngineType.VOSK`), but its API is materially different (stateful internal buffering, `predict()` returns a dict of per-model scores rather than a single index, default-model loading behavior needs verification) and was **not fixed** — see `docs/PROJECT_STATE.md` for the follow-up.
+### 8.2 Sandbox process isolation & CI compatibility policy (`jarvis/sandbox/security.py`, `jarvis/sandbox/interpreter.py`)
 
 `CodeInterpreterSandbox.execute_python()` launches untrusted code under a Win32 **OS Restricted Token** (`CreateRestrictedToken` + `CreateProcessAsUserW`, Low Integrity SID `S-1-16-4096`) plus a Windows Job Object (`ActiveProcessLimit=1`, `JobMemoryLimit=256MB`) via `spawn_low_integrity_process()`. This is the primary OS-kernel security boundary — do not weaken it casually.
 
