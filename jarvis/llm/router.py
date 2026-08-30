@@ -1662,18 +1662,20 @@ class LLMIntentRouter:
         Executes Two-Tier pipeline: Fast Rules -> LLM Tool Call -> Fallback Rules.
         """
         clean = text.strip()
-        # Truncate very long inputs early to prevent ReDoS and ensure < 5ms rule matching.
-        # Real voice/text commands are never > 512 chars; anything longer is malformed input.
-        _MAX_RULE_LEN = 512
-        clean = clean[:_MAX_RULE_LEN] if len(clean) > _MAX_RULE_LEN else clean
-        clean_lower = clean.lower()
+        clean_lower_full = clean.lower()  # Full text — safe for plain substring 'in' checks
+        # Truncate for REGEX only to prevent ReDoS on long inputs (e.g. 50KB adversarial strings).
+        # Dict-key _match_rule_key uses simple 'in' substring checks which are O(n) safe.
+        _MAX_REGEX_LEN = 512
+        clean_for_regex = clean[:_MAX_REGEX_LEN] if len(clean) > _MAX_REGEX_LEN else clean
+        clean_lower = clean_lower_full  # Used for dict rule key matching (full-text safe)
 
-        # Early return for meaningless inputs (emoji-only, pure numbers, too short to parse)
+        # Early return for meaningless inputs — only check head to avoid processing 50KB
         import re as _re
+        clean_head = clean_for_regex  # At most 512 chars
         _clean_stripped = _re.sub(r'[\U00010000-\U0010ffff\U0001F600-\U0001F64F\U0001F300-\U0001F5FF'
-                                  r'\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\s]', '', clean)
-        _is_emoji_only = len(clean) > 0 and len(_clean_stripped) == 0
-        _is_number_only = bool(_re.fullmatch(r'[\d\s\.\,\-\+]+', clean))
+                                  r'\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\s]', '', clean_head)
+        _is_emoji_only = len(clean_head) > 0 and len(_clean_stripped) == 0
+        _is_number_only = bool(_re.fullmatch(r'[\d\s\.\,\-\+]+', clean_head))
         if _is_emoji_only or _is_number_only:
             return IntentResult(
                 action_name="unknown_intent",
@@ -1688,8 +1690,8 @@ class LLMIntentRouter:
         if not force_llm and self.fast_path_enabled:
             # Memory Fast Commands Check
             if self.memory_manager:
-                if self.memory_manager.is_remember_command(clean):
-                    res_dict = self.memory_manager.handle_remember_command(clean)
+                if self.memory_manager.is_remember_command(clean_for_regex):
+                    res_dict = self.memory_manager.handle_remember_command(clean_for_regex)
                     return IntentResult(
                         action_name="memory_save_fact",
                         parameters=res_dict,
@@ -1698,8 +1700,8 @@ class LLMIntentRouter:
                         raw_text=text,
                         response_text=res_dict.get("message", "Tôi đã ghi nhớ thông tin này, thưa Ngài."),
                     )
-                if self.memory_manager.is_today_summary_command(clean):
-                    res_dict = self.memory_manager.handle_today_summary(clean)
+                if self.memory_manager.is_today_summary_command(clean_for_regex):
+                    res_dict = self.memory_manager.handle_today_summary(clean_for_regex)
                     return IntentResult(
                         action_name="memory_summarize_daily",
                         parameters=res_dict,
@@ -1709,9 +1711,9 @@ class LLMIntentRouter:
                         response_text=res_dict.get("message", "Đang tóm tắt hoạt động hôm nay cho Ngài."),
                     )
 
-            # First check parametric regex rules
+            # First check parametric regex rules (truncated string to prevent ReDoS)
             for pattern, extractor in self._regex_rules:
-                m = pattern.search(clean)
+                m = pattern.search(clean_for_regex)
                 if m:
                     res = extractor(m)
                     res.raw_text = text
@@ -1719,7 +1721,7 @@ class LLMIntentRouter:
                         res.response_text = self.get_natural_response(res.action_name, res.parameters, text)
                     return res
 
-            # Then check sorted rule dictionary keys (longest first)
+            # Then check sorted rule dictionary keys — full text, O(n) substring checks are fast
             for key in self._sorted_rule_keys:
                 if self._match_rule_key(key, clean_lower):
                     intent = self.rule_engine[key]
