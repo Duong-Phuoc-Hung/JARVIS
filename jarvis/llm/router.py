@@ -1668,6 +1668,22 @@ class LLMIntentRouter:
         clean = clean[:_MAX_RULE_LEN] if len(clean) > _MAX_RULE_LEN else clean
         clean_lower = clean.lower()
 
+        # Early return for meaningless inputs (emoji-only, pure numbers, too short to parse)
+        import re as _re
+        _clean_stripped = _re.sub(r'[\U00010000-\U0010ffff\U0001F600-\U0001F64F\U0001F300-\U0001F5FF'
+                                  r'\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\s]', '', clean)
+        _is_emoji_only = len(clean) > 0 and len(_clean_stripped) == 0
+        _is_number_only = bool(_re.fullmatch(r'[\d\s\.\,\-\+]+', clean))
+        if _is_emoji_only or _is_number_only:
+            return IntentResult(
+                action_name="unknown_intent",
+                parameters={"raw_text": text},
+                confidence=0.0,
+                source="rule_fast_path",
+                raw_text=text,
+                response_text="Tôi chưa hiểu lệnh này, vui lòng thử cách khác",
+            )
+
         # 1. TIER 1: Fast Rule Check (Sub-millisecond)
         if not force_llm and self.fast_path_enabled:
             # Memory Fast Commands Check
