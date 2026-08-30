@@ -5,9 +5,13 @@ Unit tests for ReActAgent (mock mode — no real LLM calls).
 """
 from __future__ import annotations
 
+import inspect
+
 import pytest
 
 from jarvis.agent.graph import AgentState, AgentTask, ReActAgent, Tool
+from jarvis.agent.tool_runtime import ToolExecutionResult
+from jarvis.sandbox.interpreter import SandboxResult
 
 
 @pytest.fixture
@@ -135,3 +139,202 @@ class TestHeuristicThink:
         task.steps.append(ThoughtStep("thought", "some thought"))
         thought, tool, args = agent._heuristic_think(task)
         assert tool == "DONE"
+
+
+class _FakeSandbox:
+    """Deterministic CodeInterpreterSandbox double — never spawns a real process."""
+
+    DEFAULT_TIMEOUT_SECONDS = 15.0
+
+    def __init__(self, result: SandboxResult):
+        self._result = result
+        self.calls: list[dict] = []
+
+    def execute_python(self, code, timeout_seconds=None, **kw):
+        self.calls.append({"code": code, "timeout_seconds": timeout_seconds})
+        return self._result
+
+
+class TestSandboxedPythonExecution:
+    """
+    Required outcome 1: generated Python must never go through a raw
+    exec()/eval() inside this process — it must route through the existing,
+    unmodified CodeInterpreterSandbox.
+    """
+
+    def test_run_python_source_never_calls_builtin_exec_or_eval(self):
+        source = inspect.getsource(ReActAgent._tool_run_python)
+        assert "exec(" not in source
+        assert "eval(" not in source
+
+    def test_run_python_uses_injected_sandbox_instance(self):
+        fake_result = SandboxResult(success=True, exit_code=0, stdout="hello\n", stderr="")
+        fake_sandbox = _FakeSandbox(fake_result)
+        agent = ReActAgent(is_mock=True, sandbox=fake_sandbox)
+
+        result = agent._tool_run_python(code="print('hello')")
+
+        assert len(fake_sandbox.calls) == 1
+        assert "print('hello')" in fake_sandbox.calls[0]["code"]
+        assert result["success"] is True
+        assert "hello" in result["output"]
+
+    def test_run_python_safe_code_becomes_observation(self, agent):
+        """Real sandbox integration: a safe script's result becomes a clean observation."""
+        observation = agent._act("run_python", {"code": "result = 6 * 7"})
+        assert "42" in observation
+        assert "Lỗi" not in observation
+
+    def test_run_python_sandbox_rejection_becomes_failed_observation(self, agent):
+        """A script the sandbox's own AST validator rejects must surface as a
+        failed observation, never as a silent success."""
+        observation = agent._act("run_python", {"code": "import subprocess"})
+        assert "Lỗi" in observation
+        assert "forbidden" in observation.lower()
+
+    def test_run_python_timeout_becomes_failed_observation(self, agent):
+        """Real sandbox integration: a script that outruns its timeout must be
+        reported as a bounded failure, not hang the agent or crash it."""
+        observation = agent._act(
+            "run_python",
+            {"code": "import time as _t\n_t.sleep(5)", "timeout_seconds": 0.5},
+        )
+        assert "Lỗi" in observation
+        assert "timed out" in observation.lower() or "timeout" in observation.lower()
+
+    def test_run_python_huge_stdout_is_bounded_before_reaching_observation(self):
+        """
+        A sandbox call that legitimately succeeds with a very large stdout
+        must never be injected into agent history unbounded. Uses a fake
+        sandbox so this is deterministic and fast regardless of the real
+        sandbox's own performance characteristics.
+        """
+        huge_stdout = "z" * 100_000
+        fake_result = SandboxResult(success=True, exit_code=0, stdout=huge_stdout, stderr="")
+        fake_sandbox = _FakeSandbox(fake_result)
+        agent = ReActAgent(is_mock=True, sandbox=fake_sandbox)
+
+        observation = agent._act("run_python", {"code": "result = 'z' * 100000"})
+
+        assert len(observation) < len(huge_stdout)
+        assert "[TRUNCATED" in observation
+
+    def test_run_python_timeout_is_clamped_to_a_sane_maximum(self):
+        """An absurdly large requested timeout must be clamped, not passed through verbatim."""
+        fake_result = SandboxResult(success=True, exit_code=0, stdout="ok", stderr="")
+        fake_sandbox = _FakeSandbox(fake_result)
+        agent = ReActAgent(is_mock=True, sandbox=fake_sandbox)
+
+        agent._tool_run_python(code="pass", timeout_seconds=99999.0)
+
+        assert fake_sandbox.calls[0]["timeout_seconds"] <= 30.0
+
+
+class TestToolExecutionContract:
+    """
+    Required outcome 2/3: a small structured tool-execution boundary with
+    deterministic failure for unknown tools/malformed args, and an
+    exception in any tool must never crash the agent loop.
+    """
+
+    def test_unknown_tool_fails_deterministically(self, agent):
+        result = agent._execute_tool("does_not_exist", {})
+        assert isinstance(result, ToolExecutionResult)
+        assert result.success is False
+        assert "không tồn tại" in result.error
+
+        observation = agent._act("does_not_exist", {})
+        assert "không tồn tại" in observation
+
+    def test_malformed_non_dict_args_fail_gracefully(self, agent):
+        result = agent._execute_tool("calculator", "not-a-dict")  # type: ignore[arg-type]
+        assert result.success is False
+        assert result.error is not None
+
+        # Must not raise even when routed through the full _act() path.
+        observation = agent._act("calculator", "not-a-dict")  # type: ignore[arg-type]
+        assert isinstance(observation, str)
+
+    def test_malformed_none_args_fail_gracefully(self, agent):
+        result = agent._execute_tool("calculator", None)  # type: ignore[arg-type]
+        assert result.success is False
+
+    def test_tool_exception_does_not_crash_agent(self, agent):
+        def exploding_tool(**kw):
+            raise RuntimeError("simulated tool crash")
+
+        agent.register_tool("boom", "explodes", exploding_tool)
+        result = agent._execute_tool("boom", {})
+        assert result.success is False
+        assert "simulated tool crash" in result.error
+
+        observation = agent._act("boom", {})
+        assert "Lỗi" in observation
+
+    def test_tool_returning_structured_result_is_passed_through(self, agent):
+        def structured_tool(**kw):
+            return ToolExecutionResult(success=True, output="structured ok")
+
+        agent.register_tool("structured", "returns ToolExecutionResult", structured_tool)
+        observation = agent._act("structured", {})
+        assert observation == "structured ok"
+
+    def test_tool_output_is_bounded_for_any_tool_not_just_run_python(self, agent):
+        def verbose_tool(**kw):
+            return {"output": "v" * 50_000}
+
+        agent.register_tool("verbose", "produces huge output", verbose_tool)
+        observation = agent._act("verbose", {})
+        assert len(observation) < 50_000
+        assert "[TRUNCATED" in observation
+
+
+class TestAgentLifecycle:
+    """Required outcome 3: max_iterations stays bounded and task state
+    transitions remain coherent, even when the agent never decides DONE."""
+
+    def test_max_iterations_terminates_and_reaches_done(self, monkeypatch):
+        agent = ReActAgent(is_mock=False, max_iterations=4)
+        call_count = {"n": 0}
+
+        def never_done(task):
+            call_count["n"] += 1
+            return ("thinking...", "calculator", {"expression": "1+1"})
+
+        monkeypatch.setattr(agent, "_think", never_done)
+        task = agent.run("goal that never terminates on its own")
+
+        assert call_count["n"] == 4  # exactly max_iterations, never more
+        assert task.state == AgentState.DONE
+        assert task.completed_at > 0
+
+    def test_run_catches_exception_and_sets_failed_state(self, monkeypatch):
+        agent = ReActAgent(is_mock=False, max_iterations=3)
+
+        def exploding_think(task):
+            raise RuntimeError("simulated planner crash")
+
+        monkeypatch.setattr(agent, "_think", exploding_think)
+        task = agent.run("goal")
+
+        assert task.state == AgentState.FAILED
+        assert "simulated planner crash" in task.error
+
+    def test_normal_completion_reaches_done_via_reflection(self, monkeypatch):
+        agent = ReActAgent(is_mock=False, max_iterations=5)
+
+        def immediately_done(task):
+            return ("done thinking", "DONE", {})
+
+        monkeypatch.setattr(agent, "_think", immediately_done)
+        task = agent.run("goal")
+
+        assert task.state == AgentState.DONE
+        assert any(s.step_type == "reflection" for s in task.steps)
+
+    def test_existing_mock_mode_still_deterministic_and_unaffected(self):
+        """Mock mode must remain fully deterministic and must not touch the sandbox at all."""
+        agent = ReActAgent(is_mock=True)
+        task = agent.run("some goal")
+        assert task.state == AgentState.DONE
+        assert agent._sandbox is None  # never constructed since run_python was never called

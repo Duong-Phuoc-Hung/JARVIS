@@ -1,8 +1,117 @@
 # JARVIS — PROJECT_STATE.md
 
 > Durable current-state handoff for future sessions.
-> Snapshot: 2026-08-30.
+> Snapshot: 2026-08-31.
 > Always verify Git state and current code before relying on this snapshot.
+
+## 0-PRE. Agent Execution Hardening — OpenInterpreter Reference Sprint (in progress, uncommitted)
+
+Snapshot: 2026-08-31. Branch `feat/agent-execution-hardening`, based on `main` at `e4bcd6d015dec2796e0f50e88b5c9f69b58bb1f7`. Local working-tree change, **not committed, not pushed, no PR opened, no CI run**. Primary target: `jarvis/agent/**`.
+
+### Scope and constraints
+
+- NO-TOUCH list honored, verified untouched: `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/comms/mobile_bridge.py`, `jarvis/proactive/**`, `jarvis/hardware/**`, `jarvis/stt/**`, `jarvis/audio/**`, `jarvis/automation/**`, `jarvis/security/scanner.py`, `jarvis/vision/biometrics.py`, `installer/**`, `scripts/build_installer.py`.
+- `ReActAgent` remains completely unwired — grepped the whole `jarvis/` tree before and after this sprint: it is imported nowhere outside `jarvis/agent/**` and its own tests. Zero production blast radius today; the findings below matter for whenever it *is* wired in.
+- One deliberate, user-approved exception to "do not touch `jarvis/sandbox/**`": a proven, reproducible pipe-deadlock defect in `jarvis/sandbox/security.py` was found and fixed — see below. This was not a unilateral decision; the user was asked explicitly before any sandbox file was touched.
+
+### Upstream reference consulted (architecture only — no source copied, not vendored, not a dependency)
+
+- **OpenInterpreter** — current project is `openinterpreter/openinterpreter`, substantially rewritten from the historical `OpenInterpreter/open-interpreter` repo named in older planning docs. Only architectural concepts were used: explicit agent-harness/execution boundary, sandboxed code execution, permission/approval boundaries, bounded execution, structured execution results, portable/isolated tools. No OpenInterpreter code was read into any JARVIS file; `pyproject.toml` was not touched (no new dependency of any kind this sprint).
+
+### Confirmed findings (audited before any edit, exactly as suspected)
+
+1. **`jarvis/agent/graph.py::ReActAgent._tool_run_python` called Python's builtin `exec()` directly**, in-process, with only `ast.parse()` for a syntax check (not a safety check) — full access to the JARVIS process's own globals/environment, no timeout, no resource bound, no isolation. JARVIS already had `jarvis.sandbox.interpreter.CodeInterpreterSandbox.execute_python()` (AST safety validation, isolated scratch dir, OS Restricted Token isolation, Windows Job Object, timeout, structured `SandboxResult`) — `_tool_run_python` used none of it.
+2. **Every built-in agent tool (`write_file`, `read_file`, `browser_open`, `screenshot`, `send_telegram`, `list_dir`, `git_status`, and the old `run_python`) bypasses `ActionDispatcher.dispatch_action()`/`SafetyGateInterceptor` entirely** — `ReActAgent._act()` calls `tool.fn(**args)` directly. No RBAC, no risk classification, no safety-gate anywhere in the agent's tool-calling path. `git_status` uses `subprocess.run(["git", "status", "--short"], ...)` with a fixed argv (no injection risk from user input) but still bypasses the dispatcher like everything else.
+
+### Fix 1 (required): route Python execution through the existing sandbox
+
+- `_tool_run_python` now calls `CodeInterpreterSandbox.execute_python()` instead of `exec()`. `jarvis/sandbox/interpreter.py` itself was **not modified** for this fix.
+- User code is wrapped with `try: print(result)\nexcept NameError: pass` to preserve the old "top-level `result` becomes tool output" convention, without using any AST-forbidden introspection call (`locals()`/`globals()`/`vars()` are all rejected by the sandbox's validator — using them would break the epilogue's own validation).
+- `ReActAgent.__init__` gained an optional `sandbox: CodeInterpreterSandbox | None = None` param (backward compatible); `_get_sandbox()` lazily constructs a default (`cleanup_on_exit=True`) only when `run_python` is actually first called.
+- `_tool_run_python(code, timeout_seconds=None, **kw)` gained an optional `timeout_seconds`, always clamped to `MAX_PYTHON_EXEC_TIMEOUT_SECONDS = 30.0`.
+
+### Unplanned, serious finding: pipe deadlock in `jarvis/sandbox/security.py` (found, confirmed, fixed with explicit user approval)
+
+While integration-testing Fix 1 against realistic output sizes (not a hypothetical check), `CodeInterpreterSandbox.execute_python()` was found to **hang for the entire timeout** on any script producing more than **exactly 4096 bytes** of combined stdout+stderr — bisected precisely (4000 bytes: instant; 4096 bytes: hangs the full timeout, verified up to 25s). Root cause, confirmed by reading `spawn_low_integrity_process()`: it called `WaitForSingleObject()` to wait for the *entire* child process to exit **before** ever calling `ReadFile` on the output pipe (the old Step 10 read loop ran only after the wait). Windows' default anonymous pipe buffer is ~4096 bytes; once the child's unread output exceeded that, its `write()`/`print()` blocked forever (pipe full, nobody draining) while the parent was itself blocked in `WaitForSingleObject` — a textbook pipe deadlock, broken only by the caller's own timeout, which then **misreported the run as "timed out" instead of "succeeded with output."**
+
+This is not an edge case: any moderately verbose script (printing a JSON blob, a file listing, etc.) — exactly the kind of thing agent-generated Python commonly does — would trigger it. It also directly undermined this sprint's own required outcome ("huge stdout is bounded before entering agent history") since a real large-output run couldn't even complete to be bounded.
+
+Per the task's own instruction ("do NOT modify `jarvis/sandbox/**` unless a proven defect... makes the agent integration impossible"), this was **not fixed unilaterally** — the user was asked explicitly (fix now vs. document-only) and chose to fix it.
+
+**Fix applied** (`jarvis/sandbox/security.py::spawn_low_integrity_process()`, `import threading` added):
+- A daemon `threading.Thread` starts draining `h_read` via a `ReadFile` loop immediately after `CreateProcessAsUserW` succeeds (while the child is still `CREATE_SUSPENDED`, before `ResumeThread`) — the pipe is never left undrained while the child could be writing.
+- `WaitForSingleObject`/timeout handling/`GetExitCodeProcess` are **completely unchanged** — only *when* the pipe is read changed, not any Restricted Token/Job Object/`retry_safe`/AST-validation semantics.
+- After the child exits (normally, or via `TerminateProcess` on timeout), `reader_thread.join(timeout=5.0)` bounds the wait for drainage; whatever was captured in `output_chunks` by then is used regardless.
+- `_cleanup()` (the shared `finally` on every exit path, including early `RestrictedProcessBootstrapError` raises) also joins the reader thread (bounded 2.0s) before closing `h_read`, avoiding a `CloseHandle`-vs-pending-`ReadFile` race across threads.
+- Verified: 100–50000 byte outputs all now complete in ~0.13–0.14s, `success=True`, correct data — versus hanging the full timeout before the fix for anything ≥4096 bytes.
+- New regression test: `tests/unit/test_skill_synthesis.py::TestCodeInterpreterSandbox::test_sandbox_large_stdout_does_not_deadlock` (20000 bytes, 5.0s timeout, asserts success).
+- All existing sandbox tests re-run clean after the fix: `test_skill_synthesis.py` (21), `test_adversarial_r1_r2_r5_stress.py`, `test_hud_telemetry_and_memory.py`, `test_sandbox_compat_fallback.py` (40), and `tests/integration/test_sandbox_os_boundaries.py` (15) — all pass, zero regressions.
+- **Separate, non-security cosmetic defect found but deliberately NOT fixed**: `strip_sandbox_ready_sentinel()` only strips an LF-terminated sentinel line; a CRLF-terminated child stdout (common on Windows) leaks the raw `\x02JARVIS_SANDBOX_READY_v1\x03` marker bytes through. Not a security issue and doesn't meet the "makes integration impossible" bar, so left unfixed at the source; `jarvis/agent/tool_runtime.py` does its own defensive, CRLF-tolerant cleanup on the consumer side instead.
+
+### Follow-up pre-commit security review — 1 more real issue found and fixed, 1 test gap closed
+
+A dedicated line-by-line security review of the diff (no new features) found the pipe-drain fix above had introduced its own resource-safety regression, and closed a test-coverage gap:
+
+- **`_drain_pipe()` had no cap on retained memory.** The deadlock fix removed the *only* thing that previously bounded parent-process (JARVIS host) memory during pipe capture — the deadlock itself, which silently capped a runaway script to ~4KB before it blocked. Without an explicit cap, `while True: print(...)` could make the reader thread buffer unbounded data in the JARVIS process for the entire timeout window, long before `interpreter.py`'s post-hoc `_MAX_STDOUT_CAPTURE_BYTES` truncation ever ran. Fixed: `_drain_pipe()` now stops appending to `output_chunks` once `_PIPE_READER_MAX_CAPTURE_BYTES = 1024 * 1024` (1MB) is reached, while continuing to call `ReadFile` in a loop so the pipe — and the child — never blocks again; excess bytes are simply discarded. Independent constant from `interpreter.py`'s (avoids a circular import); keep the two conceptually in sync if either changes. New regression test: `tests/unit/test_skill_synthesis.py::TestCodeInterpreterSandbox::test_sandbox_runaway_output_does_not_grow_unbounded` (a genuinely unbounded print loop against a 1.5s timeout; asserts bounded wall-clock time and `len(stdout) < 2MB`).
+- **Test gap closed**: no existing test exercised heavy or interleaved writes to `stderr` specifically through the real sandboxed subprocess (stdout and stderr share one pipe, `hStdOutput == hStdError`, pre-existing and unchanged). Added `tests/unit/test_skill_synthesis.py::TestCodeInterpreterSandbox::test_sandbox_mixed_stdout_stderr_heavy_output_does_not_deadlock`.
+- Re-validated after this fix: all sandbox/agent test files re-run clean (`test_skill_synthesis.py` now 23 tests, `test_react_agent.py` 38, `test_agent_tool_runtime.py` 25, plus `test_adversarial_r1_r2_r5_stress.py`, `test_hud_telemetry_and_memory.py`, `test_sandbox_compat_fallback.py`, `test_react_planner.py`, `test_browser_agent.py`, `tests/integration/test_sandbox_os_boundaries.py`); `ruff`/`mypy`/`py_compile`/`git diff --check` all clean; full `tests/unit/` — 781 collected, 772 passed, same 9 pre-existing unrelated failures, zero new regressions.
+- No other finding from this review pass rose to blocking severity. Confirmed unchanged: Restricted Token creation, integrity level, `CreateProcessAsUserW` args, Job Object assignment/kill-on-close, environment scrubbing, AST validation, compatibility fallback policy, security preamble — the entire diff to `security.py` across both passes is confined to *when*/*how much* of the pipe is read, never any isolation/authorization semantic. `_tool_write_file`/`_tool_read_file`/etc. remain byte-for-byte unchanged — no second/ad-hoc safety mechanism was introduced anywhere.
+
+### Fix 2: structured tool-execution contract (new module, `jarvis/sandbox/**` untouched)
+
+- [jarvis/agent/tool_runtime.py](../jarvis/agent/tool_runtime.py) (new) — `ToolExecutionResult(success, output, error, metadata)`; `truncate_text()` (deterministic bound, `DEFAULT_MAX_OBSERVATION_CHARS=4000`, deliberately much smaller than the sandbox's own 1MB stdout cap which protects its pipe, not an LLM context budget); `normalize_tool_output()`; `sandbox_result_to_tool_result()` (the one place a `SandboxResult` becomes agent-facing, including the CRLF-sentinel defensive cleanup above); `format_observation()`.
+- `ReActAgent._act()` now routes **every** tool call through `_execute_tool()` + `format_observation()`, not just `run_python`: unknown tool names and non-dict (including `None`) args fail deterministically without raising; any tool exception is caught and converted, never escaping to crash the ReAct loop; every tool's output is bounded before it can reach `ThoughtStep.tool_result`/agent history.
+
+### Audited and deliberately NOT fixed (documented, not patched with a second safety system)
+
+All built-in agent tools — `write_file`, `read_file`, `browser_open`, `screenshot`, `send_telegram`, `list_dir`, `git_status` — still call straight into `tool.fn(**args)`, completely bypassing `ActionDispatcher`/`SafetyGateInterceptor` (CLAUDE.md §8.3). `write_file` can overwrite any path the process can write to (no allowlist); `browser_open` can navigate anywhere under LLM/agent control. Wiring the full tool set through `ActionDispatcher` is a materially larger integration than this sprint's scope; per explicit instruction, no ad-hoc parallel safety mechanism was invented to patch around it — this is left for a dedicated future integration task. Current production risk is zero since `ReActAgent` has no callers yet.
+
+### Files changed
+
+- [jarvis/agent/graph.py](../jarvis/agent/graph.py) — `_tool_run_python()` rewritten to use the sandbox; `_act()`/new `_execute_tool()` use the structured tool-execution contract; `ReActAgent.__init__`/`_get_sandbox()` gained the optional `sandbox` param and lazy construction.
+- [jarvis/agent/tool_runtime.py](../jarvis/agent/tool_runtime.py) — new file (see Fix 2).
+- [jarvis/sandbox/security.py](../jarvis/sandbox/security.py) — `spawn_low_integrity_process()` pipe-deadlock fix (see above); `import threading` added. No other function in this file touched.
+- [tests/unit/test_react_agent.py](../tests/unit/test_react_agent.py) — 17 new tests added; all 21 pre-existing tests unmodified and still passing.
+- [tests/unit/test_agent_tool_runtime.py](../tests/unit/test_agent_tool_runtime.py) — new file, 25 tests.
+- [tests/unit/test_skill_synthesis.py](../tests/unit/test_skill_synthesis.py) — 3 new regression tests added (pipe-deadlock fix, memory-bound fix, mixed stdout/stderr coverage — see follow-up review section below); all pre-existing tests unmodified.
+
+No other tracked file is part of this change set.
+
+### Validation actually executed (this session, local)
+
+```text
+tests/unit/test_react_agent.py             — 38 passed (21 pre-existing + 17 new)
+tests/unit/test_agent_tool_runtime.py      — 25 passed (new file)
+tests/unit/test_skill_synthesis.py         — 21 passed (20 pre-existing + 1 new)
+tests/unit/test_adversarial_r1_r2_r5_stress.py, test_hud_telemetry_and_memory.py,
+  test_sandbox_compat_fallback.py, test_react_planner.py, test_browser_agent.py — all pass
+tests/integration/test_sandbox_os_boundaries.py — all 15 pass (post pipe-fix regression check)
+
+ruff check jarvis/agent tests/unit/test_react_agent.py tests/unit/test_agent_tool_runtime.py \
+  tests/unit/test_skill_synthesis.py jarvis/sandbox/security.py           — All checks passed!
+mypy jarvis/agent/graph.py jarvis/agent/tool_runtime.py jarvis/agent/__init__.py \
+  jarvis/sandbox/security.py --follow-imports=silent                     — Success: no issues found in 4 source files
+py_compile (all changed files)                                            — exit 0
+git diff --check                                                         — exit 0
+
+tests/unit/ full run — 779 collected, 770 passed, 9 failed
+```
+
+9 failures are the **documented, pre-existing, unrelated baseline failures** in NO-TOUCH areas (identical set seen on this same `e4bcd6d` baseline in an earlier, separate reference-integration sprint on a different branch): 8 in `tests/unit/test_mobile_bridge.py` and 1 in `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`. 779 − 736 (confirmed `e4bcd6d` baseline collected count) = 43, exactly matching 17 + 25 + 1 new tests. **Zero regressions introduced by this sprint.**
+
+### Known limitations / confirmed follow-ups
+
+- All built-in agent tools bypass `ActionDispatcher`/`SafetyGateInterceptor` (see "Audited and deliberately NOT fixed" above) — recommended as a dedicated future integration, not a quick patch.
+- `ReActAgent` is still not wired into `app.py`/dispatcher/router/planner anywhere — out of scope, no Phase 3 LLM routing started, per explicit instruction.
+- The CRLF-vs-LF sentinel-stripping cosmetic defect in `strip_sandbox_ready_sentinel()` remains unfixed at the source (see above); only defensively worked around on the agent-consumer side.
+- CI has not been run for this branch; not committed, not pushed, no PR opened.
+- The 9 pre-existing unrelated baseline failures (mobile_bridge, proactive health-monitor) remain unfixed, per explicit instruction not to chase them.
+
+### Recommended next task
+
+Commit this sprint's changes on `feat/agent-execution-hardening`, push, open a PR — the sandbox pipe-deadlock fix in particular should get real CI/Windows-runner validation given how central `jarvis/sandbox/security.py` is (PR #9). Follow-ups explicitly out of scope here: wiring `ReActAgent`'s built-in tools through `ActionDispatcher`/`SafetyGateInterceptor`; fixing `strip_sandbox_ready_sentinel()`'s CRLF handling at the source; any Phase 3 LLM-routing/agent-wiring work; independently fixing the pre-existing mobile_bridge/proactive baseline failures.
+
+---
 
 ## 0A. Phase 1 — Wake Word Reliability Hardening (in progress, uncommitted)
 

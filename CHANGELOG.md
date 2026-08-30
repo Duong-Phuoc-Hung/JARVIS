@@ -2,6 +2,103 @@
 
 ---
 
+## 🚀 Chưa phát hành (2026-08-31) — Agent Execution Hardening (OpenInterpreter Reference Sprint)
+
+> Nhánh làm việc: `feat/agent-execution-hardening`, dựa trên `main` tại `e4bcd6d015dec2796e0f50e88b5c9f69b58bb1f7`. Mục tiêu chính: `jarvis/agent/**`. Không sửa `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/comms/mobile_bridge.py`, `jarvis/proactive/**`, `jarvis/hardware/**`, `jarvis/stt/**`, `jarvis/audio/**`, `jarvis/automation/**`, `jarvis/security/scanner.py`, `jarvis/vision/biometrics.py`, `installer/**`, `scripts/build_installer.py`. Không wiring `ReActAgent` vào core/app/dispatcher/router trong sprint này (giữ nguyên trạng thái độc lập hiện có — `ReActAgent` không được import từ bất kỳ đâu khác trong `jarvis/` trước hoặc sau sprint này).
+
+### Tham khảo thượng nguồn (kiến trúc only — không sao chép mã nguồn, không thêm dependency)
+
+- **OpenInterpreter** (dự án hiện tại tại `openinterpreter/openinterpreter`, đã viết lại đáng kể so với repo `OpenInterpreter/open-interpreter` cũ được nhắc trong tài liệu kế hoạch gốc). Chỉ tham khảo các khái niệm kiến trúc: ranh giới rõ ràng giữa agent harness và execution, sandboxed code execution, ranh giới permission/approval, bounded execution, structured execution result, portable/isolated tools. **Không** vendor OpenInterpreter, không import mã nguồn của nó, không thêm nó làm runtime dependency ở bất kỳ đâu trong `pyproject.toml`.
+
+### Phát hiện xác nhận trước khi sửa (đúng như nghi ngờ ban đầu)
+
+`jarvis/agent/graph.py::ReActAgent._tool_run_python` (trước khi sửa) gọi trực tiếp `exec(code, exec_globals)` — thực thi mã Python **ngay trong tiến trình JARVIS**, chỉ có `ast.parse()` kiểm tra cú pháp (không phải kiểm tra an toàn), không sandbox, không giới hạn tài nguyên, không timeout, có toàn quyền truy cập process/globals hiện tại. Trong khi đó JARVIS đã có sẵn `jarvis.sandbox.interpreter.CodeInterpreterSandbox.execute_python()` — kiểm tra AST an toàn tất định, thực thi cô lập trong scratch dir, cô lập OS Restricted Token (Low Integrity), Windows Job Object, timeout, và `SandboxResult` có cấu trúc. `_tool_run_python` hoàn toàn không dùng đến engine này.
+
+Kiểm tra thêm mọi tool có sẵn khác (`_tool_write_file`, `_tool_read_file`, `_tool_browser`, `_tool_screenshot`, `_tool_send_telegram`, `_tool_list_dir`, `_tool_git_status`) và `_act()` (điểm gọi tool chung): **tất cả agent tool đều được gọi trực tiếp qua `tool.fn(**args)`, hoàn toàn bỏ qua `ActionDispatcher.dispatch_action()`/`SafetyGateInterceptor`** (lớp an toàn trung tâm từ Phase 2 — xem CLAUDE.md §8.3) — không có RBAC, không có phân loại rủi ro, không có safety-gate nào được áp dụng cho bất kỳ agent tool nào. `_tool_git_status` dùng `subprocess.run(["git", "status", "--short"], ...)` với argv cố định (không có input người dùng nội suy vào lệnh) — an toàn khỏi injection nhưng vẫn bỏ qua dispatcher. `ReActAgent` **không được import/sử dụng ở bất kỳ đâu khác trong `jarvis/`** (xác nhận bằng grep toàn bộ cây mã nguồn) — bán kính ảnh hưởng hiện tại bằng 0 trong production, nhưng lỗ hổng vẫn là thật nếu module này được wiring vào sau này.
+
+### Fix 1 (bắt buộc theo yêu cầu): Python execution qua sandbox hiện có
+
+- `_tool_run_python` giờ gọi `CodeInterpreterSandbox.execute_python()` (không sửa `jarvis/sandbox/interpreter.py`) thay vì `exec()` trực tiếp. Giữ nguyên toàn bộ AST validation, cô lập scratch dir, cô lập OS Restricted Token, timeout/resource bounds của sandbox hiện có.
+- Bọc code người dùng bằng một epilogue tối giản (`try: print(result)\nexcept NameError: pass`) để giữ quy ước cũ "biến `result` ở top-level trở thành output" — **không dùng `locals()`/`globals()`/`vars()`** (đều bị AST validator của sandbox cấm), tránh việc epilogue tự làm hỏng validation của chính nó.
+- `ReActAgent.__init__` nhận thêm tham số tùy chọn `sandbox: CodeInterpreterSandbox | None = None` (tương thích ngược — mặc định `None`); `_get_sandbox()` khởi tạo lười (`cleanup_on_exit=True`) chỉ khi `run_python` thực sự được gọi lần đầu, tránh tạo thư mục `workspace/sandbox/` cho các agent không bao giờ chạy Python.
+- Timeout được truyền qua `_tool_run_python(code, timeout_seconds=None, **kw)` (tham số mới, tùy chọn, tương thích ngược) và luôn bị kẹp (`min(...)`) ở `MAX_PYTHON_EXEC_TIMEOUT_SECONDS = 30.0` bất kể LLM/heuristic yêu cầu gì — không một lệnh gọi tool nào có thể treo agent quá 30 giây.
+
+### Phát hiện nghiêm trọng ngoài dự kiến, đã xác nhận và sửa (theo yêu cầu người dùng): pipe deadlock trong `jarvis/sandbox/security.py`
+
+Trong lúc kiểm thử tích hợp thực tế (không phải giả định), phát hiện `CodeInterpreterSandbox.execute_python()` **treo vô thời hạn cho đến hết timeout** với bất kỳ script nào có tổng stdout+stderr vượt quá **chính xác 4096 byte** (đã nhị phân xác định ngưỡng: 4000 byte chạy tức thì, 4096 byte treo đủ 100% thời gian timeout được cấp, kể cả 25 giây). Nguyên nhân gốc, xác nhận bằng đọc mã nguồn `spawn_low_integrity_process()`: hàm gọi `WaitForSingleObject()` chờ **toàn bộ** tiến trình con kết thúc **trước khi** đọc bất kỳ dữ liệu nào từ pipe (`ReadFile` chỉ chạy ở Step 10, sau khi wait xong). Anonymous pipe mặc định của Windows có buffer ~4096 byte; nếu tiến trình con ghi vượt quá dung lượng này mà không ai đọc, `write()`/`print()` của nó bị chặn vĩnh viễn (pipe đầy, không được rút bớt), trong khi tiến trình cha đang bị chặn ở `WaitForSingleObject` chờ một tiến trình đang tự chặn chính nó — deadlock cổ điển, chỉ thoát được nhờ timeout của caller (rồi báo sai là "timed out" thay vì "thành công với output lớn").
+
+**Đây là lỗi có thật, độc lập với sprint này, ảnh hưởng bất kỳ caller nào của `execute_python()`** — không phải lỗi lý thuyết: script LLM sinh ra in một JSON vừa phải, một danh sách file, hay bất kỳ output nào >4KB đều sẽ kích hoạt nó. Vì lỗi này trực tiếp cản trở một trong các REQUIRED OUTCOME của chính sprint này ("huge stdout is bounded... convert SandboxResult into a bounded observation") — không thể kiểm chứng thật với output lớn thật nếu sandbox tự treo trước khi trả kết quả — đã dừng lại và hỏi ý kiến người dùng trước khi sửa `jarvis/sandbox/**` (khu vực được yêu cầu giữ nguyên trừ khi có lỗi xác nhận khiến việc tích hợp bất khả thi). **Người dùng chọn sửa ngay.**
+
+**Fix đã áp dụng** (`jarvis/sandbox/security.py::spawn_low_integrity_process()`):
+- Thêm một thread nền (`threading.Thread`, daemon) bắt đầu rút dữ liệu pipe **ngay sau khi** tiến trình con được tạo (vẫn đang `CREATE_SUSPENDED`, trước cả `ResumeThread`) — đảm bảo không có khoảng trống nào giữa lúc tiến trình con có thể ghi và lúc có người đọc.
+- `WaitForSingleObject`/xử lý timeout/`GetExitCodeProcess` **giữ nguyên 100% không đổi** — thread nền chỉ thay đổi **thời điểm** pipe được đọc, không đụng đến bất kỳ ngữ nghĩa cô lập/token/Job Object/`retry_safe` nào.
+- Sau khi tiến trình con kết thúc (bình thường hoặc bị `TerminateProcess` do timeout), `reader_thread.join(timeout=5.0)` — có giới hạn, không bao giờ treo vô hạn; dùng bất kỳ dữ liệu nào đã rút được cho đến thời điểm đó.
+- `_cleanup()` (chạy trong `finally` ở mọi đường thoát, kể cả các nhánh `RestrictedProcessBootstrapError` sớm) giờ join thread rút dữ liệu (có giới hạn 2.0s) **trước khi** đóng `h_read`, tránh race giữa `CloseHandle` và một `ReadFile` đang treo trên thread khác.
+- **Không đụng đến**: `CreateRestrictedToken`, `SetTokenInformation(TokenIntegrityLevel)`, `CREATE_SUSPENDED`/thứ tự Job-Object-trước-Resume, phân loại `retry_safe`, đường dẫn compatibility Popen, `strip_sandbox_ready_sentinel()`, AST validator, môi trường bị scrub, hay bất kỳ bảo đảm an ninh nào khác từ PR #9.
+- Xác minh thực nghiệm: trước fix, 4096+ byte → treo đủ timeout (đã thử tới 25s); sau fix, 100–50000 byte đều hoàn thành trong ~0.13–0.14 giây, `success=True`, đúng dữ liệu.
+- Test hồi quy mới: `tests/unit/test_skill_synthesis.py::TestCodeInterpreterSandbox::test_sandbox_large_stdout_does_not_deadlock` (20000 byte, timeout 5.0s, xác nhận thành công thay vì treo).
+- Toàn bộ test sandbox hiện có (`test_skill_synthesis.py`, `test_adversarial_r1_r2_r5_stress.py`, `test_hud_telemetry_and_memory.py`, `test_sandbox_compat_fallback.py`, và `tests/integration/test_sandbox_os_boundaries.py`) chạy lại **sau fix**: tất cả pass, không hồi quy.
+
+### Fix 2: Ranh giới thực thi tool có cấu trúc (module mới, không đụng `jarvis/sandbox/**`)
+
+- File mới `jarvis/agent/tool_runtime.py`: `ToolExecutionResult` (success/output/error/metadata) tất định; `truncate_text()` giới hạn kích thước quan sát tất định (`DEFAULT_MAX_OBSERVATION_CHARS = 4000`, nhỏ hơn nhiều so với giới hạn 1MB nội bộ của sandbox — giới hạn đó bảo vệ pipe của sandbox, không phải ngân sách context của LLM); `normalize_tool_output()` chuẩn hóa giá trị trả về bất kỳ (dict cũ/`ToolExecutionResult`/giá trị khác) về cùng một hợp đồng; `sandbox_result_to_tool_result()` chuyển `SandboxResult` thành `ToolExecutionResult` (kèm dọn dẹp phòng thủ, phía agent, cho một lỗi rò rỉ sentinel không liên quan tới bảo mật — xem bên dưới); `format_observation()` tạo chuỗi quan sát cuối cùng, luôn có giới hạn kích thước.
+- `ReActAgent._act()` giờ dùng `_execute_tool()` (mới) + `format_observation()` cho **mọi** tool, không chỉ `run_python` — nghĩa là "không tồn tại giới hạn kích thước output không giới hạn được đưa vào LLM context" áp dụng đồng nhất cho toàn bộ tool.
+- `_execute_tool()`: tool không tồn tại → thất bại tất định; `args` không phải dict (kể cả `None`) → thất bại tất định, không crash; ngoại lệ từ `tool.fn(**args)` → bị bắt, không bao giờ thoát ra ngoài vòng lặp agent.
+- **Phát hiện phụ, không sửa (cosmetic, không phải lỗ hổng an ninh)**: `jarvis.sandbox.security.strip_sandbox_ready_sentinel()` chỉ khớp chính xác dòng sentinel kết thúc bằng `\n` (LF); trên Windows, stdout của tiến trình con thường kết thúc bằng `\r\n` (CRLF), khiến hàm này **không strip được** sentinel — vài byte control character (`\x02...\x03`) rò rỉ vào `SandboxResult.stdout`. Không sửa `jarvis/sandbox/security.py` cho lỗi cosmetic này (không phải điều kiện "khiến việc tích hợp bất khả thi" như lỗi deadlock ở trên); thay vào đó `sandbox_result_to_tool_result()` tự dọn dẹp phòng thủ phía agent bằng regex, dung nạp cả `\n` và `\r\n`.
+
+### Test mới
+
+- `tests/unit/test_agent_tool_runtime.py` (file mới) — 25 test tất định cho `truncate_text`/`normalize_tool_output`/`sandbox_result_to_tool_result`/`format_observation`, dùng `SandboxResult` dựng trực tiếp (không spawn tiến trình thật).
+- `tests/unit/test_react_agent.py` — thêm 17 test mới (`test_run_python_source_never_calls_builtin_exec_or_eval` quét mã nguồn xác nhận không dùng exec/eval; `test_run_python_uses_injected_sandbox_instance` với sandbox giả lập; `test_run_python_safe_code_becomes_observation`/`test_run_python_sandbox_rejection_becomes_failed_observation`/`test_run_python_timeout_becomes_failed_observation` dùng sandbox thật, tất định và nhanh; `test_run_python_huge_stdout_is_bounded_before_reaching_observation` dùng sandbox giả lập; `test_run_python_timeout_is_clamped_to_a_sane_maximum`; tool không tồn tại, args sai định dạng (kể cả `None`), tool ném exception, tool trả `ToolExecutionResult` trực tiếp, output bất kỳ tool nào cũng bị giới hạn; `max_iterations` dừng đúng số vòng và đạt `DONE`; `run()` bắt exception và set `FAILED`; hoàn thành bình thường qua reflection; mock mode vẫn tất định và không đụng sandbox). Không test nào cần mạng, LLM/API key thật, hay hành động phá hoại.
+- `tests/unit/test_skill_synthesis.py` — thêm 1 test hồi quy cho lỗi deadlock (xem trên).
+- 21 test `ReActAgent` sẵn có + toàn bộ test sandbox sẵn có: **không sửa assertion nào, tất cả vẫn pass nguyên trạng.**
+
+### Kiểm chứng thực tế đã chạy (phiên này, local)
+
+```text
+tests/unit/test_react_agent.py                — 38 passed (21 cũ + 17 mới)
+tests/unit/test_agent_tool_runtime.py         — 25 passed (file mới)
+tests/unit/test_skill_synthesis.py            — 21 passed (20 cũ + 1 mới, gồm cả regression treo pipe)
+tests/unit/test_adversarial_r1_r2_r5_stress.py, test_hud_telemetry_and_memory.py,
+  test_sandbox_compat_fallback.py, test_react_planner.py, test_browser_agent.py — tất cả pass
+tests/integration/test_sandbox_os_boundaries.py — tất cả pass (15 test, không hồi quy sau fix pipe)
+
+ruff check jarvis/agent tests/unit/test_react_agent.py tests/unit/test_agent_tool_runtime.py \
+  tests/unit/test_skill_synthesis.py jarvis/sandbox/security.py     — All checks passed!
+mypy jarvis/agent/graph.py jarvis/agent/tool_runtime.py jarvis/agent/__init__.py \
+  jarvis/sandbox/security.py (--follow-imports=silent)              — Success: no issues found in 4 source files
+py_compile (toàn bộ file đã sửa)                                    — exit 0
+git diff --check                                                    — exit 0
+
+tests/unit/ toàn bộ — 779 collected, 770 passed, 9 failed
+```
+
+- **9 lỗi còn lại đều là baseline không liên quan, đã biết từ trước** (nằm trong các khu vực NO-TOUCH của sprint này, giống hệt các sprint trước trên cùng baseline `e4bcd6d`): 8 lỗi `tests/unit/test_mobile_bridge.py` + 1 lỗi `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`. 779 − 736 (baseline `e4bcd6d`, xác nhận khớp với baseline đã tính trong sprint gesture/data trước đó trên cùng commit) = 43, khớp chính xác với 17 + 25 + 1 test mới. **Không có hồi quy mới nào do sprint này gây ra.**
+
+### Rà soát bảo mật pre-commit tiếp theo — phát hiện thêm 1 lỗi thật, vá 1 lỗ hổng test coverage
+
+Rà soát bảo mật line-by-line trên chính diff (không thêm tính năng) phát hiện fix pipe-deadlock ở trên tự nó tạo ra một hồi quy an toàn tài nguyên mới, và lấp một lỗ hổng test:
+
+- **`_drain_pipe()` không có giới hạn dữ liệu giữ lại.** Fix deadlock đã gỡ bỏ thứ DUY NHẤT trước đây giới hạn bộ nhớ phía tiến trình cha (JARVIS) khi capture pipe — chính cái deadlock đó, vốn vô tình giới hạn một script chạy vô hạn ở mức ~4KB trước khi nó tự chặn. Không có giới hạn rõ ràng, `while True: print(...)` có thể khiến thread đọc pipe tích lũy dữ liệu không giới hạn trong bộ nhớ tiến trình JARVIS suốt toàn bộ cửa sổ timeout, rất lâu trước khi truncation hậu-kỳ `_MAX_STDOUT_CAPTURE_BYTES` của `interpreter.py` kịp chạy. Đã sửa: `_drain_pipe()` giờ dừng append vào `output_chunks` khi đạt `_PIPE_READER_MAX_CAPTURE_BYTES = 1024 * 1024` (1MB), nhưng vẫn tiếp tục gọi `ReadFile` trong vòng lặp để pipe (và tiến trình con) không bao giờ bị chặn lại; byte vượt ngưỡng bị loại bỏ. Hằng số này cố ý độc lập với hằng số cùng tên trong `interpreter.py` (tránh circular import). Test hồi quy mới: `test_sandbox_runaway_output_does_not_grow_unbounded` (vòng lặp print vô hạn thật, timeout 1.5s, xác nhận thời gian có giới hạn và `len(stdout) < 2MB`).
+- **Lấp lỗ hổng test**: chưa có test nào trước đây ghi dữ liệu nặng/xen kẽ vào `stderr` cụ thể qua sandbox thật (stdout và stderr dùng chung một pipe, `hStdOutput == hStdError`, hành vi có sẵn từ trước, không đổi). Thêm `test_sandbox_mixed_stdout_stderr_heavy_output_does_not_deadlock`.
+- Xác nhận lại sau fix: toàn bộ test sandbox/agent chạy sạch; `ruff`/`mypy`/`py_compile`/`git diff --check` sạch; `tests/unit/` toàn bộ — 781 collected, 772 passed, vẫn đúng 9 lỗi baseline cũ, không hồi quy mới.
+- Không phát hiện nào khác đạt mức "chặn" trong lượt rà soát này. Xác nhận không đổi: tạo Restricted Token, integrity level, tham số `CreateProcessAsUserW`, gán/kill-on-close Job Object, scrub môi trường, AST validation, chính sách compatibility fallback, security preamble — toàn bộ diff vào `security.py` qua cả hai lượt chỉ giới hạn ở *khi nào*/*bao nhiêu* dữ liệu pipe được đọc, không đụng bất kỳ ngữ nghĩa cô lập/phân quyền nào. `_tool_write_file`/`_tool_read_file`/... vẫn giữ nguyên byte-for-byte — không có cơ chế an toàn thứ hai/tùy biến nào được thêm vào.
+
+### Giới hạn an ninh còn lại (audit đầy đủ, cố ý không sửa trong sprint này)
+
+- **Mọi agent tool builtin (`write_file`, `read_file`, `browser_open`, `screenshot`, `send_telegram`, `list_dir`, `git_status`) vẫn hoàn toàn bỏ qua `ActionDispatcher`/`SafetyGateInterceptor`** — `_act()` gọi `tool.fn(**args)` trực tiếp, không qua RBAC, không qua phân loại rủi ro/safety-gate trung tâm từ Phase 2. Cụ thể: `write_file` có thể ghi đè bất kỳ đường dẫn nào tiến trình JARVIS có quyền ghi, không có allowlist đường dẫn; `browser_open` có thể điều hướng trình duyệt tới bất kỳ URL nào dưới sự điều khiển của LLM/agent goal. **Cố ý không sửa** — wiring toàn bộ tool builtin qua `ActionDispatcher` là một tích hợp lớn hơn nhiều so với "smallest coherent hardening" của sprint này, và theo đúng chỉ thị, không tự phát minh một cơ chế an toàn thứ hai (path allowlist riêng, confirmation giả) để vá tạm — để lại cho một tích hợp tập trung, có chủ đích trong tương lai. `ReActAgent` hiện **không được import ở bất kỳ đâu khác trong `jarvis/`**, nên bán kính ảnh hưởng production hiện tại là 0.
+- `_tool_git_status` dùng `subprocess.run` với argv cố định — an toàn khỏi command injection (không có input người dùng nào được nội suy vào lệnh), nhưng vẫn bỏ qua dispatcher như các tool khác ở trên.
+- `_tool_send_telegram` gửi tin nhắn trực tiếp qua `TelegramBotController`, bỏ qua dispatcher — vì "gửi tin nhắn" không được `SafetyGateInterceptor` phân loại là hành động rủi ro cao, việc route qua dispatcher (nếu có) cũng sẽ không chặn được hành vi này; ghi nhận cho đầy đủ, không phải lỗ hổng mới.
+- Rò rỉ sentinel cosmetic (`\x02...\x03`) trong `SandboxResult.stdout` khi child dùng line ending CRLF — không phải lỗ hổng an ninh, không sửa tại nguồn (`jarvis/sandbox/security.py`), chỉ dọn dẹp phòng thủ phía agent (xem Fix 2).
+
+### Giới hạn đã biết khác
+
+- `ReActAgent` vẫn chưa wiring vào `ActionDispatcher`/`app.py`/router — cố ý, ngoài phạm vi sprint này (không bắt đầu Phase 3 LLM routing theo đúng chỉ thị).
+- Chưa chạy CI cho nhánh này; chưa commit, chưa push, chưa mở PR.
+- 9 lỗi baseline không liên quan (mobile_bridge, proactive health-monitor) vẫn còn nguyên — không được sửa theo đúng chỉ thị của sprint.
+
+---
+
 ## 🚀 Chưa phát hành (2026-08-30) — Central Safety-Layer Hardening (Phase 2)
 
 > Nhánh làm việc: `feat/safety-layer-hardening`, dựa trên `main` sau khi cả PR #8 (Wake Word Phase 1) và PR #9 (Sandbox CI Compatibility Fix) đã được merge (`35713b9`). Nhánh này **độc lập** với hai PR trên — không đụng `jarvis/sandbox/*` hay `jarvis/audio/wake_word.py`.
