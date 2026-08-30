@@ -199,13 +199,16 @@ logger = logging.getLogger("jarvis.skills.{name}")
 
     def synthesize_skill(
         self,
-        name: str,
-        code: str,
+        name: str = "",
+        code: str = "",
         description: str = "",
         parameters_schema: dict[str, Any] | None = None,
         tags: list[str] | None = None,
         entrypoint_function: str = "execute",
         target_dir: str | Path | None = None,
+        metadata: "SkillMetadata | None" = None,
+        requirements: list[str] | None = None,
+        overwrite: bool = False,
     ) -> SkillDefinition:
         """
         Synthesize, format, and package source code into a permanent SkillDefinition and save to disk.
@@ -218,14 +221,35 @@ logger = logging.getLogger("jarvis.skills.{name}")
             tags: Optional domain classification tags.
             entrypoint_function: Name of main entrypoint callable.
             target_dir: Optional override directory for skill storage.
+            metadata: Optional pre-built SkillMetadata object. If provided, name/description
+                      are extracted from it.
+            requirements: Optional list of pip requirements (stored in metadata.json).
+            overwrite: If True, overwrite existing skill with same name.
             
         Returns:
             Packaged SkillDefinition instance.
         """
+        # If metadata object provided, extract fields from it
+        if metadata is not None:
+            if not name:
+                name = metadata.name
+            if not description:
+                description = metadata.description
+            if tags is None and metadata.tags:
+                tags = metadata.tags
+
         # Normalize skill name
         clean_name = re.sub(r"[^a-zA-Z0-9_]", "_", name.lower().strip()).strip("_")
         if not clean_name:
             clean_name = f"skill_{int(time.time())}"
+
+        # Handle overwrite: delete existing skill dir if requested
+        if overwrite:
+            base_dir = Path(target_dir).resolve() if target_dir else self.skills_dir
+            existing = base_dir / clean_name
+            if existing.exists():
+                import shutil
+                shutil.rmtree(existing, ignore_errors=True)
 
         # Extract schema if not provided
         schema = parameters_schema or self.extract_parameters_schema_from_code(code, entrypoint_function)
@@ -240,19 +264,27 @@ logger = logging.getLogger("jarvis.skills.{name}")
             entrypoint_function=entrypoint_function,
         )
 
-        metadata = SkillMetadata(
-            name=clean_name,
-            version="1.0.0",
-            description=desc,
-            parameters_schema=schema,
-            tags=skill_tags,
-            synthesized_by="jarvis_agentic_synthesizer",
-            created_at=time.time(),
-            updated_at=time.time(),
-        )
+        # Build or update metadata
+        if metadata is not None:
+            # Use provided metadata, update fields that synthesizer controls
+            metadata.name = clean_name
+            metadata.parameters_schema = schema
+            metadata.tags = skill_tags
+            final_metadata = metadata
+        else:
+            final_metadata = SkillMetadata(
+                name=clean_name,
+                version="1.0.0",
+                description=desc,
+                parameters_schema=schema,
+                tags=skill_tags,
+                synthesized_by="jarvis_agentic_synthesizer",
+                created_at=time.time(),
+                updated_at=time.time(),
+            )
 
         skill_def = SkillDefinition(
-            metadata=metadata,
+            metadata=final_metadata,
             entrypoint_code=formatted_code,
             entrypoint_function=entrypoint_function,
         )

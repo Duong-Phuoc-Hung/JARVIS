@@ -149,7 +149,16 @@ class GUIActor:
             True if action succeeded and verified (if verify=True), False otherwise.
         """
         t0 = time.perf_counter()
-        screen_w, screen_h = self.computer_use.get_screen_size()
+        # Get screen dimensions - prefer vision_manager, fall back to computer_use
+        try:
+            size_result = self.vision_manager.get_screen_size()
+            screen_w, screen_h = size_result if size_result else (1920, 1080)
+        except (TypeError, ValueError, AttributeError):
+            try:
+                size_result = self.computer_use.get_screen_size()
+                screen_w, screen_h = size_result if size_result else (1920, 1080)
+            except (TypeError, ValueError, AttributeError):
+                screen_w, screen_h = 1920, 1080
         button_name = "right" if (right_click or button == "right") else button
         num_clicks = 2 if (double_click or clicks == 2) else clicks
 
