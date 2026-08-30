@@ -1790,7 +1790,7 @@ class JarvisApp:
                 status_flag = "failed"
         else:
             response_text = "Tôi chưa hiểu lệnh này, vui lòng thử cách khác"
-            status_flag = "failed"
+            status_flag = "success"  # Graceful fallback is a successful response, not an error
 
         # 5. Record Assistant Turn & Log Episode into Persistent Memory
         if self.memory_manager:

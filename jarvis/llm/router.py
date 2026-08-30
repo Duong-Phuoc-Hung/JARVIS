@@ -1662,6 +1662,10 @@ class LLMIntentRouter:
         Executes Two-Tier pipeline: Fast Rules -> LLM Tool Call -> Fallback Rules.
         """
         clean = text.strip()
+        # Truncate very long inputs early to prevent ReDoS and ensure < 5ms rule matching.
+        # Real voice/text commands are never > 512 chars; anything longer is malformed input.
+        _MAX_RULE_LEN = 512
+        clean = clean[:_MAX_RULE_LEN] if len(clean) > _MAX_RULE_LEN else clean
         clean_lower = clean.lower()
 
         # 1. TIER 1: Fast Rule Check (Sub-millisecond)
