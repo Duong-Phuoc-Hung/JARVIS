@@ -130,7 +130,7 @@ def _generate_spec_file() -> None:
             "[project.scripts] jarvis = \"jarvis.__main__:main\")"
         )
 
-    icon_arg = f"'{ICON_FILE}'" if ICON_FILE.exists() else "None"
+    icon_arg = repr(str(ICON_FILE)) if ICON_FILE.exists() else "None"
 
     # Data files are collected by absolute path so the spec behaves
     # identically regardless of the working directory it's invoked from.

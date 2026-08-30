@@ -16,6 +16,32 @@ from jarvis.core.logger import get_logger, setup_logging
 log = get_logger("jarvis.cli")
 
 
+_SINGLE_INSTANCE_MUTEX: Any = None
+
+
+def _acquire_single_instance_mutex() -> bool:
+    """Acquires a named Win32 mutex to prevent multiple instances from running concurrently."""
+    global _SINGLE_INSTANCE_MUTEX
+    if sys.platform != "win32":
+        return True
+    try:
+        import ctypes
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        ERROR_ALREADY_EXISTS = 183
+        mutex_name = "Local\\JARVIS_Assistant_SingleInstance_Mutex"
+        mutex = kernel32.CreateMutexW(None, False, mutex_name)
+        last_error = ctypes.get_last_error()
+        if last_error == ERROR_ALREADY_EXISTS:
+            log.warning("Another instance of JARVIS Assistant is already running. Exiting cleanly.")
+            _safe_print("[!] JARVIS đã đang chạy ở khay hệ thống hoặc chạy ngầm. Không thể mở thêm phiên bản thứ hai.")
+            return False
+        _SINGLE_INSTANCE_MUTEX = mutex
+        return True
+    except Exception as e:
+        log.debug("Failed checking single instance mutex: %s", e)
+        return True
+
+
 def _safe_print(text: str) -> None:
     """Print text safely across various Windows terminal encodings."""
     try:
@@ -302,6 +328,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     else:
         # Default or 'run' command
+        if not _acquire_single_instance_mutex():
+            return 0
         from jarvis.core.app import JarvisApp
         app = JarvisApp(
             config_path=args.config,

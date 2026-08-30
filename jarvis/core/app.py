@@ -169,6 +169,8 @@ class JarvisApp:
         self.welcome_executed = False
         self._pattern_last_fired: dict[str, float] = {}
         self._action_fanout_cooldown_s: float = 3.0
+        self._is_voice_interacting: bool = False
+        self._voice_lock = threading.Lock()
 
     def log_interaction(
         self,
@@ -1458,62 +1460,76 @@ class JarvisApp:
     ) -> None:
         """
         Executes asynchronous Voice Interaction Loop without blocking UI.
+        Enforces single-flight execution and acoustic echo suppression.
         """
+        with self._voice_lock:
+            if self._is_voice_interacting:
+                log.debug("Voice interaction already in progress. Suppressing trigger [%s].", trigger_name)
+                return
+            self._is_voice_interacting = True
+
         def _voice_loop():
-            if self.proactive_engine:
-                self.proactive_engine.record_user_activity()
+            try:
+                if self.proactive_engine:
+                    self.proactive_engine.record_user_activity()
 
-            if self.overlay:
-                self.overlay.show_listening(greeting_phrase)
-            if self.tts_manager and greeting_phrase:
-                self.tts_manager.speak(greeting_phrase, wait=False)
-
-            if self.tray_controller:
-                self.tray_controller.update_status(TrayStatus.LISTENING)
-
-            transcript = ""
-            if self.stt_engine:
-                try:
-                    audio_flat = self.record_audio()
-                    transcript = self.stt_engine.transcribe(audio_flat)
-                    log.info("Transcribed: '%s'", transcript)
-                except Exception as e:
-                    log.error("STT recording/transcription failed: %s", e)
-
-            if not transcript or not transcript.strip():
                 if self.overlay:
-                    self.overlay.show_response("(không nghe thấy)", "Tôi không nghe thấy gì. Vui lòng thử lại.")
-                if self.tts_manager:
-                    self.tts_manager.speak("Tôi không nghe thấy gì cả. Vui lòng thử lại.", wait=False)
+                    self.overlay.show_listening(greeting_phrase)
+                if self.tts_manager and greeting_phrase:
+                    # Wait for greeting to finish so the microphone doesn't capture speaker output
+                    self.tts_manager.speak(greeting_phrase, wait=True)
+
+                if self.tray_controller:
+                    self.tray_controller.update_status(TrayStatus.LISTENING)
+
+                transcript = ""
+                if self.stt_engine:
+                    try:
+                        audio_flat = self.record_audio()
+                        transcript = self.stt_engine.transcribe(audio_flat)
+                        log.info("Transcribed: '%s'", transcript)
+                    except Exception as e:
+                        log.error("STT recording/transcription failed: %s", e)
+
+                if not transcript or not transcript.strip():
+                    if self.overlay:
+                        self.overlay.show_response("(không nghe thấy)", "Tôi không nghe thấy gì. Vui lòng thử lại.")
+                    if self.tts_manager:
+                        self.tts_manager.speak("Tôi không nghe thấy gì cả. Vui lòng thử lại.", wait=True)
+                    if self.tray_controller:
+                        self.tray_controller.update_status(TrayStatus.ACTIVE)
+                    self.log_interaction(
+                        trigger=trigger_name,
+                        input_text="(silence)",
+                        action="none",
+                        response="Tôi không nghe thấy gì cả. Vui lòng thử lại.",
+                        status="failed",
+                    )
+                    return
+
+                if self.overlay:
+                    self.overlay.show_thinking(transcript)
+
+                response_text = ""
+                try:
+                    result = self.process_text_command(transcript, requester=trigger_name.lower())
+                    response_text = result.get("response_text", "")
+                except Exception as e:
+                    log.error("Command processing failed: %s", e)
+                    response_text = f"Xin lỗi, tôi gặp lỗi khi xử lý lệnh: {e}"
+                    if self.tts_manager:
+                        self.tts_manager.speak(response_text, wait=True)
+
+                if self.overlay:
+                    self.overlay.show_response(transcript, response_text)
+
                 if self.tray_controller:
                     self.tray_controller.update_status(TrayStatus.ACTIVE)
-                self.log_interaction(
-                    trigger=trigger_name,
-                    input_text="(silence)",
-                    action="none",
-                    response="Tôi không nghe thấy gì cả. Vui lòng thử lại.",
-                    status="failed",
-                )
-                return
-
-            if self.overlay:
-                self.overlay.show_thinking(transcript)
-
-            response_text = ""
-            try:
-                result = self.process_text_command(transcript, requester=trigger_name.lower())
-                response_text = result.get("response_text", "")
-            except Exception as e:
-                log.error("Command processing failed: %s", e)
-                response_text = f"Xin lỗi, tôi gặp lỗi khi xử lý lệnh: {e}"
-                if self.tts_manager:
-                    self.tts_manager.speak(response_text, wait=False)
-
-            if self.overlay:
-                self.overlay.show_response(transcript, response_text)
-
-            if self.tray_controller:
-                self.tray_controller.update_status(TrayStatus.ACTIVE)
+            finally:
+                # 1.0s cooldown to ensure speaker sound dissipates before re-arming wake word
+                time.sleep(1.0)
+                with self._voice_lock:
+                    self._is_voice_interacting = False
 
         threading.Thread(target=_voice_loop, daemon=True, name="JARVIS-VoiceInteraction").start()
 
