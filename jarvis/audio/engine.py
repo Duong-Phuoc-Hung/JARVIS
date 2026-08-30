@@ -169,6 +169,11 @@ class MicrophoneProbeManager:
         sd_mod = sd_module or sd
         devices = self.get_input_devices(sd_mod)
 
+        # If device list was explicitly provided (even empty), don't probe real soundcard
+        # since the caller controls the device universe — fallback to index 0 if empty
+        if self.devices is not None and not devices:
+            return 0
+
         # 1. Check override
         if override is not None and str(override).strip():
             spec = str(override).strip()

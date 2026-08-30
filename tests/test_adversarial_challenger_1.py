@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-from PIL import Image
+from PIL import Image, ImageGrab
 
 from jarvis.audio.dsp import calculate_rms
 from jarvis.audio.wake_word import (
