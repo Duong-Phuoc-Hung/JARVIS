@@ -7,7 +7,7 @@
 ;   3. File output: installer\JARVIS_Setup_v3.2.0.exe
 
 #define AppName "JARVIS AI Assistant"
-#define AppVersion "3.2.0"
+#define AppVersion "4.1.0"
 #define AppPublisher "Duong Phuoc Hung"
 #define AppURL "https://github.com/Duong-Phuoc-Hung/JARVIS"
 #define AppExeName "JARVIS.exe"
@@ -39,16 +39,16 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Tạo biểu tượng Desktop"; GroupDescription: "Tùy chọn:"; Flags: unchecked
-Name: "startmenushortcut"; Description: "Thêm vào Start Menu"; GroupDescription: "Tùy chọn:"; Flags: checked
+Name: "startmenushortcut"; Description: "Thêm vào Start Menu"; GroupDescription: "Tùy chọn:"
 Name: "autostart"; Description: "Khởi động cùng Windows"; GroupDescription: "Tùy chọn:"; Flags: unchecked
 
 [Files]
 Source: "..\dist\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\dist\JARVIS\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\JARVIS\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\requirements.txt"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs; Check: DirExists('..\assets')
+Source: "..\assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\assets\jarvis_icon.ico"
@@ -72,8 +72,10 @@ Filename: "taskkill"; Parameters: "/F /IM JARVIS.exe"; Flags: runhidden; RunOnce
 
 [Code]
 function InitializeSetup(): Boolean;
+var
+  ErrorCode: Integer;
 begin
   Result := True;
   // Kill existing JARVIS process if running
-  Exec('taskkill', '/F /IM JARVIS.exe', '', SW_HIDE, ewWaitUntilTerminated, 0);
+  Exec('taskkill', '/F /IM JARVIS.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
 end;
