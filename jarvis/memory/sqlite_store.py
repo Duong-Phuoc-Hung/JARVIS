@@ -71,7 +71,7 @@ class SQLiteMemoryStore:
                     conn.execute("""
                         CREATE TABLE IF NOT EXISTS facts (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            category TEXT NOT NULL CHECK(category IN ('profile', 'preference', 'habit', 'project', 'system', 'general')),
+                            category TEXT NOT NULL DEFAULT 'general',
                             key TEXT NOT NULL,
                             value TEXT NOT NULL,
                             confidence REAL NOT NULL DEFAULT 1.0,
@@ -177,6 +177,23 @@ class SQLiteMemoryStore:
 
     # ── Facts & Preferences API ──────────────────────────────────────────────
 
+    _VALID_CATEGORIES = frozenset({
+        'profile', 'preference', 'habit', 'project', 'system', 'general',
+        'location', 'test', 'work', 'personal', 'health', 'finance',
+        'security', 'task', 'reminder', 'contact', 'note',
+    })
+
+    def _normalize_category(self, category: str | None) -> str | None:
+        """Normalizes a category string. Unknown categories become 'general'.
+        Returns None if input is None (for queries that don't filter by category)."""
+        if category is None:
+            return None
+        cat = category.lower().strip()
+        if not cat:
+            return "general"
+        # Allow known categories through directly, map unknown ones to 'general'
+        return cat if cat in self._VALID_CATEGORIES else "general"
+
     def store_fact(
         self,
         key: str,
@@ -187,14 +204,13 @@ class SQLiteMemoryStore:
     ) -> bool:
         """
         Stores or updates a semantic fact using SQLite UPSERT.
-        Categories: 'profile', 'preference', 'habit', 'project', 'system', 'general'
+        Categories: 'profile', 'preference', 'habit', 'project', 'system', 'general', etc.
+        Unknown categories are silently mapped to 'general'.
         """
         if not key or not str(key).strip() or not value or not str(value).strip():
             return False
 
-        cat = category.lower().strip()
-        if cat not in ('profile', 'preference', 'habit', 'project', 'system', 'general'):
-            cat = "general"
+        cat = self._normalize_category(category) or "general"
 
         with self._lock:
             conn = self._get_connection()
@@ -223,13 +239,14 @@ class SQLiteMemoryStore:
         Updates access count and last_accessed_at timestamp.
         """
         clean_key = key.strip()
+        norm_cat = self._normalize_category(category)
         with self._lock:
             conn = self._get_connection()
             try:
-                if category:
+                if norm_cat:
                     cursor = conn.execute(
                         "SELECT * FROM facts WHERE category = ? AND key = ?",
-                        (category.lower().strip(), clean_key),
+                        (norm_cat, clean_key),
                     )
                 else:
                     cursor = conn.execute(
@@ -258,13 +275,14 @@ class SQLiteMemoryStore:
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Lists stored facts filtered by category, ordered by updated_at descending."""
+        norm_cat = self._normalize_category(category)
         with self._lock:
             conn = self._get_connection()
             try:
-                if category:
+                if norm_cat:
                     cursor = conn.execute(
                         "SELECT * FROM facts WHERE category = ? ORDER BY updated_at DESC LIMIT ?",
-                        (category.lower().strip(), limit),
+                        (norm_cat, limit),
                     )
                 else:
                     cursor = conn.execute(
@@ -277,14 +295,15 @@ class SQLiteMemoryStore:
 
     def delete_fact(self, key: str, category: str | None = None) -> bool:
         """Deletes a fact by key and optional category."""
+        norm_cat = self._normalize_category(category)
         with self._lock:
             conn = self._get_connection()
             try:
                 with conn:
-                    if category:
+                    if norm_cat:
                         cursor = conn.execute(
                             "DELETE FROM facts WHERE category = ? AND key = ?",
-                            (category.lower().strip(), key.strip()),
+                            (norm_cat, key.strip()),
                         )
                     else:
                         cursor = conn.execute(
