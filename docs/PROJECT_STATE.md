@@ -230,6 +230,93 @@ Push this branch and open a PR to observe the real GitHub Actions Windows Server
 
 ---
 
+## 0C. Central Safety-Layer Hardening (Phase 2, in progress, uncommitted)
+
+Snapshot: 2026-08-30. Branch `feat/safety-layer-hardening`, based on `main` **after** both PR #8 (Wake Word Phase 1) and PR #9 (Sandbox CI Compatibility Fix) were merged — `git log` confirms `main` HEAD `35713b9` (merge of PR #8) with `8c7e530` (merge of PR #9) as an ancestor. Local working-tree change, **not committed, not pushed, no PR opened**. Independent of both merged PRs — does not touch `jarvis/sandbox/*` or `jarvis/audio/wake_word.py`.
+
+### Audit performed first (per explicit instruction, before any implementation)
+
+Traced the actual, current safety architecture by reading code, not assuming from docs:
+
+- `SafetyGate` ([jarvis/automation/safety_gate.py](../jarvis/automation/safety_gate.py)) — generic two-phase token confirmation primitive (30s TTL, voice/text affirmative/negative phrase matching). Solid, reusable; **left unmodified** this phase.
+- `SafetyGateInterceptor` ([jarvis/planner/safety_interceptor.py](../jarvis/planner/safety_interceptor.py)) — risk classifier (`HIGH_RISK_ACTIONS`, prefix matching, `DANGEROUS_PATTERNS` regexes) wrapping `SafetyGate`, used by `ReActTaskEngine.execute_plan()` — but **only** when called with `mode=PlanMode.SAFETY_GATE`. Traced `execute_plan()`'s only real production caller, `JarvisApp._handle_planner_execute_task()` → invoked at `app.py`'s intent-routing block with no `mode` argument → always defaults to `PlanMode.FULLY_AUTONOMOUS` → the interceptor's `is_high_risk_node()` check was **dead in production**.
+- `ShellAssistant.is_destructive()` ([jarvis/automation/shell_assistant.py](../jarvis/automation/shell_assistant.py)) — its own, separate destructive-command regex/keyword gate, wired to the same shared `SafetyGate` instance but with duplicated, divergent classification logic from `SafetyGateInterceptor.DANGEROUS_PATTERNS`.
+- `IntentResult.requires_confirmation`/`confirmation_prompt` ([jarvis/llm/router.py](../jarvis/llm/router.py)) — a **third**, independent risk flag the LLM router computes for `system_power` (shutdown/restart/sleep) intents, with a ready Vietnamese confirmation prompt. Grepped the entire `jarvis/` tree for `requires_confirmation`: **read nowhere outside `router.py` itself.** Also confirmed `"system_power"` was not registered as a dispatcher action anywhere — so today this intent fails with `ACTION_NOT_FOUND` rather than executing unconfirmed; still a real, latent gap (would become live the moment a real handler is registered), closed here.
+- `ActionDispatcher.dispatch_action()`/`dispatch_action_async()` ([jarvis/core/dispatcher.py](../jarvis/core/dispatcher.py)) — the actual funnel for intent-routed voice/text commands, skills, Telegram, plugins, and (via `vision_click_ui`/`vision_type_ui`) `GUIActor`. Had **only** RBAC privilege interception; zero destructive-action awareness.
+- `GUIActor` ([jarvis/automation/gui_actor.py](../jarvis/automation/gui_actor.py)) — accepts a real, shared `SafetyGate` instance at construction (`app.py` wires `safety_gate=self.safety_gate`) but a full grep of the file showed it is **never called** — dead wiring giving false confidence. Traced its only two callers, `_handle_vision_click_ui`/`_handle_vision_type_ui`, and confirmed both are registered `ActionDispatcher` actions with no other (non-dispatcher) call site — meaning the dispatcher-level fix protects this path automatically, with no change to `gui_actor.py` needed or made.
+- Traced `ReActTaskEngine.execute_step()` precisely, per instruction: it has two real paths — `self._action_handlers` (populated via `register_action_handler()`/`custom_action_handlers`, **bypasses `ActionDispatcher` entirely**) and `self.dispatcher.dispatch_action(..., requester="planner")`. Grepped the whole tree: `register_action_handler`/`custom_action_handlers` is **never populated in production** (only in tests) — so today, every real planner node execution already reaches `ActionDispatcher`. The bypass path is real and reachable, though, so it is still covered (see "Fixes implemented" below), not left open just because production doesn't currently exercise it.
+
+### Fixes implemented
+
+1. **Single authoritative classifier** (`jarvis/planner/safety_interceptor.py`): `SafetyGateInterceptor.is_high_risk(action_name, parameters, explicit_flag=False)` generalizes the prior `is_high_risk_node(TaskNode)` (now a one-line wrapper over it, guaranteeing the two can never diverge). Adds deterministic `system_power`/`power_action` recognition (`SYSTEM_POWER_ACTION_NAMES`/`SYSTEM_POWER_DESTRUCTIVE_SUBACTIONS`: `shutdown`/`restart`/`reboot`/`poweroff`/`power_off`/`sleep`/`hibernate`, explicitly excluding `lock`) — matched against the actual `action_name="system_power"`, `parameters={"action": ...}` shape the real `LLMIntentRouter` emits (verified by reading `router.py`), never against `IntentResult.requires_confirmation`.
+2. **Pending-action binding layer** (`jarvis/planner/safety_interceptor.py`, `SafetyGate` itself untouched): `gate(action_name, parameters)` issues a token via the existing `SafetyGate.request_confirmation()`, storing `{"action_name", "parameters"}`. `verify(token, action_name, parameters)` — under an interceptor-owned `RLock` — requires the token to be known, not already consumed, not expired, not rejected, `status == "CONFIRMED"`, and an **exact** match on both `action_name` and `parameters`; only then marks it consumed in an interceptor-local `_consumed_tokens` set. `intercept_node()` (the pre-existing planner-facing method) was left behavior-unchanged but already stored the same `{"action_name", "parameters"}` shape (plus `step_id`), so tokens it issues are `verify()`-compatible without any change to it.
+3. **`ActionDispatcher` primary enforcement point** (`jarvis/core/dispatcher.py`): new `_evaluate_safety_gate(action_name, payload, confirmation_token, context)` helper, called from both `dispatch_action()` and `dispatch_action_async()` after the existing privilege check and before handler execution. Not risky → `None` (unchanged behavior). Risky + no/invalid token → failed `ActionResult` (`error_code="CONFIRMATION_REQUIRED"` or `"CONFIRMATION_<reason>"`, token included in `data`), handler never runs. Risky + `verify()`-passing token → proceeds to execute. New constructor param `safety_interceptor` (lazily imports and default-constructs `SafetyGateInterceptor()` if omitted, to avoid a circular import with `jarvis.planner` at module scope and to keep bare `ActionDispatcher()` protected by default in tests); new `set_safety_interceptor()` setter. **Explicitly verified this check is not gated by `self.bypass_security`** — that flag's effect is unchanged (RBAC/privilege only).
+4. **Planner (`jarvis/planner/engine.py`)**: `execute_plan()`'s high-risk interception condition dropped its `mode == PlanMode.SAFETY_GATE` guard — it now applies to any `is_high_risk_node()`-classified node regardless of `PlanMode` (closes the dead-in-production gap; `FULLY_AUTONOMOUS` still skips gating for non-high-risk nodes, so low-risk autonomy is unaffected). Parameter interpolation (`dag.interpolate_node_params(node)`) was hoisted from immediately-before-dispatch to immediately-before-the-risk-check, in the same loop pass, so a gated token's stored `parameters` are byte-identical to what is later dispatched (no interpolation-timing mismatch against the new exact-match `verify()`). `execute_step()` now passes `confirmation_token=node.confirmation_token` into `dispatcher.dispatch_action()`, so a node the planner poll-loop already gated and confirmed is not re-gated a second, redundant time at the dispatcher (the dispatcher's own `verify()` still independently re-validates it — defense in depth, not a skip).
+5. **`GUIActor`: no code changes.** Confirmed (see audit above) its only two callers are dispatcher-registered actions; gating happens at that semantic boundary via the shared classifier scanning `query`/`text` string payloads against the existing `DANGEROUS_PATTERNS` — no new coordinate/keystroke heuristic was added, per explicit instruction to stay conservative here.
+6. **`SelfReflectionEngine`** (`jarvis/planner/reflection.py`): Case D (`ABORT`, not `RETRY`) now also matches `"confirmation"`, `"xác nhận"`, and the `"safety_gate_"` prefix (previously only the exact string `"safety_gate_rejected"` — `"safety_gate_expired"` fell through to blind `RETRY` before this change, a small pre-existing gap fixed incidentally). Prevents a gated/expired/rejected/mismatched high-risk action from causing a retry storm of fresh confirmation requests.
+7. **`jarvis/core/app.py`**: one line added — `self.dispatcher.set_safety_interceptor(self.safety_interceptor)` right after `self.safety_interceptor` is constructed — so the planner, the dispatcher, and (transitively, via `vision_click_ui`/`vision_type_ui`) `GUIActor` all resolve confirmation tokens against one shared `SafetyGate` instance. No other change to `app.py`; `_handle_planner_execute_task`'s existing `mode` string logic and the intent-routing dispatch call were **not** changed — they did not need to be, since gating is now enforced deterministically regardless of what mode string is passed.
+
+### Files changed
+
+- `jarvis/planner/safety_interceptor.py` — `is_high_risk()` (new, generalized), `SYSTEM_POWER_ACTION_NAMES`/`SYSTEM_POWER_DESTRUCTIVE_SUBACTIONS`, `gate()`/`verify()` (new binding layer), `_consumed_tokens`/`_verify_lock`.
+- `jarvis/core/dispatcher.py` — `_evaluate_safety_gate()` (new), `safety_interceptor` constructor param + `set_safety_interceptor()`, `confirmation_token` param on both `dispatch_action()`/`dispatch_action_async()`.
+- `jarvis/planner/engine.py` — `execute_plan()`'s interception condition and interpolation timing restructured; `execute_step()` forwards `confirmation_token`.
+- `jarvis/planner/reflection.py` — Case D match list extended.
+- `jarvis/core/app.py` — one line wiring `set_safety_interceptor()`.
+- `tests/unit/test_action_dispatcher_safety.py` — **new file**, 15 deterministic regression tests.
+
+No other tracked file is part of this change set. `jarvis/sandbox/*` and `jarvis/audio/wake_word.py` were not touched.
+
+### Validation results (this session, local Windows)
+
+Targeted (new file):
+```text
+python -m pytest tests/unit/test_action_dispatcher_safety.py -v --timeout=60 --tb=short
+15 passed, 4 subtests passed in 0.73s
+```
+
+Planner + ShellAssistant (existing tests most likely to regress from this change):
+```text
+python -m pytest tests/unit/test_react_planner.py tests/unit/test_shell_assistant.py -v --timeout=60 --tb=short
+56 passed in 1.25s
+```
+
+All other test files independently confirmed to exercise `ActionDispatcher` (`test_adversarial_r1_r2_r5_stress.py`, `test_app_integration.py`, `test_background_workers.py`, `test_gesture_detector.py`, `test_hud_telemetry_and_memory.py`, `test_llm_engine.py`, `test_plugins_m2.py`, `test_skill_synthesis.py`, `test_ui_dashboard.py`): exit code 0, no failures.
+
+Full `tests/unit/`:
+```text
+python -m pytest tests/unit/ -q --timeout=120 --tb=short
+exit 0, no failures
+```
+Exact collected count (`pytest --collect-only -q`, summed per-file — this repo's pytest config does not print a final grand-total summary line, confirmed pre-existing in earlier sessions too): **736**. This branch's baseline, after PR #8 (+30) and PR #9 (+40) on top of the earlier 651, is 651+30+40 = **721**; 736 − 721 = exactly the 15 new tests in `test_action_dispatcher_safety.py`. No regressions.
+
+Static analysis:
+```text
+ruff check jarvis/planner/safety_interceptor.py jarvis/core/dispatcher.py jarvis/planner/engine.py jarvis/planner/reflection.py jarvis/core/app.py tests/unit/test_action_dispatcher_safety.py
+All checks passed!
+
+ruff check jarvis tests scripts/build_installer.py
+Found 3 errors -- all in tests/integration/test_sandbox_os_boundaries.py and tests/unit/test_zalo_bot.py, both PRE-EXISTING on the merged main baseline (unrelated to this change; already documented in section 0B above).
+
+mypy jarvis
+Success: no issues found in 157 source files
+```
+`py_compile` on all 5 changed source files + the new test file: exit 0.
+`git diff --check`: exit 0.
+
+### Known limitations / confirmed follow-ups
+
+- **The full "user says yes → original action automatically re-executes" voice/UX loop is not built.** `_handle_safety_gate_confirm()` only flips `SafetyGate` status to `CONFIRMED`; nothing in `app.py` today automatically re-dispatches the original gated action with the resulting token. A caller (including the existing voice/text command pipeline) must explicitly call `dispatch_action(action_name, payload, confirmation_token=token)` again with the identical action_name/payload. This mirrors a pre-existing, equally-incomplete limitation already present in `ShellAssistant.execute_natural_command()`'s own gate (documented in this same file's git history) — not a regression introduced here, and not requested in scope for Phase 2.
+- `IntentResult.requires_confirmation`/`confirmation_prompt` remains unread anywhere in `jarvis/`. It is no longer a safety gap (the deterministic classifier now recognizes `system_power` independently), but it is still orphaned data; wiring it in as a nicer confirmation-prompt hint (not as a security decision) would be a reasonable, small future task, not required.
+- CI has not been run for this branch yet.
+- `jarvis/skills/*/metadata.json` telemetry files mutated by running `tests/unit/` this session were restored (`git checkout --`) before finishing; not part of this change set.
+
+### Recommended next task
+
+Push this branch and open a PR into `main`. Once CI is green, consider (separately, not required) wiring `_handle_safety_gate_confirm()` to actually re-dispatch the originally-gated action, and/or surfacing `IntentResult.confirmation_prompt` as the gate's description text for a nicer spoken confirmation prompt.
+
+---
+
 ## 1. Current state summary
 
 JARVIS is currently at source version **4.1.0** and has completed a 13-round deep Adversarial Technical Audit, establishing true OS Kernel-level sandboxing (Windows MIC + Job Object) and empirical hardware benchmarking.

@@ -245,13 +245,25 @@ class ActionDispatcher:
         self,
         event_bus: EventBus | None = None,
         privilege_interceptor: Callable[..., bool] | None = None,
-        bypass_security: bool = False
+        bypass_security: bool = False,
+        safety_interceptor: Any | None = None,
     ) -> None:
         self.event_bus = event_bus or EventBus()
         self._actions: dict[str, ActionDefinition] = {}
         self._privilege_interceptor = privilege_interceptor or default_privilege_interceptor
         self.bypass_security = bypass_security
         self._lock = threading.RLock()
+        # Destructive-action safety gate (SafetyGateInterceptor). Imported
+        # lazily here -- never at module scope -- to avoid a circular
+        # import (jarvis.planner.engine imports ActionDispatcher from this
+        # module). NOTE: this is intentionally NOT affected by
+        # `bypass_security` above, which only ever controls RBAC/privilege
+        # checks; destructive-action confirmation is a separate concern
+        # and must never be skippable through that flag.
+        if safety_interceptor is None:
+            from jarvis.planner.safety_interceptor import SafetyGateInterceptor
+            safety_interceptor = SafetyGateInterceptor()
+        self.safety_interceptor = safety_interceptor
 
     def register_action(
         self,
@@ -316,6 +328,85 @@ class ActionDispatcher:
             raise ValueError("Privilege interceptor must be callable.")
         self._privilege_interceptor = interceptor
 
+    def set_safety_interceptor(self, interceptor: Any) -> None:
+        """
+        Replace the destructive-action safety interceptor (SafetyGateInterceptor).
+        Used to share one interceptor/SafetyGate instance across subsystems
+        (planner, dispatcher) instead of each holding its own.
+        """
+        self.safety_interceptor = interceptor
+
+    def _evaluate_safety_gate(
+        self,
+        action_name: str,
+        payload: dict[str, Any],
+        confirmation_token: str | None,
+        context: RequesterContext,
+    ) -> ActionResult | None:
+        """
+        Primary destructive-action enforcement point, shared by both
+        `dispatch_action` and `dispatch_action_async`. Returns None if the
+        action may proceed to handler execution (either it is not
+        classified as high-risk, or a valid, exactly-matching confirmation
+        token was supplied). Otherwise returns a failed ActionResult and
+        the handler must NOT run.
+
+        This check runs unconditionally -- it is NOT affected by
+        `self.bypass_security`, which only ever bypasses RBAC/privilege
+        checks (see __init__).
+        """
+        if not self.safety_interceptor.is_high_risk(action_name, payload):
+            return None
+
+        if confirmation_token:
+            ok, reason = self.safety_interceptor.verify(confirmation_token, action_name, payload)
+            if ok:
+                return None
+            logger.warning(
+                "Confirmation rejected for action '%s' (requester=%s): %s",
+                action_name, context.requester_id, reason,
+            )
+            self.event_bus.publish(
+                "security.confirmation_rejected",
+                action_name=action_name,
+                requester_id=context.requester_id,
+                reason=reason,
+            )
+            return ActionResult(
+                action_name=action_name,
+                success=False,
+                error=(
+                    f"Xác nhận không hợp lệ cho hành động '{action_name}' rủi ro cao "
+                    f"({reason}), thưa Ngài."
+                ),
+                error_code=f"CONFIRMATION_{reason}",
+                requester=context.requester_id,
+            )
+
+        token = self.safety_interceptor.gate(action_name, payload, event_bus=self.event_bus)
+        logger.warning(
+            "Action '%s' gated pending confirmation (requester=%s, token=%s)",
+            action_name, context.requester_id, token,
+        )
+        return ActionResult(
+            action_name=action_name,
+            success=False,
+            error=(
+                f"Hành động '{action_name}' yêu cầu xác nhận trước khi thực thi do có rủi ro "
+                f"cao, thưa Ngài. (Mã xác nhận: {token})"
+            ),
+            error_code="CONFIRMATION_REQUIRED",
+            data={
+                "confirmation_token": token,
+                "risk_level": "high",
+                "message": (
+                    f"Hành động '{action_name}' yêu cầu xác nhận trước khi thực thi do có "
+                    f"rủi ro cao, thưa Ngài. (Mã xác nhận: {token})"
+                ),
+            },
+            requester=context.requester_id,
+        )
+
     def is_authorized(
         self,
         action_name: str,
@@ -340,7 +431,8 @@ class ActionDispatcher:
         action_name: str,
         payload: dict[str, Any] | None = None,
         requester: str | RequesterContext = "system",
-        timeout: float | None = None
+        timeout: float | None = None,
+        confirmation_token: str | None = None,
     ) -> ActionResult:
         """Synchronously dispatch and execute an action."""
         t0 = time.perf_counter()
@@ -394,10 +486,16 @@ class ActionDispatcher:
                     requester=context.requester_id
                 )
 
-        # 3. Pre-Dispatch Event
+        # 3. Destructive-Action Safety Gate (independent of bypass_security)
+        gated_result = self._evaluate_safety_gate(action_name, payload, confirmation_token, context)
+        if gated_result is not None:
+            gated_result.execution_time_ms = (time.perf_counter() - t0) * 1000.0
+            return gated_result
+
+        # 4. Pre-Dispatch Event
         self.event_bus.publish("action.pre_dispatch", action_name=action_name, requester=context.requester_id)
 
-        # 4. Handler Execution
+        # 5. Handler Execution
         effective_timeout = timeout or action_def.timeout_seconds
         try:
             if action_def.is_async:
@@ -442,7 +540,8 @@ class ActionDispatcher:
         action_name: str,
         payload: dict[str, Any] | None = None,
         requester: str | RequesterContext = "system",
-        timeout: float | None = None
+        timeout: float | None = None,
+        confirmation_token: str | None = None,
     ) -> ActionResult:
         """Asynchronously dispatch and execute an action with non-blocking concurrency."""
         t0 = time.perf_counter()
@@ -485,6 +584,11 @@ class ActionDispatcher:
                     execution_time_ms=elapsed,
                     requester=context.requester_id
                 )
+
+        gated_result = self._evaluate_safety_gate(action_name, payload, confirmation_token, context)
+        if gated_result is not None:
+            gated_result.execution_time_ms = (time.perf_counter() - t0) * 1000.0
+            return gated_result
 
         await self.event_bus.publish_async("action.pre_dispatch", action_name=action_name, requester=context.requester_id)
 

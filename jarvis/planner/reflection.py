@@ -169,8 +169,18 @@ class SelfReflectionEngine:
                     backoff_seconds=0.5,
                 )
 
-        # Case D: Permission Denied or Explicit Safety Rejection -> ABORT
-        if "permission_denied" in err_lower or "safety_gate_rejected" in err_lower or "user_cancelled" in err_lower:
+        # Case D: Permission Denied or Explicit Safety Rejection/Expiry -> ABORT
+        # ("safety_gate_" covers both "safety_gate_rejected" and
+        # "safety_gate_expired"; "confirmation"/"xác nhận" cover
+        # ActionDispatcher-level CONFIRMATION_* refusals -- see
+        # jarvis/core/dispatcher.py's _evaluate_safety_gate().)
+        if (
+            "permission_denied" in err_lower
+            or "safety_gate_" in err_lower
+            or "user_cancelled" in err_lower
+            or "confirmation" in err_lower
+            or "xác nhận" in err_lower
+        ):
             return ReflectionResult(
                 step_id=node.step_id,
                 strategy=RecoveryStrategy.ABORT,

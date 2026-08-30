@@ -2,6 +2,37 @@
 
 ---
 
+## 🚀 Chưa phát hành (2026-08-30) — Central Safety-Layer Hardening (Phase 2)
+
+> Nhánh làm việc: `feat/safety-layer-hardening`, dựa trên `main` sau khi cả PR #8 (Wake Word Phase 1) và PR #9 (Sandbox CI Compatibility Fix) đã được merge (`35713b9`). Nhánh này **độc lập** với hai PR trên — không đụng `jarvis/sandbox/*` hay `jarvis/audio/wake_word.py`.
+
+Rà soát kiến trúc an toàn hiện có (không phải audit lại từ đầu) xác nhận: JARVIS đã có 4 cơ chế xác nhận/rủi ro **độc lập, không liên kết** — `SafetyGate` (nguyên thủy token 2 pha), `SafetyGateInterceptor` (bộ phân loại rủi ro dùng cho planner, chỉ kích hoạt khi `PlanMode.SAFETY_GATE`), `ShellAssistant.is_destructive()` (bộ phân loại riêng, trùng lặp logic), và `IntentResult.requires_confirmation` (cờ do LLM router tính cho shutdown/reboot/sleep). Điểm hội tụ thực sự — `ActionDispatcher.dispatch_action()`/`dispatch_action_async()`, nơi hầu hết lệnh thoại/text/Telegram/GUIActor thực sự được thực thi — **không có bất kỳ nhận biết rủi ro nào**, chỉ kiểm tra RBAC. Nghiêm trọng nhất: `IntentResult.requires_confirmation`/`confirmation_prompt` mà router tính cho lệnh tắt máy/khởi động lại/ngủ **không được bất kỳ nơi nào trong `jarvis/` đọc lại** — xác nhận bằng grep toàn bộ cây mã nguồn.
+
+### Thiết kế cuối cùng
+
+- **Bộ phân loại dùng chung, tất định** (`SafetyGateInterceptor.is_high_risk(action_name, parameters, explicit_flag=...)`): tổng quát hóa từ `is_high_risk_node()` cũ (vẫn giữ nguyên hành vi làm wrapper mỏng), bổ sung nhận diện tất định cho `system_power`/`power_action` với sub-action `shutdown`/`restart`/`reboot`/`sleep`/`poweroff`/`hibernate` (không bao gồm `lock`) — **không phụ thuộc** vào cờ `IntentResult.requires_confirmation` của LLM router cho quyết định an toàn.
+- **Lớp ràng buộc token mới** (`SafetyGateInterceptor.gate()`/`.verify()`, hoàn toàn nội bộ, không sửa `SafetyGate`): một token xác nhận giờ bị khóa chặt vào đúng cặp `(action_name, parameters)` đã được duyệt tại thời điểm cấp — sai action hoặc payload đã sửa đổi đều bị từ chối — và **dùng một lần**: sau khi `verify()` thành công một lần, token đó không bao giờ dùng lại được (chặn replay), kể cả khi vẫn còn hạn và vẫn ở trạng thái CONFIRMED trên `SafetyGate`.
+- **`ActionDispatcher` là điểm thực thi an toàn trung tâm** cho cả `dispatch_action()` (đồng bộ) lẫn `dispatch_action_async()` (bất đồng bộ), qua một helper `_evaluate_safety_gate()` dùng chung: chạy sau bước kiểm tra RBAC, trước khi handler thực thi. Hành động benign hoàn toàn không đổi. `ActionDispatcher.bypass_security=True` **không** ảnh hưởng đến lớp an toàn mới này — cờ đó vẫn chỉ chi phối RBAC như trước.
+- **Planner (`ReActTaskEngine.execute_plan()`)**: điều kiện chặn node rủi ro cao giờ áp dụng **bất kể `PlanMode`** (trước đây chỉ áp dụng khi gọi tường minh `PlanMode.SAFETY_GATE` — nhưng caller sản xuất thực tế, `_handle_planner_execute_task`, luôn dùng `PlanMode.FULLY_AUTONOMOUS` mặc định, khiến cơ chế chặn gần như chết trong production). Nội suy tham số (`interpolate_node_params`) được dời lên chạy trước bước kiểm tra rủi ro (thay vì ngay trước khi dispatch), để token được cấp gắn đúng với tham số cuối cùng sẽ thực thi. `execute_step()` chuyển `node.confirmation_token` vào `dispatcher.dispatch_action()` để không bị chặn lần hai một cách vô ích. Vì việc chặn giờ xảy ra trước khi chọn nhánh thực thi, đường vòng qua handler tùy chỉnh (`register_action_handler()`, hiện không dùng trong production nhưng vẫn khả dụng) cũng được bảo vệ mà không cần patch riêng.
+- **`GUIActor`: không sửa gì.** Hai điểm gọi duy nhất của nó, `vision_click_ui`/`vision_type_ui`, đã là action đăng ký trên `ActionDispatcher` — nên đã được chặn tự động tại đúng ranh giới ngữ nghĩa (chuỗi `query`/`text` được quét qua cùng `DANGEROUS_PATTERNS` đã có), không cần phát minh heuristic tọa độ/phím bấm mới cho GUIActor.
+- **`SelfReflectionEngine`**: bổ sung nhỏ để lỗi có mã `CONFIRMATION_*` (hoặc chuỗi tiếng Việt "xác nhận") dẫn đến `ABORT` thay vì `RETRY` mù quáng — tránh việc planner spam yêu cầu xác nhận mới liên tục.
+- Không sửa `SafetyGate`, hành vi `ShellAssistant.is_destructive()`, hay bất kỳ bảo đảm bảo mật nào của `jarvis/sandbox/*`/`jarvis/audio/wake_word.py`.
+
+### Test hồi quy (`tests/unit/test_action_dispatcher_safety.py`, file mới)
+
+- 15 test tất định: dispatch benign đồng bộ/bất đồng bộ không đổi hành vi; dispatch rủi ro đồng bộ/bất đồng bộ không thực thi trước khi xác nhận; shutdown/restart/reboot/sleep bị chặn tất định (và `lock` không bị chặn nhầm, kiểm tra độ chính xác); hành động đã xác nhận thực thi đúng một lần; replay token thất bại; hành động bị từ chối không bao giờ thực thi; token hết hạn không bao giờ thực thi; token của action A không xác nhận được action B; token của payload X không xác nhận được payload Y đã sửa; `bypass_security=True` không bỏ qua lớp an toàn mới; và 2 test tái hiện đúng kịch bản audit — node rủi ro cao qua đường `register_action_handler()` (bỏ qua `ActionDispatcher`) vẫn bị chặn dù chạy ở `PlanMode.FULLY_AUTONOMOUS` mặc định của production.
+- Kết quả xác nhận thực tế (chạy cục bộ): `test_action_dispatcher_safety.py` — **15 passed**. Toàn bộ `tests/unit/` — **736 passed, 0 failed** (baseline nhánh này, sau khi PR #8 + PR #9 đã merge vào `main`, là 721 — cộng đúng 15 test mới).
+- Ruff (`jarvis/planner/safety_interceptor.py`, `jarvis/core/dispatcher.py`, `jarvis/planner/engine.py`, `jarvis/planner/reflection.py`, `jarvis/core/app.py`, file test mới): sạch. `ruff check jarvis tests scripts/build_installer.py` báo 3 lỗi — cả 3 đều là lỗi **đã tồn tại từ trước** (`tests/integration/test_sandbox_os_boundaries.py`, `tests/unit/test_zalo_bot.py`), không liên quan đến thay đổi này. `mypy jarvis` — sạch, 157 file nguồn. `py_compile` các file đã sửa — exit 0. `git diff --check` — exit 0.
+- **Chưa claim CI đã chạy** — CI cho nhánh này chưa được kích hoạt.
+
+### Giới hạn đã biết / theo dõi tiếp
+
+- Chưa xây dựng luồng UX "nói đồng ý → tự động thực thi lại" đầu-cuối tại tầng thoại/`app.py` — `_handle_safety_gate_confirm()` hiện chỉ chuyển trạng thái `SafetyGate` sang CONFIRMED, không tự re-dispatch hành động gốc; caller (kể cả voice pipeline hiện tại) phải tự gọi lại `dispatch_action(..., confirmation_token=...)`. Đây là giới hạn đã tồn tại từ trước tương tự với `ShellAssistant` (không phải hồi quy do thay đổi này), chưa được yêu cầu giải quyết trong phạm vi Phase 2 này.
+- `IntentResult.requires_confirmation`/`confirmation_prompt` vẫn tồn tại nhưng vẫn không được đọc ở đâu — không còn là lỗ hổng an toàn (vì `system_power` giờ được chặn tất định độc lập với cờ này), nhưng vẫn là dữ liệu "mồ côi"; có thể tận dụng làm prompt xác nhận đẹp hơn trong một tác vụ theo sau, không bắt buộc.
+- `jarvis/skills/*/metadata.json` (9 file) bị đổi do chạy `tests/unit/` trong phiên này đã được khôi phục (`git checkout --`) trước khi hoàn tất; không thuộc bộ thay đổi này.
+
+---
+
 ## 🚀 Chưa phát hành (2026-08-30) — Wake Word Reliability Hardening (Phase 1)
 
 > Nhánh làm việc: `feat/porcupine-wakeword-hardening`, đã được đồng bộ (fast-forward) lên baseline `main` mới nhất — v4.1.0, commit `2455fb6` — bao gồm toàn bộ phần cứng hóa an ninh/sandbox cấp OS Kernel của v4.1.0 được mô tả bên dưới. Mục Phase 1 này **không thay thế, không viết đè** mục v4.1.0; nó mô tả một nhánh tính năng riêng biệt, độc lập, **vẫn chưa commit**, nằm ngoài phạm vi an ninh/sandbox của v4.1.0.
