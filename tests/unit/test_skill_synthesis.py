@@ -316,12 +316,22 @@ while True:
 
     def test_sandbox_mixed_stdout_stderr_heavy_output_does_not_deadlock(self):
         """
-        stdout and stderr are redirected to the same pipe (hStdOutput ==
-        hStdError), a pre-existing design unchanged by the pipe-drain fix.
-        Interleaving heavy writes to both streams -- well past the ~4KB
-        deadlock threshold combined -- must still complete without hanging,
-        and content written after the heavy interleaving must still make it
-        through (proving the pipe never silently drops data once drained).
+        Interleaving heavy writes to both stdout and stderr -- well past the
+        ~4KB deadlock threshold combined -- must still complete without
+        hanging, and content written after the heavy interleaving must still
+        make it through (proving the pipe never silently drops data once
+        drained).
+
+        How stdout/stderr are split between the two streams is backend-
+        specific and deliberately NOT asserted here: on the primary OS
+        Restricted Token path they share one pipe (hStdOutput == hStdError),
+        so everything lands in `stdout`; on the explicit-opt-in
+        compatibility fallback path (used e.g. on CI runners hitting the
+        known 0xC0000142 Restricted Token bootstrap failure), stdout and
+        stderr are captured separately via `subprocess.Popen`. Only the
+        semantic contract that holds across both is checked: success,
+        completion without a timeout/deadlock, and that both heavy payloads
+        appear somewhere in the combined captured output.
         """
         code = """
 import sys
@@ -333,9 +343,10 @@ print('done-marker')
 """
         result = self.sandbox.execute_python(code, timeout_seconds=5.0)
         self.assertTrue(result.success, msg=f"sandbox call failed/timed out: {result.error}")
-        self.assertIn("done-marker", result.stdout)
-        self.assertIn("o" * 1000, result.stdout)
-        self.assertIn("e" * 1000, result.stdout)  # merged into the same stream, pre-existing behavior
+        combined = result.stdout + result.stderr
+        self.assertIn("done-marker", combined)
+        self.assertIn("o" * 1000, combined)
+        self.assertIn("e" * 1000, combined)
 
 
 class TestDynamicSkillSynthesizer(unittest.TestCase):
