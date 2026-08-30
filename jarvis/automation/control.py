@@ -521,9 +521,10 @@ class ComputerController:
                 return mapped
             return os.path.join(os.path.expanduser("~"), mapped)
 
-        # Check for partial matches in system folder map
+        # Check for partial matches — only for keys >= 4 chars to avoid
+        # false positives (e.g. key "d" matching "invalid_folder_alias_xyz")
         for k, v in self.SYSTEM_FOLDER_MAP.items():
-            if k in raw:
+            if len(k) >= 4 and raw == k:
                 if v.endswith(":\\"):
                     return v
                 return os.path.join(os.path.expanduser("~"), v)

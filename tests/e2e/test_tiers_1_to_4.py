@@ -51,6 +51,7 @@ import logging
 import os
 import queue
 import re
+import subprocess
 import sys
 import threading
 import time
