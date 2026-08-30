@@ -13,7 +13,9 @@ from typing import Any, Dict, List, Optional
 
 def _get_notes_file() -> Path:
     """Return path to notes storage file."""
-    p = Path("logs/notes.json")
+    import os as _os
+    _apd = _os.environ.get("LOCALAPPDATA") or _os.environ.get("APPDATA")
+    p = (Path(_apd) / "JARVIS" / "notes.json") if _apd else Path.home() / ".jarvis" / "notes.json"
     p.parent.mkdir(parents=True, exist_ok=True)
     if not p.exists():
         p.write_text("[]", encoding="utf-8")

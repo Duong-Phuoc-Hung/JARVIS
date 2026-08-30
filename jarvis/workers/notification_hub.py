@@ -24,7 +24,7 @@ from typing import Any
 
 log = logging.getLogger("jarvis.workers.notification_hub")
 
-_NOTIF_LOG = Path("logs/notifications.json")
+_NOTIF_LOG: Path | None = None  # resolved at runtime
 
 
 class Priority(Enum):

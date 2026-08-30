@@ -31,7 +31,7 @@ class BrowserConfig:
     viewport_height: int = 800
     timeout_ms: int = 30000
     downloads_dir: str = "downloads"
-    session_storage_dir: str = "logs/browser_sessions"
+    session_storage_dir: str = ""  # auto-resolved to AppData/JARVIS/browser_sessions
     cdp_endpoint: str = "http://127.0.0.1:9222"
     proxy: str | None = None
     accept_downloads: bool = True

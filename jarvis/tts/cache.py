@@ -27,7 +27,10 @@ class TTSAudioCache:
             if not self.cache_dir.name == "jarvis_welcome" and not (self.cache_dir / "jarvis_welcome").exists():
                 self.cache_dir = self.cache_dir / "jarvis_welcome"
         else:
-            self.cache_dir = Path(".cache/jarvis_welcome").resolve()
+            import os as _os, sys as _sys
+            _appdata = _os.environ.get("LOCALAPPDATA") or _os.environ.get("APPDATA")
+            _base = Path(_appdata) / "JARVIS" if (_appdata and _sys.platform == "win32") else Path.home() / ".jarvis"
+            self.cache_dir = (_base / "cache" / "tts").resolve()
 
         self.enabled = enabled
         if self.enabled:

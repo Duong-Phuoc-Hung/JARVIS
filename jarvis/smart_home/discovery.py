@@ -20,7 +20,7 @@ from pathlib import Path
 
 log = logging.getLogger("jarvis.smart_home.discovery")
 
-_REGISTRY_FILE = Path("logs/smart_home_devices.json")
+_REGISTRY_FILE: Path | None = None  # resolved at runtime
 
 
 @dataclass

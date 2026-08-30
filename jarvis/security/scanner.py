@@ -240,7 +240,7 @@ class NetworkScanner:
         try:
             proc = subprocess.run(
                 cmd,
-                capture_output=True,
+                capture_output=True, creationflags=getattr(__import__('subprocess'),'CREATE_NO_WINDOW',0),
                 text=True,
                 timeout=timeout,
             )
@@ -473,7 +473,7 @@ class PacketCapture:
         try:
             proc = subprocess.run(
                 cmd,
-                capture_output=True,
+                capture_output=True, creationflags=getattr(__import__('subprocess'),'CREATE_NO_WINDOW',0),
                 text=True,
                 timeout=duration + 5.0,
             )

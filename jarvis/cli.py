@@ -147,7 +147,7 @@ def run_health_check(config: ConfigManager) -> int:
     # 4. Persistent Memory Subsystem (R2 / Milestone 2)
     try:
         from jarvis.memory.sqlite_store import SQLiteMemoryStore
-        mem_db = config.get("memory.db_path", "logs/memory.db")
+        mem_db = config.get("memory.db_path") or str(data_path("memory.db"))
         store = SQLiteMemoryStore(db_path=mem_db)
         facts = store.list_facts()
         episodes = store.get_episodes(limit=5) if hasattr(store, "get_episodes") else store.list_episodes(limit=5)

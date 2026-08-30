@@ -37,7 +37,7 @@ _VIETNAMESE_STOPWORDS = {
 class VectorStoreConfig:
     max_documents: int = 10000
     similarity_threshold: float = 0.05
-    persist_path: str = "logs/vector_store.json"
+    persist_path: str = ""  # auto-resolved to AppData/JARVIS/vector_store.json
     auto_save: bool = True
 
 

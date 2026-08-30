@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import collections
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -30,7 +31,7 @@ class MemoryManager:
 
     def __init__(
         self,
-        db_path: str | Path = "logs/memory.db",
+        db_path: str | Path = "",  # auto-resolved to AppData/JARVIS/memory.db
         max_session_turns: int = 10,
     ) -> None:
         self.db_path = Path(db_path)
@@ -383,7 +384,7 @@ class MemoryManager:
             try:
                 from jarvis.memory.vector_store import SemanticVectorStore, VectorStoreConfig
                 self._vector_store = SemanticVectorStore(
-                    VectorStoreConfig(persist_path="logs/vector_store.json")
+                    VectorStoreConfig(persist_path=str(Path(os.environ.get("LOCALAPPDATA","~")) / "JARVIS" / "vector_store.json"))
                 )
             except Exception as exc:
                 logger.warning("Vector store init failed: %s — RAG disabled", exc)

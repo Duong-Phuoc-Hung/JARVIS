@@ -659,7 +659,9 @@ class DashboardServer:
         return {"success": False, "error": "ConfigManager unavailable."}
 
     def get_recent_logs(self, max_lines: int = 50) -> list[str]:
-        log_path = Path("logs/jarvis.log")
+        import os as _osd
+        _apd = _osd.environ.get("LOCALAPPDATA") or _osd.environ.get("APPDATA")
+        log_path = (Path(_apd) / "JARVIS" / "logs" / "jarvis.log") if _apd else Path.home() / ".jarvis" / "logs" / "jarvis.log"
         if not log_path.exists():
             return ["[INFO] Log file empty or initializing."]
         try:

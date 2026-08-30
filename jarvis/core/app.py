@@ -91,34 +91,8 @@ from jarvis.workers.notifications import WorkerNotificationDispatcher
 log = logging.getLogger("jarvis.core.app")
 
 
-def get_jarvis_data_dir() -> "Path":
-    """
-    Returns the writable per-user data directory for JARVIS.
-
-    Priority:
-      1. %LOCALAPPDATA%\\JARVIS  (Windows standard, always writable)
-      2. %APPDATA%\\JARVIS       (roaming, fallback)
-      3. ~/.jarvis               (Unix / last resort)
-
-    This is used instead of relative paths (e.g. 'logs/') which fail
-    when JARVIS is installed in protected directories like C:\\Program Files\\.
-    """
-    from pathlib import Path  # local import so module-level stays clean
-
-    local_app = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
-    if local_app:
-        data_dir = Path(local_app) / "JARVIS"
-    else:
-        data_dir = Path.home() / ".jarvis"
-
-    # Create on first access — never raises because these locations are writable
-    try:
-        data_dir.mkdir(parents=True, exist_ok=True)
-        (data_dir / "logs").mkdir(exist_ok=True)
-    except OSError:
-        pass
-
-    return data_dir
+# get_jarvis_data_dir is now in jarvis.core.paths
+from jarvis.core.paths import get_data_dir as get_jarvis_data_dir
 
 
 class JarvisApp:

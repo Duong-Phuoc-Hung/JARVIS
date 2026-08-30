@@ -30,7 +30,7 @@ class BrowserConfig:
     browser_type: str = "chromium"  # chromium | firefox | webkit
     slow_mo_ms: int = 50            # Chờ giữa các thao tác (ms)
     timeout_ms: int = 15000         # Timeout mặc định
-    screenshot_dir: str = "logs/screenshots"
+    screenshot_dir: str = ""  # auto-resolved to AppData/JARVIS/screenshots
     user_data_dir: str = ""         # Giữ cookie/session
     proxy: str | None = None
 

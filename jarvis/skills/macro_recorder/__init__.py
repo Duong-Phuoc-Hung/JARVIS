@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("jarvis.skills.macro_recorder")
 
-_MACROS_FILE = Path("logs/macros.json")
+_MACROS_FILE: Path | None = None  # resolved at runtime
 
 
 def _load_macros() -> dict[str, list[dict]]:

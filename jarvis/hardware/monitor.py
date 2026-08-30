@@ -433,7 +433,9 @@ class HardwareMonitor:
                     "-Command",
                     "Get-CimInstance -ClassName Win32_PerfFormattedData_Counters_ThermalZoneInformation -ErrorAction SilentlyContinue | Select-Object -ExpandProperty HighPrecisionTemperature | ConvertTo-Json",
                 ]
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=1.5)
+                _cflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=1.5,
+                                      creationflags=_cflags)
                 if proc.returncode == 0 and proc.stdout.strip():
                     raw_str = proc.stdout.strip()
                     data = json.loads(raw_str)

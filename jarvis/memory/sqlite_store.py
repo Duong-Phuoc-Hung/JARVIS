@@ -31,12 +31,17 @@ class SQLiteMemoryStore:
 
     def __init__(
         self,
-        db_path: str | Path = "logs/memory.db",
+        db_path: str | Path = "",  # auto-resolved to AppData/JARVIS/memory.db
         timeout: float = 10.0,
     ) -> None:
-        self.db_path = Path(db_path)
-        # Ensure parent directory exists (e.g. logs/)
-        if self.db_path.parent and not self.db_path.parent.exists():
+        import os as _os, sys as _sys
+        _raw = str(db_path) if db_path else ""
+        if not _raw:
+            _apd = _os.environ.get("LOCALAPPDATA") or _os.environ.get("APPDATA")
+            _base = Path(_apd) / "JARVIS" if _apd else Path.home() / ".jarvis"
+            _raw = str(_base / "memory.db")
+        self.db_path = Path(_raw)
+        if not self.db_path.parent.exists():
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         self.timeout = timeout

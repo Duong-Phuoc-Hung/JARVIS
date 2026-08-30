@@ -340,7 +340,8 @@ class SystemTrayController:
         self._on_open_dashboard()
 
     def _on_view_logs(self, icon: Any = None, item: Any = None) -> None:
-        log_path = os.path.abspath("logs/jarvis.log")
+        _apd2 = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        log_path = str(Path(_apd2) / "JARVIS" / "logs" / "jarvis.log") if _apd2 else os.path.expanduser("~/.jarvis/logs/jarvis.log")
         logger.info("Opening log file: %s", log_path)
         if os.path.exists(log_path):
             if sys.platform == "win32":

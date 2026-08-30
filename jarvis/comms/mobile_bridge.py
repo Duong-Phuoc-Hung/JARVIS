@@ -15,7 +15,7 @@ from typing import Any
 
 log = logging.getLogger("jarvis.comms.mobile_bridge")
 
-_TRANSFER_LOG = Path("logs/mobile_transfers.json")
+_TRANSFER_LOG: Path | None = None  # resolved at runtime to AppData/JARVIS/logs/
 _DEFAULT_SAVE_DIR = Path("downloads")
 
 _ALLOWED_EXTENSIONS = {

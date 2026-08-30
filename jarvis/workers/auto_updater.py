@@ -32,7 +32,7 @@ _GITHUB_API = f"https://api.github.com/repos/{_REPO}/releases/latest"
 _CHECK_INTERVAL_S = 6 * 3600   # 6 giờ
 _VERSION_FILE = Path("jarvis/__init__.py")
 _BACKUP_DIR = Path("backups/versions")
-_UPDATE_LOG = Path("logs/update_history.json")
+_UPDATE_LOG: Path | None = None  # resolved at runtime
 
 
 @dataclass

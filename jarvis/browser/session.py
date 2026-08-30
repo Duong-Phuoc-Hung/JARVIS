@@ -28,9 +28,18 @@ class BrowserSessionManager:
 
     def __init__(
         self,
-        storage_dir: str = "logs/browser_sessions",
-        db_path: str | None = "logs/memory.db",
+        storage_dir: str = "",  # auto-resolved to AppData/JARVIS/browser_sessions
+        db_path: str | None = None,  # auto-resolved to AppData/JARVIS/memory.db
     ) -> None:
+        import os as _os
+        if not storage_dir:
+            _apd = _os.environ.get("LOCALAPPDATA") or _os.environ.get("APPDATA")
+            _base = Path(_apd) / "JARVIS" if _apd else Path.home() / ".jarvis"
+            storage_dir = str(_base / "browser_sessions")
+        if db_path is None:
+            _apd2 = _os.environ.get("LOCALAPPDATA") or _os.environ.get("APPDATA")
+            _base2 = Path(_apd2) / "JARVIS" if _apd2 else Path.home() / ".jarvis"
+            db_path = str(_base2 / "memory.db")
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = db_path

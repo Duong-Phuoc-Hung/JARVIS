@@ -36,8 +36,15 @@ except ImportError:
 class FaceEmbeddingStorage:
     """Manages persistent local storage for enrolled face embeddings."""
 
-    def __init__(self, storage_path: str | Path = ".cache/biometrics/faces.json"):
-        self.storage_path = Path(storage_path)
+    def __init__(self, storage_path: str | Path = "") -> None:
+        # Resolve empty path to AppData/JARVIS/cache/biometrics/
+        import os as _os
+        _raw = str(storage_path) if storage_path else ""
+        if not _raw:
+            _apd = _os.environ.get("LOCALAPPDATA") or _os.environ.get("APPDATA")
+            _base = Path(_apd) / "JARVIS" if _apd else Path.home() / ".jarvis"
+            _raw = str(_base / "cache" / "biometrics" / "faces.json")
+        self.storage_path = Path(_raw)
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
         self.enrolled_faces: dict[str, list[float]] = {}
         self._load()

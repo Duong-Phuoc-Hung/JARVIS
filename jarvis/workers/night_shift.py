@@ -26,7 +26,7 @@ from typing import Any
 
 log = logging.getLogger("jarvis.workers.night_shift")
 
-_TASKS_FILE = Path("logs/night_shift_tasks.json")
+_TASKS_FILE: Path | None = None  # resolved at runtime to AppData/JARVIS/logs/
 
 # Keyword → action type mapping for task decomposition
 _STEP_KEYWORDS = [
@@ -156,7 +156,7 @@ class NightShiftWorker:
                 return {"success": True, "type": step_type, "result": "Báo cáo đã được tạo"}
             elif step_type == "save_file":
                 ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                p = Path(f"logs/night_output_{ts}.txt")
+                p = Path(os.environ.get("LOCALAPPDATA","")) / "JARVIS" / "logs" / f"night_output_{ts}.txt"
                 p.write_text(step, encoding="utf-8")
                 return {"success": True, "type": step_type, "result": f"Đã lưu: {p}"}
             elif step_type == "notify":
@@ -255,7 +255,7 @@ class NightShiftWorker:
     def _send_morning_report(self, task: NightShiftTask, report: str) -> None:
         """Send report via Telegram if configured."""
         try:
-            report_file = Path(f"logs/night_report_{task.task_id}.md")
+            report_file = Path(os.environ.get("LOCALAPPDATA","")) / "JARVIS" / "logs" / f"night_report_{task.task_id}.md"
             report_file.write_text(report, encoding="utf-8")
             log.info("Night shift report saved: %s", report_file)
         except Exception as exc:

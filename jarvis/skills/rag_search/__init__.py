@@ -6,6 +6,7 @@ Semantic Memory Search: vector-based recall across all JARVIS memories.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Dict, Optional
 
 log = logging.getLogger("jarvis.skills.rag_search")
@@ -17,7 +18,7 @@ def _get_store():
     global _STORE
     if _STORE is None:
         from jarvis.memory.vector_store import SemanticVectorStore, VectorStoreConfig
-        _STORE = SemanticVectorStore(VectorStoreConfig(persist_path="logs/vector_store.json"))
+        _STORE = SemanticVectorStore(VectorStoreConfig(persist_path=str(Path(os.environ.get("LOCALAPPDATA","")) / "JARVIS" / "vector_store.json")))
     return _STORE
 
 
