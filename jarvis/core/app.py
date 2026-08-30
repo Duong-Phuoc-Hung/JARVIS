@@ -1494,7 +1494,8 @@ class JarvisApp:
                 if not transcript or not transcript.strip():
                     if self.overlay:
                         self.overlay.show_response("(không nghe thấy)", "Tôi không nghe thấy gì. Vui lòng thử lại.")
-                    if self.tts_manager:
+                    # Only play spoken TTS error on explicit user actions (hotkey, tray), not ambient wake word triggers
+                    if self.tts_manager and not trigger_name.startswith("WAKE_WORD"):
                         self.tts_manager.speak("Tôi không nghe thấy gì cả. Vui lòng thử lại.", wait=True)
                     if self.tray_controller:
                         self.tray_controller.update_status(TrayStatus.ACTIVE)

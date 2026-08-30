@@ -282,8 +282,8 @@ class AcousticSpectralDetector:
         )
         confidence = max(0.0, min(1.0, confidence))
 
-        # Sensitivity scaling
-        threshold = max(0.15, 0.60 - (sensitivity * 0.40))
+        # Sensitivity scaling (robust threshold to prevent ambient noise false positives)
+        threshold = max(0.40, 0.75 - (sensitivity * 0.35))
 
         if confidence >= threshold:
             return True, "hey_jarvis", confidence

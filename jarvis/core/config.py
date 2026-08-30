@@ -379,9 +379,9 @@ class WakeWordConfig(ConfigNode):
     def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "enabled": True,
-            "sensitivity": 0.5,
-            "cooldown_s": 1.5,
-            "min_rms": 0.005,
+            "sensitivity": 0.35,
+            "cooldown_s": 2.0,
+            "min_rms": 0.02,
             "vosk_model_path": "",
         }
         if data:
