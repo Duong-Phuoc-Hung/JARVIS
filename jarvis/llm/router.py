@@ -843,7 +843,74 @@ class LLMIntentRouter:
                 source="rule_fallback",
                 response_text="Đang tiến hành tối ưu hóa bộ nhớ và kiểm tra tiến trình hệ thống cho Ngài.",
             ),
+
+            # App launchers (static, supplement regex for edge cases)
+            "bật claude": IntentResult(action_name="web_open", parameters={"target": "claude", "site": "claude"}, source="rule_fallback", response_text="Đang mở Claude AI cho Ngài."),
+            "mở claude": IntentResult(action_name="web_open", parameters={"target": "claude", "site": "claude"}, source="rule_fallback", response_text="Đang mở Claude AI cho Ngài."),
+            "bật chatgpt": IntentResult(action_name="web_open", parameters={"target": "chatgpt", "site": "chatgpt"}, source="rule_fallback", response_text="Đang mở ChatGPT cho Ngài."),
+            "mở chatgpt": IntentResult(action_name="web_open", parameters={"target": "chatgpt", "site": "chatgpt"}, source="rule_fallback", response_text="Đang mở ChatGPT cho Ngài."),
+            "bật youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "mở youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "bật google": IntentResult(action_name="web_open", parameters={"target": "google", "site": "google"}, source="rule_fallback", response_text="Đang mở Google cho Ngài."),
+            "mở google": IntentResult(action_name="web_open", parameters={"target": "google", "site": "google"}, source="rule_fallback", response_text="Đang mở Google cho Ngài."),
+            "bật gmail": IntentResult(action_name="web_open", parameters={"target": "gmail", "site": "gmail"}, source="rule_fallback", response_text="Đang mở Gmail cho Ngài."),
+            "mở gmail": IntentResult(action_name="web_open", parameters={"target": "gmail", "site": "gmail"}, source="rule_fallback", response_text="Đang mở Gmail cho Ngài."),
+            "bật github": IntentResult(action_name="web_open", parameters={"target": "github", "site": "github"}, source="rule_fallback", response_text="Đang mở GitHub cho Ngài."),
+            "mở github": IntentResult(action_name="web_open", parameters={"target": "github", "site": "github"}, source="rule_fallback", response_text="Đang mở GitHub cho Ngài."),
+            "bật facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
+            "mở facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
+            "bật discord": IntentResult(action_name="app_open", parameters={"app_name": "discord"}, source="rule_fallback", response_text="Đang mở Discord cho Ngài."),
+            "mở discord": IntentResult(action_name="app_open", parameters={"app_name": "discord"}, source="rule_fallback", response_text="Đang mở Discord cho Ngài."),
+            "bật telegram": IntentResult(action_name="app_open", parameters={"app_name": "telegram"}, source="rule_fallback", response_text="Đang mở Telegram cho Ngài."),
+            "mở telegram": IntentResult(action_name="app_open", parameters={"app_name": "telegram"}, source="rule_fallback", response_text="Đang mở Telegram cho Ngài."),
+            "bật zalo": IntentResult(action_name="app_open", parameters={"app_name": "zalo"}, source="rule_fallback", response_text="Đang mở Zalo cho Ngài."),
+            "mở zalo": IntentResult(action_name="app_open", parameters={"app_name": "zalo"}, source="rule_fallback", response_text="Đang mở Zalo cho Ngài."),
+            "bật vscode": IntentResult(action_name="app_open", parameters={"app_name": "vscode"}, source="rule_fallback", response_text="Đang mở VS Code cho Ngài."),
+            "mở vscode": IntentResult(action_name="app_open", parameters={"app_name": "vscode"}, source="rule_fallback", response_text="Đang mở VS Code cho Ngài."),
+            "bật chrome": IntentResult(action_name="app_open", parameters={"app_name": "chrome"}, source="rule_fallback", response_text="Đang mở Google Chrome cho Ngài."),
+            "mở chrome": IntentResult(action_name="app_open", parameters={"app_name": "chrome"}, source="rule_fallback", response_text="Đang mở Google Chrome cho Ngài."),
+            "bật edge": IntentResult(action_name="app_open", parameters={"app_name": "edge"}, source="rule_fallback", response_text="Đang mở Microsoft Edge cho Ngài."),
+            "mở edge": IntentResult(action_name="app_open", parameters={"app_name": "edge"}, source="rule_fallback", response_text="Đang mở Microsoft Edge cho Ngài."),
+            "bật word": IntentResult(action_name="app_open", parameters={"app_name": "word"}, source="rule_fallback", response_text="Đang mở Microsoft Word cho Ngài."),
+            "mở word": IntentResult(action_name="app_open", parameters={"app_name": "word"}, source="rule_fallback", response_text="Đang mở Microsoft Word cho Ngài."),
+            "bật excel": IntentResult(action_name="app_open", parameters={"app_name": "excel"}, source="rule_fallback", response_text="Đang mở Microsoft Excel cho Ngài."),
+            "mở excel": IntentResult(action_name="app_open", parameters={"app_name": "excel"}, source="rule_fallback", response_text="Đang mở Microsoft Excel cho Ngài."),
+            "bật notepad": IntentResult(action_name="app_open", parameters={"app_name": "notepad"}, source="rule_fallback", response_text="Đang mở Notepad cho Ngài."),
+            "mở notepad": IntentResult(action_name="app_open", parameters={"app_name": "notepad"}, source="rule_fallback", response_text="Đang mở Notepad cho Ngài."),
+            "bật terminal": IntentResult(action_name="app_open", parameters={"app_name": "terminal"}, source="rule_fallback", response_text="Đang mở Terminal cho Ngài."),
+            "mở terminal": IntentResult(action_name="app_open", parameters={"app_name": "terminal"}, source="rule_fallback", response_text="Đang mở Terminal cho Ngài."),
+            "bật powershell": IntentResult(action_name="app_open", parameters={"app_name": "powershell"}, source="rule_fallback", response_text="Đang mở PowerShell cho Ngài."),
+            "mở powershell": IntentResult(action_name="app_open", parameters={"app_name": "powershell"}, source="rule_fallback", response_text="Đang mở PowerShell cho Ngài."),
+            "bật cursor": IntentResult(action_name="app_open", parameters={"app_name": "cursor"}, source="rule_fallback", response_text="Đang mở Cursor AI cho Ngài."),
+            "mở cursor": IntentResult(action_name="app_open", parameters={"app_name": "cursor"}, source="rule_fallback", response_text="Đang mở Cursor AI cho Ngài."),
+            "mở file explorer": IntentResult(action_name="app_open", parameters={"app_name": "explorer"}, source="rule_fallback", response_text="Đang mở File Explorer cho Ngài."),
+            "bật file explorer": IntentResult(action_name="app_open", parameters={"app_name": "explorer"}, source="rule_fallback", response_text="Đang mở File Explorer cho Ngài."),
+            "bật task manager": IntentResult(action_name="app_open", parameters={"app_name": "taskmgr"}, source="rule_fallback", response_text="Đang mở Task Manager cho Ngài."),
+            "mở task manager": IntentResult(action_name="app_open", parameters={"app_name": "taskmgr"}, source="rule_fallback", response_text="Đang mở Task Manager cho Ngài."),
+            "quản lý tác vụ": IntentResult(action_name="app_open", parameters={"app_name": "taskmgr"}, source="rule_fallback", response_text="Đang mở Quản lý tác vụ cho Ngài."),
+
+            # Volume & screen controls
+            "tăng âm lượng": IntentResult(action_name="system_volume", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng âm lượng cho Ngài."),
+            "giảm âm lượng": IntentResult(action_name="system_volume", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm âm lượng cho Ngài."),
+            "tắt tiếng": IntentResult(action_name="system_volume", parameters={"mute": True}, source="rule_fallback", response_text="Đã tắt tiếng máy tính, thưa Ngài."),
+            "bật tiếng": IntentResult(action_name="system_volume", parameters={"mute": False}, source="rule_fallback", response_text="Đã bật tiếng máy tính, thưa Ngài."),
+            "tăng độ sáng": IntentResult(action_name="system_brightness", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng độ sáng màn hình cho Ngài."),
+            "giảm độ sáng": IntentResult(action_name="system_brightness", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm độ sáng màn hình cho Ngài."),
+
+            # Memory and facts
+            "nhớ rằng": IntentResult(action_name="memory_save_fact", parameters={}, source="rule_fallback", response_text="Đã ghi nhớ thông tin này, thưa Ngài."),
+            "lưu lại": IntentResult(action_name="memory_save_fact", parameters={}, source="rule_fallback", response_text="Đã lưu thông tin này, thưa Ngài."),
+            "tôi tên là": IntentResult(action_name="memory_save_fact", parameters={}, source="rule_fallback", response_text="Đã ghi nhớ tên của Ngài."),
+
+            # Screen capture
+            "chụp màn hình": IntentResult(action_name="screen_capture", parameters={}, source="rule_fallback", response_text="Đã chụp ảnh màn hình và lưu vào Desktop cho Ngài."),
+            "screenshot": IntentResult(action_name="screen_capture", parameters={}, source="rule_fallback", response_text="Đã chụp ảnh màn hình và lưu vào Desktop cho Ngài."),
+
+            # Clipboard
+            "sao chép": IntentResult(action_name="skill_clipboard", parameters={"action": "copy"}, source="rule_fallback", response_text="Đã sao chép nội dung vào clipboard, thưa Ngài."),
+            "dán": IntentResult(action_name="skill_clipboard", parameters={"action": "paste"}, source="rule_fallback", response_text="Đã dán nội dung từ clipboard, thưa Ngài."),
         }
+
 
         # Pre-sort rule dictionary keys by descending length for greedy exact match
         self._sorted_rule_keys: list[str] = sorted(self.rule_engine.keys(), key=len, reverse=True)
@@ -1060,13 +1127,13 @@ class LLMIntentRouter:
 
             # 7. Universal Application & Software Launchers
             (
-                re.compile(r"^(?:mở|bật|chạy|khởi\s*động|open|launch|start)\s+(?:ứng\s*dụng|app|phần\s*mềm)?\s*(chrome|google\s*chrome|cốc\s*cốc|firefox|edge|notepad|sổ\s*tay|ghi\s*chú|calculator|máy\s*tính|calc|word|ms\s*word|excel|ms\s*excel|bảng\s*tính|powerpoint|ppt|vscode|vs\s*code|visual\s*studio\s*code|cursor|cursor\s*ai|task\s*manager|quản\s*lý\s*tác\s*vụ|taskmgr|terminal|powershell|cmd|dòng\s*lệnh|paint|vẽ|spotify|discord|telegram|zalo|cài\s*đặt|settings|explorer|file\s*explorer|quản\s*lý\s*file)$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:mở|bật|chạy|khởi\s*động|open|launch|start)(?:\s+(?:ứng\s*dụng|app|phần\s*mềm|chương\s*trình))?\s+(chrome|google\s*chrome|cốc\s*cốc|firefox|edge|notepad|sổ\s*tay|ghi\s*chú|calculator|máy\s*tính|calc|word|ms\s*word|excel|ms\s*excel|bảng\s*tính|powerpoint|ppt|vscode|vs\s*code|visual\s*studio\s*code|cursor|cursor\s*ai|task\s*manager|quản\s*lý\s*tác\s*vụ|taskmgr|terminal|powershell|cmd|dòng\s*lệnh|paint|vẽ|spotify|discord|telegram|zalo|cài\s*đặt|settings|explorer|file\s*explorer|quản\s*lý\s*file|obsidian|notion|slack|zoom|teams|microsoft\s*teams|winrar|7zip|vlc|media\s*player|gimp|photoshop|figma|postman|docker|git|github\s*desktop|obs|audacity)$", re.IGNORECASE),
                 lambda m: self._make_app_intent(m.group(1)),
             ),
 
-            # 8. Universal Website & Online Service Launchers
+            # 8. Universal Website & Online Service Launchers (bật/mở/vào/truy cập)
             (
-                re.compile(r"^(?:mở|vào|truy\s*cập|open|visit|go\s*to)\s+(?:trang\s*web|web|website|trang)?\s*(youtube|yt|google|gg|facebook|fb|github|gh|chatgpt|gpt|claude|binance|zalo\s*web|gmail|mail|email|hòm\s*thư|vnexpress|báo|dantri|dân\s*trí|shopee|tiki|lazada|reddit|twitter|x|maps|bản\s*đồ|dịch|translate|google\s*dịch|[\w\-]+(?:\.com|\.vn|\.net|\.org|\.io|\.edu))(?:\s+(.*))?$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:mở|bật|vào|truy\s*cập|open|visit|go\s*to|launch|start)(?:\s+(?:trang\s*web|web|website|trang))?\s*(youtube|yt|google|gg|facebook|fb|github|gh|chatgpt|gpt|chat\s*gpt|claude|claude\s*ai|anthropic|binance|zalo\s*web|gmail|mail|email|hòm\s*thư|vnexpress|báo|dantri|dân\s*trí|shopee|tiki|lazada|reddit|twitter|maps|bản\s*đồ|dịch|translate|google\s*dịch|notion|figma|canva|trello|jira|confluence|[\w\-]+(?:\.com|\.vn|\.net|\.org|\.io|\.edu))(?:\s+(.*))?$", re.IGNORECASE),
                 lambda m: self._make_web_intent(m.group(1), m.group(2)),
             ),
 

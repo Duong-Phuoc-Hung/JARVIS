@@ -522,10 +522,22 @@ class WindowsSpeechSTT(BaseSTTEngine):
             tmp_path = tmp.name
             tmp.write(wav_io.getvalue())
 
+        # Normalize language to Windows BCP-47 culture code
+        lang_code = language.strip()
+        if lang_code in ("vi", "vie", "vi_VN"):
+            culture_code = "vi-VN"
+        elif lang_code in ("en", "en_US", "eng"):
+            culture_code = "en-US"
+        else:
+            # Map ll -> ll-LL (e.g. "zh" -> "zh-CN", "ja" -> "ja-JP")
+            culture_code = f"{lang_code[:2].lower()}-{lang_code[:2].upper()}"
+
         try:
+            # Try with the requested language culture first (requires language pack)
             ps_script = (
                 f"Add-Type -AssemblyName System.Speech; "
-                f"$engine = New-Object System.Speech.Recognition.SpeechRecognitionEngine; "
+                f"$culture = [System.Globalization.CultureInfo]::GetCultureInfo('{culture_code}'); "
+                f"$engine = New-Object System.Speech.Recognition.SpeechRecognitionEngine($culture); "
                 f"$engine.SetInputToWaveFile('{tmp_path}'); "
                 f"$grammar = New-Object System.Speech.Recognition.DictationGrammar; "
                 f"$engine.LoadGrammar($grammar); "
@@ -537,10 +549,33 @@ class WindowsSpeechSTT(BaseSTTEngine):
                 ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 timeout=self.timeout_s + 2.0,
                 creationflags=creationflags,
             )
-            return res.stdout.strip()
+            if res.returncode == 0 and res.stdout.strip():
+                return res.stdout.strip()
+
+            # Fallback: no culture (uses system default) — still better than garbage
+            log.debug("WindowsSpeechSTT culture '%s' failed, falling back to default engine", culture_code)
+            ps_fallback = (
+                f"Add-Type -AssemblyName System.Speech; "
+                f"$engine = New-Object System.Speech.Recognition.SpeechRecognitionEngine; "
+                f"$engine.SetInputToWaveFile('{tmp_path}'); "
+                f"$grammar = New-Object System.Speech.Recognition.DictationGrammar; "
+                f"$engine.LoadGrammar($grammar); "
+                f"$res = $engine.Recognize([TimeSpan]::FromSeconds({int(self.timeout_s)})); "
+                f"if ($res) {{ Write-Output $res.Text }}"
+            )
+            res2 = subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_fallback],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=self.timeout_s + 2.0,
+                creationflags=creationflags,
+            )
+            return res2.stdout.strip()
         except Exception as e:
             log.debug("Windows Speech recognition failed: %s", e)
             return ""

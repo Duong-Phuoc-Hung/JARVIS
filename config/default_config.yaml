@@ -93,10 +93,19 @@ tts:
     volume: 1.0
 
 stt:
-  provider: "web_speech"    # "whisper_api" cần OPENAI_API_KEY, "web_speech" dùng Windows built-in (miễn phí)
+  # Khuyến nghị: "faster_whisper" cho tiếng Việt chính xác nhất (offline, miễn phí)
+  # Các tùy chọn: "faster_whisper" | "whisper_api" (cần OPENAI_API_KEY) | "web_speech" (Windows built-in, kém tiếng Việt)
+  provider: "faster_whisper"
   language: "vi"
   vad_threshold: 0.015
-  timeout_s: 5.0
+  timeout_s: 10.0
+  faster_whisper:
+    model_size: "base"          # tiny, base, small, medium, large-v2 (base là đủ tốt cho tiếng Việt)
+    device: "cpu"               # "cpu" hoặc "cuda" nếu có GPU
+    compute_type: "int8"        # int8 = nhanh nhất trên CPU
+    download_root: ".cache/whisper"
+  web_speech:
+    timeout_s: 5.0
 
 llm:
   provider: "gemini"        # "openai", "gemini" (miễn phí), "claude", "ollama"
