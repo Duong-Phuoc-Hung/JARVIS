@@ -183,13 +183,30 @@ class ReActTaskEngine:
                 # 2. Get Ready Nodes
                 ready_nodes = dag.get_ready_nodes()
 
-                # 3. Handle Safety Gate Interceptions in SAFETY_GATE mode
+                # 3. Interpolate parameters, then evaluate Safety Gate
+                #    interception. High-risk nodes are ALWAYS gated here,
+                #    regardless of PlanMode -- FULLY_AUTONOMOUS only skips
+                #    gating for nodes the shared SafetyGateInterceptor does
+                #    NOT classify as high-risk. This closes the gap where
+                #    the real production caller of execute_plan() never
+                #    requests PlanMode.SAFETY_GATE (see CLAUDE.md 8.3/9.1).
+                #    Parameters are interpolated here (not at dispatch time
+                #    below) so a gated token binds to the exact final
+                #    parameters that will later be verified at dispatch.
                 executable_nodes: list[TaskNode] = []
                 for node in ready_nodes:
-                    if mode == PlanMode.SAFETY_GATE and self.safety_interceptor.is_high_risk_node(node):
+                    try:
+                        node.parameters = dag.interpolate_node_params(node)
+                    except Exception as exc:
+                        logger.error("Parameter interpolation error on node '%s': %s", node.step_id, exc)
+                        node.status = StepStatus.FAILED
+                        node.error_message = f"Parameter interpolation failed: {exc}"
+                        continue
+
+                    if self.safety_interceptor.is_high_risk_node(node):
                         # Only intercept if not already confirmed
                         if not node.confirmation_token:
-                            token = self.safety_interceptor.intercept_node(node, event_bus=self.event_bus)
+                            self.safety_interceptor.intercept_node(node, event_bus=self.event_bus)
                             continue
                         elif node.status == StepStatus.WAITING_CONFIRMATION:
                             # Still waiting for confirmation
@@ -198,29 +215,19 @@ class ReActTaskEngine:
 
                 # 4. Dispatch Executable Nodes to ThreadPool
                 for node in executable_nodes:
-                    if node.status not in (StepStatus.RUNNING, StepStatus.WAITING_CONFIRMATION):
-                        # Interpolate parameters before execution
-                        try:
-                            node.parameters = dag.interpolate_node_params(node)
-                        except Exception as exc:
-                            logger.error("Parameter interpolation error on node '%s': %s", node.step_id, exc)
-                            node.status = StepStatus.FAILED
-                            node.error_message = f"Parameter interpolation failed: {exc}"
-                            continue
+                    node.status = StepStatus.RUNNING
+                    node.started_at = time.time()
+                    self._emit_event(
+                        "planner:step_started",
+                        plan_id=dag.plan_id,
+                        step_id=node.step_id,
+                        action_name=node.action_name,
+                        parameters=node.parameters,
+                    )
 
-                        node.status = StepStatus.RUNNING
-                        node.started_at = time.time()
-                        self._emit_event(
-                            "planner:step_started",
-                            plan_id=dag.plan_id,
-                            step_id=node.step_id,
-                            action_name=node.action_name,
-                            parameters=node.parameters,
-                        )
-
-                        # Submit to pool
-                        fut = pool.submit(self.execute_step, node, dag)
-                        active_futures[fut] = node
+                    # Submit to pool
+                    fut = pool.submit(self.execute_step, node, dag)
+                    active_futures[fut] = node
 
                 # 5. Wait for at least one active future or brief sleep
                 if active_futures:
@@ -387,6 +394,13 @@ class ReActTaskEngine:
                     action_name=action_name,
                     payload=params,
                     requester="planner",
+                    # Nodes classified high-risk were already gated and
+                    # confirmed above in execute_plan() (step 3), against
+                    # these exact same, already-interpolated parameters --
+                    # pass the token through so the dispatcher's own
+                    # independent safety check verifies and consumes it
+                    # instead of re-gating an already-confirmed action.
+                    confirmation_token=node.confirmation_token,
                 )
             except Exception as e:
                 return ActionResult(

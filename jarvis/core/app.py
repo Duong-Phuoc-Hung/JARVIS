@@ -398,6 +398,11 @@ class JarvisApp:
             safety_gate=self.safety_gate,
             timeout_seconds=float(auto_cfg.get("safety_gate_timeout_s", 30.0)),
         )
+        # Share this same interceptor/SafetyGate with ActionDispatcher so
+        # planner-issued and dispatcher-issued confirmation tokens are
+        # resolved against one authoritative pending-confirmation store
+        # (see jarvis/core/dispatcher.py's destructive-action safety gate).
+        self.dispatcher.set_safety_interceptor(self.safety_interceptor)
         self.reflection_engine = SelfReflectionEngine()
         self.planner_engine = ReActTaskEngine(
             dispatcher=self.dispatcher,
