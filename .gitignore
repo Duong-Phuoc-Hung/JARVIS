@@ -11,6 +11,9 @@ __pycache__/
 *.egg-info/
 .eggs/
 
+# AI Model Cache (faster-whisper models, embeddings etc)
+.cache/
+
 # Virtual Environments
 venv/
 .venv/
