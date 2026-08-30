@@ -267,6 +267,76 @@ while True:
         self.assertEqual(result.exit_code, -1)
         self.assertIn("timed out", result.error.lower())
 
+    def test_sandbox_large_stdout_does_not_deadlock(self):
+        """
+        Regression test: spawn_low_integrity_process() must drain the child's
+        output pipe concurrently instead of only after WaitForSingleObject
+        returns. Before this fix, any single script producing more than the
+        ~4096-byte default Windows anonymous pipe buffer (combined
+        stdout+stderr) would deadlock -- the child blocked on write() forever
+        because nothing was draining the pipe -- and this call would spend
+        the entire timeout budget before falsely reporting "timed out"
+        instead of succeeding almost instantly. Uses a size well past that
+        threshold with a generous timeout headroom so a real regression
+        would show up as an actual failure, not just slowness.
+        """
+        code = "result = 'x' * 20000\nprint(result)\n"
+        result = self.sandbox.execute_python(code, timeout_seconds=5.0)
+        self.assertTrue(result.success, msg=f"sandbox call failed/timed out: {result.error}")
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("x" * 20000, result.stdout)
+
+    def test_sandbox_runaway_output_does_not_grow_unbounded(self):
+        """
+        Regression test for a resource-safety property of the pipe-drain fix
+        itself: before that fix, a runaway/long-running script could never
+        write more than the ~4KB pipe buffer before deadlocking, which
+        incidentally capped how much data got buffered in the parent
+        process. Now that the pipe is continuously drained so the child
+        never blocks, a verbose infinite loop could otherwise make the
+        reader thread retain unbounded data in the JARVIS host process for
+        the entire timeout window. The capture must stay bounded regardless
+        of how much, or for how long, the child writes, and the timeout
+        itself must not be extended by an unbounded drain.
+        """
+        runaway_code = """
+import time
+while True:
+    print('x' * 100000)
+"""
+        t0 = time.time()
+        result = self.sandbox.execute_python(runaway_code, timeout_seconds=1.5)
+        elapsed = time.time() - t0
+
+        self.assertFalse(result.success)  # never finishes on its own -> times out
+        self.assertLess(elapsed, 10.0, "timeout must not be extended indefinitely by pipe drainage")
+        # A generous margin above the internal ~1MB capture bound; a real
+        # regression to unbounded retention would produce tens of MB here.
+        self.assertLess(len(result.stdout), 2 * 1024 * 1024)
+
+    def test_sandbox_mixed_stdout_stderr_heavy_output_does_not_deadlock(self):
+        """
+        stdout and stderr are redirected to the same pipe (hStdOutput ==
+        hStdError), a pre-existing design unchanged by the pipe-drain fix.
+        Interleaving heavy writes to both streams -- well past the ~4KB
+        deadlock threshold combined -- must still complete without hanging,
+        and content written after the heavy interleaving must still make it
+        through (proving the pipe never silently drops data once drained).
+        """
+        code = """
+import sys
+for _ in range(50):
+    sys.stdout.write('o' * 1000)
+    sys.stderr.write('e' * 1000)
+print()
+print('done-marker')
+"""
+        result = self.sandbox.execute_python(code, timeout_seconds=5.0)
+        self.assertTrue(result.success, msg=f"sandbox call failed/timed out: {result.error}")
+        self.assertIn("done-marker", result.stdout)
+        self.assertIn("o" * 1000, result.stdout)
+        self.assertIn("e" * 1000, result.stdout)  # merged into the same stream, pre-existing behavior
+
 
 class TestDynamicSkillSynthesizer(unittest.TestCase):
     """Test DynamicSkillSynthesizer code formatting and packaging."""
