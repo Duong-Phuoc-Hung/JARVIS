@@ -317,6 +317,107 @@ Push this branch and open a PR into `main`. Once CI is green, consider (separate
 
 ---
 
+## 0D. Biometrics Hardening: Embedding Validation, Storage Atomicity & Face-Count Ambiguity (in progress, uncommitted)
+
+Snapshot: 2026-08-31. Branch `feat/biometrics-hardening`, based on `main`/HEAD at commit `e4bcd6d015dec2796e0f50e88b5c9f69b58bb1f7` (branch had **zero divergence** from `main` when this task started — confirmed via `git merge-base` returning the same SHA and an empty `git diff main...HEAD --stat`). Local working-tree change, **not committed, not pushed, no PR opened**. Independent of sections 0A/0B/0C — does not touch `jarvis/sandbox/*`, `jarvis/audio/wake_word.py`, `jarvis/planner/*`, `jarvis/core/dispatcher.py`, or `jarvis/core/app.py`.
+
+### Reference used
+
+`ageitgey/face_recognition` (MIT) was consulted as an **API/architecture reference only**: `face_locations()`/`face_encodings()`/`face_distance()`/`compare_faces()`, 128-dimensional embeddings, Euclidean distance, `tolerance` semantics (lower = stricter; upstream default `0.6` — a library default, not a security guarantee), one encoding per detected face. No upstream source was copied, no upstream repo was vendored, `face_recognition`/`dlib`/`cv2` were **not** added as a mandatory dependency (confirmed: neither appears anywhere in `pyproject.toml`, before or after this change — they are, and remain, soft-imported optionals with no declared dependency group), no model files or binary artifacts were added, and no Windows `dlib` packaging work was attempted (explicitly out of scope).
+
+### Audit performed first (per explicit instruction, before any implementation)
+
+Read `jarvis/vision/biometrics.py`, `jarvis/vision/__init__.py`, every test importing `BiometricsEngine`/`FaceEmbeddingStorage`/`BiometricPrivilegeGate` (`tests/test_biometrics.py`, `tests/test_adversarial_m5_2.py`, `tests/test_tier5_adversarial_sec_iot_comms_data.py`, `tests/test_e2e_scenarios.py`), `pyproject.toml` (dependency context only), and `jarvis/core/paths.py` (read-only, to understand writable-data conventions — **not modified**). Confirmed by direct code reading, not assumption:
+
+- `enroll_face()`/`verify_frame()`/`process_surveillance_frame()` all took `encodings[0]` unconditionally with no face-count check — a multi-face frame (e.g. owner + a stranger in view) could be misclassified non-deterministically depending on extraction order.
+- No embedding validation existed anywhere: a wrong-dimension, NaN/Infinity-containing, or non-numeric embedding could reach `np.linalg.norm(enrolled - cand)` uncaught, either crashing the caller or (if shapes happened to broadcast) producing a silently-trusted bogus distance.
+- `FaceEmbeddingStorage.save()` wrote directly (non-atomic) — a crash mid-write could corrupt/truncate the store.
+- `FaceEmbeddingStorage.add_face()`/`BiometricsEngine.enroll_face()` never surfaced a disk-write failure to the caller — a failed save still left in-process memory believing the enrollment succeeded.
+- Re-enrolling the same label left a **stale duplicate embedding** in the old flat in-memory `enrolled_embeddings` list (storage on disk correctly overwrote by label, but the engine's in-memory matching list did not track by label at all) — both the old and new embedding would still match after re-enrollment.
+- No label validation (type, emptiness, control characters, length) and no `tolerance` validation (negative/NaN/Infinity/string/absurdly-large values could silently broaden authentication) existed.
+- The camera-mock extraction branch (`self.camera.get_face_encodings()`) was not wrapped in try/except, unlike the `face_recognition` branch — a throwing mock/backend could crash the caller uncaught.
+- Confirmed via `tests/test_adversarial_m5_2.py::test_adversarial_biometrics_boundary_distances` that the existing tolerance boundary is **strict `<`** (distance exactly equal to tolerance = no match) — this is a locked contract, preserved bit-for-bit.
+- Confirmed via grep that no code outside `jarvis/vision/biometrics.py` reads the `enrolled_embeddings`/`enrolled_faces` attributes directly, and that `cv2`/`face_recognition` appear nowhere in `pyproject.toml` (not even as an optional group) — both are simply soft-imported with `ImportError → None`.
+
+### Fixes implemented (`jarvis/vision/biometrics.py` only)
+
+1. **Single embedding-validation boundary** — `_validate_embedding()` (module-private): exactly 128 dims, numeric, all-finite, returns a fresh `float64` copy (never mutates the caller's array), never raises (returns `None` on anything malformed). A cheap pre-check on `len()` avoids materializing pathologically large arrays before shape validation. Reused at every embedding entry point: storage load, `add_face()`, and every extraction call site in `enroll_face()`/`verify_frame()`/`process_surveillance_frame()`.
+2. **`_validate_label()`** — non-empty string after `strip()`, ≤128 chars, no control characters. Still used purely as a dict/JSON key, never as a filesystem path (unchanged — this was never a real risk in the existing design).
+3. **`_validate_tolerance()`** — rejects NaN/Infinity/negative/non-numeric/bool/values above `MAX_SANE_TOLERANCE = 10.0` (a sanity ceiling on the configuration knob, not a claim about real embedding distance ranges), falls back to `DEFAULT_TOLERANCE = 0.60` with a logged error. Applied in `BiometricsEngine.__init__`.
+4. **`FaceEmbeddingStorage._load()` hardened** — whole-file JSON parse failure or non-dict root still wipes the store to `{}` (preserves the existing test-locked contract exactly), but each entry inside an otherwise-valid dict is now validated independently (`_validate_label` + `_validate_embedding`); corrupt individual entries are skipped and logged while valid entries load normally.
+5. **Atomic `save()`** — temp file + `os.replace()`; returns `bool`. A write/replace failure leaves the previously-saved file on disk completely untouched and cleans up the temp file.
+6. **`add_face()` returns `bool` and rolls back on failed persistence** — validates label/embedding first, then only commits to the in-memory `enrolled_faces` dict if `save()` succeeded; on failure, restores the pre-call value (or removes the key if it was new) so memory can never claim a persisted success that didn't happen. Added `get_labeled_embeddings() -> dict[str, np.ndarray]` (new method; the old `get_embeddings() -> list[np.ndarray]` is unchanged/still present for compatibility, though nothing outside this file called it).
+7. **`BiometricsEngine` now keys labeled embeddings by label** (`_labeled_embeddings: dict[str, np.ndarray]`), separate from `_unlabeled_embeddings` (the `camera.owner_encoding` case, which has no label to key on). Re-enrolling an existing label now deterministically **replaces** rather than accumulating a stale duplicate. `enrolled_embeddings` is preserved as a read-only `@property` (flat list, computed from both structures) for compatibility — confirmed via grep that nothing outside this file reads it directly.
+8. **`enroll_face()`** — deterministically rejects 0 or >1 detected faces (requires exactly 1), validates label and embedding, and only updates `_labeled_embeddings` after `storage.add_face()` confirms persistence succeeded (rollback-safe).
+9. **`verify_frame()`** — `bypass_mode` and the None/empty/dark-frame (`np.mean < 5.0`) checks are preserved exactly. Now fails closed deterministically on 0 or >1 faces, a malformed candidate embedding, or zero enrolled embeddings. Tolerance boundary remains strict `<`, bit-for-bit unchanged.
+10. **`process_surveillance_frame()`** — a multi-face frame now returns a distinct `{"status": "ambiguous_faces", "locked": False, "distance": None}` and a malformed-embedding frame returns `{"status": "invalid_face_data", "locked": False, "distance": None}`; neither is ever classified as `"owner_verified"`. **Deliberate scope decision**: neither ambiguous state triggers the lock-workstation/Telegram side effects (unlike a genuine `"intruder_locked"` no-match) — the frame's content is genuinely unknown rather than confirmed non-owner, and inventing a new lock-triggering policy for that case was judged out of scope for this sprint (see explicit "do not expand into surveillance orchestration" instruction). The zero-enrolled-embeddings sentinel distance changed from the old magic `1.0` to `None` (no existing test asserted a specific value for that path — confirmed by grep before making the change).
+11. **`_extract_encodings()`** — the camera-mock branch is now wrapped in try/except like the `face_recognition` branch; a throwing backend/mock returns `[]` instead of crashing the caller.
+12. **`BiometricPrivilegeGate` was not modified** — audited for regressions only; since `verify_frame()` only became strictly harder to pass (never easier), no separate authorization change was needed there.
+13. `jarvis/vision/__init__.py` **unchanged** — all three exported names (`BiometricsEngine`, `BiometricPrivilegeGate`, `FaceEmbeddingStorage`) keep identical public signatures (`verify_frame()`/`enroll_face()` still return `bool`; `process_surveillance_frame()` still returns a `dict` with a `"status"` key). `jarvis/core/paths.py` was read but not modified — `FaceEmbeddingStorage`'s inline `%LOCALAPPDATA%` resolution logic was left exactly as-is (migrating it to `jarvis.core.paths.data_path()` was judged out of scope for an embedding/storage-integrity hardening sprint).
+
+### Files changed
+
+- `jarvis/vision/biometrics.py` — see above.
+- `tests/unit/test_biometrics_hardening.py` — **new file**, 49 deterministic tests, synthetic 128D arrays only (no real biometric data, no photos, no model files). Originally created at `tests/test_biometrics_hardening.py` (outside `tests/unit/`, so it would not have run in CI, which only runs `tests/unit/`); moved to its final `tests/unit/` location before commit `dcbe797` — no duplicate file remains at the old path.
+
+No other tracked file is part of this change set (confirmed via `git status` — see Known limitations for one unrelated pre-existing telemetry side effect).
+
+### Validation results (this session, local Windows)
+
+Targeted (new file, at its final `tests/unit/` location):
+```text
+python -m pytest tests/unit/test_biometrics_hardening.py -v --timeout=60 --tb=short
+49 passed in 0.45s
+```
+
+Existing biometrics-touching test files, compared bit-for-bit against baseline via `git stash`:
+```text
+python -m pytest tests/test_biometrics.py tests/test_adversarial_m5_2.py \
+  tests/test_tier5_adversarial_sec_iot_comms_data.py tests/test_e2e_scenarios.py \
+  -v --timeout=60 --tb=short
+3 failed, 45 passed, 9 errors
+```
+All 12 failures/errors reproduced identically on the pre-change baseline (`git stash` + rerun): 6 `ModuleNotFoundError: No module named 'cv2'` in `test_biometrics.py` (the `mock_camera_feed` fixture does `monkeypatch.setattr("cv2.VideoCapture", ...)`, which imports the target module first regardless of `raising=False` — `cv2` is genuinely not installed in this environment), 3 identical in `test_e2e_scenarios.py`, plus 2 pre-existing nmap/tshark CLI-capture bugs and 1 pre-existing `DiscordBotController.summarize_channel` `AttributeError` in `test_tier5_...` — all unrelated to biometrics or to this change. **Zero regressions.**
+
+Full `tests/unit/` (rerun after moving the test file into `tests/unit/`, with collection counts verified against a `git stash` baseline):
+```text
+python -m pytest tests/unit/ --collect-only -q --timeout=120
+python -m pytest tests/unit/ -q --timeout=120 --tb=short
+```
+- Baseline collection (`git stash`, file not yet present in `tests/unit/`): **736**.
+- Feature-branch collection (`tests/unit/test_biometrics_hardening.py` present): **785**.
+- Delta: **+49** — exactly the number of new biometrics-hardening tests, confirming the file is now collected by the same command CI runs.
+- All 49 biometrics-hardening tests: **passed**.
+- Exactly the documented pre-existing baseline of 9 failures: 8 in `tests/unit/test_mobile_bridge.py` + 1 in `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches` — confirmed identical before/after via `git stash`. **Zero new failures.** (This repo's pytest config prints no final grand-total summary line — confirmed pre-existing, consistent with section 0C's note.)
+- **Correction**: an earlier draft of this section stated "no test in `tests/unit/` touches `jarvis/vision/biometrics.py`". That was only true while the new test file still lived at `tests/test_biometrics_hardening.py` (outside `tests/unit/`, so it would not have run in CI). The file was moved to `tests/unit/test_biometrics_hardening.py` before commit `dcbe797`, so as of this snapshot **49 tests inside `tests/unit/` do exercise `jarvis/vision/biometrics.py`**, and CI (which runs `python -m pytest tests/unit/`) now covers them.
+
+Static analysis:
+```text
+ruff check jarvis/vision/biometrics.py tests/unit/test_biometrics_hardening.py
+All checks passed!
+
+mypy jarvis
+```
+`jarvis/vision/biometrics.py` has zero mypy errors. Repo-wide `ruff check jarvis tests scripts/build_installer.py` (9 errors) and `mypy jarvis` (28 errors, 8 files) were confirmed **identical to baseline** via `git stash` — none of the flagged files are touched by this change (`tests/unit/test_zalo_bot.py` import-sort, plus `night_shift.py`/`macro_recorder`/`auto_updater.py`/`smart_home/discovery.py`/`mobile_bridge.py`/`tray.py`/`gui_actor.py`/`cli.py` for mypy).
+
+`py_compile jarvis/vision/biometrics.py tests/unit/test_biometrics_hardening.py`: exit 0. `git diff --check`: exit 0.
+
+**Note on test file location**: the test file was originally authored at `tests/test_biometrics_hardening.py`, outside `tests/unit/` — since CI runs only `python -m pytest tests/unit/`, those 49 tests would not have executed in CI at that location. It was moved to `tests/unit/test_biometrics_hardening.py` before commit `dcbe797` (plain filesystem move — the file was untracked at the time, no `git mv` needed, no duplicate left behind). CI has still not been run for this branch; the numbers above are local-run results, not a CI claim.
+
+### Known limitations / explicitly not claimed
+
+- No claim of spoofing resistance, liveness detection, or anti-spoofing. Tolerance `0.6` is a library default, not an identity guarantee. Windows support for `face_recognition`/`dlib` was not validated (no install/packaging attempted — explicitly out of scope).
+- `jarvis/skills/*/metadata.json` (9 files) were mutated by running the test suite this session (skill-registry invocation-count/timestamp telemetry, same pre-existing side effect documented in section 0A/0C). Restoring them via `git checkout --` was **blocked by the tool's own safety classifier** (a discard-uncommitted-work-style command) this session — unlike prior sessions, it was not possible to restore them programmatically here. They remain uncommitted/unrestored; the user should run `git checkout -- jarvis/skills/*/metadata.json` manually before committing if desired.
+- CI has not been run for this branch. Not committed, not pushed, no PR opened.
+- `FaceEmbeddingStorage`'s AppData path-resolution logic duplicates (rather than reuses) `jarvis/core/paths.py`'s conventions; left unchanged as out-of-scope for this sprint.
+- The `_labeled_embeddings`/`_unlabeled_embeddings` split and the `enrolled_embeddings` property are an internal representation change; verified via grep that nothing outside `biometrics.py` reads `enrolled_embeddings` directly, so this is not considered a breaking change, but any future external caller should be aware it is now a computed property, not a plain list attribute.
+
+### Recommended next task
+
+Push this branch and open a PR into `main` once the user reviews the diff. CI has not been exercised for this change. No other biometrics work (e.g. liveness detection, OS-level camera permission hardening, actual `face_recognition`/`dlib` Windows packaging) was in scope and none is recommended as an immediate follow-up beyond what the user explicitly requests next.
+
+---
+
 ## 1. Current state summary
 
 JARVIS is currently at source version **4.1.0** and has completed a 13-round deep Adversarial Technical Audit, establishing true OS Kernel-level sandboxing (Windows MIC + Job Object) and empirical hardware benchmarking.
