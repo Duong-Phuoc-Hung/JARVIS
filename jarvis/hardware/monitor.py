@@ -591,6 +591,8 @@ class HardwareMonitor:
         self._cached_disks_ts = now
         return disks
 
+    _probe_disks = get_disk_smart_status
+
     def _aggregate_smart_status(self, disks: dict[str, DiskSmartMetrics]) -> str:
         """Aggregates overall SMART status across all monitored drives."""
         if not disks:

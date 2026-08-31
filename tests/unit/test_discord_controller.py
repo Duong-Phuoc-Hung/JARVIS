@@ -117,3 +117,145 @@ class TestDiscordEmbed:
         assert d["title"] == "JARVIS"
         assert "fields" in d
         assert "color" in d
+
+
+class TestDiscordSlashCommandsAndRichEmbeds:
+    """
+    R6 Functional Test Suite for Discord Slash Commands and Rich Embed Generators.
+    """
+
+    def test_slash_command_status_rich_embed(self, bot):
+        """
+        Test 1: Validate /status slash command generates 200 OK and Rich Embed
+        with JARVIS status details and proper color coding (0x00FF88).
+        """
+        response = bot.handle_message(
+            user_id=1,
+            username="test_admin",
+            content="/status",
+            channel_id=1001,
+        )
+        assert response["status"] == 200
+        assert "text" in response
+        assert "embed" in response
+        embed = response["embed"]
+        assert isinstance(embed, dict)
+        assert embed["title"] == "🟢 JARVIS System Status"
+        assert embed["color"] == 0x00FF88
+        assert "JARVIS Online" in embed["description"]
+
+    def test_slash_command_help_rich_embed_fields(self, bot):
+        """
+        Test 2: Validate /help slash command returns structured Rich Embed
+        containing command reference fields with inline flags.
+        """
+        response = bot.handle_message(
+            user_id=1,
+            username="test_admin",
+            content="/help",
+            channel_id=1001,
+        )
+        assert response["status"] == 200
+        embed = response["embed"]
+        assert embed is not None
+        assert embed["title"] == "🤖 JARVIS Discord Controller"
+        assert len(embed["fields"]) >= 6
+
+        # Verify key command fields exist
+        field_names = [f["name"] for f in embed["fields"]]
+        assert any("status" in name for name in field_names)
+        assert any("skills" in name for name in field_names)
+        assert any("calc" in name for name in field_names)
+        assert all("value" in f and "inline" in f for f in embed["fields"])
+
+    def test_slash_command_calc_execution(self, bot):
+        """
+        Test 3: Validate /calc slash command evaluates arithmetic expressions
+        and returns formatted response.
+        """
+        response = bot.handle_message(
+            user_id=1,
+            username="test_admin",
+            content="/calc 25 * 4 + 50",
+            channel_id=1001,
+        )
+        assert response["status"] == 200
+        assert "150" in response["text"] or "🔢" in response["text"]
+
+    def test_slash_command_skills_listing(self, bot):
+        """
+        Test 4: Validate /skills slash command lists available skill modules.
+        """
+        response = bot.handle_message(
+            user_id=1,
+            username="test_admin",
+            content="/skills",
+            channel_id=1001,
+        )
+        assert response["status"] == 200
+        assert "🧰" in response["text"] or "kỹ năng" in response["text"].lower() or "skills" in response["text"].lower()
+
+    def test_slash_command_briefing_and_note(self, bot):
+        """
+        Test 5: Validate /briefing and /note slash commands.
+        """
+        res_brief = bot.handle_message(1, "user", "/briefing", 1001)
+        assert res_brief["status"] == 200
+        assert "📰" in res_brief["text"] or "briefing" in res_brief["text"].lower()
+
+        res_note = bot.handle_message(1, "user", "/note Họp nhóm lúc 3h chiều", 1001)
+        assert res_note["status"] == 200
+        assert "Họp nhóm lúc 3h chiều" in res_note["text"]
+
+    def test_send_embed_custom_dispatch(self, bot):
+        """
+        Test 6: Validate programmatic send_embed method records structured embed
+        and sends to designated Discord channel.
+        """
+        channel_id = 999888
+        title = "🚀 System Alert"
+        description = "High CPU load detected on Worker Pool"
+        fields = [
+            {"name": "CPU Usage", "value": "98.5%", "inline": True},
+            {"name": "Action", "value": "Throttling background tasks", "inline": True},
+        ]
+
+        result = bot.send_embed(
+            channel_id=channel_id,
+            title=title,
+            description=description,
+            fields=fields,
+        )
+        assert result["success"] is True
+        assert len(bot.sent_messages) > 0
+        last_msg = bot.sent_messages[-1]
+        assert last_msg["channel_id"] == channel_id
+        assert title in last_msg["content"]
+        assert "embed" in last_msg
+        assert last_msg["embed"]["title"] == title
+        assert last_msg["embed"]["fields"] == fields
+
+    def test_rate_limiter_throttles_excess_requests(self):
+        """
+        Test 7: Validate RateLimiter integration blocks excessive requests with HTTP 429.
+        """
+        mock_limiter = MagicMock()
+        mock_limiter.acquire.side_effect = [(True, 0.0), (True, 0.0), (False, 2.5)]
+
+        bot = DiscordBotController(
+            bot_token="mock_token",
+            whitelist_user_ids=[1],
+            rate_limiter=mock_limiter,
+        )
+
+        res1 = bot.handle_message(1, "user", "/status", 100)
+        assert res1["status"] == 200
+
+        res2 = bot.handle_message(1, "user", "/help", 100)
+        assert res2["status"] == 200
+
+        res3 = bot.handle_message(1, "user", "/calc 1+1", 100)
+        assert res3["status"] == 429
+        assert "429" in str(res3["status"]) or "quá nhiều yêu cầu" in res3["text"].lower() or "⏳" in res3["text"]
+        assert res3.get("retry_after") == 2.5
+

@@ -113,6 +113,26 @@ class GUIActor:
         """History of executed GUI actions."""
         return list(self._action_history)
 
+    def _capture_bytes(self) -> bytes:
+        """Capture screenshot bytes from vision_manager supporting various APIs."""
+        if not self.vision_manager:
+            return b""
+        try:
+            if hasattr(self.vision_manager, "capture_screen_bytes"):
+                res = self.vision_manager.capture_screen_bytes()
+                if isinstance(res, (bytes, bytearray)):
+                    return bytes(res)
+            if hasattr(self.vision_manager, "capture_screenshot"):
+                res = self.vision_manager.capture_screenshot()
+                if isinstance(res, tuple) and len(res) > 0:
+                    item = res[0]
+                    return item if isinstance(item, (bytes, bytearray)) else (bytes(item) if item else b"")
+                elif isinstance(res, (bytes, bytearray)):
+                    return bytes(res)
+        except Exception as exc:
+            logger.debug("Failed to capture screenshot: %s", exc)
+        return b""
+
     # ──────────────────────────────────────────────────────────────────────────
     # 1. Click Element with Self-Healing Verification
     # ──────────────────────────────────────────────────────────────────────────
@@ -164,12 +184,7 @@ class GUIActor:
 
         for attempt in range(max_retries + 1):
             # 1. Capture before-action screenshot
-            before_bytes: bytes = b""
-            if verify:
-                try:
-                    before_bytes, _ = self.vision_manager.capture_screenshot()
-                except Exception as exc:
-                    logger.debug("Failed to capture pre-action screenshot: %s", exc)
+            before_bytes: bytes = self._capture_bytes() if verify else b""
 
             # 2. Ground UI Element
             element = self.computer_use.locate_element(
@@ -227,11 +242,7 @@ class GUIActor:
             # Short wait for UI render / redraw
             time.sleep(0.2)
 
-            after_bytes: bytes = b""
-            try:
-                after_bytes, _ = self.vision_manager.capture_screenshot()
-            except Exception as exc:
-                logger.debug("Failed to capture post-action screenshot: %s", exc)
+            after_bytes: bytes = self._capture_bytes()
 
             target_roi = element.bbox.to_pixel_coords(screen_w, screen_h)
             v_res = self.verifier.verify_action(
@@ -321,12 +332,7 @@ class GUIActor:
             time.sleep(0.05)
 
         # Capture pre-type screen for verification
-        before_bytes = b""
-        if verify:
-            try:
-                before_bytes, _ = self.vision_manager.capture_screenshot()
-            except Exception:
-                pass
+        before_bytes = self._capture_bytes() if verify else b""
 
         # 3. Inject text
         typed_ok = self.controller.type_text(text)
@@ -348,11 +354,7 @@ class GUIActor:
 
         # 4. Verify text entered
         time.sleep(0.2)
-        after_bytes = b""
-        try:
-            after_bytes, _ = self.vision_manager.capture_screenshot()
-        except Exception:
-            pass
+        after_bytes = self._capture_bytes()
 
         v_res = self.verifier.verify_action(
             before_bytes=before_bytes,
