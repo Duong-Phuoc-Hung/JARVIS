@@ -1,56 +1,70 @@
-# Project: JARVIS v4.1.x Bug Fixes & Documentation
+# Project: JARVIS v4.1.0 Security & Stability Hardening
 
 ## Architecture
-JARVIS is an AI voice assistant running on Windows 11/10 64-bit Python 3.13.
-Key architectural boundaries:
-- **LLM Routing Engine (`jarvis/llm/router.py`)**: 3-tier routing (Regex fast-path -> Rule Engine greedy dictionary -> LLM Tool calling -> Fallback).
-- **Subprocess & OS Execution (`jarvis/`, `scripts/`)**: Windows console management and process isolation.
-- **Documentation & Packaging (`README.md`, `installer/`)**: Installation guides, quick start, common diagnostics, and developer setup.
+JARVIS v4.1.0 is an AI assistant running on Windows 11 64-bit Python 3.13. This project fixes 7 critical security vulnerabilities and stability deficits across 4 core subsystems:
+1. **Sandbox & Security Subsystem**: `jarvis/sandbox/security.py`, `jarvis/sandbox/validator.py`, and `jarvis/workers/night_shift.py`.
+2. **AI Defense Subsystem**: `jarvis/security/prompt_guard.py`, `jarvis/browser/`, and `jarvis/skills/screen_context/`.
+3. **Communications Subsystem**: `jarvis/comms/rate_limiter.py`, `jarvis/comms/telegram.py`, `zalo.py`, `discord.py`, and `mobile_bridge.py`.
+4. **Resilience & Performance Subsystem**: `jarvis/automation/safety_gate.py`, `jarvis/healing/`, and `jarvis/stt/`.
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | Mở / chuyển sang dự án | Recognize "mở dự án X", "switch sang project Y", "chuyển workspace" -> `workspace_prepare` | M1 | Survey R1 (DONE) |
-| 2 | Tạo dự án / workspace mới | Recognize "tạo project mới", "tạo workspace tên ABC" -> `project_create` | M1 | Survey R1 (DONE) |
-| 3 | Liệt kê dự án | Recognize "liệt kê dự án", "show projects", "các project đang có" -> `project_list` | M1 | Survey R1 (DONE) |
-| 4 | Lệnh git liên quan dự án | Recognize "git status dự án", "commit dự án", "push project" -> `skill_git_assistant` | M1 | Survey R1 (DONE) |
-| 5 | Router Tests (>= 5 cases) | Add at least 5 new tests in `tests/test_router_project_intents.py` without regressions | M1 | Survey R1 (DONE) |
-| 6 | Subprocess Windows Flags | Update all `subprocess.Popen`, `run`, `call`, `check_output` across `jarvis/` and `scripts/` to use `creationflags=CREATE_NO_WINDOW` / `startupinfo` | M2 | Survey R2 (DONE) |
-| 7 | Suppress Background Polling Flash | Ensure background polling in `jarvis/hardware/monitor.py` (`nvidia-smi`, `powershell`) and all background engines are silent | M2 | Survey R2 (DONE) |
-| 8 | Validate `os.system` absence | Ensure no bare `os.system` in `jarvis/` and `scripts/` | M2 | Survey R2 (DONE) |
-| 9 | README Prerequisites | Python 3.13 (link), Git (link), Visual C++ Redistributable (link), Windows 11/10 64-bit | M3 | Survey R3 (DONE) |
-| 10 | README Step-by-Step Order | Clone -> venv -> pip install -> API key config -> first run (`python -m jarvis`) | M3 | Survey R3 (DONE) |
-| 11 | README Common Errors & Fixes | At least 5 errors: SQLite locked/path, PIL/Pillow DLL, faster-whisper CTranslate2, UAC/admin rights, API key 401 | M3 | Survey R3 (DONE) |
-| 12 | README Quick Start (End User) | Standalone installer instructions (no Python needed) | M3 | Survey R3 (DONE) |
-| 13 | README Dev Setup (Developers) | Development installation workflow, testing with pytest, linting | M3 | Survey R3 (DONE) |
-| 14 | E2E Acceptance Verification | Validate all acceptance criteria across R1, R2, R3, run all test suites, and pass integrity audit | M4 | ORIGINAL_REQUEST (DONE) |
+| 1 | R1: Sandbox `__globals__` Escape Patch | Neutralize `type(fn).__call__.__globals__` access in sandbox preamble via private scope, metaclass protection, and globals purge. | M1 | ORIGINAL_REQUEST §R1 |
+| 2 | R1: Adversarial Non-Mock Test | Verify class-level `__globals__` access is blocked and 15 existing sandbox tests pass. | M1 | ORIGINAL_REQUEST §R1 |
+| 3 | R2: Night Shift Daemon Audit Report | Document audit findings in `docs/night_shift_audit.md` detailing un-sandboxed daemon state. | M2 | ORIGINAL_REQUEST §R2 |
+| 4 | R2: Night Shift Sandboxing | Route night task execution through `CodeInterpreterSandbox` with Job Object and Low Integrity restrictions. | M2 | ORIGINAL_REQUEST §R2 |
+| 5 | R3: AppContainer Network Blocking B2 | Wire `SECURITY_CAPABILITIES` with 0 network capabilities into Windows AppContainer subprocess creation. | M3 | ORIGINAL_REQUEST §R3 |
+| 6 | R3: Real OS AppContainer Socket Test | Test `socket.connect(("8.8.8.8", 80))` raises `PermissionError`/`OSError` under `@pytest.mark.real_os` without mock. | M3 | ORIGINAL_REQUEST §R3 |
+| 7 | R4: Prompt-Injection Defense Pipeline | Implement `PromptGuard` with Unicode normalization, template neutralization, and XML isolation tags. | M4 | ORIGINAL_REQUEST §R4 |
+| 8 | R4: Browser & Screen Context Integration | Integrate `PromptGuard` into WebScraper, CDP controller, and ScreenContext before LLM prompts. | M4 | ORIGINAL_REQUEST §R4 |
+| 9 | R4: Adversarial Injection Tests | Verify >=5 injection payloads (instruction override, script jailbreak, role spoof, etc.) are sanitized and not executed. | M4 | ORIGINAL_REQUEST §R4 |
+| 10 | R5: Token Bucket Rate Limiter | Implement thread-safe `TokenBucketRateLimiter` supporting burst limit, rate per minute, and HTTP 429 status. | M5 | ORIGINAL_REQUEST §R5 |
+| 11 | R5: Comms Channel Integration & Config | Add rate limiting per user_id to Telegram, Zalo, Discord, and Mobile Bridge with YAML config in `config/default_config.yaml`. | M5 | ORIGINAL_REQUEST §R5 |
+| 12 | R5: Rate Limit Throttle Tests | Verify 30 req/s from single user_id yields >=50% HTTP 429 rejections across all 4 channels. | M5 | ORIGINAL_REQUEST §R5 |
+| 13 | R6: Discord Functional Slash Command Tests | Add functional tests for `/help`, `/status`, `/calc`, `/skills`, and Rich Embed generation in Discord controller. | M6 | ORIGINAL_REQUEST §R6 |
+| 14 | R6: Safety Gate Watchdog Chaos Test | Chaos test killing supervised subprocesses 3 times, verify MTTR < 10s per recovery, and log MTTR to stdout. | M6 | ORIGINAL_REQUEST §R6 |
+| 15 | R7: Real STT Benchmark on CUDA | Benchmark Faster-Whisper `large-v3` on CUDA with synthetic 1s, 3s, 5s, 10s audio buffers and calculate real RTF. | M7 | ORIGINAL_REQUEST §R7 |
+| 16 | R7: Benchmark Results Documentation | Create `docs/benchmark_results.md` with real CUDA metrics and mark old adapter measurements as `[MOCK — đo trên adapter, không phản ánh model thật]`. | M7 | ORIGINAL_REQUEST §R7 |
+| 17 | Final: E2E Test Suite Validation | Execute comprehensive E2E test suite across all 7 items (Tiers 1-4) with 100% pass rate. | M8 | ORIGINAL_REQUEST Acceptance Criteria |
+| 18 | Final: Adversarial Coverage Hardening | Run white-box adversarial stress tests (Tier 5) across all modified modules. | M8 | Orchestrator Quality Standard |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Intent Recognition (R1) | `jarvis/llm/router.py`, `tests/` | None | DONE |
-| M2 | Suppress Console Flash (R2) | `jarvis/`, `scripts/` subprocess calls | None | DONE |
-| M3 | Rewrite README (R3) | `README.md` complete rewrite | None | DONE |
-| M4 | E2E Verification & Audit | Acceptance verification of R1, R2, R3, full test suite pass, and integrity audit | M1, M2, M3 | DONE |
+| E2E | E2E Testing Suite Track | Design and construct opaque-box E2E test harness covering all 7 requirements (Tiers 1-4) and publish `TEST_READY.md`. | none | DONE |
+| M1 | R1: Sandbox `__globals__` Escape Patch | Patch `jarvis/sandbox/security.py`, implement adversarial tests, verify no regression on 15 existing sandbox tests. | none | DONE |
+| M2 | R2: Night Shift Daemon Audit & Sandboxing | Create `docs/night_shift_audit.md`, sandbox `jarvis/workers/night_shift.py` via `CodeInterpreterSandbox`, add verification tests. | none | DONE |
+| M3 | R3: AppContainer Network Sandbox B2 | Implement AppContainer network socket blocking and real OS non-mock test `@pytest.mark.real_os`. | M1 | DONE |
+| M4 | R4: Prompt-Injection Defense Pipeline | Implement `jarvis/security/prompt_guard.py`, integrate with browser/screen_context, add adversarial test suite (>=5 payloads). | none | DONE |
+| M5 | R5: Comms Token Bucket Rate Limiting | Implement `TokenBucketRateLimiter`, update `config/default_config.yaml`, integrate with Telegram, Zalo, Discord, Mobile Bridge, write tests. | none | DONE |
+| M6 | R6: Discord Tests & Watchdog Chaos Test | Implement Discord slash-command/Rich Embed tests, implement Watchdog 3x chaos test with MTTR measurement. | none | DONE |
+| M7 | R7: Real STT Benchmark on CUDA & Docs | Measure Faster-Whisper `large-v3` CUDA RTF on 1s/3s/5s/10s, write `docs/benchmark_results.md`, mark mock numbers. | none | DONE |
+| M8 | Final Milestone: 100% E2E Pass & Verification Gate | Pass 100% of test suite (1,189 tests), obtain APPROVE review and CLEAN forensic audit. | E2E, M1-M7 | DONE |
 
 ## Interface Contracts
-### Router Intent Contracts (M1)
-- `parse_intent(text, force_llm=False)` returns `IntentResult`:
-  - `action_name`: `"workspace_prepare"`, `"project_create"`, `"project_list"`, or `"skill_git_assistant"`
-  - `action_name` must NOT be `"unknown_intent"` or `"generic_llm_response"` for the targeted test phrases.
-  - Parameters dictionary contains extracted entities (e.g., project name, sub-action).
+### `jarvis.security.prompt_guard` ↔ Browser & Screen Context
+- `PromptGuard.sanitize(text: str, source: str = "web") -> SanitizationResult(str)`: Returns XML-quarantined string `<untrusted_external_content source="...">...</untrusted_external_content>` while exposing inspection attributes `.clean_text`, `.is_suspicious`, `.risk_level`, `.detected_patterns`.
+- `PromptGuard.contains_injection(text: str) -> tuple[bool, str | None]`: Checks for malicious instruction override signatures.
 
-### Process Management Contracts (M2)
-- Windows subprocess invocations must specify `creationflags=subprocess.CREATE_NO_WINDOW` (or `0x08000000`) or `startupinfo` (with `STARTF_USESHOWWINDOW` and `SW_HIDE`) within 5 lines of the call.
-- Safe cross-platform helper pattern:
-  `creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0`
+### `jarvis.comms.rate_limiter` ↔ Comms Channels (Telegram, Zalo, Discord, Mobile Bridge)
+- `TokenBucketRateLimiter(rate_per_minute: float = 60.0, burst_limit: int = 10, requests_per_minute: float | None = None)`
+- `limiter.acquire(user_id: str | int) -> RateLimitResult`: Evaluates as boolean and unpacks as `(allowed: bool, retry_after_s: float)`.
+- Rejections return standard HTTP 429 status response.
 
-### Documentation Contracts (M3)
-- `README.md` must be self-contained, completely accurate for Windows 11 64-bit Python 3.13, and include all 5 required sections.
+### `jarvis.workers.night_shift` ↔ `jarvis.sandbox.security`
+- Night Shift background execution delegates untrusted/dynamic script steps to `CodeInterpreterSandbox` using Low Integrity Token and Job Object restrictions.
 
 ## Code Layout
-- `jarvis/llm/router.py`: Intent routing logic (M1 - DONE)
-- `tests/test_router_project_intents.py`: Intent routing tests (M1 - DONE)
-- `jarvis/`, `scripts/`: Subprocess executions (M2 - DONE)
-- `README.md`: Project documentation (M3 - DONE)
-- `tests/`: Complete test suite (M4 - DONE)
+- `jarvis/sandbox/security.py`: Sandbox bootstrap preamble, AppContainer and Low Integrity process isolation.
+- `jarvis/workers/night_shift.py`: Night shift worker daemon with sandbox execution wrapper.
+- `jarvis/security/prompt_guard.py`: Prompt injection sanitization and XML quarantine pipeline.
+- `jarvis/comms/rate_limiter.py`: Token bucket rate limiter.
+- `jarvis/comms/`: Telegram, Zalo, Discord, and Mobile Bridge inbound message handlers.
+- `jarvis/automation/safety_gate.py`: Safety gate confirmation and watchdog supervision.
+- `jarvis/stt/`: Faster-Whisper STT engine and benchmarking scripts.
+- `docs/night_shift_audit.md`: Formal Night Shift daemon security audit report.
+- `docs/benchmark_results.md`: Formal STT CUDA benchmark report with RTF metrics and mock data classification.
+- `tests/unit/`: Unit tests for rate limiting, discord controller, prompt guard, and watchdog chaos.
+- `tests/integration/`: Integration tests for sandbox OS boundaries and AppContainer socket blocking.
+- `tests/e2e/`: E2E test suite covering all 7 requirements.

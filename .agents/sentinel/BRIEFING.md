@@ -1,27 +1,28 @@
-# BRIEFING — 2026-08-31T05:34:01Z
+# BRIEFING — 2026-08-31T07:16:42Z
 
 ## Mission
-Fix 3 persistent issues in JARVIS v4.1.x (R1: Intent Recognition for Project/Workspace, R2: Suppress Subprocess Console Flash across entire codebase, R3: Rewrite README Installation Guide).
+Fix 7 security vulnerabilities and stability improvements in JARVIS v4.1.0 (R1-R7) and verify all acceptance criteria.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: d:\Software GitCode\JARVIS\.agents\sentinel
-- Orchestrator: 601689ab-a214-4cd9-b4c7-b21387523e96
-- Victory Auditor: 1b21610d-817d-44fc-b632-6c9d272c53d3
+- Orchestrator: dc73a28c-797b-486c-85f4-6bbbe9eedd2f
+- Victory Auditor: a121e977-0120-4a81-bb34-e1d2b2f89b53
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
 - Victory Audit is MANDATORY before reporting completion
-- Route according to Routing Decision Table (General SWE path -> teamwork_preview_orchestrator)
-- Must maintain cron monitoring and do not take victory claim at face value
+- Must route according to Routing Decision Table (General -> teamwork_preview_orchestrator)
+- Must maintain cron progress reporting and liveness monitoring
 
 ## User Context
-- **Last user request**: Fix 3 issues in JARVIS v4.1.x (R1: project/workspace intent recognition, R2: suppress console flash for all subprocess calls on Windows, R3: rewrite README installation guide with prerequisites, end-user quick start, dev setup, 5 common errors).
-- **Pending clarifications**: none
-- **Delivered results**: none
+- **Last user request**: Fix 7 security vulnerabilities & stability items (R1: __globals__ sandbox escape, R2: Night Shift audit/sandbox, R3: AppContainer socket test, R4: Prompt-Injection defense, R5: Comms rate-limiting, R6: Discord functional + Safety Gate Watchdog chaos test, R7: STT benchmark on CUDA).
+- **Pending clarifications**: [none]
+- **Delivered results**: [none]
 
 ## Project Status
 - **Phase**: complete
+- **Route**: General -> teamwork_preview_orchestrator
 
 ## Victory Audit Status
 - **Triggered**: yes
@@ -29,4 +30,4 @@ Fix 3 persistent issues in JARVIS v4.1.x (R1: Intent Recognition for Project/Wor
 - **Retry count**: 0
 
 ## Artifact Index
-- d:\Software GitCode\JARVIS\.agents\ORIGINAL_REQUEST.md — Authoritative record of user request
+- d:\Software GitCode\JARVIS\.agents\ORIGINAL_REQUEST.md — Original verbatim user request

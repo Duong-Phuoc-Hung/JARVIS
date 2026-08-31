@@ -1,35 +1,51 @@
-# E2E Test Infra: JARVIS Autonomous Agentic Superpower Upgrade
+# E2E Test Infra: JARVIS v4.1.0 Security & Stability Hardening
 
 ## Test Philosophy
-- Opaque-box & unit integration tests derived from user requirements in `ORIGINAL_REQUEST.md`.
-- Zero-hardware, zero-cloud live API dependency: 100% deterministic test execution using hermetic mocks and multi-tier fallbacks.
-- Dual testing methodology: Unit subsystem verification (Tiers 1 & 2) + Cross-feature interaction (Tier 3) + Real-world multi-step autonomous scenarios (Tier 4).
+- Opaque-box, requirement-driven testing derived strictly from `ORIGINAL_REQUEST.md`.
+- Zero coupling to internal private state where public interfaces exist.
+- Non-mock real OS execution for security boundaries on Windows.
+- Tiered methodology:
+  - Tier 1: Feature Coverage (>=5 test cases per requirement)
+  - Tier 2: Boundary & Corner Cases (>=5 test cases per requirement)
+  - Tier 3: Cross-Feature Combinations (Pairwise coverage)
+  - Tier 4: Real-World Application Workloads
+  - Tier 5: White-Box Adversarial Hardening
 
-## Feature Inventory & Test Coverage Goals
-| # | Feature | Source (Requirement) | Tier 1 (Happy Path) | Tier 2 (Boundary & Corner) | Tier 3 (Pairwise / Cross) | Tier 4 (Real-World) |
-|---|---------|---------------------|:-------------------:|:--------------------------:|:-------------------------:|:-------------------:|
-| 1 | Autonomous ReAct Planner | ORIGINAL_REQUEST §14-19 | >=3 | >=3 | >=2 | >=1 |
-| 2 | Self-Healing & Reflection | ORIGINAL_REQUEST §17 | >=2 | >=2 | >=1 | >=1 |
-| 3 | Safety Gate Mode | ORIGINAL_REQUEST §18 | >=2 | >=2 | >=1 | >=1 |
-| 4 | Code Interpreter Sandbox | ORIGINAL_REQUEST §20-24 | >=3 | >=3 | >=1 | >=1 |
-| 5 | Persistent Skill Library | ORIGINAL_REQUEST §23 | >=2 | >=2 | >=1 | >=1 |
-| 6 | Browser Automation Agent | ORIGINAL_REQUEST §25-30 | >=3 | >=3 | >=1 | >=1 |
-| 7 | Computer-Use Vision & GUI | ORIGINAL_REQUEST §31-36 | >=3 | >=3 | >=1 | >=1 |
-| 8 | Background Workers | ORIGINAL_REQUEST §37-41 | >=2 | >=2 | >=1 | >=1 |
-| 9 | HUD Telemetry & Memory | ORIGINAL_REQUEST §42-47 | >=2 | >=2 | >=1 | >=1 |
-| 10| System Health Check | ORIGINAL_REQUEST §51 | >=1 | >=1 | >=1 | >=1 |
+## Feature Inventory & Test Mapping
+| # | Feature | Requirement | Tier 1 | Tier 2 | Tier 3 | Tier 4 |
+|---|---------|-------------|:------:|:------:|:------:|:------:|
+| 1 | R1: `__globals__` Sandbox Escape Patch | ORIGINAL_REQUEST §R1 | 5 | 5 | ✓ | ✓ |
+| 2 | R2: Night Shift Daemon Audit & Sandboxing | ORIGINAL_REQUEST §R2 | 5 | 5 | ✓ | ✓ |
+| 3 | R3: AppContainer Network Sandbox Socket Blocking | ORIGINAL_REQUEST §R3 | 5 | 5 | ✓ | ✓ |
+| 4 | R4: Prompt-Injection Defense Pipeline | ORIGINAL_REQUEST §R4 | 5 | 5 | ✓ | ✓ |
+| 5 | R5: Comms Token Bucket Rate-Limiting | ORIGINAL_REQUEST §R5 | 5 | 5 | ✓ | ✓ |
+| 6 | R6: Discord Slash Commands & Watchdog Chaos Test | ORIGINAL_REQUEST §R6 | 5 | 5 | ✓ | ✓ |
+| 7 | R7: Real STT Benchmark on CUDA & Docs Classification | ORIGINAL_REQUEST §R7 | 5 | 5 | ✓ | ✓ |
 
-## Test Architecture & Directory Layout
-- `tests/unit/test_react_planner.py`: ReAct engine, DAG cycle detection, parameter interpolation, reflection triage, safety gate tokens.
-- `tests/unit/test_skill_synthesis.py`: Code interpreter sandbox, AST security validator, timeout bounds, artifact capture, persistent skill registry.
-- `tests/unit/test_background_workers.py`: Sub-agent worker lifecycle, concurrency limits, watchdog heartbeats, telemetry broadcasting, notification hooks.
-- `tests/unit/test_browser_agent.py`: Multi-tier browser driver, dynamic SPA scraping, table extraction, form fill, session cookies, price comparison.
-- `tests/unit/test_computer_use_vision.py`: 1000x1000 coordinate normalization, bounding box calculations, visual verifier pixel diff, GUI actor verified click/type.
-- `tests/unit/test_hud_telemetry_and_memory.py`: AlwaysOnOverlay Task DAG / Code log rendering, SQLiteMemoryStore tasks/browser schemas.
-- `tests/e2e/test_autonomous_workflows.py`: Multi-step real-world autonomous workflows combining Planner + Sandbox + Browser + Vision + Background Workers + HUD.
+## Test Architecture
+- Test Runner: `pytest`
+- Directory: `tests/e2e/`
+  - `tests/e2e/test_r1_sandbox_globals_e2e.py`
+  - `tests/e2e/test_r2_night_shift_e2e.py`
+  - `tests/e2e/test_r3_network_sandbox_e2e.py`
+  - `tests/e2e/test_r4_prompt_injection_e2e.py`
+  - `tests/e2e/test_r5_rate_limiting_e2e.py`
+  - `tests/e2e/test_r6_discord_watchdog_e2e.py`
+  - `tests/e2e/test_r7_stt_benchmark_e2e.py`
+  - `tests/e2e/test_combined_security_stability_e2e.py`
 
-## Target Thresholds
-- Baseline test pass rate: 100% of 921+ existing tests pass without regressions.
-- New test count: >= 30 new comprehensive tests.
-- Total test count: >= 951 tests passing.
-- System health-check: `python -m jarvis health-check` exits with status code 0 and all modules reporting OK/READY.
+## Real-World Application Scenarios (Tier 4)
+| # | Scenario | Features Exercised | Complexity |
+|---|----------|--------------------|------------|
+| 1 | Web Scraping with Embedded Jailbreak & Night Shift Scheduled Task | R1, R2, R4 | High |
+| 2 | Heavy Inbound Attack across Discord/Telegram/Zalo with Rapid Injection Payloads | R4, R5, R6 | High |
+| 3 | Sandboxed AppContainer Execution with Socket Exfiltration & Process Crash Recovery | R1, R3, R6 | High |
+| 4 | Full Audio Processing & STT Pipeline with Concurrency & Throttling | R5, R7 | Medium |
+| 5 | Complete System Stress Test: 4 Comms Channels + Sandbox + Watchdog Under Load | R1, R2, R3, R4, R5, R6, R7 | High |
+
+## Coverage Thresholds
+- Minimum Tier 1 Test Cases: 35 (5 per requirement × 7)
+- Minimum Tier 2 Test Cases: 35 (5 per requirement × 7)
+- Minimum Tier 3 Test Cases: 7 cross-feature interaction scenarios
+- Minimum Tier 4 Test Cases: 5 end-to-end workload application scenarios
+- Total Target: >= 82 E2E test cases
