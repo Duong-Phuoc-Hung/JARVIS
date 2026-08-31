@@ -550,9 +550,67 @@ class FasterWhisperSTT(BaseSTTEngine):
         if model is None:
             raise STTError("Failed loading faster-whisper model")
 
+        # ── Hallucination detection helpers ──────────────────────────────────
+        # Audio energy relative to transcript length: very low RMS + long output
+        # is the fingerprint of Whisper hallucination on silence/noise segments.
+        audio_rms = float(calculate_rms(arr))
+        audio_duration_s = len(arr) / 16000
+
         with self._lock:
-            segments, _ = model.transcribe(arr, language=language, beam_size=5)
-            text = " ".join(s.text.strip() for s in segments)
+            segments, info = model.transcribe(
+                arr,
+                language=language,
+                beam_size=kwargs.pop("beam_size", 5),
+                # ── Hallucination mitigations ─────────────────────────────
+                # (1) Don't condition each segment on previous text output:
+                #     prevents one hallucinated segment from "infecting" the next.
+                condition_on_previous_text=False,
+                # (2) Whisper's built-in no-speech gate: if Whisper's internal
+                #     classifier assigns P(no_speech) > 0.6, discard the segment.
+                no_speech_threshold=0.6,
+                # (3) Log-probability gate: discard segments whose average
+                #     token log-prob < -1.0 (model is very uncertain → likely garbage).
+                logprob_threshold=-1.0,
+                # (4) Compression-ratio gate: a compression ratio > 2.4 on the
+                #     transcript relative to audio suggests repetitive hallucination.
+                compression_ratio_threshold=2.4,
+                **kwargs,
+            )
+
+            accepted: list[str] = []
+            for seg in segments:
+                # Post-filter: anomalous energy / transcript-length ratio
+                # Low-energy audio (<0.005 RMS) producing a long transcript is
+                # a strong hallucination signal not caught by Whisper's own gates.
+                words_in_seg = len(seg.text.split())
+                energy_per_word = audio_rms / max(words_in_seg, 1)
+                if audio_rms < 0.005 and words_in_seg > 3:
+                    log.warning(
+                        "STT hallucination suspected: RMS=%.4f, words=%d, "
+                        "no_speech_prob=%.2f, avg_logprob=%.2f — segment discarded: %r",
+                        audio_rms, words_in_seg,
+                        getattr(seg, "no_speech_prob", -1),
+                        getattr(seg, "avg_logprob", -99),
+                        seg.text[:80],
+                    )
+                    continue
+
+                accepted.append(seg.text.strip())
+
+            text = " ".join(accepted)
+
+            # Log confidence metadata for every transcription (for monitoring)
+            if info is not None:
+                log.debug(
+                    "STT: lang=%s prob=%.2f dur=%.1fs RMS=%.4f segments=%d→%d accepted",
+                    getattr(info, "language", language),
+                    getattr(info, "language_probability", -1),
+                    audio_duration_s,
+                    audio_rms,
+                    len(list(segments)) if hasattr(segments, "__len__") else -1,
+                    len(accepted),
+                )
+
             return text.strip()
 
 
