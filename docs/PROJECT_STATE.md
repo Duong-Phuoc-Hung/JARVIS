@@ -103,10 +103,23 @@ All four CI jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline S
 
 **Immediate follow-ups (confirmed during orientation, not yet actioned — each is its own future
 task, not bundled into a documentation-only sync):**
-1. `ProactiveConfig.from_dict()` (`jarvis/proactive/engine.py`) contains stale fallback defaults
-   (90.0/85.0/85.0/20.0/60.0) that don't match the raised dataclass-field defaults
-   (92.0/92.0/92.0/15.0/600.0) — only manifests when a partial config dict supplies some but not
-   all threshold keys. Real code issue; fix in a dedicated code PR.
+1. **DONE (2026-09-01, branch `fix/proactive-config-defaults`):** `ProactiveConfig.from_dict()`
+   (`jarvis/proactive/engine.py`) contained stale fallback defaults (5.0/90.0/85.0/10.0/85.0/20.0/60.0)
+   that no longer matched the raised dataclass-field defaults (30.0/92.0/92.0/5.0/92.0/15.0/600.0) —
+   only manifested when a partial config dict supplied some but not all health-monitor threshold
+   keys. Fixed by sourcing every fallback from a fresh `cls()`/`ProactiveConfig()` instance
+   (`_defaults = cls()`) inside `from_dict()` instead of duplicating numeric constants, so future
+   dataclass-default tuning cannot drift out of sync again. 4 new regression tests added to
+   `tests/unit/test_proactive_engine.py`
+   (`test_proactive_config_empty_and_none_match_dataclass_defaults`,
+   `test_proactive_config_partial_nested_health_uses_current_defaults`,
+   `test_proactive_config_partial_flat_health_uses_current_defaults`,
+   `test_proactive_config_nested_health_overrides_flat_value`); one pre-existing test
+   (`test_proactive_engine_unified_tick`) had its mock RAM fixture bumped from 92.0 to 95.0 since
+   it had implicitly depended on the old stale `ram_threshold` fallback to trigger its assertion.
+   Evidence this session: `tests/unit/test_proactive_engine.py` — 49 passed; full `tests/unit/` —
+   997 collected, 997 passed, 0 failed; `ruff check`/`py_compile`/`git diff --check` all clean.
+   See `CHANGELOG.md`'s "ProactiveConfig Fallback-Default Fix" entry for full detail.
 2. Version metadata is unsynchronized: `CHANGELOG.md` reaches v4.3.1-era work, `pyproject.toml`
    remains `4.1.0`, `README.md` still shows older `4.1.0`/stale test-count badges,
    `config/default_config.yaml`'s `system.version` remains `1.0.0`. Decide canonical versioning

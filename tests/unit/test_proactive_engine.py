@@ -714,6 +714,73 @@ def test_proactive_engine_config_parsing():
     assert config.inactivity_timeout_s == 3600.0
 
 
+# Health-monitor fields whose from_dict() fallback previously (before this fix)
+# used stale numeric constants instead of the current ProactiveConfig() defaults.
+_HEALTH_FIELDS = (
+    "health_interval_s",
+    "cpu_threshold",
+    "ram_threshold",
+    "disk_min_free_gb",
+    "temp_threshold_c",
+    "battery_min_percent",
+    "health_cooldown_s",
+)
+
+
+def test_proactive_config_empty_and_none_match_dataclass_defaults():
+    """Verify empty/None config produces a ProactiveConfig identical to ProactiveConfig()."""
+    defaults = ProactiveConfig()
+
+    assert ProactiveConfig.from_dict(None) == defaults
+    assert ProactiveConfig.from_dict({}) == defaults
+
+
+def test_proactive_config_partial_nested_health_uses_current_defaults():
+    """A partially-specified nested health_monitor block must fall back to the
+    *current* ProactiveConfig() defaults for every omitted field, not stale
+    hardcoded values baked into from_dict()."""
+    defaults = ProactiveConfig()
+    cfg = {"proactive": {"health_monitor": {"cpu_threshold": 97.0}}}
+
+    config = ProactiveConfig.from_dict(cfg)
+
+    assert config.cpu_threshold == 97.0
+    for field in _HEALTH_FIELDS:
+        if field == "cpu_threshold":
+            continue
+        assert getattr(config, field) == getattr(defaults, field), field
+
+
+def test_proactive_config_partial_flat_health_uses_current_defaults():
+    """A partially-specified flat (non-nested) config must also fall back to the
+    current dataclass defaults for every omitted health field."""
+    defaults = ProactiveConfig()
+    cfg = {"cpu_threshold": 96.0}
+
+    config = ProactiveConfig.from_dict(cfg)
+
+    assert config.cpu_threshold == 96.0
+    for field in _HEALTH_FIELDS:
+        if field == "cpu_threshold":
+            continue
+        assert getattr(config, field) == getattr(defaults, field), field
+
+
+def test_proactive_config_nested_health_overrides_flat_value():
+    """When both a nested health_monitor value and a flat top-level value are
+    supplied for the same field, the nested value must win."""
+    cfg = {
+        "proactive": {
+            "cpu_threshold": 80.0,
+            "health_monitor": {"cpu_threshold": 91.0},
+        }
+    }
+
+    config = ProactiveConfig.from_dict(cfg)
+
+    assert config.cpu_threshold == 91.0
+
+
 def test_proactive_engine_initialization_and_master_lifecycle():
     """Verify master engine lifecycle starts and stops all sub-services."""
     tts_mock = MagicMock()
@@ -818,7 +885,11 @@ def test_proactive_engine_delegated_apis():
 
 def test_proactive_engine_unified_tick():
     """Verify synchronous tick step across all sub-engines."""
-    provider = MockTelemetryProvider(ram=92.0)
+    # ram=95.0 clearly breaches the current ProactiveConfig default
+    # ram_threshold (92.0, strict >) regardless of future threshold tuning
+    # headroom; this test only cares that a breach surfaces via tick(), not
+    # the exact threshold value (see test_proactive_config_* for that).
+    provider = MockTelemetryProvider(ram=95.0)
     tts_mock = MagicMock()
 
     engine = ProactiveEngine(

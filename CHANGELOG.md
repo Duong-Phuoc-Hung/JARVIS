@@ -2,6 +2,22 @@
 
 ---
 
+## 🚀 Chưa phát hành (2026-09-01) — ProactiveConfig Fallback-Default Fix
+
+### 🐛 fix(proactive): `ProactiveConfig.from_dict()` fallback defaults now derive from the dataclass itself
+
+**`jarvis/proactive/engine.py`** — `from_dict()`'s 7 health-monitor fallback values (`health_interval_s`, `cpu_threshold`, `ram_threshold`, `disk_min_free_gb`, `temp_threshold_c`, `battery_min_percent`, `health_cooldown_s`) were hardcoded to old, obsolete numbers (5.0/90.0/85.0/10.0/85.0/20.0/60.0) instead of the dataclass's current, raised defaults (30.0/92.0/92.0/5.0/92.0/15.0/600.0). A partial config dict (e.g. only overriding `cpu_threshold`) silently fell back to these stale thresholds for every omitted field.
+
+Fix: `from_dict()` now builds `_defaults = cls()` once and reads every fallback from that single instance instead of duplicating numeric constants — future dataclass-default tuning can no longer drift out of sync with `from_dict()`. Precedence preserved exactly: nested `health_monitor` value → flat `proactive` value → current `ProactiveConfig` default; no explicit user-supplied value's behavior changed.
+
+4 new regression tests added (`tests/unit/test_proactive_engine.py`): empty/None config matches dataclass defaults; partial nested `health_monitor` config falls back to current defaults for every omitted field; partial flat config does the same; nested value overrides a flat value for the same field.
+
+**Pre-existing test correction (consequence of the fix, not a new bug):** `test_proactive_engine_unified_tick`'s mock RAM value (92.0) implicitly relied on the old stale `ram_threshold` fallback (85.0) to trigger an alert; under the corrected default (92.0, strict `>`), 92.0 no longer breaches, so the fixture was bumped to 95.0 — the test's intent (a health alert surfaces via `tick()`) is unchanged.
+
+Validation: `tests/unit/test_proactive_engine.py` — 49 passed. Full `tests/unit/` — 997 collected, 997 passed, 0 failed.
+
+---
+
 ## 🎙️ v4.3.1 — Real Acoustic STT Evaluation & Framework Hardening (2026-08-31)
 
 > **Bộ dữ liệu âm học thật N=90 trials (Microphone Realtek) | Đánh giá thực nghiệm small vs large-v3**
