@@ -60,3 +60,8 @@ JARVIS_Screenshot_*.png
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Teamwork agent workspaces
+.agents/teamwork_preview_*/
+.agents/victory_auditor_*/
+

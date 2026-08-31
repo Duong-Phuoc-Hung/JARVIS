@@ -3,13 +3,14 @@
 <div align="center">
 
 [![CI Status](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/workflows/ci.yml/badge.svg)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
-[![Tests](https://img.shields.io/badge/tests-633%20passed-00ff88?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
-[![Version](https://img.shields.io/badge/version-4.0.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
+[![Tests](https://img.shields.io/badge/tests-633%2B%20passed-00ff88?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
+[![Version](https://img.shields.io/badge/version-4.1.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?style=flat-square)](https://python.org)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%2064--bit-0078D4?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?style=flat-square)](README.md)
 
-**JARVIS** là hệ thống trợ lý AI cá nhân tự trị chạy ngầm trên Windows, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. Không cần mở VS Code hay bất kỳ IDE nào — JARVIS cài đặt như một ứng dụng thật, tự khởi động cùng máy tính, và luôn sẵn sàng phục vụ bằng giọng nói tiếng Việt hoặc qua Telegram/Zalo/Discord.
+**JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
+JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding), ghi nhớ ngữ nghĩa theo thời gian thực (Semantic RAG Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
 </div>
 
@@ -17,987 +18,457 @@
 
 ## 📋 Mục Lục
 
-- [Tính Năng Nổi Bật](#-tính-năng-nổi-bật)
-- [Hướng Dẫn Cài Đặt](#-hướng-dẫn-cài-đặt-chi-tiết)
-- [Cấu Hình `.env`](#-cấu-hình-env)
-- [Danh Sách Kỹ Năng Chi Tiết](#-danh-sách-kỹ-năng-chi-tiết)
-- [Điều Khiển Qua Điện Thoại](#-điều-khiển-qua-điện-thoại)
-- [Phím Tắt Toàn Hệ Thống](#%EF%B8%8F-phím-tắt-toàn-hệ-thống)
-- [Autonomous ReAct Agent](#-autonomous-react-agent)
-- [Kiến Trúc Hệ Thống](#-kiến-trúc-hệ-thống)
-- [Developer Guide](#-developer-guide)
-- [FAQ](#-câu-hỏi-thường-gặp)
+1. [✨ Tính Năng Nổi Bật](#-tính-năng-nổi-bật)
+2. [💻 Yêu Cầu Hệ Thống (Prerequisites)](#-yêu-cầu-hệ-thống-prerequisites)
+3. [🚀 Hướng Dẫn Cài Đặt Từng Bước (Step-by-Step Installation)](#-hướng-dẫn-cài-đặt-từng-bước-step-by-step-installation)
+4. [⚡ Dành Cho Người Dùng Cuối — Quick Start (Standalone Installer)](#-dành-cho-người-dùng-cuối--quick-start-standalone-installer)
+5. [🛠️ Dành Cho Nhà Phát Triển (Developer Setup)](#%EF%B8%8F-dành-cho-nhà-phát-triển-developer-setup)
+6. [🔧 Các Lỗi Thường Gặp & Cách Khắc Phục (Common Errors & Fixes)](#-các-lỗi-thường-gặp--cách-khắc-phục-common-errors--fixes)
+7. [⚙️ Cấu Hình `.env`](#%EF%B8%8F-cấu-hình-env)
+8. [🧰 Danh Sách Kỹ Năng Chi Tiết (18+ Skills)](#-danh-sách-kỹ-năng-chi-tiết-18-skills)
+9. [⌨️ Phím Tắt Toàn Hệ Thống](#%EF%B8%8F-phím-tắt-toàn-hệ-thống)
+10. [📱 Điều Khiển Qua Điện Thoại (Telegram / Zalo / Discord)](#-điều-khiển-qua-điện-thoại)
+11. [🏗️ Kiến Trúc Giọng Nói & Tự Trị (Architecture)](#%EF%B8%8F-kiến-trúc-giọng-nói--tự-trị-architecture)
+12. [🔒 Mô Hình Bảo Mật (Security Model)](#-mô-hình-bảo-mật-security-model)
+13. [📄 Giấy Phép & Tác Giả](#-giấy-phép--tác-giả)
 
 ---
 
 ## ✨ Tính Năng Nổi Bật
 
 ### 🎙️ Nhận Diện Giọng Nói Offline & Barge-in
-- **Wake word:** Nói *"Hey JARVIS"* từ bất kỳ khoảng cách nào, JARVIS lập tức lắng nghe
-- **Barge-in (ngắt lời):** Trong khi JARVIS đang nói, bạn có thể nói chèn vào ngay — JARVIS tự tắt tiếng và nghe lệnh mới
-- **VAD (Voice Activity Detection):** Thuật toán phát hiện giọng nói qua năng lượng RMS — không cần internet, độ trễ <10ms
-- **STT:** Faster-Whisper chạy hoàn toàn offline, nhận dạng tiếng Việt + tiếng Anh trong <200ms
-- **TTS:** Piper TTS offline, giọng nói tự nhiên, phản hồi bằng âm thanh trong <80ms
+- **Wake Word:** Nhận diện từ khóa *"Hey JARVIS"* tức thì với độ trễ cực thấp.
+- **Barge-in (Ngắt lời tức thời):** Khi JARVIS đang nói, bạn có thể nói chèn vào — hệ thống lập tức tắt âm thanh TTS và chuyển sang nghe lệnh mới.
+- **VAD (Voice Activity Detection):** Thuật toán phát hiện giọng nói thông minh bằng năng lượng RMS hoặc WebRTC VAD — xử lý offline, độ trễ <10ms.
+- **STT (Speech-to-Text):** Tích hợp Faster-Whisper (CTranslate2) chạy offline, nhận diện chuẩn xác cả tiếng Việt và tiếng Anh.
+- **TTS (Text-to-Speech):** Piper TTS offline mượt mà tự nhiên (<80ms) cùng tùy chọn kết nối ElevenLabs chất lượng studio.
 
-### 🧠 Intent Router Thông Minh
-- **15+ mẫu tiếng Việt** được nhận diện tức thì không qua LLM (zero-latency fast path)
-- Ví dụ nhận diện: *"mở"* → app_launcher, *"ghi chú"* → note_taker, *"tính"* → calculator
-- **Fallback LLM:** Khi không khớp mẫu, gửi lên Gemini để phân tích ý định
-- Độ chính xác: **>95%** trên tập lệnh tiếng Việt thông dụng
+### 🧠 Router Ý Định 3 Lớp Thông Minh (3-Tier Intent Router)
+- **Regex & Rule Fast-Path:** Nhận diện ngay lập tức hơn 20+ mẫu câu lệnh tiếng Việt không cần gọi LLM (zero-latency, 0 token).
+- **Project & Workspace Assistant:** Quản lý dự án, chuẩn bị workspace, tạo project, liệt kê thư mục và theo dõi Git thông minh.
+- **Fallback Gemini LLM:** Phân tích ý định phức tạp qua Google Gemini 1.5 Flash / Pro khi không khớp rule.
+- **Autonomous ReAct Agent:** Tự động lập kế hoạch (Plan), thực thi công cụ (Act), quan sát (Observe) và phản hồi (Reflect).
 
-### 🧬 Tự Sinh Kỹ Năng Mới (Self-Coding)
-- Nói *"JARVIS, tạo kỹ năng theo dõi giá vàng"* → JARVIS viết code Python, kiểm tra syntax, chạy test, đăng ký vào hệ thống — tất cả trong <15 giây
-- Kỹ năng tự tổng hợp được lưu tại `~/.jarvis/skills/` và tải lại tự động khi khởi động
-- Hỗ trợ mô tả bằng ngôn ngữ tự nhiên: *"kỹ năng gửi email hàng ngày lúc 8h sáng"*
+### 🧬 Tự Sinh Kỹ Năng Mới (Self-Coding Skills)
+- Nói *"JARVIS, tạo kỹ năng theo dõi giá vàng"* → JARVIS tự thiết kế interface, viết code Python, kiểm tra cú pháp (`py_compile`), chạy smoke test và đăng ký trực tiếp vào hệ thống trong <15 giây.
 
-### 🔍 Bộ Nhớ Ngữ Nghĩa (Semantic RAG)
-- Lưu trữ ghi chú, hội thoại, và tài liệu vào vector store nội bộ (TF-IDF BM25)
-- Tìm kiếm theo nghĩa — không cần nhớ từ khóa chính xác: *"hôm qua tôi nói gì về dự án Alpha?"*
-- Hoạt động hoàn toàn offline, không gửi dữ liệu ra ngoài
-- Dung lượng: hỗ trợ tới 10.000 entries, truy vấn trong <50ms
+### 🔍 Bộ Nhớ Ngữ Nghĩa (Semantic Memory & RAG)
+- Tự động lưu trữ nhật ký hội thoại, ghi chú và tài liệu vào SQLite vector store (TF-IDF BM25 & Cosine Similarity) hoàn toàn offline.
+- Tìm kiếm ký ức theo ngữ nghĩa: *"Hôm qua tôi nói gì về kế hoạch dự án?"*
 
-### 🌙 Night Shift Worker
-- Nhận nhiệm vụ tối: *"tối nay phân tích 50 file code trong src/ cho tôi"*
-- JARVIS tự chạy trong khi bạn ngủ, thực hiện các tác vụ nặng (phân tích, tổng hợp, xử lý file)
-- 7h sáng: JARVIS chủ động gọi dậy bạn và đọc báo cáo kết quả Markdown
-
-### 🌐 Browser CDP Controller
-- Điều khiển Chrome thực bằng giọng nói qua Playwright CDP (Chrome DevTools Protocol)
-- Lệnh: *"mở YouTube"*, *"tìm kiếm Python tutorial"*, *"click vào nút Subscribe"*
-- *"chụp màn hình trang này"* → ảnh PNG tự động lưu Desktop
-- *"trích xuất văn bản trang"* → đọc nội dung trang cho bạn nghe
-- Hỗ trợ: scroll, fill form, nhấn phím tắt, đóng tab
-
-### 🔄 Auto-Update Daemon
-- Kiểm tra GitHub Releases mỗi 6 giờ tự động
-- So sánh phiên bản theo Semantic Versioning (vX.Y.Z)
-- Tải về bản mới → backup bản cũ → cài đặt trong nền → thông báo qua toast
-- Rollback về phiên bản trước nếu có lỗi: *"JARVIS, khôi phục bản cũ"*
-
-### 🧩 Plugin SDK
-- Lập trình viên có thể tạo plugin riêng và phân phối qua pip: `pip install jarvis-plugin-ten`
-- JARVIS tự quét `~/.jarvis/plugins/` và `importlib.metadata` khi khởi động
-- Mỗi plugin chỉ cần: `metadata.json` + `__init__.py` với hàm `execute(params) → result`
+### 🌐 Tự Động Hóa Trình Duyệt & Hệ Thống
+- Điều khiển Chrome trực tiếp qua giao thức Playwright CDP (Chrome DevTools Protocol).
+- Phân tích ngữ cảnh màn hình tức thời qua Gemini Vision AI (`Ctrl+Shift+Space`).
+- Tự động hóa macro chuột/bàn phím, điều khiển âm lượng, màn hình, quản lý file và ứng dụng Windows.
 
 ---
 
-## 📥 Hướng Dẫn Cài Đặt Chi Tiết
+## 💻 Yêu Cầu Hệ Thống (Prerequisites)
 
-> Chọn **một trong 3 cách** bên dưới. Khuyên dùng **Cách 3** nếu muốn cài hẳn vào máy.
+Trước khi cài đặt, vui lòng đảm bảo máy tính của bạn đáp ứng các yêu cầu sau:
+
+| Thành phần | Yêu cầu tối thiểu | Chi tiết & Link tải chính thức |
+|---|---|---|
+| **Hệ điều hành** | Windows 11 / 10 (64-bit) | Build 19041 trở lên (Hỗ trợ Win32 API & System Tray) |
+| **Python** | **Python 3.13+ (64-bit)** | Tải tại: [Python 3.13.2 64-bit](https://www.python.org/downloads/release/python-3132/)<br>⚠️ **Bắt buộc:** Tích chọn ✅ **"Add python.exe to PATH"** trong màn hình cài đặt đầu tiên. |
+| **Git** | Git for Windows | Tải tại: [Git for Windows Official](https://git-scm.com/download/win) |
+| **Visual C++ Runtime** | VC++ 2015–2022 Redistributable (x64) | Tải tại: [vc_redist.x64.exe (Microsoft)](https://aka.ms/vs/17/release/vc_redist.x64.exe)<br>*(Bắt buộc cho Pillow, sounddevice, CTranslate2, faster-whisper)* |
+| **Phần cứng âm thanh** | Microphone & Loa / Tai nghe | Đảm bảo micro và loa hoạt động bình thường trong Windows Settings |
+| **API Key** | Google Gemini API Key | Lấy miễn phí tại: [Google AI Studio](https://aistudio.google.com/apikey) |
 
 ---
 
-### 🔷 Cách 1 — Chạy Từ Source Code
+## 🚀 Hướng Dẫn Cài Đặt Từng Bước (Step-by-Step Installation)
 
-Dành cho lập trình viên muốn tùy chỉnh hoặc phát triển thêm.
+Dành cho người dùng và lập trình viên muốn cài đặt từ mã nguồn (Source Code) trên Windows 11/10.
 
-**Bước 1 — Cài Python 3.11**
+### Bước 1: Clone kho mã nguồn (Repository)
 
-Tải tại: https://python.org/downloads/release/python-3119/
-
-> ⚠️ **Bắt buộc:** Trong màn hình cài đặt, tích ✅ **"Add Python to PATH"** trước khi nhấn Install.
-
-Kiểm tra sau khi cài xong:
-```powershell
-python --version
-# Kết quả mong đợi: Python 3.11.x
-```
-
-**Bước 2 — Tải JARVIS**
+Mở **PowerShell** hoặc **Command Prompt (Terminal)** và chạy:
 
 ```powershell
 git clone https://github.com/Duong-Phuoc-Hung/JARVIS.git
 cd JARVIS
 ```
 
-Nếu chưa có Git: tải ZIP tại https://github.com/Duong-Phuoc-Hung/JARVIS → **Code → Download ZIP** → giải nén → mở terminal trong folder.
+### Bước 2: Tạo môi trường ảo (Virtual Environment)
 
-**Bước 3 — Cài thư viện**
+Tạo môi trường ảo độc lập để tránh xung đột với các thư viện Python khác trên hệ thống:
 
 ```powershell
+python -m venv .venv
+```
+
+### Bước 3: Kích hoạt Virtual Environment
+
+- **Trên PowerShell:**
+  ```powershell
+  .\.venv\Scripts\Activate.ps1
+  ```
+  *(💡 Nếu gặp lỗi `ExecutionPolicy`: chạy lệnh `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` rồi kích hoạt lại).*
+
+- **Trên Command Prompt (CMD):**
+  ```cmd
+  .venv\Scripts\activate.bat
+  ```
+
+Sau khi kích hoạt, đầu dòng lệnh sẽ xuất hiện tiền tố `(.venv)`.
+
+### Bước 4: Cài đặt các thư viện phụ thuộc (Dependencies)
+
+Cập nhật `pip` và cài đặt danh mục thư viện:
+
+```powershell
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-> ⏳ Mất 2–5 phút. Tải ~200MB.
+> ⏳ Quá trình cài đặt mất khoảng 1–3 phút tùy tốc độ mạng.
 
-**Bước 4 — Tạo file cấu hình**
+### Bước 5: Cấu hình file môi trường `.env`
 
-Tạo file tên `.env` trong folder JARVIS (xem [mục cấu hình](#-cấu-hình-env) bên dưới).
-
-**Bước 5 — Khởi chạy**
+Tạo file `.env` tại thư mục gốc của dự án `JARVIS\` và điền Gemini API Key của bạn:
 
 ```powershell
-# Chạy ngầm (khuyên dùng) — xuất hiện icon ở system tray
-python main.py --tray
-
-# Chạy có console để xem log
-python main.py
+# Tạo nhanh file .env bằng PowerShell (UTF-8 clean encoding):
+Set-Content -Path .env -Value "GEMINI_API_KEY=AIzaSyYourActualAPIKeyHere" -Encoding utf8
 ```
 
-**Bước 6 — Tự khởi động cùng Windows (tuỳ chọn)**
+Hoặc mở trình soạn thảo và tạo file `.env` với nội dung đầy đủ:
+
+```env
+# ── Cấu hình bắt buộc ─────────────────────────────────────────
+GEMINI_API_KEY=AIzaSyYourActualGeminiAPIKeyHere
+GOOGLE_API_KEY=AIzaSyYourActualGeminiAPIKeyHere
+
+# ── Cấu hình giọng nói & ngôn ngữ (Tùy chọn) ─────────────────
+JARVIS_LANGUAGE=vi
+JARVIS_WHISPER_MODEL=base
+JARVIS_VOICE=vi_VN-vivos-medium
+
+# ── Điều khiển từ xa (Tùy chọn) ──────────────────────────────
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+DISCORD_BOT_TOKEN=
+DISCORD_GUILD_ID=
+ZALO_ACCESS_TOKEN=
+ZALO_OA_ID=
+```
+
+### Bước 6: Kiểm tra sức khỏe hệ thống (Health Check)
+
+Chạy lệnh kiểm tra chẩn đoán toàn bộ 17 hệ thống con (Audio, Wake Word, Memory Store, UI Tray, Router, v.v.):
 
 ```powershell
-python -m jarvis install-autostart
-# Để tắt:
-python -m jarvis uninstall-autostart
+python -m jarvis health-check
 ```
+
+Đảm bảo tất cả các mục quan trọng đều báo `[+] READY`.
+
+### Bước 7: Khởi chạy JARVIS lần đầu
+
+```powershell
+# Khởi chạy JARVIS (Mặc định chạy nền ở khay hệ thống System Tray):
+python -m jarvis
+
+# Xem trợ giúp và danh sách tùy chọn dòng lệnh:
+python -m jarvis --help
+
+# Khởi chạy ở chế độ Headless (không bật khay hệ thống):
+python -m jarvis run --headless
+```
+
+Sau khi khởi chạy:
+- Biểu tượng JARVIS xuất hiện ở khay hệ thống (System Tray cạnh đồng hồ).
+- Nói *"Hey JARVIS"* hoặc nhấn phím tắt `Ctrl+Shift+J` để bắt đầu trò chuyện!
 
 ---
 
-### 🔷 Cách 2 — Build File .EXE Standalone
+## ⚡ Dành Cho Người Dùng Cuối — Quick Start (Standalone Installer)
 
-Sau khi build, bạn có 1 file `JARVIS.exe` chạy được ngay, không cần Python.
+Nếu bạn không muốn cài đặt Python hoặc cấu hình dòng lệnh, bạn có thể sử dụng bộ cài đặt độc lập:
 
-**Bước 1 — Cài PyInstaller**
-```powershell
-pip install pyinstaller
-```
-
-**Bước 2 — Build**
-```powershell
-python scripts/build_installer.py --exe-only
-```
-> ⏳ Mất 5–10 phút lần đầu.
-
-**Bước 3 — Chạy**
-```powershell
-# Double-click JARVIS.exe hoặc:
-.\dist\JARVIS.exe --tray
-```
-
-**Bước 4 — Tạo shortcut Desktop**
-Nhấp phải `JARVIS.exe` → **Send to** → **Desktop (create shortcut)**
+1. **Tải Bộ Cài Đặt:**
+   - Truy cập [Releases Page](https://github.com/Duong-Phuoc-Hung/JARVIS/releases) và tải file `JARVIS_Setup_v4.1.0.exe`.
+2. **Chạy Trình Cài Đặt (Setup Wizard):**
+   - Double-click vào `JARVIS_Setup_v4.1.0.exe` và làm theo các bước trên màn hình.
+   - Chọn đường dẫn cài đặt (mặc định: `C:\Program Files\JARVIS`).
+   - Tích chọn tạo shortcut ngoài Desktop và tự động khởi động cùng Windows.
+3. **Cấu Hình API Key:**
+   - Điền Gemini API Key trong cửa sổ Settings ban đầu hoặc lưu vào `%LOCALAPPDATA%\JARVIS\.env`.
+4. **Sử Dụng Ngay:**
+   - Mở ứng dụng từ **Start Menu** hoặc icon **Desktop**.
+   - JARVIS sẽ chạy ngầm dưới khay hệ thống, không hiển thị cửa sổ console gây phiền toái.
 
 ---
 
-### 🔷 Cách 3 — Windows Installer (Cài Như App Thật ⭐ Khuyên Dùng)
+## 🛠️ Dành Cho Nhà Phát Triển (Developer Setup)
 
-Sau khi cài, JARVIS có trong Start Menu, tự khởi động cùng Windows, gỡ cài sạch từ Control Panel.
+Dành cho các lập trình viên muốn tùy biến mã nguồn, viết thêm kỹ năng hoặc đóng góp mã nguồn (Contributing).
 
-**Bước 1 — Cài Inno Setup 6**
+### Cài đặt môi trường phát triển đầy đủ
 
-Tải miễn phí: https://jrsoftware.org/isdl.php → chọn `innosetup-6.x.x.exe` → cài đặt bình thường.
-
-**Bước 2 — Cài PyInstaller + Dependencies**
 ```powershell
-pip install pyinstaller
-pip install -r requirements.txt
+git clone https://github.com/Duong-Phuoc-Hung/JARVIS.git
+cd JARVIS
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+# Cài đặt trọn gói bao gồm tất cả dev dependencies và optional extras:
+pip install -e ".[all]"
 ```
 
-**Bước 3 — Build .exe trước**
+### Chạy bộ kiểm thử (Running Test Suites)
+
+JARVIS bao gồm hơn 630+ bài kiểm thử tự động toàn diện:
+
 ```powershell
-python scripts/build_installer.py --exe-only
-# → dist/JARVIS.exe
+# Chạy toàn bộ test suites:
+pytest tests/
+
+# Chạy kiểm thử kèm báo cáo độ bao phủ mã nguồn (Coverage Report):
+pytest tests/ --cov=jarvis --cov-report=term-missing
+
+# Chạy kiểm thử riêng cho bộ nhận diện Intent Router:
+pytest tests/test_router_project_intents.py -v
 ```
 
-**Bước 4 — Build file installer**
+### Kiểm tra cú pháp, Linting & Type Checking
+
 ```powershell
+# Kiểm tra code style và quy chuẩn với Ruff:
+ruff check .
+
+# Tự động định dạng code:
+ruff format .
+
+# Kiểm tra tĩnh kiểu dữ liệu (Static Type Checking) với Mypy:
+mypy jarvis
+```
+
+### Đóng gói ứng dụng (Building Executable & Installer)
+
+```powershell
+# 1. Đóng gói thành file chạy trực tiếp dist/JARVIS.exe:
+python scripts/build_exe.py
+
+# 2. Đóng gói thành file cài đặt Windows Installer dist/installer/JARVIS_Setup_v4.1.0.exe:
 python scripts/build_installer.py
-# → dist/installer/JARVIS_Setup_v4.0.0.exe
 ```
 
-**Bước 5 — Chạy installer**
+---
 
-Double-click `JARVIS_Setup_v4.0.0.exe` → làm theo từng bước:
+## 🔧 Các Lỗi Thường Gặp & Cách Khắc Phục (Common Errors & Fixes)
 
-| Màn hình | Hành động |
-|----------|-----------|
-| Welcome | → Next |
-| License Agreement | Chọn "I accept" → Next |
-| Select Destination | Mặc định `C:\Program Files\JARVIS` → Next |
-| Select Components | ✅ Core Files ✅ Desktop Icon ✅ Start Menu ✅ Auto-start |
-| Ready to Install | → Install |
-| Installation Complete | ✅ Launch JARVIS → Finish |
+Dưới đây là 5 lỗi phổ biến nhất và giải pháp xử lý triệt để:
 
-**Sau khi cài xong, JARVIS có ở:**
+### 1. ❌ SQLite database locked / Permission Denied
+- **Hiện tượng:** Gặp lỗi `sqlite3.OperationalError: database is locked` hoặc `PermissionError` khi khởi động hoặc lưu ghi chú.
+- **Nguyên nhân:** Có tiến trình JARVIS khác đang chạy ngầm chiếm giữ database, hoặc phiên làm việc trước bị tắt đột ngột khiến file `.wal` / `.shm` bị khóa.
+- **Cách khắc phục:**
+  1. Đóng toàn bộ tiến trình JARVIS đang chạy:
+     ```powershell
+     Stop-Process -Name "JARVIS","python" -Force -ErrorAction SilentlyContinue
+     ```
+  2. Kiểm tra thư mục dữ liệu tại `%LOCALAPPDATA%\JARVIS\data` (hoặc `~/.jarvis/`).
+  3. Xóa các file lock tạm `.wal` và `.shm`:
+     ```powershell
+     Remove-Item "$env:LOCALAPPDATA\JARVIS\data\*.db-wal" -Force -ErrorAction SilentlyContinue
+     Remove-Item "$env:LOCALAPPDATA\JARVIS\data\*.db-shm" -Force -ErrorAction SilentlyContinue
+     ```
+  4. Khởi động lại JARVIS.
 
-| Vị trí | Dùng để |
-|--------|---------|
-| `C:\Program Files\JARVIS\JARVIS.exe` | File thực thi chính |
-| Desktop → **JARVIS AI Assistant** | Chạy bằng double-click |
-| Start Menu → tìm **"JARVIS"** | Mở từ Start |
-| Startup folder | Tự chạy khi bật máy |
-| Control Panel → Programs | Gỡ cài đặt sạch |
+---
+
+### 2. ❌ PIL / Pillow DLL Load Failed
+- **Hiện tượng:** `ImportError: DLL load failed while importing _imaging: The specified module could not be found.`
+- **Nguyên nhân:** Hệ điều hành Windows bị thiếu thư viện C runtime của Microsoft hoặc cache cài đặt Pillow bị lỗi.
+- **Cách khắc phục:**
+  1. Tải và cài đặt [Visual C++ 2015–2022 Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
+  2. Cài đặt lại Pillow không dùng cache:
+     ```powershell
+     pip uninstall -y Pillow
+     pip install --no-cache-dir Pillow
+     ```
+
+---
+
+### 3. ❌ faster-whisper CTranslate2 model download / CUDA fallback
+- **Hiện tượng:** Lỗi khi tải mô hình Whisper từ Hugging Face Hub (Connection Timeout / SSL Error) hoặc lỗi crash liên quan đến CUDA/GPU.
+- **Nguyên nhân:** Máy tính không có card đồ họa NVIDIA hoặc CUDA toolkit không khớp; kết nối tới HuggingFace bị gián đoạn.
+- **Cách khắc phục:**
+  1. Cấu hình fallback sang CPU int8 trong file cấu hình `config.yaml` hoặc `.env`:
+     ```yaml
+     whisper:
+       device: "cpu"
+       compute_type: "int8"
+     ```
+  2. Nếu mạng quốc tế bị nghẽn, cấu hình mirror Hugging Face trên PowerShell trước khi chạy:
+     ```powershell
+     $env:HF_ENDPOINT = "https://hf-mirror.com"
+     ```
+  3. Tải trước model để kiểm tra:
+     ```powershell
+     python -c "from faster_whisper import WhisperModel; WhisperModel('base', device='cpu', compute_type='int8')"
+     ```
+
+---
+
+### 4. ❌ UAC / Administrator Rights & Phím Tắt Toàn Cục (Hotkeys)
+- **Hiện tượng:** Phím tắt `Ctrl+Shift+J` hoặc tính năng gửi phím tự động không hoạt động khi đang focus vào các cửa sổ chạy quyền Admin (như Task Manager, CMD Administrator).
+- **Nguyên nhân:** Cơ chế bảo mật UIPI (User Interface Privilege Isolation) của Windows ngăn ứng dụng quyền chuẩn tương tác với cửa sổ quyền Elevated Administrator.
+- **Cách khắc phục:**
+  1. Đối với nhu cầu hàng ngày, chạy JARVIS dưới quyền tài khoản chuẩn (Standard User).
+  2. Nếu thường xuyên làm việc trên các cửa sổ Administrator và muốn JARVIS can thiệp: Nhấp chuột phải vào `JARVIS.exe` (hoặc Terminal) và chọn **"Run as administrator"**.
+
+---
+
+### 5. ❌ API Key 401 Unauthorized / Invalid API Key
+- **Hiện tượng:** Lỗi `google.api_core.exceptions.InvalidArgument: 401 Unauthorized` hoặc `API_KEY_INVALID`.
+- **Nguyên nhân:** File `.env` đặt sai vị trí, tên biến không đúng chuẩn, hoặc API Key bị dính khoảng trắng, dấu ngoặc kép thừa.
+- **Cách khắc phục:**
+  1. Đảm bảo file `.env` nằm tại thư mục gốc của dự án hoặc `%LOCALAPPDATA%\JARVIS\.env`.
+  2. Sử dụng định dạng chuẩn (không dùng dấu ngoặc kép, không khoảng trắng):
+     ```env
+     GEMINI_API_KEY=AIzaSyD-YourExactKeyHere
+     GOOGLE_API_KEY=AIzaSyD-YourExactKeyHere
+     ```
+  3. Kiểm tra kết nối API Key trực tiếp:
+     ```powershell
+     python -c "import os, dotenv, google.generativeai as genai; dotenv.load_dotenv(); genai.configure(api_key=os.getenv('GEMINI_API_KEY')); print(genai.GenerativeModel('gemini-1.5-flash').generate_content('ping').text)"
+     ```
 
 ---
 
 ## ⚙️ Cấu Hình `.env`
 
-Tạo file `.env` tại thư mục gốc của JARVIS. Chỉ cần `GOOGLE_API_KEY` là đủ để chạy cơ bản.
+Bảng mô tả các biến môi trường hỗ trợ trong `.env`:
 
-```env
-# ╔══════════════════════════════════════════╗
-# ║   JARVIS v4.0.0 — Configuration File    ║
-# ╚══════════════════════════════════════════╝
-
-# ── Bắt buộc ─────────────────────────────────────────────────
-# Lấy miễn phí tại: https://aistudio.google.com/apikey
-GOOGLE_API_KEY=AIzaSy...
-
-# ── Telegram Bot (tuỳ chọn) ──────────────────────────────────
-# 1. Mở Telegram → tìm @BotFather → gửi /newbot → đặt tên
-# 2. Sao chép token nhận được vào đây
-TELEGRAM_BOT_TOKEN=123456789:ABC...
-# 3. Lấy chat_id: gửi tin nhắn cho bot → vào
-#    https://api.telegram.org/bot<token>/getUpdates
-TELEGRAM_CHAT_ID=987654321
-
-# ── Discord Bot (tuỳ chọn) ───────────────────────────────────
-# Tạo tại: https://discord.com/developers/applications
-# → New Application → Bot → Reset Token
-DISCORD_BOT_TOKEN=MTI...
-# Server ID (nhấp phải server → Copy Server ID)
-DISCORD_GUILD_ID=1234567890
-
-# ── Zalo Official Account (tuỳ chọn) ─────────────────────────
-# Đăng ký OA: https://oa.zalo.me/home
-# Vào Developer → API → lấy Access Token
-ZALO_ACCESS_TOKEN=v4.0...
-ZALO_OA_ID=123456789
-# Tạo secret bất kỳ để verify webhook
-ZALO_WEBHOOK_SECRET=my_secret_key_123
-
-# ── Cài đặt giọng nói ─────────────────────────────────────────
-# Ngôn ngữ: vi (tiếng Việt) hoặc en (tiếng Anh)
-JARVIS_LANGUAGE=vi
-# Tên model Whisper: tiny / base / small / medium / large-v3
-JARVIS_WHISPER_MODEL=base
-# Giọng đọc Piper (tên model trong ~/.jarvis/voices/)
-JARVIS_VOICE=vi_VN-vivos-medium
-
-# ── Cài đặt hệ thống ──────────────────────────────────────────
-# 0 = chế độ bình thường | 1 = không mở cửa sổ (server/CI)
-JARVIS_HEADLESS=0
-# Cổng webhook Zalo (mặc định 8765)
-JARVIS_ZALO_PORT=8765
-# Cổng Mobile Bridge (mặc định 8766)
-JARVIS_MOBILE_PORT=8766
-
-# ── Thông báo (tuỳ chọn) ──────────────────────────────────────
-# Discord Webhook URL để gửi thông báo vào channel
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
-```
+| Tên biến | Bắt buộc | Mặc định | Ý nghĩa |
+|---|---|---|---|
+| `GEMINI_API_KEY` | **Có** | — | API Key lấy từ [Google AI Studio](https://aistudio.google.com/apikey) |
+| `GOOGLE_API_KEY` | Tùy chọn | — | Dự phòng cho `GEMINI_API_KEY` |
+| `JARVIS_LANGUAGE` | Không | `vi` | Ngôn ngữ giao tiếp chính (`vi` hoặc `en`) |
+| `JARVIS_WHISPER_MODEL` | Không | `base` | Model Whisper: `tiny`, `base`, `small`, `medium` |
+| `JARVIS_VOICE` | Không | `vi_VN-vivos-medium` | Tên giọng đọc Piper TTS trong `~/.jarvis/voices/` |
+| `JARVIS_HEADLESS` | Không | `0` | `0`: Chế độ thường (Tray UI), `1`: Headless mode (Server) |
+| `TELEGRAM_BOT_TOKEN` | Không | — | Token Telegram Bot từ @BotFather |
+| `TELEGRAM_CHAT_ID` | Không | — | Chat ID người dùng nhận thông báo Telegram |
+| `DISCORD_BOT_TOKEN` | Không | — | Token ứng dụng Discord Bot |
+| `ZALO_ACCESS_TOKEN` | Không | — | Access token Zalo Official Account |
 
 ---
 
-## 🧰 Danh Sách Kỹ Năng Chi Tiết
+## 🧰 Danh Sách Kỹ Năng Chi Tiết (18+ Skills)
 
-### 1. 📰 Briefing Sáng (`briefing`)
+JARVIS được tích hợp sẵn 18+ kỹ năng mạnh mẽ, tự động kích hoạt qua giọng nói hoặc văn bản:
 
-Tổng hợp thông tin buổi sáng và đọc to cho bạn nghe.
-
-**Kích hoạt:**
-```
-"JARVIS, báo cáo sáng nay"
-"Hey JARVIS, briefing đi"
-"Tóm tắt tin tức hôm nay"
-```
-
-**Nội dung bao gồm:**
-| Mục | Nguồn | Ví dụ output |
-|-----|-------|-------------|
-| 🌤️ Thời tiết | OpenWeatherMap | "Hà Nội 28°C, mây rải rác, độ ẩm 75%" |
-| 📰 Tin tức | RSS feeds | Top 3 tiêu đề từ VnExpress, Tuổi Trẻ |
-| 💰 Crypto | CoinGecko API | "Bitcoin $67,500 (+2.3% hôm nay)" |
-| 📅 Lịch hôm nay | File notes | Các ghi chú có tag "today" |
-
-**Tham số:**
-```
-"Báo cáo sáng ở Đà Nẵng"           → city=DaNang
-"Báo cáo không cần tin tức"         → include_news=false
-"Briefing không có crypto"          → include_crypto=false
-```
+| # | Kỹ năng | Intent ID | Câu lệnh mẫu | Mô tả chức năng |
+|---|---|---|---|---|
+| 1 | 📰 **Briefing Sáng** | `briefing` | *"JARVIS, báo cáo sáng nay"* | Tổng hợp thời tiết, tin tức nổi bật và lịch trình |
+| 2 | 📝 **Ghi Chú Nhanh** | `note_taker` | *"Ghi chú: họp dự án lúc 3h chiều"* | Lưu trữ và tìm kiếm ghi chú toàn văn với SQLite FTS5 |
+| 3 | ⏱️ **Bộ Đếm Pomodoro** | `pomodoro` | *"Bắt đầu tập trung 25 phút"* | Đếm ngược chu kỳ làm việc, thông báo toast khi hoàn thành |
+| 4 | 💻 **Điều Khiển Hệ Thống**| `system_control`| *"Tăng âm lượng 20%", "Khóa máy tính"* | Điều chỉnh âm thanh, chụp màn hình, khóa máy Windows |
+| 5 | 🗂️ **Quản Lý File** | `file_manager` | *"Tìm file báo cáo doanh thu"* | Tìm kiếm và mở tập tin, thư mục theo ngôn ngữ tự nhiên |
+| 6 | 🧮 **Máy Tính Thông Minh**| `calculator` | *"Tính 15% của 5 triệu rưỡi"* | Tính toán biểu thức toán học và quy đổi tỷ giá/đơn vị |
+| 7 | 📋 **Quản Lý Clipboard** | `clipboard` | *"Đọc clipboard", "Sao chép: Xin chào"* | Đọc to nội dung clipboard hoặc lưu trữ lịch sử sao chép |
+| 8 | 🚀 **Mở Ứng Dụng** | `app_launcher` | *"Mở Google Chrome", "Mở VS Code"* | Fuzzy search tìm và khởi chạy phần mềm trên máy |
+| 9 | 👁️ **Phân Tích Màn Hình**| `screen_context`| *"Giải thích lỗi trên màn hình"* (`Ctrl+Shift+Space`) | Chụp ảnh màn hình và phân tích với Gemini Vision AI |
+| 10| ⏺️ **Ghi & Phát Macro** | `macro_recorder`| *"Ghi lại macro gửi email"* | Tự động hóa chuỗi thao tác bàn phím/chuột lặp lại |
+| 11| 🔊 **Sound Board** | `sound_board` | *"Phát âm thanh hoàn thành"* | Phát âm thanh phản hồi trạng thái vui nhộn |
+| 12| 🔍 **Tìm Ký Ức RAG** | `rag_search` | *"Tuần trước tôi nói gì về dự án X?"* | Tìm kiếm thông tin trong bộ nhớ ngữ nghĩa dài hạn |
+| 13| 🧬 **Tự Viết Kỹ Năng** | `skill_synthesizer`| *"Tạo kỹ năng theo dõi giá vàng"* | Tự động viết code Python và nạp kỹ năng mới trong <15s |
+| 14| 🌙 **Night Planner** | `night_planner` | *"Tối nay phân tích các file log"* | Thực hiện tác vụ nặng ban đêm và báo cáo lúc sáng |
+| 15| 🏠 **Nhà Thông Minh** | `smart_home_discovery`| *"Quét thiết bị nhà thông minh"* | Quét mDNS và điều khiển Home Assistant / Tasmota |
+| 16| 🌐 **Điều Khiển Browser**| `browser_control`| *"Mở YouTube tìm bài hát Iron Man"* | Điều khiển trình duyệt Chrome qua Playwright CDP |
+| 17| 🔄 **Tự Cập Nhật** | `auto_updater` | *"Kiểm tra bản cập nhật mới"* | Tự động kiểm tra và nâng cấp phiên bản qua GitHub |
+| 18| 📂 **Quản Lý Dự Án** | `workspace_prepare`| *"Mở dự án JARVIS", "Commit dự án"* | Quản lý dự án lập trình, Git assistant và workspace |
 
 ---
 
-### 2. 📝 Ghi Chú (`note_taker`)
-
-Lưu, tìm kiếm và quản lý ghi chú cá nhân với tag phân loại.
-
-**Kích hoạt:**
-```
-"Ghi chú: họp với khách lúc 3h chiều"
-"Nhớ hộ tôi: deadline dự án X là thứ 6"
-"Tìm ghi chú về dự án Alpha"
-"Xem tất cả ghi chú hôm nay"
-```
-
-**Các hành động:**
-| Hành động | Lệnh mẫu | Kết quả |
-|-----------|----------|---------|
-| `add` | "Ghi chú: mua sữa" | Lưu với timestamp + tag |
-| `list` | "Xem ghi chú hôm nay" | Hiện danh sách 10 ghi chú mới nhất |
-| `search` | "Tìm ghi chú về họp" | Tìm kiếm full-text |
-| `clear` | "Xóa tất cả ghi chú" | Xóa toàn bộ (có xác nhận) |
-
-**Tag phân loại:**
-```
-"Ghi chú urgent: fix bug trước 5h"    → tag=urgent
-"Ghi chú work: báo cáo Q3"           → tag=work
-"Ghi chú personal: sinh nhật vợ 20/9" → tag=personal
-```
-
-**Lưu trữ:** `~/.jarvis/notes.sqlite` — mã hóa, tìm kiếm full-text qua FTS5
-
----
-
-### 3. ⏱️ Pomodoro (`pomodoro`)
-
-Bộ đếm thời gian Pomodoro giúp tập trung làm việc theo phiên.
-
-**Kích hoạt:**
-```
-"Bắt đầu tập trung 25 phút"
-"Pomodoro 45 phút"
-"Dừng đếm giờ"
-"Còn bao nhiêu phút?"
-```
-
-**Cách hoạt động:**
-1. JARVIS bắt đầu đếm ngược (mặc định 25 phút)
-2. Cứ 5 phút: thông báo toast "Còn 20 phút..."
-3. Hết giờ: âm thanh chuông + thông báo giọng nói "Hết phiên tập trung!"
-4. Đề xuất nghỉ ngắn 5 phút
-
-**Tham số thời gian:**
-```
-"Tập trung 45 phút"    → duration=45
-"Pomodoro 1 tiếng"     → duration=60
-"Nghỉ 10 phút"         → break_mode=true, duration=10
-```
-
----
-
-### 4. 💻 Điều Khiển Hệ Thống (`system_control`)
-
-Điều khiển các chức năng hệ thống Windows bằng giọng nói.
-
-**Âm lượng:**
-```
-"Tăng âm lượng"                → +10%
-"Giảm âm lượng"                → -10%
-"Tắt tiếng"                    → mute toggle
-"Đặt âm lượng 50 phần trăm"   → set_volume=50
-```
-
-**Màn hình & Hiển thị:**
-```
-"Chụp màn hình"                → lưu PNG vào Desktop với tên JARVIS_YYYYMMDD_HHMMSS.png
-"Hiện desktop"                  → thu nhỏ tất cả cửa sổ (Win+D)
-"Khóa máy tính"                → LockWorkStation() ngay lập tức
-```
-
-**Thông số `screenshot`:**
-- Định dạng: PNG, chất lượng lossless
-- Lưu tại: `~/Desktop/JARVIS_screenshot_<timestamp>.png`
-- Độ trễ: ~150ms từ lệnh đến khi file xuất hiện
-
----
-
-### 5. 🗂️ Quản Lý File (`file_manager`)
-
-Tìm kiếm và mở file/thư mục bằng mô tả tự nhiên.
-
-**Kích hoạt:**
-```
-"Tìm file báo cáo tháng trước"
-"Mở thư mục Downloads"
-"Tìm file Excel về doanh thu"
-"Tìm file Python nào tôi chỉnh hôm qua"
-```
-
-**Khả năng tìm kiếm:**
-| Tiêu chí | Ví dụ |
-|---------|-------|
-| Tên file | "tìm file tên báo cáo" |
-| Loại file | "tìm file Excel", "tìm file PDF" |
-| Thời gian | "file chỉnh hôm qua", "file tạo tuần này" |
-| Nội dung | "file có chứa từ 'hợp đồng'" |
-| Thư mục | "trong Documents", "trong Downloads" |
-
----
-
-### 6. 🧮 Máy Tính (`calculator`)
-
-Tính toán biểu thức và chuyển đổi đơn vị bằng giọng nói.
-
-**Tính toán:**
-```
-"Tính 15% của 2 triệu rưỡi"     → 375,000
-"Bao nhiêu là 1500 USD sang VND" → 37,500,000 VNĐ (tỷ giá thực)
-"Căn bậc hai của 144"            → 12
-"2 mũ 10"                        → 1024
-```
-
-**Chuyển đổi đơn vị:**
-```
-"5 kilogram bằng bao nhiêu pound"
-"30 độ C bằng bao nhiêu Fahrenheit"
-"100 km/h bằng bao nhiêu m/s"
-```
-
----
-
-### 7. 📋 Clipboard (`clipboard`)
-
-Đọc, lưu và quản lý nội dung clipboard.
-
-**Kích hoạt:**
-```
-"Đọc clipboard"          → JARVIS đọc to nội dung hiện tại
-"Sao chép: xin chào"    → copy "xin chào" vào clipboard
-"Dán vào đây"           → Ctrl+V
-"Lịch sử clipboard"     → xem 5 lần copy gần nhất
-```
-
----
-
-### 8. 🚀 Mở Ứng Dụng (`app_launcher`)
-
-Tìm và mở ứng dụng, website, thư mục bằng tên tự nhiên.
-
-**Kích hoạt:**
-```
-"Mở Chrome"             → mở Google Chrome
-"Mở VS Code"            → mở Visual Studio Code
-"Mở Spotify"            → mở Spotify
-"Mở YouTube"            → mở youtube.com trong browser mặc định
-"Mở thư mục Downloads"  → mở Explorer tại Downloads
-```
-
-**Tìm kiếm thông minh:** So sánh fuzzy matching với danh sách app đã cài — gõ sai tên vẫn tìm được.
-
----
-
-### 9. 👁️ Phân Tích Màn Hình (`screen_context`)
-
-Chụp màn hình và phân tích nội dung bằng Gemini Vision AI.
-
-**Kích hoạt:** `Ctrl+Shift+Space` hoặc:
-```
-"Giải thích lỗi trên màn hình"
-"Dịch đoạn văn bản này"
-"Tóm tắt trang web đang mở"
-"Code này làm gì vậy?"
-```
-
-**Khả năng phân tích:**
-- **Lỗi code:** Đọc stack trace → giải thích nguyên nhân → gợi ý fix
-- **Văn bản nước ngoài:** Dịch sang tiếng Việt ngay trên màn hình
-- **Tài liệu/PDF:** Tóm tắt nội dung chính
-- **UI/Design:** Mô tả layout, đề xuất cải thiện
-
----
-
-### 10. ⏺️ Ghi Macro (`macro_recorder`)
-
-Ghi lại chuỗi thao tác chuột/bàn phím và phát lại tự động.
-
-**Ghi macro:**
-```
-"Ghi lại macro tên gửi email"
-# → thực hiện các thao tác: mở Gmail, nhập địa chỉ, soạn nội dung...
-"Dừng ghi"
-```
-
-**Phát lại:**
-```
-"Phát lại macro gửi email"
-"Chạy macro gửi email 5 lần"
-```
-
-**Lưu tại:** `~/.jarvis/macros/<name>.json` — có thể chỉnh sửa thủ công
-
----
-
-### 11. 🔊 Sound Board (`sound_board`)
-
-Phát các âm thanh phản hồi và hiệu ứng âm thanh theo ngữ cảnh.
-
-**Kích hoạt:**
-```
-"Phát âm thanh Iron Man"
-"Phát âm hoàn thành"
-"Bật nhạc nền làm việc"
-```
-
-**Thư viện âm thanh có sẵn:**
-| Âm thanh | Khi nào phát |
-|---------|-------------|
-| `startup.wav` | JARVIS khởi động |
-| `ready.wav` | Sẵn sàng nghe lệnh |
-| `done.wav` | Hoàn thành tác vụ |
-| `error.wav` | Gặp lỗi |
-| `iron_man.wav` | Theo yêu cầu |
-
----
-
-### 12. 🔍 Tìm Kiếm Ký Ức (`rag_search`)
-
-Tìm kiếm trong toàn bộ ký ức của JARVIS theo ngữ nghĩa.
-
-**Kích hoạt:**
-```
-"Tuần trước tôi ghi gì về dự án Alpha?"
-"JARVIS đã làm gì lúc 2h sáng?"
-"Tìm tất cả ghi chú về buổi họp"
-"Tôi đã note deadline nào chưa?"
-```
-
-**Nguồn dữ liệu tìm kiếm:**
-- Tất cả ghi chú (`note_taker`)
-- Lịch sử hội thoại với JARVIS
-- Báo cáo Night Shift
-- Kết quả tác vụ đã thực hiện
-
-**Thuật toán:** TF-IDF BM25 cosine similarity — tìm theo nghĩa, không cần từ khóa chính xác
-
----
-
-### 13. 🧬 Tự Tạo Kỹ Năng (`skill_synthesizer`)
-
-Yêu cầu JARVIS viết code và tạo kỹ năng mới hoàn toàn tự động.
-
-**Kích hoạt:**
-```
-"Tạo kỹ năng theo dõi giá vàng"
-"Tạo kỹ năng gửi email hàng ngày lúc 8h"
-"Tạo kỹ năng kiểm tra thời tiết Đà Nẵng"
-```
-
-**Quy trình tự động (< 15 giây):**
-```
-1. JARVIS hiểu yêu cầu → thiết kế interface
-2. Gemini viết code Python
-3. py_compile() kiểm tra syntax
-4. Chạy smoke test với input mẫu
-5. Đăng ký vào SkillRegistry
-6. "Xong! Kỹ năng 'gia_vang' đã sẵn sàng."
-```
-
----
-
-### 14. 🌙 Night Planner (`night_planner`)
-
-Lên kế hoạch và thực hiện tác vụ dài trong đêm.
-
-**Kích hoạt:**
-```
-"Tối nay phân tích tất cả file log trong /logs"
-"Đêm nay tổng hợp dữ liệu doanh thu tháng 8"
-"JARVIS làm báo cáo project status trong khi tôi ngủ"
-```
-
-**Luồng hoạt động:**
-```
-22:00 → Bạn giao nhiệm vụ → JARVIS xác nhận
-22:01 → Night Shift bắt đầu làm việc ngầm
-07:00 → JARVIS gọi "Chào buổi sáng! Tôi đã hoàn thành..."
-→ Báo cáo Markdown tại ~/.jarvis/reports/night_YYYYMMDD.md
-```
-
----
-
-### 15. 🏠 Nhà Thông Minh (`smart_home_discovery`)
-
-Tự động quét và điều khiển thiết bị nhà thông minh trên mạng LAN.
-
-**Kích hoạt:**
-```
-"Quét thiết bị nhà thông minh"
-"Bật đèn phòng khách"
-"Tắt máy lạnh"
-"Đặt nhiệt độ 24 độ"
-```
-
-**Thiết bị hỗ trợ phát hiện:**
-| Giao thức | Thiết bị |
-|-----------|---------|
-| Home Assistant | Toàn bộ ecosystem HA |
-| Tasmota | Ổ cắm thông minh Sonoff |
-| Tuya | Đèn, ổ cắm Tuya/SmartLife |
-| mDNS/Zeroconf | Thiết bị tự quảng bá |
-
----
-
-### 16. 🌐 Điều Khiển Trình Duyệt (`browser_control`)
-
-Điều khiển Chrome bằng giọng nói qua Playwright CDP.
-
-**Kích hoạt:**
-```
-"Mở YouTube"
-"Tìm kiếm Python tutorial"
-"Click vào nút đăng nhập"
-"Nhập email vào ô đầu tiên: test@example.com"
-"Cuộn xuống"
-"Chụp màn hình trang này"
-"Đóng tab"
-```
-
-> ⚠️ Yêu cầu cài Playwright: `playwright install chromium`
-
----
-
-### 17. 🔄 Tự Cập Nhật (`auto_updater`)
-
-Kiểm tra và cài đặt bản cập nhật JARVIS tự động.
-
-**Kích hoạt:**
-```
-"Kiểm tra cập nhật JARVIS"
-"JARVIS tự cập nhật đi"
-"Lịch sử cập nhật"
-"Khôi phục phiên bản cũ"
-```
-
-**Tự động:** Kiểm tra mỗi 6 giờ → nếu có bản mới → thông báo toast → hỏi bạn có muốn cập nhật không.
-
----
-
-### 18. 🧠 Chế Độ Agent Tự Trị (`agent_mode`)
-
-JARVIS tự lên kế hoạch và thực thi mục tiêu phức tạp không cần can thiệp.
-
-**Kích hoạt:**
-```
-"JARVIS, phân tích toàn bộ code trong thư mục src/"
-"Tìm tất cả file log có lỗi ERROR và tổng hợp thành báo cáo"
-"Nghiên cứu về LangChain và viết tóm tắt 500 từ"
-```
-
-**Vòng lặp ReAct:**
-```
-[THINK]   → "Cần đọc từng file trong src/ trước"
-[ACT]     → Gọi tool: list_dir(path="src/")
-[OBSERVE] → "Thấy 23 file .py"
-[THINK]   → "Sẽ đọc từng file"
-[ACT]     → Gọi tool: read_file(path="src/main.py")
-  ...
-[REFLECT] → Tổng hợp kết quả
-[DONE]    → Báo cáo đầy đủ
-```
-
-**12 Tools tích hợp:**
-`web_search` · `read_file` · `write_file` · `run_python` · `browser_open` · `screenshot` · `calculator` · `memory_search` · `send_telegram` · `list_dir` · `git_status` · `take_note`
+## ⌨️ Phím Tắt Toàn Hệ Thống
+
+Các phím tắt hoạt động toàn cầu trên Windows (ngay cả khi ứng dụng đang chạy ẩn ở System Tray):
+
+| Phím tắt | Hành động | Chi tiết |
+|---|---|---|
+| `Ctrl + Shift + J` | **Toggle Listening** | Bật / Tắt chế độ lắng nghe giọng nói |
+| `Ctrl + Shift + Space` | **Phân tích màn hình** | Chụp màn hình và gửi Gemini Vision AI phân tích |
+| `Ctrl + Shift + L` | **Khóa máy tính** | Khóa màn hình Windows (`LockWorkStation`) tức thì |
+| `Ctrl + Shift + M` | **Mute Microphone** | Tắt / Mở nhanh microphone của JARVIS |
+| `Ctrl + Shift + B` | **Briefing Sáng** | Đọc to bản tin tổng hợp buổi sáng |
+| `Ctrl + Shift + S` | **Chụp màn hình** | Lưu ảnh chụp màn hình chất lượng cao ra Desktop |
 
 ---
 
 ## 📱 Điều Khiển Qua Điện Thoại
 
 ### Telegram Bot
+1. Nhắn tin cho `@BotFather` trên Telegram để tạo bot và lấy `TELEGRAM_BOT_TOKEN`.
+2. Điền token và `TELEGRAM_CHAT_ID` vào file `.env`.
+3. Gửi lệnh `/start`, `/status`, `/briefing`, `/note`, `/screenshot` hoặc trò chuyện bằng ngôn ngữ tự nhiên từ bất kỳ đâu!
 
-**Thiết lập (5 phút):**
-1. Mở Telegram → tìm **@BotFather** → gửi `/newbot`
-2. Đặt tên (ví dụ: `My JARVIS Bot`) → lấy token
-3. Thêm vào `.env`: `TELEGRAM_BOT_TOKEN=<token>`
-4. Lấy Chat ID: gửi tin nhắn bất kỳ cho bot → vào `https://api.telegram.org/bot<token>/getUpdates` → lấy `chat.id`
-5. Thêm: `TELEGRAM_CHAT_ID=<chat_id>`
-6. Khởi động lại JARVIS
-
-**Lệnh Telegram:**
-| Lệnh | Chức năng | Ví dụ phản hồi |
-|------|-----------|---------------|
-| `/start` | Xin chào & liệt kê lệnh | "JARVIS sẵn sàng! Tôi có thể giúp gì?" |
-| `/status` | Trạng thái hệ thống | CPU 15%, RAM 8GB/32GB, Uptime 4h |
-| `/briefing` | Báo cáo sáng | Thời tiết + tin tức + crypto |
-| `/note <nội dung>` | Ghi chú nhanh | "Đã ghi: họp lúc 3h" |
-| `/calc <biểu thức>` | Tính toán | `/calc 15% of 2500000` → 375,000 |
-| `/screenshot` | Chụp màn hình → gửi ảnh | Gửi ảnh PNG ~2MB |
-| `/skills` | Danh sách kỹ năng | 18 kỹ năng đang hoạt động |
-| Tin nhắn tự do | Ngôn ngữ tự nhiên | JARVIS xử lý như lệnh giọng nói |
+### Zalo Official Account & Discord Bot
+- Hỗ trợ webhook 2 chiều qua cổng `8765` cho Zalo OA.
+- Tích hợp Discord Bot qua `DISCORD_BOT_TOKEN` để điều khiển máy tính qua channel Discord riêng tư.
 
 ---
 
-### Zalo Official Account
+## 🏗️ Kiến Trúc Giọng Nói & Tự Trị (Architecture)
 
-**Thiết lập:**
-1. Đăng ký OA tại https://oa.zalo.me → xác minh
-2. Vào **Developer Console** → **API** → lấy `Access Token`
-3. Cấu hình Webhook URL: `http://<your-ip>:8765/webhook`
-4. Thêm vào `.env`: `ZALO_ACCESS_TOKEN`, `ZALO_OA_ID`, `ZALO_WEBHOOK_SECRET`
-
-**Lệnh Zalo:**
-| Lệnh | Chức năng |
-|------|-----------|
-| `/status` | Trạng thái JARVIS |
-| `/briefing` | Báo cáo sáng |
-| `/note <nội dung>` | Ghi chú nhanh |
-| `/calc <biểu thức>` | Tính toán |
-| `/screenshot` | Chụp màn hình |
-| Tin nhắn tự do | Xử lý bằng IntentRouter |
-
----
-
-### Discord Bot
-
-**Lệnh Discord:**
 ```
-!status       — Trạng thái JARVIS
-!briefing     — Báo cáo sáng
-!note <text>  — Ghi chú
-!screenshot   — Chụp màn hình
-!calc <expr>  — Tính toán
+┌────────────────────────────────────────────────────────────────────────┐
+│                              INPUT LAYER                               │
+│  🎙️ Voice (VAD RMS/WebRTC)  📱 Telegram  💬 Discord  📞 Zalo OA        │
+│  ⌨️ Global Win32 Hotkeys   👁️ Screen Context Vision                   │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                         INTELLIGENCE ROUTER                            │
+│  Layer 1: Regex Fast-Path (20+ VN patterns, zero-latency, 0 token)     │
+│  Layer 2: Rule Engine Greedy Matcher (Workspace, System, Media, App)   │
+│  Layer 3: Gemini 1.5 Flash / Pro LLM Fallback                          │
+│  Layer 4: Autonomous ReAct Engine (Think ➔ Act ➔ Observe ➔ Reflect)    │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                           CORE SKILLS (18+)                            │
+│  briefing · note_taker · pomodoro · system_control · file_manager       │
+│  calculator · clipboard · app_launcher · screen_context · macro_rec    │
+│  rag_search · skill_synthesizer · night_planner · smart_home           │
+│  browser_control · auto_updater · project_manager · git_assistant      │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                       OUTPUT & EXECUTION LAYER                         │
+│  🗣️ Piper TTS / ElevenLabs (<80ms)    🔔 Windows Notification Toast     │
+│  🪟 Silent Subprocess Manager (No-Flash) 💾 SQLite FTS5 Memory         │
+│  🌐 Playwright CDP Automation          📊 Health Diagnostics           │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## ⌨️ Phím Tắt Toàn Hệ Thống
+## 🔒 Mô Hình Bảo Mật (Security Model)
 
-Hoạt động từ **bất kỳ ứng dụng nào** — kể cả khi JARVIS đang chạy ngầm.
-
-| Phím tắt | Chức năng | Chi tiết |
-|----------|-----------|---------|
-| `Ctrl+Shift+J` | Bật/Tắt JARVIS listening | Toggle chế độ lắng nghe giọng nói |
-| `Ctrl+Shift+L` | Khóa màn hình | Gọi Win32 `LockWorkStation()` ngay lập tức |
-| `Ctrl+Shift+M` | Tắt/Bật mic | Toggle mute microphone trong JARVIS |
-| `Ctrl+Shift+B` | Mở Briefing sáng | Phát báo cáo sáng qua TTS |
-| `Ctrl+Shift+S` | Chụp màn hình | Lưu PNG vào Desktop, thông báo toast |
-| `Ctrl+Shift+Space` | Phân tích màn hình | Chụp + gửi Gemini Vision + đọc kết quả |
+- **Chạy Ngầm Tĩnh Lặng (No Console Flash):** Toàn bộ các tiến trình subprocess/PowerShell/CMD được spawn đều chạy ẩn hoàn toàn (`CREATE_NO_WINDOW`), không gián đoạn trải nghiệm người dùng.
+- **Bảo Mật Bộ Nhớ Cục Bộ:** Dữ liệu ghi chú, ký ức và cấu hình được lưu cục bộ trên máy tại `%LOCALAPPDATA%\JARVIS\` và thư mục người dùng `~/.jarvis/`.
+- **An Toàn Mã Nguồn:** Tính năng tự tạo kỹ năng (Self-Coding) được kiểm tra cú pháp và chạy thử nghiệm trong sandbox an toàn trước khi tích hợp vào hệ thống.
 
 ---
 
-## 🔔 Notification Hub
+## 📄 Giấy Phép & Tác Giả
 
-Gửi thông báo đồng thời qua nhiều kênh.
+Dự án được phát hành theo giấy phép **MIT License**. Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
 
-**Kích hoạt:**
-```python
-# Trong code:
-hub.notify("Họp bắt đầu!", channels=["all"])
-hub.schedule("Nhắc uống nước", at="every_2h")
-hub.add_rule("CPU > 90%", check_fn=lambda: psutil.cpu_percent() > 90)
-```
-
-**6 Kênh thông báo:**
-| Kênh | Điều kiện cần |
-|------|-------------|
-| 🪟 Windows Toast | Mặc định — luôn hoạt động |
-| 🔊 Sound | File âm thanh trong `~/.jarvis/sounds/` |
-| 🗣️ TTS | Piper TTS đang chạy |
-| 📱 Telegram | `TELEGRAM_BOT_TOKEN` đã cấu hình |
-| 💬 Discord | `DISCORD_WEBHOOK_URL` đã cấu hình |
-| 📞 Zalo | `ZALO_ACCESS_TOKEN` đã cấu hình |
-
----
-
-## 🏗️ Kiến Trúc Hệ Thống
-
-```
-┌─────────────────────────────────────────────────────┐
-│                   INPUT LAYER                        │
-│  🎙️ Voice (VAD+Whisper)  📱 Telegram  📞 Zalo       │
-│  💬 Discord              ⌨️  Hotkeys  📲 Mobile      │
-└──────────────────────┬──────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────┐
-│                INTELLIGENCE LAYER                    │
-│                                                      │
-│  Intent Router (15+ VN patterns, fast-path)         │
-│         │                                            │
-│         ├── Match → Direct Skill Invocation          │
-│         └── No match → LLM (Gemini) Classification  │
-│                                                      │
-│  ReAct Agent (Think→Act→Observe→Reflect)            │
-│  Semantic Memory (TF-IDF BM25, offline)             │
-└──────────────────────┬──────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────┐
-│                   SKILLS (18+)                       │
-│  briefing · note_taker · pomodoro · system_control  │
-│  file_manager · calculator · clipboard · launcher   │
-│  screen_context · macro_recorder · sound_board      │
-│  rag_search · skill_synthesizer · night_planner     │
-│  smart_home · browser_control · auto_updater        │
-│  [pip plugins: jarvis-plugin-*]                     │
-└──────────────────────┬──────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────┐
-│                  OUTPUT LAYER                        │
-│  🗣️ TTS (Piper, <80ms)   🔔 Notification Hub       │
-│  🪟 System Tray          📊 Health Reports          │
-└──────────────────────┬──────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────┐
-│               DAEMON LAYER (Background)              │
-│  🌙 Night Shift Worker    🔄 Auto-Update (6h)        │
-│  🏠 Smart Home Discovery  🧩 Plugin Hot-Loader       │
-└─────────────────────────────────────────────────────┘
-```
-
----
-
-## 🧪 Developer Guide
-
-### Cài môi trường phát triển
-
-```powershell
-git clone https://github.com/Duong-Phuoc-Hung/JARVIS.git
-cd JARVIS
-pip install -e ".[dev]"    # Cài với dev dependencies (pytest, ruff, mypy)
-pre-commit install          # Cài hooks kiểm tra code trước mỗi commit
-```
-
-### Chạy tests
-
-```powershell
-make test           # Tất cả 633 tests
-make test-cov       # Tests + coverage report
-make test-fast      # Bỏ qua slow tests
-
-# Chạy 1 file cụ thể:
-make test-file f=tests/unit/test_react_agent.py
-```
-
-### Code quality
-
-```powershell
-make lint           # Kiểm tra với Ruff
-make format         # Auto-format
-make typecheck      # Type check với mypy
-make check          # Tất cả cùng lúc
-```
-
-### Tạo kỹ năng mới
-
-```python
-# jarvis/skills/my_skill/__init__.py
-def execute(params: dict, context=None) -> dict:
-    """
-    Kỹ năng mẫu.
-    
-    Args:
-        params: {"action": "do_something", "value": "..."}
-    
-    Returns:
-        {"data": {...}, "output": "Kết quả dạng text"}
-    """
-    action = params.get("action", "")
-    return {
-        "data": {"result": "ok"},
-        "output": f"Đã thực hiện: {action}"
-    }
-```
-
-```json
-// jarvis/skills/my_skill/metadata.json
-{
-  "name": "my_skill",
-  "version": "1.0.0",
-  "description": "Mô tả kỹ năng",
-  "parameters_schema": {
-    "type": "object",
-    "properties": {
-      "action": {"type": "string", "default": "default"}
-    }
-  }
-}
-```
-
----
-
-## ❓ Câu Hỏi Thường Gặp
-
-<details>
-<summary><b>❌ Lỗi "Python not found" khi chạy lệnh</b></summary>
-
-**Nguyên nhân:** Python chưa được thêm vào PATH.
-
-**Cách fix:**
-1. Gõ vào thanh tìm kiếm Windows: *"Edit the system environment variables"*
-2. Nhấn **Environment Variables**
-3. Trong **System Variables** → tìm **Path** → **Edit**
-4. Thêm 2 dòng mới:
-   - `C:\Users\<TênBạn>\AppData\Local\Programs\Python\Python311\`
-   - `C:\Users\<TênBạn>\AppData\Local\Programs\Python\Python311\Scripts\`
-5. OK → Mở lại terminal
-
-</details>
-
-<details>
-<summary><b>❌ pip install thất bại / lỗi mạng</b></summary>
-
-```powershell
-# Thử 1: Dùng mirror trong nước
-pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-
-# Thử 2: Tăng timeout
-pip install -r requirements.txt --timeout=120
-
-# Thử 3: Cài từng gói quan trọng
-pip install google-generativeai python-dotenv numpy Pillow requests pytest
-```
-
-</details>
-
-<details>
-<summary><b>🎙️ JARVIS không nghe giọng nói / độ nhạy kém</b></summary>
-
-1. Kiểm tra micro: **Settings → System → Sound → Input** → đảm bảo micro được chọn
-2. Test micro bằng cách nói và xem thanh mức âm thanh có dao động không
-3. Nói to hơn hoặc gần mic hơn (khoảng cách tối ưu: 30–50cm)
-4. Trong `.env`, giảm ngưỡng VAD: `JARVIS_VAD_THRESHOLD=0.005` (mặc định 0.01)
-5. Kiểm tra `GOOGLE_API_KEY` có hợp lệ không
-
-</details>
-
-<details>
-<summary><b>🏗️ Build .exe thất bại</b></summary>
-
-```powershell
-# Xóa cache và thử lại
-Remove-Item -Recurse -Force build, dist, __pycache__
-pip install --upgrade pyinstaller
-python scripts/build_installer.py --exe-only --no-clean
-
-# Nếu lỗi "missing module":
-pip install <tên-module-bị-thiếu>
-python scripts/build_installer.py --exe-only
-```
-
-</details>
-
-<details>
-<summary><b>📱 Telegram bot không phản hồi</b></summary>
-
-1. Kiểm tra token trong `.env` đúng chưa (không có dấu cách, đầy đủ ký tự)
-2. Đảm bảo bot chưa bị block: vào @BotFather → `/mybots` → xem bot còn active không
-3. Xác nhận `TELEGRAM_CHAT_ID` là ID của bạn (không phải ID bot)
-4. Thử gửi `/start` cho bot để kích hoạt
-
-</details>
-
-<details>
-<summary><b>🔒 Antivirus chặn JARVIS.exe</b></summary>
-
-PyInstaller tạo file `.exe` từ Python thường bị một số antivirus flag nhầm (false positive). Cách xử lý:
-
-1. **Windows Defender:** Settings → Virus & threat protection → Manage settings → Add exclusion → Folder → chọn thư mục JARVIS
-2. **Cách an toàn hơn:** Chạy từ source code (Cách 1) thay vì .exe
-
-</details>
-
----
-
-## 📋 Nhật Ký Phiên Bản
-
-| Phiên bản | Ngày | Điểm nổi bật |
-|-----------|------|-------------|
-| **v4.0.1** | 2026-08-29 | Stability · CA/CI Fixes · Battery Fix · PyInstaller Release Build |
-| **v4.0.0** | 2026-08-28 | ReAct Autonomous Agent · Notification Hub · Windows Installer · pyproject.toml |
-| v3.2.0 | 2026-08-28 | Zalo Bot 2-Way Control |
-| v3.1.0 | 2026-08-28 | Browser CDP · Auto-Update · Plugin SDK · GitHub Release CI |
-| v3.0.0 | 2026-08-28 | Self-Coding Skills · Semantic RAG · Night Shift · Discord |
-| v2.0.0 | 2026-08-24 | 9 Built-in Skills · Memory · Global Hotkeys · System Tray |
-
-Chi tiết: [CHANGELOG.md](CHANGELOG.md)
-
----
+- **Tác giả:** Duong Phuoc Hung
+- **GitHub:** [@Duong-Phuoc-Hung](https://github.com/Duong-Phuoc-Hung)
+- **Repository:** [https://github.com/Duong-Phuoc-Hung/JARVIS](https://github.com/Duong-Phuoc-Hung/JARVIS)
 
 <div align="center">
 
-Tạo bởi **Duong Phuoc Hung** với ❤️
+*Phát triển với tất cả đam mê và sự tận tâm dành cho cộng đồng công nghệ Windows & AI Assistant!* 🚀
 
-[⭐ Star](https://github.com/Duong-Phuoc-Hung/JARVIS) · [🐛 Báo lỗi](https://github.com/Duong-Phuoc-Hung/JARVIS/issues) · [📖 Changelog](CHANGELOG.md) · [📦 Releases](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
+[⭐ Star Dự Án](https://github.com/Duong-Phuoc-Hung/JARVIS) · [🐛 Báo Lỗi / Đóng Góp](https://github.com/Duong-Phuoc-Hung/JARVIS/issues) · [📦 Tải Bản Phát Hành](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 
 </div>

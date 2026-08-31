@@ -1,139 +1,56 @@
-# Project: JARVIS Autonomous Agentic Superpower Upgrade
+# Project: JARVIS v4.1.x Bug Fixes & Documentation
 
 ## Architecture
-JARVIS is upgraded from single-turn reactive assistant to a fully autonomous, self-healing, multi-agent AI system.
-
-```
-                            [User Request / Voice / CLI / Telegram]
-                                              │
-                                              ▼
-                                   [JarvisApp Lifecycle]
-                                              │
-                    ┌─────────────────────────┴─────────────────────────┐
-                    ▼                                                   ▼
-         [Simple Intent Path]                                [Autonomous ReAct Planner]
-      (LLMIntentRouter / Fast-Path)                         (Task DAG / Self-Reflection)
-                    │                                                   │
-                    ▼                                                   ▼
-           [ActionDispatcher] ◄────────────────────────────── [SubAgentWorkerPool]
-                    │                                                   │
-     ┌──────────────┼──────────────┬──────────────┬──────────────┐      │
-     ▼              ▼              ▼              ▼              ▼      ▼
-[BrowserAgent] [GUIActor]   [CodeSandbox]  [SkillLibrary]  [OS Control] [AlwaysOnOverlay HUD]
- (Playwright/   (Vision 0-1000  (Python /      (Persistent      (Win32/     (Live Task DAG,
-  CDP/Scraper)   Grounding +     PowerShell     jarvis/skills/   Process/    Code Logs,
-                 Verification)   AST Isolated)  Auto-Package)    Files)      Waveform)
-```
+JARVIS is an AI voice assistant running on Windows 11/10 64-bit Python 3.13.
+Key architectural boundaries:
+- **LLM Routing Engine (`jarvis/llm/router.py`)**: 3-tier routing (Regex fast-path -> Rule Engine greedy dictionary -> LLM Tool calling -> Fallback).
+- **Subprocess & OS Execution (`jarvis/`, `scripts/`)**: Windows console management and process isolation.
+- **Documentation & Packaging (`README.md`, `installer/`)**: Installation guides, quick start, common diagnostics, and developer setup.
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | Autonomous ReAct Planner | Multi-step reasoning DAG, topological execution, parameter interpolation | M1 | R1, ORIGINAL_REQUEST §14-19 |
-| 2 | Self-Reflection & Self-Healing | Dynamic root-cause diagnosis, strategy matrix, retry with backoff, tool replacement | M1 | R1, ORIGINAL_REQUEST §17 |
-| 3 | Dual Mode with Safety Gate | Fully Autonomous vs 30s token confirmation on high-risk/destructive actions | M1 | R1, ORIGINAL_REQUEST §18 |
-| 4 | Autonomous Background Workers | Concurrency pool, task lifecycle management, cooperative cancellation, watchdogs | M1 | R5, ORIGINAL_REQUEST §37-41 |
-| 5 | Worker Telemetry & Notifications | EventBus broadcast, HUD progress updates, TTS voice notification, Telegram dispatch | M1 | R5, ORIGINAL_REQUEST §40 |
-| 6 | Code Interpreter Sandbox | Isolated Python/PowerShell execution, AST safety validator, resource bounds, artifact capture | M2 | R2, ORIGINAL_REQUEST §20-24 |
-| 7 | Persistent Skill Library | Automatic packaging into `jarvis/skills/`, metadata indexing, dynamic dispatcher registration | M2 | R2, ORIGINAL_REQUEST §23 |
-| 8 | Full Browser Automation Driver | 4-tier driver (Playwright -> CDP -> HTTP scraper -> Mock), session/cookie persistence | M3 | R3, ORIGINAL_REQUEST §25-30 |
-| 9 | Dynamic SPA Scraping & Forms | DOM interaction, form auto-fill, table extraction, file downloads, price comparison | M3 | R3, ORIGINAL_REQUEST §27-29 |
-| 10 | Computer-Use Coordinate Grounding | 1000x1000 normalized coordinate system, 4-tier element grounding (Vision LLM, OCR, Win32, Template) | M4 | R4, ORIGINAL_REQUEST §31-36 |
-| 11 | Visual Verification Loop & GUI Actor | Pre/post screenshot diffing, ROI state transition check, self-healing GUI retries | M4 | R4, ORIGINAL_REQUEST §35 |
-| 12 | Enhanced AlwaysOnOverlay HUD | Task DAG visualization, live code log stream, visual result cards, telemetry bar | M5 | R6, ORIGINAL_REQUEST §45 |
-| 13 | SQLite Memory Layer Upgrades | `task_history`, `browser_sessions`, `learned_workflows` tables with WAL mode | M5 | R6, ORIGINAL_REQUEST §46 |
-| 14 | Unified Multi-Modal App Wiring | Wake-word-to-agent voice loop, action registrations in `ActionDispatcher`, core wiring | M5 | R6, ORIGINAL_REQUEST §42-47 |
-| 15 | Diagnostic Health Check | Update `python -m jarvis health-check` reporting all autonomous subsystems READY | M5 | R7, ORIGINAL_REQUEST §51 |
-| 16 | Comprehensive Regression Verification | 100% pass on 921+ baseline tests + >=30 new tests (total >=951), zero regressions | M6 | R7, ORIGINAL_REQUEST §48-52 |
+| 1 | Mở / chuyển sang dự án | Recognize "mở dự án X", "switch sang project Y", "chuyển workspace" -> `workspace_prepare` | M1 | Survey R1 (DONE) |
+| 2 | Tạo dự án / workspace mới | Recognize "tạo project mới", "tạo workspace tên ABC" -> `project_create` | M1 | Survey R1 (DONE) |
+| 3 | Liệt kê dự án | Recognize "liệt kê dự án", "show projects", "các project đang có" -> `project_list` | M1 | Survey R1 (DONE) |
+| 4 | Lệnh git liên quan dự án | Recognize "git status dự án", "commit dự án", "push project" -> `skill_git_assistant` | M1 | Survey R1 (DONE) |
+| 5 | Router Tests (>= 5 cases) | Add at least 5 new tests in `tests/test_router_project_intents.py` without regressions | M1 | Survey R1 (DONE) |
+| 6 | Subprocess Windows Flags | Update all `subprocess.Popen`, `run`, `call`, `check_output` across `jarvis/` and `scripts/` to use `creationflags=CREATE_NO_WINDOW` / `startupinfo` | M2 | Survey R2 (DONE) |
+| 7 | Suppress Background Polling Flash | Ensure background polling in `jarvis/hardware/monitor.py` (`nvidia-smi`, `powershell`) and all background engines are silent | M2 | Survey R2 (DONE) |
+| 8 | Validate `os.system` absence | Ensure no bare `os.system` in `jarvis/` and `scripts/` | M2 | Survey R2 (DONE) |
+| 9 | README Prerequisites | Python 3.13 (link), Git (link), Visual C++ Redistributable (link), Windows 11/10 64-bit | M3 | Survey R3 (DONE) |
+| 10 | README Step-by-Step Order | Clone -> venv -> pip install -> API key config -> first run (`python -m jarvis`) | M3 | Survey R3 (DONE) |
+| 11 | README Common Errors & Fixes | At least 5 errors: SQLite locked/path, PIL/Pillow DLL, faster-whisper CTranslate2, UAC/admin rights, API key 401 | M3 | Survey R3 (DONE) |
+| 12 | README Quick Start (End User) | Standalone installer instructions (no Python needed) | M3 | Survey R3 (DONE) |
+| 13 | README Dev Setup (Developers) | Development installation workflow, testing with pytest, linting | M3 | Survey R3 (DONE) |
+| 14 | E2E Acceptance Verification | Validate all acceptance criteria across R1, R2, R3, run all test suites, and pass integrity audit | M4 | ORIGINAL_REQUEST (DONE) |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | ReAct Planner & Background Workers | `jarvis/planner/`, `jarvis/workers/` | none | DONE |
-| M2 | Sandboxed Self-Coding & Skill Library | `jarvis/sandbox/`, `jarvis/skills/` | M1 | DONE |
-| M3 | Browser Automation Agent | `jarvis/browser/` | M1 | DONE |
-| M4 | Computer-Use Vision & GUI Actor | `jarvis/vision/computer_use.py`, `jarvis/vision/visual_verifier.py`, `jarvis/automation/gui_actor.py` | M1 | DONE |
-| M5 | HUD Telemetry, Memory & System Integration | `jarvis/ui/overlay.py`, `jarvis/memory/sqlite_store.py`, `jarvis/core/app.py`, `jarvis/cli.py` | M1, M2, M3, M4 | DONE |
-| M6 | Final Verification & Zero Regression Pass | Regression verification (921+ baseline), E2E test pass (Tiers 1-4), health-check status 0 | M1..M5 | DONE |
+| M1 | Intent Recognition (R1) | `jarvis/llm/router.py`, `tests/` | None | DONE |
+| M2 | Suppress Console Flash (R2) | `jarvis/`, `scripts/` subprocess calls | None | DONE |
+| M3 | Rewrite README (R3) | `README.md` complete rewrite | None | DONE |
+| M4 | E2E Verification & Audit | Acceptance verification of R1, R2, R3, full test suite pass, and integrity audit | M1, M2, M3 | DONE |
 
 ## Interface Contracts
+### Router Intent Contracts (M1)
+- `parse_intent(text, force_llm=False)` returns `IntentResult`:
+  - `action_name`: `"workspace_prepare"`, `"project_create"`, `"project_list"`, or `"skill_git_assistant"`
+  - `action_name` must NOT be `"unknown_intent"` or `"generic_llm_response"` for the targeted test phrases.
+  - Parameters dictionary contains extracted entities (e.g., project name, sub-action).
 
-### M1: Planner ↔ Dispatcher & Workers
-```python
-# TaskDAG & ReActEngine
-class TaskDAG:
-    def add_node(self, node: TaskNode) -> None: ...
-    def get_ready_nodes(self) -> List[TaskNode]: ...
-    def topological_sort(self) -> List[List[TaskNode]]: ...
-    def interpolate_node_params(self, node: TaskNode) -> Dict[str, Any]: ...
+### Process Management Contracts (M2)
+- Windows subprocess invocations must specify `creationflags=subprocess.CREATE_NO_WINDOW` (or `0x08000000`) or `startupinfo` (with `STARTF_USESHOWWINDOW` and `SW_HIDE`) within 5 lines of the call.
+- Safe cross-platform helper pattern:
+  `creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0`
 
-class ReActTaskEngine:
-    def create_plan(self, goal: str, context: Optional[Dict[str, Any]] = None) -> TaskDAG: ...
-    def execute_plan(self, dag: TaskDAG, mode: PlanMode = PlanMode.FULLY_AUTONOMOUS) -> PlanResult: ...
-
-class SubAgentManager:
-    def spawn_worker(self, task: WorkerTask) -> str: ...
-    def cancel_worker(self, worker_id: str) -> bool: ...
-    def get_worker_status(self, worker_id: str) -> Optional[WorkerTelemetry]: ...
-```
-
-### M2: Sandbox ↔ Skill Library
-```python
-class CodeInterpreterSandbox:
-    def execute_python(self, code: str, timeout_seconds: float = 15.0) -> SandboxResult: ...
-    def execute_powershell(self, script: str, timeout_seconds: float = 15.0) -> SandboxResult: ...
-
-class SkillRegistry:
-    def register_skill(self, skill_def: SkillDefinition) -> bool: ...
-    def load_skill(self, skill_name: str) -> Optional[SkillDefinition]: ...
-    def list_skills(self) -> List[SkillMetadata]: ...
-    def invoke_skill(self, skill_name: str, **kwargs) -> Any: ...
-```
-
-### M3: Browser Automation
-```python
-class BrowserAgent:
-    def navigate(self, url: str) -> BrowserActionResult: ...
-    def scrape_page(self, url: str) -> ScrapeResult: ...
-    def fill_form(self, url: str, fields: Dict[str, str], submit_selector: Optional[str] = None) -> BrowserActionResult: ...
-    def compare_prices(self, product: str, stores: List[str]) -> List[PriceComparisonItem]: ...
-```
-
-### M4: Computer-Use Vision & GUI Actor
-```python
-class ComputerUseVision:
-    def locate_element(self, query: str, screenshot_bytes: Optional[bytes] = None) -> Optional[UIElement]: ...
-    def norm_to_pixel(self, x_norm: int, y_norm: int) -> Tuple[int, int]: ...
-
-class GUIActor:
-    def click_element(self, query: str, verify: bool = True) -> bool: ...
-    def type_into_element(self, query: str, text: str, verify: bool = True) -> bool: ...
-```
-
-### M5: HUD Telemetry & Memory Layer
-```python
-# Overlay HUD additions
-class AlwaysOnOverlay:
-    def update_task_dag(self, dag_data: Dict[str, Any]) -> None: ...
-    def append_code_log(self, log_line: str, stream: str = "stdout") -> None: ...
-    def display_visual_result(self, result_info: Dict[str, Any]) -> None: ...
-
-# SQLiteMemoryStore additions
-class SQLiteMemoryStore:
-    def record_task_execution(self, task_id: str, goal: str, dag_json: str, status: str, duration: float) -> None: ...
-    def get_task_history(self, limit: int = 50) -> List[Dict[str, Any]]: ...
-    def save_browser_session(self, domain: str, cookies: List[Dict[str, Any]], storage: Dict[str, Any]) -> None: ...
-```
+### Documentation Contracts (M3)
+- `README.md` must be self-contained, completely accurate for Windows 11 64-bit Python 3.13, and include all 5 required sections.
 
 ## Code Layout
-- `jarvis/planner/`: Task graph, ReAct loop, self-reflection, safety gate interceptor.
-- `jarvis/workers/`: Background worker threads, task lifecycle, concurrency, notifications.
-- `jarvis/sandbox/`: AST security validator, isolated Python/PowerShell execution, artifact manager.
-- `jarvis/skills/`: Skill metadata, persistent registry, auto-synthesizer, dynamic importer.
-- `jarvis/browser/`: Multi-tier driver (Playwright/CDP/HTTP/Mock), scraper, form filler, session manager.
-- `jarvis/vision/`: Coordinate mapping (`computer_use.py`), visual verifier (`visual_verifier.py`).
-- `jarvis/automation/`: `gui_actor.py` (Vision-grounded verified desktop interaction).
-- `jarvis/ui/`: `overlay.py` (Enhanced HUD widgets for Task DAG, Code Stream, Visual Results).
-- `jarvis/memory/`: `sqlite_store.py` (Schema upgrades for tasks, browser sessions, workflows).
-- `jarvis/cli.py`: Extended `run_health_check()` verifying all new autonomous subsystems.
-- `tests/unit/`: Test suites covering each new subsystem.
-- `tests/e2e/`: E2E autonomous workflow tests.
+- `jarvis/llm/router.py`: Intent routing logic (M1 - DONE)
+- `tests/test_router_project_intents.py`: Intent routing tests (M1 - DONE)
+- `jarvis/`, `scripts/`: Subprocess executions (M2 - DONE)
+- `README.md`: Project documentation (M3 - DONE)
+- `tests/`: Complete test suite (M4 - DONE)

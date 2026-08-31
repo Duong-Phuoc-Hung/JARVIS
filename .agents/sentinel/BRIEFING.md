@@ -1,23 +1,24 @@
-# BRIEFING — 2026-08-24T03:12:30Z
+# BRIEFING — 2026-08-31T05:34:01Z
 
 ## Mission
-Autonomous Agentic Superpower upgrade for JARVIS (R1-R7)
+Fix 3 persistent issues in JARVIS v4.1.x (R1: Intent Recognition for Project/Workspace, R2: Suppress Subprocess Console Flash across entire codebase, R3: Rewrite README Installation Guide).
 
 ## 🔒 My Identity
 - Archetype: sentinel
-- Working directory: d:/Software GitCode/JARVIS/.agents/sentinel
-- Orchestrator: 066a3b59-4763-4416-9da6-bafb3993c06e (Completed)
-- Victory Auditor: 6739aeb7-bebe-47bb-85d7-88b7e37b707e (Completed)
+- Working directory: d:\Software GitCode\JARVIS\.agents\sentinel
+- Orchestrator: 601689ab-a214-4cd9-b4c7-b21387523e96
+- Victory Auditor: 1b21610d-817d-44fc-b632-6c9d272c53d3
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
 - Victory Audit is MANDATORY before reporting completion
-- Route to General path (teamwork_preview_orchestrator)
+- Route according to Routing Decision Table (General SWE path -> teamwork_preview_orchestrator)
+- Must maintain cron monitoring and do not take victory claim at face value
 
 ## User Context
-- **Last user request**: Full autonomous agentic superpower upgrade across 7 requirements (R1-R7)
+- **Last user request**: Fix 3 issues in JARVIS v4.1.x (R1: project/workspace intent recognition, R2: suppress console flash for all subprocess calls on Windows, R3: rewrite README installation guide with prerequisites, end-user quick start, dev setup, 5 common errors).
 - **Pending clarifications**: none
-- **Delivered results**: Complete implementation of R1-R7, 1000+ tests passing (0 regressions), health-check 100% OK, Victory Audit VICTORY CONFIRMED.
+- **Delivered results**: none
 
 ## Project Status
 - **Phase**: complete
@@ -28,9 +29,4 @@ Autonomous Agentic Superpower upgrade for JARVIS (R1-R7)
 - **Retry count**: 0
 
 ## Artifact Index
-- d:/Software GitCode/JARVIS/.agents/ORIGINAL_REQUEST.md — Authoritative record of user intent
-- d:/Software GitCode/JARVIS/PROJECT.md — Project master architecture and specifications
-- d:/Software GitCode/JARVIS/.agents/orchestrator/handoff.md — Orchestrator handoff report
-- d:/Software GitCode/JARVIS/.agents/victory_auditor/audit_report.md — Detailed Victory Audit report
-- d:/Software GitCode/JARVIS/.agents/victory_auditor/handoff.md — Victory Auditor handoff report
-- d:/Software GitCode/JARVIS/.agents/sentinel/handoff.md — Sentinel final handoff report
+- d:\Software GitCode\JARVIS\.agents\ORIGINAL_REQUEST.md — Authoritative record of user request

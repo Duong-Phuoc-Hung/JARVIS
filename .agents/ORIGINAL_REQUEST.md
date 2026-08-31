@@ -1,80 +1,71 @@
 # Original User Request
 
-## 2026-08-24T02:31:19Z
+## 2026-08-31T05:34:01Z
 
-JARVIS hiện tại đã có nền tảng vững chắc với 92 modules, 921+ tests passing bao gồm Wake Word, Persistent Memory, Screen Vision, Computer Control, Web Intelligence, Proactive Watchdog và Always-On HUD. Mục tiêu của lần nâng cấp này là **khai phá toàn bộ tiềm năng tự trị (Autonomous Agentic Superpower)**, biến JARVIS thành một AI có khả năng tự suy luận đa bước, tự viết code giải quyết bài toán mới trong sandbox, tự động hóa trình duyệt web chuyên sâu, điều khiển mọi ứng dụng Desktop qua thị giác máy tính và phân bổ đội ngũ sub-agents chạy ngầm để thực hiện bất kỳ yêu cầu phức tạp nào của người dùng.
+Sửa 3 lỗi còn tồn tại trong JARVIS v4.1.x — một AI voice assistant chạy trên Windows 11 64-bit Python 3.13, codebase tại `d:\Software GitCode\JARVIS`.
 
-Working directory: d:/Software GitCode/JARVIS
-Integrity mode: development
+Working directory: `d:\Software GitCode\JARVIS`
+Integrity mode: benchmark
 
 ---
 
 ## Requirements
 
-### R1. Autonomous ReAct Planner & Multi-Step Task Engine (Lập Kế Hoạch & Tự Trị Đa Bước)
-Xây dựng engine ReAct (Reasoning + Acting) chuyên sâu cho phép JARVIS tiếp nhận các mệnh lệnh phức tạp, trừu tượng từ người dùng:
-- Tự động phân tách yêu cầu lớn thành Đồ thị Nhiệm vụ (Task Graph / DAG) gồm các bước hành động cụ thể.
-- Vòng lặp Tự Đánh Giá (Self-Reflection) và Tự Khắc Phục Lỗi (Self-Healing): Khi một bước thất bại, JARVIS tự phân tích nguyên nhân lỗi, đổi chiến lược và thử lại cho đến khi hoàn thành.
-- Chế độ kép: **Fully Autonomous** (tự chạy tự quyết định) kết hợp **Safety Gate** (xin ý kiến người dùng trước các hành động phá hủy hoặc giao dịch tài chính).
+### R1. Intent Recognition — Project & Workspace Commands
 
-### R2. Dynamic Skill Synthesis & Sandboxed Self-Coding (Tự Viết Code & Tự Chế Tạo Công Cụ)
-Trang bị cho JARVIS khả năng tự tạo công cụ theo thời gian thực:
-- **Code Interpreter Sandbox**: Khi người dùng yêu cầu tác vụ chưa có module sẵn (ví dụ: "gộp 5 file Excel, tính tổng doanh thu và vẽ biểu đồ", "đổi tên 100 ảnh theo ngày chụp", "chuyển file PDF sang Word"), JARVIS tự động sinh mã nguồn Python/PowerShell an toàn, thực thi trong sandbox và trả về kết quả/file đầu ra.
-- **Persistent Skill Library (`jarvis/skills/`)**: Khi một công cụ tự viết chạy thành công, JARVIS tự động lưu trữ, lập chỉ mục và đóng gói nó thành một Kỹ năng (Skill) tái sử dụng vĩnh viễn trong các phiên sau.
+`jarvis/llm/router.py` phải nhận diện và route đúng các lệnh liên quan đến quản lý dự án / workspace. Hiện tại tất cả những lệnh này đang trả về `unknown_intent`.
 
-### R3. Full Browser Automation Agent (Tự Động Hóa Trình Duyệt Web Chuyên Sâu)
-Tích hợp động cơ Browser Agent (Playwright / Chromium DevTools Protocol):
-- Tự động mở trình duyệt, điều hướng, tìm kiếm thông tin chuyên sâu, trích xuất dữ liệu (Web Scraping) từ các trang web phức tạp (SPAs, JavaScript động).
-- Tự động điền biểu mẫu, tải tệp tin, so sánh giá sản phẩm trên nhiều trang thương mại điện tử, tổng hợp tin tức và lưu thành tài liệu báo cáo.
-- Quản lý phiên làm việc thông minh và hỗ trợ tương tác trang web không phụ thuộc vào layout tĩnh.
+Phạm vi cần nhận diện (tất cả):
+- Mở / chuyển sang dự án: "mở dự án X", "switch sang project Y", "chuyển workspace"
+- Tạo dự án/workspace mới: "tạo project mới", "tạo workspace tên ABC"
+- Liệt kê dự án: "liệt kê dự án", "show projects", "các project đang có"
+- Lệnh git liên quan: "git status dự án", "commit dự án", "push project"
 
-### R4. Computer-Use Vision & Desktop GUI Interaction (Thao Tác Mọi Ứng Dụng Desktop Qua Thị Giác)
-Nâng cấp khả năng điều khiển máy tính lên cấp độ thị giác AI (Vision-driven Computer Use):
-- Chụp ảnh màn hình, phân tích tọa độ bounding box của các nút bấm, ô văn bản, thanh menu trong bất kỳ phần mềm nào (Office, Photoshop, IDE, File Explorer, công cụ chuyên ngành).
-- Thực hiện click chuột, kéo thả, gõ bàn phím chuẩn xác vào phần tử UI mục tiêu.
-- Vòng lặp Visual Verification: Chụp lại màn hình sau mỗi thao tác để xác nhận trạng thái giao diện đã thay đổi đúng như kỳ vọng trước khi chuyển sang bước tiếp theo.
+Phải thêm intent rules vào `rule_engine` hoặc `_regex_rules` theo đúng kiến trúc hiện có, không tạo hệ thống routing mới.
 
-### R5. Autonomous Background Workers & Task Delegation (Đội Ngũ Sub-Agent Chạy Ngầm)
-Xây dựng cơ chế phân luồng Sub-Agent cho các nhiệm vụ dài hạn:
-- Khởi tạo các Background Worker độc lập cho các tác vụ tốn thời gian (ví dụ: giám sát biến động giá, quét an ninh mạng, xử lý batch dữ liệu nặng) mà không làm nghẽn giao diện chính.
-- Báo cáo tiến độ thời gian thực về HUD Overlay và gửi thông báo tổng kết (kèm file xuất bản) qua giọng nói hoặc Telegram khi hoàn thành.
+### R2. Suppress Admin CMD / PowerShell Flash — Toàn bộ Codebase
 
-### R6. Unified Multi-Modal Integration & HUD Telemetry (Đồng Bộ Đa Phương Thức)
-Tích hợp toàn diện các năng lực mới vào hệ thống cốt lõi:
-- **Voice & Wake Word**: Ra lệnh tự nhiên bằng tiếng Việt thông qua "Hey JARVIS".
-- **HUD Sidebar Overlay**: Hiển thị cây nhiệm vụ (Task DAG), thanh tiến trình từng bước, log code đang chạy và kết quả trực quan.
-- **Memory Layer**: Tự động lưu vết tất cả các tác vụ đã thực hiện vào SQLite memory để tra cứu và học hỏi thói quen.
+Mọi subprocess/PowerShell/CMD được JARVIS spawn phải chạy ẩn hoàn toàn — không được để cửa sổ console hiện ra trước mặt người dùng trong bất kỳ tình huống nào:
+- Khi JARVIS khởi động
+- Liên tục khi chạy nền (CPU/temp polling, health check, proactive engine)
+- Khi chạy installer (JARVIS_Setup_v4.1.1.exe)
 
-### R7. Comprehensive Regression & Integration Test Suite
-- Đảm bảo toàn bộ 921+ bài kiểm thử hiện có tiếp tục vượt qua 100% (zero regressions).
-- Bổ sung tối thiểu 30 bài kiểm thử mới bao phủ toàn diện: ReAct Planner, Code Interpreter, Skill Synthesis, Browser Automation, Computer-Use coordinate mapping và Sub-agent worker lifecycle.
-- Kiểm tra chẩn đoán hệ thống (`python -m jarvis health-check`) báo cáo tất cả các phân hệ mới đều đạt trạng thái READY/OK.
+Tất cả `subprocess.Popen`, `subprocess.run`, `subprocess.call`, `os.system` trong toàn bộ thư mục `jarvis/` và `scripts/` trên Windows phải dùng `creationflags=CREATE_NO_WINDOW` (hoặc `startupinfo` với `STARTF_USESHOWWINDOW` / `SW_HIDE`).
+
+### R3. Rewrite README.md — Complete Installation Guide
+
+Viết lại toàn bộ mục Installation trong `README.md` từ đầu, đủ chính xác để người dùng mới hoàn toàn có thể cài thành công trên Windows 11 mà không cần hỗ trợ thêm.
+
+Nội dung bắt buộc:
+- **Prerequisites rõ ràng**: Python 3.13 (link download), Git, Visual C++ Redistributable, Windows 11/10 64-bit
+- **Các bước theo đúng thứ tự**: clone → venv → pip install → cấu hình API key → chạy lần đầu
+- **Common Errors & Fix**: ít nhất 5 lỗi phổ biến (SQLite path, PIL/Pillow, faster-whisper model download, UAC/admin rights, API key 401)
+- **Quick Start** cho người dùng cuối (chỉ dùng installer .exe, không cần Python)
+- **Dev Setup** cho developer (clone + venv)
 
 ---
 
 ## Acceptance Criteria
 
-### Autonomous Planner & Self-Healing (R1)
-- [ ] Mệnh lệnh phức tạp 3+ bước được phân tách thành Task Graph hợp lệ và thực thi tuần tự/song song thành công.
-- [ ] Khi gặp lỗi thực thi ở một bước, engine tự động retry/đổi phương án và hoàn thành mục tiêu.
-- [ ] Safety Gate chặn lại và yêu cầu xác nhận đối với các thao tác rủi ro cao.
+### R1 — Intent Recognition
 
-### Self-Coding & Skill Library (R2)
-- [ ] Tác vụ xử lý dữ liệu (CSV/Excel/File) được giải quyết thành công qua Code Interpreter tự sinh mã.
-- [ ] Công cụ mới được tự động đóng gói và lưu vào `jarvis/skills/`, có thể gọi lại thành công ở lần kế tiếp.
+- [ ] `router.parse_intent("mở dự án jarvis", force_llm=False).action_name` ≠ `"unknown_intent"` và ≠ `"generic_llm_response"`
+- [ ] `router.parse_intent("tạo workspace mới", force_llm=False).action_name` ≠ `"unknown_intent"`
+- [ ] `router.parse_intent("liệt kê project", force_llm=False).action_name` ≠ `"unknown_intent"`
+- [ ] `router.parse_intent("git status dự án", force_llm=False).action_name` ≠ `"unknown_intent"`
+- [ ] Tất cả tests hiện có trong `tests/` vẫn pass (không gây regression)
+- [ ] Thêm ít nhất 5 test cases mới cho project/workspace intents
 
-### Browser Automation (R3)
-- [ ] Browser Agent tự động mở web, tìm kiếm, trích xuất dữ liệu từ trang web động và tổng hợp thành kết quả.
-- [ ] Hỗ trợ tải file và xử lý form tự động không bị treo.
+### R2 — No Console Flash
 
-### Computer-Use Vision (R4)
-- [ ] Nhận diện đúng tọa độ phần tử UI trên màn hình từ hình ảnh chụp và thực hiện click/gõ phím chính xác.
-- [ ] Visual verification kiểm tra thành công trạng thái thay đổi sau hành động.
+- [ ] Chạy lệnh: `Select-String -Path "jarvis\**\*.py","scripts\**\*.py" -Pattern "subprocess\.(Popen|run|call|check_output)" -Recurse` → mọi match đều có `CREATE_NO_WINDOW` hoặc `startupinfo` trong cùng lời gọi đó (kiểm tra trong vòng 5 dòng xung quanh)
+- [ ] `os.system(` không xuất hiện trong `jarvis/` (hoặc nếu có phải được wrap)
+- [ ] Chạy JARVIS trong 60 giây: không có cửa sổ console nào pop lên
 
-### Background Sub-Agents & HUD (R5, R6)
-- [ ] Sub-agent chạy ngầm hoàn thành tác vụ độc lập và báo cáo kết quả về HUD Overlay/Voice.
-- [ ] HUD Overlay hiển thị trực quan Task DAG và tiến độ thời gian thực.
+### R3 — README Installation
 
-### Regression & Verification (R7)
-- [ ] Tổng số tests đạt ≥ 951 tests (921 baseline + ≥ 30 tests mới), tỷ lệ đạt 100%.
-- [ ] `python -m jarvis health-check` thoát với mã 0, tất cả các phân hệ mới đều OK.
+- [ ] Có section "Quick Start (End User)" với các bước dùng installer .exe
+- [ ] Có section "Developer Setup" với đủ bước từ `git clone` đến `python -m jarvis`
+- [ ] Có section "Prerequisites" nêu rõ Python 3.13+, Windows 11/10, Git
+- [ ] Có section "Common Errors" với ít nhất 5 lỗi + cách fix
+- [ ] Một người đọc README lần đầu có thể cài thành công mà không cần hỏi thêm
