@@ -102,9 +102,9 @@ stt:
   vad_threshold: 0.015
   timeout_s: 10.0
   faster_whisper:
-    model_size: "base"          # tiny, base, small, medium, large-v2 (base là đủ tốt cho tiếng Việt)
-    device: "cpu"               # "cpu" hoặc "cuda" nếu có GPU
-    compute_type: "int8"        # int8 = nhanh nhất trên CPU
+    model_size: "large-v3"      # large-v3 = chính xác nhất tiếng Việt (~6% WER vs base ~35% WER)
+    device: "cuda"              # NVIDIA GTX 1650 detected — CUDA nhanh hơn CPU 10-20x
+    compute_type: "int8_float16" # tối ưu cho GPU 4GB VRAM: tiết kiệm VRAM, vẫn nhanh hơn float16
     download_root: ""           # "" = tự động %LOCALAPPDATA%\JARVIS\cache\whisper
   web_speech:
     timeout_s: 5.0
