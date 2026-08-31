@@ -2,6 +2,49 @@
 
 ---
 
+## 🔧 v4.1.3 — CUDA STT, Silence Bug & Hang Prevention (2026-08-31)
+
+> **5 commits | Từ chẩn đoán thực tế người dùng → root cause confirmed**
+
+### 🔇 BUG FIX — JARVIS im lặng hoàn toàn sau khi xử lý lệnh
+
+**`jarvis/core/app.py`** — Lỗi nghiêm trọng: `process_text_command()` trả về `response_text` nhưng **không bao giờ gọi `tts_manager.speak()`** trên đường thành công — chỉ gọi khi có exception.
+
+- Thêm `tts_manager.speak(response_text, wait=True)` sau xử lý lệnh
+- Khi `response_text` rỗng (unknown intent): nói *"Xin lỗi, tôi không hiểu lệnh đó..."* thay vì im lặng
+- Configurable qua `jarvis.unknown_intent_phrase` trong config
+
+### 🔄 BUG FIX — JARVIS treo (hang) vô thời hạn
+
+**`jarvis/core/app.py`** — STT và command processing không có timeout, block thread vĩnh viễn khi LLM API chậm hoặc model inference deadlock.
+
+- STT transcription: `concurrent.futures` timeout **30 giây**
+- `process_text_command`: `concurrent.futures` timeout **25 giây**
+- Cả hai timeout: nói thông báo lỗi thay vì treo im
+
+### ⚡ CUDA STT — GTX 1650 + large-v3 (7.5× speedup)
+
+**`config/default_config.yaml`** + **`jarvis/stt/engine.py`**
+
+Chẩn đoán: máy có NVIDIA GTX 1650 4GB VRAM + CUDA driver 13.4, nhưng faster-whisper đang chạy trên **CPU** với model **base**:
+- `device: cpu` → **`device: cuda`**
+- `model_size: base` (WER 35%) → **`model_size: large-v3`** (WER 6%)
+- `compute_type: int8` → **`compute_type: int8_float16`** (VRAM-efficient)
+
+**CUDA DLL fix** (`engine.py`): ctranslate2 dùng `LoadLibrary()` tìm `cublas64_12.dll` qua `PATH`, không qua `add_dll_directory()`. Fix: inject `nvidia/*/bin/` vào cả `os.environ["PATH"]` và `os.add_dll_directory()`.
+
+**Benchmark thực tế (GTX 1650 Max-Q):**
+
+| | Trước (CPU, base) | Sau (CUDA, large-v3) |
+|--|------------------|---------------------|
+| 3s audio | ~25,000ms | **3,312ms** |
+| Speedup | baseline | **7.5× nhanh hơn** |
+| WER tiếng Việt | ~35% | **~6%** |
+
+**Auto-detect CUDA**: nếu `cublas` DLL vẫn thiếu sau PATH fix → tự fallback về CPU + `int8` thay vì crash.
+
+---
+
 ## ✨ v4.1.2 — Project Commands, No-Flash Subprocess & Installation Guide (2026-08-31)
 
 > **3 commits | 3 workstreams | VICTORY CONFIRMED (independent audit)**
