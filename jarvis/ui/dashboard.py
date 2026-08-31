@@ -20,6 +20,8 @@ import urllib.parse
 from pathlib import Path
 from typing import Any
 
+from jarvis import __version__ as _jarvis_version
+
 logger = logging.getLogger("jarvis.ui.dashboard")
 
 # Optional websockets library check
@@ -104,7 +106,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
       <div class="reactor"><div class="reactor-core"></div></div>
       <div>
         <div class="title">JARVIS SYSTEM CONTROLLER</div>
-        <div style="font-size: 0.75rem; color: var(--text-secondary);">Windows AI Assistant Engine v1.0.0</div>
+        <div style="font-size: 0.75rem; color: var(--text-secondary);">Windows AI Assistant Engine v{{JARVIS_VERSION}}</div>
       </div>
     </div>
     <div style="display: flex; gap: 15px; align-items: center;">
@@ -352,7 +354,10 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 </script>
 </body>
 </html>
-"""
+""".replace("{{JARVIS_VERSION}}", _jarvis_version)
+# NOTE: plain .replace() on a literal token, not str.format()/f-string --
+# the document above is full of literal CSS/JS { } braces that must not be
+# touched. Do not reintroduce a hardcoded version string here.
 
 
 class DashboardHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
@@ -602,7 +607,7 @@ class DashboardServer:
         with self._lock:
             return {
                 "status": "healthy",
-                "version": "1.0.0",
+                "version": _jarvis_version,
                 "uptime_s": round(time.monotonic(), 1),
                 "telemetry": self.last_broadcast_payload or {},
                 "active_device": getattr(self.app, "audio_engine", None) and getattr(getattr(self.app, "audio_engine", None), "_active_device_index", "Default"),

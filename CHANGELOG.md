@@ -2,6 +2,32 @@
 
 ---
 
+## 🚀 Chưa phát hành (2026-09-01) — Version Metadata Semantics & Single-Source Consistency
+
+### 🔧 chore(version): clarify and single-source metadata
+
+Not a release. Clarifies and consolidates version metadata across the repository without bumping any version number.
+
+**`pyproject.toml`** — `[project]` no longer declares a literal `version = "4.1.0"`. It now declares `dynamic = ["version"]`, resolved via `[tool.setuptools.dynamic] version = {attr = "jarvis.__version__"}` — setuptools reads the version through static AST analysis of `jarvis/__init__.py`, without importing `jarvis` or its runtime dependencies, so this works correctly in an isolated build environment.
+
+**`jarvis/__init__.py`** — `__version__ = "4.1.0"` is now the single canonical numeric literal for the package/runtime version (value unchanged). Kept as a plain top-level string assignment (not moved behind an import) because `jarvis/workers/auto_updater.py::get_current_version()` and `scripts/health_check_report.py::get_version()` both locate it by scanning this file's raw source text, not by importing `jarvis`.
+
+**`config/default_config.yaml`** — `system.version` (`"1.0.0"`, unchanged) is now explicitly documented as non-authoritative: repo-wide audit confirmed zero production consumers read this key. Kept for backward compatibility only; not required to track `jarvis.__version__`.
+
+**`README.md`** — the ambiguous single "Version" badge (linking to Releases while showing the source version) is split into three explicit, distinct pieces of information: source/runtime version (4.1.0), latest formal GitHub Release (v4.0.1), and CHANGELOG development-history state (reaches v4.3.1-era work). The stale hardcoded "633+ passed" test badge was reworded to avoid re-staling.
+
+**`installer/setup.iss` / `scripts/build_installer.py`** — the Windows Inno Setup installer owned its own hardcoded `#define AppVersion "4.1.0"`, which actively drove `[Setup] AppVersion`, the installer's output filename, and the `[Registry]` `Version` value — not passive documentation, a real third duplicate. Fixed: `setup.iss` no longer declares any `AppVersion` literal — it requires the value externally via `#ifndef AppVersion` / `#error` — and `build_installer.py` gained `_get_canonical_version()` (a lightweight raw-text reader, mirroring `auto_updater.py`/`health_check_report.py`'s existing pattern, deliberately not importing `jarvis`) and now invokes `ISCC.exe /DAppVersion=<version> setup.iss`.
+
+**`jarvis/ui/dashboard.py`** — both the embedded HTML ("Windows AI Assistant Engine v1.0.0") and the `/api/status` `"version"` field were hardcoded `"1.0.0"` displays with no independent schema/protocol/component-version meaning. Both now derive from `jarvis.__version__` (imported once as `_jarvis_version`); the HTML substitution uses a literal `.replace("{{JARVIS_VERSION}}", _jarvis_version)`, not `.format()`/an f-string, since the document contains many literal CSS/JS `{ }` braces.
+
+**Tests added/revised:** `tests/unit/test_version_metadata.py` (5 tests — runtime/AST single-source consistency, `jarvis --version` flag output, `pyproject.toml` structural check for the dynamic-version declaration, and `system.version` coverage — the original textual source-scan test was replaced with an observable-behavior `ConfigManager.get()`/`.set()` round-trip + independence test, since a "no future file may ever contain this exact text" assertion was judged too brittle); `tests/unit/test_build_installer_version.py` (3 new tests — mocks the `ISCC.exe` subprocess boundary, Inno Setup is never required to run them); 2 new tests in `tests/unit/test_ui_dashboard.py` (HTML/API version-display agreement); `tests/integration/test_package_version_build.py` (1 test — builds a real wheel and asserts its distribution version matches `jarvis.__version__`; not part of the `tests/unit/` fast baseline, run explicitly).
+
+Validation: focused version/installer/dashboard/CLI tests — 21 passed. `tests/integration/test_package_version_build.py` — 1 passed. Full `tests/unit/` — 1007 collected, 1007 passed, 0 failed. Real wheel build (`pip wheel . --no-deps --no-build-isolation`) installed into a clean temp venv: `jarvis.__version__` and `importlib.metadata.version("jarvis-assistant")` both report `4.1.0`, confirmed matching.
+
+No version number was changed. No Git tag or GitHub Release was created, moved, or deleted.
+
+---
+
 ## 🚀 Chưa phát hành (2026-09-01) — ProactiveConfig Fallback-Default Fix
 
 ### 🐛 fix(proactive): `ProactiveConfig.from_dict()` fallback defaults now derive from the dataclass itself

@@ -120,11 +120,74 @@ task, not bundled into a documentation-only sync):**
    Evidence this session: `tests/unit/test_proactive_engine.py` — 49 passed; full `tests/unit/` —
    997 collected, 997 passed, 0 failed; `ruff check`/`py_compile`/`git diff --check` all clean.
    See `CHANGELOG.md`'s "ProactiveConfig Fallback-Default Fix" entry for full detail.
-2. Version metadata is unsynchronized: `CHANGELOG.md` reaches v4.3.1-era work, `pyproject.toml`
-   remains `4.1.0`, `README.md` still shows older `4.1.0`/stale test-count badges,
-   `config/default_config.yaml`'s `system.version` remains `1.0.0`. Decide canonical versioning
-   semantics before changing any of pyproject/README/config/installer/release metadata. Do not
-   bump any version as a side effect of an unrelated task.
+2. **DONE (2026-09-01, branch `chore/version-metadata-semantics`) — semantics clarified and
+   single-sourced; no version number was bumped.** Classification, confirmed against actual code
+   (not assumed): (A) package/distribution version — `pyproject.toml` now declares
+   `dynamic = ["version"]`, resolved via `[tool.setuptools.dynamic] version = {attr = "jarvis.__version__"}`
+   (no more duplicate literal); (B) runtime version — `jarvis.__version__`, the one canonical
+   `"4.1.0"` literal, kept as a plain top-level string assignment in `jarvis/__init__.py`
+   specifically because `jarvis/workers/auto_updater.py::get_current_version()` and
+   `scripts/health_check_report.py::get_version()` both locate it by scanning that file's raw
+   source text (confirmed by reading both — moving it behind an import, e.g. the
+   `jarvis/_version.py` pattern originally suggested for this task, would have silently broken
+   both); (C) `config/default_config.yaml`'s `system.version` (`"1.0.0"`) — confirmed by
+   repo-wide audit to have zero production consumers (`jarvis/core/config.py` has no "version"
+   handling at all, and no other `jarvis/` module reads the dot-notation key `"system.version"`);
+   documented as non-authoritative in a YAML comment, value and key left unchanged, no schema
+   semantics invented; (D) formal release version — Git tags/GitHub Releases, latest `v4.0.1`,
+   independent of (A)/(B) — `.github/workflows/release.yml` derives its own version purely from
+   the pushed tag name, not touched; (E) CHANGELOG milestone headings (v4.1.x–v4.3.1) — dev-history
+   labels, not formal releases, not rewritten; (F) README — the single ambiguous "Version" badge
+   was split into three explicit labeled pieces (source version 4.1.0 / latest release v4.0.1 /
+   CHANGELOG dev-history state), and the stale "633+ passed" test badge was reworded to avoid
+   re-staling. New tests: `tests/unit/test_version_metadata.py` (5 tests) and
+   `tests/integration/test_package_version_build.py` (1 test, real wheel build — not part of the
+   `tests/unit/` fast baseline, run explicitly).
+
+   **Follow-up correction (same day, same branch, commit amended in place — review found the
+   installer/dashboard duplicates flagged below were real, non-passive, user-visible/build-affecting
+   duplicates, not merely cosmetic, so they were fixed rather than left out of scope):**
+   `installer/setup.iss`'s `#define AppVersion "4.1.0"` actually **drove** `[Setup] AppVersion`,
+   the installer output filename (`OutputBaseFilename=JARVIS_Setup_v{#AppVersion}`), and the
+   `[Registry]` `Version` value — not passive documentation. Fixed: `setup.iss` no longer declares
+   any `#define AppVersion "..."` literal; it now requires the value externally
+   (`#ifndef AppVersion` / `#error`, with a clear message) and `scripts/build_installer.py` gained
+   `_get_canonical_version()` (a lightweight raw-text reader mirroring the existing
+   `auto_updater.py`/`health_check_report.py` pattern — deliberately does not `import jarvis`) and
+   now invokes `ISCC.exe /DAppVersion=<version> setup.iss`. Similarly, `jarvis/ui/dashboard.py`'s
+   hardcoded `"Windows AI Assistant Engine v1.0.0"` (embedded HTML) and `"version": "1.0.0"`
+   (`/api/status` field) were confirmed to be genuine application-version displays with no evidence
+   of an independent schema/protocol/component-version meaning — both now derive from
+   `jarvis.__version__` (imported once as `_jarvis_version`; the HTML substitution uses a literal
+   `.replace("{{JARVIS_VERSION}}", _jarvis_version)`, not `.format()`/an f-string, since the
+   document contains many literal CSS/JS `{ }` braces that must not be touched). Also revisited:
+   `tests/unit/test_version_metadata.py`'s `system.version` source-scan test (a brittle "no future
+   file may ever contain this exact text" textual assertion) was replaced with
+   `test_config_manager_system_version_is_generic_inert_data`, which tests observable
+   `ConfigManager.get()`/`.set()` round-trip behavior and independence from `jarvis.__version__`
+   instead; the `pyproject.toml`-duplicate-literal test was kept unchanged (not weakened).
+   New tests this follow-up: `tests/unit/test_build_installer_version.py` (3 tests, mocks the
+   `ISCC.exe` subprocess boundary — Inno Setup is never required to run these) and 2 new tests in
+   `tests/unit/test_ui_dashboard.py` (HTML/API version-display coverage). Evidence:
+   `tests/unit/test_version_metadata.py` + `test_build_installer_version.py` +
+   `test_ui_dashboard.py` + `tests/test_cli.py` — 21 passed;
+   `tests/integration/test_package_version_build.py` — 1 passed; full `tests/unit/` — 1007
+   collected, 1007 passed, 0 failed (1002 + 5 new: 3 installer + 2 dashboard, net 0 change from the
+   system.version test replacement); `ruff check`/`py_compile`/`git diff --check` all clean; a
+   second real wheel build + clean temp venv install re-confirmed `jarvis.__version__` and
+   `importlib.metadata.version("jarvis-assistant")` both report `4.1.0`, matching.
+
+   Evidence from the original pass in this same item (still accurate): full `tests/unit/` —
+   1002 collected, 1002 passed, 0 failed; `ruff check`/`py_compile`/`git diff --check` all clean;
+   real wheel built via `pip wheel . --no-deps --no-build-isolation` installed into a clean temp
+   venv confirmed `jarvis.__version__` and `importlib.metadata.version("jarvis-assistant")` both
+   report `4.1.0`, matching. (Note:
+   `python -m build` could not be used directly from the repo root — a pre-existing, unrelated,
+   tracked `build.py` file at the repo root, the real PyInstaller packaging entrypoint, shadows
+   PyPA's `build` package for `-m build` invocations from that directory; not fixed here, out of
+   scope. The task's own prescribed `pip wheel` fallback was used instead and works correctly.)
+   See `CHANGELOG.md`'s "Version Metadata Semantics & Single-Source Consistency" entry and
+   CLAUDE.md's "Version metadata" invariants in §1A for full detail.
 3. `docs/night_shift_audit.md`/`CHANGELOG.md` describe Night Shift as a "02:00–05:00 AM"
    execution window; the actual `NightShiftTask` implementation defaults to
    `scheduled_time="23:00"`/`report_time="07:00"` and accepts any arbitrary caller-supplied
