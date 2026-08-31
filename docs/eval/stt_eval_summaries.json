@@ -1,0 +1,198 @@
+[
+  {
+    "model": "small",
+    "condition": "clean",
+    "n_trials": 45,
+    "n_correct": 7,
+    "n_misrouted": 1,
+    "n_silent": 37,
+    "correct_rate": 0.15555555555555556,
+    "misrouting_rate": 0.022222222222222223,
+    "silent_failure_rate": 0.8222222222222222,
+    "median_latency_ms": 852.9536000000917,
+    "threshold_curve": {
+      "0.3": {
+        "correct": 0.15555555555555556,
+        "misrouting": 0.022222222222222223,
+        "silent": 0.8222222222222222
+      },
+      "0.4": {
+        "correct": 0.15555555555555556,
+        "misrouting": 0.022222222222222223,
+        "silent": 0.8222222222222222
+      },
+      "0.5": {
+        "correct": 0.1111111111111111,
+        "misrouting": 0.0,
+        "silent": 0.8888888888888888
+      },
+      "0.6": {
+        "correct": 0.06666666666666667,
+        "misrouting": 0.0,
+        "silent": 0.9333333333333333
+      },
+      "0.7": {
+        "correct": 0.044444444444444446,
+        "misrouting": 0.0,
+        "silent": 0.9555555555555556
+      },
+      "0.8": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "silent": 1.0
+      },
+      "0.9": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "silent": 1.0
+      }
+    }
+  },
+  {
+    "model": "small",
+    "condition": "noisy",
+    "n_trials": 45,
+    "n_correct": 8,
+    "n_misrouted": 1,
+    "n_silent": 36,
+    "correct_rate": 0.17777777777777778,
+    "misrouting_rate": 0.022222222222222223,
+    "silent_failure_rate": 0.8,
+    "median_latency_ms": 779.9296999996841,
+    "threshold_curve": {
+      "0.3": {
+        "correct": 0.17777777777777778,
+        "misrouting": 0.022222222222222223,
+        "silent": 0.8
+      },
+      "0.4": {
+        "correct": 0.17777777777777778,
+        "misrouting": 0.022222222222222223,
+        "silent": 0.8
+      },
+      "0.5": {
+        "correct": 0.13333333333333333,
+        "misrouting": 0.0,
+        "silent": 0.8666666666666667
+      },
+      "0.6": {
+        "correct": 0.06666666666666667,
+        "misrouting": 0.0,
+        "silent": 0.9333333333333333
+      },
+      "0.7": {
+        "correct": 0.022222222222222223,
+        "misrouting": 0.0,
+        "silent": 0.9777777777777777
+      },
+      "0.8": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "silent": 1.0
+      },
+      "0.9": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "silent": 1.0
+      }
+    }
+  },
+  {
+    "model": "large-v3",
+    "condition": "clean",
+    "n_trials": 45,
+    "n_correct": 13,
+    "n_misrouted": 1,
+    "n_silent": 31,
+    "correct_rate": 0.28888888888888886,
+    "misrouting_rate": 0.022222222222222223,
+    "silent_failure_rate": 0.6888888888888889,
+    "median_latency_ms": 2798.826899999767,
+    "threshold_curve": {
+      "0.3": {
+        "correct": 0.28888888888888886,
+        "misrouting": 0.022222222222222223,
+        "silent": 0.6888888888888889
+      },
+      "0.4": {
+        "correct": 0.28888888888888886,
+        "misrouting": 0.022222222222222223,
+        "silent": 0.6888888888888889
+      },
+      "0.5": {
+        "correct": 0.28888888888888886,
+        "misrouting": 0.022222222222222223,
+        "silent": 0.6888888888888889
+      },
+      "0.6": {
+        "correct": 0.24444444444444444,
+        "misrouting": 0.022222222222222223,
+        "silent": 0.7333333333333333
+      },
+      "0.7": {
+        "correct": 0.15555555555555556,
+        "misrouting": 0.0,
+        "silent": 0.8444444444444444
+      },
+      "0.8": {
+        "correct": 0.044444444444444446,
+        "misrouting": 0.0,
+        "silent": 0.9555555555555556
+      },
+      "0.9": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "silent": 1.0
+      }
+    }
+  },
+  {
+    "model": "large-v3",
+    "condition": "noisy",
+    "n_trials": 45,
+    "n_correct": 14,
+    "n_misrouted": 1,
+    "n_silent": 30,
+    "correct_rate": 0.3111111111111111,
+    "misrouting_rate": 0.022222222222222223,
+    "silent_failure_rate": 0.6666666666666666,
+    "median_latency_ms": 2801.7024000000674,
+    "threshold_curve": {
+      "0.3": {
+        "correct": 0.3111111111111111,
+        "misrouting": 0.022222222222222223,
+        "silent": 0.6666666666666666
+      },
+      "0.4": {
+        "correct": 0.3111111111111111,
+        "misrouting": 0.022222222222222223,
+        "silent": 0.6666666666666666
+      },
+      "0.5": {
+        "correct": 0.24444444444444444,
+        "misrouting": 0.022222222222222223,
+        "silent": 0.7333333333333333
+      },
+      "0.6": {
+        "correct": 0.2222222222222222,
+        "misrouting": 0.0,
+        "silent": 0.7777777777777778
+      },
+      "0.7": {
+        "correct": 0.15555555555555556,
+        "misrouting": 0.0,
+        "silent": 0.8444444444444444
+      },
+      "0.8": {
+        "correct": 0.022222222222222223,
+        "misrouting": 0.0,
+        "silent": 0.9777777777777777
+      },
+      "0.9": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "silent": 1.0
+      }
+    }
+  }
+]
