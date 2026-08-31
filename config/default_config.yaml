@@ -5,6 +5,11 @@
 
 system:
   name: "JARVIS"
+  # NOTE: not read by any current jarvis/ code (confirmed by repo-wide audit,
+  # 2026-09-01) and not required to track the package/runtime version
+  # (jarvis.__version__, pyproject.toml). Non-authoritative; kept only for
+  # backward compatibility with any config file that already sets it. See
+  # tests/unit/test_version_metadata.py for the regression coverage.
   version: "1.0.0"
   debug: false
   autostart:

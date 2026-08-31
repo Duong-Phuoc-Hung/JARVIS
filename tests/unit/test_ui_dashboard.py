@@ -202,6 +202,31 @@ def test_dashboard_event_broadcasting_and_metrics_summary():
     assert len(server._event_history) == 1
 
 
+def test_dashboard_html_displays_canonical_runtime_version():
+    """The embedded dashboard HTML must display jarvis.__version__, not a
+    separately hardcoded literal, and must not leak the {{JARVIS_VERSION}}
+    substitution placeholder."""
+    import jarvis
+
+    assert f"v{jarvis.__version__}" in DASHBOARD_HTML
+    assert "{{JARVIS_VERSION}}" not in DASHBOARD_HTML
+    assert "v1.0.0" not in DASHBOARD_HTML
+
+
+def test_dashboard_status_api_version_matches_canonical_and_html():
+    """/api/status's "version" field must equal jarvis.__version__, and must
+    agree with what the served HTML displays -- proving both surfaces derive
+    from the same single source rather than two independently hardcoded
+    strings that could drift apart."""
+    import jarvis
+
+    server = DashboardServer()
+    summary = server.get_status_summary()
+
+    assert summary["version"] == jarvis.__version__
+    assert f"v{summary['version']}" in DASHBOARD_HTML
+
+
 def test_dashboard_metrics_server_alias():
     """Verify DashboardMetricsServer backward compatibility alias."""
     metrics_srv = DashboardMetricsServer()

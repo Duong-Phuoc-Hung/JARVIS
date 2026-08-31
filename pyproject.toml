@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jarvis-assistant"
-version = "4.1.0"
+dynamic = ["version"]
 description = "Autonomous AI Personal Assistant for Windows — Voice, Multi-channel, Self-evolving"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -95,6 +95,18 @@ jarvis-tray = "jarvis.__main__:main_tray"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["jarvis*"]
+
+# Single-sources the distribution version from jarvis/__init__.py's
+# `__version__` literal instead of duplicating it here. setuptools resolves
+# `attr:` via static AST analysis of the target module by default (it does
+# not import jarvis or its runtime dependencies to do so), so this works in
+# an isolated build environment before jarvis's own dependencies are
+# installed. Keep `__version__` in jarvis/__init__.py a plain top-level
+# string-literal assignment (not computed, not re-exported from elsewhere) —
+# jarvis/workers/auto_updater.py and scripts/health_check_report.py also
+# locate it by scanning that exact file's source text.
+[tool.setuptools.dynamic]
+version = { attr = "jarvis.__version__" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

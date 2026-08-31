@@ -86,6 +86,24 @@ def _find_inno() -> Path | None:
     return None
 
 
+def _get_canonical_version() -> str:
+    """
+    Read the canonical JARVIS version (jarvis.__version__) without importing
+    the jarvis package -- this is a build-tool script and should not need
+    jarvis's own runtime dependencies installed just to read a version
+    string. Mirrors the same raw-text-scan pattern already used by
+    jarvis/workers/auto_updater.py::get_current_version() and
+    scripts/health_check_report.py::get_version() for the same reason.
+    """
+    init_path = ROOT / "jarvis" / "__init__.py"
+    text = init_path.read_text(encoding="utf-8")
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("__version__") and "=" in stripped:
+            return stripped.split("=", 1)[1].strip().strip('"').strip("'")
+    raise RuntimeError(f"Could not locate a __version__ literal in {init_path}")
+
+
 def build_exe(clean: bool = True) -> bool:
     """Build JARVIS.exe using PyInstaller."""
     print("\n🏗️  Building JARVIS.exe...")
@@ -232,9 +250,14 @@ def build_installer() -> bool:
         print(f"  ❌ {setup_iss} không tồn tại")
         return False
 
-    print("\n📦 Building Windows Installer...")
+    version = _get_canonical_version()
+    print(f"\n📦 Building Windows Installer (AppVersion={version})...")
     _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-    result = subprocess.run([str(inno), str(setup_iss)], cwd=ROOT, creationflags=_cflags)
+    result = subprocess.run(
+        [str(inno), f"/DAppVersion={version}", str(setup_iss)],
+        cwd=ROOT,
+        creationflags=_cflags,
+    )
     if result.returncode != 0:
         print("  ❌ Inno Setup thất bại!")
         return False

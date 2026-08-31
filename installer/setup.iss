@@ -1,13 +1,20 @@
 ; JARVIS AI Assistant — Inno Setup Installer Script
 ; Tạo file cài đặt .exe chuyên nghiệp cho Windows
 ;
-; Cách build:
-;   1. Cài Inno Setup: https://jrsoftware.org/isdl.php
-;   2. Chạy: "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\setup.iss
-;   3. File output: installer\JARVIS_Setup_v3.2.0.exe
+; Cách build (khuyến nghị): python scripts/build_installer.py
+;   -- script này tự đọc jarvis.__version__ (nguồn phiên bản canonical) và
+;      truyền vào ISCC qua /DAppVersion=..., không cần chỉnh sửa file này.
+;
+; Cách build thủ công (phải cung cấp AppVersion rõ ràng -- không có giá trị
+; mặc định trong file này):
+;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=4.1.0 installer\setup.iss
+;
+; File output: installer\JARVIS_Setup_v<AppVersion>.exe
 
 #define AppName "JARVIS AI Assistant"
-#define AppVersion "4.1.0"
+#ifndef AppVersion
+  #error "AppVersion is not defined. Pass it explicitly: ISCC.exe /DAppVersion=<version> installer\setup.iss -- or build via 'python scripts/build_installer.py', which supplies it automatically from jarvis.__version__."
+#endif
 #define AppPublisher "Duong Phuoc Hung"
 #define AppURL "https://github.com/Duong-Phuoc-Hung/JARVIS"
 #define AppExeName "JARVIS.exe"
