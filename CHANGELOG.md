@@ -2,7 +2,54 @@
 
 ---
 
+## ✨ v4.1.2 — Project Commands, No-Flash Subprocess & Installation Guide (2026-08-31)
+
+> **3 commits | 3 workstreams | VICTORY CONFIRMED (independent audit)**
+> Delivered bởi teamwork multi-agent system — R1/R2/R3 song song.
+
+### 🟢 R1 — Intent Recognition: Project & Workspace Commands
+
+**`jarvis/llm/router.py`** — Thêm 4 nhóm intent mới cho lệnh dự án/workspace:
+
+| Intent | Ví dụ lệnh |
+|--------|-----------|
+| `open_project` | "mở dự án X", "switch sang project Y", "chuyển workspace" |
+| `create_project` | "tạo project mới", "tạo workspace tên ABC" |
+| `list_projects` | "liệt kê dự án", "show projects", "các project đang có" |
+| `git_project_action` | "git status dự án", "commit project", "push project" |
+
+- Rules tích hợp vào `rule_engine` / `_regex_rules` theo kiến trúc hiện có
+- `tests/test_router_project_intents.py` — 6 test suites, 100% pass
+- `tests/test_adversarial_m1_intent_router.py` — adversarial edge cases
+- 0 regression trên toàn bộ test suite hiện có
+
+### 🟢 R2 — Suppress CMD/PowerShell Flash — Toàn bộ Codebase
+
+**53 subprocess call sites** trong 25 files remediated — không còn cửa sổ console nhấp nháy:
+- `automation/control.py`, `automation/shell_assistant.py`, `automation/vm.py`
+- `cli.py`, `comms/mobile_bridge.py`, `hardware/monitor.py`, `plugins/shell.py`
+- `sandbox/interpreter.py`, `stt/engine.py`, `workers/auto_updater.py`, `workers/notification_hub.py`
+- `agent/graph.py`, 5 skill `__init__.py`, 5 `scripts/*.py`
+- 0 `os.system()` còn lại trong executable code
+- Tests: `tests/unit/test_subprocess_no_window_r2.py`
+
+### 🟢 R3 — README.md Rewritten — Complete Installation Guide
+
+**`README.md`** viết lại hoàn toàn (475 lines) — người dùng mới cài được không cần hỏi thêm:
+- **Prerequisites**: Python 3.13+, Git, VC++ Redistributable x64, Windows 11/10 64-bit
+- **Quick Start (End User)**: cài qua `JARVIS_Setup_v4.1.1.exe` — 3 bước
+- **Developer Setup**: `git clone` → venv → `pip install` → cấu hình → chạy
+- **Common Errors & Fixes** (5 lỗi):
+  1. SQLite `unable to open database` → AppData path conflict
+  2. `PIL/Pillow ImportError` → `pip install Pillow`
+  3. faster-whisper model download thất bại → proxy/offline mode
+  4. UAC/Admin required → Run as Administrator
+  5. API Key 401 Unauthorized → format key đúng trong config
+
+---
+
 ## 🐛 v4.1.1 — Comprehensive Bug Audit & Fix (2026-08-31)
+
 
 > **16 commits | 21+ bugs fixed | Build: `JARVIS_Setup_v4.1.1.exe` (71.4 MB)**
 > Kiểm tra và sửa toàn diện codebase — tập trung vào ổn định runtime, path resolution, hiệu năng và độ chính xác test suite.
