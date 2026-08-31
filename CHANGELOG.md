@@ -2,6 +2,261 @@
 
 ---
 
+## 🚀 Chưa phát hành (2026-08-31) — Biometrics Hardening: Embedding Validation, Storage Atomicity & Face-Count Ambiguity
+
+> Nhánh làm việc: `feat/biometrics-hardening`, dựa trên `main` tại commit `e4bcd6d` (không có phân kỳ với `main` khi bắt đầu). Chỉ sửa `jarvis/vision/biometrics.py` (sản xuất) và thêm một file test mới `tests/unit/test_biometrics_hardening.py`. Không đụng `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/agent/**`, `jarvis/sandbox/**`, `jarvis/comms/**`, `jarvis/security/**`, `jarvis/skills/**`, hay bất kỳ hành vi `SafetyGate`/`ActionDispatcher`/workstation-lock/Telegram nào.
+
+**Tham chiếu kiến trúc**: `ageitgey/face_recognition` (MIT, upstream) được dùng **chỉ để tham chiếu API/kiến trúc** — `face_locations()`/`face_encodings()`/`face_distance()`/`compare_faces()`, embedding 128 chiều, khoảng cách Euclid, ngữ nghĩa `tolerance` (mặc định upstream 0.6 — chỉ là mặc định thư viện, không phải bảo đảm an ninh). **Không sao chép mã nguồn upstream**, không vendor repo, không thêm `dlib`/`face_recognition` thành dependency bắt buộc, không tải model/dữ liệu khuôn mặt thật.
+
+### Rà soát trước khi sửa (audit)
+
+Đọc trực tiếp `jarvis/vision/biometrics.py`, `jarvis/vision/__init__.py`, mọi test đang import `BiometricsEngine`/`FaceEmbeddingStorage`/`BiometricPrivilegeGate` (`tests/test_biometrics.py`, `tests/test_adversarial_m5_2.py`, `tests/test_tier5_adversarial_sec_iot_comms_data.py`, `tests/test_e2e_scenarios.py`), và `jarvis/core/paths.py` (chỉ đọc, không sửa). Xác nhận các lỗ hổng thực tế sau bằng cách đọc mã, không suy đoán:
+
+- `enroll_face()`/`verify_frame()`/`process_surveillance_frame()` đều lấy `encodings[0]` vô điều kiện — không kiểm tra số khuôn mặt phát hiện được, nên một khung hình có nhiều khuôn mặt (ví dụ chủ nhà đứng cạnh người lạ) có thể bị phân loại sai một cách không tất định.
+- Không có bất kỳ kiểm tra kích thước/kiểu số/giá trị hữu hạn nào cho embedding — một embedding sai chiều, chứa NaN/Infinity, hoặc không phải số có thể khiến `np.linalg.norm(enrolled - cand)` ném lỗi không bắt được hoặc (nếu shape tình cờ broadcast được) tính ra khoảng cách vô nghĩa được tin tưởng ngầm.
+- `FaceEmbeddingStorage.save()` ghi trực tiếp không nguyên tử — tiến trình bị ngắt giữa chừng có thể để lại file JSON hỏng/cắt cụt.
+- `FaceEmbeddingStorage.add_face()`/`BiometricsEngine.enroll_face()` không bao giờ báo lỗi ghi đĩa cho caller — một lần ghi thất bại vẫn để bộ nhớ trong-tiến-trình coi như đã enroll thành công.
+- Enroll lại cùng một label tạo **embedding trùng lặp cũ** trong danh sách khớp trong bộ nhớ (`enrolled_embeddings` cũ là list phẳng, không theo label) dù storage trên đĩa đã ghi đè đúng — cả embedding cũ và mới đều còn khớp được sau khi re-enroll.
+- Không có validate label (kiểu, rỗng, ký tự điều khiển, độ dài) hay validate `tolerance` (âm, NaN, Infinity, chuỗi, giá trị phi lý lớn có thể vô tình mở rộng ngưỡng xác thực).
+- Nhánh trích xuất từ camera mock (`self.camera.get_face_encodings()`) không được bọc try/except — khác với nhánh `face_recognition`, nên một backend/mock bị lỗi có thể làm crash toàn bộ pipeline gọi nó.
+- Test hiện có (`test_adversarial_biometrics_boundary_distances`) xác nhận ranh giới tolerance là **strict `<`** (khoảng cách == tolerance ⇒ không khớp) — đây là hợp đồng bắt buộc phải giữ nguyên chính xác.
+
+### Thay đổi đã triển khai (`jarvis/vision/biometrics.py`)
+
+- **Một ranh giới validate embedding duy nhất** (`_validate_embedding()`, hàm private cấp module): chấp nhận bất kỳ dữ liệu array-like nào, trả về bản sao `float64` shape `(128,)` mới (không bao giờ alias/mutate mảng của caller) khi hợp lệ, hoặc `None` khi không — không bao giờ ném exception. Kiểm tra: đúng 128 chiều, kiểu số, mọi giá trị hữu hạn (không NaN/±Infinity), có kiểm tra độ dài rẻ trước khi ép kiểu để tránh cấp phát mảng khổng lồ từ dữ liệu JSON độc hại. Được tái sử dụng ở **mọi** điểm nhận embedding: candidate lúc verify/enroll/surveillance, embedding tải từ storage, `camera.owner_encoding`.
+- **`_validate_label()`**: string không rỗng sau `strip()`, giới hạn 128 ký tự, cấm ký tự điều khiển; label chỉ dùng làm key dict/JSON, không bao giờ dùng làm đường dẫn file.
+- **`_validate_tolerance()`**: từ chối NaN/Infinity/âm/không phải số/bool/giá trị vượt ngưỡng hợp lý (`MAX_SANE_TOLERANCE = 10.0`, một giới hạn "sanity" cho tham số cấu hình — không phải tuyên bố về khoảng cách embedding thực tế), fallback về `DEFAULT_TOLERANCE = 0.60` kèm log lỗi thay vì âm thầm cho phép ngưỡng bị nới rộng.
+- **`FaceEmbeddingStorage` cứng hóa**: `_load()` — lỗi parse JSON toàn file vẫn rỗng hoàn toàn (giữ đúng hành vi test cũ), root không phải dict cũng rỗng hoàn toàn, nhưng **entry lỗi riêng lẻ trong một JSON hợp lệ giờ bị bỏ qua có chọn lọc** (label/embedding hỏng bị loại, các entry hợp lệ khác được giữ). `save()` giờ ghi nguyên tử (temp file + `os.replace()`) và trả `bool` — nếu ghi thất bại, file gốc trên đĩa không bị đụng tới và trả `False`. `add_face()` cũng trả `bool`, validate label/embedding, và **rollback bộ nhớ trong-tiến-trình về trạng thái trước đó nếu `save()` thất bại** — không bao giờ để bộ nhớ coi một enrollment là thành công khi chưa thực sự ghi được xuống đĩa.
+- **`BiometricsEngine` chuyển sang lưu embedding có label theo dict** (`_labeled_embeddings: dict[str, np.ndarray]`, tách khỏi `_unlabeled_embeddings` cho `camera.owner_encoding`) thay vì list phẳng — enroll lại cùng label giờ **thay thế tất định**, không còn để lại embedding cũ trùng lặp trong bộ nhớ. Thuộc tính `enrolled_embeddings` (list phẳng) được giữ lại dạng `@property` tính từ hai cấu trúc trên, cho tương thích ngược (không có code/test nào bên ngoài đọc trực tiếp thuộc tính này ngoài chính file này, đã xác nhận bằng grep).
+- **`enroll_face()`**: từ chối tất định khi 0 khuôn mặt hoặc >1 khuôn mặt phát hiện được (yêu cầu đúng chính xác 1), validate label và embedding, chỉ cập nhật bộ nhớ trong-tiến-trình **sau khi** `storage.add_face()` xác nhận đã ghi thành công.
+- **`verify_frame()`**: giữ nguyên chính xác `bypass_mode` và kiểm tra khung tối/rỗng/None hiện có; giờ từ chối tất định (fail-closed) khi 0 hoặc >1 khuôn mặt, khi candidate embedding không hợp lệ, hoặc khi không có embedding nào đã enroll. Ranh giới tolerance strict `<` được giữ nguyên bit-for-bit.
+- **`process_surveillance_frame()`**: khung hình mơ hồ (nhiều khuôn mặt) hoặc có embedding không hợp lệ giờ trả về trạng thái riêng biệt (`"ambiguous_faces"` / `"invalid_face_data"`, `locked: False`) — **không bao giờ** bị phân loại nhầm thành `"owner_verified"`. Quyết định có chủ đích: các trạng thái mơ hồ này **không** kích hoạt khóa máy/cảnh báo Telegram (khác với `"intruder_locked"` cho trường hợp không khớp rõ ràng), để tránh mở rộng phạm vi sang thiết kế chính sách giám sát mới ngoài yêu cầu, và tránh cảnh báo giả khi dữ liệu khung hình thực sự không rõ ràng.
+- **`_extract_encodings()`**: nhánh camera mock giờ được bọc try/except giống nhánh `face_recognition` — một backend/mock ném lỗi không còn làm crash caller.
+- Không sửa `BiometricPrivilegeGate` (rà soát không phát hiện lỗi ở đây ngoài những gì kế thừa từ `verify_frame()` đã cứng hóa — hướng thay đổi chỉ làm xác thực khó hơn, không bao giờ dễ hơn).
+- `jarvis/vision/__init__.py` **không đổi** — cả 3 tên export (`BiometricsEngine`, `BiometricPrivilegeGate`, `FaceEmbeddingStorage`) giữ nguyên chữ ký công khai (`verify_frame()`/`enroll_face()` vẫn trả `bool`, `process_surveillance_frame()` vẫn trả `dict` có khóa `"status"`).
+
+### Test hồi quy (`tests/unit/test_biometrics_hardening.py`, file mới, 49 test)
+
+Bao phủ: validate embedding (128D hợp lệ/127D/129D/rỗng/NaN/Infinity/phi số/nested lỗi/không mutate mảng caller), storage corruption (JSON hỏng toàn file → rỗng, root sai kiểu, entry lẫn lộn hợp lệ+hỏng chỉ giữ entry hợp lệ, ghi nguyên tử bảo toàn file cũ khi ghi thất bại, sống sót qua khởi động lại registry, không ghi file vào cây repo mặc định), validate label (rỗng/sai kiểu/ký tự điều khiển/quá dài/duplicate thay thế tất định), số lượng khuôn mặt khi enroll (0/nhiều/đúng 1/rollback khi persist thất bại/không còn duplicate khi re-enroll), số lượng khuôn mặt khi verify (0/nhiều/candidate hỏng/không có embedding nào đã enroll/embedding lưu trữ hỏng không xác thực được), ngữ nghĩa khớp & tolerance (gần khớp, xa không khớp, ranh giới strict `<`, tolerance không hợp lệ không thể nới rộng xác thực — tham số hóa NaN/Infinity/âm/chuỗi/1e9/bool), optional dependency (vắng `face_recognition`/`cv2` không crash, camera mock vẫn hoạt động, backend ném lỗi không crash), privilege session (chỉ bắt đầu sau xác thực hợp lệ, hết hạn đúng TTL), surveillance (khung nhiều khuôn mặt không bao giờ là `"owner_verified"`), và tương thích API công khai.
+
+**Kết quả xác nhận thực tế (chạy cục bộ, Windows)**:
+```text
+python -m pytest tests/unit/test_biometrics_hardening.py -v --timeout=60 --tb=short
+49 passed in 0.45s
+```
+Toàn bộ file test cũ liên quan biometrics (`tests/test_biometrics.py`, `tests/test_adversarial_m5_2.py`, `tests/test_tier5_adversarial_sec_iot_comms_data.py`, `tests/test_e2e_scenarios.py`) được chạy lại và **so sánh bit-for-bit với baseline** (`git stash` rồi chạy lại) — xác nhận các lỗi/error hiện có (6 `ModuleNotFoundError: cv2` trong `test_biometrics.py`, 3 tương tự trong `test_e2e_scenarios.py`, 2 lỗi CLI nmap/tshark + 1 `AttributeError` Discord trong `test_tier5_...`) đã tồn tại **y hệt trước khi sửa** — môi trường này không có `cv2`/`face_recognition` cài đặt thật, đây là khoảng trống môi trường có sẵn, không phải hồi quy.
+
+`tests/unit/` đầy đủ (sau khi file test mới được dời vào `tests/unit/`, xác nhận lại bằng `git stash` để đo baseline chính xác):
+```text
+python -m pytest tests/unit/ --collect-only -q --timeout=120   # đếm số test được thu thập
+python -m pytest tests/unit/ -q --timeout=120 --tb=short
+```
+- Số test được thu thập trên baseline (`git stash`, chưa có file mới): **736**.
+- Số test được thu thập trên nhánh này (đã có `tests/unit/test_biometrics_hardening.py`): **785**.
+- Chênh lệch: **+49** — khớp chính xác với số test mới được thêm.
+- Toàn bộ 49 test cứng hóa biometrics: **passed**.
+- Kết quả chạy đầy đủ: đúng **9 lỗi đã biết từ trước** (8 trong `tests/unit/test_mobile_bridge.py`, 1 trong `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`) — **0 lỗi mới**. File `tests/unit/test_biometrics_hardening.py` (49 test) giờ **là một phần của `tests/unit/`** nên **có** test trong `tests/unit/` đụng tới `jarvis/vision/biometrics.py` — tuyên bố trước đó rằng "không có test nào trong `tests/unit/` đụng tới `jarvis/vision/biometrics.py`" chỉ đúng tại thời điểm file test còn nằm ở `tests/test_biometrics_hardening.py` (trước khi dời file, trước commit `dcbe797`) và đã lỗi thời sau khi dời.
+
+Static analysis:
+```text
+ruff check jarvis/vision/biometrics.py tests/unit/test_biometrics_hardening.py
+All checks passed!
+
+mypy jarvis
+```
+`jarvis/vision/biometrics.py` không có lỗi mypy nào. `ruff check jarvis tests scripts/build_installer.py` và `mypy jarvis` trên toàn repo báo lỗi **giống hệt baseline** (xác nhận bằng `git stash`): 9 lỗi Ruff (import-sort trong `tests/unit/test_zalo_bot.py` + các file khác đã biết từ trước) và 28 lỗi mypy trong 8 file không liên quan (`night_shift.py`, `macro_recorder`, `auto_updater.py`, `smart_home/discovery.py`, `mobile_bridge.py`, `tray.py`, `gui_actor.py`, `cli.py`) — không file nào trong số này thuộc phạm vi sửa đổi của nhánh này.
+
+`py_compile jarvis/vision/biometrics.py tests/unit/test_biometrics_hardening.py`: exit 0. `git diff --check`: exit 0.
+
+**Lưu ý về vị trí file test**: file test cứng hóa ban đầu được tạo tại `tests/test_biometrics_hardening.py` (ngoài `tests/unit/`), nghĩa là 49 test này **sẽ không chạy trong CI** (`.github/workflows/ci.yml` chỉ chạy `tests/unit/`). File đã được dời sang `tests/unit/test_biometrics_hardening.py` **trước khi commit `dcbe797`** — không có bản sao trùng lặp, không sửa nội dung file khi dời. CI vẫn chưa được kích hoạt cho nhánh này; các số liệu trên là kết quả chạy cục bộ, không phải claim CI.
+
+### Giới hạn đã biết / không tuyên bố
+
+- **Không** tuyên bố nhận diện khuôn mặt an toàn trước giả mạo (spoofing), **không** có liveness detection hay anti-spoofing, ngưỡng tolerance 0.6 (mặc định upstream) **không** phải bảo đảm định danh, hỗ trợ `face_recognition` trên Windows **không** được xác nhận chính thức trong sprint này, và JARVIS **chưa** có xác thực sinh trắc học cấp sản xuất.
+- `jarvis/skills/*/metadata.json` (9 file) bị đổi do chạy `tests/unit/`/test suite trong phiên này (telemetry số lần gọi/timestamp của skill registry) — lệnh khôi phục (`git checkout --`) bị chặn bởi bộ phân loại an toàn của công cụ (thao tác hủy thay đổi working tree); người dùng cần tự khôi phục nếu muốn, không thuộc bộ thay đổi này.
+- CI chưa được chạy cho nhánh này; chưa commit/push/PR.
+- Không sửa `jarvis/core/paths.py` — logic resolve `%LOCALAPPDATA%/JARVIS/cache/biometrics/faces.json` trong `FaceEmbeddingStorage.__init__` vẫn giữ nguyên cách tự resolve riêng (không dùng `data_path()`), vì việc hợp nhất quy ước path nằm ngoài phạm vi sprint cứng hóa embedding/storage/enrollment này.
+
+---
+
+## 🚀 Chưa phát hành (2026-08-31) — Gesture/Data Reference-Hardening Sprint
+
+> Nhánh làm việc: `feat/gesture-data-reference-hardening`, dựa trên `main` tại `e4bcd6d`. Sprint có giới hạn thời gian (~3 giờ). **Chỉ thêm file mới + export bổ sung** trong `jarvis/gesture/` và `jarvis/data/`; không sửa `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/comms/mobile_bridge.py`, `jarvis/proactive/**`, `jarvis/hardware/**`, `jarvis/stt/**`, `jarvis/audio/**`, `jarvis/automation/**`, `jarvis/security/scanner.py`, `jarvis/vision/biometrics.py`, `installer/**`, `scripts/build_installer.py`. Không wiring vào core/app, router, automation, hay dispatcher trong sprint này.
+
+### Tham khảo thượng nguồn (kiến trúc/API/thuật toán only — không sao chép mã nguồn/model đã huấn luyện)
+
+- **`kinivi/hand-gesture-recognition-mediapipe`**: tham khảo kiến trúc pipeline (landmark 21 điểm MediaPipe → chuẩn hóa → phân loại tĩnh + point-history cho cử chỉ động). Bộ phân loại thực tế trong JARVIS là một heuristic hình học tất định tự viết (tỉ lệ khoảng cách đầu ngón tay/khớp so với cổ tay), **không phải** cổng lại classifier đã huấn luyện của repo tham khảo.
+- **`Sinaptik-AI/pandas-ai`**: chỉ tham khảo sự phân tách tầng data loading → data model → agent/analysis → execution/sandbox boundary. Không import mã nguồn PandasAI, không thêm PandasAI làm dependency runtime, không thêm bất kỳ cơ chế thực thi mã Python sinh bởi LLM nào.
+
+### Hand-gesture pipeline mới (`jarvis/gesture/hand_models.py`, `hand_preprocess.py`, `hand_tracker.py`)
+
+- Bộ phát hiện cử chỉ tay **hoàn toàn tách biệt** khỏi `jarvis/gesture/detector.py` (bộ phát hiện vỗ tay bằng âm thanh hiện có — **không sửa một dòng nào**, không đổi tên/kiểu dữ liệu dùng chung).
+- `HandLandmarks`/`HandLandmarkPoint` — dataclass `frozen=True`, bắt buộc đúng 21 điểm (ném `ValueError` nếu sai số lượng).
+- `jarvis/gesture/hand_preprocess.py` — các hàm thuần túy, tất định, **không phụ thuộc MediaPipe/OpenCV/camera**: `normalize_landmarks()` (dời gốc về cổ tay + chuẩn hóa tỉ lệ), `classify_static_shape()` (OPEN_PALM/FIST theo tỉ lệ khoảng cách đầu ngón/khớp so với cổ tay), `classify_dynamic_gesture()` (SWIPE_LEFT/SWIPE_RIGHT theo độ dịch chuyển ngang của điểm theo dõi qua một cửa sổ point-history).
+- `HandGestureTracker` — vòng đời thread-safe (`RLock`), ngưỡng độ tin cậy (`confidence_threshold`), ổn định hóa thời gian/debounce cho cử chỉ tĩnh (`stabilization_frames` khung liên tiếp giống nhau), cooldown chống lặp trigger (`cooldown_s`), chỉ phát ra `HandGestureResult`/callback ngữ nghĩa — **không thực hiện hành động OS trực tiếp**.
+- OpenCV/MediaPipe là dependency **tùy chọn, import trễ** (`CV2_AVAILABLE`/`MEDIAPIPE_AVAILABLE`, theo đúng khuôn mẫu graceful-degradation đã dùng cho Porcupine trong `jarvis/audio/wake_word.py`). Thiếu dependency hoặc không mở được webcam → `HandTrackerState.UNAVAILABLE`, không bao giờ raise. `start()`/`_capture_loop()`/`stop()` tồn tại cho việc dùng camera thật sau này nhưng **không được test cần webcam thật** — `ingest_landmarks()` là điểm vào tất định dùng trong test.
+- `pyproject.toml`: thêm optional extra `gestures = ["opencv-python>=4.8,<5", "mediapipe>=0.10,<1"]`, **cố ý không đưa vào `all`** (mediapipe có hỗ trợ wheel Python 3.13 không ổn định; tránh làm bất ổn ma trận cài đặt mặc định).
+
+### Data Analysis Service facade mới (`jarvis/data/analysis_service.py`)
+
+- `DataAnalysisService` — facade tất định, mỏng, bọc `DataAnalyticsEngine`/`MonteCarloEngine` hiện có trong `jarvis/data/stats.py` (**không sửa file này**) bằng model request/result có cấu trúc: `DataAnalysisRequest`, `DataAnalysisResult`, `AnalysisOperation` (DESCRIBE/CORRELATION/ANOMALY/TREND/MONTE_CARLO/CHART).
+- Bounded file handling: `max_file_size_bytes` (mặc định 50MB) kiểm tra trước khi load CSV/XLSX, ném `FileTooLargeError` rõ ràng khi vượt giới hạn; phần mở rộng file không hỗ trợ ném `UnsupportedOperationError`.
+- Chart specification/rendering an toàn: `ChartSpec`/`ChartSeries` là mô tả biểu đồ **tất định, độc lập thư viện vẽ** — hữu ích ngay cả khi matplotlib chưa cài. `render_chart()` import matplotlib trễ với backend `Agg` (headless-safe); nếu thiếu matplotlib, trả về `ChartRenderResult(rendered=False, error=...)` thay vì raise.
+- Độc lập hoàn toàn với `jarvis/llm/router.py` — chỉ ánh xạ request có cấu trúc sang một trong các operation tất định cố định. **Không `eval()`/`exec()`, không sinh lệnh shell, không thực thi mã Python do LLM sinh ra.** Việc ánh xạ ngôn ngữ tự nhiên sang các operation này để lại cho một Phase 3 sau này.
+- `pyproject.toml`: thêm optional extra `charts = ["matplotlib>=3.7,<4"]`, **có** đưa vào `all` (rủi ro thấp, hỗ trợ wheel rộng rãi kể cả Python 3.13).
+
+### Test mới
+
+- `tests/unit/test_hand_gesture.py` — **24 test**, tất định, không cần MediaPipe/OpenCV/webcam thật: model landmarks (bất biến, đúng 21 điểm), chuẩn hóa (dời gốc + bất biến tỉ lệ), phân loại tĩnh (OPEN_PALM/FIST), phân loại động (SWIPE_LEFT/SWIPE_RIGHT, loại các trường hợp không phải swipe ngang), debounce/ổn định hóa + cooldown của `HandGestureTracker`, và trạng thái `UNAVAILABLE` khi thiếu dependency (mock qua `monkeypatch`).
+- `tests/unit/test_data_analysis_service.py` — **22 test**, tất định: describe/correlation/anomaly/trend qua fixture CSV nhỏ, Monte Carlo tất định với `random_seed` cố định, giới hạn kích thước file, phần mở rộng không hỗ trợ, `render_chart()` với và không có matplotlib (mock `ImportError` qua `monkeypatch`), và `execute()` dispatch có cấu trúc.
+
+### Kết quả kiểm chứng thực tế (chạy cục bộ, phiên này)
+
+```text
+tests/unit/test_hand_gesture.py          — 24 passed
+tests/unit/test_data_analysis_service.py — 22 passed
+tests/unit/test_gesture_detector.py      — 8 passed (không hồi quy trên bộ phát hiện vỗ tay âm thanh)
+
+ruff check jarvis/gesture jarvis/data tests/unit/test_hand_gesture.py \
+  tests/unit/test_data_analysis_service.py pyproject.toml            — All checks passed!
+mypy jarvis/gesture jarvis/data                                      — Success: no issues found in 11 source files
+py_compile (toàn bộ file đã sửa)                                     — exit 0
+git diff --check                                                     — exit 0 (không có output)
+
+tests/unit/ toàn bộ — 782 collected, 773 passed, 9 failed
+```
+
+- **9 lỗi còn lại đều thuộc baseline không liên quan, đã biết từ trước** (nằm trong các khu vực NO-TOUCH của sprint này): 8 lỗi trong `tests/unit/test_mobile_bridge.py` (`TestReceiveFile`/`TestTransferHistory`, `AttributeError: 'NoneType' object has no attribute 'exists'` từ `jarvis/comms/mobile_bridge.py`) và 1 lỗi trong `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`. Không file nào trong hai khu vực này bị chạm trong sprint. Tổng số test tăng đúng 46 (782 − 736 baseline trước sprint = 46, khớp với 24 + 22 test mới); **không có hồi quy mới nào do sprint này gây ra**.
+
+### Rà soát pre-commit (cùng phiên, trước khi commit) — 4 lỗi thật đã phát hiện và sửa
+
+Một lượt rà soát đúng-đắn/vòng-đời/an-toàn-tài-nguyên trên chính diff của sprint (không thêm tính năng mới) phát hiện và sửa 4 lỗi thật, tất cả đều nằm trong các file mới của sprint — **không chạm vào bất kỳ file NO-TOUCH nào**:
+
+1. **`render_chart()` rò rỉ figure của matplotlib khi render lỗi.** `plt.close(fig)` trước đây chỉ chạy ở nhánh thành công; một `ChartSpec` có độ dài `x`/`y` không khớp giữa các series sẽ ném lỗi sau khi `plt.subplots()` đã tạo figure, khiến figure đó không bao giờ được đóng — rò rỉ tài nguyên thật, lặp lại ở mỗi lần render lỗi. Đã sửa bằng `try/finally` đảm bảo đóng figure trên mọi nhánh.
+2. **`execute()` báo sai thành công khi render biểu đồ thất bại.** Với `AnalysisOperation.CHART`, `execute()` luôn trả về `success=True` bất kể `render_result.rendered`, phá vỡ đúng hợp đồng "kết quả đồng nhất" mà facade này được thiết kế để cung cấp. Đã sửa: `success=render_result.rendered`, `error=render_result.error`.
+3. **`HandGestureTracker._capture_loop()` không hồi phục sau lỗi worker.** Nếu `cap.read()`/`hands.process()` ném lỗi, thread chỉ log và thoát, nhưng `self._state` vẫn giữ `RUNNING`, tài nguyên camera/MediaPipe không được giải phóng, và `self._capture_thread` không được xóa — khiến lần gọi `start()` sau đó thấy `state == RUNNING` và bỏ qua, để tracker chết âm thầm vĩnh viễn trong khi vẫn báo cáo đang chạy. Đã sửa: nhánh xử lý lỗi giờ giải phóng tài nguyên qua `_release_backend_locked()`, xóa `_capture_thread`, và chuyển state về `HandTrackerState.UNAVAILABLE` để `start()` sau đó thực sự khởi động lại.
+4. **`start()` không xóa buffer phân loại cũ khi (khởi động lại).** `_point_history`/`_recent_static`/`_last_emit_time` từ trước lần `stop()` trước đó vẫn tồn tại sang lần `start()` kế tiếp, khiến một landmark từ rất lâu trước khi restart có thể kết hợp với khung hình đầu tiên sau restart thành một cử chỉ giả. Đã sửa: `start()` giờ xóa cả ba trước khi khởi chạy lại capture thread.
+
+Cả 4 lỗi đều có test hồi quy mới, tất định, dùng backend giả lập (không cần camera/MediaPipe thật, không cần matplotlib vắng mặt thật): `test_render_chart_error_path_does_not_leak_figure`, `test_execute_chart_success_reflects_actual_render_outcome`, `test_execute_chart_failure_is_not_reported_as_success`, `test_capture_loop_exception_releases_resources_and_updates_state`, `test_start_after_worker_exception_actually_restarts` (kiểm tra đầu-cuối thật: crash → tự hồi phục → restart thật), `test_start_clears_stale_classification_state_from_before_restart`. Các test này lấp đúng lỗ hổng coverage: 46 test ban đầu chưa từng gọi `execute()` với `AnalysisOperation.CHART`, và chưa từng test vòng đời `HandGestureTracker` với backend giả lập (chỉ test trường hợp backend vắng mặt).
+
+```text
+tests/unit/test_hand_gesture.py             — 27 passed (24 + 3 mới)
+tests/unit/test_data_analysis_service.py    — 25 passed (22 + 3 mới)
+tests/unit/test_gesture_detector.py         — 8 passed (không ảnh hưởng)
+
+ruff / mypy jarvis/gesture jarvis/data / py_compile / git diff --check — như trên, đều sạch
+tests/unit/ toàn bộ (sau rà soát) — 788 collected, 779 passed, 9 failed (vẫn đúng 9 lỗi baseline cũ, không có hồi quy mới)
+```
+
+Phát hiện không chặn (non-blocking), **chưa sửa** trong lượt này: `_check_file_bounds()` chưa kiểm tra `is_file()` (đường dẫn thư mục cho lỗi hơi khó hiểu); `render_chart()`'s `except ImportError` chưa bọc luôn lỗi hiếm gặp từ `matplotlib.use()`; `matplotlib.use("Agg", force=True)` gọi lại mỗi lần render (vô hại vì chưa có nơi nào khác trong JARVIS dùng matplotlib); hướng SWIPE_LEFT/SWIPE_RIGHT tính trực tiếp từ tọa độ x thô của ảnh, giả định khung hình không bị lật gương — webcam "selfie-view" điển hình có thể đảo ngược cảm nhận hướng; chưa được xác thực vì chưa có test camera thật.
+
+### Giới hạn đã biết
+
+- Hand-gesture pipeline chưa wiring vào `jarvis/core/dispatcher.py`, `jarvis/core/app.py`, hay bất kỳ luồng ActionDispatcher/automation nào — theo đúng phạm vi sprint (chỉ phát ra `HandGestureResult`/callback ngữ nghĩa).
+- `HandGestureTracker.start()`/`_capture_loop()` (đường dùng webcam/MediaPipe thật) được viết nhưng **chưa được xác thực với webcam/MediaPipe thật** — nằm ngoài phạm vi "no real webcam requirement in tests" của sprint này.
+- `DataAnalysisService` chưa có đường ánh xạ ngôn ngữ tự nhiên → operation có cấu trúc (dự kiến Phase 3, không thuộc phạm vi sprint này).
+- 9 lỗi baseline không liên quan (mobile_bridge, proactive health-monitor) vẫn còn nguyên — không được sửa theo đúng chỉ thị của sprint. **Cập nhật sau khi merge `main`**: các lỗi này đã được sửa độc lập trên `main` bởi nhánh `fix/ci-baseline` — số liệu "9 lỗi" ở trên phản ánh đúng trạng thái tại thời điểm sprint này chạy trên baseline `e4bcd6d`, không phải trạng thái sau khi merge `main` vào nhánh này. **Xác nhận thực tế sau merge** (chạy cục bộ, cùng phiên merge): `python -m pytest tests/unit/ -q --timeout=120 --tb=short` → **837 collected, 837 passed, 0 failed** (837 = 736 baseline gốc + 49 test biometrics [PR #14] + 27 + 25 = 52 test gesture/data của sprint này; 9 lỗi cũ đã biến mất nhờ `fix/ci-baseline`, không phải bị bỏ qua). Không có hồi quy mới nào từ việc merge.
+
+---
+
+## 🚀 Chưa phát hành (2026-08-31) — Agent Execution Hardening (OpenInterpreter Reference Sprint)
+
+> Nhánh làm việc: `feat/agent-execution-hardening`, dựa trên `main` tại `e4bcd6d015dec2796e0f50e88b5c9f69b58bb1f7`. Mục tiêu chính: `jarvis/agent/**`. Không sửa `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/comms/mobile_bridge.py`, `jarvis/proactive/**`, `jarvis/hardware/**`, `jarvis/stt/**`, `jarvis/audio/**`, `jarvis/automation/**`, `jarvis/security/scanner.py`, `jarvis/vision/biometrics.py`, `installer/**`, `scripts/build_installer.py`. Không wiring `ReActAgent` vào core/app/dispatcher/router trong sprint này (giữ nguyên trạng thái độc lập hiện có — `ReActAgent` không được import từ bất kỳ đâu khác trong `jarvis/` trước hoặc sau sprint này).
+
+### Tham khảo thượng nguồn (kiến trúc only — không sao chép mã nguồn, không thêm dependency)
+
+- **OpenInterpreter** (dự án hiện tại tại `openinterpreter/openinterpreter`, đã viết lại đáng kể so với repo `OpenInterpreter/open-interpreter` cũ được nhắc trong tài liệu kế hoạch gốc). Chỉ tham khảo các khái niệm kiến trúc: ranh giới rõ ràng giữa agent harness và execution, sandboxed code execution, ranh giới permission/approval, bounded execution, structured execution result, portable/isolated tools. **Không** vendor OpenInterpreter, không import mã nguồn của nó, không thêm nó làm runtime dependency ở bất kỳ đâu trong `pyproject.toml`.
+
+### Phát hiện xác nhận trước khi sửa (đúng như nghi ngờ ban đầu)
+
+`jarvis/agent/graph.py::ReActAgent._tool_run_python` (trước khi sửa) gọi trực tiếp `exec(code, exec_globals)` — thực thi mã Python **ngay trong tiến trình JARVIS**, chỉ có `ast.parse()` kiểm tra cú pháp (không phải kiểm tra an toàn), không sandbox, không giới hạn tài nguyên, không timeout, có toàn quyền truy cập process/globals hiện tại. Trong khi đó JARVIS đã có sẵn `jarvis.sandbox.interpreter.CodeInterpreterSandbox.execute_python()` — kiểm tra AST an toàn tất định, thực thi cô lập trong scratch dir, cô lập OS Restricted Token (Low Integrity), Windows Job Object, timeout, và `SandboxResult` có cấu trúc. `_tool_run_python` hoàn toàn không dùng đến engine này.
+
+Kiểm tra thêm mọi tool có sẵn khác (`_tool_write_file`, `_tool_read_file`, `_tool_browser`, `_tool_screenshot`, `_tool_send_telegram`, `_tool_list_dir`, `_tool_git_status`) và `_act()` (điểm gọi tool chung): **tất cả agent tool đều được gọi trực tiếp qua `tool.fn(**args)`, hoàn toàn bỏ qua `ActionDispatcher.dispatch_action()`/`SafetyGateInterceptor`** (lớp an toàn trung tâm từ Phase 2 — xem CLAUDE.md §8.3) — không có RBAC, không có phân loại rủi ro, không có safety-gate nào được áp dụng cho bất kỳ agent tool nào. `_tool_git_status` dùng `subprocess.run(["git", "status", "--short"], ...)` với argv cố định (không có input người dùng nội suy vào lệnh) — an toàn khỏi injection nhưng vẫn bỏ qua dispatcher. `ReActAgent` **không được import/sử dụng ở bất kỳ đâu khác trong `jarvis/`** (xác nhận bằng grep toàn bộ cây mã nguồn) — bán kính ảnh hưởng hiện tại bằng 0 trong production, nhưng lỗ hổng vẫn là thật nếu module này được wiring vào sau này.
+
+### Fix 1 (bắt buộc theo yêu cầu): Python execution qua sandbox hiện có
+
+- `_tool_run_python` giờ gọi `CodeInterpreterSandbox.execute_python()` (không sửa `jarvis/sandbox/interpreter.py`) thay vì `exec()` trực tiếp. Giữ nguyên toàn bộ AST validation, cô lập scratch dir, cô lập OS Restricted Token, timeout/resource bounds của sandbox hiện có.
+- Bọc code người dùng bằng một epilogue tối giản (`try: print(result)\nexcept NameError: pass`) để giữ quy ước cũ "biến `result` ở top-level trở thành output" — **không dùng `locals()`/`globals()`/`vars()`** (đều bị AST validator của sandbox cấm), tránh việc epilogue tự làm hỏng validation của chính nó.
+- `ReActAgent.__init__` nhận thêm tham số tùy chọn `sandbox: CodeInterpreterSandbox | None = None` (tương thích ngược — mặc định `None`); `_get_sandbox()` khởi tạo lười (`cleanup_on_exit=True`) chỉ khi `run_python` thực sự được gọi lần đầu, tránh tạo thư mục `workspace/sandbox/` cho các agent không bao giờ chạy Python.
+- Timeout được truyền qua `_tool_run_python(code, timeout_seconds=None, **kw)` (tham số mới, tùy chọn, tương thích ngược) và luôn bị kẹp (`min(...)`) ở `MAX_PYTHON_EXEC_TIMEOUT_SECONDS = 30.0` bất kể LLM/heuristic yêu cầu gì — không một lệnh gọi tool nào có thể treo agent quá 30 giây.
+
+### Phát hiện nghiêm trọng ngoài dự kiến, đã xác nhận và sửa (theo yêu cầu người dùng): pipe deadlock trong `jarvis/sandbox/security.py`
+
+Trong lúc kiểm thử tích hợp thực tế (không phải giả định), phát hiện `CodeInterpreterSandbox.execute_python()` **treo vô thời hạn cho đến hết timeout** với bất kỳ script nào có tổng stdout+stderr vượt quá **chính xác 4096 byte** (đã nhị phân xác định ngưỡng: 4000 byte chạy tức thì, 4096 byte treo đủ 100% thời gian timeout được cấp, kể cả 25 giây). Nguyên nhân gốc, xác nhận bằng đọc mã nguồn `spawn_low_integrity_process()`: hàm gọi `WaitForSingleObject()` chờ **toàn bộ** tiến trình con kết thúc **trước khi** đọc bất kỳ dữ liệu nào từ pipe (`ReadFile` chỉ chạy ở Step 10, sau khi wait xong). Anonymous pipe mặc định của Windows có buffer ~4096 byte; nếu tiến trình con ghi vượt quá dung lượng này mà không ai đọc, `write()`/`print()` của nó bị chặn vĩnh viễn (pipe đầy, không được rút bớt), trong khi tiến trình cha đang bị chặn ở `WaitForSingleObject` chờ một tiến trình đang tự chặn chính nó — deadlock cổ điển, chỉ thoát được nhờ timeout của caller (rồi báo sai là "timed out" thay vì "thành công với output lớn").
+
+**Đây là lỗi có thật, độc lập với sprint này, ảnh hưởng bất kỳ caller nào của `execute_python()`** — không phải lỗi lý thuyết: script LLM sinh ra in một JSON vừa phải, một danh sách file, hay bất kỳ output nào >4KB đều sẽ kích hoạt nó. Vì lỗi này trực tiếp cản trở một trong các REQUIRED OUTCOME của chính sprint này ("huge stdout is bounded... convert SandboxResult into a bounded observation") — không thể kiểm chứng thật với output lớn thật nếu sandbox tự treo trước khi trả kết quả — đã dừng lại và hỏi ý kiến người dùng trước khi sửa `jarvis/sandbox/**` (khu vực được yêu cầu giữ nguyên trừ khi có lỗi xác nhận khiến việc tích hợp bất khả thi). **Người dùng chọn sửa ngay.**
+
+**Fix đã áp dụng** (`jarvis/sandbox/security.py::spawn_low_integrity_process()`):
+- Thêm một thread nền (`threading.Thread`, daemon) bắt đầu rút dữ liệu pipe **ngay sau khi** tiến trình con được tạo (vẫn đang `CREATE_SUSPENDED`, trước cả `ResumeThread`) — đảm bảo không có khoảng trống nào giữa lúc tiến trình con có thể ghi và lúc có người đọc.
+- `WaitForSingleObject`/xử lý timeout/`GetExitCodeProcess` **giữ nguyên 100% không đổi** — thread nền chỉ thay đổi **thời điểm** pipe được đọc, không đụng đến bất kỳ ngữ nghĩa cô lập/token/Job Object/`retry_safe` nào.
+- Sau khi tiến trình con kết thúc (bình thường hoặc bị `TerminateProcess` do timeout), `reader_thread.join(timeout=5.0)` — có giới hạn, không bao giờ treo vô hạn; dùng bất kỳ dữ liệu nào đã rút được cho đến thời điểm đó.
+- `_cleanup()` (chạy trong `finally` ở mọi đường thoát, kể cả các nhánh `RestrictedProcessBootstrapError` sớm) giờ join thread rút dữ liệu (có giới hạn 2.0s) **trước khi** đóng `h_read`, tránh race giữa `CloseHandle` và một `ReadFile` đang treo trên thread khác.
+- **Không đụng đến**: `CreateRestrictedToken`, `SetTokenInformation(TokenIntegrityLevel)`, `CREATE_SUSPENDED`/thứ tự Job-Object-trước-Resume, phân loại `retry_safe`, đường dẫn compatibility Popen, `strip_sandbox_ready_sentinel()`, AST validator, môi trường bị scrub, hay bất kỳ bảo đảm an ninh nào khác từ PR #9.
+- Xác minh thực nghiệm: trước fix, 4096+ byte → treo đủ timeout (đã thử tới 25s); sau fix, 100–50000 byte đều hoàn thành trong ~0.13–0.14 giây, `success=True`, đúng dữ liệu.
+- Test hồi quy mới: `tests/unit/test_skill_synthesis.py::TestCodeInterpreterSandbox::test_sandbox_large_stdout_does_not_deadlock` (20000 byte, timeout 5.0s, xác nhận thành công thay vì treo).
+- Toàn bộ test sandbox hiện có (`test_skill_synthesis.py`, `test_adversarial_r1_r2_r5_stress.py`, `test_hud_telemetry_and_memory.py`, `test_sandbox_compat_fallback.py`, và `tests/integration/test_sandbox_os_boundaries.py`) chạy lại **sau fix**: tất cả pass, không hồi quy.
+
+### Fix 2: Ranh giới thực thi tool có cấu trúc (module mới, không đụng `jarvis/sandbox/**`)
+
+- File mới `jarvis/agent/tool_runtime.py`: `ToolExecutionResult` (success/output/error/metadata) tất định; `truncate_text()` giới hạn kích thước quan sát tất định (`DEFAULT_MAX_OBSERVATION_CHARS = 4000`, nhỏ hơn nhiều so với giới hạn 1MB nội bộ của sandbox — giới hạn đó bảo vệ pipe của sandbox, không phải ngân sách context của LLM); `normalize_tool_output()` chuẩn hóa giá trị trả về bất kỳ (dict cũ/`ToolExecutionResult`/giá trị khác) về cùng một hợp đồng; `sandbox_result_to_tool_result()` chuyển `SandboxResult` thành `ToolExecutionResult` (kèm dọn dẹp phòng thủ, phía agent, cho một lỗi rò rỉ sentinel không liên quan tới bảo mật — xem bên dưới); `format_observation()` tạo chuỗi quan sát cuối cùng, luôn có giới hạn kích thước.
+- `ReActAgent._act()` giờ dùng `_execute_tool()` (mới) + `format_observation()` cho **mọi** tool, không chỉ `run_python` — nghĩa là "không tồn tại giới hạn kích thước output không giới hạn được đưa vào LLM context" áp dụng đồng nhất cho toàn bộ tool.
+- `_execute_tool()`: tool không tồn tại → thất bại tất định; `args` không phải dict (kể cả `None`) → thất bại tất định, không crash; ngoại lệ từ `tool.fn(**args)` → bị bắt, không bao giờ thoát ra ngoài vòng lặp agent.
+- **Phát hiện phụ, không sửa (cosmetic, không phải lỗ hổng an ninh)**: `jarvis.sandbox.security.strip_sandbox_ready_sentinel()` chỉ khớp chính xác dòng sentinel kết thúc bằng `\n` (LF); trên Windows, stdout của tiến trình con thường kết thúc bằng `\r\n` (CRLF), khiến hàm này **không strip được** sentinel — vài byte control character (`\x02...\x03`) rò rỉ vào `SandboxResult.stdout`. Không sửa `jarvis/sandbox/security.py` cho lỗi cosmetic này (không phải điều kiện "khiến việc tích hợp bất khả thi" như lỗi deadlock ở trên); thay vào đó `sandbox_result_to_tool_result()` tự dọn dẹp phòng thủ phía agent bằng regex, dung nạp cả `\n` và `\r\n`.
+
+### Test mới
+
+- `tests/unit/test_agent_tool_runtime.py` (file mới) — 25 test tất định cho `truncate_text`/`normalize_tool_output`/`sandbox_result_to_tool_result`/`format_observation`, dùng `SandboxResult` dựng trực tiếp (không spawn tiến trình thật).
+- `tests/unit/test_react_agent.py` — thêm 17 test mới (`test_run_python_source_never_calls_builtin_exec_or_eval` quét mã nguồn xác nhận không dùng exec/eval; `test_run_python_uses_injected_sandbox_instance` với sandbox giả lập; `test_run_python_safe_code_becomes_observation`/`test_run_python_sandbox_rejection_becomes_failed_observation`/`test_run_python_timeout_becomes_failed_observation` dùng sandbox thật, tất định và nhanh; `test_run_python_huge_stdout_is_bounded_before_reaching_observation` dùng sandbox giả lập; `test_run_python_timeout_is_clamped_to_a_sane_maximum`; tool không tồn tại, args sai định dạng (kể cả `None`), tool ném exception, tool trả `ToolExecutionResult` trực tiếp, output bất kỳ tool nào cũng bị giới hạn; `max_iterations` dừng đúng số vòng và đạt `DONE`; `run()` bắt exception và set `FAILED`; hoàn thành bình thường qua reflection; mock mode vẫn tất định và không đụng sandbox). Không test nào cần mạng, LLM/API key thật, hay hành động phá hoại.
+- `tests/unit/test_skill_synthesis.py` — thêm 1 test hồi quy cho lỗi deadlock (xem trên).
+- 21 test `ReActAgent` sẵn có + toàn bộ test sandbox sẵn có: **không sửa assertion nào, tất cả vẫn pass nguyên trạng.**
+
+### Kiểm chứng thực tế đã chạy (phiên này, local)
+
+```text
+tests/unit/test_react_agent.py                — 38 passed (21 cũ + 17 mới)
+tests/unit/test_agent_tool_runtime.py         — 25 passed (file mới)
+tests/unit/test_skill_synthesis.py            — 21 passed (20 cũ + 1 mới, gồm cả regression treo pipe)
+tests/unit/test_adversarial_r1_r2_r5_stress.py, test_hud_telemetry_and_memory.py,
+  test_sandbox_compat_fallback.py, test_react_planner.py, test_browser_agent.py — tất cả pass
+tests/integration/test_sandbox_os_boundaries.py — tất cả pass (15 test, không hồi quy sau fix pipe)
+
+ruff check jarvis/agent tests/unit/test_react_agent.py tests/unit/test_agent_tool_runtime.py \
+  tests/unit/test_skill_synthesis.py jarvis/sandbox/security.py     — All checks passed!
+mypy jarvis/agent/graph.py jarvis/agent/tool_runtime.py jarvis/agent/__init__.py \
+  jarvis/sandbox/security.py (--follow-imports=silent)              — Success: no issues found in 4 source files
+py_compile (toàn bộ file đã sửa)                                    — exit 0
+git diff --check                                                    — exit 0
+
+tests/unit/ toàn bộ — 779 collected, 770 passed, 9 failed
+```
+
+- **9 lỗi còn lại đều là baseline không liên quan, đã biết từ trước** (nằm trong các khu vực NO-TOUCH của sprint này, giống hệt các sprint trước trên cùng baseline `e4bcd6d`): 8 lỗi `tests/unit/test_mobile_bridge.py` + 1 lỗi `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`. 779 − 736 (baseline `e4bcd6d`, xác nhận khớp với baseline đã tính trong sprint gesture/data trước đó trên cùng commit) = 43, khớp chính xác với 17 + 25 + 1 test mới. **Không có hồi quy mới nào do sprint này gây ra.**
+
+### Rà soát bảo mật pre-commit tiếp theo — phát hiện thêm 1 lỗi thật, vá 1 lỗ hổng test coverage
+
+Rà soát bảo mật line-by-line trên chính diff (không thêm tính năng) phát hiện fix pipe-deadlock ở trên tự nó tạo ra một hồi quy an toàn tài nguyên mới, và lấp một lỗ hổng test:
+
+- **`_drain_pipe()` không có giới hạn dữ liệu giữ lại.** Fix deadlock đã gỡ bỏ thứ DUY NHẤT trước đây giới hạn bộ nhớ phía tiến trình cha (JARVIS) khi capture pipe — chính cái deadlock đó, vốn vô tình giới hạn một script chạy vô hạn ở mức ~4KB trước khi nó tự chặn. Không có giới hạn rõ ràng, `while True: print(...)` có thể khiến thread đọc pipe tích lũy dữ liệu không giới hạn trong bộ nhớ tiến trình JARVIS suốt toàn bộ cửa sổ timeout, rất lâu trước khi truncation hậu-kỳ `_MAX_STDOUT_CAPTURE_BYTES` của `interpreter.py` kịp chạy. Đã sửa: `_drain_pipe()` giờ dừng append vào `output_chunks` khi đạt `_PIPE_READER_MAX_CAPTURE_BYTES = 1024 * 1024` (1MB), nhưng vẫn tiếp tục gọi `ReadFile` trong vòng lặp để pipe (và tiến trình con) không bao giờ bị chặn lại; byte vượt ngưỡng bị loại bỏ. Hằng số này cố ý độc lập với hằng số cùng tên trong `interpreter.py` (tránh circular import). Test hồi quy mới: `test_sandbox_runaway_output_does_not_grow_unbounded` (vòng lặp print vô hạn thật, timeout 1.5s, xác nhận thời gian có giới hạn và `len(stdout) < 2MB`).
+- **Lấp lỗ hổng test**: chưa có test nào trước đây ghi dữ liệu nặng/xen kẽ vào `stderr` cụ thể qua sandbox thật. Thêm `test_sandbox_mixed_stdout_stderr_heavy_output_does_not_deadlock`.
+- **Sửa lại (phát hiện qua GitHub Actions CI #75)**: test ban đầu giả định stdout/stderr luôn dùng chung một pipe (`hStdOutput == hStdError`) nên assert dữ liệu stderr nặng nằm trong `result.stdout`. Điều đó chỉ đúng trên đường Restricted Token chính. Runner của GitHub hiện gặp lỗi bootstrap `0xC0000142` đã biết (xem trên) và rơi vào đường compatibility fallback (opt-in tường minh), nơi `subprocess.Popen` capture stdout và stderr **tách riêng** — khiến assertion trên sai trên CI đó. Đã sửa: chỉ kiểm tra hợp đồng ngữ nghĩa đúng trên cả hai đường — `result.success is True`, không treo/timeout, và cả hai payload nặng đều xuất hiện đâu đó trong `result.stdout + result.stderr` gộp lại.
+- Xác nhận lại sau fix: toàn bộ test sandbox/agent chạy sạch; `ruff`/`mypy`/`py_compile`/`git diff --check` sạch; `tests/unit/` toàn bộ — 781 collected, 772 passed, vẫn đúng 9 lỗi baseline cũ, không hồi quy mới.
+- Không phát hiện nào khác đạt mức "chặn" trong lượt rà soát này. Xác nhận không đổi: tạo Restricted Token, integrity level, tham số `CreateProcessAsUserW`, gán/kill-on-close Job Object, scrub môi trường, AST validation, chính sách compatibility fallback, security preamble — toàn bộ diff vào `security.py` qua cả hai lượt chỉ giới hạn ở *khi nào*/*bao nhiêu* dữ liệu pipe được đọc, không đụng bất kỳ ngữ nghĩa cô lập/phân quyền nào. `_tool_write_file`/`_tool_read_file`/... vẫn giữ nguyên byte-for-byte — không có cơ chế an toàn thứ hai/tùy biến nào được thêm vào.
+
+### Giới hạn an ninh còn lại (audit đầy đủ, cố ý không sửa trong sprint này)
+
+- **Mọi agent tool builtin (`write_file`, `read_file`, `browser_open`, `screenshot`, `send_telegram`, `list_dir`, `git_status`) vẫn hoàn toàn bỏ qua `ActionDispatcher`/`SafetyGateInterceptor`** — `_act()` gọi `tool.fn(**args)` trực tiếp, không qua RBAC, không qua phân loại rủi ro/safety-gate trung tâm từ Phase 2. Cụ thể: `write_file` có thể ghi đè bất kỳ đường dẫn nào tiến trình JARVIS có quyền ghi, không có allowlist đường dẫn; `browser_open` có thể điều hướng trình duyệt tới bất kỳ URL nào dưới sự điều khiển của LLM/agent goal. **Cố ý không sửa** — wiring toàn bộ tool builtin qua `ActionDispatcher` là một tích hợp lớn hơn nhiều so với "smallest coherent hardening" của sprint này, và theo đúng chỉ thị, không tự phát minh một cơ chế an toàn thứ hai (path allowlist riêng, confirmation giả) để vá tạm — để lại cho một tích hợp tập trung, có chủ đích trong tương lai. `ReActAgent` hiện **không được import ở bất kỳ đâu khác trong `jarvis/`**, nên bán kính ảnh hưởng production hiện tại là 0.
+- `_tool_git_status` dùng `subprocess.run` với argv cố định — an toàn khỏi command injection (không có input người dùng nào được nội suy vào lệnh), nhưng vẫn bỏ qua dispatcher như các tool khác ở trên.
+- `_tool_send_telegram` gửi tin nhắn trực tiếp qua `TelegramBotController`, bỏ qua dispatcher — vì "gửi tin nhắn" không được `SafetyGateInterceptor` phân loại là hành động rủi ro cao, việc route qua dispatcher (nếu có) cũng sẽ không chặn được hành vi này; ghi nhận cho đầy đủ, không phải lỗ hổng mới.
+- Rò rỉ sentinel cosmetic (`\x02...\x03`) trong `SandboxResult.stdout` khi child dùng line ending CRLF — không phải lỗ hổng an ninh, không sửa tại nguồn (`jarvis/sandbox/security.py`), chỉ dọn dẹp phòng thủ phía agent (xem Fix 2).
+
+### Giới hạn đã biết khác
+
+- `ReActAgent` vẫn chưa wiring vào `ActionDispatcher`/`app.py`/router — cố ý, ngoài phạm vi sprint này (không bắt đầu Phase 3 LLM routing theo đúng chỉ thị).
+- Chưa chạy CI cho nhánh này; chưa commit, chưa push, chưa mở PR.
+- 9 lỗi baseline không liên quan (mobile_bridge, proactive health-monitor) vẫn còn nguyên — không được sửa theo đúng chỉ thị của sprint. **Cập nhật sau khi merge `main`**: số liệu "779 collected, 770 passed, 9 failed" ở trên (và số "781 collected, 772 passed" sau lượt rà soát bảo mật tiếp theo) phản ánh đúng trạng thái tại thời điểm sprint này chạy trên baseline gốc `e4bcd6d` — **trước khi** `main` đã merge PR #15 (`fix/ci-baseline`, sửa 9 lỗi này), PR #14 (Biometrics, +49 test), và PR #11 (Gesture/Data, +52 test). Đây là ghi chép lịch sử, không bị viết lại. **Xác nhận thực tế sau khi merge `main` vào `feat/agent-execution-hardening`** (chạy cục bộ, cùng phiên merge): `python -m pytest tests/unit/ -q --timeout=120 --tb=short` → **882 collected, 882 passed, 0 skipped, 0 failed**. 882 = 837 (baseline `main` đã merge Biometrics + Gesture/Data, đã xác nhận cục bộ trước đó) + 45 test mới của sprint agent này (17 `test_react_agent.py` + 25 `test_agent_tool_runtime.py` [file mới] + 3 `test_skill_synthesis.py`) = 837 + 45 = 882, khớp chính xác với dự đoán trước khi chạy. 9 lỗi baseline cũ đã biến mất thật sự nhờ `fix/ci-baseline`, không phải bị bỏ qua/ẩn đi. Không có hồi quy mới nào từ việc merge.
+
+---
+
 ## 🚀 Chưa phát hành (2026-08-31) — Skill/Plugin Manifest & Telemetry Hardening (Leon 2.0 Reference Sprint)
 
 > Nhánh làm việc: `feat/skill-plugin-hardening`, dựa trên `main` tại `e4bcd6d015dec2796e0f50e88b5c9f69b58bb1f7`. Mục tiêu chính: `jarvis/skills/models.py`, `jarvis/skills/registry.py`. Không sửa `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/agent/**`, `jarvis/sandbox/**`, `jarvis/comms/**`, `jarvis/proactive/**`, `jarvis/hardware/**`, `jarvis/stt/**`, `jarvis/audio/**`, `jarvis/automation/**`, `jarvis/security/**`, `jarvis/vision/**`, `installer/**`, `scripts/build_installer.py`. Không sửa `jarvis/skills/synthesizer.py`, các thư mục skill riêng lẻ, hay bất kỳ `jarvis/skills/*/metadata.json` nào đã tồn tại — giữ nguyên các thay đổi gần đây của contributor khác.
@@ -88,7 +343,7 @@ tests/unit/ toàn bộ (sau rà soát) — 761 collected, 752 passed, 9 failed
 - Đường dẫn `getattr(module, entrypoint_function)` giờ có kiểm tra định danh an toàn, nhưng `entrypoint_function` hầu như luôn là `"execute"` mặc định trong thực tế hiện tại — validation này chủ yếu là phòng thủ chiều sâu cho đường `SkillDefinition.from_dict()` ít dùng hơn.
 - Reload skill (`reload_skill()`) vẫn luôn `exec_module()` một module mới mỗi lần, không có teardown tường minh cho module cũ (hành vi có từ trước, không thuộc phạm vi sprint này).
 - Chưa chạy CI cho nhánh này; chưa commit, chưa push, chưa mở PR.
-- 9 lỗi baseline không liên quan (mobile_bridge, proactive health-monitor) vẫn còn nguyên — không được sửa theo đúng chỉ thị của sprint.
+- 9 lỗi baseline không liên quan (mobile_bridge, proactive health-monitor) vẫn còn nguyên — không được sửa theo đúng chỉ thị của sprint. **Cập nhật sau khi merge `main`**: số liệu "761 collected, 752 passed, 9 failed" ở trên phản ánh đúng trạng thái tại thời điểm sprint này chạy trên baseline gốc `e4bcd6d` — **trước khi** `main` đã merge PR #15 (`fix/ci-baseline`, sửa 9 lỗi này), PR #14 (Biometrics, +49 test), PR #11 (Gesture/Data, +52 test), và PR #12 (Agent Execution Hardening, +45 test). Đây là ghi chép lịch sử, không bị viết lại. **Xác nhận thực tế sau khi merge `main` vào `feat/skill-plugin-hardening`** (chạy cục bộ, cùng phiên merge): `python -m pytest tests/unit/ -q --timeout=120 --tb=short` → **907 collected, 907 passed, 0 skipped, 0 failed**. 907 = 882 (baseline `main` đã merge Biometrics + Gesture/Data + Agent, đã xác nhận cục bộ trước đó) + 25 test mới của sprint skill/plugin này (`tests/unit/test_skill_registry_hardening.py`) = 882 + 25 = 907, khớp chính xác với dự đoán trước khi chạy. 9 lỗi baseline cũ đã biến mất thật sự nhờ `fix/ci-baseline`, không phải bị bỏ qua/ẩn đi. `git diff -- jarvis/skills/*/metadata.json` được chạy lại sau cả lượt test tập trung lẫn `tests/unit/` toàn bộ trên baseline đã merge — vẫn **rỗng**, xác nhận fix tách biệt manifest/telemetry của sprint này tiếp tục đứng vững kể cả sau khi hợp nhất với các sprint khác. Không có hồi quy mới nào từ việc merge.
 
 ---
 

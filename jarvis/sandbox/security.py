@@ -19,6 +19,7 @@ import io
 import logging
 import os
 import sys
+import threading
 from ctypes import wintypes
 from pathlib import Path
 from typing import Any
@@ -540,8 +541,17 @@ def spawn_low_integrity_process(
     h_read = wintypes.HANDLE()
     h_write = wintypes.HANDLE()
     pi = PROCESS_INFORMATION()
+    # Set once the concurrent pipe-draining reader thread (see Step 6 below)
+    # is started, so _cleanup() can join it -- bounded -- before closing
+    # h_read on every exit path, including an early RestrictedProcessBootstrapError
+    # raise. Joining first avoids CloseHandle racing a pending ReadFile on
+    # another thread; the bounded timeout means a stuck reader still cannot
+    # hang this function itself.
+    reader_thread: threading.Thread | None = None
 
     def _cleanup() -> None:
+        if reader_thread is not None and reader_thread.is_alive():
+            reader_thread.join(timeout=2.0)
         for handle in (pi.hThread, pi.hProcess, h_write, h_read, h_restricted, h_token):
             if handle:
                 try:
@@ -681,6 +691,59 @@ def spawn_low_integrity_process(
                 retry_safe=True,
             )
 
+        # Start draining the output pipe concurrently, on a background
+        # thread, starting now (child is still CREATE_SUSPENDED, so nothing
+        # is written yet -- this just ensures the reader is in place before
+        # ResumeThread()). The Windows default anonymous pipe buffer is
+        # ~4096 bytes; without a concurrent reader, a child that writes more
+        # than that to stdout/stderr combined blocks on write() forever
+        # (the pipe never drains) while this function's own wait below would
+        # otherwise not read anything until after the child exits -- a
+        # classic pipe deadlock that previously surfaced as a false
+        # "execution timed out" for any script producing >~4KB of output,
+        # even though it would have completed instantly. This thread only
+        # changes *when* the existing pipe is read, not any isolation,
+        # token, Job Object, or validation semantics.
+        #
+        # _PIPE_READER_MAX_CAPTURE_BYTES bounds how much of that drained
+        # output this function itself retains in the PARENT process's own
+        # memory. Before this reader thread existed, a runaway/long-running
+        # script (e.g. `while True: print(...)`) could never write more than
+        # the pipe's ~4KB buffer before deadlocking, which incidentally
+        # capped parent-side memory too. Now that the pipe is continuously
+        # drained, that incidental cap is gone -- without an explicit one
+        # here, a verbose child could make this thread buffer unbounded data
+        # in the JARVIS host process itself for the entire timeout window,
+        # long before interpreter.py's own post-hoc _MAX_STDOUT_CAPTURE_BYTES
+        # truncation ever runs on the final joined string. This constant is
+        # intentionally independent from (not imported from) that constant
+        # to avoid a circular import between security.py and interpreter.py;
+        # keep the two conceptually in sync if either changes. Draining
+        # continues past the cap (so the pipe -- and thus the child -- never
+        # blocks again) but excess bytes beyond it are discarded, never
+        # retained.
+        _PIPE_READER_MAX_CAPTURE_BYTES = 1024 * 1024  # 1MB
+        output_chunks: list[bytes] = []
+
+        def _drain_pipe() -> None:
+            local_buf = ctypes.create_string_buffer(8192)
+            local_bytes_read = wintypes.DWORD()
+            captured = 0
+            while kernel32.ReadFile(h_read, local_buf, 8192, ctypes.byref(local_bytes_read), None):
+                if local_bytes_read.value == 0:
+                    break
+                if captured < _PIPE_READER_MAX_CAPTURE_BYTES:
+                    chunk = local_buf.raw[: local_bytes_read.value]
+                    output_chunks.append(chunk)
+                    captured += len(chunk)
+                # else: keep looping (draining the pipe so the child can
+                # never block on it again) but stop retaining bytes beyond
+                # the cap -- bounded parent-process memory regardless of how
+                # much, or for how long, the child writes.
+
+        reader_thread = threading.Thread(target=_drain_pipe, name="SandboxPipeReader", daemon=True)
+        reader_thread.start()
+
         # Step 7: Assign the still-SUSPENDED child to the Job Object BEFORE
         # resuming it. The Job Object is a declared security/resource
         # boundary (ActiveProcessLimit=1, JobMemoryLimit=256MB,
@@ -720,7 +783,10 @@ def spawn_low_integrity_process(
                         kernel32.GetLastError(),
                     )
 
-        # Step 9: Wait for completion with timeout.
+        # Step 9: Wait for completion with timeout. The background reader
+        # thread (Step 6) is concurrently draining the output pipe the
+        # whole time, so the child can never deadlock on a full pipe buffer
+        # while this call blocks.
         WAIT_TIMEOUT = 0x00000102
         WAIT_FAILED = 0xFFFFFFFF
         timeout_ms = int(timeout_seconds * 1000)
@@ -750,12 +816,17 @@ def spawn_low_integrity_process(
                 )
             exit_code_val = dw_exit.value
 
-        # Step 10: Read captured pipe output.
-        output_chunks: list[bytes] = []
-        buf = ctypes.create_string_buffer(8192)
-        bytes_read = wintypes.DWORD()
-        while kernel32.ReadFile(h_read, buf, 8192, ctypes.byref(bytes_read), None) and bytes_read.value > 0:
-            output_chunks.append(buf.raw[: bytes_read.value])
+        # Step 10: the child has now exited (normally, or just terminated on
+        # timeout above) -- Windows closes its handles as part of process
+        # teardown, which is the reader thread's only remaining writer
+        # reference, so its ReadFile loop should reach EOF and return
+        # promptly. Bounded join: even if pipe teardown is unexpectedly
+        # slow, this can never hang the sandbox call itself; whatever was
+        # captured in output_chunks so far (list.append is safe to read
+        # here, single-writer/single-reader) is used either way.
+        reader_thread.join(timeout=5.0)
+        if reader_thread.is_alive():
+            log.warning("Sandbox pipe reader thread did not finish draining output within 5s of child exit.")
         full_output = b"".join(output_chunks).decode("utf-8", errors="replace")
         full_output, ready_observed = strip_sandbox_ready_sentinel(full_output)
 
