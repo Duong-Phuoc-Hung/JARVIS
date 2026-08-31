@@ -17,6 +17,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import os
 import threading
 import time
 import uuid
@@ -24,9 +25,21 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from jarvis.sandbox.interpreter import CodeInterpreterSandbox
+
 log = logging.getLogger("jarvis.workers.night_shift")
 
 _TASKS_FILE: Path | None = None  # resolved at runtime to AppData/JARVIS/logs/
+
+
+def _get_tasks_file() -> Path:
+    global _TASKS_FILE
+    if _TASKS_FILE is not None:
+        return _TASKS_FILE
+    local_app_data = os.environ.get("LOCALAPPDATA", "")
+    base_dir = Path(local_app_data) / "JARVIS" if local_app_data else Path.home() / ".jarvis"
+    return base_dir / "logs" / "night_shift_tasks.json"
+
 
 # Keyword → action type mapping for task decomposition
 _STEP_KEYWORDS = [
@@ -60,16 +73,37 @@ class NightShiftTask:
 
 class NightShiftWorker:
     """
-    Autonomous overnight task executor with scheduling, decomposition, and reporting.
+    Autonomous overnight task executor with scheduling, decomposition, reporting,
+    and CodeInterpreterSandbox isolation (Job Object, Low Integrity Token, restricted directories).
     """
 
-    def __init__(self, is_mock: bool = False) -> None:
+    def __init__(
+        self,
+        is_mock: bool = False,
+        sandbox: CodeInterpreterSandbox | None = None,
+        sandbox_dir: Path | str | None = None,
+    ) -> None:
         self.is_mock = is_mock
         self._tasks: dict[str, NightShiftTask] = {}
         self._lock = threading.RLock()
         self._timers: dict[str, threading.Timer] = {}
+
+        if sandbox is not None:
+            self.sandbox = sandbox
+        else:
+            local_app_data = os.environ.get("LOCALAPPDATA", "")
+            base_dir = (
+                Path(sandbox_dir)
+                if sandbox_dir
+                else (Path(local_app_data) / "JARVIS" / "sandbox" / "night_shift" if local_app_data else Path("workspace/sandbox/night_shift"))
+            )
+            self.sandbox = CodeInterpreterSandbox(
+                base_scratch_dir=base_dir,
+                default_timeout=60.0,
+            )
+
         self._load_tasks()
-        log.info("NightShiftWorker initialized (%d tasks loaded)", len(self._tasks))
+        log.info("NightShiftWorker initialized (%d tasks loaded, sandboxed=True)", len(self._tasks))
 
     # ------------------------------------------------------------------
     # Public API
@@ -112,6 +146,21 @@ class NightShiftWorker:
 
         return detected or [f"[auto] {description[:100]}"]
 
+    def execute_sandboxed_code(self, code: str, timeout_seconds: float = 60.0) -> dict[str, Any]:
+        """
+        Execute code or data processing within the isolated sandbox with Job Object
+        and Low Integrity Token constraints.
+        """
+        res = self.sandbox.execute_python(code, timeout_seconds=timeout_seconds)
+        return {
+            "success": res.success,
+            "exit_code": res.exit_code,
+            "stdout": res.stdout,
+            "stderr": res.stderr,
+            "error": res.error,
+            "execution_time_ms": res.execution_time_ms,
+        }
+
     def execute_task(self, task: NightShiftTask) -> dict[str, Any]:
         """Execute all steps of a task and collect results."""
         task.status = "running"
@@ -144,19 +193,41 @@ class NightShiftWorker:
         return {"success": all_success, "report": report, "task": asdict(task)}
 
     def _execute_step(self, step: str) -> dict[str, Any]:
-        """Execute a single step (mock or real dispatch)."""
+        """Execute a single step (routed through CodeInterpreterSandbox where appropriate)."""
         import re
         step_type_match = re.match(r"\[([^\]]+)\]", step)
         step_type = step_type_match.group(1) if step_type_match else "auto"
+        step_content = step[step.index("]") + 1:].strip() if "]" in step else step
 
         try:
+            if self.is_mock:
+                return {"success": True, "type": step_type, "result": f"[MOCK] Step '{step_type}' finished: {step_content[:50]}"}
+
             if step_type == "web_search":
-                return {"success": True, "type": step_type, "result": f"Đã tìm kiếm: {step[step.index(']') + 2:][:50]}"}
+                return {"success": True, "type": step_type, "result": f"Đã tìm kiếm: {step_content[:50]}"}
             elif step_type == "generate_report":
                 return {"success": True, "type": step_type, "result": "Báo cáo đã được tạo"}
+            elif step_type in ("calculate", "compute"):
+                # Execute math/code via CodeInterpreterSandbox
+                code = f"__calc_res__ = {step_content}\nprint(__calc_res__)"
+                sandbox_res = self.sandbox.execute_python(code, timeout_seconds=30.0)
+                if sandbox_res.success:
+                    return {"success": True, "type": step_type, "result": sandbox_res.stdout.strip()}
+                else:
+                    return {"success": False, "type": step_type, "error": sandbox_res.error or sandbox_res.stderr}
+            elif step_type in ("analyze", "analysis", "code", "script"):
+                # Execute analysis / script via CodeInterpreterSandbox
+                sandbox_res = self.sandbox.execute_python(step_content, timeout_seconds=60.0)
+                if sandbox_res.success:
+                    return {"success": True, "type": step_type, "result": sandbox_res.stdout.strip()}
+                else:
+                    return {"success": False, "type": step_type, "error": sandbox_res.error or sandbox_res.stderr}
             elif step_type == "save_file":
                 ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                p = Path(os.environ.get("LOCALAPPDATA","")) / "JARVIS" / "logs" / f"night_output_{ts}.txt"
+                local_app_data = os.environ.get("LOCALAPPDATA", "")
+                base_dir = Path(local_app_data) / "JARVIS" / "logs" if local_app_data else Path("workspace/sandbox/night_shift")
+                base_dir.mkdir(parents=True, exist_ok=True)
+                p = base_dir / f"night_output_{ts}.txt"
                 p.write_text(step, encoding="utf-8")
                 return {"success": True, "type": step_type, "result": f"Đã lưu: {p}"}
             elif step_type == "notify":
@@ -255,7 +326,10 @@ class NightShiftWorker:
     def _send_morning_report(self, task: NightShiftTask, report: str) -> None:
         """Send report via Telegram if configured."""
         try:
-            report_file = Path(os.environ.get("LOCALAPPDATA","")) / "JARVIS" / "logs" / f"night_report_{task.task_id}.md"
+            local_app_data = os.environ.get("LOCALAPPDATA", "")
+            base_dir = Path(local_app_data) / "JARVIS" / "logs" if local_app_data else Path.home() / ".jarvis" / "logs"
+            base_dir.mkdir(parents=True, exist_ok=True)
+            report_file = base_dir / f"night_report_{task.task_id}.md"
             report_file.write_text(report, encoding="utf-8")
             log.info("Night shift report saved: %s", report_file)
         except Exception as exc:
@@ -266,18 +340,20 @@ class NightShiftWorker:
     # ------------------------------------------------------------------
 
     def _save_tasks(self) -> None:
-        _TASKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tasks_file = _get_tasks_file()
+        tasks_file.parent.mkdir(parents=True, exist_ok=True)
         try:
             data = {tid: asdict(task) for tid, task in self._tasks.items()}
-            _TASKS_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+            tasks_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
         except Exception as exc:
             log.warning("Night shift tasks save error: %s", exc)
 
     def _load_tasks(self) -> None:
-        if not _TASKS_FILE.exists():
+        tasks_file = _get_tasks_file()
+        if not tasks_file.exists():
             return
         try:
-            raw = json.loads(_TASKS_FILE.read_text(encoding="utf-8"))
+            raw = json.loads(tasks_file.read_text(encoding="utf-8"))
             for tid, d in raw.items():
                 self._tasks[tid] = NightShiftTask(**{k: v for k, v in d.items() if k in NightShiftTask.__dataclass_fields__})
         except Exception as exc:

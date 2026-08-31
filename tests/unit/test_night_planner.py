@@ -115,3 +115,63 @@ class TestGenerateReport:
         report = worker.generate_report(task)
         assert isinstance(report, str)
         assert "#" in report  # Has markdown headers
+
+
+class TestNightShiftSandboxing:
+    def test_night_shift_worker_initializes_sandbox(self, tmp_path, monkeypatch):
+        import jarvis.workers.night_shift as mod
+        from jarvis.sandbox.interpreter import CodeInterpreterSandbox
+        monkeypatch.setattr(mod, "_TASKS_FILE", tmp_path / "tasks.json")
+
+        worker = NightShiftWorker(is_mock=False, sandbox_dir=tmp_path / "sandbox_scratch")
+        assert isinstance(worker.sandbox, CodeInterpreterSandbox)
+        assert worker.sandbox.base_scratch_dir.resolve() == (tmp_path / "sandbox_scratch").resolve()
+
+    def test_night_shift_executes_math_via_sandbox(self, tmp_path, monkeypatch):
+        import jarvis.workers.night_shift as mod
+        monkeypatch.setattr(mod, "_TASKS_FILE", tmp_path / "tasks.json")
+
+        worker = NightShiftWorker(is_mock=False, sandbox_dir=tmp_path / "sandbox_scratch")
+        res = worker._execute_step("[calculate] 123 * 456")
+        assert res.get("success") is True
+        assert "56088" in str(res.get("result"))
+
+    def test_night_shift_sandboxed_code_scrubs_secrets(self, tmp_path, monkeypatch):
+        import jarvis.workers.night_shift as mod
+        monkeypatch.setattr(mod, "_TASKS_FILE", tmp_path / "tasks.json")
+        monkeypatch.setenv("GOOGLE_API_KEY", "super_secret_ai_token_123")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "telegram_secret_token_999")
+
+        worker = NightShiftWorker(is_mock=False, sandbox_dir=tmp_path / "sandbox_scratch")
+        code = """
+import os
+leaked = [k for k in ["GOOGLE_API_KEY", "TELEGRAM_BOT_TOKEN"] if os.environ.get(k)]
+print(f"LEAKED: {leaked}")
+"""
+        exec_res = worker.execute_sandboxed_code(code)
+        assert exec_res.get("success") is True
+        assert "LEAKED: []" in exec_res.get("stdout", "")
+
+    def test_night_shift_code_execution_timeout(self, tmp_path, monkeypatch):
+        import jarvis.workers.night_shift as mod
+        monkeypatch.setattr(mod, "_TASKS_FILE", tmp_path / "tasks.json")
+
+        worker = NightShiftWorker(is_mock=False, sandbox_dir=tmp_path / "sandbox_scratch")
+        code = """
+import time
+while True:
+    time.sleep(0.1)
+"""
+        exec_res = worker.execute_sandboxed_code(code, timeout_seconds=1.0)
+        assert exec_res.get("success") is False
+
+    def test_night_shift_save_file_confinement(self, tmp_path, monkeypatch):
+        import jarvis.workers.night_shift as mod
+        monkeypatch.setattr(mod, "_TASKS_FILE", tmp_path / "tasks.json")
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "appdata"))
+
+        worker = NightShiftWorker(is_mock=False, sandbox_dir=tmp_path / "sandbox_scratch")
+        res = worker._execute_step("[save_file] night work output data")
+        assert res.get("success") is True
+        assert "night_output_" in str(res.get("result"))
+
