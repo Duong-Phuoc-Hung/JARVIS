@@ -909,6 +909,35 @@ class LLMIntentRouter:
             # Clipboard
             "sao chép": IntentResult(action_name="skill_clipboard", parameters={"action": "copy"}, source="rule_fallback", response_text="Đã sao chép nội dung vào clipboard, thưa Ngài."),
             "dán": IntentResult(action_name="skill_clipboard", parameters={"action": "paste"}, source="rule_fallback", response_text="Đã dán nội dung từ clipboard, thưa Ngài."),
+
+            # Project & Workspace Management (Static Rules)
+            "mở dự án": IntentResult(action_name="workspace_prepare", parameters={"action": "open", "project": "", "recipe": "ai_development"}, source="rule_fallback", response_text="Đang chuẩn bị môi trường làm việc cho Ngài."),
+            "chuyển workspace": IntentResult(action_name="workspace_prepare", parameters={"action": "open", "project": "", "recipe": "ai_development"}, source="rule_fallback", response_text="Đang chuẩn bị môi trường làm việc cho Ngài."),
+            "chuyển dự án": IntentResult(action_name="workspace_prepare", parameters={"action": "open", "project": "", "recipe": "ai_development"}, source="rule_fallback", response_text="Đang chuẩn bị môi trường làm việc cho Ngài."),
+            "tạo project mới": IntentResult(action_name="project_create", parameters={"action": "create", "name": "", "project_name": ""}, source="rule_fallback", response_text="Đang khởi tạo dự án mới cho Ngài."),
+            "tạo workspace mới": IntentResult(action_name="project_create", parameters={"action": "create", "name": "", "project_name": ""}, source="rule_fallback", response_text="Đang khởi tạo dự án mới cho Ngài."),
+            "tạo dự án mới": IntentResult(action_name="project_create", parameters={"action": "create", "name": "", "project_name": ""}, source="rule_fallback", response_text="Đang khởi tạo dự án mới cho Ngài."),
+            "tạo project": IntentResult(action_name="project_create", parameters={"action": "create", "name": "", "project_name": ""}, source="rule_fallback", response_text="Đang khởi tạo dự án mới cho Ngài."),
+            "tạo dự án": IntentResult(action_name="project_create", parameters={"action": "create", "name": "", "project_name": ""}, source="rule_fallback", response_text="Đang khởi tạo dự án mới cho Ngài."),
+            "tạo workspace": IntentResult(action_name="project_create", parameters={"action": "create", "name": "", "project_name": ""}, source="rule_fallback", response_text="Đang khởi tạo dự án mới cho Ngài."),
+            "liệt kê dự án": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
+            "liệt kê project": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
+            "liệt kê workspace": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
+            "show projects": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
+            "các project đang có": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
+            "các dự án đang có": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
+            "danh sách dự án": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
+            "danh sách project": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
+            "danh sách workspace": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
+            "list projects": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
+            "git status dự án": IntentResult(action_name="skill_git_assistant", parameters={"action": "status", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang kiểm tra trạng thái Git cho Ngài."),
+            "commit dự án": IntentResult(action_name="skill_git_assistant", parameters={"action": "commit", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang commit các thay đổi dự án cho Ngài."),
+            "push project": IntentResult(action_name="skill_git_assistant", parameters={"action": "push", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang đẩy các thay đổi lên Git repository cho Ngài."),
+            "git commit dự án": IntentResult(action_name="skill_git_assistant", parameters={"action": "commit", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang commit các thay đổi dự án cho Ngài."),
+            "git push project": IntentResult(action_name="skill_git_assistant", parameters={"action": "push", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang đẩy các thay đổi lên Git repository cho Ngài."),
+            "git status": IntentResult(action_name="skill_git_assistant", parameters={"action": "status", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang kiểm tra trạng thái Git cho Ngài."),
+            "git commit": IntentResult(action_name="skill_git_assistant", parameters={"action": "commit", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang commit các thay đổi dự án cho Ngài."),
+            "git push": IntentResult(action_name="skill_git_assistant", parameters={"action": "push", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang đẩy các thay đổi lên Git repository cho Ngài."),
         }
 
 
@@ -1106,6 +1135,38 @@ class LLMIntentRouter:
                     response_text="Đang thực hiện quét an ninh mạng nội bộ cho Ngài.",
                 ),
             ),
+            # Project & Workspace Management
+            # 1. Open / Switch Project or Workspace
+            (
+                re.compile(
+                    r"^(?:jarvis[,\s]*)?(?:mở|chuyển\s*(?:sang)?|switch\s*(?:to|sang)?|open)\s+(?:dự\s*án|project|workspace|không\s*gian\s*làm\s*việc)(?:\s+(.+))?$",
+                    re.IGNORECASE,
+                ),
+                lambda m: self._make_workspace_intent("open", m.group(1)),
+            ),
+            (
+                re.compile(
+                    r"^(?:jarvis[,\s]*)?(?:chuyển\s+sang|switch\s+(?:to|sang))\s+(?:dự\s*án|project|workspace)(?:\s+(.+))?$",
+                    re.IGNORECASE,
+                ),
+                lambda m: self._make_workspace_intent("open", m.group(1)),
+            ),
+            # 2. Create Project or Workspace
+            (
+                re.compile(
+                    r"^(?:jarvis[,\s]*)?(?:tạo|khởi\s*tạo|create|new)\s+(?:dự\s*án|project|workspace)(?:\s+(.*))?$",
+                    re.IGNORECASE,
+                ),
+                lambda m: self._make_workspace_intent("create", m.group(1)),
+            ),
+            # 3. List Projects or Workspaces
+            (
+                re.compile(
+                    r"^(?:jarvis[,\s]*)?(?:xem\s+|kiểm\s*tra\s+)?(?:liệt\s*kê|danh\s*sách|show|list|các)\s+(?:dự\s*án|project|workspace|projects|workspaces)(?:\s+(?:đang\s*có|hiện\s*có|available|mới\s*nhất))?$",
+                    re.IGNORECASE,
+                ),
+                lambda m: self._make_workspace_intent("list", None),
+            ),
             (
                 re.compile(r"(?:chuẩn\s*bị|mở|prepare)\s*(?:môi\s*trường|workspace|work\s*environment)", re.IGNORECASE),
                 lambda m: IntentResult(
@@ -1271,14 +1332,34 @@ class LLMIntentRouter:
                     response_text="Đang quy đổi tỷ giá tiền tệ cho Ngài.",
                 ),
             ),
+            # 8b. Git Operations & Repository Controls
             (
-                re.compile(r"(?:git\s*status|kiểm\s*tra\s*git|trạng\s*thái\s*git)", re.IGNORECASE),
-                lambda m: IntentResult(
-                    action_name="skill_git_assistant",
-                    parameters={"action": "status"},
-                    source="rule_fallback",
-                    response_text="Đang kiểm tra trạng thái Git repository cho Ngài.",
+                re.compile(
+                    r"^(?:jarvis[,\s]*)?git\s+(status|commit|push|log|branch|diff)(?:\s+(?:dự\s*án|project|workspace|repo))?(?:\s+(.+))?$",
+                    re.IGNORECASE,
                 ),
+                lambda m: self._make_git_project_intent(m.group(1), m.group(2)),
+            ),
+            (
+                re.compile(
+                    r"^(?:jarvis[,\s]*)?(commit|push)\s+(?:dự\s*án|project|workspace|code|repo)(?:\s+(.+))?$",
+                    re.IGNORECASE,
+                ),
+                lambda m: self._make_git_project_intent(m.group(1), m.group(2)),
+            ),
+            (
+                re.compile(
+                    r"^(?:jarvis[,\s]*)?(?:kiểm\s*tra|trạng\s*thái|lịch\s*sử|nhánh)\s+git\s+(?:dự\s*án|project|workspace)?(?:\s+(.+))?$",
+                    re.IGNORECASE,
+                ),
+                lambda m: self._make_git_project_intent("status" if "kiểm" in m.group(0).lower() or "trạng" in m.group(0).lower() else ("log" if "lịch" in m.group(0).lower() else "branch"), m.group(1)),
+            ),
+            (
+                re.compile(
+                    r"^(?:jarvis[,\s]*)?(?:git\s*status|kiểm\s*tra\s*git|trạng\s*thái\s*git)(?:\s+(?:dự\s*án|project|workspace))?(?:\s+(.+))?$",
+                    re.IGNORECASE,
+                ),
+                lambda m: self._make_git_project_intent("status", m.group(1)),
             ),
             (
                 re.compile(r"(?:chụp\s*ảnh\s*màn\s*hình|chụp\s*màn\s*hình|take\s*screenshot)", re.IGNORECASE),
@@ -1441,6 +1522,89 @@ class LLMIntentRouter:
             response_text=f"Đang mở thư mục {clean} cho Ngài.",
         )
 
+    def _make_workspace_intent(self, action: str, target: str | None) -> IntentResult:
+        clean_target = (target or "").strip()
+
+        if action == "open":
+            # Strip prefixes like "sang ", "to " if present
+            if clean_target.lower().startswith("sang "):
+                clean_target = clean_target[5:].strip()
+            elif clean_target.lower().startswith("to "):
+                clean_target = clean_target[3:].strip()
+
+            action_name = "workspace_prepare"
+            params = {
+                "action": "open",
+                "project": clean_target,
+                "recipe": clean_target or "ai_development",
+            }
+            resp = f"Đang mở dự án {clean_target} cho Ngài." if clean_target else "Đang chuẩn bị môi trường làm việc cho Ngài."
+        elif action == "create":
+            # Strip noise words like "tên ", "tên: ", "name ", "name: "
+            if clean_target.lower().startswith("tên:"):
+                clean_target = clean_target[4:].strip()
+            elif clean_target.lower().startswith("tên "):
+                clean_target = clean_target[4:].strip()
+            elif clean_target.lower().startswith("name:"):
+                clean_target = clean_target[5:].strip()
+            elif clean_target.lower().startswith("name "):
+                clean_target = clean_target[5:].strip()
+
+            if clean_target.lower() in ("mới", "new", ""):
+                clean_target = ""
+            elif clean_target.lower().endswith(" mới"):
+                clean_target = clean_target[:-4].strip()
+            elif clean_target.lower().endswith(" new"):
+                clean_target = clean_target[:-4].strip()
+
+            action_name = "project_create"
+            params = {
+                "action": "create",
+                "name": clean_target,
+                "project_name": clean_target,
+            }
+            resp = f"Đang khởi tạo dự án {clean_target} cho Ngài." if clean_target else "Đang khởi tạo dự án mới cho Ngài."
+        else:  # list
+            action_name = "project_list"
+            params = {"action": "list"}
+            resp = "Đang liệt kê danh sách các dự án cho Ngài."
+
+        return IntentResult(
+            action_name=action_name,
+            parameters=params,
+            source="rule_fallback",
+            response_text=resp,
+        )
+
+    def _make_git_project_intent(self, git_action: str, target: str | None) -> IntentResult:
+        act = (git_action or "status").lower().strip()
+        clean_target = (target or "").strip()
+        for prefix in ("dự án ", "project ", "workspace ", "repo ", "code "):
+            if clean_target.lower().startswith(prefix):
+                clean_target = clean_target[len(prefix):].strip()
+                break
+
+        params = {"action": act, "project": clean_target, "repo_path": ""}
+        if act == "commit":
+            resp = f"Đang thực hiện commit dự án {clean_target} cho Ngài." if clean_target else "Đang commit các thay đổi dự án cho Ngài."
+        elif act == "push":
+            resp = f"Đang đẩy code dự án {clean_target} lên Git cho Ngài." if clean_target else "Đang đẩy các thay đổi lên Git repository cho Ngài."
+        elif act == "log":
+            resp = f"Đang kiểm tra lịch sử commit dự án {clean_target} cho Ngài." if clean_target else "Đang kiểm tra lịch sử commit của dự án cho Ngài."
+        elif act == "branch":
+            resp = f"Đang kiểm tra các nhánh Git của dự án {clean_target} cho Ngài." if clean_target else "Đang kiểm tra các nhánh Git của dự án cho Ngài."
+        elif act == "diff":
+            resp = f"Đang kiểm tra các thay đổi khác biệt trong dự án {clean_target} cho Ngài." if clean_target else "Đang kiểm tra các thay đổi trong Git repository cho Ngài."
+        else:
+            resp = f"Đang kiểm tra trạng thái Git dự án {clean_target} cho Ngài." if clean_target else "Đang kiểm tra trạng thái Git cho Ngài."
+
+        return IntentResult(
+            action_name="skill_git_assistant",
+            parameters=params,
+            source="rule_fallback",
+            response_text=resp,
+        )
+
     def get_natural_response(
         self,
         action_name: str,
@@ -1569,9 +1733,21 @@ class LLMIntentRouter:
                 return "Đang đưa hệ thống vào chế độ ngủ tiết kiệm điện năng, thưa Ngài."
             return "Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận để thực thi nhằm đảm bảo an toàn dữ liệu, thưa Ngài."
 
-        # 9. Workspace Automation
+        # 9. Workspace Automation & Projects
         if action_name == "workspace_prepare":
+            proj = p.get("project") or p.get("recipe")
+            if proj and proj != "ai_development":
+                return f"Đang mở dự án {proj} cho Ngài."
             return "Đang chuẩn bị môi trường làm việc cho Ngài."
+
+        if action_name in ("project_create", "workspace_create"):
+            p_name = p.get("name") or p.get("project_name")
+            if p_name:
+                return f"Đang khởi tạo dự án {p_name} cho Ngài."
+            return "Đang khởi tạo dự án mới cho Ngài."
+
+        if action_name in ("project_list", "workspace_list"):
+            return "Đang liệt kê danh sách các dự án cho Ngài."
 
         # 10. Self Healing
         if action_name == "healing_watchdog_heal":
@@ -1636,7 +1812,19 @@ class LLMIntentRouter:
             return "Đang tìm kiếm file cho Ngài."
 
         if action_name in ("skill_git_assistant", "git_assistant"):
-            return "Đang kiểm tra trạng thái Git cho Ngài."
+            act = (p.get("action") or "status").lower()
+            proj = p.get("project", "")
+            if act == "commit":
+                return f"Đang thực hiện commit dự án {proj} cho Ngài." if proj else "Đang commit các thay đổi dự án cho Ngài."
+            if act == "push":
+                return f"Đang đẩy code dự án {proj} lên Git cho Ngài." if proj else "Đang đẩy các thay đổi lên Git repository cho Ngài."
+            if act == "log":
+                return f"Đang kiểm tra lịch sử commit dự án {proj} cho Ngài." if proj else "Đang kiểm tra lịch sử commit của dự án cho Ngài."
+            if act == "branch":
+                return f"Đang kiểm tra các nhánh Git của dự án {proj} cho Ngài." if proj else "Đang kiểm tra các nhánh Git của dự án cho Ngài."
+            if act == "diff":
+                return f"Đang kiểm tra các thay đổi khác biệt trong dự án {proj} cho Ngài." if proj else "Đang kiểm tra các thay đổi trong Git repository cho Ngài."
+            return f"Đang kiểm tra trạng thái Git dự án {proj} cho Ngài." if proj else "Đang kiểm tra trạng thái Git cho Ngài."
 
         if action_name in ("skill_clipboard", "clipboard"):
             return "Đã xử lý thao tác clipboard cho Ngài."
