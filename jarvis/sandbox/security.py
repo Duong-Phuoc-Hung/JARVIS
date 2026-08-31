@@ -274,6 +274,25 @@ class SECURITY_ATTRIBUTES(ctypes.Structure):
     ]
 
 
+class SECURITY_CAPABILITIES(ctypes.Structure):
+    _fields_ = [
+        ("AppContainerSid", ctypes.c_void_p),
+        ("Capabilities", ctypes.c_void_p),
+        ("CapabilityCount", wintypes.DWORD),
+        ("Reserved", wintypes.DWORD),
+    ]
+
+
+class STARTUPINFOEXW(ctypes.Structure):
+    _fields_ = [
+        ("StartupInfo", STARTUPINFOW),
+        ("lpAttributeList", ctypes.c_void_p),
+    ]
+
+
+PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES = 0x00020009
+
+
 class RestrictedProcessBootstrapError(OSError):
     """
     Raised when the OS Restricted Token backend could not get a child
@@ -375,7 +394,11 @@ def strip_sandbox_ready_sentinel(output: str) -> tuple[str, bool]:
     """
     if _SANDBOX_READY_SENTINEL not in output:
         return output, False
-    return output.replace(_SANDBOX_READY_LINE, ""), True
+    cleaned = output.replace(_SANDBOX_READY_LINE, "")
+    cleaned = cleaned.replace(_SANDBOX_READY_SENTINEL + "\r\n", "")
+    cleaned = cleaned.replace(_SANDBOX_READY_SENTINEL + "\n", "")
+    cleaned = cleaned.replace(_SANDBOX_READY_SENTINEL, "")
+    return cleaned, True
 
 
 # ----------------------------------------------------------------------
@@ -855,6 +878,358 @@ def spawn_low_integrity_process(
         _cleanup()
 
 
+_APPCONTAINER_SYS_ACLS_GRANTED = False
+
+
+def grant_appcontainer_acls(scratch_dir: str) -> None:
+    """
+    Grant Read and Execute / Full Control permissions to 'ALL APPLICATION PACKAGES' (S-1-15-2-1)
+    on the Python runtime and scratch directory so AppContainer subprocesses can execute.
+    """
+    if sys.platform != "win32":
+        return
+    import subprocess
+    global _APPCONTAINER_SYS_ACLS_GRANTED
+    _cflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+    if not _APPCONTAINER_SYS_ACLS_GRANTED:
+        target_dirs = []
+        py_dir = os.path.dirname(sys.executable)
+        if py_dir:
+            target_dirs.append(py_dir)
+        base_prefix = getattr(sys, "base_prefix", None)
+        if base_prefix and base_prefix != py_dir:
+            target_dirs.append(base_prefix)
+        base_exec = getattr(sys, "_base_executable", None)
+        if base_exec:
+            base_exec_dir = os.path.dirname(base_exec)
+            if base_exec_dir and base_exec_dir not in target_dirs:
+                target_dirs.append(base_exec_dir)
+
+        for d in target_dirs:
+            try:
+                d_abs = os.path.abspath(d)
+                subprocess.run(
+                    ["icacls", d_abs, "/grant", "*S-1-15-2-1:(OI)(CI)RX", "/Q"],
+                    capture_output=True,
+                    check=False,
+                    creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+                )
+            except Exception as exc:
+                log.debug("grant_appcontainer_acls failed on %s: %s", d, exc)
+        _APPCONTAINER_SYS_ACLS_GRANTED = True
+
+    try:
+        subprocess.run(
+            ["icacls", os.path.abspath(scratch_dir), "/grant", "*S-1-15-2-1:(OI)(CI)F", "/T", "/Q"],
+            capture_output=True,
+            check=False,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        )
+    except Exception as exc:
+        log.debug("grant_appcontainer_acls scratch_dir failed: %s", exc)
+
+
+def spawn_appcontainer_process(
+    cmd: str,
+    cwd: str,
+    env: dict[str, str] | None = None,
+    job: WindowsJobObject | None = None,
+    timeout_seconds: float = 15.0,
+    appcontainer_name: str = "JARVIS_Sandbox_AppContainer",
+) -> tuple[int, str, str, bool]:
+    """
+    Spawn a child process isolated in a Windows AppContainer with ZERO network capabilities
+    (blocking kernel network socket connections) and attached to a Windows Job Object.
+
+    Returns:
+        tuple of (exit_code, stdout_str, stderr_str, timed_out)
+    """
+    if sys.platform != "win32":
+        raise NotImplementedError("AppContainer process isolation is only supported on Windows.")
+
+    kernel32 = ctypes.windll.kernel32
+    userenv = ctypes.windll.userenv
+    advapi32 = ctypes.windll.advapi32
+
+    DeriveAppContainerSidFromAppContainerName = getattr(userenv, "DeriveAppContainerSidFromAppContainerName", None)
+    if DeriveAppContainerSidFromAppContainerName:
+        DeriveAppContainerSidFromAppContainerName.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_void_p)]
+        DeriveAppContainerSidFromAppContainerName.restype = ctypes.c_long
+
+    InitializeProcThreadAttributeList = kernel32.InitializeProcThreadAttributeList
+    InitializeProcThreadAttributeList.argtypes = [ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(ctypes.c_size_t)]
+    InitializeProcThreadAttributeList.restype = wintypes.BOOL
+
+    UpdateProcThreadAttribute = kernel32.UpdateProcThreadAttribute
+    UpdateProcThreadAttribute.argtypes = [
+        ctypes.c_void_p, wintypes.DWORD, ctypes.c_size_t,
+        ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t)
+    ]
+    UpdateProcThreadAttribute.restype = wintypes.BOOL
+
+    DeleteProcThreadAttributeList = kernel32.DeleteProcThreadAttributeList
+    DeleteProcThreadAttributeList.argtypes = [ctypes.c_void_p]
+    DeleteProcThreadAttributeList.restype = None
+
+    kernel32.ResumeThread.argtypes = [wintypes.HANDLE]
+    kernel32.ResumeThread.restype = wintypes.DWORD
+    kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    kernel32.WaitForSingleObject.restype = wintypes.DWORD
+
+    kernel32.CreatePipe.argtypes = [
+        ctypes.POINTER(wintypes.HANDLE),
+        ctypes.POINTER(wintypes.HANDLE),
+        ctypes.POINTER(SECURITY_ATTRIBUTES),
+        wintypes.DWORD,
+    ]
+    kernel32.CreatePipe.restype = wintypes.BOOL
+
+    kernel32.SetHandleInformation.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD]
+    kernel32.SetHandleInformation.restype = wintypes.BOOL
+
+    kernel32.CreateProcessW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.LPWSTR,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        wintypes.BOOL,
+        wintypes.DWORD,
+        ctypes.c_void_p,
+        wintypes.LPCWSTR,
+        ctypes.POINTER(STARTUPINFOEXW),
+        ctypes.POINTER(PROCESS_INFORMATION),
+    ]
+    kernel32.CreateProcessW.restype = wintypes.BOOL
+
+    kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+
+    kernel32.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
+    kernel32.TerminateProcess.restype = wintypes.BOOL
+
+    # Step 1: Ensure ACLs for AppContainer (ALL APPLICATION PACKAGES) on scratch dir
+    grant_appcontainer_acls(cwd)
+    set_low_integrity_sacl(cwd)
+
+    # Step 2: Create or derive AppContainer SID
+    p_appcontainer_sid = ctypes.c_void_p()
+    CreateAppContainerProfile = getattr(userenv, "CreateAppContainerProfile", None)
+
+    if CreateAppContainerProfile:
+        CreateAppContainerProfile.argtypes = [
+            wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.LPCWSTR,
+            ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(ctypes.c_void_p)
+        ]
+        CreateAppContainerProfile.restype = ctypes.c_long
+        try:
+            CreateAppContainerProfile(
+                appcontainer_name,
+                "JARVIS Sandbox",
+                "JARVIS Sandbox AppContainer Profile",
+                None,
+                0,
+                ctypes.byref(p_appcontainer_sid),
+            )
+        except Exception:
+            pass
+
+    if not p_appcontainer_sid and DeriveAppContainerSidFromAppContainerName:
+        try:
+            DeriveAppContainerSidFromAppContainerName(appcontainer_name, ctypes.byref(p_appcontainer_sid))
+        except Exception:
+            pass
+
+    if not p_appcontainer_sid:
+        raise RestrictedProcessBootstrapError(
+            "Failed to obtain AppContainer SID on this OS.",
+            retry_safe=True,
+        )
+
+    # Step 3: Setup SECURITY_CAPABILITIES with 0 capabilities (NO network access)
+    sec_cap = SECURITY_CAPABILITIES()
+    sec_cap.AppContainerSid = p_appcontainer_sid
+    sec_cap.Capabilities = None
+    sec_cap.CapabilityCount = 0  # ZERO network capabilities -> WFP / Winsock kernel socket block!
+    sec_cap.Reserved = 0
+
+    # Step 4: Initialize ProcThreadAttributeList
+    size = ctypes.c_size_t(0)
+    InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(size))
+    attr_buf = ctypes.create_string_buffer(size.value)
+    p_attr_list = ctypes.cast(attr_buf, ctypes.c_void_p)
+    if not InitializeProcThreadAttributeList(p_attr_list, 1, 0, ctypes.byref(size)):
+        advapi32.FreeSid(p_appcontainer_sid)
+        raise RestrictedProcessBootstrapError(
+            f"InitializeProcThreadAttributeList failed (LastError={kernel32.GetLastError()})",
+            retry_safe=True,
+        )
+
+    if not UpdateProcThreadAttribute(
+        p_attr_list,
+        0,
+        PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
+        ctypes.byref(sec_cap),
+        ctypes.sizeof(sec_cap),
+        None,
+        None,
+    ):
+        DeleteProcThreadAttributeList(p_attr_list)
+        advapi32.FreeSid(p_appcontainer_sid)
+        raise RestrictedProcessBootstrapError(
+            f"UpdateProcThreadAttribute failed (LastError={kernel32.GetLastError()})",
+            retry_safe=True,
+        )
+
+    # Step 5: Setup anonymous pipes
+    h_read = wintypes.HANDLE()
+    h_write = wintypes.HANDLE()
+    sa = SECURITY_ATTRIBUTES()
+    sa.nLength = ctypes.sizeof(SECURITY_ATTRIBUTES)
+    sa.bInheritHandle = True
+
+    if not kernel32.CreatePipe(ctypes.byref(h_read), ctypes.byref(h_write), ctypes.byref(sa), 0):
+        DeleteProcThreadAttributeList(p_attr_list)
+        advapi32.FreeSid(p_appcontainer_sid)
+        raise RestrictedProcessBootstrapError(
+            f"CreatePipe failed (LastError={kernel32.GetLastError()})",
+            retry_safe=True,
+        )
+
+    kernel32.SetHandleInformation(h_read, 1, 0)
+
+    # Step 6: Setup STARTUPINFOEXW
+    si_ex = STARTUPINFOEXW()
+    si_ex.StartupInfo.cb = ctypes.sizeof(STARTUPINFOEXW)
+    si_ex.StartupInfo.dwFlags = 0x00000100  # STARTF_USESTDHANDLES
+    si_ex.StartupInfo.hStdOutput = h_write
+    si_ex.StartupInfo.hStdError = h_write
+    si_ex.lpAttributeList = p_attr_list.value
+
+    EXTENDED_STARTUPINFO_PRESENT = 0x00080000
+    CREATE_NO_WINDOW = 0x08000000
+    CREATE_UNICODE_ENVIRONMENT = 0x00000400
+    CREATE_SUSPENDED = 0x00000004
+    flags = EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED
+
+    clean_env = prepare_scrubbed_environment(env)
+    env_str = "\0".join(f"{k}={v}" for k, v in clean_env.items()) + "\0\0"
+    lp_env = ctypes.c_wchar_p(env_str)
+
+    pi = PROCESS_INFORMATION()
+    reader_thread: threading.Thread | None = None
+
+    def _cleanup_appcontainer() -> None:
+        if reader_thread is not None and reader_thread.is_alive():
+            reader_thread.join(timeout=2.0)
+        for handle in (pi.hThread, pi.hProcess, h_write, h_read):
+            if handle:
+                try:
+                    kernel32.CloseHandle(handle)
+                except Exception:
+                    pass
+        try:
+            DeleteProcThreadAttributeList(p_attr_list)
+        except Exception:
+            pass
+        if p_appcontainer_sid:
+            try:
+                advapi32.FreeSid(p_appcontainer_sid)
+            except Exception:
+                pass
+
+    try:
+        # Step 7: CreateProcessW with EXTENDED_STARTUPINFO_PRESENT
+        cmd_buf = ctypes.create_unicode_buffer(cmd)
+        success = kernel32.CreateProcessW(
+            None,
+            cmd_buf,
+            None,
+            None,
+            True,
+            flags,
+            lp_env,
+            cwd,
+            ctypes.byref(si_ex),
+            ctypes.byref(pi),
+        )
+        kernel32.CloseHandle(h_write)
+        h_write = wintypes.HANDLE()
+
+        if not success:
+            raise RestrictedProcessBootstrapError(
+                f"CreateProcessW (AppContainer) failed (LastError={kernel32.GetLastError()})",
+                retry_safe=True,
+            )
+
+        _PIPE_READER_MAX_CAPTURE_BYTES = 1024 * 1024
+        output_chunks: list[bytes] = []
+
+        def _drain_pipe() -> None:
+            local_buf = ctypes.create_string_buffer(8192)
+            local_bytes_read = wintypes.DWORD()
+            captured = 0
+            while kernel32.ReadFile(h_read, local_buf, 8192, ctypes.byref(local_bytes_read), None):
+                if local_bytes_read.value == 0:
+                    break
+                chunk = bytes(local_buf[:local_bytes_read.value])
+                if captured < _PIPE_READER_MAX_CAPTURE_BYTES:
+                    remaining = _PIPE_READER_MAX_CAPTURE_BYTES - captured
+                    output_chunks.append(chunk[:remaining])
+                    captured += min(len(chunk), remaining)
+
+        reader_thread = threading.Thread(target=_drain_pipe, daemon=True)
+        reader_thread.start()
+
+        # Step 8: Attach to Windows Job Object
+        if job is not None:
+            try:
+                job.assign_process(pi.hProcess)
+            except Exception as exc:
+                kernel32.TerminateProcess(pi.hProcess, 1)
+                raise RestrictedProcessBootstrapError(
+                    f"JobObject assign_process failed on AppContainer process: {exc}",
+                    retry_safe=True,
+                )
+
+        # Step 9: Resume thread and wait for completion
+        kernel32.ResumeThread(pi.hThread)
+
+        wait_ms = int(timeout_seconds * 1000)
+        wait_result = kernel32.WaitForSingleObject(pi.hProcess, wait_ms)
+
+        WAIT_OBJECT_0 = 0x00000000
+        WAIT_TIMEOUT = 0x00000102
+
+        timed_out = False
+        if wait_result == WAIT_TIMEOUT:
+            timed_out = True
+            kernel32.TerminateProcess(pi.hProcess, 1)
+            kernel32.WaitForSingleObject(pi.hProcess, 2000)
+            exit_code_val = 1
+        else:
+            dw_exit = wintypes.DWORD()
+            if not kernel32.GetExitCodeProcess(pi.hProcess, ctypes.byref(dw_exit)):
+                raise RestrictedProcessBootstrapError(
+                    "GetExitCodeProcess failed on AppContainer process",
+                    retry_safe=False,
+                )
+            exit_code_val = dw_exit.value
+
+        reader_thread.join(timeout=5.0)
+        full_output = b"".join(output_chunks).decode("utf-8", errors="replace")
+        full_output, ready_observed = strip_sandbox_ready_sentinel(full_output)
+
+        if not timed_out and is_restricted_process_bootstrap_failure(exit_code_val) and not ready_observed:
+            raise RestrictedProcessBootstrapError(
+                f"AppContainer process terminated during startup (status=0x{exit_code_val:08X})",
+                retry_safe=True,
+            )
+
+        return exit_code_val, full_output, "", timed_out
+    finally:
+        _cleanup_appcontainer()
+
+
 # ----------------------------------------------------------------------
 # 4. Deep Zero-Trust In-Process Preamble (Meta-Path + Directory Allowlist)
 # ----------------------------------------------------------------------
@@ -867,136 +1242,191 @@ import sys
 import os
 import io
 import builtins
+import types
+import importlib.abc
+import importlib.machinery
 
-# 1. Blocked Sandbox Modules Definition & Prefix Pattern Matcher
-_BLOCKED_SANDBOX_MODULES = {
-    "socket", "_socket", "ctypes", "_ctypes", "_winapi", "winapi",
-    "mmap", "_ssl", "ssl", "urllib", "requests", "http", "subprocess",
-    "jarvis", "win32com", "pythoncom", "pywintypes", "comtypes", "clr",
-    "wmi", "winreg", "_winreg", "_overlapped"
-}
+# 1-3. Meta-Path Importer Interceptor & Module Poisoning (inside local closure)
+def _install_meta_path_finder():
+    # Note: _winapi is permitted for ntpath.abspath on Windows Python 3.13;
+    # untrusted code is prevented from importing _winapi by AST validator.
+    _BLOCKED_SANDBOX_MODULES = {
+        "socket", "_socket", "ctypes", "_ctypes",
+        "mmap", "_ssl", "ssl", "urllib", "requests", "http", "subprocess",
+        "jarvis", "win32com", "pythoncom", "pywintypes", "comtypes", "clr",
+        "wmi", "winreg", "_winreg", "_overlapped"
+    }
 
-_BLOCKED_MODULE_PREFIXES = (
-    "win32", "_win32", "pywin", "comtypes", "pythoncom", "pywintypes", "wmi"
-)
+    _BLOCKED_MODULE_PREFIXES = (
+        "win32", "_win32", "pywin", "comtypes", "pythoncom", "pywintypes", "wmi"
+    )
 
-def _is_module_blocked(fullname: str) -> bool:
-    top_name = fullname.split(".")[0].lower()
-    if top_name in _BLOCKED_SANDBOX_MODULES:
-        return True
-    if any(top_name.startswith(pfx) for pfx in _BLOCKED_MODULE_PREFIXES):
-        return True
-    return False
+    def _is_module_blocked(fullname: str) -> bool:
+        top_name = fullname.split(".")[0].lower()
+        if top_name in _BLOCKED_SANDBOX_MODULES:
+            return True
+        if any(top_name.startswith(pfx) for pfx in _BLOCKED_MODULE_PREFIXES):
+            return True
+        return False
 
-class _BlockedSecurityModule:
-    def __init__(self, name):
-        self._name = name
-    def __getattr__(self, attr):
-        raise PermissionError(f"Access Denied: Low-level module '{self._name}' is disabled in JARVIS Sandbox.")
-    def __call__(self, *args, **kwargs):
-        raise PermissionError(f"Access Denied: Low-level module '{self._name}' is disabled in JARVIS Sandbox.")
+    class _BlockedSecurityModule(types.ModuleType):
+        def __init__(self, name):
+            super().__init__(name)
+            self.__name__ = name
+            self.__file__ = f"<blocked-security-module-{name}>"
 
-# 2. Poison ALL Existing Cached Modules in sys.modules (Pre-cached import defense)
-for _mod_name in list(sys.modules.keys()):
-    if _is_module_blocked(_mod_name):
+        def __getattr__(self, attr):
+            raise PermissionError(f"Access Denied: Low-level module '{self.__name__}' is disabled in JARVIS Sandbox.")
+
+        def __call__(self, *args, **kwargs):
+            raise PermissionError(f"Access Denied: Low-level module '{self.__name__}' is disabled in JARVIS Sandbox.")
+
+    # 2. Poison ALL Existing Cached Modules in sys.modules (Pre-cached import defense)
+    for _mod_name in list(sys.modules.keys()):
+        if _is_module_blocked(_mod_name):
+            sys.modules[_mod_name] = _BlockedSecurityModule(_mod_name)
+
+    for _mod_name in _BLOCKED_SANDBOX_MODULES:
         sys.modules[_mod_name] = _BlockedSecurityModule(_mod_name)
 
-for _mod_name in _BLOCKED_SANDBOX_MODULES:
-    sys.modules[_mod_name] = _BlockedSecurityModule(_mod_name)
+    # 3. Meta-Path Importer Interceptor (Blocks fresh / re-import evasion)
+    class _BlockedLoader:
+        def __init__(self, name):
+            self._name = name
+        def create_module(self, spec):
+            return _BlockedSecurityModule(self._name)
+        def exec_module(self, module):
+            pass
 
-# 3. Meta-Path Importer Interceptor (Blocks fresh / re-import evasion)
-class _BlockedMetaPathFinder:
-    def find_spec(self, fullname, path, target=None):
-        if _is_module_blocked(fullname):
-            raise PermissionError(f"Access Denied: Module '{fullname}' is forbidden in JARVIS Sandbox.")
-        return None
+    class _BlockedMetaPathFinder(importlib.abc.MetaPathFinder):
+        def find_spec(self, fullname, path=None, target=None):
+            if _is_module_blocked(fullname):
+                return importlib.machinery.ModuleSpec(fullname, _BlockedLoader(fullname))
+            return None
 
-sys.meta_path.insert(0, _BlockedMetaPathFinder())
+    sys.meta_path.insert(0, _BlockedMetaPathFinder())
+
+_install_meta_path_finder()
 
 # 4. Strip JARVIS and Workspace Paths from sys.path (Blocks internal package import)
 sys.path = [p for p in sys.path if "jarvis" not in p.lower()]
 
-# 5. Closure-Free Slot-Based Filesystem Guard (Introspection Resilient)
-_SANDBOX_ROOT_DIR = os.path.abspath(os.getcwd())
-_PYTHON_STDLIB_PREFIX = os.path.abspath(sys.prefix).lower()
-_orig_builtin_open = builtins.open
-_orig_io_open = io.open
-_orig_os_open = os.open
-
-def _check_sandbox_path(target_path, is_write=False):
-    try:
-        path_str = os.fspath(target_path) if hasattr(os, "fspath") else str(target_path)
-        abs_target = os.path.abspath(path_str)
-        if abs_target.startswith(_SANDBOX_ROOT_DIR):
-            return
-        if not is_write and abs_target.lower().startswith(_PYTHON_STDLIB_PREFIX):
-            return
-    except Exception:
-        pass
-    action = "write to" if is_write else "read from"
-    raise PermissionError(f"Access Denied: Cannot {action} outside sandbox root: '{target_path}'")
-
-class _ScopedBuiltinOpenGuard:
-    __slots__ = ()
-    def __call__(self, file, *args, **kwargs):
-        mode = args[0] if args else kwargs.get("mode", "r")
-        is_write = any(m in str(mode) for m in ("w", "a", "+", "x"))
-        _check_sandbox_path(file, is_write=is_write)
-        return _orig_builtin_open(file, *args, **kwargs)
-    def __getattribute__(self, name):
-        if name in ("__closure__", "__code__", "__globals__", "__func__", "__self__", "__dict__", "_fn", "_orig"):
-            raise AttributeError(f"Access Denied: Introspection attribute '{name}' is forbidden.")
+# 5. Metaclass-Hardened Slot-Based Guard Classes & Private Closure Scoping
+class _GuardMeta(type):
+    def __getattribute__(cls, name):
+        if name in ("__closure__", "__code__", "__globals__", "__func__", "__self__", "__dict__", "_fn", "_orig", "_check_path", "__slots__", "__call__"):
+            raise AttributeError(f"Access Denied: Introspection attribute '{name}' is forbidden on {cls.__name__}.")
         return super().__getattribute__(name)
+    def __setattr__(cls, name, value):
+        raise TypeError(f"Cannot modify immutable security guard class {cls.__name__}")
+    def __delattr__(cls, name):
+        raise TypeError(f"Cannot modify immutable security guard class {cls.__name__}")
 
-class _ScopedIOOpenGuard:
-    __slots__ = ()
-    def __call__(self, file, *args, **kwargs):
-        mode = args[0] if args else kwargs.get("mode", "r")
-        is_write = any(m in str(mode) for m in ("w", "a", "+", "x"))
-        _check_sandbox_path(file, is_write=is_write)
-        return _orig_io_open(file, *args, **kwargs)
-    def __getattribute__(self, name):
-        if name in ("__closure__", "__code__", "__globals__", "__func__", "__self__", "__dict__", "_fn", "_orig"):
-            raise AttributeError(f"Access Denied: Introspection attribute '{name}' is forbidden.")
-        return super().__getattribute__(name)
+def _install_sandbox_security_guards():
+    sandbox_root_lower = os.path.abspath(os.getcwd()).lower()
+    allowed_prefixes = {
+        os.path.abspath(p).lower()
+        for p in (
+            sys.prefix,
+            getattr(sys, "base_prefix", sys.prefix),
+            getattr(sys, "exec_prefix", sys.prefix),
+            getattr(sys, "base_exec_prefix", sys.prefix),
+        )
+        if p
+    }
+    fspath = getattr(os, "fspath", str)
 
-class _ScopedOSOpenGuard:
-    __slots__ = ()
-    def __call__(self, path, flags, *args, **kwargs):
-        is_write = bool(flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC))
-        _check_sandbox_path(path, is_write=is_write)
-        return _orig_os_open(path, flags, *args, **kwargs)
-    def __getattribute__(self, name):
-        if name in ("__closure__", "__code__", "__globals__", "__func__", "__self__", "__dict__", "_fn", "_orig"):
-            raise AttributeError(f"Access Denied: Introspection attribute '{name}' is forbidden.")
-        return super().__getattribute__(name)
+    def check_sandbox_path(target_path, is_write=False):
+        try:
+            path_str = fspath(target_path)
+            abs_target = os.path.abspath(path_str).lower()
+            if abs_target.startswith(sandbox_root_lower):
+                return
+            if not is_write and any(abs_target.startswith(pfx) for pfx in allowed_prefixes):
+                return
+        except Exception:
+            pass
+        action = "write to" if is_write else "read from"
+        raise PermissionError(f"Access Denied: Cannot {action} outside sandbox root: '{target_path}'")
 
-builtins.open = _ScopedBuiltinOpenGuard()
-io.open = _ScopedIOOpenGuard()
-os.open = _ScopedOSOpenGuard()
+    # Guard 1: builtins.open
+    orig_builtin_open = builtins.open
+    class _ScopedBuiltinOpenGuard(metaclass=_GuardMeta):
+        __slots__ = ()
+        def __call__(self, file, *args, **kwargs):
+            mode = args[0] if args else kwargs.get("mode", "r")
+            is_write = any(m in str(mode) for m in ("w", "a", "+", "x"))
+            check_sandbox_path(file, is_write=is_write)
+            return orig_builtin_open(file, *args, **kwargs)
+        def __getattribute__(self, name):
+            if name in ("__closure__", "__code__", "__globals__", "__func__", "__self__", "__dict__", "_fn", "_orig", "_check_path", "__slots__", "__class__", "__subclasses__"):
+                raise AttributeError(f"Access Denied: Introspection attribute '{name}' is forbidden.")
+            return super().__getattribute__(name)
 
-# 6. Protect Stdout from Memory Flood (1MB Stream Truncation)
-_original_stdout_write = sys.stdout.write
-_written_bytes_count = [0]
-_MAX_STDOUT_BYTES = 1024 * 1024  # 1MB cap
+    builtins.open = _ScopedBuiltinOpenGuard()
 
-def _capped_stdout_write(s):
-    if _written_bytes_count[0] > _MAX_STDOUT_BYTES:
-        return 0
-    _written_bytes_count[0] += len(s.encode("utf-8", errors="replace"))
-    if _written_bytes_count[0] > _MAX_STDOUT_BYTES:
-        _original_stdout_write("\\n[TRUNCATED: Output exceeded 1MB sandbox limit]\\n")
-        return 0
-    return _original_stdout_write(s)
+    # Guard 2: io.open
+    orig_io_open = io.open
+    class _ScopedIOOpenGuard(metaclass=_GuardMeta):
+        __slots__ = ()
+        def __call__(self, file, *args, **kwargs):
+            mode = args[0] if args else kwargs.get("mode", "r")
+            is_write = any(m in str(mode) for m in ("w", "a", "+", "x"))
+            check_sandbox_path(file, is_write=is_write)
+            return orig_io_open(file, *args, **kwargs)
+        def __getattribute__(self, name):
+            if name in ("__closure__", "__code__", "__globals__", "__func__", "__self__", "__dict__", "_fn", "_orig", "_check_path", "__slots__", "__class__", "__subclasses__"):
+                raise AttributeError(f"Access Denied: Introspection attribute '{name}' is forbidden.")
+            return super().__getattribute__(name)
 
-sys.stdout.write = _capped_stdout_write
+    io.open = _ScopedIOOpenGuard()
 
-# 7. Readiness handshake: written LAST, after every guard above has been
-# installed successfully, and BEFORE any appended user code runs. This is
-# the parent's only reliable signal that the child crossed from "sandbox
-# bootstrap" into "user code" -- see strip_sandbox_ready_sentinel() in
-# jarvis/sandbox/security.py, which strips this line before any output is
-# surfaced to the caller or parsed as structured result data.
+    # Guard 3: os.open
+    orig_os_open = os.open
+    class _ScopedOSOpenGuard(metaclass=_GuardMeta):
+        __slots__ = ()
+        def __call__(self, path, flags, *args, **kwargs):
+            is_write = bool(flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC))
+            check_sandbox_path(path, is_write=is_write)
+            return orig_os_open(path, flags, *args, **kwargs)
+        def __getattribute__(self, name):
+            if name in ("__closure__", "__code__", "__globals__", "__func__", "__self__", "__dict__", "_fn", "_orig", "_check_path", "__slots__", "__class__", "__subclasses__"):
+                raise AttributeError(f"Access Denied: Introspection attribute '{name}' is forbidden.")
+            return super().__getattribute__(name)
+
+    os.open = _ScopedOSOpenGuard()
+
+_install_sandbox_security_guards()
+
+# 6. Protect Stdout from Memory Flood (1MB Stream Truncation inside local closure)
+def _install_stdout_capping():
+    _orig_stdout_write = sys.stdout.write
+    _written_bytes_count = [0]
+    _MAX_STDOUT_BYTES = 1024 * 1024  # 1MB cap
+
+    def _capped_stdout_write(s):
+        if _written_bytes_count[0] > _MAX_STDOUT_BYTES:
+            return 0
+        _written_bytes_count[0] += len(s.encode("utf-8", errors="replace"))
+        if _written_bytes_count[0] > _MAX_STDOUT_BYTES:
+            _orig_stdout_write("\\n[TRUNCATED: Output exceeded 1MB sandbox limit]\\n")
+            return 0
+        return _orig_stdout_write(s)
+
+    sys.stdout.write = _capped_stdout_write
+
+_install_stdout_capping()
+
+# 7. Globals Purge: Wipe internal symbols from module dictionary before running user code
+_leak_keys = [
+    _k for _k in list(globals().keys())
+    if _k.startswith(("_orig", "_raw", "_Scoped", "_Guard", "_BLOCKED", "_is_module", "_check", "_install", "_SANDBOX", "_PYTHON"))
+]
+for _k in _leak_keys:
+    globals().pop(_k, None)
+del _leak_keys
+
+# 8. Readiness handshake
 sys.stdout.write(%r)
 sys.stdout.flush()
 # ====================================================================

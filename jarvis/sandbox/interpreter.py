@@ -427,7 +427,7 @@ class CodeInterpreterSandbox:
         if timed_out:
             error_summary = f"Execution timed out after {timeout}s."
         elif exit_code != 0:
-            error_summary = stderr.strip() or f"Process exited with code {exit_code}."
+            error_summary = stderr.strip() or stdout.strip() or f"Process exited with code {exit_code}."
 
         result = SandboxResult(
             success=success,

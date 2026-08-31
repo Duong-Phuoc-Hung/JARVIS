@@ -340,3 +340,72 @@ print("A" * (2 * 1024 * 1024))
         assert result.success is True
         assert len(result.stdout) <= (1.2 * 1024 * 1024)
         assert "[TRUNCATED" in result.stdout
+
+    def test_globals_class_level_blocked(self, os_test_sandbox):
+        """
+        Verify that accessing type(open).__call__.__globals__ does not leak original unpatched functions.
+        Tested on Windows without mocks.
+        """
+        code = """
+import builtins
+try:
+    fn_type = type(builtins.open)
+    call_obj = getattr(fn_type, "__call__", None)
+    g = getattr(call_obj, "__globals__", {})
+    leaked = [k for k in ["_orig_builtin_open", "_orig_io_open", "_orig_os_open", "_raw_builtin_open"] if k in g]
+    if leaked:
+        print(f"GLOBALS_LEAKED: {leaked}")
+    else:
+        print("GLOBALS_BLOCKED")
+except Exception as exc:
+    print(f"GLOBALS_BLOCKED: {type(exc).__name__}")
+"""
+        result = os_test_sandbox.execute_python(code, timeout_seconds=5.0)
+        assert result.success is True
+        assert "GLOBALS_BLOCKED" in result.stdout
+        assert "GLOBALS_LEAKED" not in result.stdout
+
+    @pytest.mark.real_os
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows AppContainer requires Win32")
+    def test_adversarial_appcontainer_socket_kernel_blocked(self, tmp_path):
+        """
+        Verify that an outbound socket connection attempt from within an AppContainer sandbox
+        is denied directly by the Windows Kernel / WFP (raising PermissionError / OSError WinError 10013)
+        WITHOUT ANY Python-level mocks or AST import blockers.
+        """
+        from jarvis.sandbox.security import spawn_appcontainer_process, WindowsJobObject, prepare_scrubbed_environment
+
+        scratch_dir = tmp_path / "appcontainer_scratch"
+        scratch_dir.mkdir(parents=True, exist_ok=True)
+        script_file = scratch_dir / "socket_test.py"
+        script_code = """
+import socket
+try:
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(2.0)
+    s.connect(("8.8.8.8", 80))
+    print("SOCKET_CONNECTED_UNEXPECTED")
+except (PermissionError, OSError) as exc:
+    print(f"SOCKET_KERNEL_BLOCKED: {type(exc).__name__}: {exc}")
+except Exception as exc:
+    print(f"SOCKET_OTHER_ERROR: {type(exc).__name__}: {exc}")
+"""
+        script_file.write_text(script_code, encoding="utf-8")
+
+        base_python = getattr(sys, "_base_executable", sys.executable)
+        cmd = f'"{base_python}" -u "{script_file}"'
+        job = WindowsJobObject(active_process_limit=1, memory_limit_mb=256)
+        try:
+            exit_code, stdout, stderr, timed_out = spawn_appcontainer_process(
+                cmd=cmd,
+                cwd=str(scratch_dir),
+                env=prepare_scrubbed_environment(),
+                job=job,
+                timeout_seconds=10.0,
+            )
+            assert not timed_out
+            assert "SOCKET_KERNEL_BLOCKED" in stdout
+            assert "SOCKET_CONNECTED_UNEXPECTED" not in stdout
+        finally:
+            job.close()
+
