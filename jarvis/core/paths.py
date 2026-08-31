@@ -24,7 +24,7 @@ from pathlib import Path
 def get_data_dir() -> Path:
     """
     Returns writable per-user data dir for JARVIS.
-    Priority: JARVIS_DATA_DIR env > %LOCALAPPDATA%\JARVIS > ~/.jarvis
+    Priority: JARVIS_DATA_DIR env > %LOCALAPPDATA%\\JARVIS > ~/.jarvis
     Creates directory on first call.
     """
     override = os.environ.get("JARVIS_DATA_DIR")
