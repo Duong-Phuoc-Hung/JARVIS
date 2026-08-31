@@ -24,6 +24,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from jarvis.comms.rate_limiter import RateLimitConfig, TokenBucketRateLimiter
+
 log = logging.getLogger("jarvis.comms.discord")
 
 
@@ -35,6 +37,7 @@ class DiscordConfig:
     default_channel_id: int | None = None
     enabled: bool = True
     rate_limit_s: float = 1.0
+    rate_limit: RateLimitConfig = field(default_factory=lambda: RateLimitConfig(requests_per_minute=30, burst_limit=10))
 
 
 @dataclass
@@ -56,7 +59,7 @@ class DiscordEmbed:
 class DiscordBotController:
     """
     Full Discord bot controller with JARVIS 2-way command processing.
-    Mirrors Telegram functionality with Discord-native rich embeds.
+    Mirrors Telegram functionality with Discord-native rich embeds and slash commands.
     """
 
     def __init__(
@@ -67,20 +70,27 @@ class DiscordBotController:
         channel_id: int | None = None,
         dispatcher: Callable | None = None,
         http_client: Any | None = None,
+        rate_limiter: Any | None = None,
+        rate_limit_config: RateLimitConfig | None = None,
+        config: DiscordConfig | None = None,
     ) -> None:
-        self.bot_token = bot_token
-        self.whitelist: list[int] = whitelist_user_ids or []
-        self.guild_id = guild_id
-        self.default_channel_id = channel_id
+        self.bot_token = bot_token or (config.bot_token if config else "")
+        self.whitelist: list[int] = whitelist_user_ids or (config.whitelist_user_ids if config else [])
+        self.guild_id = guild_id or (config.guild_id if config else None)
+        self.default_channel_id = channel_id or (config.default_channel_id if config else None)
         self.dispatcher = dispatcher
         self._http = http_client
+        self.rate_limiter = rate_limiter or TokenBucketRateLimiter(
+            rate_limit_config or (config.rate_limit if config else RateLimitConfig(requests_per_minute=30, burst_limit=10)),
+            channel_name="discord",
+        )
         self.sent_messages: list[dict[str, Any]] = []
         self.security_violations: list[dict[str, Any]] = []
         self._running = False
         self._poll_thread: threading.Thread | None = None
         self._last_message_id: str | None = None
-        log.info("DiscordBotController initialized (token=%s, whitelist=%d users)",
-                 "set" if bot_token else "not_set", len(self.whitelist))
+        log.info("DiscordBotController initialized (token=%s, whitelist=%d users, rate_limiter=%s)",
+                 "set" if bot_token else "not_set", len(self.whitelist), "set" if rate_limiter else "none")
 
     # ------------------------------------------------------------------
     # Security (Fail-Close Model)
@@ -129,28 +139,44 @@ class DiscordBotController:
                         username, user_id, len(content), sha256_prefix)
             return {"status": 403, "text": "⛔ Bạn không có quyền điều khiển JARVIS.", "embed": None}
 
-        content = content.strip()
-        low = content.lower()
+        # Rate Limiting check per user_id
+        if self.rate_limiter is not None:
+            allowed, retry_after = self.rate_limiter.acquire(user_id)
+            if not allowed:
+                return {
+                    "status": 429,
+                    "text": f"⏳ Quá nhiều yêu cầu. Vui lòng thử lại sau {retry_after:.1f}s.",
+                    "retry_after": retry_after,
+                    "embed": None,
+                }
 
-        # Command dispatch
-        if low == "!help":
-            return self._cmd_help()
-        if low in ("!status", "!health"):
-            return self._cmd_status()
-        if low in ("!briefing", "!brief"):
-            return self._cmd_briefing()
-        if low == "!skills":
-            return self._cmd_skills()
-        if low.startswith("!note "):
-            return self._cmd_note(content[6:].strip())
-        if low.startswith("!calc "):
-            return self._cmd_calc(content[6:].strip())
-        if low == "!screenshot":
-            return self._cmd_screenshot(channel_id)
-        if low.startswith("!macro "):
-            return self._cmd_macro(content[7:].strip())
-        if low.startswith("!exec "):
-            return self._cmd_exec(content[6:].strip(), username)
+        content = content.strip()
+
+        # Command dispatch supporting both '/' and '!' prefixes
+        if content.startswith(("/", "!")):
+            cmd_body = content[1:].strip()
+            cmd_parts = cmd_body.split(None, 1)
+            cmd_name = cmd_parts[0].lower() if cmd_parts else ""
+            cmd_args = cmd_parts[1].strip() if len(cmd_parts) > 1 else ""
+
+            if cmd_name in ("help", "trogiup"):
+                return self._cmd_help()
+            if cmd_name in ("status", "health", "trangthai"):
+                return self._cmd_status()
+            if cmd_name in ("briefing", "brief"):
+                return self._cmd_briefing()
+            if cmd_name in ("skills", "kynang"):
+                return self._cmd_skills()
+            if cmd_name == "note":
+                return self._cmd_note(cmd_args)
+            if cmd_name == "calc":
+                return self._cmd_calc(cmd_args)
+            if cmd_name == "screenshot":
+                return self._cmd_screenshot(channel_id)
+            if cmd_name == "macro":
+                return self._cmd_macro(cmd_args)
+            if cmd_name == "exec":
+                return self._cmd_exec(cmd_args, username)
 
         # Natural language fallback
         if self.dispatcher:
@@ -160,7 +186,7 @@ class DiscordBotController:
             except Exception as exc:
                 log.warning("Dispatcher error: %s", exc)
 
-        return {"status": 200, "text": f"💬 Nhận được: '{content[:100]}' — Dùng `!help` để xem lệnh.", "embed": None}
+        return {"status": 200, "text": f"💬 Nhận được: '{content[:100]}' — Dùng `/help` hoặc `!help` để xem lệnh.", "embed": None}
 
     # ------------------------------------------------------------------
     # Commands
@@ -168,14 +194,14 @@ class DiscordBotController:
 
     def _cmd_help(self) -> dict[str, Any]:
         embed = DiscordEmbed(title="🤖 JARVIS Discord Controller", description="Danh sách lệnh điều khiển:")
-        embed.add_field("!status", "Kiểm tra sức khỏe hệ thống", True)
-        embed.add_field("!briefing", "Báo cáo sáng tổng hợp", True)
-        embed.add_field("!skills", "Danh sách kỹ năng", True)
-        embed.add_field("!note <text>", "Lưu ghi chú nhanh", True)
-        embed.add_field("!calc <expr>", "Tính toán biểu thức", True)
-        embed.add_field("!screenshot", "Chụp và gửi màn hình", True)
-        embed.add_field("!macro <name>", "Phát lại macro đã lưu", True)
-        embed.add_field("!exec <cmd>", "Thực thi kỹ năng/lệnh", True)
+        embed.add_field("/status, !status", "Kiểm tra sức khỏe hệ thống", True)
+        embed.add_field("/briefing, !briefing", "Báo cáo sáng tổng hợp", True)
+        embed.add_field("/skills, !skills", "Danh sách kỹ năng", True)
+        embed.add_field("/note <text>, !note", "Lưu ghi chú nhanh", True)
+        embed.add_field("/calc <expr>, !calc", "Tính toán biểu thức", True)
+        embed.add_field("/screenshot, !screenshot", "Chụp và gửi màn hình", True)
+        embed.add_field("/macro <name>, !macro", "Phát lại macro đã lưu", True)
+        embed.add_field("/exec <cmd>, !exec", "Thực thi kỹ năng/lệnh", True)
         return {"status": 200, "text": "📋 Danh sách lệnh JARVIS:", "embed": embed.to_dict()}
 
     def _cmd_status(self) -> dict[str, Any]:
@@ -214,7 +240,7 @@ class DiscordBotController:
 
     def _cmd_note(self, note_text: str) -> dict[str, Any]:
         if not note_text:
-            return {"status": 400, "text": "⚠️ Vui lòng nhập nội dung ghi chú sau `!note`.", "embed": None}
+            return {"status": 400, "text": "⚠️ Vui lòng nhập nội dung ghi chú sau `/note` hoặc `!note`.", "embed": None}
         try:
             from jarvis.skills import registry
             reg = registry.SkillRegistry()
@@ -226,7 +252,7 @@ class DiscordBotController:
 
     def _cmd_calc(self, expr: str) -> dict[str, Any]:
         if not expr:
-            return {"status": 400, "text": "⚠️ Nhập biểu thức sau `!calc`.", "embed": None}
+            return {"status": 400, "text": "⚠️ Nhập biểu thức sau `/calc` hoặc `!calc`.", "embed": None}
         try:
             from jarvis.skills import registry
             reg = registry.SkillRegistry()
@@ -305,9 +331,41 @@ class DiscordBotController:
         log.info("Discord send_file: %s (%dKB) to channel %d", filename, len(file_bytes) // 1024, channel_id)
         return {"success": True, "data": record}
 
-    def send_embed(self, channel_id: int, title: str, description: str, fields: list[dict]) -> dict[str, Any]:
-        embed = {"title": title, "description": description, "fields": fields, "color": 0x00FF88}
-        return self.send_message(channel_id, f"**{title}**\n{description}")
+    def send_embed(
+        self,
+        channel_id: int,
+        title: str,
+        description: str,
+        fields: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        fields = fields or []
+        embed_dict = {"title": title, "description": description, "fields": fields, "color": 0x00FF88}
+        record = {
+            "channel_id": channel_id,
+            "content": f"**{title}**\n{description}",
+            "embed": embed_dict,
+            "timestamp": time.time(),
+        }
+        self.sent_messages.append(record)
+        if self._http and self.bot_token:
+            try:
+                import json as _json
+                import urllib.error
+                import urllib.request
+                payload = _json.dumps({
+                    "content": f"**{title}**\n{description}",
+                    "embeds": [embed_dict],
+                }).encode()
+                req = urllib.request.Request(
+                    f"https://discord.com/api/v10/channels/{channel_id}/messages",
+                    data=payload,
+                    headers={"Authorization": f"Bot {self.bot_token}", "Content-Type": "application/json"},
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=10)
+            except Exception as exc:
+                log.warning("Discord send_embed API error: %s", exc)
+        return {"success": True, "data": record}
 
     def _capture_screenshot(self) -> bytes | None:
         try:

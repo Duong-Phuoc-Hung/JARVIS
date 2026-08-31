@@ -13,6 +13,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from jarvis.comms.rate_limiter import RateLimitConfig, TokenBucketRateLimiter
 from jarvis.core.paths import data_path
 
 log = logging.getLogger("jarvis.comms.mobile_bridge")
@@ -44,11 +45,16 @@ class MobileFileBridge:
         save_directory: str = "",
         max_file_size_mb: int = _MAX_FILE_SIZE_MB,
         telegram_controller: Any | None = None,
+        rate_limit_config: RateLimitConfig | None = None,
     ) -> None:
         self.save_dir = Path(save_directory) if save_directory else _DEFAULT_SAVE_DIR
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.max_size_bytes = max_file_size_mb * 1024 * 1024
         self.telegram = telegram_controller
+        self.rate_limiter = TokenBucketRateLimiter(
+            rate_limit_config or RateLimitConfig(requests_per_minute=15, burst_limit=3),
+            channel_name="mobile_bridge",
+        )
         log.info("MobileFileBridge initialized (save_dir=%s)", self.save_dir)
 
     # ------------------------------------------------------------------
@@ -63,14 +69,26 @@ class MobileFileBridge:
     ) -> dict[str, Any]:
         """
         Save an incoming file from mobile to the configured directory.
+        Enforces token-bucket rate limiting per user_id / device_id.
 
         Returns:
             dict with success, saved_path, size_kb keys
         """
+        user_id = (metadata or {}).get("user_id") or (metadata or {}).get("device_id") or "default_mobile"
+        rl = self.rate_limiter.acquire(user_id)
+        if not rl.allowed:
+            log.warning("Mobile transfer rate limit exceeded for user_id=%s, retry_after=%.2fs", user_id, rl.retry_after_s)
+            return {
+                "success": False,
+                "status": 429,
+                "error": f"Too Many Requests: Mobile transfer rate limit exceeded. Retry after {rl.retry_after_s}s.",
+                "retry_after_s": rl.retry_after_s,
+            }
+
         validation_error = self._validate_file(filename, len(file_bytes))
         if validation_error:
             log.warning("File rejected: %s — %s", filename, validation_error)
-            return {"success": False, "error": validation_error}
+            return {"success": False, "status": 400, "error": validation_error}
 
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         stem = Path(filename).stem[:40]

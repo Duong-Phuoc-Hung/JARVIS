@@ -13,6 +13,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from jarvis.comms.rate_limiter import RateLimitConfig, TokenBucketRateLimiter
+
 log = logging.getLogger("jarvis.comms.telegram")
 
 
@@ -24,6 +26,7 @@ class TelegramConfig:
     poll_interval_s: float = 1.0
     timeout_s: float = 30.0
     enabled: bool = True
+    rate_limit: RateLimitConfig = field(default_factory=lambda: RateLimitConfig(requests_per_minute=30, burst_limit=5))
 
 
 @dataclass
@@ -41,7 +44,8 @@ class TelegramUpdate:
 class TelegramBotController:
     """
     Two-way Telegram Bot Controller with strict User ID security whitelist,
-    remote command dispatch, voice note STT integration, and intruder photo dispatch.
+    token-bucket rate limiting per user_id, remote command dispatch,
+    voice note STT integration, and intruder photo dispatch.
     """
 
     def __init__(
@@ -53,9 +57,11 @@ class TelegramBotController:
         stt_engine: Any | None = None,
         tts_engine: Any | None = None,
         http_client: Any | None = None,
+        rate_limit_config: RateLimitConfig | None = None,
+        config: TelegramConfig | None = None,
     ) -> None:
-        self.allowed_user_ids: set[int] = allowed_user_ids or set()
-        self.bot_token = bot_token
+        self.allowed_user_ids: set[int] = allowed_user_ids or (config.whitelist_user_ids if config else set())
+        self.bot_token = bot_token or (config.bot_token if config else "")
         self.win32 = win32_platform
         self.dispatcher = dispatcher
         self.stt_engine = stt_engine
@@ -64,6 +70,10 @@ class TelegramBotController:
         self.security_violations: list[int] = []
         self._is_polling = False
         self._poll_thread: threading.Thread | None = None
+        self.rate_limiter = TokenBucketRateLimiter(
+            rate_limit_config or (config.rate_limit if config else RateLimitConfig(requests_per_minute=30, burst_limit=5)),
+            channel_name="telegram",
+        )
 
     def is_user_authorized(self, user_id: int) -> bool:
         """Validates user against whitelist."""
@@ -77,7 +87,7 @@ class TelegramBotController:
     ) -> dict[str, Any]:
         """
         Processes an incoming text message from Telegram.
-        Enforces whitelist; dispatches /status, /lock, /exec, /healing, /help.
+        Enforces whitelist, token-bucket rate limits; dispatches /status, /lock, /exec, /healing, /help.
         """
         if not self.is_user_authorized(user_id):
             self.security_violations.append(user_id)
@@ -95,6 +105,17 @@ class TelegramBotController:
             return {
                 "status": 403,
                 "error": "Forbidden: Unauthorized User ID",
+                "rejected": True,
+            }
+
+        # Token Bucket Rate Limiting per user_id
+        rl = self.rate_limiter.acquire(user_id)
+        if not rl.allowed:
+            log.warning("Telegram rate limit exceeded for user_id: %d, retry_after=%.2fs", user_id, rl.retry_after_s)
+            return {
+                "status": 429,
+                "error": f"Too Many Requests: Rate limit exceeded. Thử lại sau {rl.retry_after_s}s.",
+                "retry_after_s": rl.retry_after_s,
                 "rejected": True,
             }
 

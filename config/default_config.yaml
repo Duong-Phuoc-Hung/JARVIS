@@ -191,10 +191,32 @@ comms:
     enabled: false
     bot_token: ""
     whitelist_chat_ids: []
+    rate_limit:
+      requests_per_minute: 30
+      burst_limit: 5
+  zalo:
+    enabled: false
+    access_token: ""
+    oa_id: ""
+    webhook_secret: ""
+    whitelist_user_ids: []
+    rate_limit:
+      requests_per_minute: 20
+      burst_limit: 5
   discord:
     enabled: false
     bot_token: ""
     channel_ids: []
+    rate_limit:
+      requests_per_minute: 30
+      burst_limit: 10
+  mobile_bridge:
+    enabled: true
+    save_dir: "downloads"
+    max_file_size_mb: 50
+    rate_limit:
+      requests_per_minute: 15
+      burst_limit: 3
   email_imap:
     enabled: false
     host: "imap.gmail.com"

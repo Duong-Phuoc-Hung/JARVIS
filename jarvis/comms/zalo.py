@@ -32,6 +32,8 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from jarvis.comms.rate_limiter import RateLimitConfig, TokenBucketRateLimiter
+
 log = logging.getLogger("jarvis.comms.zalo")
 
 _ZALO_API_BASE = "https://openapi.zalo.me/v2.0/oa"
@@ -46,6 +48,7 @@ class ZaloConfig:
     whitelist_user_ids: list[str] = field(default_factory=list)
     webhook_port: int = 8765
     host: str = "127.0.0.1"
+    rate_limit: RateLimitConfig = field(default_factory=lambda: RateLimitConfig(requests_per_minute=20, burst_limit=5))
 
 
 @dataclass
@@ -75,6 +78,7 @@ class ZaloBotController:
         self,
         config: ZaloConfig | None = None,
         is_mock: bool = False,
+        rate_limit_config: RateLimitConfig | None = None,
     ) -> None:
         self.config = config or ZaloConfig()
         self.is_mock = is_mock
@@ -83,6 +87,10 @@ class ZaloBotController:
         self.sent_messages: list[dict[str, Any]] = []
         self.received_messages: list[ZaloMessage] = []
         self.security_violations: list[dict] = []
+        self.rate_limiter = TokenBucketRateLimiter(
+            rate_limit_config or (self.config.rate_limit if hasattr(self.config, "rate_limit") else RateLimitConfig(requests_per_minute=20, burst_limit=5)),
+            channel_name="zalo",
+        )
         log.info("ZaloBotController initialized (mock=%s)", is_mock)
 
     # ------------------------------------------------------------------
@@ -142,7 +150,7 @@ class ZaloBotController:
     # ------------------------------------------------------------------
 
     def handle_message(self, user_id: str, user_name: str, text: str) -> dict[str, Any]:
-        """Process incoming Zalo message with redacted security audit logging."""
+        """Process incoming Zalo message with redacted security audit logging and rate limiting."""
         if not self.is_user_authorized(user_id):
             sha256_prefix = hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()[:12]
             audit_entry = {
@@ -157,6 +165,18 @@ class ZaloBotController:
             log.warning("Unauthorized Zalo access rejected: user_id=%s, len=%d, hash_prefix=%s",
                         user_id, len(text), sha256_prefix)
             return {"status": 403, "text": "⛔ Bạn không có quyền sử dụng JARVIS qua Zalo."}
+
+        # Token Bucket Rate Limiting per user_id
+        rl = self.rate_limiter.acquire(user_id)
+        if not rl.allowed:
+            log.warning("Zalo rate limit exceeded for user_id=%s, retry_after=%.2fs", user_id, rl.retry_after_s)
+            return {
+                "status": 429,
+                "text": f"⚠️ Yêu cầu quá nhanh. Vui lòng thử lại sau {rl.retry_after_s} giây.",
+                "error": "Too Many Requests",
+                "retry_after_s": rl.retry_after_s,
+                "user_id": user_id,
+            }
 
         msg = ZaloMessage(user_id=user_id, user_name=user_name, text=text, timestamp=time.time())
         self.received_messages.append(msg)
