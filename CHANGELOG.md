@@ -2,6 +2,61 @@
 
 ---
 
+## 🔐 v4.3.0 — Security Completion & Evaluation Pipeline (2026-08-31)
+
+> **Giai Đoạn 2 hoàn thành | AppContainer B2 xác nhận | STT eval framework sẵn sàng**
+
+### ✅ AppContainer B2 — Dual-Evidence CONFIRMED (12/12 passed)
+
+Chạy thật trên OS: `TestR3DualEvidenceStartupAndBlocking` — cả 2 vế đều pass:
+- **Part A:** `math.factorial`, `hashlib`, file I/O chạy thành công → subprocess khởi động đúng
+- **Part B:** `socket.connect("8.8.8.8", 80)` bị chặn cụ thể → network isolation thực sự hoạt động
+- Trạng thái: **✅ Đóng** — nâng từ ⚠️ "pending" lên xác nhận đầy đủ
+
+### 🔒 Email IMAP Security Hardening — 5 Lớp Bảo Vệ
+
+**`jarvis/comms/email_imap.py`** — Áp dụng fail-close pattern như `zalo.py`, `mobile_bridge.py`:
+
+| Lớp | Biện pháp | Hành vi khi fail |
+|-----|-----------|-----------------|
+| 1 | Sender allowlist | DROP — không whitelisted → bỏ qua hoàn toàn |
+| 2 | Subject injection filter | DROP — 5 regex: `[JARVIS:cmd]`, `ignore instructions`, `<script>`... |
+| 3 | HTML strip | Fail-close — lỗi parse → body rỗng, không crash |
+| 4 | PromptGuard trên body | Sanitize trước khi vào LLM |
+| 5 | Max 1,000 ký tự | Hard cap — chống DoS prompt quá dài |
+
+Test: 4 emails vào → 2 accepted (trusted) + 2 dropped (spam + injection) ✅
+
+### 🔑 Secrets Manager — `jarvis/security/secrets.py`
+
+Wraps **Windows Credential Manager** (keyring) với fallback env var cho CI/Docker.
+
+```powershell
+# Migrate từ env vars sang Credential Manager (chạy 1 lần)
+.venv\Scripts\python -m jarvis.security.secrets migrate
+
+# Đọc key
+.venv\Scripts\python -m jarvis.security.secrets get GEMINI_API_KEY
+```
+
+API secrets được quản lý: `GEMINI_API_KEY`, `OPENAI_API_KEY`, `TELEGRAM_BOT_TOKEN`,
+`DISCORD_BOT_TOKEN`, `ZALO_API_KEY`, `EMAIL_PASSWORD`, `WEATHER_API_KEY`.
+
+### 📊 STT Evaluation Pipeline — Sẵn Sàng Chờ Thu Âm
+
+```powershell
+# Bước 1: Thu âm (bạn làm, ~60 phút)
+.venv\Scripts\python tests/eval/record_test_set.py --conditions clean --variants 5
+.venv\Scripts\python tests/eval/record_test_set.py --conditions noisy --variants 5
+
+# Bước 2: Chạy eval (tự động)
+.venv\Scripts\python tests/eval/stt_intent_eval.py --models small large-v3
+```
+
+Kết quả → quyết định Fast tier = `small` hay `medium` → implement `TieredSTTEngine`.
+
+---
+
 ## 🔧 v4.2.1 — STT Hallucination Guard & Eval Framework (2026-08-31)
 
 > **3 commits | Từ phát hiện audit → fix thật + framework test sẵn sàng**
