@@ -1,10 +1,10 @@
 # JARVIS — PROJECT_STATE.md
 
 > Durable current-state handoff for future sessions.
-> Snapshot: 2026-08-31.
+> Snapshot: 2026-09-01.
 > Always verify Git state and current code before relying on this snapshot.
 
-## 0. Current Checkpoint (2026-08-31) — READ THIS FIRST
+## 0. Current Checkpoint (2026-09-01) — READ THIS FIRST
 
 This is the single authoritative "what's true right now" section. Everything below it —
 `0-PRE`, `0-PRE2`, `0-PRE3`, `0A`, `0B`, `0C`, `0D`, and the older `## 1` onward sections —
@@ -15,20 +15,135 @@ Do not read any "in progress, uncommitted" statement below this checkpoint as de
 `main` today — all of that work has since merged. Detailed historical records, findings,
 and validation numbers in those sections are preserved as-is and are not being rewritten;
 use this checkpoint, plus actual `git log`/`git status`, as the source of truth for current
-state.
+state. This checkpoint supersedes the prior `5f9f6da` checkpoint below (its own validation
+numbers are preserved as historical record further down, not rewritten).
 
-**Current `main`:** `5f9f6da` (`Merge pull request #13 from Huynh-Minh-Hoa/feat/skill-plugin-hardening`)
+**Current `main`:** `a370633e91be0e2e4c8cf9612e522e7889f7bad3` ("docs(eval): v4.3.1 — acoustic
+STT benchmark results & audio test dataset"). `CHANGELOG.md` development history currently
+reaches **v4.3.1-era** work — 29 commits ahead of the prior `d62cb61` reference point.
 
-**Merged since the last stable baseline (`e4bcd6d`) — all now on `main`, all closed, 0 open PRs:**
+**Post-`d62cb61` evolution merged onto `main`:**
+
+- **v4.2.0 — Security Hardening & Stability (7 workstreams):** `__globals__` class-level
+  sandbox-escape patch; Night Shift daemon sandbox-isolation audit (`docs/night_shift_audit.md`);
+  AppContainer B2 implementation + real-OS dual-evidence testing (zero-network-capability
+  AppContainer, kernel-level socket blocking verified — see "Architecture reality" below for
+  its actual production-wiring status, which is more limited than "implemented" alone implies);
+  `PromptGuard` prompt-injection defense (`jarvis/security/prompt_guard.py`); per-user
+  `TokenBucketRateLimiter` comms rate limiting across Telegram/Zalo/Discord/Mobile Bridge;
+  Discord functional tests + Watchdog chaos-test (MTTR); STT/benchmark test infrastructure
+  (`docs/benchmark_results.md`, `scripts/benchmark_stt_cuda.py`).
+- **v4.2.1:** Faster-Whisper hallucination-mitigation guards (`jarvis/stt/engine.py`) and the
+  STT intent-misrouting evaluation framework (`tests/eval/stt_intent_eval.py`).
+- **v4.3.0:** AppContainer B2 real-OS dual-evidence confirmation; email IMAP 5-layer security
+  hardening (`jarvis/comms/email_imap.py`); Windows Credential Manager/`keyring`-backed Secrets
+  Manager (`jarvis/security/secrets.py`).
+- **v4.3.1 (current):** committed the real-microphone STT evaluation dataset — **90 real
+  microphone recordings** (45 clean + 45 noisy) under `tests/eval/audio/`, each evaluated
+  against both `small` and `large-v3` faster-whisper models, plus the resulting evaluation
+  results/summaries in `docs/eval/`. 90 recordings, not 90 model-runs or 180 recordings — see
+  the STT reality note below for exactly how the 90-recording dataset and the 180-row raw
+  results file relate.
+
+**Current CI baseline — GitHub Actions CI run #108, for commit `a370633` (externally verified,
+not personally re-executed by an agent unless a session states otherwise):**
+```text
+993 collected
+990 passed
+3 skipped
+0 failed
+```
+All four CI jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline Summary.
+
+**Architecture reality — sandbox execution backend (do not blur these two statements):**
+- **Production** `CodeInterpreterSandbox.execute_python()` (`jarvis/sandbox/interpreter.py`)
+  calls `spawn_low_integrity_process()` only: Windows OS Restricted Token + Low Integrity SID
+  (`S-1-16-4096`) + Windows Job Object (`ActiveProcessLimit`/`JobMemoryLimit`, assigned to the
+  still-suspended child before `ResumeThread`) + scrubbed environment + AST-validated/module-
+  restricted preamble + bounded (1MB-capped, two layers) stdout/stderr capture + a readiness-
+  sentinel retry-safety boundary. This is the real, current production isolation boundary.
+- **AppContainer** (`spawn_appcontainer_process()` in `jarvis/sandbox/security.py`) is a
+  separate, real, non-trivial implementation — a zero-network-capability
+  (`SECURITY_CAPABILITIES`/`CapabilityCount=0`) AppContainer launch path, confirmed working via
+  real-OS dual-evidence testing (compute succeeds; `socket.connect()` is kernel-blocked with
+  `PermissionError`/`OSError`) in `tests/integration/test_sandbox_os_boundaries.py` and
+  `tests/e2e/test_r3_network_sandbox_e2e.py`. It is **implemented and tested, but has no caller
+  in `jarvis/sandbox/interpreter.py` or anywhere else in production code** —
+  `execute_python()` does not use it. Do not describe current production Python execution as
+  having AppContainer network isolation; it does not, today.
+- Confirmed by direct source read of `jarvis/sandbox/security.py::strip_sandbox_ready_sentinel()`:
+  it explicitly strips the LF-terminated, CRLF-terminated, and bare (no-line-ending) forms of
+  the readiness sentinel. This is **not** a current limitation — a stale "LF-only" claim from an
+  earlier snapshot of this project no longer matches the code and must not be reintroduced
+  without re-reading the function first.
+
+**STT reality — three distinct kinds of evidence, do not conflate:**
+- **(A) Real-microphone acoustic evaluation** — the dataset is **90 real microphone
+  recordings total** (45 clean + 45 noisy conditions). Each of those 90 recordings was
+  evaluated against **two** faster-whisper models (`small` and `large-v3`), so the raw
+  per-trial results file (`docs/eval/stt_eval_results.json`) contains **180 model-evaluation
+  rows** — 180 rows does **not** mean 180 recordings; it means 90 recordings × 2 models.
+  `docs/eval/stt_eval_summaries.json` holds the aggregated rates per model/condition. This is
+  the only data source that speaks to actual recognition/intent-routing quality.
+  - `small` (int8): clean 15.6% correct / 2.2% misrouted / 82.2% silent-failure, median latency
+    ~853ms; noisy 17.8% correct / 2.2% misrouted / 80.0% silent-failure, ~780ms.
+  - `large-v3` (int8_float16): clean 28.9% correct / 2.2% misrouted / 68.9% silent-failure,
+    ~2.8s; noisy 31.1% correct / 2.2% misrouted / 66.7% silent-failure, ~2.8s.
+  - The dominant current problem is **high silent-failure / recognition-failure rate**, not
+    broad unsafe-action misrouting — misrouting sits flat at ~2.2% across every model/condition
+    (that single case among the 90 recordings was arguably correct JARVIS behavior anyway),
+    dropping to 0.0% above a per-model/condition confidence threshold (~0.5–0.7).
+- **(B) Real CUDA throughput benchmark, synthetic (non-speech) input** (`docs/benchmark_results.md`
+  §1): genuine GPU latency measurement on real hardware (GTX 1650 Max-Q), but the input is a
+  synthesized sine-wave signal, not recorded speech — it measures pipeline throughput (RTF), not
+  recognition accuracy. Do not cite it as an accuracy claim.
+- **(C) Historical mock/adapter figures** (`docs/benchmark_results.md` §2): explicitly tagged
+  `[MOCK — đo trên adapter, không phản ánh model thật]` with an audit warning banner,
+  structurally separated from (B). Do not cite as real model latency.
+
+**Immediate follow-ups (confirmed during orientation, not yet actioned — each is its own future
+task, not bundled into a documentation-only sync):**
+1. `ProactiveConfig.from_dict()` (`jarvis/proactive/engine.py`) contains stale fallback defaults
+   (90.0/85.0/85.0/20.0/60.0) that don't match the raised dataclass-field defaults
+   (92.0/92.0/92.0/15.0/600.0) — only manifests when a partial config dict supplies some but not
+   all threshold keys. Real code issue; fix in a dedicated code PR.
+2. Version metadata is unsynchronized: `CHANGELOG.md` reaches v4.3.1-era work, `pyproject.toml`
+   remains `4.1.0`, `README.md` still shows older `4.1.0`/stale test-count badges,
+   `config/default_config.yaml`'s `system.version` remains `1.0.0`. Decide canonical versioning
+   semantics before changing any of pyproject/README/config/installer/release metadata. Do not
+   bump any version as a side effect of an unrelated task.
+3. `docs/night_shift_audit.md`/`CHANGELOG.md` describe Night Shift as a "02:00–05:00 AM"
+   execution window; the actual `NightShiftTask` implementation defaults to
+   `scheduled_time="23:00"`/`report_time="07:00"` and accepts any arbitrary caller-supplied
+   time — no enforced 2-5am window exists in code. This is documentation drift; correct the
+   docs in a focused change, unless an actually-enforced window is separately desired.
+4. Evaluate STT accuracy/latency improvements using the now-committed real-microphone dataset
+   (`tests/eval/audio/`) rather than any synthetic proxy.
+5. Decide whether `spawn_appcontainer_process()` should become (or be added alongside) the
+   production `execute_python()` backend, after a dedicated compatibility/security validation
+   pass — it is not a drop-in replacement without that evaluation.
+6. Reassess other isolated/unwired systems separately, each on its own merits — do not wire any
+   of them into production casually or as a side effect of another task:
+   `jarvis/agent/graph.py::ReActAgent` (zero production callers), OpenWakeWord's known-unfixed
+   "initialized but never processed" defect, `jarvis/plugins/loader.py` (generic plugin SDK,
+   unused — `app.py` uses a separate hardcoded plugin list), `jarvis/automation/vm.py::VMOrchestrator`
+   (no caller anywhere), the hand-gesture pipeline (`jarvis/gesture/hand_*.py`), and the Data
+   Analysis Service facade (`jarvis/data/analysis_service.py`).
+
+CHANGELOG historical benchmark prose (e.g. the v4.2.0/R7 entry's RTF figures) may be superseded
+by newer empirical documents (`docs/benchmark_results.md`); this checkpoint does not rewrite
+historical `CHANGELOG.md` entries — that file is out of scope for documentation-only syncs.
+
+**Merged since the earlier `e4bcd6d` baseline — all now on `main`, all closed, 0 open PRs:**
 - PR #11 — Gesture/Data Reference-Hardening (corresponds to section `0-PRE` below)
 - PR #12 — Agent Execution Hardening (corresponds to section `0-PRE2` below)
 - PR #13 — Skill/Plugin Manifest & Telemetry Hardening (corresponds to section `0-PRE3` below)
 
 (Sections `0A`–`0D` — Wake Word Phase 1, Sandbox CI Compatibility Fix, Central Safety-Layer
 Hardening, and Biometrics Hardening — were merged earlier, via PR #8, #9, #10, and #14
-respectively, and were already historical before this checkpoint was added.)
+respectively, and were already historical before the prior checkpoint was added.)
 
-**Latest validation on merged `main` (`5f9f6da`):**
+**Validation on the prior checkpoint's merge point (`5f9f6da`), preserved as historical record:**
 
 Local:
 ```text
@@ -49,10 +164,15 @@ All 4 CI jobs passed. The 3-skipped/0-skipped difference between CI and local is
 CI-environment-specific characteristic (consistent with the same pattern noted for earlier
 merges in the sections below) and is not a discrepancy requiring investigation here.
 
-**Explicitly not part of this checkpoint**: `feat/ai-routing-hardening` remains **deferred and
-local-only** — it has **not** been resumed, merged, or completed. Do not describe it as merged
-or in any completed state; if picked back up, it needs its own audit/validation pass against
-whatever `main` looks like at that time, the same as every sprint below did against `e4bcd6d`.
+**Historical note on `feat/ai-routing-hardening`:** this branch name was previously used for
+deferred Phase 3 (AI-routing) work. It is **not** part of current shared `main`, and no remote
+branch by this name is treated as active project state by this checkpoint. Any surviving branch
+with this name on an individual developer's local machine is **machine-local state, not shared
+repository truth** — `docs/PROJECT_STATE.md` records shared project state, not any one
+developer's local Git checkout. Do not describe a local branch's presence or absence on any
+particular machine as part of current `main`/shared state either way. If a branch by this name
+is ever resumed, it must be audited fresh against whatever `main` looks like at that time, the
+same as every sprint below did against `e4bcd6d`.
 
 ---
 

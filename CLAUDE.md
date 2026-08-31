@@ -16,8 +16,7 @@ Core goals:
 
 Authoritative package metadata:
 - Package: `jarvis-assistant`
-- Current source version: `4.1.0` (previous stable was `4.0.1`; see note below)
-- Current source version: `4.1.0` (previous stable was `4.0.1`; sections below referencing v4.0.1 are historical release record, kept for context — see `docs/PROJECT_STATE.md` for the current baseline)
+- `pyproject.toml` package version string: `4.1.0`. This has **not** been bumped in lockstep with `CHANGELOG.md`'s development-milestone versions (v4.1.1 through v4.3.1 and beyond) — see the current-baseline note below. Do not "fix" this drift by bumping the version yourself; version normalization requires explicit release/versioning intent from the user.
 - Declared Python: `>=3.10`
 - Main CI / release Python: `3.13`
 - Console entry point: `jarvis = "jarvis.__main__:main"`
@@ -27,7 +26,35 @@ Repository:
 - `Duong-Phuoc-Hung/JARVIS`
 - Default branch: `main`
 
-> **v4.1.0 baseline note:** `main` has advanced past the v4.0.1 baseline described in sections 4/7/9/10 below (OS-level kernel sandboxing/security hardening from a separate contributor; see `CHANGELOG.md`'s v4.1.0 entry, `docs/SECURITY_ARCHITECTURE.md`, and `docs/TECHNICAL_AUDIT_REPORT.md` for that work — not reproduced here). Sections 4, 7, 9, and 10 below are **historical v4.0.1 release record**, kept for context; do not read them as describing the current `main`. Always trust `docs/PROJECT_STATE.md` and actual Git state for the current baseline.
+> **Current baseline note:** `main`'s `CHANGELOG.md` development history currently reaches **v4.3.1-era** work (real-microphone STT evaluation, sandbox/security hardening, `PromptGuard`, comms rate limiting, email IMAP hardening, Secrets Manager — see `docs/PROJECT_STATE.md` section 0 for the current checkpoint and exact commit). `pyproject.toml`'s package version (`4.1.0`), `config/default_config.yaml`'s `system.version` (`1.0.0`), and `README.md`'s version/test badges are three **separately-tracked, currently-unsynchronized** version strings — none of them reflect the v4.3.1-era `CHANGELOG.md` state, and this is known, deliberate-for-now drift, not something to silently correct mid-task. Sections 4, 7, 9, and 10 below are **historical v4.0.1 release record**, kept for context; do not read them as describing the current `main`. Always trust `docs/PROJECT_STATE.md` and actual Git state for the current baseline.
+
+## 1A. Durable current-baseline invariants (keep current across sessions)
+
+Summarized invariants, verified directly against code as of commit `a370633` (v4.3.1-era `CHANGELOG.md` state). Full rationale and file:line citations live in the referenced subsections below — update both together if either changes.
+
+**Safety** (see §8.3):
+- LLM output alone never authorizes destructive/high-risk action execution — `SafetyGateInterceptor.is_high_risk()` is a deterministic classifier (name sets, regexes, prefix matching), never an LLM decision.
+- Confirmation tokens are bound to the exact `action_name` + `parameters` they were issued for, and are one-shot-consumed (replay/mismatch fails closed with a distinct `CONFIRMATION_*` reason).
+- `ActionDispatcher.bypass_security` is privilege/RBAC-only — it never bypasses the destructive-action safety gate.
+
+**Sandbox** (see §8.2):
+- `CodeInterpreterSandbox.execute_python()`'s primary, and only, production Windows execution path is `spawn_low_integrity_process()`: OS Restricted Token + Low Integrity SID + Windows Job Object (assigned before the suspended child is resumed) + scrubbed environment + AST-validated/module-restricted preamble + bounded stdout/stderr capture.
+- The readiness sentinel is the retry-safety boundary: an unclassified or unproven-pre-execution bootstrap failure fails closed (never retried); only a formally-provable pre-user-code failure is retry-eligible.
+- The weaker compatibility fallback path requires an explicit opt-in env var and is never auto-detected from CI environment signals.
+- `spawn_appcontainer_process()` (zero-network AppContainer) is real and real-OS-tested, but is **not** currently `execute_python()`'s backend — do not imply production Python execution has AppContainer network isolation.
+
+**Prompt / comms security**:
+- `PromptGuard` sanitizes untrusted content before it reaches an LLM prompt; live callers include browser (`cdp_controller.py`, `scraper.py`), `email_imap.py`, and `skills/screen_context`.
+- Telegram/Discord/Zalo/Mobile Bridge each fail-close on an empty user/sender allowlist and each enforce `TokenBucketRateLimiter.acquire()` per inbound message; `email_imap.py` layers sender allowlist + subject-injection regex filter + fail-close HTML strip + `PromptGuard` + a hard body-length cap, but has no rate limiter of its own.
+- The secrets manager (`jarvis/security/secrets.py`) wraps Windows Credential Manager via `keyring`; reads fall back to env vars, but writes fail closed (never silently persist plaintext) when keyring is unavailable.
+
+**STT**:
+- `FasterWhisperSTT.transcribe()` applies 4 hallucination guards (`condition_on_previous_text=False`, `no_speech_threshold=0.6`, `log_prob_threshold=-1.0`, `compression_ratio_threshold=2.4`) plus an RMS/length post-filter.
+- The real-microphone eval dataset (`tests/eval/audio/`, `docs/eval/stt_eval_results.json`/`stt_eval_summaries.json`) is the preferred evidence for recognition quality — keep it distinct from (a) the real-CUDA-hardware-but-synthetic-audio throughput benchmark in `docs/benchmark_results.md` §1, and (b) the explicitly `[MOCK]`-tagged historical adapter figures in that doc's §2. Never cite (a) or (b) as a claim about speech-recognition accuracy — only the real-microphone eval measures that. The current dominant problem is high silent-failure/recognition-failure rate, not broad unsafe-action misrouting — misrouting holds flat at ~2.2% across models/conditions and drops to 0% above a confidence threshold. See `docs/PROJECT_STATE.md` section 0 for the current numbers.
+
+**Skills** (see §8.7):
+- `SkillRegistry.invoke_skill()` no longer rewrites packaged `metadata.json` on every invocation — telemetry persists to a separate atomic `SkillTelemetryStore`, not the manifest.
+- Two skill-manifest schema families ("jarvis_builtin_system" vs "JARVIS Core Team") still coexist unmigrated; `jarvis/skills/synthesizer.py` still writes fresh manifests via the telemetry-including `to_dict()` rather than `to_manifest_dict()` — a known, not-yet-fixed inconsistency, out of scope unless a task specifically targets it.
 
 ## 2. Startup procedure for every new Claude Code session
 
@@ -44,14 +71,13 @@ Before editing:
 5. Do not trust documentation over current code/tests when they disagree.
 
 Source-of-truth priority:
-1. Current source + Git state.
-2. `pyproject.toml` and workflow files.
-3. Executed tests/build output.
-4. `docs/PROJECT_STATE.md`.
-5. `CHANGELOG.md`.
-6. `README.md`, `PROJECT.md`, `.agents/**` historical handoffs.
+1. Current source + Git state (`git log`, `git status`, actual code).
+2. Executed/externally-verified CI or test evidence for the exact commit in question (e.g. a GitHub Actions run number tied to a specific SHA).
+3. `docs/PROJECT_STATE.md`'s current-checkpoint section (see its own internal "Section 0" convention — only the top checkpoint is current; everything below it is preserved historical record, not a description of `main` today).
+4. `CHANGELOG.md`.
+5. `pyproject.toml`, workflow files, `README.md`, `PROJECT.md`, `.agents/**` — useful for structure/config, but their version/test-count strings are known to drift and should not be trusted as current-state evidence over 1-4 above.
 
-Some historical docs are stale.
+Some historical docs are stale. Version strings in `pyproject.toml`/`README.md`/`config/default_config.yaml` are known to be out of sync with `CHANGELOG.md` development history — do not silently "fix" this drift as a side effect of an unrelated task; only change version strings when the user gives explicit release/versioning intent.
 
 ## 3. Git safety rules
 
@@ -103,7 +129,16 @@ At snapshot time:
 
 `main` is ahead of the v4.0.1 tag by documentation-only commits. This is expected. Do not retag v4.0.1 just to include docs.
 
-## 5. CI baseline (v4.0.1-era number; see `docs/PROJECT_STATE.md` for current)
+## 5. CI baseline
+
+**Current baseline** — commit `a370633e91be0e2e4c8cf9612e522e7889f7bad3`, GitHub Actions CI run #108, externally verified (not personally re-executed by an agent unless a session states otherwise):
+```text
+993 collected
+990 passed
+3 skipped
+0 failed
+```
+All four jobs green: Syntax Check, Unit Tests, Import Validation, Pipeline Summary.
 
 Workflow: `.github/workflows/ci.yml`
 
@@ -113,6 +148,7 @@ Environment:
 - `JARVIS_HEADLESS=1`
 - `JARVIS_MOCK_AUDIO=1`
 - `PYTHONIOENCODING=utf-8`
+- Unit Tests job only: `JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK=1` (explicit, narrow opt-in for a known GitHub-hosted-runner Restricted Token bootstrap incompatibility — see §8.2. Does not validate Low Integrity isolation end-to-end on that runner; production code never reads this from CI auto-detection.)
 
 Jobs:
 - Syntax Check
@@ -120,20 +156,18 @@ Jobs:
 - Import Validation
 - Pipeline Summary
 
-Validated unit baseline:
-- `tests/unit/`: **647 passed**
-- 46 subtests
-- 0 failed
-
 Preferred unit command:
 
 ```powershell
 python -m pytest tests/unit/ -q --timeout=60 --tb=short
 ```
 
-Known cosmetic inconsistency:
+Known cosmetic inconsistency (still present, non-blocking):
 - CI step is still named `Run 633 tests`.
-- Actual current unit baseline is 647.
+- Actual current collected count is 993 (see above), not 633.
+
+**Historical baseline (v4.0.1-era, superseded — kept for context only, do not cite as current):**
+- `tests/unit/`: 647 passed, 46 subtests, 0 failed.
 
 Do not claim the entire `tests/` tree is green. Broader adversarial/challenger, biometrics and e2e suites have pre-existing failures and/or optional dependency requirements such as `cv2`.
 
@@ -267,7 +301,8 @@ Policy:
 - **Output pipe is drained concurrently by a background reader thread, not read only after the wait (fixed during the agent-execution-hardening sprint — confirmed, reproducible bug, not hypothetical).** `spawn_low_integrity_process()` previously called `WaitForSingleObject(pi.hProcess, timeout_ms)` to wait for the *entire* child process to finish before ever calling `ReadFile` on the output pipe. Windows' default anonymous pipe buffer is ~4096 bytes; once a child's cumulative unread stdout+stderr exceeded that, its `write()`/`print()` blocked forever (pipe full, nobody draining) while the parent was itself stuck in `WaitForSingleObject` waiting for a process that could never finish — a classic pipe deadlock, resolved only by hitting the caller's own timeout and then misreporting the run as "timed out" instead of "succeeded with output." Empirically bisected to exactly 4096 bytes (4000 succeeds instantly, 4096 hangs for the full timeout, up to 25s tested). **Fix**: a daemon `threading.Thread` starts draining `h_read` via a `ReadFile` loop immediately after `CreateProcessAsUserW` succeeds (while the child is still `CREATE_SUSPENDED`, before `ResumeThread`), so the pipe is never left undrained at any point the child could be writing to it. `WaitForSingleObject`/timeout/`GetExitCodeProcess` handling is **completely unchanged** — the thread only changes *when* the pipe is read, not any isolation/token/Job-Object/`retry_safe` semantics. After the child exits (normally or via `TerminateProcess` on timeout), `reader_thread.join(timeout=5.0)` bounds the wait for drainage to finish; `_cleanup()` (the shared `finally` handler covering every exit path, including early `RestrictedProcessBootstrapError` raises) also joins the reader thread (bounded 2.0s) before closing `h_read`, avoiding a `CloseHandle` race against a pending `ReadFile` on another thread. Verified: 100–50000 byte outputs now all complete in ~0.13–0.14s; regression test `tests/unit/test_skill_synthesis.py::TestCodeInterpreterSandbox::test_sandbox_large_stdout_does_not_deadlock` (20000 bytes). All existing sandbox tests (`test_skill_synthesis.py`, `test_adversarial_r1_r2_r5_stress.py`, `test_hud_telemetry_and_memory.py`, `test_sandbox_compat_fallback.py`, `tests/integration/test_sandbox_os_boundaries.py`) re-run clean after this change.
 - **`_drain_pipe()`'s accumulation is capped at `_PIPE_READER_MAX_CAPTURE_BYTES = 1024 * 1024` (found and fixed in a follow-up pre-commit security review of the fix above).** The deadlock fix removed the *only* thing that previously bounded parent-process memory during pipe capture — the deadlock itself, which silently capped a runaway script to ~4KB before it blocked. Without an explicit cap, a long-running/verbose script (e.g. `while True: print(...)`) could make the reader thread retain unbounded data in the **JARVIS host process's own memory** for the entire timeout window (up to `MAX_PYTHON_EXEC_TIMEOUT_SECONDS=30.0` via the agent, or longer via direct `execute_python()` calls), long before `interpreter.py`'s own post-hoc `_MAX_STDOUT_CAPTURE_BYTES` truncation ever ran on the final joined string — a real resource-exhaustion regression distinct from the Job Object's `JobMemoryLimit` (which bounds the *child's* memory, not the parent's). Fix: once `captured >= _PIPE_READER_MAX_CAPTURE_BYTES`, `_drain_pipe()` keeps calling `ReadFile` in a loop (so the pipe — and thus the child — can never block again) but stops appending further bytes to `output_chunks`, discarding the excess. This constant is intentionally **not** imported from `interpreter.py`'s `_MAX_STDOUT_CAPTURE_BYTES` (would create a circular import, since `interpreter.py` imports from `security.py`) — keep the two conceptually in sync if either changes. Verified: a `while True: print('x'*100000)` loop against a 1.5s timeout still returns within bounded wall-clock time (no indefinite hang) with `len(stdout) < 2MB`, versus unbounded growth before this cap. Regression test: `tests/unit/test_skill_synthesis.py::TestCodeInterpreterSandbox::test_sandbox_runaway_output_does_not_grow_unbounded`.
 - Also added in the same review pass: `tests/unit/test_skill_synthesis.py::TestCodeInterpreterSandbox::test_sandbox_mixed_stdout_stderr_heavy_output_does_not_deadlock`, closing a coverage gap — no prior test exercised heavy/interleaved writes to `stderr` specifically through the real sandboxed subprocess. **Correction (found via GitHub Actions CI #75, backend-specific, not universal)**: stdout and stderr share one pipe (`hStdOutput == hStdError`) only on the primary OS Restricted Token path. On the explicit-opt-in compatibility fallback path (`JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK=1`, used by CI when it hits the known `0xC0000142` Restricted Token bootstrap failure — see the item above this one), `subprocess.Popen` captures stdout and stderr **separately**. The test was corrected to assert only the semantic contract that holds across both paths (success, no deadlock, both payloads present somewhere in `stdout + stderr` combined) rather than assuming they are always merged into `stdout`.
-- **Separate, non-security cosmetic defect found but deliberately NOT fixed here**: `strip_sandbox_ready_sentinel()` only matches an LF-terminated sentinel line (`SENTINEL + "\n"`); a CRLF-terminated child stdout (common on Windows) means the exact-match `.replace()` never fires, leaking the raw `\x02JARVIS_SANDBOX_READY_v1\x03` control-byte marker into `SandboxResult.stdout`. Not a security issue (no secret data, just a few marker bytes) and doesn't meet the "makes integration impossible" bar the pipe deadlock did, so `jarvis/sandbox/security.py` was left unmodified for this one; `jarvis/agent/tool_runtime.py::sandbox_result_to_tool_result()` does its own defensive, CRLF-tolerant cleanup on the consumer side instead (see §8.6). If this is ever fixed at the source, make `strip_sandbox_ready_sentinel()` tolerant of both line endings.
+- **`strip_sandbox_ready_sentinel()` handles LF, CRLF, and raw (no-line-ending) sentinel forms.** Verified directly against current source (`jarvis/sandbox/security.py::strip_sandbox_ready_sentinel()`): it strips the LF-terminated line, then explicitly also strips a CRLF-terminated form and a bare sentinel with no trailing newline. This is **not** a known limitation — a prior version of this document described an LF-only defect that no longer matches the code; do not reintroduce that claim without re-reading the function first. `jarvis/agent/tool_runtime.py::sandbox_result_to_tool_result()` still does its own defensive cleanup on the consumer side (see §8.6), which remains harmless/redundant given the source-side fix.
+- **`spawn_appcontainer_process()` exists and is real, but is NOT the production `execute_python()` backend.** `jarvis/sandbox/security.py` implements a second, independent isolation primitive — a Windows AppContainer launch path with `SECURITY_CAPABILITIES`/`CapabilityCount=0` (zero network capabilities), verified in real-OS tests (the "AppContainer B2" dual-evidence test: compute succeeds, `socket.connect()` is kernel-blocked). However, `jarvis/sandbox/interpreter.py::CodeInterpreterSandbox.execute_python()` only imports and calls `spawn_low_integrity_process()` (the Restricted Token path documented above) — `spawn_appcontainer_process()` has zero callers outside `tests/integration/test_sandbox_os_boundaries.py` and `tests/e2e/test_r3_network_sandbox_e2e.py`. Do not describe production Python execution as having AppContainer network isolation; it does not, today. Wiring AppContainer in as (or alongside) the production backend is an open, unstarted follow-up — see `docs/PROJECT_STATE.md`.
 
 ### 8.3 Central destructive-action safety layer (`jarvis/core/dispatcher.py`, `jarvis/planner/safety_interceptor.py`, `jarvis/planner/engine.py`)
 
