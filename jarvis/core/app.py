@@ -1490,8 +1490,16 @@ class JarvisApp:
                 if self.stt_engine:
                     try:
                         audio_flat = self.record_audio()
-                        transcript = self.stt_engine.transcribe(audio_flat)
-                        log.info("Transcribed: '%s'", transcript)
+                        # Timeout guard: STT must complete within 30s or we abort
+                        import concurrent.futures as _cf
+                        with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
+                            _fut = _ex.submit(self.stt_engine.transcribe, audio_flat)
+                            try:
+                                transcript = _fut.result(timeout=30.0)
+                                log.info("Transcribed: '%s'", transcript)
+                            except _cf.TimeoutError:
+                                log.error("STT transcription timed out after 30s")
+                                transcript = ""
                     except Exception as e:
                         log.error("STT recording/transcription failed: %s", e)
 
@@ -1517,16 +1525,36 @@ class JarvisApp:
 
                 response_text = ""
                 try:
-                    result = self.process_text_command(transcript, requester=trigger_name.lower())
-                    response_text = result.get("response_text", "")
+                    # Timeout guard: command processing must complete within 25s or we abort
+                    import concurrent.futures as _cf
+                    with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
+                        _fut = _ex.submit(self.process_text_command, transcript, trigger_name.lower())
+                        try:
+                            result = _fut.result(timeout=25.0)
+                            response_text = result.get("response_text", "")
+                        except _cf.TimeoutError:
+                            log.error("process_text_command timed out after 25s for transcript=%r", transcript)
+                            response_text = "Xin lỗi, xử lý lệnh mất quá nhiều thời gian. Vui lòng thử lại."
                 except Exception as e:
                     log.error("Command processing failed: %s", e)
                     response_text = f"Xin lỗi, tôi gặp lỗi khi xử lý lệnh: {e}"
-                    if self.tts_manager:
+
+                # ── Speak the response (was missing — caused complete silence) ──
+                if self.tts_manager:
+                    if response_text and response_text.strip():
                         self.tts_manager.speak(response_text, wait=True)
+                    else:
+                        # Unknown intent or empty response → explicit acknowledgement
+                        # instead of leaving the user in silence
+                        _unknown_phrase = self.config.get(
+                            "jarvis.unknown_intent_phrase",
+                            "Xin lỗi, tôi không hiểu lệnh đó. Bạn có thể nói lại không?"
+                        )
+                        self.tts_manager.speak(_unknown_phrase, wait=True)
+                        log.debug("Empty response_text for transcript=%r — spoke unknown_intent_phrase", transcript)
 
                 if self.overlay:
-                    self.overlay.show_response(transcript, response_text)
+                    self.overlay.show_response(transcript, response_text or "(Không nhận ra lệnh)")
 
                 if self.tray_controller:
                     self.tray_controller.update_status(TrayStatus.ACTIVE)

@@ -39,26 +39,23 @@ except ImportError:
 
 # ── Windows: register nvidia pip-wheel DLL directories so ctranslate2 can
 #    find cublas64_12.dll / cudnn*.dll even when not in system PATH.
-#    This is needed when CUDA Toolkit is NOT installed globally but the
-#    nvidia-cublas-cu12 / nvidia-cudnn-cu12 wheels ARE installed in the venv.
+#    Structure: site-packages/nvidia/<pkg>/bin/*.dll  (NOT nvidia.<pkg>.lib)
 if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
-    _nvidia_pkgs = (
-        "nvidia.cublas.lib",
-        "nvidia.cufft.lib",
-        "nvidia.curand.lib",
-        "nvidia.cusolver.lib",
-        "nvidia.cusparse.lib",
-        "nvidia.cudnn.lib",
-        "nvidia.cuda_runtime.lib",
-    )
-    for _pkg in _nvidia_pkgs:
-        try:
-            _mod = __import__(_pkg, fromlist=["__file__"])
-            _dll_dir = os.path.dirname(_mod.__file__)
-            if os.path.isdir(_dll_dir):
-                os.add_dll_directory(_dll_dir)
-        except (ImportError, AttributeError, OSError):
-            pass
+    try:
+        import site as _site
+        for _sp in _site.getsitepackages():
+            _nvidia_root = os.path.join(_sp, "nvidia")
+            if not os.path.isdir(_nvidia_root):
+                continue
+            for _pkg_name in os.listdir(_nvidia_root):
+                _bin_dir = os.path.join(_nvidia_root, _pkg_name, "bin")
+                if os.path.isdir(_bin_dir):
+                    try:
+                        os.add_dll_directory(_bin_dir)
+                    except OSError:
+                        pass
+    except Exception:
+        pass
 
 try:
     from faster_whisper import WhisperModel
