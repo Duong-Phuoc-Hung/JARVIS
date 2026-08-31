@@ -6,6 +6,7 @@ CLI shell execution plugin with ADMIN privilege enforcement and timeout protecti
 from __future__ import annotations
 
 import subprocess
+import sys
 from typing import Any
 
 from jarvis.core.dispatcher import ActionDispatcher
@@ -37,12 +38,14 @@ class ShellPlugin(BasePlugin):
     def exec_command(self, command: str, timeout: float = 5.0, **kwargs) -> dict[str, Any]:
         """Runs shell command with timeout limit."""
         try:
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             proc = subprocess.run(
                 command,
                 shell=True,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
+                creationflags=_cflags,
             )
             return {
                 "exit_code": proc.returncode,

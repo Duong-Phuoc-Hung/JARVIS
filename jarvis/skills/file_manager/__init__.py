@@ -58,7 +58,8 @@ def execute(
             if sys.platform == "win32":
                 os.startfile(str(target_dir))
             else:
-                subprocess.Popen(["explorer" if sys.platform == "win32" else "xdg-open", str(target_dir)])
+                _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                subprocess.Popen(["explorer" if sys.platform == "win32" else "xdg-open", str(target_dir)], creationflags=_cflags)
             msg = f"Đã mở thư mục: {target_dir}"
             return {"data": {"text": msg, "path": str(target_dir), "success": True}, "output": msg}
         except Exception as exc:

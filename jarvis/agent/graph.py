@@ -436,8 +436,10 @@ class ReActAgent:
 
     def _tool_git_status(self, **kw) -> dict:
         import subprocess
+        import sys
         try:
-            r = subprocess.run(["git", "status", "--short"], capture_output=True, text=True, timeout=5)
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            r = subprocess.run(["git", "status", "--short"], capture_output=True, text=True, timeout=5, creationflags=_cflags)
             return {"output": r.stdout or "Working tree clean"}
         except Exception as exc:
             return {"output": str(exc)}

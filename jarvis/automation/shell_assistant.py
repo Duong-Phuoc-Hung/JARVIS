@@ -311,20 +311,24 @@ class ShellAssistant:
         """Runs git status and returns Vietnamese TTS summary."""
         target_dir = os.path.abspath(repo_dir or self.default_cwd)
         try:
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             res = subprocess.run(
                 ["git", "status", "-s", "-b"],
                 cwd=target_dir,
                 capture_output=True,
                 text=True,
                 timeout=10,
+                creationflags=_cflags,
             )
             if res.returncode != 0:
+                _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                 res = subprocess.run(
                     ["git", "status"],
                     cwd=target_dir,
                     capture_output=True,
                     text=True,
                     timeout=10,
+                    creationflags=_cflags,
                 )
             output = res.stdout if res.returncode == 0 else res.stderr
             return self.parse_git_status_output(output)
@@ -339,7 +343,8 @@ class ShellAssistant:
         port_num = int(port)
         cmd = "netstat -ano"
         try:
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10, creationflags=_cflags)
             lines = res.stdout.splitlines() if res.stdout else []
             matching_lines = [
                 line for line in lines
@@ -370,12 +375,14 @@ class ShellAssistant:
             # Attempt to find process name
             if pid.isdigit() and int(pid) > 0:
                 try:
+                    _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                     task_res = subprocess.run(
                         f"tasklist /fi \"PID eq {pid}\" /fo csv /nh",
                         shell=True,
                         capture_output=True,
                         text=True,
                         timeout=5,
+                        creationflags=_cflags,
                     )
                     if task_res.stdout and '"' in task_res.stdout:
                         proc_name = task_res.stdout.split(",")[0].replace('"', "").strip()
@@ -407,7 +414,8 @@ class ShellAssistant:
             cmd = [sys.executable, "-m", "pip", "install", pkg]
 
         try:
-            res = subprocess.run(cmd, cwd=target_dir, capture_output=True, text=True, timeout=120)
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            res = subprocess.run(cmd, cwd=target_dir, capture_output=True, text=True, timeout=120, creationflags=_cflags)
             if res.returncode == 0:
                 return True, f"Đã cài đặt thành công gói '{pkg}', thưa Ngài."
             else:
@@ -422,11 +430,13 @@ class ShellAssistant:
     def docker_status(self) -> str:
         """Queries Docker containers and returns Vietnamese summary."""
         try:
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             res = subprocess.run(
                 ["docker", "ps", "-a", "--format", "{{.Names}}: {{.Status}}"],
                 capture_output=True,
                 text=True,
                 timeout=10,
+                creationflags=_cflags,
             )
             if res.returncode != 0:
                 return "Docker daemon hiện không hoạt động hoặc chưa được cài đặt trên máy tính, thưa Ngài."
@@ -445,12 +455,14 @@ class ShellAssistant:
     def docker_restart(self) -> str:
         """Restarts Docker containers."""
         try:
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             res = subprocess.run(
                 "docker restart $(docker ps -q)",
                 shell=True,
                 capture_output=True,
                 text=True,
                 timeout=30,
+                creationflags=_cflags,
             )
             if res.returncode == 0:
                 return "Đã khởi động lại toàn bộ các container Docker đang chạy, thưa Ngài."
@@ -549,6 +561,7 @@ class ShellAssistant:
 
         # Safe Execution
         try:
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             proc = subprocess.run(
                 cmd,
                 shell=True,
@@ -556,6 +569,7 @@ class ShellAssistant:
                 text=True,
                 timeout=60,
                 cwd=target_dir,
+                creationflags=_cflags,
             )
             raw_out = proc.stdout if proc.returncode == 0 else (proc.stderr or proc.stdout)
             summary = self.summarize_output(cmd, raw_out, proc.returncode)

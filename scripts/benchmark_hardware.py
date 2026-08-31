@@ -47,9 +47,11 @@ def get_hardware_info() -> dict[str, Any]:
     
     # Try reading detailed CPU and RAM via Windows wmic / powershell
     try:
+        _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         cpu_cmd = subprocess.run(
             ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_Processor | Select-Object -ExpandProperty Name"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True, text=True, timeout=5,
+            creationflags=_cflags,
         )
         if cpu_cmd.returncode == 0 and cpu_cmd.stdout.strip():
             info["cpu_name"] = cpu_cmd.stdout.strip()
@@ -57,9 +59,11 @@ def get_hardware_info() -> dict[str, Any]:
         pass
 
     try:
+        _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         ram_cmd = subprocess.run(
             ["powershell", "-NoProfile", "-Command", "(Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum / 1GB"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True, text=True, timeout=5,
+            creationflags=_cflags,
         )
         if ram_cmd.returncode == 0 and ram_cmd.stdout.strip():
             info["ram_total_gb"] = round(float(ram_cmd.stdout.strip()), 2)
@@ -68,9 +72,11 @@ def get_hardware_info() -> dict[str, Any]:
 
     # GPU Check
     try:
+        _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         gpu_cmd = subprocess.run(
             ["powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True, text=True, timeout=5,
+            creationflags=_cflags,
         )
         if gpu_cmd.returncode == 0 and gpu_cmd.stdout.strip():
             info["gpus"] = [g.strip() for g in gpu_cmd.stdout.strip().splitlines() if g.strip()]

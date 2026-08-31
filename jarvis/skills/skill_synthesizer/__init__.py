@@ -89,7 +89,8 @@ def _generate_skill_code(
             import subprocess, sys
             target = kwargs.get('target', query)
             try:
-                result = subprocess.run(['ping', '-n', '1', target], capture_output=True, text=True, timeout=5)
+                _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+                result = subprocess.run(['ping', '-n', '1', target], capture_output=True, text=True, timeout=5, creationflags=_cflags)
                 status = 'OK' if result.returncode == 0 else 'Timeout/Không phản hồi'
             except Exception as e:
                 status = f'Lỗi: {e}'

@@ -41,11 +41,13 @@ def create_windows_shortcut(
     ps_script += "\n    $Shortcut.Save()"
 
     try:
+        _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         res = subprocess.run(
             ["powershell", "-NoProfile", "-Command", ps_script],
             capture_output=True,
             text=True,
             check=True,
+            creationflags=_cflags,
         )
         print(f"[+] Shortcut created successfully: {shortcut_path}")
         return True

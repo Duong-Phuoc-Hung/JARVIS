@@ -572,6 +572,7 @@ class WindowsSpeechSTT(BaseSTTEngine):
                 f"$res = $engine.Recognize([TimeSpan]::FromSeconds({int(self.timeout_s)})); "
                 f"if ($res) {{ Write-Output $res.Text }}"
             )
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
             res2 = subprocess.run(
                 ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_fallback],
                 capture_output=True,

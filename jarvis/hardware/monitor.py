@@ -465,7 +465,8 @@ class HardwareMonitor:
                 "--query-gpu=utilization.gpu,temperature.gpu,memory.total,memory.used,fan.speed",
                 "--format=csv,noheader,nounits",
             ]
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=1.5)
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=1.5, creationflags=_cflags)
             if proc.returncode == 0 and proc.stdout.strip():
                 line = proc.stdout.strip().splitlines()[0]
                 tokens = [t.strip() for t in line.split(",")]
@@ -569,7 +570,8 @@ class HardwareMonitor:
                     "-Command",
                     "Get-CimInstance -Namespace 'root\\wmi' -ClassName 'MSStorageDriver_FailurePredictStatus' -ErrorAction SilentlyContinue | Select-Object InstanceName, Active, PredictFailure | ConvertTo-Json",
                 ]
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=2.0)
+                _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=2.0, creationflags=_cflags)
                 if proc.returncode == 0 and proc.stdout.strip():
                     data = json.loads(proc.stdout.strip())
                     items = data if isinstance(data, list) else [data]

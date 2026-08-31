@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -13,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 def _run_git(args: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
     """Execute git command safely."""
     try:
+        _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         proc = subprocess.run(
             ["git"] + args,
             cwd=str(cwd) if cwd else None,
@@ -21,6 +23,7 @@ def _run_git(args: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
             encoding="utf-8",
             errors="replace",
             timeout=10,
+            creationflags=_cflags,
         )
         return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
     except Exception as exc:

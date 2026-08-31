@@ -99,10 +99,12 @@ def build_exe(clean: bool = True) -> bool:
     # never silently linger across builds.
     _generate_spec_file()
 
+    _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     result = subprocess.run(
         [sys.executable, "-m", "PyInstaller", str(SPEC_FILE), "--noconfirm"],
         cwd=ROOT,
         env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        creationflags=_cflags,
     )
     if result.returncode != 0:
         print("  ❌ PyInstaller thất bại!")
@@ -231,7 +233,8 @@ def build_installer() -> bool:
         return False
 
     print("\n📦 Building Windows Installer...")
-    result = subprocess.run([str(inno), str(setup_iss)], cwd=ROOT)
+    _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    result = subprocess.run([str(inno), str(setup_iss)], cwd=ROOT, creationflags=_cflags)
     if result.returncode != 0:
         print("  ❌ Inno Setup thất bại!")
         return False
@@ -250,10 +253,12 @@ def build_installer() -> bool:
 def run_tests() -> bool:
     """Run test suite before building."""
     print("\n🧪 Chạy test suite trước khi build...")
+    _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "tests/unit/", "-q", "--tb=no", "--no-header", "-rN"],
         cwd=ROOT,
         env={**os.environ, "PYTHONIOENCODING": "utf-8", "JARVIS_MOCK_AUDIO": "1"},
+        creationflags=_cflags,
     )
     if result.returncode == 0:
         print("  ✅ Tất cả tests pass!")

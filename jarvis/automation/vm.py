@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -78,7 +79,8 @@ class VMOrchestrator:
             else:
                 cmd = [self.vboxmanage_path, "startvm", vm_name, "--type", "headless" if gui_mode == "nogui" else "gui"]
 
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30, creationflags=_cflags)
             success = (proc.returncode == 0)
             return {
                 "success": success,
@@ -122,7 +124,8 @@ class VMOrchestrator:
                 action = "acpipowerbutton" if mode == "soft" else "poweroff"
                 cmd = [self.vboxmanage_path, "controlvm", vm_name, action]
 
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30, creationflags=_cflags)
             success = (proc.returncode == 0)
             return {
                 "success": success,

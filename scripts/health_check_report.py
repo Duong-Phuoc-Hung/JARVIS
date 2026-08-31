@@ -25,12 +25,14 @@ REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 def run_health_check() -> dict:
     """Run health check and return results dict."""
     try:
+        _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         result = subprocess.run(
             [sys.executable, "-m", "jarvis", "health-check", "--format", "json"],
             capture_output=True,
             text=True,
             timeout=60,
             cwd=ROOT,
+            creationflags=_cflags,
         )
         if result.stdout.strip():
             return json.loads(result.stdout)
@@ -42,12 +44,14 @@ def run_health_check() -> dict:
 def run_test_count() -> dict:
     """Run pytest in collect-only mode to count tests."""
     try:
+        _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         result = subprocess.run(
             [sys.executable, "-m", "pytest", "tests/unit/", "--collect-only", "-q", "--tb=no"],
             capture_output=True,
             text=True,
             timeout=30,
             cwd=ROOT,
+            creationflags=_cflags,
         )
         lines = result.stdout.splitlines()
         for line in reversed(lines):

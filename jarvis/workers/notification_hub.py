@@ -217,6 +217,7 @@ class NotificationHub:
         try:
             # Fallback: PowerShell BurntToast / basic toast
             import subprocess
+            import sys
             ps = (
                 f"[Windows.UI.Notifications.ToastNotificationManager, "
                 f"Windows.UI.Notifications, ContentType=WindowsRuntime] | Out-Null; "
@@ -228,7 +229,8 @@ class NotificationHub:
                 f"[Windows.UI.Notifications.ToastNotificationManager]::"
                 f"CreateToastNotifier('JARVIS').Show($toast)"
             )
-            subprocess.run(["powershell", "-Command", ps], timeout=5, capture_output=True)
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            subprocess.run(["powershell", "-Command", ps], timeout=5, capture_output=True, creationflags=_cflags)
             return True
         except Exception as exc:
             log.debug("Toast fallback error: %s", exc)

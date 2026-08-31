@@ -56,9 +56,11 @@ def _execute_step(step: dict) -> dict:
             except ImportError:
                 # Fallback: powershell SendKeys
                 if sys.platform == "win32":
+                    _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                     subprocess.run(
                         ["powershell", "-Command", f"[System.Windows.Forms.SendKeys]::SendWait('{keys}')"],
                         timeout=5, capture_output=True,
+                        creationflags=_cflags,
                     )
             return {"success": True, "type": step_type, "description": description}
 
@@ -76,7 +78,8 @@ def _execute_step(step: dict) -> dict:
         elif step_type == "open":
             target = params.get("target", "")
             if target:
-                os.startfile(target) if sys.platform == "win32" else subprocess.Popen(["xdg-open", target])
+                _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                os.startfile(target) if sys.platform == "win32" else subprocess.Popen(["xdg-open", target], creationflags=_cflags)
             return {"success": True, "type": step_type, "description": description}
 
         else:

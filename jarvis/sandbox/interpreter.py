@@ -335,6 +335,7 @@ class CodeInterpreterSandbox:
                 # compatibility retry after a CONFIRMED pre-user-code
                 # bootstrap failure (see above). Never reached silently.
                 import ctypes
+                _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                 process = subprocess.Popen(
                     cmd_list,
                     cwd=str(scratch_dir),
@@ -344,6 +345,7 @@ class CodeInterpreterSandbox:
                     text=True,
                     encoding="utf-8",
                     errors="replace",
+                    creationflags=_cflags,
                 )
 
                 # The Job Object is a declared security/resource boundary
@@ -516,6 +518,7 @@ class CodeInterpreterSandbox:
         timed_out = False
 
         try:
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             process = subprocess.run(
                 cmd,
                 cwd=str(scratch_dir),
@@ -525,6 +528,7 @@ class CodeInterpreterSandbox:
                 timeout=timeout,
                 encoding="utf-8",
                 errors="replace",
+                creationflags=_cflags,
             )
             stdout = process.stdout
             stderr = process.stderr

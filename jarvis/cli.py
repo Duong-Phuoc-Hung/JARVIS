@@ -8,10 +8,12 @@ import argparse
 import os
 import sys
 from collections.abc import Sequence
+from typing import Any
 
 from jarvis import __version__
 from jarvis.core.config import ConfigManager
 from jarvis.core.logger import get_logger, setup_logging
+from jarvis.core.paths import data_path
 
 log = get_logger("jarvis.cli")
 

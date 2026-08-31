@@ -444,7 +444,8 @@ class ComputerController:
         if sys.platform == "win32":
             try:
                 cmd = f"powershell -NoProfile -Command \"(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods).WmiSetBrightness(1, {lvl})\""
-                subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3)
+                _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3, creationflags=_cflags)
             except Exception:
                 pass
 
@@ -547,7 +548,8 @@ class ComputerController:
                 os.startfile(target)  # type: ignore
                 return True
             else:
-                subprocess.Popen(["explorer.exe", target])
+                _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                subprocess.Popen(["explorer.exe", target], creationflags=_cflags)
                 return True
         except Exception:
             return False
@@ -718,21 +720,25 @@ class ComputerController:
                     if sys.platform == "win32" and hasattr(os, "startfile"):
                         os.startfile(expanded)  # type: ignore
                     else:
-                        subprocess.Popen([expanded], shell=False)
+                        _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                        subprocess.Popen([expanded], shell=False, creationflags=_cflags)
                     return {"success": True, "app": clean_name, "message": f"Đã mở ứng dụng {clean_name}, thưa Ngài."}
 
+                _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                 subprocess.Popen(
                     f"start \"\" \"{expanded}\"",
                     shell=True,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    creationflags=_cflags,
                 )
                 return {"success": True, "app": clean_name, "message": f"Đã khởi chạy {clean_name}, thưa Ngài."}
             except Exception:
                 continue
 
         try:
-            subprocess.Popen(clean_name, shell=True)
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            subprocess.Popen(clean_name, shell=True, creationflags=_cflags)
             return {"success": True, "app": clean_name, "message": f"Đã khởi chạy {clean_name}, thưa Ngài."}
         except Exception as exc:
             return {"success": False, "app": clean_name, "error": str(exc), "message": f"Không thể mở {clean_name}: {exc}"}
@@ -777,7 +783,8 @@ class ComputerController:
                 if sys.platform == "win32" and hasattr(os, "startfile"):
                     os.startfile(url)  # type: ignore
                     return {"success": True, "url": url, "message": f"Đã mở {url} cho Ngài."}
-                subprocess.Popen(f"start {url}", shell=True)
+                _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                subprocess.Popen(f"start {url}", shell=True, creationflags=_cflags)
                 return {"success": True, "url": url, "message": f"Đã mở {url} cho Ngài."}
             except Exception as exc:
                 return {"success": False, "url": url, "error": str(exc), "message": f"Không thể mở trang web: {exc}"}

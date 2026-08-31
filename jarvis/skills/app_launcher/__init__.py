@@ -68,11 +68,12 @@ def execute(
         if args:
             cmd.extend(args.split())
 
+        _cflags = (subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP) if sys.platform == "win32" else 0
         subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0,
+            creationflags=_cflags,
         )
         msg = f"🚀 Đã khởi chạy ứng dụng '{app_name}' thành công."
         return {

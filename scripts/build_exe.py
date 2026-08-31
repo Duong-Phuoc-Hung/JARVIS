@@ -34,7 +34,8 @@ def build_executable(
     except ImportError:
         print("[!] PyInstaller is not installed in the current environment.")
         print("[*] Installing PyInstaller via pip...")
-        res = subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"], check=False)
+        _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+        res = subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"], check=False, creationflags=_cflags)
         if res.returncode != 0:
             print("[X] Failed to install PyInstaller.")
             return res.returncode
@@ -114,7 +115,8 @@ def build_executable(
     print("[*] Running command:")
     print(" ".join(cmd))
 
-    proc = subprocess.run(cmd)
+    _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    proc = subprocess.run(cmd, creationflags=_cflags)
     if proc.returncode == 0:
         exe_ext = ".exe" if sys.platform == "win32" else ""
         out_file = Path(distpath) / f"JARVIS{exe_ext}"
