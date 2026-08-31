@@ -32,8 +32,6 @@ import ast
 import re
 from pathlib import Path
 
-import yaml
-
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
@@ -125,24 +123,24 @@ def test_system_version_config_key_present_and_independent():
     """config/default_config.yaml's system.version is preserved for backward
     compatibility (still present, still a string) but is not required to
     equal jarvis.__version__ -- see the NOTE comment beside it in the YAML
-    file and the CASE-B classification in CLAUDE.md / docs/PROJECT_STATE.md."""
-    cfg_path = REPO_ROOT / "config" / "default_config.yaml"
-    data = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+    file and the CASE-B classification in CLAUDE.md / docs/PROJECT_STATE.md.
 
-    system_version = data.get("system", {}).get("version")
-    assert system_version is not None
-    assert isinstance(system_version, str)
+    Reads it via ConfigManager's normal loading path rather than parsing the
+    YAML file directly with PyYAML: PyYAML is an optional dependency (not
+    installed in CI's Unit Tests job), and ConfigManager already has its own
+    built-in fallback parser for exactly this environment -- using it here
+    keeps this test honest about the no-PyYAML-installed path the rest of
+    the test suite also has to support, instead of silently requiring an
+    optional dependency to even collect.
 
-
-def test_config_manager_system_version_is_generic_inert_data():
-    """Documents the CASE-B compatibility invariant via observable
-    ConfigManager behavior instead of a brittle source-text scan: the
-    "system.version" config key round-trips through ConfigManager's normal
-    dot-notation get()/set() like any other generic config value (it is not
-    silently dropped or specially handled), but it is fully decoupled from
-    jarvis.__version__ -- overriding it to an arbitrary value has zero
-    effect on the runtime version constant, because no production code path
-    reads this key to determine "the version" of anything."""
+    This also documents the CASE-B compatibility invariant via observable
+    ConfigManager behavior: the "system.version" key round-trips through
+    ConfigManager's normal dot-notation get()/set() like any other generic
+    config value (it is not silently dropped or specially handled), but it
+    is fully decoupled from jarvis.__version__ -- overriding it to an
+    arbitrary value has zero effect on the runtime version constant, because
+    no production code path reads this key to determine "the version" of
+    anything."""
     import jarvis
     from jarvis.core.config import ConfigManager
 
