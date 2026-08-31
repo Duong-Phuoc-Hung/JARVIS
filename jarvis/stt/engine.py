@@ -36,6 +36,30 @@ except ImportError:
     requests = None  # type: ignore[assignment]
     REQUESTS_AVAILABLE = False
 
+
+# ── Windows: register nvidia pip-wheel DLL directories so ctranslate2 can
+#    find cublas64_12.dll / cudnn*.dll even when not in system PATH.
+#    This is needed when CUDA Toolkit is NOT installed globally but the
+#    nvidia-cublas-cu12 / nvidia-cudnn-cu12 wheels ARE installed in the venv.
+if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
+    _nvidia_pkgs = (
+        "nvidia.cublas.lib",
+        "nvidia.cufft.lib",
+        "nvidia.curand.lib",
+        "nvidia.cusolver.lib",
+        "nvidia.cusparse.lib",
+        "nvidia.cudnn.lib",
+        "nvidia.cuda_runtime.lib",
+    )
+    for _pkg in _nvidia_pkgs:
+        try:
+            _mod = __import__(_pkg, fromlist=["__file__"])
+            _dll_dir = os.path.dirname(_mod.__file__)
+            if os.path.isdir(_dll_dir):
+                os.add_dll_directory(_dll_dir)
+        except (ImportError, AttributeError, OSError):
+            pass
+
 try:
     from faster_whisper import WhisperModel
     FASTER_WHISPER_AVAILABLE = True
@@ -431,7 +455,6 @@ class FasterWhisperSTT(BaseSTTEngine):
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.model_size = self.config.get("model_size", "base")
-        self.device = self.config.get("device", "cpu")
         self.compute_type = self.config.get("compute_type", "int8")
         _raw_root = self.config.get("download_root", "") or ""
         if not _raw_root:
@@ -441,6 +464,49 @@ class FasterWhisperSTT(BaseSTTEngine):
         self.download_root = _raw_root
         self._model: Any | None = None
         self._lock = threading.RLock()
+
+        # Auto-detect CUDA availability; fall back to CPU if CUDA libs missing
+        requested_device = self.config.get("device", "cpu")
+        self.device = self._resolve_device(requested_device)
+        if self.device != requested_device:
+            log.warning(
+                "faster-whisper: requested device=%r but CUDA unavailable — falling back to device=%r. "
+                "Install 'nvidia-cublas-cu12' or CUDA Toolkit 12.x to use GPU.",
+                requested_device, self.device,
+            )
+            # CPU-friendly compute type
+            if self.compute_type in ("float16", "int8_float16", "bfloat16"):
+                self.compute_type = "int8"
+
+    @staticmethod
+    def _resolve_device(requested: str) -> str:
+        """Returns 'cuda' if CUDA is truly usable, else 'cpu'."""
+        if requested != "cuda":
+            return requested
+        if not FASTER_WHISPER_AVAILABLE:
+            return "cpu"
+        try:
+            import ctranslate2
+            if ctranslate2.get_cuda_device_count() < 1:
+                return "cpu"
+            # Quick smoke-test: verify cublas DLL loads
+            import ctypes
+            for dll in ("cublas64_12.dll", "cublas64_11.dll"):
+                try:
+                    ctypes.CDLL(dll)
+                    return "cuda"
+                except OSError:
+                    continue
+            # DLL not in PATH — try locating via nvidia wheel
+            try:
+                import nvidia.cublas.lib  # noqa: F401 (nvidia-cublas-cu12 wheel)
+                return "cuda"
+            except ImportError:
+                pass
+            log.warning("CUDA device found but cublas DLL missing. Falling back to CPU.")
+            return "cpu"
+        except Exception:
+            return "cpu"
 
     @property
     def engine_name(self) -> str:
