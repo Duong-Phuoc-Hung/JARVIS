@@ -137,7 +137,7 @@ def run_single_model(model_name: str, audio_root: Path, conditions: list[str],
                 t0 = time.perf_counter()
                 segs, _ = model.transcribe(str(wav_path), language=language,
                     beam_size=BEAM_SIZE, condition_on_previous_text=False,
-                    no_speech_threshold=0.6, logprob_threshold=-1.0,
+                    no_speech_threshold=0.6, log_prob_threshold=-1.0,
                     compression_ratio_threshold=2.4)
                 texts, lps = [], []
                 for s in segs:

@@ -570,7 +570,7 @@ class FasterWhisperSTT(BaseSTTEngine):
                 no_speech_threshold=0.6,
                 # (3) Log-probability gate: discard segments whose average
                 #     token log-prob < -1.0 (model is very uncertain → likely garbage).
-                logprob_threshold=-1.0,
+                log_prob_threshold=-1.0,
                 # (4) Compression-ratio gate: a compression ratio > 2.4 on the
                 #     transcript relative to audio suggests repetitive hallucination.
                 compression_ratio_threshold=2.4,
