@@ -4,6 +4,58 @@
 > Snapshot: 2026-08-31.
 > Always verify Git state and current code before relying on this snapshot.
 
+## 0. Current Checkpoint (2026-08-31) — READ THIS FIRST
+
+This is the single authoritative "what's true right now" section. Everything below it —
+`0-PRE`, `0-PRE2`, `0-PRE3`, `0A`, `0B`, `0C`, `0D`, and the older `## 1` onward sections —
+is a **historical, point-in-time snapshot** captured while each piece of work was still
+in progress. Their "in progress, uncommitted, not pushed, no PR opened" language describes
+the state **at the moment that section was written**, not the current repository state.
+Do not read any "in progress, uncommitted" statement below this checkpoint as describing
+`main` today — all of that work has since merged. Detailed historical records, findings,
+and validation numbers in those sections are preserved as-is and are not being rewritten;
+use this checkpoint, plus actual `git log`/`git status`, as the source of truth for current
+state.
+
+**Current `main`:** `5f9f6da` (`Merge pull request #13 from Huynh-Minh-Hoa/feat/skill-plugin-hardening`)
+
+**Merged since the last stable baseline (`e4bcd6d`) — all now on `main`, all closed, 0 open PRs:**
+- PR #11 — Gesture/Data Reference-Hardening (corresponds to section `0-PRE` below)
+- PR #12 — Agent Execution Hardening (corresponds to section `0-PRE2` below)
+- PR #13 — Skill/Plugin Manifest & Telemetry Hardening (corresponds to section `0-PRE3` below)
+
+(Sections `0A`–`0D` — Wake Word Phase 1, Sandbox CI Compatibility Fix, Central Safety-Layer
+Hardening, and Biometrics Hardening — were merged earlier, via PR #8, #9, #10, and #14
+respectively, and were already historical before this checkpoint was added.)
+
+**Latest validation on merged `main` (`5f9f6da`):**
+
+Local:
+```text
+907 collected
+907 passed
+0 skipped
+0 failed
+```
+
+GitHub Actions CI (run #88):
+```text
+907 collected
+904 passed
+3 skipped
+0 failed
+```
+All 4 CI jobs passed. The 3-skipped/0-skipped difference between CI and local is a
+CI-environment-specific characteristic (consistent with the same pattern noted for earlier
+merges in the sections below) and is not a discrepancy requiring investigation here.
+
+**Explicitly not part of this checkpoint**: `feat/ai-routing-hardening` remains **deferred and
+local-only** — it has **not** been resumed, merged, or completed. Do not describe it as merged
+or in any completed state; if picked back up, it needs its own audit/validation pass against
+whatever `main` looks like at that time, the same as every sprint below did against `e4bcd6d`.
+
+---
+
 ## 0-PRE. Gesture/Data Reference-Integration Sprint (in progress, uncommitted)
 
 Snapshot: 2026-08-31. Branch `feat/gesture-data-reference-hardening`, based on `main` at `e4bcd6d015dec2796e0f50e88b5c9f69b58bb1f7`. Time-boxed (~3 hours). Local working-tree change, **not committed, not pushed, no PR opened**.
@@ -786,6 +838,11 @@ Push this branch and open a PR into `main` once the user reviews the diff. CI ha
 ---
 
 ## 1. Current state summary
+
+> **Historical note**: despite the section title, this is an **older v4.0.1-era snapshot**
+> (predates even the v4.1.0 sync referenced in section `0A`), kept for historical continuity.
+> For the actual current state of `main`, see **section `0` — Current Checkpoint** at the top
+> of this file. This section's figures (662 passed, v4.0.1 tag, etc.) are not being rewritten.
 
 JARVIS is currently at source version **4.1.0** and has completed a 13-round deep Adversarial Technical Audit, establishing true OS Kernel-level sandboxing (Windows MIC + Job Object) and empirical hardware benchmarking.
 
