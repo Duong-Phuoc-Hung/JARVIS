@@ -2,6 +2,57 @@
 
 ---
 
+## 🔧 v4.2.1 — STT Hallucination Guard & Eval Framework (2026-08-31)
+
+> **3 commits | Từ phát hiện audit → fix thật + framework test sẵn sàng**
+
+### 🔴 fix(stt): Hallucination Mitigation — 4 lớp guard + RMS/length post-filter
+
+**`jarvis/stt/engine.py`** — Phát hiện trong WER proxy test: `large-v3` hallucinate
+*"Hãy subscribe cho kênh La La School..."* từ audio 4 từ — rủi ro sản phẩm thật
+(JARVIS có thể thực thi lệnh người dùng chưa nói).
+
+Bốn mitigation thêm vào `FasterWhisperSTT.transcribe()`:
+
+| Guard | Parameter | Catches |
+|-------|-----------|---------|
+| Segment isolation | `condition_on_previous_text=False` | Hallucination chaining |
+| No-speech gate | `no_speech_threshold=0.6` | Silence/noise segment |
+| Log-prob gate | `logprob_threshold=-1.0` | Low-certainty output |
+| Compression gate | `compression_ratio_threshold=2.4` | Repetitive loops |
+
+Post-filter (5): `audio_rms < 0.005 AND words > 3` → log WARNING + discard.
+Mọi transcription đều log `language_probability`, `RMS`, `segments accepted` ở DEBUG level.
+
+Phân loại đúng trong Bảng Bảo Mật: **Risk-Reduction** (không phải Hard Boundary —
+hallucination là bài toán xác suất, không thể đóng tuyệt đối).
+
+### ✅ test(sandbox): AppContainer B2 Dual-Evidence Test
+
+**`tests/e2e/test_r3_network_sandbox_e2e.py`** — Thêm `TestR3DualEvidenceStartupAndBlocking`
+với **hai vế độc lập**:
+- **Part A:** Compute (`math.factorial`, `hashlib`, file I/O) chạy thành công → subprocess khởi động đúng ACL
+- **Part B:** `socket.connect()` bị chặn cụ thể → network isolation thực sự hoạt động
+
+Startup crash → Part A fail. Không block → Part B fail. Không thể pass vacuously.
+
+### 📊 feat(eval): STT Intent Misrouting Rate Evaluation Framework
+
+**`tests/eval/stt_intent_eval.py`** — Framework đánh giá kiến trúc STT hai tầng khi có audio mic thật.
+
+Thiết kế theo 3 nguyên tắc (domain-closed system):
+- **Metric đúng:** Intent Misrouting Rate, không phải WER tuyệt đối
+- **Hai điều kiện âm học:** `clean` (phòng yên tĩnh) + `noisy` (có tiếng ồn nền)
+- **Ba nhóm kết quả** với tác động khác nhau:
+  - `CORRECT` — không vấn đề
+  - `MISROUTED` — rủi ro an toàn (thực thi sai lệnh)
+  - `SILENT_FAILURE` — chỉ UX issue, không phải safety risk
+- **Đường cong ngưỡng confidence** 0.3→0.9, tự động đánh dấu Pareto candidate
+
+Cách dùng: thu âm → đặt vào `tests/eval/audio/{clean,noisy}/{intent}/variant_N.wav` → chạy script.
+
+---
+
 ## 🔐 v4.2.0 — Security Hardening & Stability (2026-08-31)
 
 > **7 workstreams | 1,189 tests — 100% pass | VICTORY CONFIRMED (independent forensic audit)**
