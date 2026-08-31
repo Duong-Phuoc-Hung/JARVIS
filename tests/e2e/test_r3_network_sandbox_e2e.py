@@ -269,3 +269,126 @@ except Exception as exc:
         assert result.success is True
         assert "SSL_CONTEXT_CREATED" not in result.stdout
         assert "SSL_BLOCKED" in result.stdout
+
+
+# ============================================================================
+# DUAL-EVIDENCE TEST: subprocess starts AND non-network code runs successfully
+# ============================================================================
+
+class TestR3DualEvidenceStartupAndBlocking:
+    """
+    Critical dual-evidence test to rule out the failure mode where AppContainer
+    process dies at startup (bad ACLs) rather than blocking only network calls.
+
+    A process that crashes at startup would also "pass" network-blocking tests
+    vacuously (no network traffic because nothing ran). This test class provides
+    two separate, independent assertions:
+
+    1. The sandboxed subprocess starts and executes non-network computation correctly.
+    2. The same (or equivalent) subprocess rejects socket.connect() specifically.
+
+    Both must hold simultaneously. If the process died at startup, assertion #1 fails.
+    If network is not actually blocked, assertion #2 fails.
+    """
+
+    @pytest.mark.real_os
+    def test_r3_dual_evidence_compute_succeeds_then_socket_blocked(self, os_test_sandbox):
+        """
+        DUAL EVIDENCE:
+        Part A — Non-network code executes correctly (proves subprocess started with valid ACLs).
+        Part B — socket.connect() is blocked specifically (proves network isolation works).
+
+        Both assertions are required. Passing only Part B could mean the process
+        crashed at startup and never reached the socket call.
+        """
+        code = """
+import math
+import hashlib
+
+# ── Part A: Non-network computation (must succeed) ────────────────────────
+result_math = math.factorial(10)                  # 3628800
+result_hash = hashlib.sha256(b"jarvis").hexdigest()[:8]   # deterministic
+result_str  = "hello" + "_" + "sandbox"           # string concat
+
+print(f"COMPUTE_OK math={result_math} hash={result_hash} str={result_str}")
+
+# ── Part B: Network socket specifically blocked ────────────────────────────
+try:
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(1.0)
+    s.connect(("8.8.8.8", 80))
+    print("SOCKET_CONNECT_SUCCESS")
+except (PermissionError, OSError, AttributeError, Exception) as exc:
+    print(f"SOCKET_BLOCKED_{type(exc).__name__}")
+"""
+        result = os_test_sandbox.execute_python(code, timeout_seconds=8.0)
+
+        # Part A: subprocess started, ran, and computed correctly
+        assert result.success is True, (
+            "Sandbox subprocess did not execute successfully — "
+            "possible AppContainer ACL misconfiguration causing startup crash."
+        )
+        assert "COMPUTE_OK" in result.stdout, (
+            f"Non-network computation did not produce output — "
+            f"subprocess may have crashed at startup. stdout={result.stdout!r}"
+        )
+        # Verify specific computed values (not just that COMPUTE_OK printed)
+        assert "math=3628800" in result.stdout, (
+            "math.factorial(10) returned wrong result — subprocess compute integrity issue."
+        )
+        assert "str=hello_sandbox" in result.stdout, (
+            "String concat produced wrong result — subprocess compute integrity issue."
+        )
+
+        # Part B: network specifically blocked (independent of Part A)
+        assert "SOCKET_CONNECT_SUCCESS" not in result.stdout, (
+            "socket.connect() succeeded — network sandbox B2 is NOT blocking outbound connections."
+        )
+        assert "SOCKET_BLOCKED" in result.stdout, (
+            f"Expected SOCKET_BLOCKED marker not found. stdout={result.stdout!r}"
+        )
+
+    @pytest.mark.real_os
+    def test_r3_dual_evidence_file_write_succeeds_network_blocked(self, os_test_sandbox, tmp_path):
+        """
+        DUAL EVIDENCE (file I/O variant):
+        Part A — Writing to the sandbox scratch directory works (proves subprocess runs with
+                 correct permissions for allowed operations).
+        Part B — Outbound UDP to port 53 (DNS) is blocked.
+        """
+        scratch = tmp_path / "dual_evidence_scratch"
+        scratch.mkdir()
+        sentinel_path = scratch / "sentinel.txt"
+
+        code = f"""
+import pathlib
+
+# ── Part A: Allowed file I/O in scratch (must succeed) ────────────────────
+p = pathlib.Path(r"{sentinel_path}")
+p.parent.mkdir(parents=True, exist_ok=True)
+p.write_text("dual_evidence_sentinel")
+read_back = p.read_text()
+print(f"FILE_IO_OK read_back={{read_back}}")
+
+# ── Part B: DNS / UDP network blocked ─────────────────────────────────────
+try:
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.sendto(b"\\x00" * 12, ("8.8.8.8", 53))
+    print("DNS_UDP_SUCCESS")
+except Exception as exc:
+    print(f"DNS_UDP_BLOCKED_{{type(exc).__name__}}")
+"""
+        result = os_test_sandbox.execute_python(code, timeout_seconds=8.0)
+
+        # Part A
+        assert result.success is True
+        assert "FILE_IO_OK" in result.stdout, (
+            f"File I/O in scratch failed — subprocess may not have started. stdout={result.stdout!r}"
+        )
+        assert "read_back=dual_evidence_sentinel" in result.stdout
+
+        # Part B
+        assert "DNS_UDP_SUCCESS" not in result.stdout
+        assert "DNS_UDP_BLOCKED" in result.stdout
