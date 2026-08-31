@@ -21,6 +21,7 @@ from jarvis.browser.models import (
     PriceComparisonItem,
     ScrapeResult,
 )
+from jarvis.security.prompt_guard import PromptGuard
 
 logger = logging.getLogger(__name__)
 
@@ -525,17 +526,22 @@ class WebScraper:
         self.data_extractor = StructuredDataExtractor()
 
     def scrape_html(self, html_content: str, url: str = "") -> ScrapeResult:
-        """Parse raw HTML content into a full ScrapeResult."""
+        """Parse raw HTML content into a full ScrapeResult with PromptGuard sanitization."""
         # 1. Document Title
         title_m = re.search(r"<title[^>]*>(.*?)</title>", html_content, re.IGNORECASE | re.DOTALL)
-        title = html_module.unescape(title_m.group(1).strip()) if title_m else ""
+        raw_title = html_module.unescape(title_m.group(1).strip()) if title_m else ""
+        title = PromptGuard.sanitize(raw_title, source=url or "web").clean_text if raw_title else ""
 
         # 2. Markdown Content
-        md_content = self.markdown_converter.convert(html_content)
+        raw_md = self.markdown_converter.convert(html_content)
+        md_sanitized = PromptGuard.sanitize(raw_md, source=url or "web") if raw_md else None
+        md_content = md_sanitized.clean_text if md_sanitized else ""
 
         # 3. Plain Text Content
-        plain_text = " ".join(re.sub(r"<[^>]+>", " ", html_content).split())
-        plain_text = html_module.unescape(plain_text)
+        plain_text_raw = " ".join(re.sub(r"<[^>]+>", " ", html_content).split())
+        plain_text_raw = html_module.unescape(plain_text_raw)
+        text_sanitized = PromptGuard.sanitize(plain_text_raw, source=url or "web") if plain_text_raw else None
+        plain_text = text_sanitized.clean_text if text_sanitized else ""
 
         # 4. Tables
         tables = self.table_parser.parse_tables(html_content)
@@ -543,6 +549,11 @@ class WebScraper:
         # 5. Structured Data & Links
         structured = self.data_extractor.extract_structured_data(html_content, base_url=url)
         links, images = self.data_extractor.extract_links_and_images(html_content, base_url=url)
+
+        is_suspicious = bool(
+            (md_sanitized and md_sanitized.is_suspicious) or
+            (text_sanitized and text_sanitized.is_suspicious)
+        )
 
         return ScrapeResult(
             url=url,
@@ -553,5 +564,10 @@ class WebScraper:
             links=links,
             images=images,
             tables=tables,
-            metadata={"html_size_bytes": len(html_content), "tables_count": len(tables)},
+            metadata={
+                "html_size_bytes": len(html_content),
+                "tables_count": len(tables),
+                "is_suspicious": is_suspicious,
+                "prompt_guard_active": True,
+            },
         )

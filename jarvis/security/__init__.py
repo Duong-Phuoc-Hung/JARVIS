@@ -10,6 +10,7 @@ Features:
 """
 from __future__ import annotations
 
+from jarvis.security.prompt_guard import PromptGuard, SanitizationResult
 from jarvis.security.report import SecurityPrivilegeGate, SecurityReportGenerator
 from jarvis.security.scanner import (
     HostScanResult,
@@ -29,6 +30,8 @@ __all__ = [
     "NmapScannerWrapper",
     "PacketCapture",
     "PacketCaptureResult",
+    "PromptGuard",
+    "SanitizationResult",
     "ScanReport",
     "SecurityPrivilegeGate",
     "SecurityReportGenerator",

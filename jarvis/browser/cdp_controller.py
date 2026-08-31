@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from jarvis.security.prompt_guard import PromptGuard
+
 log = logging.getLogger("jarvis.browser.cdp")
 
 
@@ -284,7 +286,7 @@ class BrowserCDPController:
             return ""
 
     def extract_content_as_markdown(self) -> str:
-        """Extract visible text content of current page as Markdown."""
+        """Extract visible text content of current page as sanitized Markdown."""
         if self.is_mock:
             return "# Mock Page Content\n\nThis is mock extracted content."
 
@@ -302,7 +304,10 @@ class BrowserCDPController:
                 ).filter(t => t.length > 20);
                 return [...headings, ...paragraphs].slice(0, 80).join('\\n\\n');
             }""")
-            return content or ""
+            if content:
+                sanitized = PromptGuard.sanitize(content, source=self.get_current_url() or "browser_cdp")
+                return sanitized.clean_text
+            return ""
         except Exception as exc:
             log.error("Content extraction error: %s", exc)
             return ""
