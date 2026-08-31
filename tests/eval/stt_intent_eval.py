@@ -1,4 +1,4 @@
-﻿"""
+"""
 tests/eval/stt_intent_eval.py
 ==============================
 Intent Misrouting Rate evaluation framework for JARVIS STT architecture decision.

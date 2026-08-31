@@ -1,4 +1,4 @@
-﻿"""
+"""
 tests/eval/record_test_set.py
 ==============================
 Guided recording tool for JARVIS STT Intent Misrouting Rate evaluation.
