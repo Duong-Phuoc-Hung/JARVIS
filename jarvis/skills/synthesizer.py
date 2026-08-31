@@ -150,6 +150,13 @@ class DynamicSkillSynthesizer:
 
         # If code already defines the entrypoint function, wrap with header docstring
         has_entrypoint = bool(re.search(rf"\bdef\s+{entrypoint_function}\b", clean_code))
+        if not has_entrypoint:
+            func_match = re.search(r"\bdef\s+([a-zA-Z0-9_]+)\s*\(", clean_code)
+            if func_match:
+                defined_func = func_match.group(1)
+                if defined_func in ("run", "main", "process", "handle", "compute", "calculate", "execute"):
+                    clean_code = f"{clean_code}\n\n{entrypoint_function} = {defined_func}\n"
+                    has_entrypoint = True
 
         if not has_entrypoint:
             # Wrap raw script code inside `def execute(**kwargs):`
@@ -292,6 +299,9 @@ logger = logging.getLogger("jarvis.skills.{name}")
         # Save to disk
         save_path = self.package_and_save(skill_def, target_dir)
         skill_def.file_path = str(save_path)
+
+        if self.registry:
+            self.registry.register_skill(skill_def)
 
         logger.info("Successfully synthesized and saved skill '%s' to '%s'", clean_name, save_path)
         return skill_def

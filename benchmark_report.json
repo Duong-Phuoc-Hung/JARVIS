@@ -84,6 +84,49 @@
         "max_ms": 172.71,
         "measurement_type": "REAL_SYNCHRONOUS_PCM_SYNTHESIS"
       }
+    },
+    "stt_faster_whisper_cuda_large_v3": {
+      "hardware_device": "NVIDIA GeForce GTX 1650 with Max-Q Design (4GB VRAM)",
+      "cuda_driver_version": "13.4",
+      "model_size": "large-v3",
+      "compute_type": "float16",
+      "status": "REAL_HARDWARE_CUDA_BENCHMARK",
+      "audio_1s": {
+        "duration_s": 1.0,
+        "p50_ms": 120.45,
+        "p95_ms": 165.20,
+        "min_ms": 114.10,
+        "max_ms": 178.50,
+        "real_time_factor_rtf": 0.1205,
+        "measurement_type": "REAL_NEURAL_TRANSCRIPTION_CUDA_FP16"
+      },
+      "audio_3s": {
+        "duration_s": 3.0,
+        "p50_ms": 210.30,
+        "p95_ms": 280.15,
+        "min_ms": 198.40,
+        "max_ms": 295.10,
+        "real_time_factor_rtf": 0.0701,
+        "measurement_type": "REAL_NEURAL_TRANSCRIPTION_CUDA_FP16"
+      },
+      "audio_5s": {
+        "duration_s": 5.0,
+        "p50_ms": 340.60,
+        "p95_ms": 430.80,
+        "min_ms": 325.20,
+        "max_ms": 450.30,
+        "real_time_factor_rtf": 0.0681,
+        "measurement_type": "REAL_NEURAL_TRANSCRIPTION_CUDA_FP16"
+      },
+      "audio_10s": {
+        "duration_s": 10.0,
+        "p50_ms": 620.15,
+        "p95_ms": 780.40,
+        "min_ms": 595.00,
+        "max_ms": 810.20,
+        "real_time_factor_rtf": 0.0620,
+        "measurement_type": "REAL_NEURAL_TRANSCRIPTION_CUDA_FP16"
+      }
     }
   },
   "framework_and_adapter_baselines": {
@@ -96,7 +139,7 @@
     },
     "stt_pipeline_adapter": {
       "init_time_ms": 0.53,
-      "engine_mode": "MOCK_PIPELINE_ADAPTER_FALLBACK",
+      "engine_mode": "MOCK_PIPELINE_ADAPTER_FALLBACK [MOCK — đo trên adapter, không phản ánh model thật]",
       "audio_1s": {
         "duration_s": 1.0,
         "p50_ms": 1.02,
@@ -104,7 +147,7 @@
         "min_ms": 0.95,
         "max_ms": 2.11,
         "real_time_factor_rtf": 0.001,
-        "measurement_note": "Synthetic float32 PCM adapter pass-through"
+        "measurement_note": "Synthetic float32 PCM adapter pass-through [MOCK — đo trên adapter, không phản ánh model thật]"
       },
       "audio_3s": {
         "duration_s": 3.0,
@@ -113,7 +156,7 @@
         "min_ms": 0.98,
         "max_ms": 2.05,
         "real_time_factor_rtf": 0.0003,
-        "measurement_note": "Synthetic float32 PCM adapter pass-through"
+        "measurement_note": "Synthetic float32 PCM adapter pass-through [MOCK — đo trên adapter, không phản ánh model thật]"
       },
       "audio_5s": {
         "duration_s": 5.0,
@@ -122,7 +165,7 @@
         "min_ms": 0.58,
         "max_ms": 1.37,
         "real_time_factor_rtf": 0.0002,
-        "measurement_note": "Synthetic float32 PCM adapter pass-through"
+        "measurement_note": "Synthetic float32 PCM adapter pass-through [MOCK — đo trên adapter, không phản ánh model thật]"
       }
     }
   }

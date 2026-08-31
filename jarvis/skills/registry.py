@@ -385,6 +385,7 @@ class SkillRegistry:
 
             if self.dispatcher:
                 self.dispatcher.unregister_action(f"skill_{skill_name}")
+                self.dispatcher.unregister_action(f"skill:{skill_name}")
 
             if remove_from_disk and skill_def.file_path:
                 try:
@@ -405,6 +406,11 @@ class SkillRegistry:
         """Retrieve loaded skill by name."""
         with self._lock:
             return self._skills.get(skill_name)
+
+    def is_skill_registered(self, skill_name: str) -> bool:
+        """Check if a skill is registered."""
+        with self._lock:
+            return skill_name in self._skills
 
     def load_skill(self, skill_name: str) -> SkillDefinition | None:
         """Load or reload skill by name."""
@@ -535,6 +541,7 @@ class SkillRegistry:
             return
 
         action_name = f"skill_{skill_def.metadata.name}"
+        colon_name = f"skill:{skill_def.metadata.name}"
         handler = self._create_dispatcher_handler(skill_def.metadata.name)
 
         self.dispatcher.register_action(
@@ -544,7 +551,14 @@ class SkillRegistry:
             description=skill_def.metadata.description,
             schema=skill_def.metadata.parameters_schema,
         )
-        logger.debug("Registered skill action '%s' into ActionDispatcher", action_name)
+        self.dispatcher.register_action(
+            name=colon_name,
+            handler=handler,
+            required_privilege=PrivilegeLevel.NORMAL,
+            description=skill_def.metadata.description,
+            schema=skill_def.metadata.parameters_schema,
+        )
+        logger.debug("Registered skill action '%s' and '%s' into ActionDispatcher", action_name, colon_name)
 
     def register_all_into_dispatcher(self, dispatcher: ActionDispatcher | None = None) -> int:
         """Register all loaded skills into the provided or configured ActionDispatcher."""
