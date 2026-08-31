@@ -58,6 +58,13 @@ notifications = [
 wakeword = [
     "pvporcupine>=4.0.3,<5",
 ]
+charts = [
+    "matplotlib>=3.7,<4",
+]
+gestures = [
+    "opencv-python>=4.8,<5",
+    "mediapipe>=0.10,<1",
+]
 dev = [
     "pytest>=8.0,<9",
     "pytest-subtests>=0.12",
@@ -68,7 +75,7 @@ dev = [
     "pre-commit>=3.7",
 ]
 all = [
-    "jarvis-assistant[audio,windows,offline,browser,notifications,wakeword,dev]",
+    "jarvis-assistant[audio,windows,offline,browser,notifications,wakeword,charts,dev]",
 ]
 
 [project.urls]
@@ -183,5 +190,8 @@ module = [
     "playwright.*",
     "faster_whisper",
     "telegram.*",
+    "cv2",
+    "mediapipe.*",
+    "matplotlib.*",
 ]
 ignore_missing_imports = true

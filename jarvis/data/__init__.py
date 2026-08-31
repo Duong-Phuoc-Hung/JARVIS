@@ -4,6 +4,17 @@ jarvis.data
 Data Analytics, Statistics, Monte Carlo Simulation, and OpenXML DOCX / PDF Document Exporters.
 """
 
+from jarvis.data.analysis_service import (
+    AnalysisOperation,
+    ChartRenderResult,
+    ChartSeries,
+    ChartSpec,
+    DataAnalysisRequest,
+    DataAnalysisResult,
+    DataAnalysisService,
+    FileTooLargeError,
+    UnsupportedOperationError,
+)
 from jarvis.data.document import (
     DocumentExporter,
     DocxReportBuilder,
@@ -42,4 +53,13 @@ __all__ = [
     "MonteCarloConfig",
     "MonteCarloResult",
     "DistributionType",
+    "DataAnalysisService",
+    "DataAnalysisRequest",
+    "DataAnalysisResult",
+    "AnalysisOperation",
+    "ChartSpec",
+    "ChartSeries",
+    "ChartRenderResult",
+    "UnsupportedOperationError",
+    "FileTooLargeError",
 ]

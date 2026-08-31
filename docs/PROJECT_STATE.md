@@ -1,8 +1,128 @@
 # JARVIS — PROJECT_STATE.md
 
 > Durable current-state handoff for future sessions.
-> Snapshot: 2026-08-30.
+> Snapshot: 2026-08-31.
 > Always verify Git state and current code before relying on this snapshot.
+
+## 0-PRE. Gesture/Data Reference-Integration Sprint (in progress, uncommitted)
+
+Snapshot: 2026-08-31. Branch `feat/gesture-data-reference-hardening`, based on `main` at `e4bcd6d015dec2796e0f50e88b5c9f69b58bb1f7`. Time-boxed (~3 hours). Local working-tree change, **not committed, not pushed, no PR opened**.
+
+### Scope and constraints
+
+- Explicit NO-TOUCH list honored, verified untouched: `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/comms/mobile_bridge.py`, `jarvis/proactive/**`, `jarvis/hardware/**`, `jarvis/stt/**`, `jarvis/audio/**`, `jarvis/automation/**`, `jarvis/security/scanner.py`, `jarvis/vision/biometrics.py`, `installer/**`, `scripts/build_installer.py`. No hard dependency forced touching any of these — both features were buildable as fully isolated additions.
+- No wiring into `ActionDispatcher`, `app.py`, planner, or router this sprint — both new subsystems only emit structured results/callbacks.
+- Pre-existing baseline CI failures (mobile_bridge, proactive health-monitor) were **not** chased or modified, per instruction.
+
+### Upstream references consulted (architecture/API only — no source/models/datasets copied)
+
+- `kinivi/hand-gesture-recognition-mediapipe` — informed the general pipeline shape (21-point MediaPipe landmarks → normalization → static-shape classification + point-history for dynamic gestures). The actual static-shape classifier implemented is a from-scratch, transparent geometric heuristic (wrist-relative digit-extension distance ratios) — not a port of that repo's trained keypoint/point-history classifier models or code.
+- `Sinaptik-AI/pandas-ai` — informed only the layering idea (data loading → dataframe/data model → analysis/agent layer → execution/sandbox boundary). No PandasAI source, enterprise code, or models were imported; PandasAI is not a runtime dependency anywhere in `pyproject.toml`.
+
+### 1. Hand-gesture pipeline (new, additive)
+
+Files added:
+- [jarvis/gesture/hand_models.py](../jarvis/gesture/hand_models.py) — `HandLandmarkIndex` (IntEnum, MediaPipe 21-point topology), `HandLandmarkPoint`/`HandLandmarks` (frozen dataclasses, `HandLandmarks` enforces exactly 21 points), `HandGestureType` (`OPEN_PALM`/`FIST`/`SWIPE_LEFT`/`SWIPE_RIGHT`/`UNKNOWN`), `HandGestureBackend`, `HandTrackerState`, `HandGestureResult`.
+- [jarvis/gesture/hand_preprocess.py](../jarvis/gesture/hand_preprocess.py) — pure deterministic functions, zero optional-dependency imports: `normalize_landmarks()`, `landmarks_to_feature_vector()`, `classify_static_shape()`, `classify_dynamic_gesture()`.
+- [jarvis/gesture/hand_tracker.py](../jarvis/gesture/hand_tracker.py) — `HandGestureTracker` (thread-safe lifecycle, confidence threshold, static-shape debounce/stabilization, post-emission cooldown), lazy `cv2`/`mediapipe` imports (`CV2_AVAILABLE`/`MEDIAPIPE_AVAILABLE`), `get_available_backend()`, optional real-camera `start()`/`_capture_loop()`/`stop()`/`shutdown()` (not exercised against real hardware this session).
+- [jarvis/gesture/__init__.py](../jarvis/gesture/__init__.py) — additive exports only; existing acoustic exports (`GestureDetector`, `GestureType`, `GestureResult`, etc.) unchanged, [jarvis/gesture/detector.py](../jarvis/gesture/detector.py) and [jarvis/gesture/models.py](../jarvis/gesture/models.py) **not modified**.
+- [tests/unit/test_hand_gesture.py](../tests/unit/test_hand_gesture.py) — new, 24 tests, fully deterministic (synthetic landmark fixtures, no MediaPipe/OpenCV/webcam).
+
+`pyproject.toml`: new optional extra `gestures = ["opencv-python>=4.8,<5", "mediapipe>=0.10,<1"]`, deliberately **not** added to the `all` aggregate (mediapipe's Python 3.13 wheel availability was not independently verified this session — see CLAUDE.md §8.4). Added `cv2`/`mediapipe.*` to `[[tool.mypy.overrides]]`.
+
+### 2. Data Analysis Service facade (new, additive)
+
+Files added:
+- [jarvis/data/analysis_service.py](../jarvis/data/analysis_service.py) — `DataAnalysisService` facade over the existing, unmodified `DataAnalyticsEngine`/`MonteCarloEngine` in [jarvis/data/stats.py](../jarvis/data/stats.py). Structured models: `AnalysisOperation`, `DataAnalysisRequest`, `DataAnalysisResult`, `ChartSpec`/`ChartSeries`/`ChartRenderResult`. Operations: `describe`, `correlation`, `detect_anomalies`, `trend`, `monte_carlo`, `build_chart_spec`/`render_chart`, and a single `execute()` structured dispatcher. Bounded file loading via `_check_file_bounds()` (`max_file_size_bytes`, default 50MB) raising `FileTooLargeError`; unsupported file extensions raise `UnsupportedOperationError`.
+- [jarvis/data/__init__.py](../jarvis/data/__init__.py) — additive exports only; existing `DataAnalyticsEngine`/`MonteCarloEngine`/document-exporter exports unchanged.
+- [tests/unit/test_data_analysis_service.py](../tests/unit/test_data_analysis_service.py) — new, 22 tests: CSV fixture-based describe/correlation/anomaly/trend, seeded-deterministic Monte Carlo, file-size-bound rejection, unsupported extension, chart rendering both with and without matplotlib (via `monkeypatch`-simulated `ImportError`), `execute()` dispatch, and a source-scan assertion against `eval`/`exec`/`subprocess`/`os.system` appearing in the module.
+
+`pyproject.toml`: new optional extra `charts = ["matplotlib>=3.7,<4"]`, **included** in the `all` aggregate (matplotlib has broad, low-risk wheel support including Python 3.13; the dev environment already had 3.11.1 installed and both the "matplotlib present" and "matplotlib absent" code paths in `render_chart()` were actually exercised). Added `matplotlib.*` to `[[tool.mypy.overrides]]`.
+
+### Validation actually executed (this session, local)
+
+```text
+tests/unit/test_hand_gesture.py             — 24 passed
+tests/unit/test_data_analysis_service.py    — 22 passed
+tests/unit/test_gesture_detector.py         — 8 passed (acoustic detector regression check)
+
+ruff check jarvis/gesture jarvis/data tests/unit/test_hand_gesture.py \
+  tests/unit/test_data_analysis_service.py pyproject.toml   — All checks passed!
+mypy jarvis/gesture jarvis/data                             — Success: no issues found in 11 source files
+mypy jarvis (full)                                          — 29 pre-existing errors in 9 unrelated files
+                                                                (night_shift.py, macro_recorder, auto_updater.py,
+                                                                smart_home/discovery.py, mobile_bridge.py, tray.py,
+                                                                gui_actor.py, cli.py — none touched this sprint);
+                                                                one new hand_tracker.py error was found and fixed
+                                                                (explicit HandGestureType/float annotations added
+                                                                to resolve a mypy narrowing false-positive)
+py_compile (all changed files)                               — exit 0
+git diff --check                                             — exit 0
+
+tests/unit/ full run (pre-review-pass) — 782 collected, 773 passed, 9 failed
+```
+
+9 failures are the **documented, pre-existing, unrelated baseline failures** in NO-TOUCH areas: 8 in `tests/unit/test_mobile_bridge.py` (`TestReceiveFile`/`TestTransferHistory`, `AttributeError: 'NoneType' object has no attribute 'exists'` inside `jarvis/comms/mobile_bridge.py`) and 1 in `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`. 782 − 736 (pre-sprint baseline collected count) = 46, exactly matching the 24 + 22 new tests added — **zero regressions introduced by this sprint**.
+
+**Post-merge correction (added when merging `main` into this branch)**: the "9 known pre-existing failures" figure above (and every other reference to it in this section) reflects the state of `main` at `e4bcd6d` — the exact base commit this sprint branched from, **before** a separate, independent branch (`fix/ci-baseline`) fixed both root causes and merged into `main`: `jarvis/comms/mobile_bridge.py`'s dangling `_TRANSFER_LOG: Path | None` (now resolved via a lazy `_get_transfer_log_path()` using `jarvis.core.paths.data_path()`), and `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches` (now asserts against the monitor's live threshold attributes instead of stale hardcoded values). This is a **historical record of what this sprint observed at the time it ran** — it is not being rewritten.
+
+**Actual post-merge validation** (run this session, after resolving the `CHANGELOG.md`/`CLAUDE.md` merge conflicts from `main` into `feat/gesture-data-reference-hardening`):
+```text
+python -m pytest tests/unit/test_hand_gesture.py tests/unit/test_data_analysis_service.py \
+  tests/unit/test_gesture_detector.py tests/unit/test_mobile_bridge.py \
+  tests/unit/test_proactive_engine.py tests/unit/test_biometrics_hardening.py -q --timeout=120
+0 failed (49+25+8+27+15+39 = 163 collected across these 6 files, all passed)
+
+python -m pytest tests/unit/ -q --timeout=120 --tb=short
+837 collected, 837 passed, 0 failed
+```
+837 = 736 (original `e4bcd6d` baseline) + 49 (biometrics hardening, PR #14) + 27 (`test_hand_gesture.py`) + 25 (`test_data_analysis_service.py`) = 736 + 49 + 52 = 837, exactly as predicted before running. The 9 previously-known failures are genuinely gone (fixed by `fix/ci-baseline` on `main`), not skipped or masked. **Zero regressions from the merge.**
+
+### Pre-commit review pass (same session, before any commit) — 4 real bugs found and fixed
+
+A dedicated correctness/lifecycle/resource-safety review of the diff (no new features) found and fixed 4 real, testable defects, all still inside the sprint's own new files — no NO-TOUCH file was touched:
+
+1. **`jarvis/data/analysis_service.py::render_chart()` leaked the matplotlib figure on any rendering error.** `plt.close(fig)` only ran on the success path; an exception raised after `plt.subplots()` (e.g. a `ChartSpec` with mismatched series `x`/`y` lengths) returned `rendered=False` without ever closing the already-created figure — a real, repeatable resource leak across repeated failed renders. Fixed with a `try/finally` that always closes the figure once created, on every path.
+2. **`jarvis/data/analysis_service.py::execute()` misreported chart-render failures as success.** For `AnalysisOperation.CHART` it always returned `DataAnalysisResult(success=True, ...)` regardless of `render_result.rendered` — a caller trusting the uniform `success` contract (the entire point of this facade) would see a failed/matplotlib-less render as successful. Fixed: `success=render_result.rendered`, `error=render_result.error`.
+3. **`jarvis/gesture/hand_tracker.py::_capture_loop()` didn't recover from a worker exception.** If `cap.read()`/`hands.process()` raised, the thread logged and returned, but `self._state` stayed `RUNNING`, camera/MediaPipe resources were never released, and `self._capture_thread` was never cleared — so a later `start()` call saw `state == RUNNING` and no-op'd, leaving the tracker permanently, silently dead while still reporting itself as running. Fixed: the exception handler now releases resources via the existing `_release_backend_locked()`, clears `_capture_thread`, and drops state to `HandTrackerState.UNAVAILABLE` so a later `start()` genuinely restarts.
+4. **`jarvis/gesture/hand_tracker.py::start()` didn't clear stale classification buffers on (re)start.** `_point_history`/`_recent_static`/`_last_emit_time` from before a `stop()` survived into the next `start()`, so a landmark from long before a restart could combine with the first post-restart frame into a spurious gesture. Fixed: `start()` now clears all three right before spinning up the capture thread.
+
+All 4 fixes are covered by new, deterministic, mocked-backend regression tests (no real camera/MediaPipe/matplotlib-required-to-be-absent): `test_render_chart_error_path_does_not_leak_figure`, `test_execute_chart_success_reflects_actual_render_outcome`, `test_execute_chart_failure_is_not_reported_as_success`, `test_capture_loop_exception_releases_resources_and_updates_state`, `test_start_after_worker_exception_actually_restarts` (a real background-thread crash → self-heal → real restart end-to-end check), `test_start_clears_stale_classification_state_from_before_restart`. These closed a real test-coverage gap — the original 46 tests never exercised `execute()` with `AnalysisOperation.CHART`, nor any `HandGestureTracker` lifecycle path with a mocked (rather than absent) backend.
+
+```text
+tests/unit/test_hand_gesture.py             — 27 passed (24 + 3 new)
+tests/unit/test_data_analysis_service.py    — 25 passed (22 + 3 new)
+tests/unit/test_gesture_detector.py         — 8 passed (acoustic detector regression check, unaffected)
+
+ruff check jarvis/gesture jarvis/data tests/unit/test_hand_gesture.py \
+  tests/unit/test_data_analysis_service.py pyproject.toml   — All checks passed!
+mypy jarvis/gesture jarvis/data                             — Success: no issues found in 11 source files
+py_compile (all changed files)                               — exit 0
+git diff --check                                             — exit 0
+
+tests/unit/ full run (post-review-pass) — 788 collected, 779 passed, 9 failed (same 9 pre-existing baseline failures; zero new regressions from the fixes)
+```
+
+Non-blocking findings noted during the review but **not** fixed (kept out of scope — none is a correctness/safety defect):
+- `_check_file_bounds()` doesn't call `is_file()`, so a directory path falls through to a slightly-confusing `UnsupportedOperationError: Unsupported file type: ''` rather than a clearer "not a file" message.
+- `render_chart()`'s `except ImportError` around the matplotlib import doesn't also catch a (very unlikely) exception from `matplotlib.use()` itself, which would then propagate out despite the docstring's "never raises" claim.
+- `matplotlib.use("Agg", force=True)` is called on every `render_chart()` call; harmless today since no other JARVIS code uses matplotlib, but would forcibly switch backends for any future in-process matplotlib user.
+- Swipe direction (`SWIPE_LEFT`/`SWIPE_RIGHT`) is computed directly from raw image-space x, which assumes an un-mirrored camera frame; a typical "selfie-view" mirrored webcam feed would invert perceived direction. Documented as an x-increases-rightward assumption in the docstring, but the mirroring caveat itself isn't called out. Real-camera validation (already a known follow-up) would surface and settle this.
+
+### Known limitations / confirmed follow-ups
+
+- Hand-gesture pipeline is not wired into `ActionDispatcher`/`app.py`/planner/router — by design, out of scope this sprint.
+- `HandGestureTracker.start()`/`_capture_loop()` (real webcam + MediaPipe) now has mocked-backend regression coverage for crash-recovery and restart-buffer-clearing, but is still **not validated against real hardware/a real MediaPipe install** this session.
+- `DataAnalysisService` has no natural-language-to-operation mapping yet (explicitly deferred to a future Phase 3).
+- The 9 pre-existing unrelated baseline failures (mobile_bridge, proactive health-monitor) remain unfixed **on this branch**, per explicit instruction not to chase them here — but see the post-merge correction note above: they were fixed independently on `main` by `fix/ci-baseline` and are already present once `main` is merged into this branch.
+- The 4 non-blocking findings listed above remain open (deliberately not fixed this pass).
+- Not committed, not pushed, no PR opened, no CI run for this branch yet.
+
+### Recommended next task
+
+Commit this sprint's additive changes (including the review-pass fixes) on `feat/gesture-data-reference-hardening`, push, and open a PR. Follow-ups explicitly out of scope here: real-webcam/MediaPipe validation for the hand-gesture tracker; a Phase 3 natural-language → `DataAnalysisRequest` mapping layer; the 4 non-blocking findings above (separate, unrelated tasks). ~~Independently fixing the pre-existing mobile_bridge/proactive baseline failures~~ — **already done**, on `main` via the separate `fix/ci-baseline` branch, prior to merging `main` into this branch.
+
+---
 
 ## 0A. Phase 1 — Wake Word Reliability Hardening (in progress, uncommitted)
 
@@ -389,6 +509,7 @@ python -m pytest tests/unit/ -q --timeout=120 --tb=short
 - Delta: **+49** — exactly the number of new biometrics-hardening tests, confirming the file is now collected by the same command CI runs.
 - All 49 biometrics-hardening tests: **passed**.
 - Exactly the documented pre-existing baseline of 9 failures: 8 in `tests/unit/test_mobile_bridge.py` + 1 in `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches` — confirmed identical before/after via `git stash`. **Zero new failures.** (This repo's pytest config prints no final grand-total summary line — confirmed pre-existing, consistent with section 0C's note.)
+- **Post-merge correction (added when merging `main` into `feat/gesture-data-reference-hardening`, which pulled this section in unmodified from `main`)**: the "9 known pre-existing failures" above reflects `main` at `e4bcd6d`, the exact base this branch never diverged from — **before** the separate `fix/ci-baseline` branch fixed both root causes (`jarvis/comms/mobile_bridge.py`'s dangling transfer-log path; the stale hardcoded thresholds in the proactive-engine test) and merged into `main`. This is a historical record of what this branch observed at the time; it is not being rewritten. **Actual post-merge validation** (see section 0-PRE above for the full command/output): `tests/unit/` now collects **837** and all **837 pass, 0 failed** — the 9 failures are genuinely fixed, confirmed by an actual test run, not assumed.
 - **Correction**: an earlier draft of this section stated "no test in `tests/unit/` touches `jarvis/vision/biometrics.py`". That was only true while the new test file still lived at `tests/test_biometrics_hardening.py` (outside `tests/unit/`, so it would not have run in CI). The file was moved to `tests/unit/test_biometrics_hardening.py` before commit `dcbe797`, so as of this snapshot **49 tests inside `tests/unit/` do exercise `jarvis/vision/biometrics.py`**, and CI (which runs `python -m pytest tests/unit/`) now covers them.
 
 Static analysis:
