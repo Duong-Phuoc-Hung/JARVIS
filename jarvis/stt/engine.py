@@ -37,10 +37,12 @@ except ImportError:
     REQUESTS_AVAILABLE = False
 
 
-# ── Windows: register nvidia pip-wheel DLL directories so ctranslate2 can
-#    find cublas64_12.dll / cudnn*.dll even when not in system PATH.
-#    Structure: site-packages/nvidia/<pkg>/bin/*.dll  (NOT nvidia.<pkg>.lib)
-if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
+# ── Windows: make nvidia pip-wheel DLLs discoverable by ctranslate2.
+#    ctranslate2 uses Windows LoadLibrary() which searches os.environ["PATH"],
+#    NOT the directories added via os.add_dll_directory().
+#    We add both for maximum compatibility.
+#    Structure: site-packages/nvidia/<pkg>/bin/*.dll
+if sys.platform == "win32":
     try:
         import site as _site
         for _sp in _site.getsitepackages():
@@ -49,11 +51,17 @@ if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
                 continue
             for _pkg_name in os.listdir(_nvidia_root):
                 _bin_dir = os.path.join(_nvidia_root, _pkg_name, "bin")
-                if os.path.isdir(_bin_dir):
+                if not os.path.isdir(_bin_dir):
+                    continue
+                # Add to DLL search path (Python-level)
+                if hasattr(os, "add_dll_directory"):
                     try:
                         os.add_dll_directory(_bin_dir)
                     except OSError:
                         pass
+                # Add to PATH (for LoadLibrary / ctranslate2 C extension)
+                if _bin_dir not in os.environ.get("PATH", ""):
+                    os.environ["PATH"] = _bin_dir + os.pathsep + os.environ.get("PATH", "")
     except Exception:
         pass
 
