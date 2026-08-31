@@ -885,16 +885,22 @@ def test_reminder_scheduler_concurrent_adds():
 
 
 def test_health_monitor_multiple_simultaneous_breaches():
-    """Verify all breached thresholds are reported when multiple metrics fail at once."""
-    provider = MockTelemetryProvider(
-        cpu=96.0,
-        ram=90.0,
-        disk_free_gb=4.5,
-        cpu_temp=92.0,
-        battery=10.0,
-        battery_plugged=False,
-    )
+    """Verify all breached thresholds are reported when multiple metrics fail at once.
+
+    Metrics are derived from the monitor's own configured thresholds (rather than
+    hardcoded values) so this test stays valid across intentional threshold-default
+    changes (see e39ca08).
+    """
+    provider = MockTelemetryProvider()
     monitor = SystemHealthMonitor(telemetry_provider=provider, enabled=True)
+
+    provider.cpu_percent = monitor.cpu_threshold + 1
+    provider.ram_percent = monitor.ram_threshold + 1
+    provider.disk_free_gb = monitor.disk_min_free_gb - 0.5
+    provider.cpu_temp_c = monitor.temp_threshold_c + 1
+    provider.battery_percent = monitor.battery_min_percent - 1
+    provider.battery_plugged = False
+
     alerts = monitor.check_telemetry(now=1000.0)
 
     alert_types = {a.alert_type for a in alerts}

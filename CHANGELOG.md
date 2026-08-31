@@ -2,6 +2,83 @@
 
 ---
 
+## 🚀 Chưa phát hành (2026-08-31) — Biometrics Hardening: Embedding Validation, Storage Atomicity & Face-Count Ambiguity
+
+> Nhánh làm việc: `feat/biometrics-hardening`, dựa trên `main` tại commit `e4bcd6d` (không có phân kỳ với `main` khi bắt đầu). Chỉ sửa `jarvis/vision/biometrics.py` (sản xuất) và thêm một file test mới `tests/unit/test_biometrics_hardening.py`. Không đụng `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/agent/**`, `jarvis/sandbox/**`, `jarvis/comms/**`, `jarvis/security/**`, `jarvis/skills/**`, hay bất kỳ hành vi `SafetyGate`/`ActionDispatcher`/workstation-lock/Telegram nào.
+
+**Tham chiếu kiến trúc**: `ageitgey/face_recognition` (MIT, upstream) được dùng **chỉ để tham chiếu API/kiến trúc** — `face_locations()`/`face_encodings()`/`face_distance()`/`compare_faces()`, embedding 128 chiều, khoảng cách Euclid, ngữ nghĩa `tolerance` (mặc định upstream 0.6 — chỉ là mặc định thư viện, không phải bảo đảm an ninh). **Không sao chép mã nguồn upstream**, không vendor repo, không thêm `dlib`/`face_recognition` thành dependency bắt buộc, không tải model/dữ liệu khuôn mặt thật.
+
+### Rà soát trước khi sửa (audit)
+
+Đọc trực tiếp `jarvis/vision/biometrics.py`, `jarvis/vision/__init__.py`, mọi test đang import `BiometricsEngine`/`FaceEmbeddingStorage`/`BiometricPrivilegeGate` (`tests/test_biometrics.py`, `tests/test_adversarial_m5_2.py`, `tests/test_tier5_adversarial_sec_iot_comms_data.py`, `tests/test_e2e_scenarios.py`), và `jarvis/core/paths.py` (chỉ đọc, không sửa). Xác nhận các lỗ hổng thực tế sau bằng cách đọc mã, không suy đoán:
+
+- `enroll_face()`/`verify_frame()`/`process_surveillance_frame()` đều lấy `encodings[0]` vô điều kiện — không kiểm tra số khuôn mặt phát hiện được, nên một khung hình có nhiều khuôn mặt (ví dụ chủ nhà đứng cạnh người lạ) có thể bị phân loại sai một cách không tất định.
+- Không có bất kỳ kiểm tra kích thước/kiểu số/giá trị hữu hạn nào cho embedding — một embedding sai chiều, chứa NaN/Infinity, hoặc không phải số có thể khiến `np.linalg.norm(enrolled - cand)` ném lỗi không bắt được hoặc (nếu shape tình cờ broadcast được) tính ra khoảng cách vô nghĩa được tin tưởng ngầm.
+- `FaceEmbeddingStorage.save()` ghi trực tiếp không nguyên tử — tiến trình bị ngắt giữa chừng có thể để lại file JSON hỏng/cắt cụt.
+- `FaceEmbeddingStorage.add_face()`/`BiometricsEngine.enroll_face()` không bao giờ báo lỗi ghi đĩa cho caller — một lần ghi thất bại vẫn để bộ nhớ trong-tiến-trình coi như đã enroll thành công.
+- Enroll lại cùng một label tạo **embedding trùng lặp cũ** trong danh sách khớp trong bộ nhớ (`enrolled_embeddings` cũ là list phẳng, không theo label) dù storage trên đĩa đã ghi đè đúng — cả embedding cũ và mới đều còn khớp được sau khi re-enroll.
+- Không có validate label (kiểu, rỗng, ký tự điều khiển, độ dài) hay validate `tolerance` (âm, NaN, Infinity, chuỗi, giá trị phi lý lớn có thể vô tình mở rộng ngưỡng xác thực).
+- Nhánh trích xuất từ camera mock (`self.camera.get_face_encodings()`) không được bọc try/except — khác với nhánh `face_recognition`, nên một backend/mock bị lỗi có thể làm crash toàn bộ pipeline gọi nó.
+- Test hiện có (`test_adversarial_biometrics_boundary_distances`) xác nhận ranh giới tolerance là **strict `<`** (khoảng cách == tolerance ⇒ không khớp) — đây là hợp đồng bắt buộc phải giữ nguyên chính xác.
+
+### Thay đổi đã triển khai (`jarvis/vision/biometrics.py`)
+
+- **Một ranh giới validate embedding duy nhất** (`_validate_embedding()`, hàm private cấp module): chấp nhận bất kỳ dữ liệu array-like nào, trả về bản sao `float64` shape `(128,)` mới (không bao giờ alias/mutate mảng của caller) khi hợp lệ, hoặc `None` khi không — không bao giờ ném exception. Kiểm tra: đúng 128 chiều, kiểu số, mọi giá trị hữu hạn (không NaN/±Infinity), có kiểm tra độ dài rẻ trước khi ép kiểu để tránh cấp phát mảng khổng lồ từ dữ liệu JSON độc hại. Được tái sử dụng ở **mọi** điểm nhận embedding: candidate lúc verify/enroll/surveillance, embedding tải từ storage, `camera.owner_encoding`.
+- **`_validate_label()`**: string không rỗng sau `strip()`, giới hạn 128 ký tự, cấm ký tự điều khiển; label chỉ dùng làm key dict/JSON, không bao giờ dùng làm đường dẫn file.
+- **`_validate_tolerance()`**: từ chối NaN/Infinity/âm/không phải số/bool/giá trị vượt ngưỡng hợp lý (`MAX_SANE_TOLERANCE = 10.0`, một giới hạn "sanity" cho tham số cấu hình — không phải tuyên bố về khoảng cách embedding thực tế), fallback về `DEFAULT_TOLERANCE = 0.60` kèm log lỗi thay vì âm thầm cho phép ngưỡng bị nới rộng.
+- **`FaceEmbeddingStorage` cứng hóa**: `_load()` — lỗi parse JSON toàn file vẫn rỗng hoàn toàn (giữ đúng hành vi test cũ), root không phải dict cũng rỗng hoàn toàn, nhưng **entry lỗi riêng lẻ trong một JSON hợp lệ giờ bị bỏ qua có chọn lọc** (label/embedding hỏng bị loại, các entry hợp lệ khác được giữ). `save()` giờ ghi nguyên tử (temp file + `os.replace()`) và trả `bool` — nếu ghi thất bại, file gốc trên đĩa không bị đụng tới và trả `False`. `add_face()` cũng trả `bool`, validate label/embedding, và **rollback bộ nhớ trong-tiến-trình về trạng thái trước đó nếu `save()` thất bại** — không bao giờ để bộ nhớ coi một enrollment là thành công khi chưa thực sự ghi được xuống đĩa.
+- **`BiometricsEngine` chuyển sang lưu embedding có label theo dict** (`_labeled_embeddings: dict[str, np.ndarray]`, tách khỏi `_unlabeled_embeddings` cho `camera.owner_encoding`) thay vì list phẳng — enroll lại cùng label giờ **thay thế tất định**, không còn để lại embedding cũ trùng lặp trong bộ nhớ. Thuộc tính `enrolled_embeddings` (list phẳng) được giữ lại dạng `@property` tính từ hai cấu trúc trên, cho tương thích ngược (không có code/test nào bên ngoài đọc trực tiếp thuộc tính này ngoài chính file này, đã xác nhận bằng grep).
+- **`enroll_face()`**: từ chối tất định khi 0 khuôn mặt hoặc >1 khuôn mặt phát hiện được (yêu cầu đúng chính xác 1), validate label và embedding, chỉ cập nhật bộ nhớ trong-tiến-trình **sau khi** `storage.add_face()` xác nhận đã ghi thành công.
+- **`verify_frame()`**: giữ nguyên chính xác `bypass_mode` và kiểm tra khung tối/rỗng/None hiện có; giờ từ chối tất định (fail-closed) khi 0 hoặc >1 khuôn mặt, khi candidate embedding không hợp lệ, hoặc khi không có embedding nào đã enroll. Ranh giới tolerance strict `<` được giữ nguyên bit-for-bit.
+- **`process_surveillance_frame()`**: khung hình mơ hồ (nhiều khuôn mặt) hoặc có embedding không hợp lệ giờ trả về trạng thái riêng biệt (`"ambiguous_faces"` / `"invalid_face_data"`, `locked: False`) — **không bao giờ** bị phân loại nhầm thành `"owner_verified"`. Quyết định có chủ đích: các trạng thái mơ hồ này **không** kích hoạt khóa máy/cảnh báo Telegram (khác với `"intruder_locked"` cho trường hợp không khớp rõ ràng), để tránh mở rộng phạm vi sang thiết kế chính sách giám sát mới ngoài yêu cầu, và tránh cảnh báo giả khi dữ liệu khung hình thực sự không rõ ràng.
+- **`_extract_encodings()`**: nhánh camera mock giờ được bọc try/except giống nhánh `face_recognition` — một backend/mock ném lỗi không còn làm crash caller.
+- Không sửa `BiometricPrivilegeGate` (rà soát không phát hiện lỗi ở đây ngoài những gì kế thừa từ `verify_frame()` đã cứng hóa — hướng thay đổi chỉ làm xác thực khó hơn, không bao giờ dễ hơn).
+- `jarvis/vision/__init__.py` **không đổi** — cả 3 tên export (`BiometricsEngine`, `BiometricPrivilegeGate`, `FaceEmbeddingStorage`) giữ nguyên chữ ký công khai (`verify_frame()`/`enroll_face()` vẫn trả `bool`, `process_surveillance_frame()` vẫn trả `dict` có khóa `"status"`).
+
+### Test hồi quy (`tests/unit/test_biometrics_hardening.py`, file mới, 49 test)
+
+Bao phủ: validate embedding (128D hợp lệ/127D/129D/rỗng/NaN/Infinity/phi số/nested lỗi/không mutate mảng caller), storage corruption (JSON hỏng toàn file → rỗng, root sai kiểu, entry lẫn lộn hợp lệ+hỏng chỉ giữ entry hợp lệ, ghi nguyên tử bảo toàn file cũ khi ghi thất bại, sống sót qua khởi động lại registry, không ghi file vào cây repo mặc định), validate label (rỗng/sai kiểu/ký tự điều khiển/quá dài/duplicate thay thế tất định), số lượng khuôn mặt khi enroll (0/nhiều/đúng 1/rollback khi persist thất bại/không còn duplicate khi re-enroll), số lượng khuôn mặt khi verify (0/nhiều/candidate hỏng/không có embedding nào đã enroll/embedding lưu trữ hỏng không xác thực được), ngữ nghĩa khớp & tolerance (gần khớp, xa không khớp, ranh giới strict `<`, tolerance không hợp lệ không thể nới rộng xác thực — tham số hóa NaN/Infinity/âm/chuỗi/1e9/bool), optional dependency (vắng `face_recognition`/`cv2` không crash, camera mock vẫn hoạt động, backend ném lỗi không crash), privilege session (chỉ bắt đầu sau xác thực hợp lệ, hết hạn đúng TTL), surveillance (khung nhiều khuôn mặt không bao giờ là `"owner_verified"`), và tương thích API công khai.
+
+**Kết quả xác nhận thực tế (chạy cục bộ, Windows)**:
+```text
+python -m pytest tests/unit/test_biometrics_hardening.py -v --timeout=60 --tb=short
+49 passed in 0.45s
+```
+Toàn bộ file test cũ liên quan biometrics (`tests/test_biometrics.py`, `tests/test_adversarial_m5_2.py`, `tests/test_tier5_adversarial_sec_iot_comms_data.py`, `tests/test_e2e_scenarios.py`) được chạy lại và **so sánh bit-for-bit với baseline** (`git stash` rồi chạy lại) — xác nhận các lỗi/error hiện có (6 `ModuleNotFoundError: cv2` trong `test_biometrics.py`, 3 tương tự trong `test_e2e_scenarios.py`, 2 lỗi CLI nmap/tshark + 1 `AttributeError` Discord trong `test_tier5_...`) đã tồn tại **y hệt trước khi sửa** — môi trường này không có `cv2`/`face_recognition` cài đặt thật, đây là khoảng trống môi trường có sẵn, không phải hồi quy.
+
+`tests/unit/` đầy đủ (sau khi file test mới được dời vào `tests/unit/`, xác nhận lại bằng `git stash` để đo baseline chính xác):
+```text
+python -m pytest tests/unit/ --collect-only -q --timeout=120   # đếm số test được thu thập
+python -m pytest tests/unit/ -q --timeout=120 --tb=short
+```
+- Số test được thu thập trên baseline (`git stash`, chưa có file mới): **736**.
+- Số test được thu thập trên nhánh này (đã có `tests/unit/test_biometrics_hardening.py`): **785**.
+- Chênh lệch: **+49** — khớp chính xác với số test mới được thêm.
+- Toàn bộ 49 test cứng hóa biometrics: **passed**.
+- Kết quả chạy đầy đủ: đúng **9 lỗi đã biết từ trước** (8 trong `tests/unit/test_mobile_bridge.py`, 1 trong `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`) — **0 lỗi mới**. File `tests/unit/test_biometrics_hardening.py` (49 test) giờ **là một phần của `tests/unit/`** nên **có** test trong `tests/unit/` đụng tới `jarvis/vision/biometrics.py` — tuyên bố trước đó rằng "không có test nào trong `tests/unit/` đụng tới `jarvis/vision/biometrics.py`" chỉ đúng tại thời điểm file test còn nằm ở `tests/test_biometrics_hardening.py` (trước khi dời file, trước commit `dcbe797`) và đã lỗi thời sau khi dời.
+
+Static analysis:
+```text
+ruff check jarvis/vision/biometrics.py tests/unit/test_biometrics_hardening.py
+All checks passed!
+
+mypy jarvis
+```
+`jarvis/vision/biometrics.py` không có lỗi mypy nào. `ruff check jarvis tests scripts/build_installer.py` và `mypy jarvis` trên toàn repo báo lỗi **giống hệt baseline** (xác nhận bằng `git stash`): 9 lỗi Ruff (import-sort trong `tests/unit/test_zalo_bot.py` + các file khác đã biết từ trước) và 28 lỗi mypy trong 8 file không liên quan (`night_shift.py`, `macro_recorder`, `auto_updater.py`, `smart_home/discovery.py`, `mobile_bridge.py`, `tray.py`, `gui_actor.py`, `cli.py`) — không file nào trong số này thuộc phạm vi sửa đổi của nhánh này.
+
+`py_compile jarvis/vision/biometrics.py tests/unit/test_biometrics_hardening.py`: exit 0. `git diff --check`: exit 0.
+
+**Lưu ý về vị trí file test**: file test cứng hóa ban đầu được tạo tại `tests/test_biometrics_hardening.py` (ngoài `tests/unit/`), nghĩa là 49 test này **sẽ không chạy trong CI** (`.github/workflows/ci.yml` chỉ chạy `tests/unit/`). File đã được dời sang `tests/unit/test_biometrics_hardening.py` **trước khi commit `dcbe797`** — không có bản sao trùng lặp, không sửa nội dung file khi dời. CI vẫn chưa được kích hoạt cho nhánh này; các số liệu trên là kết quả chạy cục bộ, không phải claim CI.
+
+### Giới hạn đã biết / không tuyên bố
+
+- **Không** tuyên bố nhận diện khuôn mặt an toàn trước giả mạo (spoofing), **không** có liveness detection hay anti-spoofing, ngưỡng tolerance 0.6 (mặc định upstream) **không** phải bảo đảm định danh, hỗ trợ `face_recognition` trên Windows **không** được xác nhận chính thức trong sprint này, và JARVIS **chưa** có xác thực sinh trắc học cấp sản xuất.
+- `jarvis/skills/*/metadata.json` (9 file) bị đổi do chạy `tests/unit/`/test suite trong phiên này (telemetry số lần gọi/timestamp của skill registry) — lệnh khôi phục (`git checkout --`) bị chặn bởi bộ phân loại an toàn của công cụ (thao tác hủy thay đổi working tree); người dùng cần tự khôi phục nếu muốn, không thuộc bộ thay đổi này.
+- CI chưa được chạy cho nhánh này; chưa commit/push/PR.
+- Không sửa `jarvis/core/paths.py` — logic resolve `%LOCALAPPDATA%/JARVIS/cache/biometrics/faces.json` trong `FaceEmbeddingStorage.__init__` vẫn giữ nguyên cách tự resolve riêng (không dùng `data_path()`), vì việc hợp nhất quy ước path nằm ngoài phạm vi sprint cứng hóa embedding/storage/enrollment này.
+
+---
+
 ## 🚀 Chưa phát hành (2026-08-31) — Gesture/Data Reference-Hardening Sprint
 
 > Nhánh làm việc: `feat/gesture-data-reference-hardening`, dựa trên `main` tại `e4bcd6d`. Sprint có giới hạn thời gian (~3 giờ). **Chỉ thêm file mới + export bổ sung** trong `jarvis/gesture/` và `jarvis/data/`; không sửa `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/comms/mobile_bridge.py`, `jarvis/proactive/**`, `jarvis/hardware/**`, `jarvis/stt/**`, `jarvis/audio/**`, `jarvis/automation/**`, `jarvis/security/scanner.py`, `jarvis/vision/biometrics.py`, `installer/**`, `scripts/build_installer.py`. Không wiring vào core/app, router, automation, hay dispatcher trong sprint này.
@@ -78,7 +155,7 @@ Phát hiện không chặn (non-blocking), **chưa sửa** trong lượt này: `
 - Hand-gesture pipeline chưa wiring vào `jarvis/core/dispatcher.py`, `jarvis/core/app.py`, hay bất kỳ luồng ActionDispatcher/automation nào — theo đúng phạm vi sprint (chỉ phát ra `HandGestureResult`/callback ngữ nghĩa).
 - `HandGestureTracker.start()`/`_capture_loop()` (đường dùng webcam/MediaPipe thật) được viết nhưng **chưa được xác thực với webcam/MediaPipe thật** — nằm ngoài phạm vi "no real webcam requirement in tests" của sprint này.
 - `DataAnalysisService` chưa có đường ánh xạ ngôn ngữ tự nhiên → operation có cấu trúc (dự kiến Phase 3, không thuộc phạm vi sprint này).
-- 9 lỗi baseline không liên quan (mobile_bridge, proactive health-monitor) vẫn còn nguyên — không được sửa theo đúng chỉ thị của sprint.
+- 9 lỗi baseline không liên quan (mobile_bridge, proactive health-monitor) vẫn còn nguyên — không được sửa theo đúng chỉ thị của sprint. **Cập nhật sau khi merge `main`**: các lỗi này đã được sửa độc lập trên `main` bởi nhánh `fix/ci-baseline` — số liệu "9 lỗi" ở trên phản ánh đúng trạng thái tại thời điểm sprint này chạy trên baseline `e4bcd6d`, không phải trạng thái sau khi merge `main` vào nhánh này. **Xác nhận thực tế sau merge** (chạy cục bộ, cùng phiên merge): `python -m pytest tests/unit/ -q --timeout=120 --tb=short` → **837 collected, 837 passed, 0 failed** (837 = 736 baseline gốc + 49 test biometrics [PR #14] + 27 + 25 = 52 test gesture/data của sprint này; 9 lỗi cũ đã biến mất nhờ `fix/ci-baseline`, không phải bị bỏ qua). Không có hồi quy mới nào từ việc merge.
 
 ---
 
