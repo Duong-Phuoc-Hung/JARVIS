@@ -1,8 +1,254 @@
 # JARVIS — PROJECT_STATE.md
 
 > Durable current-state handoff for future sessions.
-> Snapshot: 2026-08-30.
+> Snapshot: 2026-08-31.
 > Always verify Git state and current code before relying on this snapshot.
+
+## 0-PRE. Gesture/Data Reference-Integration Sprint (in progress, uncommitted)
+
+Snapshot: 2026-08-31. Branch `feat/gesture-data-reference-hardening`, based on `main` at `e4bcd6d015dec2796e0f50e88b5c9f69b58bb1f7`. Time-boxed (~3 hours). Local working-tree change, **not committed, not pushed, no PR opened**.
+
+### Scope and constraints
+
+- Explicit NO-TOUCH list honored, verified untouched: `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/comms/mobile_bridge.py`, `jarvis/proactive/**`, `jarvis/hardware/**`, `jarvis/stt/**`, `jarvis/audio/**`, `jarvis/automation/**`, `jarvis/security/scanner.py`, `jarvis/vision/biometrics.py`, `installer/**`, `scripts/build_installer.py`. No hard dependency forced touching any of these — both features were buildable as fully isolated additions.
+- No wiring into `ActionDispatcher`, `app.py`, planner, or router this sprint — both new subsystems only emit structured results/callbacks.
+- Pre-existing baseline CI failures (mobile_bridge, proactive health-monitor) were **not** chased or modified, per instruction.
+
+### Upstream references consulted (architecture/API only — no source/models/datasets copied)
+
+- `kinivi/hand-gesture-recognition-mediapipe` — informed the general pipeline shape (21-point MediaPipe landmarks → normalization → static-shape classification + point-history for dynamic gestures). The actual static-shape classifier implemented is a from-scratch, transparent geometric heuristic (wrist-relative digit-extension distance ratios) — not a port of that repo's trained keypoint/point-history classifier models or code.
+- `Sinaptik-AI/pandas-ai` — informed only the layering idea (data loading → dataframe/data model → analysis/agent layer → execution/sandbox boundary). No PandasAI source, enterprise code, or models were imported; PandasAI is not a runtime dependency anywhere in `pyproject.toml`.
+
+### 1. Hand-gesture pipeline (new, additive)
+
+Files added:
+- [jarvis/gesture/hand_models.py](../jarvis/gesture/hand_models.py) — `HandLandmarkIndex` (IntEnum, MediaPipe 21-point topology), `HandLandmarkPoint`/`HandLandmarks` (frozen dataclasses, `HandLandmarks` enforces exactly 21 points), `HandGestureType` (`OPEN_PALM`/`FIST`/`SWIPE_LEFT`/`SWIPE_RIGHT`/`UNKNOWN`), `HandGestureBackend`, `HandTrackerState`, `HandGestureResult`.
+- [jarvis/gesture/hand_preprocess.py](../jarvis/gesture/hand_preprocess.py) — pure deterministic functions, zero optional-dependency imports: `normalize_landmarks()`, `landmarks_to_feature_vector()`, `classify_static_shape()`, `classify_dynamic_gesture()`.
+- [jarvis/gesture/hand_tracker.py](../jarvis/gesture/hand_tracker.py) — `HandGestureTracker` (thread-safe lifecycle, confidence threshold, static-shape debounce/stabilization, post-emission cooldown), lazy `cv2`/`mediapipe` imports (`CV2_AVAILABLE`/`MEDIAPIPE_AVAILABLE`), `get_available_backend()`, optional real-camera `start()`/`_capture_loop()`/`stop()`/`shutdown()` (not exercised against real hardware this session).
+- [jarvis/gesture/__init__.py](../jarvis/gesture/__init__.py) — additive exports only; existing acoustic exports (`GestureDetector`, `GestureType`, `GestureResult`, etc.) unchanged, [jarvis/gesture/detector.py](../jarvis/gesture/detector.py) and [jarvis/gesture/models.py](../jarvis/gesture/models.py) **not modified**.
+- [tests/unit/test_hand_gesture.py](../tests/unit/test_hand_gesture.py) — new, 24 tests, fully deterministic (synthetic landmark fixtures, no MediaPipe/OpenCV/webcam).
+
+`pyproject.toml`: new optional extra `gestures = ["opencv-python>=4.8,<5", "mediapipe>=0.10,<1"]`, deliberately **not** added to the `all` aggregate (mediapipe's Python 3.13 wheel availability was not independently verified this session — see CLAUDE.md §8.5). Added `cv2`/`mediapipe.*` to `[[tool.mypy.overrides]]`.
+
+### 2. Data Analysis Service facade (new, additive)
+
+Files added:
+- [jarvis/data/analysis_service.py](../jarvis/data/analysis_service.py) — `DataAnalysisService` facade over the existing, unmodified `DataAnalyticsEngine`/`MonteCarloEngine` in [jarvis/data/stats.py](../jarvis/data/stats.py). Structured models: `AnalysisOperation`, `DataAnalysisRequest`, `DataAnalysisResult`, `ChartSpec`/`ChartSeries`/`ChartRenderResult`. Operations: `describe`, `correlation`, `detect_anomalies`, `trend`, `monte_carlo`, `build_chart_spec`/`render_chart`, and a single `execute()` structured dispatcher. Bounded file loading via `_check_file_bounds()` (`max_file_size_bytes`, default 50MB) raising `FileTooLargeError`; unsupported file extensions raise `UnsupportedOperationError`.
+- [jarvis/data/__init__.py](../jarvis/data/__init__.py) — additive exports only; existing `DataAnalyticsEngine`/`MonteCarloEngine`/document-exporter exports unchanged.
+- [tests/unit/test_data_analysis_service.py](../tests/unit/test_data_analysis_service.py) — new, 22 tests: CSV fixture-based describe/correlation/anomaly/trend, seeded-deterministic Monte Carlo, file-size-bound rejection, unsupported extension, chart rendering both with and without matplotlib (via `monkeypatch`-simulated `ImportError`), `execute()` dispatch, and a source-scan assertion against `eval`/`exec`/`subprocess`/`os.system` appearing in the module.
+
+`pyproject.toml`: new optional extra `charts = ["matplotlib>=3.7,<4"]`, **included** in the `all` aggregate (matplotlib has broad, low-risk wheel support including Python 3.13; the dev environment already had 3.11.1 installed and both the "matplotlib present" and "matplotlib absent" code paths in `render_chart()` were actually exercised). Added `matplotlib.*` to `[[tool.mypy.overrides]]`.
+
+### Validation actually executed (this session, local)
+
+```text
+tests/unit/test_hand_gesture.py             — 24 passed
+tests/unit/test_data_analysis_service.py    — 22 passed
+tests/unit/test_gesture_detector.py         — 8 passed (acoustic detector regression check)
+
+ruff check jarvis/gesture jarvis/data tests/unit/test_hand_gesture.py \
+  tests/unit/test_data_analysis_service.py pyproject.toml   — All checks passed!
+mypy jarvis/gesture jarvis/data                             — Success: no issues found in 11 source files
+mypy jarvis (full)                                          — 29 pre-existing errors in 9 unrelated files
+                                                                (night_shift.py, macro_recorder, auto_updater.py,
+                                                                smart_home/discovery.py, mobile_bridge.py, tray.py,
+                                                                gui_actor.py, cli.py — none touched this sprint);
+                                                                one new hand_tracker.py error was found and fixed
+                                                                (explicit HandGestureType/float annotations added
+                                                                to resolve a mypy narrowing false-positive)
+py_compile (all changed files)                               — exit 0
+git diff --check                                             — exit 0
+
+tests/unit/ full run (pre-review-pass) — 782 collected, 773 passed, 9 failed
+```
+
+9 failures are the **documented, pre-existing, unrelated baseline failures** in NO-TOUCH areas: 8 in `tests/unit/test_mobile_bridge.py` (`TestReceiveFile`/`TestTransferHistory`, `AttributeError: 'NoneType' object has no attribute 'exists'` inside `jarvis/comms/mobile_bridge.py`) and 1 in `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`. 782 − 736 (pre-sprint baseline collected count) = 46, exactly matching the 24 + 22 new tests added — **zero regressions introduced by this sprint**.
+
+**Post-merge correction (added when merging `main` into this branch)**: the "9 known pre-existing failures" figure above (and every other reference to it in this section) reflects the state of `main` at `e4bcd6d` — the exact base commit this sprint branched from, **before** a separate, independent branch (`fix/ci-baseline`) fixed both root causes and merged into `main`: `jarvis/comms/mobile_bridge.py`'s dangling `_TRANSFER_LOG: Path | None` (now resolved via a lazy `_get_transfer_log_path()` using `jarvis.core.paths.data_path()`), and `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches` (now asserts against the monitor's live threshold attributes instead of stale hardcoded values). This is a **historical record of what this sprint observed at the time it ran** — it is not being rewritten.
+
+**Actual post-merge validation** (run this session, after resolving the `CHANGELOG.md`/`CLAUDE.md` merge conflicts from `main` into `feat/gesture-data-reference-hardening`):
+```text
+python -m pytest tests/unit/test_hand_gesture.py tests/unit/test_data_analysis_service.py \
+  tests/unit/test_gesture_detector.py tests/unit/test_mobile_bridge.py \
+  tests/unit/test_proactive_engine.py tests/unit/test_biometrics_hardening.py -q --timeout=120
+0 failed (49+25+8+27+15+39 = 163 collected across these 6 files, all passed)
+
+python -m pytest tests/unit/ -q --timeout=120 --tb=short
+837 collected, 837 passed, 0 failed
+```
+837 = 736 (original `e4bcd6d` baseline) + 49 (biometrics hardening, PR #14) + 27 (`test_hand_gesture.py`) + 25 (`test_data_analysis_service.py`) = 736 + 49 + 52 = 837, exactly as predicted before running. The 9 previously-known failures are genuinely gone (fixed by `fix/ci-baseline` on `main`), not skipped or masked. **Zero regressions from the merge.**
+
+### Pre-commit review pass (same session, before any commit) — 4 real bugs found and fixed
+
+A dedicated correctness/lifecycle/resource-safety review of the diff (no new features) found and fixed 4 real, testable defects, all still inside the sprint's own new files — no NO-TOUCH file was touched:
+
+1. **`jarvis/data/analysis_service.py::render_chart()` leaked the matplotlib figure on any rendering error.** `plt.close(fig)` only ran on the success path; an exception raised after `plt.subplots()` (e.g. a `ChartSpec` with mismatched series `x`/`y` lengths) returned `rendered=False` without ever closing the already-created figure — a real, repeatable resource leak across repeated failed renders. Fixed with a `try/finally` that always closes the figure once created, on every path.
+2. **`jarvis/data/analysis_service.py::execute()` misreported chart-render failures as success.** For `AnalysisOperation.CHART` it always returned `DataAnalysisResult(success=True, ...)` regardless of `render_result.rendered` — a caller trusting the uniform `success` contract (the entire point of this facade) would see a failed/matplotlib-less render as successful. Fixed: `success=render_result.rendered`, `error=render_result.error`.
+3. **`jarvis/gesture/hand_tracker.py::_capture_loop()` didn't recover from a worker exception.** If `cap.read()`/`hands.process()` raised, the thread logged and returned, but `self._state` stayed `RUNNING`, camera/MediaPipe resources were never released, and `self._capture_thread` was never cleared — so a later `start()` call saw `state == RUNNING` and no-op'd, leaving the tracker permanently, silently dead while still reporting itself as running. Fixed: the exception handler now releases resources via the existing `_release_backend_locked()`, clears `_capture_thread`, and drops state to `HandTrackerState.UNAVAILABLE` so a later `start()` genuinely restarts.
+4. **`jarvis/gesture/hand_tracker.py::start()` didn't clear stale classification buffers on (re)start.** `_point_history`/`_recent_static`/`_last_emit_time` from before a `stop()` survived into the next `start()`, so a landmark from long before a restart could combine with the first post-restart frame into a spurious gesture. Fixed: `start()` now clears all three right before spinning up the capture thread.
+
+All 4 fixes are covered by new, deterministic, mocked-backend regression tests (no real camera/MediaPipe/matplotlib-required-to-be-absent): `test_render_chart_error_path_does_not_leak_figure`, `test_execute_chart_success_reflects_actual_render_outcome`, `test_execute_chart_failure_is_not_reported_as_success`, `test_capture_loop_exception_releases_resources_and_updates_state`, `test_start_after_worker_exception_actually_restarts` (a real background-thread crash → self-heal → real restart end-to-end check), `test_start_clears_stale_classification_state_from_before_restart`. These closed a real test-coverage gap — the original 46 tests never exercised `execute()` with `AnalysisOperation.CHART`, nor any `HandGestureTracker` lifecycle path with a mocked (rather than absent) backend.
+
+```text
+tests/unit/test_hand_gesture.py             — 27 passed (24 + 3 new)
+tests/unit/test_data_analysis_service.py    — 25 passed (22 + 3 new)
+tests/unit/test_gesture_detector.py         — 8 passed (acoustic detector regression check, unaffected)
+
+ruff check jarvis/gesture jarvis/data tests/unit/test_hand_gesture.py \
+  tests/unit/test_data_analysis_service.py pyproject.toml   — All checks passed!
+mypy jarvis/gesture jarvis/data                             — Success: no issues found in 11 source files
+py_compile (all changed files)                               — exit 0
+git diff --check                                             — exit 0
+
+tests/unit/ full run (post-review-pass) — 788 collected, 779 passed, 9 failed (same 9 pre-existing baseline failures; zero new regressions from the fixes)
+```
+
+Non-blocking findings noted during the review but **not** fixed (kept out of scope — none is a correctness/safety defect):
+- `_check_file_bounds()` doesn't call `is_file()`, so a directory path falls through to a slightly-confusing `UnsupportedOperationError: Unsupported file type: ''` rather than a clearer "not a file" message.
+- `render_chart()`'s `except ImportError` around the matplotlib import doesn't also catch a (very unlikely) exception from `matplotlib.use()` itself, which would then propagate out despite the docstring's "never raises" claim.
+- `matplotlib.use("Agg", force=True)` is called on every `render_chart()` call; harmless today since no other JARVIS code uses matplotlib, but would forcibly switch backends for any future in-process matplotlib user.
+- Swipe direction (`SWIPE_LEFT`/`SWIPE_RIGHT`) is computed directly from raw image-space x, which assumes an un-mirrored camera frame; a typical "selfie-view" mirrored webcam feed would invert perceived direction. Documented as an x-increases-rightward assumption in the docstring, but the mirroring caveat itself isn't called out. Real-camera validation (already a known follow-up) would surface and settle this.
+
+### Known limitations / confirmed follow-ups
+
+- Hand-gesture pipeline is not wired into `ActionDispatcher`/`app.py`/planner/router — by design, out of scope this sprint.
+- `HandGestureTracker.start()`/`_capture_loop()` (real webcam + MediaPipe) now has mocked-backend regression coverage for crash-recovery and restart-buffer-clearing, but is still **not validated against real hardware/a real MediaPipe install** this session.
+- `DataAnalysisService` has no natural-language-to-operation mapping yet (explicitly deferred to a future Phase 3).
+- The 9 pre-existing unrelated baseline failures (mobile_bridge, proactive health-monitor) remain unfixed **on this branch**, per explicit instruction not to chase them here — but see the post-merge correction note above: they were fixed independently on `main` by `fix/ci-baseline` and are already present once `main` is merged into this branch.
+- The 4 non-blocking findings listed above remain open (deliberately not fixed this pass).
+- Not committed, not pushed, no PR opened, no CI run for this branch yet.
+
+### Recommended next task
+
+Commit this sprint's additive changes (including the review-pass fixes) on `feat/gesture-data-reference-hardening`, push, and open a PR. Follow-ups explicitly out of scope here: real-webcam/MediaPipe validation for the hand-gesture tracker; a Phase 3 natural-language → `DataAnalysisRequest` mapping layer; the 4 non-blocking findings above (separate, unrelated tasks). ~~Independently fixing the pre-existing mobile_bridge/proactive baseline failures~~ — **already done**, on `main` via the separate `fix/ci-baseline` branch, prior to merging `main` into this branch.
+
+---
+
+## 0-PRE2. Agent Execution Hardening — OpenInterpreter Reference Sprint (in progress, uncommitted)
+
+Snapshot: 2026-08-31. Branch `feat/agent-execution-hardening`, based on `main` at `e4bcd6d015dec2796e0f50e88b5c9f69b58bb1f7`. Local working-tree change, **not committed, not pushed, no PR opened, no CI run**. Primary target: `jarvis/agent/**`.
+
+### Scope and constraints
+
+- NO-TOUCH list honored, verified untouched: `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/comms/mobile_bridge.py`, `jarvis/proactive/**`, `jarvis/hardware/**`, `jarvis/stt/**`, `jarvis/audio/**`, `jarvis/automation/**`, `jarvis/security/scanner.py`, `jarvis/vision/biometrics.py`, `installer/**`, `scripts/build_installer.py`.
+- `ReActAgent` remains completely unwired — grepped the whole `jarvis/` tree before and after this sprint: it is imported nowhere outside `jarvis/agent/**` and its own tests. Zero production blast radius today; the findings below matter for whenever it *is* wired in.
+- One deliberate, user-approved exception to "do not touch `jarvis/sandbox/**`": a proven, reproducible pipe-deadlock defect in `jarvis/sandbox/security.py` was found and fixed — see below. This was not a unilateral decision; the user was asked explicitly before any sandbox file was touched.
+
+### Upstream reference consulted (architecture only — no source copied, not vendored, not a dependency)
+
+- **OpenInterpreter** — current project is `openinterpreter/openinterpreter`, substantially rewritten from the historical `OpenInterpreter/open-interpreter` repo named in older planning docs. Only architectural concepts were used: explicit agent-harness/execution boundary, sandboxed code execution, permission/approval boundaries, bounded execution, structured execution results, portable/isolated tools. No OpenInterpreter code was read into any JARVIS file; `pyproject.toml` was not touched (no new dependency of any kind this sprint).
+
+### Confirmed findings (audited before any edit, exactly as suspected)
+
+1. **`jarvis/agent/graph.py::ReActAgent._tool_run_python` called Python's builtin `exec()` directly**, in-process, with only `ast.parse()` for a syntax check (not a safety check) — full access to the JARVIS process's own globals/environment, no timeout, no resource bound, no isolation. JARVIS already had `jarvis.sandbox.interpreter.CodeInterpreterSandbox.execute_python()` (AST safety validation, isolated scratch dir, OS Restricted Token isolation, Windows Job Object, timeout, structured `SandboxResult`) — `_tool_run_python` used none of it.
+2. **Every built-in agent tool (`write_file`, `read_file`, `browser_open`, `screenshot`, `send_telegram`, `list_dir`, `git_status`, and the old `run_python`) bypasses `ActionDispatcher.dispatch_action()`/`SafetyGateInterceptor` entirely** — `ReActAgent._act()` calls `tool.fn(**args)` directly. No RBAC, no risk classification, no safety-gate anywhere in the agent's tool-calling path. `git_status` uses `subprocess.run(["git", "status", "--short"], ...)` with a fixed argv (no injection risk from user input) but still bypasses the dispatcher like everything else.
+
+### Fix 1 (required): route Python execution through the existing sandbox
+
+- `_tool_run_python` now calls `CodeInterpreterSandbox.execute_python()` instead of `exec()`. `jarvis/sandbox/interpreter.py` itself was **not modified** for this fix.
+- User code is wrapped with `try: print(result)\nexcept NameError: pass` to preserve the old "top-level `result` becomes tool output" convention, without using any AST-forbidden introspection call (`locals()`/`globals()`/`vars()` are all rejected by the sandbox's validator — using them would break the epilogue's own validation).
+- `ReActAgent.__init__` gained an optional `sandbox: CodeInterpreterSandbox | None = None` param (backward compatible); `_get_sandbox()` lazily constructs a default (`cleanup_on_exit=True`) only when `run_python` is actually first called.
+- `_tool_run_python(code, timeout_seconds=None, **kw)` gained an optional `timeout_seconds`, always clamped to `MAX_PYTHON_EXEC_TIMEOUT_SECONDS = 30.0`.
+
+### Unplanned, serious finding: pipe deadlock in `jarvis/sandbox/security.py` (found, confirmed, fixed with explicit user approval)
+
+While integration-testing Fix 1 against realistic output sizes (not a hypothetical check), `CodeInterpreterSandbox.execute_python()` was found to **hang for the entire timeout** on any script producing more than **exactly 4096 bytes** of combined stdout+stderr — bisected precisely (4000 bytes: instant; 4096 bytes: hangs the full timeout, verified up to 25s). Root cause, confirmed by reading `spawn_low_integrity_process()`: it called `WaitForSingleObject()` to wait for the *entire* child process to exit **before** ever calling `ReadFile` on the output pipe (the old Step 10 read loop ran only after the wait). Windows' default anonymous pipe buffer is ~4096 bytes; once the child's unread output exceeded that, its `write()`/`print()` blocked forever (pipe full, nobody draining) while the parent was itself blocked in `WaitForSingleObject` — a textbook pipe deadlock, broken only by the caller's own timeout, which then **misreported the run as "timed out" instead of "succeeded with output."**
+
+This is not an edge case: any moderately verbose script (printing a JSON blob, a file listing, etc.) — exactly the kind of thing agent-generated Python commonly does — would trigger it. It also directly undermined this sprint's own required outcome ("huge stdout is bounded before entering agent history") since a real large-output run couldn't even complete to be bounded.
+
+Per the task's own instruction ("do NOT modify `jarvis/sandbox/**` unless a proven defect... makes the agent integration impossible"), this was **not fixed unilaterally** — the user was asked explicitly (fix now vs. document-only) and chose to fix it.
+
+**Fix applied** (`jarvis/sandbox/security.py::spawn_low_integrity_process()`, `import threading` added):
+- A daemon `threading.Thread` starts draining `h_read` via a `ReadFile` loop immediately after `CreateProcessAsUserW` succeeds (while the child is still `CREATE_SUSPENDED`, before `ResumeThread`) — the pipe is never left undrained while the child could be writing.
+- `WaitForSingleObject`/timeout handling/`GetExitCodeProcess` are **completely unchanged** — only *when* the pipe is read changed, not any Restricted Token/Job Object/`retry_safe`/AST-validation semantics.
+- After the child exits (normally, or via `TerminateProcess` on timeout), `reader_thread.join(timeout=5.0)` bounds the wait for drainage; whatever was captured in `output_chunks` by then is used regardless.
+- `_cleanup()` (the shared `finally` on every exit path, including early `RestrictedProcessBootstrapError` raises) also joins the reader thread (bounded 2.0s) before closing `h_read`, avoiding a `CloseHandle`-vs-pending-`ReadFile` race across threads.
+- Verified: 100–50000 byte outputs all now complete in ~0.13–0.14s, `success=True`, correct data — versus hanging the full timeout before the fix for anything ≥4096 bytes.
+- New regression test: `tests/unit/test_skill_synthesis.py::TestCodeInterpreterSandbox::test_sandbox_large_stdout_does_not_deadlock` (20000 bytes, 5.0s timeout, asserts success).
+- All existing sandbox tests re-run clean after the fix: `test_skill_synthesis.py` (21), `test_adversarial_r1_r2_r5_stress.py`, `test_hud_telemetry_and_memory.py`, `test_sandbox_compat_fallback.py` (40), and `tests/integration/test_sandbox_os_boundaries.py` (15) — all pass, zero regressions.
+- **Separate, non-security cosmetic defect found but deliberately NOT fixed**: `strip_sandbox_ready_sentinel()` only strips an LF-terminated sentinel line; a CRLF-terminated child stdout (common on Windows) leaks the raw `\x02JARVIS_SANDBOX_READY_v1\x03` marker bytes through. Not a security issue and doesn't meet the "makes integration impossible" bar, so left unfixed at the source; `jarvis/agent/tool_runtime.py` does its own defensive, CRLF-tolerant cleanup on the consumer side instead.
+
+### Follow-up pre-commit security review — 1 more real issue found and fixed, 1 test gap closed
+
+A dedicated line-by-line security review of the diff (no new features) found the pipe-drain fix above had introduced its own resource-safety regression, and closed a test-coverage gap:
+
+- **`_drain_pipe()` had no cap on retained memory.** The deadlock fix removed the *only* thing that previously bounded parent-process (JARVIS host) memory during pipe capture — the deadlock itself, which silently capped a runaway script to ~4KB before it blocked. Without an explicit cap, `while True: print(...)` could make the reader thread buffer unbounded data in the JARVIS process for the entire timeout window, long before `interpreter.py`'s post-hoc `_MAX_STDOUT_CAPTURE_BYTES` truncation ever ran. Fixed: `_drain_pipe()` now stops appending to `output_chunks` once `_PIPE_READER_MAX_CAPTURE_BYTES = 1024 * 1024` (1MB) is reached, while continuing to call `ReadFile` in a loop so the pipe — and the child — never blocks again; excess bytes are simply discarded. Independent constant from `interpreter.py`'s (avoids a circular import); keep the two conceptually in sync if either changes. New regression test: `tests/unit/test_skill_synthesis.py::TestCodeInterpreterSandbox::test_sandbox_runaway_output_does_not_grow_unbounded` (a genuinely unbounded print loop against a 1.5s timeout; asserts bounded wall-clock time and `len(stdout) < 2MB`).
+- **Test gap closed**: no existing test exercised heavy or interleaved writes to `stderr` specifically through the real sandboxed subprocess. Added `tests/unit/test_skill_synthesis.py::TestCodeInterpreterSandbox::test_sandbox_mixed_stdout_stderr_heavy_output_does_not_deadlock`.
+- **Correction (found via GitHub Actions CI #75)**: the test as originally written asserted heavy stderr content landed in `result.stdout`, on the assumption that stdout/stderr are always merged into one pipe (`hStdOutput == hStdError`). That merge is true only on the primary OS Restricted Token path. GitHub's runners currently hit the known `0xC0000142` Restricted Token bootstrap failure (see above) and fall back to the explicit-opt-in compatibility path, where `subprocess.Popen` captures stdout and stderr **separately** — so the assertion was backend-specific and failed there. Fixed by asserting only the semantic contract that holds across both paths: `result.success is True`, no timeout/deadlock, and both heavy payloads present somewhere in `result.stdout + result.stderr` combined.
+- Re-validated after this fix: all sandbox/agent test files re-run clean (`test_skill_synthesis.py` now 23 tests, `test_react_agent.py` 38, `test_agent_tool_runtime.py` 25, plus `test_adversarial_r1_r2_r5_stress.py`, `test_hud_telemetry_and_memory.py`, `test_sandbox_compat_fallback.py`, `test_react_planner.py`, `test_browser_agent.py`, `tests/integration/test_sandbox_os_boundaries.py`); `ruff`/`mypy`/`py_compile`/`git diff --check` all clean; full `tests/unit/` — 781 collected, 772 passed, same 9 pre-existing unrelated failures, zero new regressions.
+- No other finding from this review pass rose to blocking severity. Confirmed unchanged: Restricted Token creation, integrity level, `CreateProcessAsUserW` args, Job Object assignment/kill-on-close, environment scrubbing, AST validation, compatibility fallback policy, security preamble — the entire diff to `security.py` across both passes is confined to *when*/*how much* of the pipe is read, never any isolation/authorization semantic. `_tool_write_file`/`_tool_read_file`/etc. remain byte-for-byte unchanged — no second/ad-hoc safety mechanism was introduced anywhere.
+
+### Fix 2: structured tool-execution contract (new module, `jarvis/sandbox/**` untouched)
+
+- [jarvis/agent/tool_runtime.py](../jarvis/agent/tool_runtime.py) (new) — `ToolExecutionResult(success, output, error, metadata)`; `truncate_text()` (deterministic bound, `DEFAULT_MAX_OBSERVATION_CHARS=4000`, deliberately much smaller than the sandbox's own 1MB stdout cap which protects its pipe, not an LLM context budget); `normalize_tool_output()`; `sandbox_result_to_tool_result()` (the one place a `SandboxResult` becomes agent-facing, including the CRLF-sentinel defensive cleanup above); `format_observation()`.
+- `ReActAgent._act()` now routes **every** tool call through `_execute_tool()` + `format_observation()`, not just `run_python`: unknown tool names and non-dict (including `None`) args fail deterministically without raising; any tool exception is caught and converted, never escaping to crash the ReAct loop; every tool's output is bounded before it can reach `ThoughtStep.tool_result`/agent history.
+
+### Audited and deliberately NOT fixed (documented, not patched with a second safety system)
+
+All built-in agent tools — `write_file`, `read_file`, `browser_open`, `screenshot`, `send_telegram`, `list_dir`, `git_status` — still call straight into `tool.fn(**args)`, completely bypassing `ActionDispatcher`/`SafetyGateInterceptor` (CLAUDE.md §8.3). `write_file` can overwrite any path the process can write to (no allowlist); `browser_open` can navigate anywhere under LLM/agent control. Wiring the full tool set through `ActionDispatcher` is a materially larger integration than this sprint's scope; per explicit instruction, no ad-hoc parallel safety mechanism was invented to patch around it — this is left for a dedicated future integration task. Current production risk is zero since `ReActAgent` has no callers yet.
+
+### Files changed
+
+- [jarvis/agent/graph.py](../jarvis/agent/graph.py) — `_tool_run_python()` rewritten to use the sandbox; `_act()`/new `_execute_tool()` use the structured tool-execution contract; `ReActAgent.__init__`/`_get_sandbox()` gained the optional `sandbox` param and lazy construction.
+- [jarvis/agent/tool_runtime.py](../jarvis/agent/tool_runtime.py) — new file (see Fix 2).
+- [jarvis/sandbox/security.py](../jarvis/sandbox/security.py) — `spawn_low_integrity_process()` pipe-deadlock fix (see above); `import threading` added. No other function in this file touched.
+- [tests/unit/test_react_agent.py](../tests/unit/test_react_agent.py) — 17 new tests added; all 21 pre-existing tests unmodified and still passing.
+- [tests/unit/test_agent_tool_runtime.py](../tests/unit/test_agent_tool_runtime.py) — new file, 25 tests.
+- [tests/unit/test_skill_synthesis.py](../tests/unit/test_skill_synthesis.py) — 3 new regression tests added (pipe-deadlock fix, memory-bound fix, mixed stdout/stderr coverage — see follow-up review section below); all pre-existing tests unmodified.
+
+No other tracked file is part of this change set.
+
+### Validation actually executed (this session, local)
+
+```text
+tests/unit/test_react_agent.py             — 38 passed (21 pre-existing + 17 new)
+tests/unit/test_agent_tool_runtime.py      — 25 passed (new file)
+tests/unit/test_skill_synthesis.py         — 21 passed (20 pre-existing + 1 new)
+tests/unit/test_adversarial_r1_r2_r5_stress.py, test_hud_telemetry_and_memory.py,
+  test_sandbox_compat_fallback.py, test_react_planner.py, test_browser_agent.py — all pass
+tests/integration/test_sandbox_os_boundaries.py — all 15 pass (post pipe-fix regression check)
+
+ruff check jarvis/agent tests/unit/test_react_agent.py tests/unit/test_agent_tool_runtime.py \
+  tests/unit/test_skill_synthesis.py jarvis/sandbox/security.py           — All checks passed!
+mypy jarvis/agent/graph.py jarvis/agent/tool_runtime.py jarvis/agent/__init__.py \
+  jarvis/sandbox/security.py --follow-imports=silent                     — Success: no issues found in 4 source files
+py_compile (all changed files)                                            — exit 0
+git diff --check                                                         — exit 0
+
+tests/unit/ full run — 779 collected, 770 passed, 9 failed
+```
+
+9 failures are the **documented, pre-existing, unrelated baseline failures** in NO-TOUCH areas (identical set seen on this same `e4bcd6d` baseline in an earlier, separate reference-integration sprint on a different branch): 8 in `tests/unit/test_mobile_bridge.py` and 1 in `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`. 779 − 736 (confirmed `e4bcd6d` baseline collected count) = 43, exactly matching 17 + 25 + 1 new tests. **Zero regressions introduced by this sprint.**
+
+### Known limitations / confirmed follow-ups
+
+- All built-in agent tools bypass `ActionDispatcher`/`SafetyGateInterceptor` (see "Audited and deliberately NOT fixed" above) — recommended as a dedicated future integration, not a quick patch.
+- `ReActAgent` is still not wired into `app.py`/dispatcher/router/planner anywhere — out of scope, no Phase 3 LLM routing started, per explicit instruction.
+- The CRLF-vs-LF sentinel-stripping cosmetic defect in `strip_sandbox_ready_sentinel()` remains unfixed at the source (see above); only defensively worked around on the agent-consumer side.
+- CI has not been run for this branch; not committed, not pushed, no PR opened.
+- The 9 pre-existing unrelated baseline failures (mobile_bridge, proactive health-monitor) remain unfixed, per explicit instruction not to chase them.
+
+**Post-main-sync correction (added when merging `main` into `feat/agent-execution-hardening`)**: the "779 collected, 770 passed, 9 failed" figure above (and "781 collected, 772 passed" after the follow-up security review) reflects `main` at `e4bcd6d` — the exact base this sprint branched from — **before** `main` merged PR #15 (`fix/ci-baseline`, which fixed both root causes of those 9 failures), PR #14 (Biometrics Hardening, +49 tests), and PR #11 (Gesture/Data Reference-Hardening, +52 tests). This is a **historical record of what this sprint observed at the time it ran** — it is not being rewritten. GitHub Actions CI history for reference: CI run #75 surfaced the stdout/stderr-separate-pipes backend difference on the compatibility-fallback path (see the pipe-deadlock fix section above); CI run #76 confirmed the corrected assertion passed. PR #11's own GitHub Actions CI (post Biometrics+Gesture/Data merge, pre-Agent) reported 837 collected, 834 passed, 3 skipped, 0 failed — the 3 skips are CI-environment-specific and were not reproduced locally (0 skipped locally, see below).
+
+**Actual post-main-sync validation** (run this session, after resolving the `CHANGELOG.md`/`CLAUDE.md`/`docs/PROJECT_STATE.md` merge conflicts from `main` into `feat/agent-execution-hardening`):
+```text
+python -m pytest tests/unit/test_react_agent.py tests/unit/test_agent_tool_runtime.py \
+  tests/unit/test_skill_synthesis.py tests/unit/test_sandbox_compat_fallback.py \
+  tests/unit/test_biometrics_hardening.py tests/unit/test_hand_gesture.py \
+  tests/unit/test_data_analysis_service.py tests/unit/test_mobile_bridge.py \
+  tests/unit/test_proactive_engine.py -q --timeout=120
+0 failed (25+49+25+27+15+39+38+40+23 = 281 collected across these 9 files, all passed)
+
+python -m pytest tests/unit/ -q --timeout=120 --tb=short
+882 collected, 882 passed, 0 skipped, 0 failed
+```
+882 = 837 (merged-main baseline, already confirmed locally after the Biometrics + Gesture/Data merge) + 45 new tests this sprint adds (17 `test_react_agent.py` + 25 `test_agent_tool_runtime.py` [new file] + 3 `test_skill_synthesis.py` regression tests) = 837 + 45 = 882, exactly as predicted before running. The 9 previously-known failures are genuinely gone (fixed by `fix/ci-baseline` on `main`), not skipped or masked — confirmed by an actual local run, not assumed. **Zero regressions from the merge.**
+
+### Recommended next task
+
+Commit this sprint's changes on `feat/agent-execution-hardening`, push, open a PR — the sandbox pipe-deadlock fix in particular should get real CI/Windows-runner validation given how central `jarvis/sandbox/security.py` is (PR #9). Follow-ups explicitly out of scope here: wiring `ReActAgent`'s built-in tools through `ActionDispatcher`/`SafetyGateInterceptor`; fixing `strip_sandbox_ready_sentinel()`'s CRLF handling at the source; any Phase 3 LLM-routing/agent-wiring work; independently fixing the pre-existing mobile_bridge/proactive baseline failures.
+
+---
 
 ## 0A. Phase 1 — Wake Word Reliability Hardening (in progress, uncommitted)
 
@@ -314,6 +560,108 @@ Success: no issues found in 157 source files
 ### Recommended next task
 
 Push this branch and open a PR into `main`. Once CI is green, consider (separately, not required) wiring `_handle_safety_gate_confirm()` to actually re-dispatch the originally-gated action, and/or surfacing `IntentResult.confirmation_prompt` as the gate's description text for a nicer spoken confirmation prompt.
+
+---
+
+## 0D. Biometrics Hardening: Embedding Validation, Storage Atomicity & Face-Count Ambiguity (in progress, uncommitted)
+
+Snapshot: 2026-08-31. Branch `feat/biometrics-hardening`, based on `main`/HEAD at commit `e4bcd6d015dec2796e0f50e88b5c9f69b58bb1f7` (branch had **zero divergence** from `main` when this task started — confirmed via `git merge-base` returning the same SHA and an empty `git diff main...HEAD --stat`). Local working-tree change, **not committed, not pushed, no PR opened**. Independent of sections 0A/0B/0C — does not touch `jarvis/sandbox/*`, `jarvis/audio/wake_word.py`, `jarvis/planner/*`, `jarvis/core/dispatcher.py`, or `jarvis/core/app.py`.
+
+### Reference used
+
+`ageitgey/face_recognition` (MIT) was consulted as an **API/architecture reference only**: `face_locations()`/`face_encodings()`/`face_distance()`/`compare_faces()`, 128-dimensional embeddings, Euclidean distance, `tolerance` semantics (lower = stricter; upstream default `0.6` — a library default, not a security guarantee), one encoding per detected face. No upstream source was copied, no upstream repo was vendored, `face_recognition`/`dlib`/`cv2` were **not** added as a mandatory dependency (confirmed: neither appears anywhere in `pyproject.toml`, before or after this change — they are, and remain, soft-imported optionals with no declared dependency group), no model files or binary artifacts were added, and no Windows `dlib` packaging work was attempted (explicitly out of scope).
+
+### Audit performed first (per explicit instruction, before any implementation)
+
+Read `jarvis/vision/biometrics.py`, `jarvis/vision/__init__.py`, every test importing `BiometricsEngine`/`FaceEmbeddingStorage`/`BiometricPrivilegeGate` (`tests/test_biometrics.py`, `tests/test_adversarial_m5_2.py`, `tests/test_tier5_adversarial_sec_iot_comms_data.py`, `tests/test_e2e_scenarios.py`), `pyproject.toml` (dependency context only), and `jarvis/core/paths.py` (read-only, to understand writable-data conventions — **not modified**). Confirmed by direct code reading, not assumption:
+
+- `enroll_face()`/`verify_frame()`/`process_surveillance_frame()` all took `encodings[0]` unconditionally with no face-count check — a multi-face frame (e.g. owner + a stranger in view) could be misclassified non-deterministically depending on extraction order.
+- No embedding validation existed anywhere: a wrong-dimension, NaN/Infinity-containing, or non-numeric embedding could reach `np.linalg.norm(enrolled - cand)` uncaught, either crashing the caller or (if shapes happened to broadcast) producing a silently-trusted bogus distance.
+- `FaceEmbeddingStorage.save()` wrote directly (non-atomic) — a crash mid-write could corrupt/truncate the store.
+- `FaceEmbeddingStorage.add_face()`/`BiometricsEngine.enroll_face()` never surfaced a disk-write failure to the caller — a failed save still left in-process memory believing the enrollment succeeded.
+- Re-enrolling the same label left a **stale duplicate embedding** in the old flat in-memory `enrolled_embeddings` list (storage on disk correctly overwrote by label, but the engine's in-memory matching list did not track by label at all) — both the old and new embedding would still match after re-enrollment.
+- No label validation (type, emptiness, control characters, length) and no `tolerance` validation (negative/NaN/Infinity/string/absurdly-large values could silently broaden authentication) existed.
+- The camera-mock extraction branch (`self.camera.get_face_encodings()`) was not wrapped in try/except, unlike the `face_recognition` branch — a throwing mock/backend could crash the caller uncaught.
+- Confirmed via `tests/test_adversarial_m5_2.py::test_adversarial_biometrics_boundary_distances` that the existing tolerance boundary is **strict `<`** (distance exactly equal to tolerance = no match) — this is a locked contract, preserved bit-for-bit.
+- Confirmed via grep that no code outside `jarvis/vision/biometrics.py` reads the `enrolled_embeddings`/`enrolled_faces` attributes directly, and that `cv2`/`face_recognition` appear nowhere in `pyproject.toml` (not even as an optional group) — both are simply soft-imported with `ImportError → None`.
+
+### Fixes implemented (`jarvis/vision/biometrics.py` only)
+
+1. **Single embedding-validation boundary** — `_validate_embedding()` (module-private): exactly 128 dims, numeric, all-finite, returns a fresh `float64` copy (never mutates the caller's array), never raises (returns `None` on anything malformed). A cheap pre-check on `len()` avoids materializing pathologically large arrays before shape validation. Reused at every embedding entry point: storage load, `add_face()`, and every extraction call site in `enroll_face()`/`verify_frame()`/`process_surveillance_frame()`.
+2. **`_validate_label()`** — non-empty string after `strip()`, ≤128 chars, no control characters. Still used purely as a dict/JSON key, never as a filesystem path (unchanged — this was never a real risk in the existing design).
+3. **`_validate_tolerance()`** — rejects NaN/Infinity/negative/non-numeric/bool/values above `MAX_SANE_TOLERANCE = 10.0` (a sanity ceiling on the configuration knob, not a claim about real embedding distance ranges), falls back to `DEFAULT_TOLERANCE = 0.60` with a logged error. Applied in `BiometricsEngine.__init__`.
+4. **`FaceEmbeddingStorage._load()` hardened** — whole-file JSON parse failure or non-dict root still wipes the store to `{}` (preserves the existing test-locked contract exactly), but each entry inside an otherwise-valid dict is now validated independently (`_validate_label` + `_validate_embedding`); corrupt individual entries are skipped and logged while valid entries load normally.
+5. **Atomic `save()`** — temp file + `os.replace()`; returns `bool`. A write/replace failure leaves the previously-saved file on disk completely untouched and cleans up the temp file.
+6. **`add_face()` returns `bool` and rolls back on failed persistence** — validates label/embedding first, then only commits to the in-memory `enrolled_faces` dict if `save()` succeeded; on failure, restores the pre-call value (or removes the key if it was new) so memory can never claim a persisted success that didn't happen. Added `get_labeled_embeddings() -> dict[str, np.ndarray]` (new method; the old `get_embeddings() -> list[np.ndarray]` is unchanged/still present for compatibility, though nothing outside this file called it).
+7. **`BiometricsEngine` now keys labeled embeddings by label** (`_labeled_embeddings: dict[str, np.ndarray]`), separate from `_unlabeled_embeddings` (the `camera.owner_encoding` case, which has no label to key on). Re-enrolling an existing label now deterministically **replaces** rather than accumulating a stale duplicate. `enrolled_embeddings` is preserved as a read-only `@property` (flat list, computed from both structures) for compatibility — confirmed via grep that nothing outside this file reads it directly.
+8. **`enroll_face()`** — deterministically rejects 0 or >1 detected faces (requires exactly 1), validates label and embedding, and only updates `_labeled_embeddings` after `storage.add_face()` confirms persistence succeeded (rollback-safe).
+9. **`verify_frame()`** — `bypass_mode` and the None/empty/dark-frame (`np.mean < 5.0`) checks are preserved exactly. Now fails closed deterministically on 0 or >1 faces, a malformed candidate embedding, or zero enrolled embeddings. Tolerance boundary remains strict `<`, bit-for-bit unchanged.
+10. **`process_surveillance_frame()`** — a multi-face frame now returns a distinct `{"status": "ambiguous_faces", "locked": False, "distance": None}` and a malformed-embedding frame returns `{"status": "invalid_face_data", "locked": False, "distance": None}`; neither is ever classified as `"owner_verified"`. **Deliberate scope decision**: neither ambiguous state triggers the lock-workstation/Telegram side effects (unlike a genuine `"intruder_locked"` no-match) — the frame's content is genuinely unknown rather than confirmed non-owner, and inventing a new lock-triggering policy for that case was judged out of scope for this sprint (see explicit "do not expand into surveillance orchestration" instruction). The zero-enrolled-embeddings sentinel distance changed from the old magic `1.0` to `None` (no existing test asserted a specific value for that path — confirmed by grep before making the change).
+11. **`_extract_encodings()`** — the camera-mock branch is now wrapped in try/except like the `face_recognition` branch; a throwing backend/mock returns `[]` instead of crashing the caller.
+12. **`BiometricPrivilegeGate` was not modified** — audited for regressions only; since `verify_frame()` only became strictly harder to pass (never easier), no separate authorization change was needed there.
+13. `jarvis/vision/__init__.py` **unchanged** — all three exported names (`BiometricsEngine`, `BiometricPrivilegeGate`, `FaceEmbeddingStorage`) keep identical public signatures (`verify_frame()`/`enroll_face()` still return `bool`; `process_surveillance_frame()` still returns a `dict` with a `"status"` key). `jarvis/core/paths.py` was read but not modified — `FaceEmbeddingStorage`'s inline `%LOCALAPPDATA%` resolution logic was left exactly as-is (migrating it to `jarvis.core.paths.data_path()` was judged out of scope for an embedding/storage-integrity hardening sprint).
+
+### Files changed
+
+- `jarvis/vision/biometrics.py` — see above.
+- `tests/unit/test_biometrics_hardening.py` — **new file**, 49 deterministic tests, synthetic 128D arrays only (no real biometric data, no photos, no model files). Originally created at `tests/test_biometrics_hardening.py` (outside `tests/unit/`, so it would not have run in CI, which only runs `tests/unit/`); moved to its final `tests/unit/` location before commit `dcbe797` — no duplicate file remains at the old path.
+
+No other tracked file is part of this change set (confirmed via `git status` — see Known limitations for one unrelated pre-existing telemetry side effect).
+
+### Validation results (this session, local Windows)
+
+Targeted (new file, at its final `tests/unit/` location):
+```text
+python -m pytest tests/unit/test_biometrics_hardening.py -v --timeout=60 --tb=short
+49 passed in 0.45s
+```
+
+Existing biometrics-touching test files, compared bit-for-bit against baseline via `git stash`:
+```text
+python -m pytest tests/test_biometrics.py tests/test_adversarial_m5_2.py \
+  tests/test_tier5_adversarial_sec_iot_comms_data.py tests/test_e2e_scenarios.py \
+  -v --timeout=60 --tb=short
+3 failed, 45 passed, 9 errors
+```
+All 12 failures/errors reproduced identically on the pre-change baseline (`git stash` + rerun): 6 `ModuleNotFoundError: No module named 'cv2'` in `test_biometrics.py` (the `mock_camera_feed` fixture does `monkeypatch.setattr("cv2.VideoCapture", ...)`, which imports the target module first regardless of `raising=False` — `cv2` is genuinely not installed in this environment), 3 identical in `test_e2e_scenarios.py`, plus 2 pre-existing nmap/tshark CLI-capture bugs and 1 pre-existing `DiscordBotController.summarize_channel` `AttributeError` in `test_tier5_...` — all unrelated to biometrics or to this change. **Zero regressions.**
+
+Full `tests/unit/` (rerun after moving the test file into `tests/unit/`, with collection counts verified against a `git stash` baseline):
+```text
+python -m pytest tests/unit/ --collect-only -q --timeout=120
+python -m pytest tests/unit/ -q --timeout=120 --tb=short
+```
+- Baseline collection (`git stash`, file not yet present in `tests/unit/`): **736**.
+- Feature-branch collection (`tests/unit/test_biometrics_hardening.py` present): **785**.
+- Delta: **+49** — exactly the number of new biometrics-hardening tests, confirming the file is now collected by the same command CI runs.
+- All 49 biometrics-hardening tests: **passed**.
+- Exactly the documented pre-existing baseline of 9 failures: 8 in `tests/unit/test_mobile_bridge.py` + 1 in `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches` — confirmed identical before/after via `git stash`. **Zero new failures.** (This repo's pytest config prints no final grand-total summary line — confirmed pre-existing, consistent with section 0C's note.)
+- **Post-merge correction (added when merging `main` into `feat/gesture-data-reference-hardening`, which pulled this section in unmodified from `main`)**: the "9 known pre-existing failures" above reflects `main` at `e4bcd6d`, the exact base this branch never diverged from — **before** the separate `fix/ci-baseline` branch fixed both root causes (`jarvis/comms/mobile_bridge.py`'s dangling transfer-log path; the stale hardcoded thresholds in the proactive-engine test) and merged into `main`. This is a historical record of what this branch observed at the time; it is not being rewritten. **Actual post-merge validation** (see section 0-PRE above for the full command/output): `tests/unit/` now collects **837** and all **837 pass, 0 failed** — the 9 failures are genuinely fixed, confirmed by an actual test run, not assumed.
+- **Correction**: an earlier draft of this section stated "no test in `tests/unit/` touches `jarvis/vision/biometrics.py`". That was only true while the new test file still lived at `tests/test_biometrics_hardening.py` (outside `tests/unit/`, so it would not have run in CI). The file was moved to `tests/unit/test_biometrics_hardening.py` before commit `dcbe797`, so as of this snapshot **49 tests inside `tests/unit/` do exercise `jarvis/vision/biometrics.py`**, and CI (which runs `python -m pytest tests/unit/`) now covers them.
+
+Static analysis:
+```text
+ruff check jarvis/vision/biometrics.py tests/unit/test_biometrics_hardening.py
+All checks passed!
+
+mypy jarvis
+```
+`jarvis/vision/biometrics.py` has zero mypy errors. Repo-wide `ruff check jarvis tests scripts/build_installer.py` (9 errors) and `mypy jarvis` (28 errors, 8 files) were confirmed **identical to baseline** via `git stash` — none of the flagged files are touched by this change (`tests/unit/test_zalo_bot.py` import-sort, plus `night_shift.py`/`macro_recorder`/`auto_updater.py`/`smart_home/discovery.py`/`mobile_bridge.py`/`tray.py`/`gui_actor.py`/`cli.py` for mypy).
+
+`py_compile jarvis/vision/biometrics.py tests/unit/test_biometrics_hardening.py`: exit 0. `git diff --check`: exit 0.
+
+**Note on test file location**: the test file was originally authored at `tests/test_biometrics_hardening.py`, outside `tests/unit/` — since CI runs only `python -m pytest tests/unit/`, those 49 tests would not have executed in CI at that location. It was moved to `tests/unit/test_biometrics_hardening.py` before commit `dcbe797` (plain filesystem move — the file was untracked at the time, no `git mv` needed, no duplicate left behind). CI has still not been run for this branch; the numbers above are local-run results, not a CI claim.
+
+### Known limitations / explicitly not claimed
+
+- No claim of spoofing resistance, liveness detection, or anti-spoofing. Tolerance `0.6` is a library default, not an identity guarantee. Windows support for `face_recognition`/`dlib` was not validated (no install/packaging attempted — explicitly out of scope).
+- `jarvis/skills/*/metadata.json` (9 files) were mutated by running the test suite this session (skill-registry invocation-count/timestamp telemetry, same pre-existing side effect documented in section 0A/0C). Restoring them via `git checkout --` was **blocked by the tool's own safety classifier** (a discard-uncommitted-work-style command) this session — unlike prior sessions, it was not possible to restore them programmatically here. They remain uncommitted/unrestored; the user should run `git checkout -- jarvis/skills/*/metadata.json` manually before committing if desired.
+- CI has not been run for this branch. Not committed, not pushed, no PR opened.
+- `FaceEmbeddingStorage`'s AppData path-resolution logic duplicates (rather than reuses) `jarvis/core/paths.py`'s conventions; left unchanged as out-of-scope for this sprint.
+- The `_labeled_embeddings`/`_unlabeled_embeddings` split and the `enrolled_embeddings` property are an internal representation change; verified via grep that nothing outside `biometrics.py` reads `enrolled_embeddings` directly, so this is not considered a breaking change, but any future external caller should be aware it is now a computed property, not a plain list attribute.
+
+### Recommended next task
+
+Push this branch and open a PR into `main` once the user reviews the diff. CI has not been exercised for this change. No other biometrics work (e.g. liveness detection, OS-level camera permission hardening, actual `face_recognition`/`dlib` Windows packaging) was in scope and none is recommended as an immediate follow-up beyond what the user explicitly requests next.
 
 ---
 

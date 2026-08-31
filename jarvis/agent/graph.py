@@ -21,6 +21,16 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from jarvis.agent.tool_runtime import (
+    DEFAULT_MAX_OBSERVATION_CHARS,
+    MAX_PYTHON_EXEC_TIMEOUT_SECONDS,
+    ToolExecutionResult,
+    format_observation,
+    normalize_tool_output,
+    sandbox_result_to_tool_result,
+)
+from jarvis.sandbox.interpreter import CodeInterpreterSandbox
+
 log = logging.getLogger("jarvis.agent.graph")
 
 
@@ -77,13 +87,21 @@ class ReActAgent:
         tools: list[Tool] | None = None,
         max_iterations: int = 10,
         is_mock: bool = False,
+        sandbox: CodeInterpreterSandbox | None = None,
     ) -> None:
         self.tools: dict[str, Tool] = {t.name: t for t in (tools or [])}
         self.max_iterations = max_iterations
         self.is_mock = is_mock
         self._tasks: dict[str, AgentTask] = {}
+        self._sandbox = sandbox
         self._register_default_tools()
         log.info("ReActAgent initialized with %d tools (mock=%s)", len(self.tools), is_mock)
+
+    def _get_sandbox(self) -> CodeInterpreterSandbox:
+        """Lazily construct the default CodeInterpreterSandbox (only when run_python is actually used)."""
+        if self._sandbox is None:
+            self._sandbox = CodeInterpreterSandbox(cleanup_on_exit=True)
+        return self._sandbox
 
     # ------------------------------------------------------------------
     # Tool Registry
@@ -238,17 +256,30 @@ class ReActAgent:
         return thought or "Phân tích tiếp theo...", tool_name, args
 
     def _act(self, tool_name: str, args: dict[str, Any]) -> str:
-        """Execute a tool and return string observation."""
+        """Execute a tool and return a bounded, deterministic string observation."""
+        result = self._execute_tool(tool_name, args)
+        return format_observation(result, max_chars=DEFAULT_MAX_OBSERVATION_CHARS)
+
+    def _execute_tool(self, tool_name: str, args: dict[str, Any]) -> ToolExecutionResult:
+        """
+        Structured tool-execution boundary: unknown tools and malformed args
+        fail deterministically, and a tool exception can never escape and
+        crash the agent loop.
+        """
         tool = self.tools.get(tool_name)
         if not tool:
-            return f"Tool '{tool_name}' không tồn tại."
+            return ToolExecutionResult(success=False, output="", error=f"Tool '{tool_name}' không tồn tại.")
+        if not isinstance(args, dict):
+            return ToolExecutionResult(
+                success=False,
+                output="",
+                error=f"Tham số không hợp lệ cho tool '{tool_name}': cần object/dict, nhận {type(args).__name__}.",
+            )
         try:
-            result = tool.fn(**args)
-            if isinstance(result, dict):
-                return result.get("output", str(result))
-            return str(result)
+            raw = tool.fn(**args)
         except Exception as exc:
-            return f"Lỗi tool {tool_name}: {exc}"
+            return ToolExecutionResult(success=False, output="", error=f"Lỗi tool {tool_name}: {exc}")
+        return normalize_tool_output(raw)
 
     def _reflect(self, task: AgentTask) -> str:
         """Generate final summary from all steps."""
@@ -322,15 +353,34 @@ class ReActAgent:
         except Exception as exc:
             return {"output": str(exc)}
 
-    def _tool_run_python(self, code: str = "", **kw) -> dict:
-        import ast
-        try:
-            ast.parse(code)  # syntax check
-            exec_globals: dict[str, Any] = {}
-            exec(code, exec_globals)
-            return {"output": str(exec_globals.get("result", "Code chạy thành công"))}
-        except Exception as exc:
-            return {"output": f"Lỗi: {exc}"}
+    def _tool_run_python(self, code: str = "", timeout_seconds: float | None = None, **kw) -> dict:
+        """
+        Execute Python code through the existing, unmodified
+        CodeInterpreterSandbox (AST validation, isolated scratch dir,
+        OS Restricted Token isolation, timeout/resource bounds) -- never a
+        raw in-process dynamic code evaluation of any kind.
+        """
+        bounded_timeout = min(
+            timeout_seconds if timeout_seconds is not None else CodeInterpreterSandbox.DEFAULT_TIMEOUT_SECONDS,
+            MAX_PYTHON_EXEC_TIMEOUT_SECONDS,
+        )
+        # Best-effort capture of a top-level `result` variable, mirroring the
+        # convention of the prior implementation, without using any
+        # AST-forbidden introspection call (locals()/globals()/vars() are
+        # all rejected by the sandbox's static validator).
+        wrapped_code = f"{code}\n\ntry:\n    print(result)\nexcept NameError:\n    pass\n"
+        sandbox_result = self._get_sandbox().execute_python(wrapped_code, timeout_seconds=bounded_timeout)
+        tool_result = sandbox_result_to_tool_result(sandbox_result)
+        # "output" always carries the human-facing text (success or failure),
+        # preserving the pre-sandbox tool's contract; "success"/"error"/
+        # "metadata" are additive fields for the new structured boundary.
+        output_text = tool_result.output if tool_result.success else format_observation(tool_result)
+        return {
+            "success": tool_result.success,
+            "output": output_text,
+            "error": tool_result.error,
+            "metadata": tool_result.metadata,
+        }
 
     def _tool_browser(self, url: str = "", **kw) -> dict:
         try:
