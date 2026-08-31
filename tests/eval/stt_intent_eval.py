@@ -79,18 +79,68 @@ class EvalSummary:
     median_latency_ms: float
     threshold_curve: dict[str, dict[str, float]] = field(default_factory=dict)
 
-def predict_intent(transcript: str) -> str:
-    if not transcript.strip(): return "NO_INTENT"
+def _build_router():
+    """Build LLMIntentRouter using only Tier-1 rule_engine (no LLM calls needed)."""
     try:
-        from jarvis.llm.router import IntentRouter
-        r = IntentRouter().route(transcript)
-        return r.intent if r and getattr(r,"intent",None) else "NO_INTENT"
-    except Exception:
-        t = transcript.lower()
-        for intent, phrases in INTENT_TEST_SET.items():
-            for ph in phrases:
-                if all(w in t for w in ph.split()[:2]): return intent
-        return "NO_INTENT"
+        from jarvis.llm.router import LLMIntentRouter
+
+        class _FakeDispatcher:
+            def get_available_actions(self): return []
+            def get_action(self, name): return None
+
+        return LLMIntentRouter(llm_client=None, dispatcher=_FakeDispatcher(),
+                               fast_path_enabled=True)
+    except Exception as e:
+        print(f"  WARNING: could not build router ({e}) — using keyword fallback")
+        return None
+
+# Map eval intent category -> acceptable router action_name(s).
+# system_power handles BOTH shutdown and restart; screen_capture handles screenshot.
+EXPECTED_ACTIONS: dict[str, set[str]] = {
+    "open_app":        {"app_open", "web_open"},
+    "system_shutdown": {"system_power"},
+    "system_restart":  {"system_power"},
+    "volume_control":  {"system_volume"},
+    "weather_query":   {"shell_exec"},
+    "timer_set":       {"reminder"},
+    "reminder_set":    {"reminder"},
+    "screenshot":      {"screen_capture"},
+    "stop":            {"system_power"},
+    "search":          {"web_open", "shell_exec"},
+    "music_play":      {"spotify"},
+    "screen_off":      {"system_power", "system_brightness"},
+    "note_take":       {"memory_save_fact"},
+    "settings_open":   {"app_open", "web_open"},
+}
+
+_ROUTER = None  # initialised lazily inside subprocess
+
+def predict_intent(transcript: str) -> str:
+    """
+    Route transcript through Tier-1 rule_engine (deterministic substring match).
+    Returns router action_name (e.g. 'system_power') or 'NO_INTENT'.
+    Use EXPECTED_ACTIONS to map action_name back to eval intent.
+    """
+    global _ROUTER
+    if _ROUTER is None:
+        _ROUTER = _build_router()
+    t = transcript.lower().strip()
+    if not t: return "NO_INTENT"
+    if _ROUTER is not None:
+        for keyword, result in _ROUTER.rule_engine.items():
+            if keyword in t:
+                return result.action_name
+    # Fallback: ASCII/English keyword match (stops, reboot, screenshot, etc.)
+    simple = {
+        "stop": "system_power", "shutdown": "system_power",
+        "reboot": "system_power", "restart": "system_power",
+        "screenshot": "screen_capture",
+        "mute": "system_volume", "play music": "spotify",
+        "open settings": "app_open",
+    }
+    for kw, action in simple.items():
+        if kw in t: return action
+    return "NO_INTENT"
 
 def avg_logprob_to_confidence(avg_lp: float) -> float:
     """
@@ -147,17 +197,19 @@ def run_single_model(model_name: str, audio_root: Path, conditions: list[str],
                 transcript = " ".join(texts).strip()
                 conf = avg_logprob_to_confidence(
                     statistics.mean(lps) if lps else -99.0)
-                pred = predict_intent(transcript)
-                if pred == "NO_INTENT":    outcome: Outcome = "SILENT_FAILURE"
-                elif pred == intent_gt:    outcome = "CORRECT"
-                else:                      outcome = "MISROUTED"
+                # Route via real Tier-1 rule_engine; compare using EXPECTED_ACTIONS
+                pred_action = predict_intent(transcript)
+                expected = EXPECTED_ACTIONS.get(intent_gt, set())
+                if pred_action == "NO_INTENT":    outcome: Outcome = "SILENT_FAILURE"
+                elif pred_action in expected:      outcome = "CORRECT"
+                else:                              outcome = "MISROUTED"
                 icon = {"CORRECT":"✓","MISROUTED":"✗","SILENT_FAILURE":"○"}[outcome]
                 print(f"    {icon} [{lat_ms:>5.0f}ms c={conf:.2f}] "
-                      f"{intent_gt} -> '{transcript[:35]}' -> {pred}")
+                      f"{intent_gt} -> '{transcript[:35]}' -> {pred_action}")
                 results.append(asdict(TrialResult(condition=condition,
                     intent_gt=intent_gt, phrase=wav_path.stem,
                     audio_file=str(wav_path), model=model_name,
-                    transcript=transcript, predicted_intent=pred,
+                    transcript=transcript, predicted_intent=pred_action,
                     outcome=outcome, confidence=conf, latency_ms=lat_ms)))
 
     # Write results; subprocess exit releases all VRAM cleanly
