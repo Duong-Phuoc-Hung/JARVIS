@@ -1,8 +1,110 @@
 # JARVIS — PROJECT_STATE.md
 
 > Durable current-state handoff for future sessions.
-> Snapshot: 2026-08-30.
+> Snapshot: 2026-08-31.
 > Always verify Git state and current code before relying on this snapshot.
+
+## 0-PRE. Skill/Plugin Manifest & Telemetry Hardening — Leon 2.0 Reference Sprint (in progress, uncommitted)
+
+Snapshot: 2026-08-31. Branch `feat/skill-plugin-hardening`, based on `main` at `e4bcd6d015dec2796e0f50e88b5c9f69b58bb1f7`. Local working-tree change, **not committed, not pushed, no PR opened, no CI run**. Primary target: `jarvis/skills/models.py`, `jarvis/skills/registry.py`.
+
+### Scope and constraints
+
+- NO-TOUCH list honored, verified untouched: `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/agent/**`, `jarvis/sandbox/**`, `jarvis/comms/**`, `jarvis/proactive/**`, `jarvis/hardware/**`, `jarvis/stt/**`, `jarvis/audio/**`, `jarvis/automation/**`, `jarvis/security/**`, `jarvis/vision/**`, `installer/**`, `scripts/build_installer.py`.
+- Also untouched (no hard dependency required it): `jarvis/skills/synthesizer.py`, every individual skill implementation directory, and every existing `jarvis/skills/*/metadata.json` file. The other contributor's recent individual-skill and metadata changes are preserved exactly.
+- No second safety gate invented; `ActionDispatcher` itself not modified, only consumed via its existing public API.
+
+### Upstream reference consulted (architecture only — no source copied, not vendored, not a dependency)
+
+- **leon-ai/leon**, 2.0 Developer Preview on `develop` (not older Leon docs/tutorials). Concepts used: the Skills → Actions → Tools → Functions capability hierarchy, separation of static capability definition from runtime execution state, deterministic native execution, tool boundaries, discoverability/registry design, validate-before-load, explicit capability metadata, separation of static definitions from runtime context/telemetry. No Leon TypeScript source was read into any JARVIS file; this is a partial, selective adaptation of concepts, not a reimplementation of Leon's architecture; `pyproject.toml` was not touched (no new dependency).
+
+### Confirmed findings (audited before any edit, exactly as suspected)
+
+1. **`SkillMetadata.to_dict()`/`.from_dict()` both silently dropped `category` and `author`** — confirmed by reading the source (neither key appears in either method) and by inspecting every packaged `metadata.json`: all 9 "jarvis_builtin_system"-family files (app_launcher, briefing, calculator, clipboard, file_manager, git_assistant, note_taker, pomodoro, system_control) already lack these keys, proving the bug has been live since those files were first written. A separate, newer "JARVIS Core Team"-family of 8 skills (auto_updater, browser_control, macro_recorder, night_planner, rag_search, screen_context, skill_synthesizer, smart_home_discovery, sound_board — the other contributor's recent work) uses an entirely different manifest shape (`display_name`/`author`/`actions`, no telemetry fields); `from_dict()` was silently discarding their real `"author": "JARVIS Core Team"` value in favor of the dataclass default.
+2. **`invoke_skill()` called `_persist_skill_metadata()` after every invocation**, rewriting the entire packaged `<skill>/metadata.json` with fresh runtime counters. Confirmed as the exact root cause of `tests/unit/` mutating tracked metadata files: `tests/unit/test_builtin_skills.py`'s fixture constructs `SkillRegistry(skills_dir=Path("jarvis/skills").resolve())` and every test method calls `invoke_skill()` on a real built-in skill. **Not just a test artifact** — `jarvis/core/app.py:373` (`skills_dir` defaults to the string `"jarvis/skills"`, resolving to the packaged tree unless overridden by config) and `jarvis/comms/discord.py`/`jarvis/comms/zalo.py` (`SkillRegistry()` with no arguments, same default) mean real end-user JARVIS usage — Telegram/Discord/voice/CLI skill invocation — has been rewriting its own installed package's metadata.json files on every real invocation too.
+3. **Direct `invoke_skill()` is intentional, coexisting design, confirmed by tracing every production caller — not a bypass to "fix."** Callers: `jarvis/core/app.py:1302`, 5 call sites in `jarvis/comms/discord.py`, `jarvis/comms/zalo.py`, `jarvis/ui/dashboard.py:714`, and `SkillRegistry._create_dispatcher_handler()` itself (the `ActionDispatcher` adapter calls `invoke_skill()` internally). All are trusted, internal JARVIS-owned callers invoking a known skill by name — none is LLM-routed or untrusted-input-driven skill *selection*. Both the direct path and the `ActionDispatcher`-routed path (`skill_<name>` actions) coexist by design and both remain fully functional.
+4. Malformed-JSON-per-skill discovery was already fail-closed **in the sense that the skill still loads with fallback metadata rather than being skipped or crashing discovery** (caught, logged, falls back to a directory/file-derived default `SkillMetadata`) before this sprint — confirmed by reading the code and by a new regression test, not a new behavior. Precisely: neither syntactically-invalid JSON nor a field-level type error in otherwise-valid JSON (see below) ever causes a skill to be rejected/skipped from discovery — both degrade to safe defaults for that field/manifest. What was **not** validated before: a syntactically-valid manifest with wrong field types (e.g. `"tags": "not-a-list"`), which could silently produce a type-inconsistent `SkillMetadata` that crashes later in unrelated code (e.g. `", ".join(tags)` in `synthesizer.py`'s markdown generation).
+5. **No skill-identifier safety validation existed anywhere.** `register_skill()`'s `skill_dir = self.skills_dir / name` and the old `_persist_skill_metadata()`'s `f"{name}.json"` both trusted `metadata.name` (untrusted content from a JSON file the skill's own directory owns) with zero sanitization — a manifest declaring `"name": "../../evil"` would have caused a path escape in either call site.
+6. Discovery order was **not** deterministic (`Path.iterdir()`/`glob()` order is filesystem-dependent), and two different skill directories declaring the same `metadata.name` (independent of their own directory names) would silently overwrite each other depending on that unordered iteration.
+
+### A. Manifest/telemetry separation (new module, `jarvis/skills/**` outside the two target files untouched except new files)
+
+- [jarvis/skills/telemetry.py](../jarvis/skills/telemetry.py) (new) — `SkillTelemetryStore`: thread-safe (`threading.Lock`), atomic writes (temp file + `os.replace()`), corruption-tolerant (`load_all()`/`get()` never raise, log and return empty/None on a corrupt file), located via `jarvis.core.paths.data_path()` (existing, **unmodified**) by default. `default_telemetry_path_for(skills_dir)` scopes the default path by a SHA-256 hash of the resolved `skills_dir` — the real packaged tree always resolves to the same persistent file across restarts; every test's fresh temp directory gets an automatically unique, never-colliding file. `record_invocation(skill_name, success, latency_ms, seed=None)` — `seed` bootstraps a skill's counters from its current in-memory values the first time the store has no entry for it, so migrating onto the new store is numerically continuous (never a visible reset of historical counts).
+- [jarvis/skills/registry.py](../jarvis/skills/registry.py) — `SkillRegistry.__init__` gained an optional `telemetry_store: SkillTelemetryStore | None = None` param (backward compatible; no existing caller needed to change). `invoke_skill()` no longer calls `_persist_skill_metadata()` (removed entirely — nothing else called it); it now calls `self.telemetry.record_invocation(...)` after computing a `seed` from the skill's current in-memory counters. In-memory `SkillMetadata.record_invocation()` (and thus `get_metrics()`/`success_rate`/`avg_latency_ms`) is unchanged — only where telemetry is durably persisted changed. New `_hydrate_telemetry()` overlays the store's counters onto freshly-parsed static metadata at discovery time when the store has an entry; if not, the metadata's own (possibly legacy) values are left untouched.
+
+### B. Metadata round-trip fidelity fix
+
+- [jarvis/skills/models.py](../jarvis/skills/models.py) — `to_dict()` now emits `category`/`author`. `from_dict()` rewritten around deterministic coercion helpers (see below): missing fields fall back to dataclass defaults (backward compatible with old manifests); fields present with the **wrong type** also fall back to defaults rather than propagating onto a typed attribute (fixes finding #4 above) — a single malformed field can never crash discovery.
+
+### C. Deterministic manifest validation (new module, no JSON Schema framework, no new dependency)
+
+- [jarvis/skills/validation.py](../jarvis/skills/validation.py) (new) — `is_safe_skill_identifier()` (rejects path separators, `..`, null bytes, empty/overlong strings; used to override an unsafe declared `metadata.name` with the filesystem-derived safe name at discovery time, and to make `register_skill()` refuse an unsafe name before constructing any path from it); `is_safe_entrypoint_identifier()` (gates the `getattr(module, entrypoint_function)` lookup in `_import_skill_module()`); `coerce_str`/`coerce_dict`/`coerce_optional_dict`/`coerce_str_list`/`coerce_float`/`coerce_int` (plain deterministic type coercion with safe fallback defaults, used throughout `SkillMetadata.from_dict()`).
+
+### D. Discovery determinism
+
+- `discover_skills()` now sorts both the subdirectory scan and the standalone-`.py`-file scan by name before processing. Duplicate `metadata.name` collisions (independent of directory name) resolve deterministically: the first-processed (sorted order) skill wins, later duplicates are skipped with a logged warning — never a silent overwrite. Verified for both directory-vs-directory and directory-vs-standalone-file collisions. Malformed-JSON-per-skill behavior confirmed unchanged (was already correct — see finding #4's precise wording) and now covered by a regression test. **Not addressed, pre-existing, out of scope**: a skill whose directory is deleted from disk between two `discover_skills()` calls is never removed from `self._skills` — do not describe discovery as "fully reconciled," only its ordering/duplicate-resolution are guaranteed.
+
+### Follow-up pre-commit review — 4 real issues found and fixed, 6 tests added
+
+A dedicated line-by-line review of the diff (no new features) found and fixed the following, all still inside this sprint's own files:
+
+1. **A wrong-TYPED `name` (not just an unsafe string) could silently collide two unrelated skills under one shared, incorrect identity.** `SkillMetadata.from_dict()` coerced a non-string `name` (e.g. `"name": 12345`) to the fixed placeholder `"unnamed_skill"` — a string that itself *passes* `is_safe_skill_identifier()`, so the post-construction `_enforce_safe_skill_name()` override never fired. Two different skills with equally wrong-typed names would both resolve to the identical `"unnamed_skill"` key. Fixed with a new `SkillRegistry._sanitize_declared_name()` that runs on the raw parsed dict **before** `from_dict()` ever sees it, substituting the filesystem-derived safe name whenever the declared `"name"` is missing, wrong-typed, or an unsafe string — an invalid name now always resolves to *this skill's own* correct identity, never a generic shared placeholder. Regression tests: one skill with a wrong-typed name resolves to its own directory name; two independently-wrong-typed skills resolve to two distinct names, never colliding.
+2. **Manifest/telemetry separation was incomplete at the `register_skill()` write site.** `SkillMetadata.to_dict()` (unchanged, still includes all 6 telemetry fields, used by `SkillDefinition.to_dict()`/dashboard introspection) was also being used to write brand-new packaged `metadata.json` files in `register_skill(save_to_disk=True)` — baking in telemetry fields (typically zero, but not conceptually separated) into every newly-created manifest. Fixed by adding `SkillMetadata.to_manifest_dict()` (excludes all 6 telemetry fields) and switching `register_skill()`'s disk write to use it. `jarvis/skills/synthesizer.py` (out of scope this sprint, not modified) still uses `to_dict()` for its own metadata.json write — this separation is therefore complete only at the one write site this sprint owns.
+3. **In-memory concurrency race in `invoke_skill()`.** The seed-capture + `skill_def.metadata.record_invocation()` sequence (a non-atomic `+= 1` on a dataclass attribute shared across every caller invoking the same skill) ran with no lock — concurrent invocations of the same skill could lose updates to `get_metrics()`'s in-memory counters (a classic lost-update race), even though the separate on-disk `SkillTelemetryStore` was already correctly locked. This was a **pre-existing** race (the original `skill_def.metadata.record_invocation()` call was never locked either), newly exposed by this review's explicit concurrency verification, not introduced by this sprint's earlier changes. Fixed by wrapping the seed-capture and in-memory increment in the registry's existing `self._lock` (RLock); the on-disk telemetry write is intentionally left outside that lock since `SkillTelemetryStore` has its own independent lock and always increments from whatever is currently on disk (never from a stale `seed`, which only bootstraps a skill's very first store entry) — the two locks never need to be unified for correctness. Regression test: 40 concurrent `invoke_skill()` calls (half success / half failure) assert `invocation_count == success_count + failure_count` in both `get_metrics()` and the telemetry store.
+4. **`_write_all_locked()` only caught `OSError` around `json.dumps()`.** Widened to also catch `TypeError`/`ValueError` — defense-in-depth for a hypothetical non-JSON-serializable value (not currently reachable, since all telemetry values are explicitly cast to `int`/`float`), so a JSON encode failure can never propagate out and interrupt a skill invocation.
+
+Also closed two test-coverage gaps identified during the review (no code change, pre-existing behavior verified): directory-vs-standalone-file duplicate-name resolution, and `to_manifest_dict()`'s exact field exclusion in isolation.
+
+### Files changed
+
+- [jarvis/skills/models.py](../jarvis/skills/models.py) — `to_dict()`/`from_dict()` fixed (see B); `to_manifest_dict()` added (see follow-up review #2).
+- [jarvis/skills/registry.py](../jarvis/skills/registry.py) — telemetry store integration, `_persist_skill_metadata()` removed, `_sanitize_declared_name()`/`_enforce_safe_skill_name()`/`_hydrate_telemetry()` added, `discover_skills()` made deterministic, `_import_skill_module()`/`register_skill()` gained identifier-safety checks (see A/C/D), `register_skill()` uses `to_manifest_dict()`, `invoke_skill()`'s telemetry update now lock-guarded (see follow-up review #1/#2/#3).
+- [jarvis/skills/telemetry.py](../jarvis/skills/telemetry.py) — new file (see A); `_write_all_locked()` widened exception handling (see follow-up review #4).
+- [jarvis/skills/validation.py](../jarvis/skills/validation.py) — new file (see C).
+- [tests/unit/test_skill_registry_hardening.py](../tests/unit/test_skill_registry_hardening.py) — new file, 25 tests (19 original + 6 from the follow-up review).
+
+No other tracked file is part of this change set. `jarvis/skills/synthesizer.py`, individual skill directories, and existing `metadata.json` files are unmodified.
+
+### Validation actually executed (this session, local — includes the follow-up review pass)
+
+```text
+tests/unit/test_skill_registry_hardening.py    — 25 passed (new file)
+tests/unit/test_plugin_sdk.py                  — 11 passed (unrelated jarvis/plugins/** SDK, unaffected)
+tests/unit/test_plugins_m2.py                  — 3 passed (unrelated, unaffected)
+tests/unit/test_builtin_skills.py              — 14 passed (skills_dir points at the real jarvis/skills/ tree)
+tests/unit/test_skill_synthesis.py             — 20 passed
+tests/unit/test_skill_synthesizer.py           — 13 passed
+tests/unit/test_adversarial_r1_r2_r5_stress.py — 14 passed (includes a 20-thread concurrent invoke_skill() stress test)
+
+ruff check jarvis/skills/models.py jarvis/skills/registry.py jarvis/skills/telemetry.py \
+  jarvis/skills/validation.py tests/unit/test_skill_registry_hardening.py     — All checks passed!
+mypy jarvis/skills/models.py jarvis/skills/registry.py jarvis/skills/telemetry.py \
+  jarvis/skills/validation.py --follow-imports=silent                        — Success: no issues found in 4 source files
+py_compile (all changed files)                                               — exit 0
+git diff --check                                                             — exit 0
+
+tests/unit/ full run (post-review) — 761 collected, 752 passed, 9 failed
+```
+
+9 failures are the **documented, pre-existing, unrelated baseline failures** in NO-TOUCH areas (identical set seen on this same `e4bcd6d` baseline across every earlier reference-integration sprint this cycle): 8 in `tests/unit/test_mobile_bridge.py` and 1 in `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`. 761 − 736 (confirmed `e4bcd6d` baseline collected count) = 25, exactly matching the total new tests across both the original sprint and this review pass. **Zero regressions introduced.**
+
+**Critical regression check for this sprint specifically**: `git status --short` and `git diff -- jarvis/skills/*/metadata.json` were run **before and after** the focused test run and the full `tests/unit/` run, both in the original implementation pass and again in this follow-up review pass (761 tests, including the new 40-thread concurrent-invocation test). Every check returned **empty** — no tracked `metadata.json` file was touched, including by tests that discover/invoke skills directly against the real `jarvis/skills/` tree (`test_builtin_skills.py`, and a dedicated test in `test_skill_registry_hardening.py` that explicitly asserts this). This was the sprint's core goal and remains verified after the additional fixes.
+
+### Known limitations / confirmed follow-ups
+
+- The two coexisting manifest schema "families" (`jarvis_builtin_system` and `JARVIS Core Team`) are not unified — `from_dict()` reads both without crashing, but no migration was performed, per explicit instruction not to rewrite every metadata.json this sprint. Unknown fields specific to the "JARVIS Core Team" shape (`display_name`, `actions`, `hotkey`) are silently ignored by `from_dict()` (never read, never crash) — this is no-crash tolerance, not schema compatibility; those fields are not modeled by `SkillMetadata` and are not preserved through a `SkillMetadata` round-trip.
+- Manifest/telemetry separation is complete at `register_skill()` (this sprint's write site) but not at `synthesizer.py`'s own metadata.json write, which still uses `to_dict()` (out of scope, not modified).
+- `discover_skills()` does not remove stale entries for skills deleted from disk between calls — pre-existing, out of scope.
+- `is_safe_entrypoint_identifier()` gates `getattr(module, entrypoint_function)`, but in current production usage `entrypoint_function` is almost always the literal default `"execute"` — this check is primarily defense-in-depth for the less-used `SkillDefinition.from_dict()` path.
+- `reload_skill()` still always `exec_module()`s a fresh module with no explicit teardown of the previous module object — pre-existing behavior, out of scope for this sprint.
+- CI has not been run for this branch; not committed, not pushed, no PR opened.
+- The 9 pre-existing unrelated baseline failures (mobile_bridge, proactive health-monitor) remain unfixed, per explicit instruction not to chase them.
+
+### Recommended next task
+
+Commit this sprint's changes (including the follow-up review fixes) on `feat/skill-plugin-hardening`, push, open a PR. Follow-ups explicitly out of scope here: unifying the two manifest schema families; migrating/rewriting existing packaged `metadata.json` files; updating `synthesizer.py` to use `to_manifest_dict()`; reconciling stale `discover_skills()` entries; any Phase 3 LLM-routing work; independently fixing the pre-existing mobile_bridge/proactive baseline failures.
+
+---
 
 ## 0A. Phase 1 — Wake Word Reliability Hardening (in progress, uncommitted)
 

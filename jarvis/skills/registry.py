@@ -19,6 +19,8 @@ from typing import Any
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import PrivilegeLevel
 from jarvis.skills.models import SkillDefinition, SkillExecutionResult, SkillMetadata
+from jarvis.skills.telemetry import SkillTelemetryStore, default_telemetry_path_for
+from jarvis.skills.validation import is_safe_entrypoint_identifier, is_safe_skill_identifier
 
 logger = logging.getLogger("jarvis.skills.registry")
 
@@ -41,6 +43,7 @@ class SkillRegistry:
         skills_dir: str | Path | None = None,
         dispatcher: ActionDispatcher | None = None,
         auto_discover: bool = True,
+        telemetry_store: SkillTelemetryStore | None = None,
     ) -> None:
         if skills_dir:
             self.skills_dir = Path(skills_dir).resolve()
@@ -51,6 +54,14 @@ class SkillRegistry:
         self.dispatcher = dispatcher
         self._skills: dict[str, SkillDefinition] = {}
         self._lock = threading.RLock()
+        # Runtime invocation telemetry lives outside the packaged skill tree
+        # (see jarvis.skills.telemetry) -- injectable for deterministic
+        # tests; defaults to a file under JARVIS's writable per-user data
+        # dir, scoped to this specific skills_dir (so normal invocation
+        # never rewrites packaged jarvis/skills/*/metadata.json, and a
+        # fresh temporary skills_dir in a test never inherits telemetry
+        # from another test run or the real packaged tree).
+        self.telemetry = telemetry_store or SkillTelemetryStore(store_path=default_telemetry_path_for(self.skills_dir))
 
         if auto_discover:
             self.discover_skills()
@@ -58,7 +69,16 @@ class SkillRegistry:
     def discover_skills(self) -> dict[str, SkillDefinition]:
         """
         Scan skills directory, discovering and loading all packaged skills.
-        
+
+        Discovery order is deterministic (sorted by name) so repeated calls
+        and duplicate-name resolution behave the same way every run,
+        regardless of filesystem iteration order. A single malformed or
+        unsafe skill is skipped (logged) without aborting discovery of the
+        rest. If a skill's own declared metadata name collides with an
+        already-discovered skill from this same call, the first one
+        (sorted order) wins and the duplicate is skipped with a warning --
+        never a silent overwrite.
+
         Returns:
             Dictionary mapping skill_name to loaded SkillDefinition.
         """
@@ -68,23 +88,53 @@ class SkillRegistry:
 
         with self._lock:
             # 1. Look for subdirectories containing metadata.json or __init__.py
-            for entry in self.skills_dir.iterdir():
-                if entry.is_dir() and not entry.name.startswith((".", "__")):
-                    skill_name = entry.name
-                    loaded_def = self.load_skill_from_directory(entry)
-                    if loaded_def:
-                        discovered[skill_name] = loaded_def
-                        self._skills[skill_name] = loaded_def
+            dir_entries = sorted(
+                (e for e in self.skills_dir.iterdir() if e.is_dir() and not e.name.startswith((".", "__"))),
+                key=lambda p: p.name,
+            )
+            for entry in dir_entries:
+                loaded_def = self.load_skill_from_directory(entry)
+                if not loaded_def:
+                    continue
+                resolved_name = loaded_def.metadata.name
+                if resolved_name in discovered:
+                    logger.warning(
+                        "Duplicate skill name '%s' from directory '%s' ignored "
+                        "(already discovered from an earlier entry this run).",
+                        resolved_name,
+                        entry,
+                    )
+                    continue
+                discovered[resolved_name] = loaded_def
+                self._skills[resolved_name] = loaded_def
 
             # 2. Look for standalone Python files (e.g. `my_skill.py`)
-            for entry in self.skills_dir.glob("*.py"):
-                if entry.name not in self.BUILTIN_FILES and not entry.name.startswith((".", "__")):
-                    skill_name = entry.stem
-                    if skill_name not in discovered:
-                        loaded_def = self.load_skill_from_file(entry)
-                        if loaded_def:
-                            discovered[skill_name] = loaded_def
-                            self._skills[skill_name] = loaded_def
+            file_entries = sorted(
+                (
+                    e
+                    for e in self.skills_dir.glob("*.py")
+                    if e.name not in self.BUILTIN_FILES and not e.name.startswith((".", "__"))
+                ),
+                key=lambda p: p.name,
+            )
+            for entry in file_entries:
+                skill_name = entry.stem
+                if skill_name in discovered:
+                    continue
+                loaded_def = self.load_skill_from_file(entry)
+                if not loaded_def:
+                    continue
+                resolved_name = loaded_def.metadata.name
+                if resolved_name in discovered:
+                    logger.warning(
+                        "Duplicate skill name '%s' from file '%s' ignored "
+                        "(already discovered from an earlier entry this run).",
+                        resolved_name,
+                        entry,
+                    )
+                    continue
+                discovered[resolved_name] = loaded_def
+                self._skills[resolved_name] = loaded_def
 
             # Register into dispatcher if configured
             if self.dispatcher:
@@ -111,6 +161,7 @@ class SkillRegistry:
         if metadata_file.exists():
             try:
                 meta_dict = json.loads(metadata_file.read_text(encoding="utf-8"))
+                meta_dict = self._sanitize_declared_name(meta_dict, fallback_name=skill_dir.name)
                 metadata = SkillMetadata.from_dict(meta_dict)
             except Exception as exc:
                 logger.warning("Failed to parse metadata.json in '%s': %s", skill_dir, exc)
@@ -120,6 +171,9 @@ class SkillRegistry:
                 name=skill_dir.name,
                 description=f"Persistent skill {skill_dir.name}",
             )
+
+        self._enforce_safe_skill_name(metadata, fallback_name=skill_dir.name)
+        self._hydrate_telemetry(metadata)
 
         return self._import_skill_module(
             skill_name=metadata.name,
@@ -136,6 +190,7 @@ class SkillRegistry:
         if meta_file.exists():
             try:
                 meta_dict = json.loads(meta_file.read_text(encoding="utf-8"))
+                meta_dict = self._sanitize_declared_name(meta_dict, fallback_name=skill_name)
                 metadata = SkillMetadata.from_dict(meta_dict)
             except Exception as exc:
                 logger.warning("Failed to parse %s.json: %s", skill_name, exc)
@@ -146,11 +201,83 @@ class SkillRegistry:
                 description=f"Standalone skill {skill_name}",
             )
 
+        self._enforce_safe_skill_name(metadata, fallback_name=skill_name)
+        self._hydrate_telemetry(metadata)
+
         return self._import_skill_module(
-            skill_name=skill_name,
+            skill_name=metadata.name,
             file_path=file_path,
             metadata=metadata,
         )
+
+    @staticmethod
+    def _sanitize_declared_name(meta_dict: Any, fallback_name: str) -> Any:
+        """
+        Runs BEFORE SkillMetadata.from_dict(). A declared "name" that is
+        missing, the wrong type, or an unsafe string must never be allowed
+        to reach from_dict()'s own type coercion: from_dict() has no
+        filesystem-derived fallback to use, so a wrong-TYPED name (e.g.
+        `"name": 12345`) would otherwise coerce to the fixed generic
+        placeholder "unnamed_skill" -- a value that is itself a *safe
+        identifier string* and would therefore silently pass
+        _enforce_safe_skill_name()'s later check unchanged, letting an
+        invalid name masquerade as a real (and potentially collision-prone,
+        shared-across-skills) identity instead of failing back to this
+        skill's own correct, safe, filesystem-derived name. Substituting
+        the fallback here, before construction, means the skill's identity
+        can never silently become a generic placeholder or another skill's
+        name -- only ever its own correct name.
+        """
+        if not isinstance(meta_dict, dict):
+            return meta_dict
+        if not is_safe_skill_identifier(meta_dict.get("name")):
+            if "name" in meta_dict:
+                logger.warning(
+                    "Skill metadata declared invalid/unsafe name %r; using filesystem-derived name '%s' instead.",
+                    meta_dict.get("name"),
+                    fallback_name,
+                )
+            meta_dict = dict(meta_dict)
+            meta_dict["name"] = fallback_name
+        return meta_dict
+
+    @staticmethod
+    def _enforce_safe_skill_name(metadata: SkillMetadata, fallback_name: str) -> None:
+        """
+        A skill's declared metadata.name is untrusted content (it comes from
+        a JSON file the skill's own directory owns) and later gets used to
+        construct filesystem paths (register_skill()). If it isn't a safe
+        identifier -- e.g. contains path separators or '..' -- fall back to
+        the filesystem-derived name (guaranteed safe, since it came from an
+        actual directory/file entry) rather than trusting it, so an unsafe
+        value can never propagate into path construction. The skill still
+        loads; only the untrusted name is overridden.
+        """
+        if not is_safe_skill_identifier(metadata.name):
+            logger.warning(
+                "Skill metadata declared unsafe name %r; using filesystem-derived name '%s' instead.",
+                metadata.name,
+                fallback_name,
+            )
+            metadata.name = fallback_name
+
+    def _hydrate_telemetry(self, metadata: SkillMetadata) -> None:
+        """
+        Overlay persisted runtime telemetry (if any) from the separate
+        telemetry store onto freshly-parsed static metadata. If the store
+        has no entry yet for this skill, the metadata's own values (e.g.
+        historical counters still present in an old-style packaged
+        metadata.json) are left untouched -- telemetry is never silently
+        reset to zero merely because the store hasn't been written to yet.
+        """
+        stats = self.telemetry.get(metadata.name)
+        if not stats:
+            return
+        metadata.invocation_count = int(stats.get("invocation_count", metadata.invocation_count))
+        metadata.success_count = int(stats.get("success_count", metadata.success_count))
+        metadata.failure_count = int(stats.get("failure_count", metadata.failure_count))
+        metadata.total_latency_ms = float(stats.get("total_latency_ms", metadata.total_latency_ms))
+        metadata.updated_at = float(stats.get("updated_at", metadata.updated_at))
 
     def _import_skill_module(
         self,
@@ -160,6 +287,11 @@ class SkillRegistry:
         entrypoint_function: str = "execute",
     ) -> SkillDefinition | None:
         """Dynamically import a Python file and validate its execute entrypoint."""
+        if not is_safe_entrypoint_identifier(entrypoint_function):
+            logger.error(
+                "Refusing to load skill '%s': unsafe entrypoint identifier %r", skill_name, entrypoint_function
+            )
+            return None
         try:
             module_name = f"jarvis_dynamic_skill_{skill_name}"
             spec = importlib.util.spec_from_file_location(module_name, str(file_path))
@@ -213,6 +345,10 @@ class SkillRegistry:
             True if registration succeeded.
         """
         name = skill_def.metadata.name
+        if not is_safe_skill_identifier(name):
+            logger.error("Refusing to register skill with unsafe identifier %r", name)
+            return False
+
         with self._lock:
             if not skill_def.is_loaded and skill_def.entrypoint_code:
                 # If not yet imported, save and load
@@ -223,7 +359,7 @@ class SkillRegistry:
 
                 meta_file = skill_dir / "metadata.json"
                 meta_file.write_text(
-                    json.dumps(skill_def.metadata.to_dict(), indent=2, ensure_ascii=False),
+                    json.dumps(skill_def.metadata.to_manifest_dict(), indent=2, ensure_ascii=False),
                     encoding="utf-8",
                 )
 
@@ -342,9 +478,38 @@ class SkillRegistry:
 
         elapsed = max((time.perf_counter() - t0) * 1000.0, 0.01)
 
-        # Update telemetry
-        skill_def.metadata.record_invocation(success=success, latency_ms=elapsed)
-        self._persist_skill_metadata(skill_def)
+        # Update telemetry. The in-memory SkillMetadata is updated as before
+        # (preserves get_metrics()/success_rate/avg_latency_ms behavior for
+        # this process's lifetime); persistence goes to the separate
+        # telemetry store, NEVER back into the packaged metadata.json --
+        # normal skill invocation must not mutate tracked source manifests.
+        # `seed` bootstraps the store from this skill's current in-memory
+        # counters (pre-increment) the first time the store has no entry
+        # for it yet, so any historical counters already baked into an
+        # old-style packaged metadata.json are carried forward instead of
+        # silently resetting to zero the moment the store takes over.
+        #
+        # The seed-capture + in-memory increment must be one atomic section:
+        # skill_def.metadata is one shared object across every caller of
+        # invoke_skill() for this skill, and record_invocation()'s `+= 1` is
+        # a read-modify-write on a plain attribute -- not atomic on its own.
+        # Without this lock, concurrent invocations of the same skill could
+        # lose updates (classic lost-update race). The registry's own RLock
+        # is reused here (already used by discover_skills()/register_skill());
+        # the disk write itself is intentionally done outside this lock --
+        # SkillTelemetryStore has its own independent lock and derives each
+        # increment from whatever is currently on disk, not from `seed`
+        # (seed only ever bootstraps a skill's very first store entry), so
+        # the two locks never need to be unified for correctness.
+        with self._lock:
+            seed = {
+                "invocation_count": skill_def.metadata.invocation_count,
+                "success_count": skill_def.metadata.success_count,
+                "failure_count": skill_def.metadata.failure_count,
+                "total_latency_ms": skill_def.metadata.total_latency_ms,
+            }
+            skill_def.metadata.record_invocation(success=success, latency_ms=elapsed)
+        self.telemetry.record_invocation(skill_def.metadata.name, success=success, latency_ms=elapsed, seed=seed)
 
         return SkillExecutionResult(
             skill_name=skill_name,
@@ -354,25 +519,6 @@ class SkillRegistry:
             error=error,
             execution_time_ms=elapsed,
         )
-
-    def _persist_skill_metadata(self, skill_def: SkillDefinition) -> None:
-        """Save updated skill telemetry to metadata.json on disk."""
-        if not skill_def.file_path:
-            return
-
-        try:
-            file_path = Path(skill_def.file_path)
-            if file_path.parent.name == skill_def.metadata.name:
-                meta_file = file_path.parent / "metadata.json"
-            else:
-                meta_file = file_path.parent / f"{skill_def.metadata.name}.json"
-
-            meta_file.write_text(
-                json.dumps(skill_def.metadata.to_dict(), indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-        except Exception as exc:
-            logger.warning("Failed to persist metadata for skill '%s': %s", skill_def.metadata.name, exc)
 
     def _create_dispatcher_handler(self, skill_name: str) -> Callable[..., Any]:
         """Create ActionDispatcher adapter for a skill."""

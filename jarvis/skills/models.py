@@ -10,6 +10,15 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from jarvis.skills.validation import (
+    coerce_dict,
+    coerce_float,
+    coerce_int,
+    coerce_optional_dict,
+    coerce_str,
+    coerce_str_list,
+)
+
 
 @dataclass
 class SkillMetadata:
@@ -59,6 +68,8 @@ class SkillMetadata:
             "name": self.name,
             "version": self.version,
             "description": self.description,
+            "category": self.category,
+            "author": self.author,
             "parameters_schema": self.parameters_schema,
             "return_schema": self.return_schema,
             "tags": self.tags,
@@ -73,22 +84,63 @@ class SkillMetadata:
             "avg_latency_ms": self.avg_latency_ms,
         }
 
+    def to_manifest_dict(self) -> dict[str, Any]:
+        """
+        Static manifest view: the skill's durable definition fields only --
+        no runtime telemetry (invocation_count/success_count/failure_count/
+        total_latency_ms/success_rate/avg_latency_ms). Used whenever a new
+        packaged metadata.json is written (e.g. SkillRegistry.register_skill())
+        so a freshly-created manifest never bakes in telemetry, which
+        conceptually belongs only in the separate runtime store (see
+        jarvis.skills.telemetry). to_dict() is unchanged and still includes
+        telemetry, for backward-compatible API/introspection use (e.g.
+        SkillDefinition.to_dict(), dashboard endpoints that want to display
+        current stats).
+        """
+        manifest = self.to_dict()
+        for key in (
+            "invocation_count",
+            "success_count",
+            "failure_count",
+            "total_latency_ms",
+            "success_rate",
+            "avg_latency_ms",
+        ):
+            manifest.pop(key, None)
+        return manifest
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SkillMetadata:
+        """
+        Build a SkillMetadata from a parsed manifest dict.
+
+        Backward compatible: any field missing from `data` (older manifests
+        written before a field existed) falls back to the dataclass default.
+        Deterministic and fails closed per-field, not per-manifest: any
+        field present but of the wrong type is ignored in favor of its
+        default rather than propagating a malformed value onto a typed
+        attribute (see jarvis.skills.validation) -- a single bad field can
+        never raise or crash discovery.
+        """
+        if not isinstance(data, dict):
+            data = {}
+        now = time.time()
         return cls(
-            name=data.get("name", "unnamed_skill"),
-            version=data.get("version", "1.0.0"),
-            description=data.get("description", ""),
-            parameters_schema=data.get("parameters_schema", {}),
-            return_schema=data.get("return_schema"),
-            tags=data.get("tags", []),
-            synthesized_by=data.get("synthesized_by", "jarvis_agentic_synthesizer"),
-            created_at=data.get("created_at", time.time()),
-            updated_at=data.get("updated_at", time.time()),
-            invocation_count=data.get("invocation_count", 0),
-            success_count=data.get("success_count", 0),
-            failure_count=data.get("failure_count", 0),
-            total_latency_ms=data.get("total_latency_ms", 0.0),
+            name=coerce_str(data.get("name"), "unnamed_skill"),
+            version=coerce_str(data.get("version"), "1.0.0"),
+            description=coerce_str(data.get("description"), ""),
+            category=coerce_str(data.get("category"), "general"),
+            author=coerce_str(data.get("author"), "jarvis_agentic_synthesizer"),
+            parameters_schema=coerce_dict(data.get("parameters_schema")),
+            return_schema=coerce_optional_dict(data.get("return_schema")),
+            tags=coerce_str_list(data.get("tags")),
+            synthesized_by=coerce_str(data.get("synthesized_by"), "jarvis_agentic_synthesizer"),
+            created_at=coerce_float(data.get("created_at"), now),
+            updated_at=coerce_float(data.get("updated_at"), now),
+            invocation_count=coerce_int(data.get("invocation_count"), 0),
+            success_count=coerce_int(data.get("success_count"), 0),
+            failure_count=coerce_int(data.get("failure_count"), 0),
+            total_latency_ms=coerce_float(data.get("total_latency_ms"), 0.0),
         )
 
 
