@@ -13,10 +13,16 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from jarvis.core.paths import data_path
+
 log = logging.getLogger("jarvis.comms.mobile_bridge")
 
-_TRANSFER_LOG: Path | None = None  # resolved at runtime to AppData/JARVIS/logs/
 _DEFAULT_SAVE_DIR = Path("downloads")
+
+
+def _get_transfer_log_path() -> Path:
+    """Resolves the transfer-history log path under the central JARVIS data dir."""
+    return data_path("logs", "mobile_transfers.json")
 
 _ALLOWED_EXTENSIONS = {
     ".pdf", ".docx", ".xlsx", ".txt", ".md", ".json", ".csv",
@@ -133,10 +139,11 @@ class MobileFileBridge:
 
     def get_file_transfer_history(self) -> list[dict[str, Any]]:
         """Return recent file transfer records."""
-        if not _TRANSFER_LOG.exists():
+        log_path = _get_transfer_log_path()
+        if not log_path.exists():
             return []
         try:
-            return json.loads(_TRANSFER_LOG.read_text(encoding="utf-8"))
+            return json.loads(log_path.read_text(encoding="utf-8"))
         except Exception:
             return []
 
@@ -217,9 +224,10 @@ class MobileFileBridge:
         history = self.get_file_transfer_history()
         history.insert(0, record)
         history = history[:200]  # Keep last 200
-        _TRANSFER_LOG.parent.mkdir(parents=True, exist_ok=True)
+        log_path = _get_transfer_log_path()
+        log_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            _TRANSFER_LOG.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+            log_path.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
             pass
 
