@@ -324,6 +324,96 @@ Rà soát bảo mật line-by-line trên chính diff (không thêm tính năng) 
 
 ---
 
+## 🚀 Chưa phát hành (2026-08-31) — Skill/Plugin Manifest & Telemetry Hardening (Leon 2.0 Reference Sprint)
+
+> Nhánh làm việc: `feat/skill-plugin-hardening`, dựa trên `main` tại `e4bcd6d015dec2796e0f50e88b5c9f69b58bb1f7`. Mục tiêu chính: `jarvis/skills/models.py`, `jarvis/skills/registry.py`. Không sửa `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/agent/**`, `jarvis/sandbox/**`, `jarvis/comms/**`, `jarvis/proactive/**`, `jarvis/hardware/**`, `jarvis/stt/**`, `jarvis/audio/**`, `jarvis/automation/**`, `jarvis/security/**`, `jarvis/vision/**`, `installer/**`, `scripts/build_installer.py`. Không sửa `jarvis/skills/synthesizer.py`, các thư mục skill riêng lẻ, hay bất kỳ `jarvis/skills/*/metadata.json` nào đã tồn tại — giữ nguyên các thay đổi gần đây của contributor khác.
+
+### Tham khảo thượng nguồn (kiến trúc only — không sao chép mã nguồn, không thêm dependency)
+
+- **leon-ai/leon**, bản 2.0 Developer Preview trên nhánh `develop` (không dùng tài liệu/tutorial Leon cũ). Chỉ tham khảo khái niệm kiến trúc: phân cấp capability tường minh (Skills → Actions → Tools → Functions), tách biệt định nghĩa capability khỏi trạng thái runtime, thực thi skill/action tất định, ranh giới tool rõ ràng, thiết kế discoverability/registry, validate trước khi load, metadata capability tường minh, tách biệt static definition khỏi runtime context/telemetry. **Không** vendor Leon, không sao chép mã TypeScript của Leon, không tái tạo kiến trúc Leon một cách literal bằng Python, không thêm Leon làm dependency ở bất kỳ đâu.
+- Chỉ áp dụng một phần khái niệm chọn lọc — **không** tuyên bố toàn bộ hệ thống skill của JARVIS giờ triển khai kiến trúc Leon.
+
+### Phát hiện xác nhận trước khi sửa (đúng như nghi ngờ ban đầu)
+
+1. **`SkillMetadata.to_dict()`/`.from_dict()` đều bỏ sót hoàn toàn `category` và `author`**, dù dataclass có khai báo cả hai trường. Xác nhận bằng cách đọc mã nguồn và test round-trip: mọi file `metadata.json` thuộc "họ jarvis_builtin_system" (9 skill: app_launcher, briefing, calculator, clipboard, file_manager, git_assistant, note_taker, pomodoro, system_control) trên đĩa đã sẵn thiếu 2 trường này — bằng chứng lỗi đã tồn tại từ lần đầu các file này được ghi ra. Với "họ JARVIS Core Team" (8 skill gần đây của contributor khác: auto_updater, browser_control, macro_recorder, night_planner, rag_search, screen_context, skill_synthesizer, smart_home_discovery, sound_board — dùng schema khác hẳn với `display_name`/`author`/`actions`), `from_dict()` trước đây bỏ qua hoàn toàn giá trị `"author": "JARVIS Core Team"` thật, âm thầm thay bằng default `"jarvis_agentic_synthesizer"`.
+2. **`invoke_skill()` gọi `_persist_skill_metadata()` sau MỌI lần gọi**, ghi trực tiếp bộ đếm runtime (invocation_count/success_count/failure_count/total_latency_ms) đè lên `metadata.json` đã đóng gói. Đây chính xác là lý do `tests/unit/` (đặc biệt `tests/unit/test_builtin_skills.py`, fixture trỏ thẳng vào `Path("jarvis/skills").resolve()`) làm bẩn 9 file `metadata.json` có tracking trên mỗi lần chạy. **Không chỉ là vấn đề test** — `jarvis/core/app.py:373` (`skills_dir` mặc định `"jarvis/skills"`) và `jarvis/comms/discord.py`/`zalo.py` (`SkillRegistry()` không tham số) nghĩa là JARVIS thật khi chạy cũng tự ghi đè package đã cài đặt của chính nó ở mỗi lần gọi skill thật.
+3. **Direct `invoke_skill()` KHÔNG phải lỗ hổng cần vá** — đã trace toàn bộ caller thật: `jarvis/core/app.py`, `jarvis/comms/discord.py`, `jarvis/comms/zalo.py`, `jarvis/ui/dashboard.py`, và chính adapter `ActionDispatcher` (`_create_dispatcher_handler` gọi lại `invoke_skill()` nội bộ). Đây là thiết kế có chủ đích, cả hai đường (invoke trực tiếp cho caller nội bộ tin cậy, và ActionDispatcher cho caller khác) cùng tồn tại song song. **Không** thêm safety gate thứ hai, **không** ép buộc mọi invocation phải qua ActionDispatcher.
+
+### A. Tách static manifest khỏi runtime telemetry
+
+- File mới `jarvis/skills/telemetry.py`: `SkillTelemetryStore` — store JSON file duy nhất, thread-safe (`threading.Lock`), ghi tất định/an toàn corruption (ghi file `.tmp` rồi `os.replace()` atomic), nằm ngoài source tree qua `jarvis.core.paths.data_path()` (đã có sẵn, **không sửa**). Đường dẫn mặc định **scoped theo hash của `skills_dir`** — nghĩa là `skills_dir` thật (package đã cài) luôn map về đúng 1 file bền vững qua các lần khởi động lại, còn mỗi thư mục tạm trong test luôn nhận file telemetry riêng biệt, không bao giờ đụng lẫn nhau hay đụng vào store thật.
+- `SkillRegistry.__init__` nhận thêm tham số tùy chọn `telemetry_store: SkillTelemetryStore | None = None` (tương thích ngược hoàn toàn — `app.py`/`discord.py`/`zalo.py`/`cli.py` không cần sửa gì).
+- `invoke_skill()` không còn gọi `_persist_skill_metadata()` (đã xóa hẳn, không còn nơi nào gọi) — thay vào đó gọi `self.telemetry.record_invocation(...)`. `SkillMetadata` in-memory vẫn được cập nhật như cũ (giữ nguyên `get_metrics()`/`success_rate`/`avg_latency_ms` trong vòng đời process) — chỉ có **nơi ghi xuống đĩa** thay đổi.
+- **Không âm thầm xoá telemetry cũ**: cơ chế `seed` — lần đầu tiên store chưa có entry cho một skill, `record_invocation()` khởi tạo từ giá trị in-memory hiện tại của `SkillMetadata` (vốn có thể đã có sẵn invocation_count cũ từ `metadata.json` kiểu cũ) thay vì bắt đầu từ 0, để lịch sử cũ tiếp tục đếm liền mạch thay vì bị "reset" ngay khi store mới tiếp quản.
+- `_hydrate_telemetry()`: khi discover một skill, overlay số liệu đã lưu trong store (nếu có) lên metadata vừa parse — cho phép một `SkillRegistry` mới dùng cùng store phục hồi đúng số liệu.
+
+### B. Sửa fidelity round-trip metadata
+
+- `SkillMetadata.to_dict()` giờ có thêm `category`/`author`. `from_dict()` viết lại toàn bộ dùng các helper coercion tất định trong `jarvis/skills/validation.py` (module mới) — mọi trường thiếu (manifest cũ) dùng default an toàn của dataclass; mọi trường có mặt nhưng **sai kiểu** (vd. `"tags": "not-a-list"`) cũng rơi về default thay vì gán thẳng giá trị sai kiểu lên dataclass — không một trường lỗi nào có thể làm crash discovery hay tạo ra `SkillMetadata` kiểu-không-nhất-quán.
+
+### C. Validation manifest tất định (module mới, không phải JSON Schema framework, không thêm dependency)
+
+- `jarvis/skills/validation.py`: `is_safe_skill_identifier()` (chặn path traversal/`..`/dấu phân cách/null byte/rỗng/quá dài), `is_safe_entrypoint_identifier()` (chặn identifier không an toàn trước khi `getattr()` lên module đã import), và các hàm `coerce_*` tất định (str/dict/optional-dict/str-list/float/int) với fallback default rõ ràng.
+- `SkillRegistry._enforce_safe_skill_name()`: nếu `metadata.name` (nội dung không tin cậy từ chính file JSON của skill) không an toàn, override bằng tên suy ra từ filesystem (đảm bảo an toàn) thay vì tin nó — skill vẫn load được, chỉ tên không an toàn bị thay thế. Áp dụng tại cả `load_skill_from_directory()` và `load_skill_from_file()`. `register_skill()` cũng từ chối (trả `False`, log lỗi) nếu `metadata.name` không an toàn, trước khi dùng nó dựng đường dẫn `self.skills_dir / name`.
+
+### D. Cải thiện tính tất định của discovery
+
+- `discover_skills()` giờ sắp xếp (`sorted`) cả danh sách thư mục lẫn file độc lập trước khi xử lý — thứ tự discovery không còn phụ thuộc thứ tự trả về không đảm bảo của `Path.iterdir()`/`glob()`. Xác nhận cả trường hợp thư mục-trùng-thư mục lẫn thư mục-trùng-file-độc-lập.
+- Nếu hai skill khác nhau khai báo trùng `metadata.name` (độc lập với tên thư mục), skill được xử lý **trước** (theo thứ tự đã sort) thắng; skill trùng sau bị bỏ qua kèm cảnh báo log — không còn overwrite âm thầm.
+- **Diễn đạt chính xác lại hành vi JSON hỏng** (phát hiện qua rà soát pre-commit lần này): metadata JSON hỏng (không hợp lệ về cú pháp) **không** khiến skill đó bị bỏ qua/loại khỏi discovery — skill vẫn được load bình thường, chỉ dùng metadata mặc định suy ra từ tên thư mục/file thay vì nội dung JSON (hành vi này đã có từ trước, xác nhận không đổi, giờ có test hồi quy). Đây khác với các trường **field riêng lẻ sai kiểu** trong một JSON hợp lệ (vd. `"tags": "not-a-list"`) — các field đó bị coerce về default an toàn, cũng không làm skill bị loại. Không có tuyên bố nào ở đây nói "mọi manifest hỏng đều bị từ chối" — đúng ra là "một manifest hỏng (dù ở cấp cú pháp JSON hay ở cấp field) không bao giờ làm skill bị crash hay bị loại khỏi discovery, và không làm hỏng discovery của skill khác."
+- **Lỗi thật phát hiện qua rà soát pre-commit và đã sửa**: `name` sai KIỂU (vd. `"name": 12345`) trước đây bị `from_dict()` coerce về placeholder chung cố định `"unnamed_skill"` — chuỗi này lại VƯỢT QUA kiểm tra an toàn định danh (vì bản thân nó là một chuỗi hợp lệ), nên `_enforce_safe_skill_name()` không override nó nữa — khiến hai skill khác nhau có `name` sai kiểu độc lập sẽ CÙNG rơi vào một danh tính giả chung "unnamed_skill" thay vì mỗi skill fallback về đúng tên thư mục của chính nó. Đã sửa bằng `_sanitize_declared_name()` (mới) — chạy TRƯỚC `from_dict()`, thay `"name"` không an toàn/sai kiểu bằng tên thư mục/file (đảm bảo an toàn) ngay trên dict thô, để `from_dict()` không bao giờ phải tự đoán một placeholder chung nữa. 2 test hồi quy mới xác nhận: một skill `name` sai kiểu fallback đúng về tên riêng của nó; hai skill khác nhau đều `name` sai kiểu không bao giờ va vào nhau.
+
+### Tách biệt manifest tĩnh khỏi telemetry runtime khi ghi mới (bổ sung qua rà soát pre-commit)
+
+- `SkillMetadata` có thêm `to_manifest_dict()` — view chỉ gồm field định nghĩa tĩnh (không có invocation_count/success_count/failure_count/total_latency_ms/success_rate/avg_latency_ms). `to_dict()` **giữ nguyên không đổi** (vẫn có đủ telemetry, dùng cho API/introspection như `SkillDefinition.to_dict()`/endpoint dashboard).
+- `register_skill(save_to_disk=True)` giờ ghi `metadata.json` mới bằng `to_manifest_dict()` thay vì `to_dict()` — một skill mới đăng ký không còn bao giờ bake sẵn field telemetry (kể cả toàn 0) vào manifest đóng gói. `jarvis/skills/synthesizer.py` (ngoài phạm vi sửa của sprint này) vẫn dùng `to_dict()` như cũ — chưa tách hoàn toàn, ghi nhận là giới hạn còn lại, không phải lỗi chặn.
+
+### Rà soát pre-commit — các sửa lỗi bổ sung khác
+
+- **Race điều kiện trong bộ nhớ đã sửa**: `invoke_skill()` trước đây gọi `skill_def.metadata.record_invocation()` (thao tác `+= 1` không atomic) mà không khóa — nhiều luồng gọi đồng thời cùng một skill có thể mất cập nhật (lost update) trên bộ đếm in-memory (`get_metrics()`). Đã sửa: bọc bước chụp `seed` + `record_invocation()` trong `self._lock` (RLock có sẵn của registry); phần ghi xuống đĩa (`self.telemetry.record_invocation()`) vẫn nằm ngoài lock đó — an toàn vì `SkillTelemetryStore` có lock riêng và luôn cộng dồn dựa trên giá trị hiện có trên đĩa, không phụ thuộc thứ tự `seed` đến. Test hồi quy mới: 40 luồng gọi `invoke_skill()` đồng thời (nửa thành công/nửa lỗi), xác nhận `invocation_count == success_count + failure_count` đúng cả ở `get_metrics()` lẫn trong store trên đĩa.
+- **`_write_all_locked()` giờ cũng bắt `TypeError`/`ValueError`** (không chỉ `OSError`) quanh `json.dumps()` — phòng hờ nếu một giá trị không serialize-được lọt vào (không xảy ra trong luồng dữ liệu hiện tại vì luôn ép kiểu int/float tường minh, nhưng đảm bảo lỗi encode JSON không bao giờ crash một invocation).
+
+### Test mới
+
+- `tests/unit/test_skill_registry_hardening.py` (file mới) — **25 test** (19 ban đầu + 6 thêm qua rà soát pre-commit), tất định, dùng `tmp_path`: round-trip category/author; `to_manifest_dict()` loại trừ telemetry đúng; manifest cũ thiếu field; kiểu dữ liệu sai bị coerce về default; tên skill không an toàn (cả sai kiểu lẫn path traversal) bị override đúng về tên riêng của từng skill (không va vào nhau qua placeholder chung); registration bị từ chối với identifier không an toàn; JSON hỏng không crash discovery; tên trùng resolve tất định (thư mục-thư mục và thư mục-file độc lập); thứ tự discovery ổn định qua nhiều lần gọi; invocation thành công/thất bại cập nhật đúng telemetry; **invocation không sửa `metadata.json` đã đóng gói**; `register_skill()` ghi manifest mới không kèm field telemetry; telemetry sống sót qua `SkillRegistry` mới dùng chung store; store telemetry hỏng tự phục hồi; 20 thread ghi thẳng vào store không mất đếm; **40 thread gọi `invoke_skill()` đồng thời (nửa thành công/nửa lỗi) giữ đúng bất biến `invocation_count == success_count + failure_count` ở cả in-memory lẫn trên đĩa**; ActionDispatcher vẫn hoạt động; skill có sẵn (thật) vẫn discover/load được; và một test tường minh xác nhận chạy registry qua `jarvis/skills/` thật **không** đổi bất kỳ `metadata.json` có tracking nào.
+- Tất cả test hiện có (`test_builtin_skills.py`, `test_skill_synthesis.py`, `test_skill_synthesizer.py`, `test_adversarial_r1_r2_r5_stress.py`, `test_plugin_sdk.py`, `test_plugins_m2.py`) **không sửa gì**, vẫn pass nguyên trạng.
+
+### Kiểm chứng thực tế đã chạy (phiên này, local — bao gồm cả lượt rà soát pre-commit)
+
+```text
+tests/unit/test_skill_registry_hardening.py — 25 passed (19 + 6 mới)
+tests/unit/test_plugin_sdk.py               — 11 passed (không liên quan, không đổi)
+tests/unit/test_plugins_m2.py               — 3 passed (không liên quan, không đổi)
+tests/unit/test_builtin_skills.py           — 14 passed (skills_dir trỏ thẳng jarvis/skills thật)
+tests/unit/test_skill_synthesis.py          — 20 passed
+tests/unit/test_skill_synthesizer.py        — 13 passed
+tests/unit/test_adversarial_r1_r2_r5_stress.py — 14 passed (bao gồm test 20 thread gọi đồng thời)
+
+ruff check jarvis/skills/models.py jarvis/skills/registry.py jarvis/skills/telemetry.py \
+  jarvis/skills/validation.py tests/unit/test_skill_registry_hardening.py    — All checks passed!
+mypy jarvis/skills/models.py jarvis/skills/registry.py jarvis/skills/telemetry.py \
+  jarvis/skills/validation.py --follow-imports=silent                        — Success: no issues found in 4 source files
+py_compile (toàn bộ file đã sửa)                                             — exit 0
+git diff --check                                                             — exit 0
+
+tests/unit/ toàn bộ (sau rà soát) — 761 collected, 752 passed, 9 failed
+```
+
+- **9 lỗi còn lại đều là baseline không liên quan, đã biết từ trước** (giống hệt các sprint trước trên cùng baseline `e4bcd6d`): 8 lỗi `tests/unit/test_mobile_bridge.py` + 1 lỗi `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`. 761 − 736 (baseline `e4bcd6d`) = 25, khớp chính xác với tổng số test mới. **Không có hồi quy mới nào do sprint này (cả hai lượt) gây ra.**
+- **Kiểm tra hồi quy đặc biệt quan trọng của chính sprint này**: `git status --short` và `git diff -- jarvis/skills/*/metadata.json` được chạy **trước và sau** cả lượt test tập trung lẫn lượt `tests/unit/` toàn bộ, ở CẢ lần triển khai đầu tiên lẫn lượt rà soát pre-commit này (761 test, bao gồm bài test 40-thread đồng thời mới). Mọi lần đều cho kết quả **rỗng** — không một file `metadata.json` có tracking nào bị chạm, kể cả bởi các test gọi thẳng vào `jarvis/skills/` thật (`test_builtin_skills.py`, test mới xác nhận tường minh). Đây chính xác là mục tiêu cốt lõi của sprint.
+
+### Giới hạn đã biết
+
+- `jarvis/skills/synthesizer.py`, các thư mục skill riêng lẻ, và mọi `metadata.json` hiện có đều **không bị sửa** trong sprint này — theo đúng chỉ thị, không di trú/viết lại toàn bộ manifest. `synthesizer.py` vẫn dùng `to_dict()` (không phải `to_manifest_dict()` mới) cho lần ghi metadata.json đầu tiên của một skill mới synthesize — tách biệt manifest/telemetry vì vậy **chưa hoàn tất 100%** ở đường ghi đó (dù vô hại vì telemetry lúc đó luôn bằng 0); chỉ `register_skill()` (trong phạm vi sửa của sprint) đã dùng `to_manifest_dict()`.
+- **`discover_skills()` không dọn các skill đã biến mất khỏi đĩa** — nếu một thư mục skill bị xoá giữa hai lần gọi `discover_skills()`, entry cũ vẫn còn nguyên trong `self._skills` (hành vi có từ trước, không đổi, không thuộc phạm vi sprint này). Không tuyên bố rằng discovery "được reconcile đầy đủ" — chỉ tuyên bố chính xác những gì đã kiểm chứng: thứ tự tất định + duplicate resolve tất định, không hơn.
+- Hai "họ" schema manifest khác nhau (`jarvis_builtin_system` cũ và `JARVIS Core Team` mới) vẫn cùng tồn tại trên đĩa — sprint này không hợp nhất chúng, chỉ đảm bảo `from_dict()` đọc đúng field của cả hai mà không crash.
+- Đường dẫn `getattr(module, entrypoint_function)` giờ có kiểm tra định danh an toàn, nhưng `entrypoint_function` hầu như luôn là `"execute"` mặc định trong thực tế hiện tại — validation này chủ yếu là phòng thủ chiều sâu cho đường `SkillDefinition.from_dict()` ít dùng hơn.
+- Reload skill (`reload_skill()`) vẫn luôn `exec_module()` một module mới mỗi lần, không có teardown tường minh cho module cũ (hành vi có từ trước, không thuộc phạm vi sprint này).
+- Chưa chạy CI cho nhánh này; chưa commit, chưa push, chưa mở PR.
+- 9 lỗi baseline không liên quan (mobile_bridge, proactive health-monitor) vẫn còn nguyên — không được sửa theo đúng chỉ thị của sprint. **Cập nhật sau khi merge `main`**: số liệu "761 collected, 752 passed, 9 failed" ở trên phản ánh đúng trạng thái tại thời điểm sprint này chạy trên baseline gốc `e4bcd6d` — **trước khi** `main` đã merge PR #15 (`fix/ci-baseline`, sửa 9 lỗi này), PR #14 (Biometrics, +49 test), PR #11 (Gesture/Data, +52 test), và PR #12 (Agent Execution Hardening, +45 test). Đây là ghi chép lịch sử, không bị viết lại. **Xác nhận thực tế sau khi merge `main` vào `feat/skill-plugin-hardening`** (chạy cục bộ, cùng phiên merge): `python -m pytest tests/unit/ -q --timeout=120 --tb=short` → **907 collected, 907 passed, 0 skipped, 0 failed**. 907 = 882 (baseline `main` đã merge Biometrics + Gesture/Data + Agent, đã xác nhận cục bộ trước đó) + 25 test mới của sprint skill/plugin này (`tests/unit/test_skill_registry_hardening.py`) = 882 + 25 = 907, khớp chính xác với dự đoán trước khi chạy. 9 lỗi baseline cũ đã biến mất thật sự nhờ `fix/ci-baseline`, không phải bị bỏ qua/ẩn đi. `git diff -- jarvis/skills/*/metadata.json` được chạy lại sau cả lượt test tập trung lẫn `tests/unit/` toàn bộ trên baseline đã merge — vẫn **rỗng**, xác nhận fix tách biệt manifest/telemetry của sprint này tiếp tục đứng vững kể cả sau khi hợp nhất với các sprint khác. Không có hồi quy mới nào từ việc merge.
+
+---
+
 ## 🚀 Chưa phát hành (2026-08-30) — Central Safety-Layer Hardening (Phase 2)
 
 > Nhánh làm việc: `feat/safety-layer-hardening`, dựa trên `main` sau khi cả PR #8 (Wake Word Phase 1) và PR #9 (Sandbox CI Compatibility Fix) đã được merge (`35713b9`). Nhánh này **độc lập** với hai PR trên — không đụng `jarvis/sandbox/*` hay `jarvis/audio/wake_word.py`.
