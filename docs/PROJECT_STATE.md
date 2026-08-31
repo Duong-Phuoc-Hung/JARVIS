@@ -358,16 +358,16 @@ Read `jarvis/vision/biometrics.py`, `jarvis/vision/__init__.py`, every test impo
 ### Files changed
 
 - `jarvis/vision/biometrics.py` — see above.
-- `tests/test_biometrics_hardening.py` — **new file**, 49 deterministic tests, synthetic 128D arrays only (no real biometric data, no photos, no model files).
+- `tests/unit/test_biometrics_hardening.py` — **new file**, 49 deterministic tests, synthetic 128D arrays only (no real biometric data, no photos, no model files). Originally created at `tests/test_biometrics_hardening.py` (outside `tests/unit/`, so it would not have run in CI, which only runs `tests/unit/`); moved to its final `tests/unit/` location before commit `dcbe797` — no duplicate file remains at the old path.
 
 No other tracked file is part of this change set (confirmed via `git status` — see Known limitations for one unrelated pre-existing telemetry side effect).
 
 ### Validation results (this session, local Windows)
 
-Targeted (new file):
+Targeted (new file, at its final `tests/unit/` location):
 ```text
-python -m pytest tests/test_biometrics_hardening.py -v --timeout=60 --tb=short
-49 passed in 0.54s
+python -m pytest tests/unit/test_biometrics_hardening.py -v --timeout=60 --tb=short
+49 passed in 0.45s
 ```
 
 Existing biometrics-touching test files, compared bit-for-bit against baseline via `git stash`:
@@ -379,22 +379,30 @@ python -m pytest tests/test_biometrics.py tests/test_adversarial_m5_2.py \
 ```
 All 12 failures/errors reproduced identically on the pre-change baseline (`git stash` + rerun): 6 `ModuleNotFoundError: No module named 'cv2'` in `test_biometrics.py` (the `mock_camera_feed` fixture does `monkeypatch.setattr("cv2.VideoCapture", ...)`, which imports the target module first regardless of `raising=False` — `cv2` is genuinely not installed in this environment), 3 identical in `test_e2e_scenarios.py`, plus 2 pre-existing nmap/tshark CLI-capture bugs and 1 pre-existing `DiscordBotController.summarize_channel` `AttributeError` in `test_tier5_...` — all unrelated to biometrics or to this change. **Zero regressions.**
 
-Full `tests/unit/`:
+Full `tests/unit/` (rerun after moving the test file into `tests/unit/`, with collection counts verified against a `git stash` baseline):
 ```text
-python -m pytest tests/unit/ -q --timeout=60 --tb=short
+python -m pytest tests/unit/ --collect-only -q --timeout=120
+python -m pytest tests/unit/ -q --timeout=120 --tb=short
 ```
-Exactly the documented pre-existing baseline: 8 failures in `tests/unit/test_mobile_bridge.py` + 1 in `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches` — confirmed identical before/after via `git stash`. **Zero new failures.** (This repo's pytest config prints no final grand-total summary line — confirmed pre-existing, consistent with section 0C's note.)
+- Baseline collection (`git stash`, file not yet present in `tests/unit/`): **736**.
+- Feature-branch collection (`tests/unit/test_biometrics_hardening.py` present): **785**.
+- Delta: **+49** — exactly the number of new biometrics-hardening tests, confirming the file is now collected by the same command CI runs.
+- All 49 biometrics-hardening tests: **passed**.
+- Exactly the documented pre-existing baseline of 9 failures: 8 in `tests/unit/test_mobile_bridge.py` + 1 in `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches` — confirmed identical before/after via `git stash`. **Zero new failures.** (This repo's pytest config prints no final grand-total summary line — confirmed pre-existing, consistent with section 0C's note.)
+- **Correction**: an earlier draft of this section stated "no test in `tests/unit/` touches `jarvis/vision/biometrics.py`". That was only true while the new test file still lived at `tests/test_biometrics_hardening.py` (outside `tests/unit/`, so it would not have run in CI). The file was moved to `tests/unit/test_biometrics_hardening.py` before commit `dcbe797`, so as of this snapshot **49 tests inside `tests/unit/` do exercise `jarvis/vision/biometrics.py`**, and CI (which runs `python -m pytest tests/unit/`) now covers them.
 
 Static analysis:
 ```text
-ruff check jarvis/vision/biometrics.py tests/test_biometrics_hardening.py
+ruff check jarvis/vision/biometrics.py tests/unit/test_biometrics_hardening.py
 All checks passed!
 
 mypy jarvis
 ```
 `jarvis/vision/biometrics.py` has zero mypy errors. Repo-wide `ruff check jarvis tests scripts/build_installer.py` (9 errors) and `mypy jarvis` (28 errors, 8 files) were confirmed **identical to baseline** via `git stash` — none of the flagged files are touched by this change (`tests/unit/test_zalo_bot.py` import-sort, plus `night_shift.py`/`macro_recorder`/`auto_updater.py`/`smart_home/discovery.py`/`mobile_bridge.py`/`tray.py`/`gui_actor.py`/`cli.py` for mypy).
 
-`py_compile jarvis/vision/biometrics.py tests/test_biometrics_hardening.py`: exit 0. `git diff --check`: exit 0.
+`py_compile jarvis/vision/biometrics.py tests/unit/test_biometrics_hardening.py`: exit 0. `git diff --check`: exit 0.
+
+**Note on test file location**: the test file was originally authored at `tests/test_biometrics_hardening.py`, outside `tests/unit/` — since CI runs only `python -m pytest tests/unit/`, those 49 tests would not have executed in CI at that location. It was moved to `tests/unit/test_biometrics_hardening.py` before commit `dcbe797` (plain filesystem move — the file was untracked at the time, no `git mv` needed, no duplicate left behind). CI has still not been run for this branch; the numbers above are local-run results, not a CI claim.
 
 ### Known limitations / explicitly not claimed
 

@@ -4,7 +4,7 @@
 
 ## 🚀 Chưa phát hành (2026-08-31) — Biometrics Hardening: Embedding Validation, Storage Atomicity & Face-Count Ambiguity
 
-> Nhánh làm việc: `feat/biometrics-hardening`, dựa trên `main` tại commit `e4bcd6d` (không có phân kỳ với `main` khi bắt đầu). Chỉ sửa `jarvis/vision/biometrics.py` (sản xuất) và thêm một file test mới `tests/test_biometrics_hardening.py`. Không đụng `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/agent/**`, `jarvis/sandbox/**`, `jarvis/comms/**`, `jarvis/security/**`, `jarvis/skills/**`, hay bất kỳ hành vi `SafetyGate`/`ActionDispatcher`/workstation-lock/Telegram nào.
+> Nhánh làm việc: `feat/biometrics-hardening`, dựa trên `main` tại commit `e4bcd6d` (không có phân kỳ với `main` khi bắt đầu). Chỉ sửa `jarvis/vision/biometrics.py` (sản xuất) và thêm một file test mới `tests/unit/test_biometrics_hardening.py`. Không đụng `jarvis/llm/router.py`, `jarvis/core/app.py`, `jarvis/agent/**`, `jarvis/sandbox/**`, `jarvis/comms/**`, `jarvis/security/**`, `jarvis/skills/**`, hay bất kỳ hành vi `SafetyGate`/`ActionDispatcher`/workstation-lock/Telegram nào.
 
 **Tham chiếu kiến trúc**: `ageitgey/face_recognition` (MIT, upstream) được dùng **chỉ để tham chiếu API/kiến trúc** — `face_locations()`/`face_encodings()`/`face_distance()`/`compare_faces()`, embedding 128 chiều, khoảng cách Euclid, ngữ nghĩa `tolerance` (mặc định upstream 0.6 — chỉ là mặc định thư viện, không phải bảo đảm an ninh). **Không sao chép mã nguồn upstream**, không vendor repo, không thêm `dlib`/`face_recognition` thành dependency bắt buộc, không tải model/dữ liệu khuôn mặt thật.
 
@@ -35,33 +35,40 @@
 - Không sửa `BiometricPrivilegeGate` (rà soát không phát hiện lỗi ở đây ngoài những gì kế thừa từ `verify_frame()` đã cứng hóa — hướng thay đổi chỉ làm xác thực khó hơn, không bao giờ dễ hơn).
 - `jarvis/vision/__init__.py` **không đổi** — cả 3 tên export (`BiometricsEngine`, `BiometricPrivilegeGate`, `FaceEmbeddingStorage`) giữ nguyên chữ ký công khai (`verify_frame()`/`enroll_face()` vẫn trả `bool`, `process_surveillance_frame()` vẫn trả `dict` có khóa `"status"`).
 
-### Test hồi quy (`tests/test_biometrics_hardening.py`, file mới, 49 test)
+### Test hồi quy (`tests/unit/test_biometrics_hardening.py`, file mới, 49 test)
 
 Bao phủ: validate embedding (128D hợp lệ/127D/129D/rỗng/NaN/Infinity/phi số/nested lỗi/không mutate mảng caller), storage corruption (JSON hỏng toàn file → rỗng, root sai kiểu, entry lẫn lộn hợp lệ+hỏng chỉ giữ entry hợp lệ, ghi nguyên tử bảo toàn file cũ khi ghi thất bại, sống sót qua khởi động lại registry, không ghi file vào cây repo mặc định), validate label (rỗng/sai kiểu/ký tự điều khiển/quá dài/duplicate thay thế tất định), số lượng khuôn mặt khi enroll (0/nhiều/đúng 1/rollback khi persist thất bại/không còn duplicate khi re-enroll), số lượng khuôn mặt khi verify (0/nhiều/candidate hỏng/không có embedding nào đã enroll/embedding lưu trữ hỏng không xác thực được), ngữ nghĩa khớp & tolerance (gần khớp, xa không khớp, ranh giới strict `<`, tolerance không hợp lệ không thể nới rộng xác thực — tham số hóa NaN/Infinity/âm/chuỗi/1e9/bool), optional dependency (vắng `face_recognition`/`cv2` không crash, camera mock vẫn hoạt động, backend ném lỗi không crash), privilege session (chỉ bắt đầu sau xác thực hợp lệ, hết hạn đúng TTL), surveillance (khung nhiều khuôn mặt không bao giờ là `"owner_verified"`), và tương thích API công khai.
 
 **Kết quả xác nhận thực tế (chạy cục bộ, Windows)**:
 ```text
-python -m pytest tests/test_biometrics_hardening.py -v --timeout=60 --tb=short
-49 passed in 0.54s
+python -m pytest tests/unit/test_biometrics_hardening.py -v --timeout=60 --tb=short
+49 passed in 0.45s
 ```
 Toàn bộ file test cũ liên quan biometrics (`tests/test_biometrics.py`, `tests/test_adversarial_m5_2.py`, `tests/test_tier5_adversarial_sec_iot_comms_data.py`, `tests/test_e2e_scenarios.py`) được chạy lại và **so sánh bit-for-bit với baseline** (`git stash` rồi chạy lại) — xác nhận các lỗi/error hiện có (6 `ModuleNotFoundError: cv2` trong `test_biometrics.py`, 3 tương tự trong `test_e2e_scenarios.py`, 2 lỗi CLI nmap/tshark + 1 `AttributeError` Discord trong `test_tier5_...`) đã tồn tại **y hệt trước khi sửa** — môi trường này không có `cv2`/`face_recognition` cài đặt thật, đây là khoảng trống môi trường có sẵn, không phải hồi quy.
 
-`tests/unit/` đầy đủ:
+`tests/unit/` đầy đủ (sau khi file test mới được dời vào `tests/unit/`, xác nhận lại bằng `git stash` để đo baseline chính xác):
 ```text
-python -m pytest tests/unit/ -q --timeout=60 --tb=short
+python -m pytest tests/unit/ --collect-only -q --timeout=120   # đếm số test được thu thập
+python -m pytest tests/unit/ -q --timeout=120 --tb=short
 ```
-Kết quả: đúng 9 lỗi đã biết trước đó (8 `tests/unit/test_mobile_bridge.py`, 1 `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`) — **0 lỗi mới**. Không có test nào trong `tests/unit/` đụng tới `jarvis/vision/biometrics.py`.
+- Số test được thu thập trên baseline (`git stash`, chưa có file mới): **736**.
+- Số test được thu thập trên nhánh này (đã có `tests/unit/test_biometrics_hardening.py`): **785**.
+- Chênh lệch: **+49** — khớp chính xác với số test mới được thêm.
+- Toàn bộ 49 test cứng hóa biometrics: **passed**.
+- Kết quả chạy đầy đủ: đúng **9 lỗi đã biết từ trước** (8 trong `tests/unit/test_mobile_bridge.py`, 1 trong `tests/unit/test_proactive_engine.py::test_health_monitor_multiple_simultaneous_breaches`) — **0 lỗi mới**. File `tests/unit/test_biometrics_hardening.py` (49 test) giờ **là một phần của `tests/unit/`** nên **có** test trong `tests/unit/` đụng tới `jarvis/vision/biometrics.py` — tuyên bố trước đó rằng "không có test nào trong `tests/unit/` đụng tới `jarvis/vision/biometrics.py`" chỉ đúng tại thời điểm file test còn nằm ở `tests/test_biometrics_hardening.py` (trước khi dời file, trước commit `dcbe797`) và đã lỗi thời sau khi dời.
 
 Static analysis:
 ```text
-ruff check jarvis/vision/biometrics.py tests/test_biometrics_hardening.py
+ruff check jarvis/vision/biometrics.py tests/unit/test_biometrics_hardening.py
 All checks passed!
 
 mypy jarvis
 ```
 `jarvis/vision/biometrics.py` không có lỗi mypy nào. `ruff check jarvis tests scripts/build_installer.py` và `mypy jarvis` trên toàn repo báo lỗi **giống hệt baseline** (xác nhận bằng `git stash`): 9 lỗi Ruff (import-sort trong `tests/unit/test_zalo_bot.py` + các file khác đã biết từ trước) và 28 lỗi mypy trong 8 file không liên quan (`night_shift.py`, `macro_recorder`, `auto_updater.py`, `smart_home/discovery.py`, `mobile_bridge.py`, `tray.py`, `gui_actor.py`, `cli.py`) — không file nào trong số này thuộc phạm vi sửa đổi của nhánh này.
 
-`py_compile jarvis/vision/biometrics.py tests/test_biometrics_hardening.py`: exit 0. `git diff --check`: exit 0.
+`py_compile jarvis/vision/biometrics.py tests/unit/test_biometrics_hardening.py`: exit 0. `git diff --check`: exit 0.
+
+**Lưu ý về vị trí file test**: file test cứng hóa ban đầu được tạo tại `tests/test_biometrics_hardening.py` (ngoài `tests/unit/`), nghĩa là 49 test này **sẽ không chạy trong CI** (`.github/workflows/ci.yml` chỉ chạy `tests/unit/`). File đã được dời sang `tests/unit/test_biometrics_hardening.py` **trước khi commit `dcbe797`** — không có bản sao trùng lặp, không sửa nội dung file khi dời. CI vẫn chưa được kích hoạt cho nhánh này; các số liệu trên là kết quả chạy cục bộ, không phải claim CI.
 
 ### Giới hạn đã biết / không tuyên bố
 
