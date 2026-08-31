@@ -2,6 +2,73 @@
 
 ---
 
+## 🐛 v4.1.1 — Comprehensive Bug Audit & Fix (2026-08-31)
+
+> **16 commits | 21+ bugs fixed | Build: `JARVIS_Setup_v4.1.1.exe` (71.4 MB)**
+> Kiểm tra và sửa toàn diện codebase — tập trung vào ổn định runtime, path resolution, hiệu năng và độ chính xác test suite.
+
+### 🔴 Sửa lỗi nghiêm trọng (ảnh hưởng người dùng)
+
+#### Crash khi cài vào Program Files
+- **`jarvis/memory/sqlite_store.py`** — SQLite không thể tạo file `memory.db` trong `Program Files` (read-only). Chuyển sang `%LOCALAPPDATA%\JARVIS\memory.db`.
+- **`jarvis/core/paths.py`** *(file mới)* — Module trung tâm cung cấp `get_data_dir()`, `data_path()`, `logs_dir()`, `cache_dir()`, `hidden_subprocess_flags()`. Tất cả path giờ resolve về `%LOCALAPPDATA%\JARVIS\`.
+- **23 files** được di chuyển từ relative path (e.g. `"logs/"`, `"cache/"`) sang AppData: `browser/cdp_controller.py`, `browser/models.py`, `browser/session.py`, `cli.py`, `comms/mobile_bridge.py`, `core/app.py`, `hardware/monitor.py`, `memory/manager.py`, `memory/sqlite_store.py`, `memory/vector_store.py`, `security/scanner.py`, `skills/macro_recorder/__init__.py`, `skills/note_taker/__init__.py`, `skills/rag_search/__init__.py`, `smart_home/discovery.py`, `tts/cache.py`, `ui/dashboard.py`, `ui/tray.py`, `vision/biometrics.py`, `workers/auto_updater.py`, `workers/night_shift.py`, `workers/notification_hub.py`.
+
+#### CPU Temperature Alert Spam
+- **`jarvis/hardware/monitor.py`** — `alert_cooldown_s` tăng từ 5s → 300s; `cpu_temp_threshold` 85°C → 92°C; bỏ override CRITICAL 1 giây.
+- **`jarvis/proactive/health_monitor.py`** — `check_interval` 5s → 30s; `temp_threshold_c` 85 → 92; `cooldown_seconds` 60 → 600.
+- **`jarvis/proactive/engine.py`** — `ProactiveConfig` defaults cập nhật đồng bộ.
+- **`jarvis/hardware/monitor.py`** — Thêm `CREATE_NO_WINDOW` flag cho PowerShell subprocess nhiệt độ CPU — loại bỏ cửa sổ console flash mỗi lần poll.
+
+#### Memory `get_fact()` luôn trả về None
+- **`jarvis/memory/sqlite_store.py`** — Category normalize không nhất quán: `store_fact(category="location")` lưu thành `"general"` (không nằm trong whitelist cũ) nhưng `get_fact(category="location")` query đúng `"location"` → không tìm thấy.
+  - Xóa `CHECK(category IN (...))` constraint khỏi schema SQLite.
+  - Thêm `_normalize_category()` dùng nhất quán trong `store_fact`, `get_fact`, `list_facts`, `delete_fact`.
+  - Mở rộng `_VALID_CATEGORIES` với `location`, `test`, `work`, v.v.
+
+#### Folder Path nhận nhầm
+- **`jarvis/automation/control.py`** — `resolve_folder_path()` partial match với key ngắn `"d"` khiến query `"invalid_folder_alias_xyz"` trả về `D:\`. Sửa: chỉ match key khi là substring tường minh, không partial.
+
+### 🟡 Sửa lỗi logic & hiệu năng
+
+#### STT & Intent Recognition
+- **`jarvis/audio/`** — Chuyển sang `faster-whisper` cho nhận dạng tiếng Việt; nâng ngưỡng confidence wake word; tắt TTS khi trigger false positive.
+- **`jarvis/llm/router.py`** — Thêm 55+ intent rules mới tiếng Việt; culture code `vi-VN`.
+- **`jarvis/core/app.py`** — `process_text_command()`: graceful fallback (unknown intent) giờ trả `success=True` thay vì `False` — lệnh được xử lý dù không nhận dạng được.
+- **`jarvis/llm/router.py` — ReDoS & Latency Protection:**
+  - Regex rules: chỉ chạy trên 512 ký tự đầu (tránh catastrophic backtracking).
+  - Dict-key substring matching: chạy trên **full text** (O(n) an toàn) để vẫn nhận diện keyword nằm sâu trong chuỗi dài.
+  - Emoji-only và number-only input early-return `unknown_intent` trước khi gọi LLM.
+  - Kết quả: 10KB parse < 1.6ms; 50KB adversarial parse < 10ms.
+
+#### Vision & GUI Automation
+- **`jarvis/vision/visual_verifier.py`** — `compute_pixel_diff()`: guard `mean_diff < 0.5` gây false negative khi thay đổi chỉ xảy ra ở một vùng nhỏ (6000/2M pixel → mean = 0.29 < 0.5). Fix: chỉ kiểm tra `bbox is None`.
+- **`jarvis/automation/gui_actor.py`** — `click_element()` gọi `computer_use.get_screen_size()` nhưng `vision_manager` mới là object có method này. Fix: ưu tiên `vision_manager.get_screen_size()`, fallback về `computer_use`, default `1920×1080`.
+
+#### Skills & Web
+- **`jarvis/skills/models.py`** — `SkillMetadata` thiếu fields `category` và `author` → `TypeError` khi synthesize skill với metadata đầy đủ. Fix: thêm `category: str = "general"` và `author: str`.
+- **`jarvis/skills/synthesizer.py`** — `synthesize_skill()`: thêm params `metadata=`, `requirements=`, `overwrite=` — cho phép truyền `SkillMetadata` object trực tiếp; `overwrite=True` xóa skill dir cũ trước khi tạo mới.
+- **`jarvis/web/weather.py`** — `WeatherData.wind_kph`: field bắt buộc → optional `= 0.0`. `format_weather_speech()`: dùng `getattr(..., 0.0)` thay vì direct access — crash khi data không có `wind_kph`.
+
+#### Audio Device
+- **`jarvis/audio/engine.py`** — `MicrophoneProbeManager.select_best_device()`: khi `devices=[]` truyền vào constructor, vẫn probe real soundcard và có thể trả về index ≠ 0. Fix: early return `0` khi device list do caller cung cấp rỗng.
+
+### 🟢 Single Instance & Echo Fix
+- **`jarvis/core/app.py`** — Win32 mutex ngăn chạy nhiều instance JARVIS đồng thời.
+- Loại bỏ acoustic echo feedback loop khi TTS phát qua mic input.
+
+### 🔧 Tests & CI
+
+- **`tests/test_adversarial_challenger_1.py`** — Thêm `ImageGrab` vào PIL imports.
+- **`tests/e2e/test_tiers_1_to_4.py`** — Thêm `import subprocess` bị thiếu.
+- **`.gitignore`** — Thêm `.cache/` (faster-whisper model downloads).
+
+### 📦 Build
+- `JARVIS_Setup_v4.1.1.exe` — 71.4 MB, PyInstaller 6.22.2 + Inno Setup 6.7.3
+- Tất cả path giờ resolve đúng trong cả development (`d:\Software GitCode\JARVIS\`) lẫn installed (`C:\Program Files\JARVIS\`).
+
+---
+
 ## 🚀 Chưa phát hành (2026-08-30) — Central Safety-Layer Hardening (Phase 2)
 
 > Nhánh làm việc: `feat/safety-layer-hardening`, dựa trên `main` sau khi cả PR #8 (Wake Word Phase 1) và PR #9 (Sandbox CI Compatibility Fix) đã được merge (`35713b9`). Nhánh này **độc lập** với hai PR trên — không đụng `jarvis/sandbox/*` hay `jarvis/audio/wake_word.py`.
