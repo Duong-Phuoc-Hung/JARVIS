@@ -56,6 +56,9 @@ Summarized invariants, verified directly against code as of commit `a370633` (v4
 - `SkillRegistry.invoke_skill()` no longer rewrites packaged `metadata.json` on every invocation — telemetry persists to a separate atomic `SkillTelemetryStore`, not the manifest.
 - Two skill-manifest schema families ("jarvis_builtin_system" vs "JARVIS Core Team") still coexist unmigrated; `jarvis/skills/synthesizer.py` still writes fresh manifests via the telemetry-including `to_dict()` rather than `to_manifest_dict()` — a known, not-yet-fixed inconsistency, out of scope unless a task specifically targets it.
 
+**Proactive config**:
+- `ProactiveConfig.from_dict()` (`jarvis/proactive/engine.py`) must keep sourcing its fallback values from a fresh `cls()`/`ProactiveConfig()` instance (see the `_defaults = cls()` pattern in `from_dict()`), never from duplicated numeric constants. Hardcoding fallback numbers a second time is exactly how the health-monitor thresholds (`health_interval_s`/`cpu_threshold`/`ram_threshold`/`disk_min_free_gb`/`temp_threshold_c`/`battery_min_percent`/`health_cooldown_s`) previously drifted out of sync with the dataclass defaults — fixed; do not reintroduce a second source of truth for these values.
+
 ## 2. Startup procedure for every new Claude Code session
 
 Before editing:

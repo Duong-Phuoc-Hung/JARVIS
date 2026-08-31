@@ -69,6 +69,12 @@ class ProactiveConfig:
         # Handle top-level proactive block if present
         p_cfg = cfg.get("proactive", cfg) if isinstance(cfg, dict) and "proactive" in cfg else cfg
 
+        # Single source of truth for fallback defaults: read them straight off a
+        # fresh ProactiveConfig() instead of duplicating numeric constants here.
+        # This keeps from_dict() from drifting out of sync with the dataclass
+        # field defaults above whenever those are tuned (see CHANGELOG).
+        _defaults = cls()
+
         # Extract nested blocks
         reminders_cfg = p_cfg.get("reminders", {})
         health_cfg = p_cfg.get("health_monitor", {})
@@ -83,13 +89,13 @@ class ProactiveConfig:
             reminders_interval_s=float(reminders_cfg.get("check_interval_s", p_cfg.get("reminders_interval_s", 0.5))),
             # Health Monitor
             health_monitor_enabled=bool(health_cfg.get("enabled", p_cfg.get("health_monitor_enabled", True))),
-            health_interval_s=float(health_cfg.get("check_interval_s", p_cfg.get("health_interval_s", 5.0))),
-            cpu_threshold=float(health_cfg.get("cpu_threshold", p_cfg.get("cpu_threshold", 90.0))),
-            ram_threshold=float(health_cfg.get("ram_threshold", p_cfg.get("ram_threshold", 85.0))),
-            disk_min_free_gb=float(health_cfg.get("disk_min_free_gb", p_cfg.get("disk_min_free_gb", 10.0))),
-            temp_threshold_c=float(health_cfg.get("temp_threshold_c", p_cfg.get("temp_threshold_c", 85.0))),
-            battery_min_percent=float(health_cfg.get("battery_min_percent", p_cfg.get("battery_min_percent", 20.0))),
-            health_cooldown_s=float(health_cfg.get("cooldown_s", p_cfg.get("health_cooldown_s", 60.0))),
+            health_interval_s=float(health_cfg.get("check_interval_s", p_cfg.get("health_interval_s", _defaults.health_interval_s))),
+            cpu_threshold=float(health_cfg.get("cpu_threshold", p_cfg.get("cpu_threshold", _defaults.cpu_threshold))),
+            ram_threshold=float(health_cfg.get("ram_threshold", p_cfg.get("ram_threshold", _defaults.ram_threshold))),
+            disk_min_free_gb=float(health_cfg.get("disk_min_free_gb", p_cfg.get("disk_min_free_gb", _defaults.disk_min_free_gb))),
+            temp_threshold_c=float(health_cfg.get("temp_threshold_c", p_cfg.get("temp_threshold_c", _defaults.temp_threshold_c))),
+            battery_min_percent=float(health_cfg.get("battery_min_percent", p_cfg.get("battery_min_percent", _defaults.battery_min_percent))),
+            health_cooldown_s=float(health_cfg.get("cooldown_s", p_cfg.get("health_cooldown_s", _defaults.health_cooldown_s))),
             # Pomodoro
             pomodoro_enabled=bool(pomodoro_cfg.get("enabled", p_cfg.get("pomodoro_enabled", True))),
             pomodoro_interval_s=float(pomodoro_cfg.get("check_interval_s", p_cfg.get("pomodoro_interval_s", 0.5))),
