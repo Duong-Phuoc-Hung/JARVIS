@@ -274,7 +274,7 @@ def compute_threshold_curve(results, thresholds=None):
             elif r["outcome"]=="CORRECT": c += 1
             elif r["outcome"]=="MISROUTED": m += 1
             else: s += 1
-        curve[str(t)] = {"correct":c/n,"misrouting":m/n,"silent":s/n}
+        curve[str(t)] = {"correct":c/n,"misrouting":m/n,"end_to_end_abstention":s/n}
     return curve
 
 def summarize(results, model, condition, backend):
@@ -318,8 +318,8 @@ def print_report(summaries):
         print(f"  (Each threshold: trials below it treated as abstained)")
         print(f"  {'t':>5} | {'Correct':>8} | {'Misrouted':>10} | {'Abstained':>9}")
         for t,v in sorted(first.threshold_curve.items(),key=lambda x:float(x[0])):
-            mark = "  <-- Pareto candidate" if v["misrouting"]<0.05 and v["silent"]<0.30 else ""
-            print(f"  {float(t):>5.1f} | {v['correct']:>7.1%}  | {v['misrouting']:>9.1%}  | {v['silent']:>8.1%}{mark}")
+            mark = "  <-- Pareto candidate" if v["misrouting"]<0.05 and v["end_to_end_abstention"]<0.30 else ""
+            print(f"  {float(t):>5.1f} | {v['correct']:>7.1%}  | {v['misrouting']:>9.1%}  | {v['end_to_end_abstention']:>8.1%}{mark}")
         print("\n  Goal: lowest misrouting_rate where abstention_rate stays < 30%")
 
 def main():

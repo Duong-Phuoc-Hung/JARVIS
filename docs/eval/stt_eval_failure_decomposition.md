@@ -31,7 +31,7 @@ This means the historical 66–82% "silent_failure_rate" figures quoted elsewher
 
 **AUXILIARY ONLY.** `token_similarity()` (`tests/eval/text_normalize.py`) scores each row's transcript against the phrase actually spoken for that WAV file (resolved from `tests/eval/phrase_manifest.py`), via normalized token-level Word Error Rate (1.0 = identical token sequence after lowercasing/punctuation-stripping/NFC normalization; 0.0 = fully divergent). It does **not** strip Vietnamese diacritics, so a transcript that is semantically right but drops/changes accents scores as a token mismatch — this metric is sensitive to that, not just to meaning. **It is never used to decide CORRECT/MISROUTED/STT_EMPTY/ROUTER_ABSTAIN and does not measure router safety.**
 
-- Rows scored: **180** / rows unresolved (no manifest match or missing audio_file): 0
+- Rows scored: **180** / rows unresolved (missing/unknown `intent_gt` or `phrase`): 0
 - Overall: n=180 mean=0.170 median=0.000 stdev=0.336
 
 | Model | Condition | N | Mean | Median | Stdev |
@@ -98,7 +98,7 @@ conflating the two.
 
 ## Phase 8 — Real production-backend rerun status
 
-Not executed this session — CUDA-capable GPU is present on the host (confirmed via `nvidia-smi`), but the `faster-whisper`/`ctranslate2` Python packages are not installed in any available interpreter and no project virtual environment with them was found. Per AUDIT_METHODOLOGY.md, no mock or fabricated results are substituted — this rerun remains an open follow-up.
+Not executed this session (2026-09-02) — CUDA-capable GPU is present on the host (confirmed via nvidia-smi: NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB), but the faster-whisper/ctranslate2 Python packages are not installed in any available interpreter (Python 3.14.6) and no project virtual environment with them was found. No cached Whisper model weights exist at %LOCALAPPDATA%/JARVIS/cache/whisper either. Per AUDIT_METHODOLOGY.md, no mock or fabricated results are substituted -- this rerun remains an open follow-up.
 
 ## What this document does NOT do
 

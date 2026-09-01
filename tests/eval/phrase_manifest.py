@@ -70,11 +70,35 @@ def resolve_phrase_for_wav(wav_path: Path) -> str | None:
     exact recording prompt spoken for it. Returns None if the path does not
     resolve to a known manifest entry (unknown intent, unknown variant index,
     or a filename that doesn't match the 'variant_N.wav' convention).
+
+    Intended for LIVE/CURRENT WAV files on disk (e.g. validating this checkout's
+    tests/eval/audio/ tree). For resolving phrases from HISTORICAL result rows
+    (docs/eval/stt_eval_results.json), prefer resolve_phrase_by_stem() with that
+    row's own portable `intent_gt`/`phrase` fields instead — those rows store
+    machine-specific absolute paths (e.g. a Windows path from whatever machine
+    originally ran the eval) that this function would need to parse as a
+    filesystem path, which is not guaranteed to behave the same across hosts/OSes.
     """
     idx = _parse_variant_index(wav_path.stem)
     if idx is None:
         return None
     intent = wav_path.parent.name
+    return resolve_phrase(intent, idx)
+
+
+def resolve_phrase_by_stem(intent: str, variant_stem: str) -> str | None:
+    """
+    Path-independent lookup: resolve a manifest phrase directly from an intent
+    name (e.g. "open_app") and a variant stem (e.g. "variant_4"), with no
+    filesystem path parsing involved at all. This is the correct way to resolve
+    the expected phrase for a historical result row — those rows already carry
+    `intent_gt` and `phrase` as plain portable strings; there is no need to
+    parse the row's (possibly machine-specific, possibly foreign-OS-formatted)
+    `audio_file` absolute path to recover the same information.
+    """
+    idx = _parse_variant_index(variant_stem)
+    if idx is None:
+        return None
     return resolve_phrase(intent, idx)
 
 

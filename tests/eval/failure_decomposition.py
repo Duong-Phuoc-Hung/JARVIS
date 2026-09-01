@@ -168,15 +168,23 @@ def decompose_results(results: list[dict]) -> dict:
 def compute_text_similarity_stats(results: list[dict]) -> dict:
     """
     Phase 3 (auxiliary only): aggregate token_similarity() between each row's
-    transcript and the phrase actually spoken for that WAV file (resolved via
-    phrase_manifest.resolve_phrase_for_wav on the row's audio_file path).
+    transcript and the phrase actually spoken, resolved via
+    phrase_manifest.resolve_phrase_by_stem(row["intent_gt"], row["phrase"]) —
+    the row's own portable metadata, deliberately NOT the row's `audio_file`
+    absolute path. Historical rows in docs/eval/stt_eval_results.json store
+    whatever machine-specific absolute path (e.g. a Windows path from the
+    original recording machine) happened to be current when the eval ran;
+    parsing that path as a filesystem path to recover the intent/variant is
+    fragile and host-dependent. `intent_gt` and `phrase` (e.g. "variant_4")
+    are plain strings already present on every row and need no path parsing
+    at all.
 
     This is descriptive of transcription quality, NOT a safety/outcome metric.
     It is computed and reported here specifically to prevent the mistaken
     inference "STT_EMPTY is only 3/180, therefore transcription is largely
     accurate" — a non-empty transcript can still be almost entirely wrong.
     """
-    from tests.eval.phrase_manifest import resolve_phrase_for_wav
+    from tests.eval.phrase_manifest import resolve_phrase_by_stem
     from tests.eval.text_normalize import token_similarity
 
     by_model_condition: dict[tuple[str, str], list[float]] = defaultdict(list)
@@ -185,11 +193,12 @@ def compute_text_similarity_stats(results: list[dict]) -> dict:
     n_unresolved = 0
 
     for row in results:
-        audio_file = row.get("audio_file")
-        if not audio_file:
+        intent_gt = row.get("intent_gt")
+        variant_stem = row.get("phrase")
+        if not intent_gt or not variant_stem:
             n_unresolved += 1
             continue
-        expected_phrase = resolve_phrase_for_wav(Path(audio_file))
+        expected_phrase = resolve_phrase_by_stem(intent_gt, variant_stem)
         if expected_phrase is None:
             n_unresolved += 1
             continue
@@ -202,7 +211,6 @@ def compute_text_similarity_stats(results: list[dict]) -> dict:
         by_model_condition[(model, condition)].append(sim)
 
         predicted = row.get("predicted_intent", "NO_INTENT")
-        intent_gt = row.get("intent_gt", "")
         outcome = classify_outcome(transcript, predicted, intent_gt)
         by_outcome[outcome].append(sim)
 
@@ -287,17 +295,20 @@ def _fmt_stat(s: dict) -> str:
     return f"n={s['n']} mean={s['mean']:.3f} median={s['median']:.3f} stdev={s['stdev']:.3f}"
 
 
+PRODUCTION_RERUN_STATUS_NOT_ASSESSED = (
+    "Not supplied to this report generator — the production-backend rerun's real-hardware/"
+    "dependency status was not assessed for this invocation. This is a placeholder, not a "
+    "claim about any specific machine: pass an explicit `production_rerun_status` string "
+    "(or `--production-rerun-status` on the CLI) describing what was actually checked on the "
+    "machine generating this report, per AUDIT_METHODOLOGY.md's rule against unverified claims."
+)
+
+
 def render_markdown_report(
     decomposition: dict,
     phrase_manifest_problems: list[str] | None = None,
     text_similarity_stats: dict | None = None,
-    production_rerun_status: str = (
-        "Not executed this session — CUDA-capable GPU is present on the host "
-        "(confirmed via `nvidia-smi`), but the `faster-whisper`/`ctranslate2` Python "
-        "packages are not installed in any available interpreter and no project "
-        "virtual environment with them was found. Per AUDIT_METHODOLOGY.md, no mock "
-        "or fabricated results are substituted — this rerun remains an open follow-up."
-    ),
+    production_rerun_status: str = PRODUCTION_RERUN_STATUS_NOT_ASSESSED,
 ) -> str:
     total = decomposition["total"]
     n_rows = decomposition["n_rows"]
@@ -383,8 +394,8 @@ def render_markdown_report(
             "and does not measure router safety.**\n"
         )
         lines.append(
-            f"- Rows scored: **{ts['n_resolved']}** / rows unresolved (no manifest match or "
-            f"missing audio_file): {ts['n_unresolved']}"
+            f"- Rows scored: **{ts['n_resolved']}** / rows unresolved (missing/unknown "
+            f"`intent_gt` or `phrase`): {ts['n_unresolved']}"
         )
         lines.append(f"- Overall: {_fmt_stat(ts['overall'])}\n")
         lines.append("| Model | Condition | N | Mean | Median | Stdev |")
@@ -488,6 +499,17 @@ def main() -> int:
     ap.add_argument("--out-json", default="docs/eval/stt_eval_failure_decomposition.json")
     ap.add_argument("--out-md", default="docs/eval/stt_eval_failure_decomposition.md")
     ap.add_argument("--audio-dir", default="tests/eval/audio")
+    ap.add_argument(
+        "--production-rerun-status",
+        default=None,
+        help=(
+            "Explicit, human-written description of whether/why a real production-backend "
+            "(Phase 8) rerun was executed on THIS machine for THIS invocation. There is "
+            "deliberately no machine-specific default — omitting this flag reports a neutral "
+            "'not assessed' placeholder rather than silently reusing any prior session's "
+            "hardware/dependency findings."
+        ),
+    )
     args = ap.parse_args()
 
     results_path = ROOT / args.results
@@ -523,6 +545,11 @@ def main() -> int:
         decomposition,
         phrase_manifest_problems=problems,
         text_similarity_stats=text_similarity_stats,
+        production_rerun_status=(
+            args.production_rerun_status
+            if args.production_rerun_status is not None
+            else PRODUCTION_RERUN_STATUS_NOT_ASSESSED
+        ),
     )
     out_md_path = ROOT / args.out_md
     out_md_path.write_text(md, encoding="utf-8")

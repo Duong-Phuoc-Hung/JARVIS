@@ -146,10 +146,22 @@ All four CI jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline S
     rule-engine simply didn't match). Per AUDIT_METHODOLOGY.md's causal-attribution rule,
     this decomposition alone does **not** establish whether the dominant cause is poor
     transcription quality or an overly strict keyword matcher — both are consistent with
-    "non-empty but wrong" transcripts; distinguishing them needs the new auxiliary
-    token-similarity metric (`tests/eval/text_normalize.py`, deliberately NOT used to
-    determine intent outcome) or manual transcript review, neither of which was performed as
-    part of this correction. No production STT threshold
+    "non-empty but wrong" transcripts. **The auxiliary token-similarity metric WAS computed**
+    for all 180 historical rows (`tests/eval/failure_decomposition.py::compute_text_similarity_stats()`,
+    built on `tests/eval/text_normalize.py::token_similarity()`, deliberately never used to
+    determine intent outcome — see `docs/eval/stt_eval_failure_decomposition.md`'s "auxiliary"
+    section for the full per-model/condition/outcome breakdown): overall mean similarity is
+    only ~0.17 (median 0.0), and `ROUTER_ABSTAIN` rows specifically average ~0.115 — i.e. most
+    non-empty transcripts, including the large majority of `ROUTER_ABSTAIN` rows, are also
+    substantially textually wrong, not merely differently-phrased-but-accurate. This is real
+    evidence against the naive "only 3/180 are STT_EMPTY, so transcription must be mostly fine"
+    inference. It does **not**, by itself, conclusively separate the two candidate causes —
+    a low similarity score cannot distinguish "STT acoustically mis-heard the words" from "STT
+    heard something close but the Tier-1 rule-engine's fixed keyword list wouldn't have matched
+    it anyway," and a manual per-row causal review (reading each garbled transcript against its
+    audio and judging which failure mode applies) was **not** performed as part of this
+    correction — that remains the one way to fully resolve the two candidate causes. No
+    production STT threshold
     (`no_speech_threshold`/`log_prob_threshold`/`compression_ratio_threshold`/beam_size),
     router behavior, or historical committed evidence file was changed — this was a
     re-classification pass over existing evidence, not new acoustic evidence, and does not
@@ -168,7 +180,7 @@ All four CI jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline S
     executed this session: CUDA hardware is present (`nvidia-smi` succeeds) but
     `faster-whisper`/`ctranslate2` are not installed in any available interpreter and no
     project venv with them was found — reported as not-executed rather than faked, per
-    AUDIT_METHODOLOGY.md. 46 new deterministic CPU-only unit tests added
+    AUDIT_METHODOLOGY.md. **56** new deterministic CPU-only unit tests added
     (`tests/unit/test_stt_eval_failure_decomposition.py`); full `tests/unit/` (pytest's own
     terminal "collected"/pass-fail summary, NOT the JUnit XML `tests` attribute — see the
     dedicated correction note immediately below this list for why those differ) —
@@ -176,9 +188,21 @@ All four CI jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline S
     1008 passed, 0 failed, 0 skipped** locally (matches GitHub Actions CI run #126's 1008
     collected exactly; CI's own pass/skip split, 1005 passed/3 skipped, is a known
     local-vs-CI-runner divergence already documented earlier in this file for prior
-    checkpoints — not specific to this change). This branch: **1054 collected, 1054 passed,
-    0 failed, 0 skipped** (plus 50 subtests passed, unchanged from base — see below). Net
-    **+46**, exactly matching the 46 new test methods added.
+    checkpoints — not specific to this change). This branch (final pushed state, commit
+    `42098d6`): **1064 collected, 1064 passed, 0 failed, 0 skipped** (plus 50 subtests passed,
+    unchanged from base — see below). Net **+56**, exactly matching the 56 test methods in the
+    new file.
+
+    **Note on the +46/+56 discrepancy**: the originally pushed commit `42098d6`'s own commit
+    message and the first draft of this section's prose said "46 new tests"/"1054 collected" —
+    accurate for the test file's content partway through that same working session, before 10
+    more tests (`TestComputeTextSimilarityStats`, plus two `TestRenderMarkdownReport` cases)
+    were added later in the *same* commit to lock in the auxiliary text-similarity metric
+    (§ auxiliary text-quality note below) before it was ever pushed. The commit message itself
+    is not rewritten (the commit is public/pushed; only a normal follow-up commit corrects the
+    documentation) — but the actual file on this branch has always had all 56 tests since
+    `42098d6`, and 56/1064 are the only correct current numbers. Do not cite 46/1054 as this
+    branch's test evidence going forward.
 
     **Correction (found via independent GitHub Actions CI #126 verification against this
     exact base commit, 2026-09-02): an earlier draft of this evidence conflated pytest's own
@@ -190,16 +214,20 @@ All four CI jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline S
     top-level collected test items. At base commit `2b73a49`, pytest's terminal summary reads
     "1008 passed, **50 subtests** passed" (collected = 1008) while the JUnit XML `tests`
     attribute for the same run reports 1058 = 1008 + 50 — the JUnit total is inflated by
-    exactly the 50 pre-existing subtests, unrelated to this branch. On this branch, pytest's
-    terminal summary reads "1054 passed, 50 subtests passed" (collected = 1054, the same 50
-    subtests carried over unchanged) while the JUnit `tests` attribute reports 1104 = 1054 +
-    50 — again inflated by the same 50 subtests. An earlier draft of this document cited the
-    JUnit totals (1058/1104) as if they were pytest's collected/passed counts; the correct,
-    authoritative numbers are the ones in this paragraph, obtained via direct
-    `subprocess.run()` capture of pytest's own terminal output (not the JUnit XML file, and
-    not piped through a shell `tail`/`tr`, both of which independently proved unreliable for
-    capturing pytest's final `\r`-terminated summary line in this Windows Git-Bash
-    environment — see this branch's own git history for that investigation).
+    exactly the 50 pre-existing subtests, unrelated to this branch. On this branch (final
+    state), pytest's terminal summary reads "1064 passed, 50 subtests passed" (collected =
+    1064, the same 50 subtests carried over unchanged) while the JUnit `tests` attribute would
+    report 1114 = 1064 + 50 — again inflated by the same 50 subtests. Earlier drafts of this
+    document cited JUnit totals (1058/1104, then a stale intermediate 1054 pytest count) as
+    if they were the final pytest collected/passed counts; the correct, authoritative numbers
+    are the ones in the paragraph above, obtained via direct `subprocess.run()` capture of
+    pytest's own terminal output (not the JUnit XML file, and not piped through a shell
+    `tail`/`tr`, both of which independently proved unreliable for capturing pytest's final
+    `\r`-terminated summary line in this Windows Git-Bash environment — see this branch's own
+    git history for that investigation) — and critically, invoked with pytest's own
+    single `-q` from `pyproject.toml`'s `addopts` only, never a redundant second `-q` on the
+    CLI (double `-q` silently suppresses the terminal summary line entirely, which was the
+    proximate cause of the earlier missing-summary confusion).
 - **(B) Real CUDA throughput benchmark, synthetic (non-speech) input** (`docs/benchmark_results.md`
   §1): genuine GPU latency measurement on real hardware (GTX 1650 Max-Q), but the input is a
   synthesized sine-wave signal, not recorded speech — it measures pipeline throughput (RTF), not

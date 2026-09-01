@@ -23,6 +23,7 @@ from tests.eval.failure_decomposition import (
 from tests.eval.phrase_manifest import (
     PHRASE_MANIFEST,
     resolve_phrase,
+    resolve_phrase_by_stem,
     resolve_phrase_for_wav,
     validate_audio_root,
 )
@@ -193,7 +194,7 @@ class TestRenderMarkdownReport:
 
     def test_render_includes_text_quality_section_when_stats_provided(self):
         rows = [{"model": "small", "condition": "clean", "transcript": "mo chrome",
-                 "predicted_intent": "app_open", "intent_gt": "open_app",
+                 "predicted_intent": "app_open", "intent_gt": "open_app", "phrase": "variant_0",
                  "outcome": "CORRECT", "audio_file": "tests/eval/audio/clean/open_app/variant_0.wav"}]
         d = decompose_results(rows)
         stats = compute_text_similarity_stats(rows)
@@ -202,13 +203,35 @@ class TestRenderMarkdownReport:
         assert "does not measure router safety" in md
         assert "small | clean" in md
 
+    def test_render_default_production_status_is_machine_neutral(self):
+        """
+        Locks §3's fix: render_markdown_report()'s default production_rerun_status
+        must be a generic "not assessed" placeholder, never a specific machine's
+        GPU/dependency findings baked in as a reusable default.
+        """
+        d = decompose_results([])
+        md = render_markdown_report(d, phrase_manifest_problems=[])
+        assert "not assessed" in md.lower() or "not supplied" in md.lower()
+        assert "nvidia-smi" not in md
+        assert "RTX 3050" not in md and "GTX 1650" not in md
+
+    def test_render_accepts_explicit_production_status(self):
+        d = decompose_results([])
+        md = render_markdown_report(
+            d, phrase_manifest_problems=[],
+            production_rerun_status="Executed successfully on host X with model cache Y.",
+        )
+        assert "Executed successfully on host X" in md
+        assert "not assessed" not in md.lower()
+
 
 class TestComputeTextSimilarityStats:
-    def _row(self, transcript, audio_file="tests/eval/audio/clean/open_app/variant_0.wav",
+    def _row(self, transcript, phrase="variant_0", audio_file="tests/eval/audio/clean/open_app/variant_0.wav",
               model="small", condition="clean", predicted="app_open", intent_gt="open_app"):
         return {
             "model": model, "condition": condition, "transcript": transcript,
-            "predicted_intent": predicted, "intent_gt": intent_gt, "audio_file": audio_file,
+            "predicted_intent": predicted, "intent_gt": intent_gt, "phrase": phrase,
+            "audio_file": audio_file,
         }
 
     def test_identical_transcript_scores_one(self):
@@ -224,18 +247,73 @@ class TestComputeTextSimilarityStats:
         stats = compute_text_similarity_stats(rows)
         assert stats["overall"]["mean"] == pytest.approx(0.0)
 
-    def test_unresolvable_audio_file_counted_separately(self):
-        rows = [self._row("mở chrome", audio_file="tests/eval/audio/clean/unknown_intent/variant_0.wav")]
+    def test_resolution_uses_intent_gt_and_phrase_not_audio_file(self):
+        """
+        Path independence (per the AUDIT_METHODOLOGY.md finding that historical
+        rows carry machine-specific absolute paths): a row whose audio_file is
+        a bogus/unresolvable/foreign-OS-style path must still resolve correctly
+        purely from its portable intent_gt + phrase fields.
+        """
+        rows = [self._row(
+            "mở chrome",
+            intent_gt="open_app", phrase="variant_4",
+            audio_file="/this/path/does/not/exist/anywhere.wav",
+        )]
+        stats = compute_text_similarity_stats(rows)
+        assert stats["n_resolved"] == 1
+        assert stats["n_unresolved"] == 0
+        # variant_4 of open_app is "khởi động chrome", not "mở chrome" -> low similarity,
+        # proving the *correct* (variant_4) phrase was actually used for scoring.
+        assert stats["overall"]["mean"] < 1.0
+
+    def test_historical_windows_absolute_path_row_resolves_via_metadata_fields(self):
+        """
+        Reproduces the exact shape of a real historical row from
+        docs/eval/stt_eval_results.json: a Windows absolute path from the
+        original recording machine (a different machine than this test runs
+        on, and — if this suite ever runs on non-Windows — a different OS's
+        path syntax entirely). Resolution must succeed via intent_gt/phrase
+        alone; the audio_file string is never parsed as a path.
+        """
+        row = {
+            "condition": "clean", "intent_gt": "music_play", "phrase": "variant_0",
+            "audio_file": r"D:\Software GitCode\JARVIS\tests\eval\audio\clean\music_play\variant_0.wav",
+            "model": "small", "transcript": "phát nhạc",
+            "predicted_intent": "spotify", "outcome": "CORRECT",
+        }
+        stats = compute_text_similarity_stats([row])
+        assert stats["n_resolved"] == 1
+        assert stats["n_unresolved"] == 0
+        # music_play variant_0 is "mở nhạc" in the manifest; "phát nhạc" shares
+        # one of two tokens -> a mid-range, non-zero, non-one similarity score
+        # (proves real manifest text was actually looked up, not a placeholder).
+        assert 0.0 < stats["overall"]["mean"] < 1.0
+
+    def test_missing_intent_gt_counted_as_unresolved(self):
+        row = self._row("mở chrome")
+        row["intent_gt"] = None
+        stats = compute_text_similarity_stats([row])
+        assert stats["n_unresolved"] == 1
+        assert stats["n_resolved"] == 0
+
+    def test_missing_phrase_counted_as_unresolved(self):
+        row = self._row("mở chrome")
+        row["phrase"] = None
+        stats = compute_text_similarity_stats([row])
+        assert stats["n_unresolved"] == 1
+        assert stats["n_resolved"] == 0
+
+    def test_unknown_intent_gt_counted_as_unresolved(self):
+        rows = [self._row("mở chrome", intent_gt="totally_unknown_intent")]
         stats = compute_text_similarity_stats(rows)
         assert stats["n_resolved"] == 0
         assert stats["n_unresolved"] == 1
 
-    def test_missing_audio_file_counted_as_unresolved(self):
-        row = self._row("mở chrome")
-        row["audio_file"] = None
-        stats = compute_text_similarity_stats([row])
-        assert stats["n_unresolved"] == 1
+    def test_malformed_phrase_stem_counted_as_unresolved(self):
+        rows = [self._row("mở chrome", phrase="not_a_variant_stem")]
+        stats = compute_text_similarity_stats(rows)
         assert stats["n_resolved"] == 0
+        assert stats["n_unresolved"] == 1
 
     def test_by_model_condition_and_by_outcome_populated(self):
         rows = [
@@ -307,6 +385,29 @@ class TestPhraseManifest:
     def test_resolve_phrase_for_wav_nonnumeric_suffix_returns_none(self):
         p = Path("tests/eval/audio/clean/open_app/variant_abc.wav")
         assert resolve_phrase_for_wav(p) is None
+
+    def test_resolve_phrase_by_stem_matches_resolve_phrase_for_wav(self):
+        # Same result as the path-based resolver, but with zero path parsing.
+        assert resolve_phrase_by_stem("open_app", "variant_2") == "mở notepad"
+        assert resolve_phrase_by_stem("open_app", "variant_2") == resolve_phrase_for_wav(
+            Path("tests/eval/audio/clean/open_app/variant_2.wav")
+        )
+
+    def test_resolve_phrase_by_stem_unknown_intent_returns_none(self):
+        assert resolve_phrase_by_stem("does_not_exist", "variant_0") is None
+
+    def test_resolve_phrase_by_stem_malformed_stem_returns_none(self):
+        assert resolve_phrase_by_stem("open_app", "not_a_variant") is None
+        assert resolve_phrase_by_stem("open_app", "variant_abc") is None
+
+    def test_resolve_phrase_by_stem_out_of_range_index_returns_none(self):
+        assert resolve_phrase_by_stem("open_app", "variant_99") is None
+
+    def test_resolve_phrase_by_stem_ignores_path_like_intent_string(self):
+        # Even a garbage/path-like "intent" string is treated as a plain key
+        # lookup, never parsed as a path — it simply won't match any manifest
+        # entry, which is the correct (fail-closed) behavior.
+        assert resolve_phrase_by_stem(r"D:\some\path\open_app", "variant_0") is None
 
     def test_every_manifest_intent_has_at_least_one_phrase(self):
         for intent, phrases in PHRASE_MANIFEST.items():
