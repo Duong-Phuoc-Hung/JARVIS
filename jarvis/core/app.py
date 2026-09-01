@@ -1546,19 +1546,27 @@ class JarvisApp:
                     log.error("Command processing failed: %s", e)
                     response_text = f"Xin lỗi, tôi gặp lỗi khi xử lý lệnh: {e}"
 
-                # ── Speak the response (was missing — caused complete silence) ──
+                # ── Speak the response ──────────────────────────────────────────
+                # ECHO FEEDBACK GUARD: only speak "không hiểu" acknowledgement for
+                # explicit user triggers (hotkey / PTT / tray), NOT for ambient wake-word
+                # triggers. If the wake word fires from room noise or reflected speaker
+                # audio and we speak "Xin lỗi..." the mic picks that up → wake word
+                # fires again → infinite loop.
+                _is_wake_word_trigger = trigger_name.startswith("WAKE_WORD")
                 if self.tts_manager:
                     if response_text and response_text.strip():
                         self.tts_manager.speak(response_text, wait=True)
-                    else:
+                    elif not _is_wake_word_trigger:
                         # Unknown intent or empty response → explicit acknowledgement
-                        # instead of leaving the user in silence
+                        # but ONLY for explicit user-initiated triggers (hotkey, PTT)
                         _unknown_phrase = self.config.get(
                             "jarvis.unknown_intent_phrase",
                             "Xin lỗi, tôi không hiểu lệnh đó. Bạn có thể nói lại không?"
                         )
                         self.tts_manager.speak(_unknown_phrase, wait=True)
                         log.debug("Empty response_text for transcript=%r — spoke unknown_intent_phrase", transcript)
+                    else:
+                        log.debug("Wake-word trigger + empty response — suppressing TTS to prevent echo loop")
 
                 if self.overlay:
                     self.overlay.show_response(transcript, response_text or "(Không nhận ra lệnh)")
@@ -1566,8 +1574,10 @@ class JarvisApp:
                 if self.tray_controller:
                     self.tray_controller.update_status(TrayStatus.ACTIVE)
             finally:
-                # 1.0s cooldown to ensure speaker sound dissipates before re-arming wake word
-                time.sleep(1.0)
+                # Extended cooldown: 2.5s lets speaker audio fully dissipate before
+                # re-arming the wake word detector. 1.0s was insufficient for multi-word
+                # responses — the tail of the audio could retrigger wake word detection.
+                time.sleep(2.5)
                 with self._voice_lock:
                     self._is_voice_interacting = False
 
