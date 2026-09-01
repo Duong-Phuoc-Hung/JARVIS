@@ -28,20 +28,24 @@ that framing goes stale the moment the checkpoint PR itself merges):
   `git rev-parse origin/main` rather than trusting either SHA above as permanently "current."
 
 **Updated 2026-09-02** (branch `eval/stt-real-mic-baseline-correction` merged `origin/main`
-up to commit `442ed0f`): `CHANGELOG.md` development history now reaches **v4.4.0** — a
-maintenance milestone, **not** a formal release/tag (latest formal GitHub Release remains
-`v4.0.1`), but unlike every milestone since v4.0.1, v4.4.0 **did** bump the package/runtime
-version: `jarvis.__version__`/`pyproject.toml` moved `4.1.0 → 4.4.0` in the same commit
-(`4bebc42`). v4.4.0 fixed a `parse_intent(None)` crash, a `WakeWordDetector` pure-tone false
-positive, 23 `subprocess.run(text=True)` call sites missing `encoding=`, expanded Tier-1
-`rule_engine` coverage, and adjusted the (now-superseded — see the STT eval section below)
-STT eval's old phrase categorization. The same `origin/main` pull also brought in, not yet
-under its own CHANGELOG heading as of `442ed0f` (that documentation landed in a later
-`origin/main` commit, `857d729` "v4.5.0", not part of this merge): SecretsManager wired into
-6 more production modules, a new N=152 text-only routing eval
-(`tests/eval/routing_eval_n150.py`), an emoji-detection regex extended to BMP ranges, and an
-audio echo-feedback-loop fix in `jarvis/core/app.py`. See CLAUDE.md's "Current baseline note"
-(§1) for the full breakdown.
+a second time, now up to commit `857d729`): `CHANGELOG.md` development history now reaches
+**v4.5.0** — a maintenance milestone, **not** a formal release/tag (latest formal GitHub
+Release remains `v4.0.1`). **`jarvis.__version__`/`pyproject.toml` is still `4.4.0` — v4.5.0
+did NOT bump it** (no `### Version` note in its CHANGELOG entry; confirmed directly against
+`jarvis/__init__.py`). v4.4.0 remains the one exception where a CHANGELOG heading and the
+runtime version moved together (`4.1.0 → 4.4.0`, commit `4bebc42`) — v4.5.0 reverts to the
+normal pattern of every other milestone since v4.0.1 (dev-history label only). Always check
+`jarvis/__init__.py` directly; never infer the runtime version from the latest heading.
+v4.4.0 fixed a `parse_intent(None)` crash, a `WakeWordDetector` pure-tone false positive, 23
+`subprocess.run(text=True)` call sites missing `encoding=`, expanded Tier-1 `rule_engine`
+coverage, and adjusted the (now-superseded — see the STT eval section below) STT eval's old
+phrase categorization. v4.5.0 (commits `89e4c7d`→`29e8ade`→`1b1c847`→`442ed0f`→`857d729`,
+all now merged) added: an E9 acoustic-echo-feedback-loop fix in `jarvis/core/app.py`;
+SecretsManager wired into 6 more production modules; a new N=152 text-only routing eval
+(`tests/eval/routing_eval_n150.py`); an emoji-detection regex extended to BMP ranges; a full
+test-suite cleanup (~44 failures → 0); `CREATE_NO_WINDOW` added by default to
+`jarvis/utils/subprocess_utils.py::run_safe()`; and a new `scripts/system_diagnostic.ps1`.
+See CLAUDE.md's "Current baseline note" (§1) for the full breakdown.
 
 **Post-`d62cb61` evolution merged onto `main`:**
 
