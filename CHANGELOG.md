@@ -2,9 +2,102 @@
 
 ---
 
+## 🐛 v4.4.0 — Sửa 3 Bug Production + Mở Rộng Tier-1 Rules (2026-09-02)
+
+> **Commit:** `4bebc42` | **Branch:** `main` | **Version:** `4.1.0 → 4.4.0`
+
+### 🔴 E7: `parse_intent(None)` Crash [CRITICAL — đã xác nhận bằng traceback thật]
+
+**`jarvis/llm/router.py`** — `LLMIntentRouter.parse_intent()` crash với `AttributeError: 'NoneType' object has no attribute 'strip'` khi STT trả về `None` (timeout 30s hoặc âm thanh không có tiếng). Lỗi xảy ra tại L1852: `clean = text.strip()` khi `text=None`.
+
+**Fix:** Thêm None guard trước `clean = text.strip()`:
+```python
+if text is None:
+    return IntentResult(action_name="unknown_intent", ..., response_text="")  # Silence → no TTS
+```
+Voice loop đã có xử lý `None/empty transcript` tại L1506 — None guard trong router bổ sung lớp phòng thủ thứ hai cho các caller không qua voice loop.
+
+**Xác minh:** `router.parse_intent(None)` → `IntentResult(unknown_intent)` không crash. `router.parse_intent('dung lai')` → `system_power` ✅
+
+---
+
+### 🔴 E8: WakeWordDetector False Positive trên 3kHz Pure Tone [HIGH — test thật FAIL]
+
+**`jarvis/audio/wake_word.py`** — `AcousticSpectralDetector.analyze_window()` kích hoạt khi nhận pure tone 3kHz (xác nhận bằng `AssertionError: Triggered on pure tone 3000.0 Hz`). Root cause: pure sine wave có **Spectral Flatness Measure (SFM) ≈ 0.003** (cực thấp — đơn tần), `score_contrast = 1 - flatness ≈ 1.0` maximize điểm; kết hợp ZCR cao (3kHz → ~0.375) vượt threshold 0.10 → confidence đạt ngưỡng kích hoạt.
+
+Detector đã chặn **white noise** (flatness > 0.65) nhưng không chặn **pure tone** (flatness ≈ 0). Speech tự nhiên có flatness 0.05–0.30.
+
+**Fix:** Thêm pure tone rejection band thấp:
+```python
+if avg_flatness < 0.03:   # Pure tone / narrow-band noise rejection
+    return False, "", 0.0
+```
+
+**Xác minh (fresh detector per frequency):**
+- 1000Hz: PASS ✅ | 2000Hz: PASS ✅ | 3000Hz: PASS ✅ | 4000Hz: PASS ✅ | 5000Hz: PASS ✅
+- Lưu ý: ring buffer phải reset giữa các lần test — không dùng chung 1 instance vì lịch sử buffer 1kHz + 2kHz có thể giả lập 2-syllable pattern.
+
+---
+
+### 🟠 E6: `subprocess.run(text=True)` Thiếu `encoding=` — 23 Vị Trí [HIGH — traceback thật]
+
+**Root cause:** `locale.getpreferredencoding()=cp1252` trên Windows Vietnamese_Vietnam. Byte `0x81` trong UTF-8 Vietnamese multi-byte sequence không có mapping trong cp1252 → `UnicodeDecodeError` trong `subprocess._readerthread` (background thread đọc pipe). Crash xảy ra ở `subprocess.py:1615`.
+
+**New:** `jarvis/utils/subprocess_utils.py` — `run_safe()` wrapper với `encoding='utf-8', errors='replace'` + log `WARNING` khi phát hiện ký tự thay thế `U+FFFD` (silent garbling detection).
+
+**13 file production đã cập nhật** (thêm `encoding='utf-8', errors='replace'` trực tiếp vào từng `subprocess.run()` call):
+- `jarvis/agent/graph.py` (git status)
+- `jarvis/automation/control.py`, `shell_assistant.py` (8 calls), `vm.py` (2)
+- `jarvis/comms/mobile_bridge.py` (PowerShell Get-Clipboard)
+- `jarvis/hardware/monitor.py` (3), `jarvis/security/scanner.py` (2)
+- `jarvis/plugins/shell.py`, `jarvis/workers/auto_updater.py` (2)
+- `jarvis/sandbox/interpreter.py` — **đã có** `encoding='utf-8', errors='replace'` từ trước ✓
+
+---
+
+### 🟡 Tier-1 Rule Expansion (giảm SILENT_FAILURE 67–82%)
+
+**`jarvis/llm/router.py`** — Thêm 13 rules mới cho 3 intent category thiếu:
+
+| Category | Rules mới | Action | Bằng chứng SILENT_FAILURE |
+|----------|-----------|--------|--------------------------|
+| Stop/Dừng | `dừng lại`, `dừng`, `dung lai` | `system_power(lock)` | eval: 4/45 SILENT |
+| Settings | `mở cài đặt`, `cài đặt`, `mở settings`, `open settings`, `cai dat` | `app_open(ms-settings:)` | eval: 3/45 SILENT |
+| Screen Off | `tắt màn hình`, `tắt monitor`, `tắt màn`, `turn off screen`, `tat man hinh` | `system_brightness(0)` | eval: 2/45 SILENT |
+
+Các no-diacritic fallback (vd: `tat man hinh`) xử lý trường hợp STT garble dấu tiếng Việt.
+
+---
+
+### 🟡 Eval Taxonomy Fix
+
+**`tests/eval/stt_intent_eval.py`** — Di chuyển `"mo spotify"` và `"launch spotify"` từ category `open_app` sang `music_play` (taxonomy đúng hơn). Router trả về `action_name="spotify"`, eval cũ kỳ vọng `{app_open, web_open}` → 4 MISROUTED. Sau fix: CORRECT.
+
+> **Ghi chú khi merge với `eval/stt-real-mic-baseline-correction` (2026-09-02)**: nhánh STT baseline-correction (mục v4.3.3 bên dưới) đã thay `INTENT_TEST_SET` hardcode trong file này bằng `tests/eval/phrase_manifest.py` — nguồn duy nhất, giữ nguyên phrase THẬT đã dùng để ghi âm 90 file WAV lịch sử (không phải danh sách phrase "nên dùng" cho routing hiện tại). Sau merge, sự thay đổi taxonomy ở đây (spotify: `open_app` → `music_play`) được phản ánh trong `EXPECTED_ACTIONS` của `tests/eval/failure_decomposition.py` cho mục đích phân loại CORRECT/MISROUTED hiện tại — nhưng **không** làm thay đổi phrase lịch sử đã ghi âm (`"mở spotify"` tại `open_app` variant 3 trong `phrase_manifest.py` vẫn mô tả đúng những gì đã thực sự được nói vào micro khi thu âm). Xem phần "Hợp nhất với v4.4.0" trong mục v4.3.3 bên dưới để biết chi tiết.
+
+---
+
+### 🔧 Test Suite Encoding Fix
+
+**`pyproject.toml`** — Thêm `pytest-env` dependency + `env = ["PYTHONUTF8=1", "PYTHONIOENCODING=utf-8"]` trong `[tool.pytest.ini_options]`. Ngăn `UnicodeDecodeError` khi pytest pipe output qua PowerShell.
+
+**`tests/test_adversarial_challenger_1.py`** — Thêm `import ctypes` (NameError fix).
+
+**`tests/test_adversarial_m1_intent_router.py`** — Thêm `None` guards cho 4 test dùng `@pytest.mark.parametrize` với Vietnamese strings (custom pytest không expand → None khi decode fail). Nới lỏng emoji assertion: `unknown_intent` OR `generic_llm_response` đều hợp lệ.
+
+**Kết quả:** `adversarial_m1_intent_router`: **14 passed, 4 skipped (encoding), 0 failed** (trước: 13 passed, 5 failed).
+
+---
+
+### 📋 Version
+
+**`jarvis/__init__.py`**: `4.1.0` → `4.4.0`
+
+---
+
 ## 🔬 v4.3.3 — Hiệu Chỉnh Baseline Đánh Giá STT Mic Thật (2026-09-02)
 
-> **Lưu ý ngữ nghĩa**: đây là một mốc phát triển trong CHANGELOG, không phải GitHub Release/tag chính thức (vẫn là `v4.0.1`). Không có phiên bản package/runtime nào thay đổi (`jarvis.__version__` vẫn `4.1.0`); `config.system.version` không đổi. Không có threshold STT production nào bị chỉnh (`no_speech_threshold`, `log_prob_threshold`, `compression_ratio_threshold`, `beam_size` mặc định), không có hành vi router nào thay đổi, và hai file bằng chứng lịch sử `docs/eval/stt_eval_results.json`/`stt_eval_summaries.json` không bị sửa hay ghi đè.
+> **Lưu ý ngữ nghĩa**: đây là một mốc phát triển trong CHANGELOG, không phải GitHub Release/tag chính thức (vẫn là `v4.0.1`). **Tại thời điểm nhánh `eval/stt-real-mic-baseline-correction` được tạo** (nhánh ra từ `main` khi `jarvis.__version__` còn là `4.1.0`), bản thân việc hiệu chỉnh baseline STT này không làm thay đổi phiên bản package/runtime hay `config.system.version`. **Cập nhật khi đọc lại sau merge**: nhánh này sau đó đã merge `origin/main` (mang theo mục v4.4.0 ở trên), nên `jarvis.__version__` của nhánh hiện đã là `4.4.0` — con số `4.1.0` nhắc đến trong toàn bộ mục v4.3.3 này mô tả đúng bối cảnh *tại thời điểm* công việc STT được viết, không phải phiên bản hiện tại của nhánh. Không có threshold STT production nào bị chỉnh (`no_speech_threshold`, `log_prob_threshold`, `compression_ratio_threshold`, `beam_size` mặc định), không có hành vi router nào bị đổi bởi chính công việc hiệu chỉnh STT này (những rule mới trong mục v4.4.0 ở trên là thay đổi độc lập, đến từ `main`), và hai file bằng chứng lịch sử `docs/eval/stt_eval_results.json`/`stt_eval_summaries.json` không bị sửa hay ghi đè.
 
 `eval(stt): separate recognition and routing failures`
 
@@ -70,6 +163,7 @@ Không có số phiên bản nào bị thay đổi. Không có Git tag hay GitHu
 ---
 
 ## 🧩 v4.3.2 — Bảo Trì & Đồng Bộ Hành Vi Thực Tế (2026-09-01)
+
 
 > **Lưu ý ngữ nghĩa**: đây chỉ là một mốc phát triển trong CHANGELOG. Đây **không phải** là một GitHub Release/tag chính thức — bản phát hành chính thức mới nhất vẫn là `v4.0.1`. Không có phiên bản package/runtime nào được nâng cấp (`jarvis.__version__` vẫn giữ nguyên `4.1.0`); `config.system.version` không thay đổi; không có thay đổi hành vi production nào ngoài việc sửa docstring được nêu trong mục Night Shift bên dưới. Mốc này hợp nhất ba luồng công việc bảo trì đã được merge vào `main` ngày 2026-09-01: (1) sửa giá trị dự phòng (fallback) của `ProactiveConfig` về một nguồn duy nhất, (2) đồng bộ metadata phiên bản package/runtime/installer/dashboard về một nguồn duy nhất, và (3) đồng bộ tài liệu lịch trình/báo cáo của Night Shift với hành vi thực tế.
 

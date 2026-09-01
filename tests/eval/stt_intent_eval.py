@@ -80,6 +80,31 @@ from tests.eval.text_normalize import token_similarity
 
 BACKENDS = ("direct", "production")
 
+# --- Merge note (origin/main v4.4.0, 2026-09-02) -----------------------------
+# origin/main independently edited this file's old hardcoded INTENT_TEST_SET
+# dict, moving "mo spotify"/"launch spotify" from the "open_app" category to
+# "music_play" (see CHANGELOG.md's v4.4.0 "Eval Taxonomy Fix" entry). That
+# dict no longer exists here: PHRASE_MANIFEST (tests/eval/phrase_manifest.py)
+# replaced it as the single source of truth, preserving the phrases actually
+# spoken for the 90 committed WAV recordings -- including "mở spotify" filed
+# under open_app/variant_3, which is real recorded ground truth and is not
+# renamed or moved just because a routing taxonomy elsewhere changed.
+#
+# origin/main's underlying observation is still correct and independently
+# reproducible against the real dataset: EXPECTED_ACTIONS["open_app"] below
+# does not include "spotify", and the Tier-1 router now (as of v4.4.0)
+# consistently routes "mở spotify" to action_name="spotify" -- so all 4
+# historical MISROUTED rows in docs/eval/stt_eval_results.json are exactly
+# this one case (open_app/variant_3, all 4 model/condition combinations).
+# EXPECTED_ACTIONS is deliberately NOT widened to also accept "spotify" under
+# "open_app" here, because doing so would silently reclassify those 4
+# historical MISROUTED rows to CORRECT without any new acoustic evidence --
+# see AUDIT_METHODOLOGY.md's rule against editing historical evidence to fit
+# a taxonomy change. This is a real, documented ambiguity in the original
+# eval design (a phrase that could reasonably belong to either open_app or
+# music_play), not a router defect and not evaluator error -- left as a known
+# open question for future evaluation-taxonomy revision, not resolved here.
+
 
 @dataclass
 class TrialResult:

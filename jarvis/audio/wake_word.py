@@ -244,6 +244,11 @@ class AcousticSpectralDetector:
         # White noise rejection: pure white noise has high flatness across the active frames
         if avg_flatness > 0.65:
             return False, "", 0.0
+        # Pure tone / narrow-band noise rejection: pure sine waves have flatness near 0
+        # (single dominant spectral spike). Speech flatness is typically 0.05–0.30.
+        # This blocks false positives on system beeps, fan noise, pure tones (e.g. 3kHz).
+        if avg_flatness < 0.03:
+            return False, "", 0.0
 
         max_mid = float(np.max(mid_energies))
         max_high = float(np.max(high_energies))

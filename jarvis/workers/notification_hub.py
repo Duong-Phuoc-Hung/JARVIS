@@ -166,7 +166,8 @@ class NotificationHub:
                 if not chat_id:
                     log.debug("Telegram dispatch skipped: TELEGRAM_CHAT_ID not configured")
                     return False
-                tg = TelegramBotController(bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+                from jarvis.security.secrets import get_secret as _get_secret
+                tg = TelegramBotController(bot_token=_get_secret("TELEGRAM_BOT_TOKEN") or "")
                 tg.send_message(int(chat_id), full_text)
                 return True
             except Exception as exc:

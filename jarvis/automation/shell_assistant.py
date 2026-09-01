@@ -316,7 +316,7 @@ class ShellAssistant:
                 ["git", "status", "-s", "-b"],
                 cwd=target_dir,
                 capture_output=True,
-                text=True,
+                text=True, encoding='utf-8', errors='replace',
                 timeout=10,
                 creationflags=_cflags,
             )
@@ -326,7 +326,7 @@ class ShellAssistant:
                     ["git", "status"],
                     cwd=target_dir,
                     capture_output=True,
-                    text=True,
+                    text=True, encoding='utf-8', errors='replace',
                     timeout=10,
                     creationflags=_cflags,
                 )
@@ -344,7 +344,7 @@ class ShellAssistant:
         cmd = "netstat -ano"
         try:
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10, creationflags=_cflags)
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=10, creationflags=_cflags)
             lines = res.stdout.splitlines() if res.stdout else []
             matching_lines = [
                 line for line in lines
@@ -380,7 +380,7 @@ class ShellAssistant:
                         f"tasklist /fi \"PID eq {pid}\" /fo csv /nh",
                         shell=True,
                         capture_output=True,
-                        text=True,
+                        text=True, encoding='utf-8', errors='replace',
                         timeout=5,
                         creationflags=_cflags,
                     )
@@ -415,7 +415,7 @@ class ShellAssistant:
 
         try:
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            res = subprocess.run(cmd, cwd=target_dir, capture_output=True, text=True, timeout=120, creationflags=_cflags)
+            res = subprocess.run(cmd, cwd=target_dir, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120, creationflags=_cflags)
             if res.returncode == 0:
                 return True, f"Đã cài đặt thành công gói '{pkg}', thưa Ngài."
             else:
@@ -434,7 +434,7 @@ class ShellAssistant:
             res = subprocess.run(
                 ["docker", "ps", "-a", "--format", "{{.Names}}: {{.Status}}"],
                 capture_output=True,
-                text=True,
+                text=True, encoding='utf-8', errors='replace',
                 timeout=10,
                 creationflags=_cflags,
             )
@@ -460,7 +460,7 @@ class ShellAssistant:
                 "docker restart $(docker ps -q)",
                 shell=True,
                 capture_output=True,
-                text=True,
+                text=True, encoding='utf-8', errors='replace',
                 timeout=30,
                 creationflags=_cflags,
             )
@@ -566,7 +566,7 @@ class ShellAssistant:
                 cmd,
                 shell=True,
                 capture_output=True,
-                text=True,
+                text=True, encoding='utf-8', errors='replace',
                 timeout=60,
                 cwd=target_dir,
                 creationflags=_cflags,

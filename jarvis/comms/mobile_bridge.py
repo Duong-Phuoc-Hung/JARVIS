@@ -202,7 +202,7 @@ class MobileFileBridge:
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             result = subprocess.run(
                 ["powershell", "-Command", "Get-Clipboard"],
-                capture_output=True, text=True, timeout=5,
+                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5,
                 creationflags=_cflags,
             )
             return result.stdout.strip() or None

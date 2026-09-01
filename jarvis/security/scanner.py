@@ -241,7 +241,7 @@ class NetworkScanner:
             proc = subprocess.run(
                 cmd,
                 capture_output=True, creationflags=getattr(__import__('subprocess'),'CREATE_NO_WINDOW',0),
-                text=True,
+                text=True, encoding='utf-8', errors='replace',
                 timeout=timeout,
             )
             duration = time.time() - start_time
@@ -474,7 +474,7 @@ class PacketCapture:
             proc = subprocess.run(
                 cmd,
                 capture_output=True, creationflags=getattr(__import__('subprocess'),'CREATE_NO_WINDOW',0),
-                text=True,
+                text=True, encoding='utf-8', errors='replace',
                 timeout=duration + 5.0,
             )
             elapsed = time.time() - start_time

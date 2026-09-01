@@ -824,6 +824,96 @@ class LLMIntentRouter:
                 danger_level="LOW",
             ),
 
+            # 7. Stop / Dừng (Category 7) — maps to lock screen as "stop session"
+            "dừng lại": IntentResult(
+                action_name="system_power",
+                parameters={"action": "lock"},
+                source="rule_fallback",
+                response_text="Đã dừng phiên làm việc và khóa màn hình, thưa Ngài.",
+                requires_confirmation=False,
+                danger_level="LOW",
+            ),
+            "dừng": IntentResult(
+                action_name="system_power",
+                parameters={"action": "lock"},
+                source="rule_fallback",
+                response_text="Đã dừng phiên làm việc và khóa màn hình, thưa Ngài.",
+                requires_confirmation=False,
+                danger_level="LOW",
+            ),
+            "dung lai": IntentResult(  # no-diacritic fallback for STT garbling
+                action_name="system_power",
+                parameters={"action": "lock"},
+                source="rule_fallback",
+                response_text="Đã dừng phiên làm việc và khóa màn hình, thưa Ngài.",
+                requires_confirmation=False,
+                danger_level="LOW",
+            ),
+
+            # 8. Settings Open (Category 8)
+            "mở cài đặt": IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "Settings", "app": "ms-settings:"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+            "cài đặt": IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "Settings", "app": "ms-settings:"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+            "mở settings": IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "Settings", "app": "ms-settings:"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+            "open settings": IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "Settings", "app": "ms-settings:"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+            "cai dat": IntentResult(  # no-diacritic fallback
+                action_name="app_open",
+                parameters={"app_name": "Settings", "app": "ms-settings:"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+
+            # 9. Screen Off (Category 9)
+            "tắt màn hình": IntentResult(
+                action_name="system_brightness",
+                parameters={"level": 0},
+                source="rule_fallback",
+                response_text="Đang tắt màn hình cho Ngài.",
+            ),
+            "tắt monitor": IntentResult(
+                action_name="system_brightness",
+                parameters={"level": 0},
+                source="rule_fallback",
+                response_text="Đang tắt màn hình cho Ngài.",
+            ),
+            "tắt màn": IntentResult(
+                action_name="system_brightness",
+                parameters={"level": 0},
+                source="rule_fallback",
+                response_text="Đang tắt màn hình cho Ngài.",
+            ),
+            "turn off screen": IntentResult(
+                action_name="system_brightness",
+                parameters={"level": 0},
+                source="rule_fallback",
+                response_text="Đang tắt màn hình cho Ngài.",
+            ),
+            "tat man hinh": IntentResult(  # no-diacritic fallback
+                action_name="system_brightness",
+                parameters={"level": 0},
+                source="rule_fallback",
+                response_text="Đang tắt màn hình cho Ngài.",
+            ),
+
             # Workflows
             "quét mạng nội bộ": IntentResult(
                 action_name="security_nmap_scan",
@@ -1490,7 +1580,7 @@ class LLMIntentRouter:
                 action_name="spotify",
                 parameters={"query": "", "name": "spotify"},
                 source="rule_fallback",
-                response_text="Đang mở Spotify cho Ngài.",
+                response_text="Đang mở Spotify và phát nhạc cho Ngài.",  # consistent with rule_engine entry
             )
         params = {"app_name": clean, "name": clean}
         return IntentResult(
@@ -1849,6 +1939,16 @@ class LLMIntentRouter:
         Parses user voice/text query into structured tool calling IntentResult.
         Executes Two-Tier pipeline: Fast Rules -> LLM Tool Call -> Fallback Rules.
         """
+        # Guard: None input (e.g. STT silence/timeout returning None)
+        if text is None:
+            return IntentResult(
+                action_name="unknown_intent",
+                parameters={},
+                confidence=0.0,
+                source="rule_fast_path",
+                raw_text="",
+                response_text="",  # Silence → no TTS; caller decides UX
+            )
         clean = text.strip()
         clean_lower_full = clean.lower()  # Full text — safe for plain substring 'in' checks
         # Truncate for REGEX only to prevent ReDoS on long inputs (e.g. 50KB adversarial strings).
@@ -1860,8 +1960,16 @@ class LLMIntentRouter:
         # Early return for meaningless inputs — only check head to avoid processing 50KB
         import re as _re
         clean_head = clean_for_regex  # At most 512 chars
-        _clean_stripped = _re.sub(r'[\U00010000-\U0010ffff\U0001F600-\U0001F64F\U0001F300-\U0001F5FF'
-                                  r'\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\s]', '', clean_head)
+        _clean_stripped = _re.sub(
+            r'[\U00010000-\U0010ffff'   # Supplementary plane (most modern emoji: 🔥🚀🎉)
+            r'\U0001F600-\U0001F64F'    # Emoticons block
+            r'\U0001F300-\U0001F5FF'    # Misc Symbols & Pictographs
+            r'\U0001F680-\U0001F6FF'    # Transport & Map Symbols
+            r'\U0001F1E0-\U0001F1FF'    # Regional indicator / flags
+            r'\u2600-\u27BF'            # BMP emojis: Misc Symbols (⚡❄) + Dingbats (✨✅)
+            r'\uFE00-\uFE0F'            # Variation selectors (emoji modifier ️)
+            r'\s]', '', clean_head,
+        )
         _is_emoji_only = len(clean_head) > 0 and len(_clean_stripped) == 0
         _is_number_only = bool(_re.fullmatch(r'[\d\s\.\,\-\+]+', clean_head))
         if _is_emoji_only or _is_number_only:

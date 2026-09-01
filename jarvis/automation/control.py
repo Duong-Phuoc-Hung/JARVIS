@@ -1,4 +1,4 @@
-"""
+﻿"""
 ComputerController: OS Automation, Window Orchestration, Peripheral & System Control for Windows.
 Provides window management, mouse/keyboard/clipboard manipulation, master volume,
 screen brightness, bounded file search, and system folder launch.
@@ -445,7 +445,7 @@ class ComputerController:
             try:
                 cmd = f"powershell -NoProfile -Command \"(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods).WmiSetBrightness(1, {lvl})\""
                 _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-                subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3, creationflags=_cflags)
+                subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=3, creationflags=_cflags)
             except Exception:
                 pass
 

@@ -27,10 +27,21 @@ that framing goes stale the moment the checkpoint PR itself merges):
   once this PR merges, `main` moves to (or past) this commit; always confirm via `git log`/
   `git rev-parse origin/main` rather than trusting either SHA above as permanently "current."
 
-`CHANGELOG.md` development history currently reaches **v4.3.2-era** work — a maintenance
-milestone, **not** a formal release/tag (latest formal GitHub Release remains `v4.0.1`;
-package/runtime version `jarvis.__version__`/`pyproject.toml` remains `4.1.0` — neither was
-bumped by v4.3.2).
+**Updated 2026-09-02** (branch `eval/stt-real-mic-baseline-correction` merged `origin/main`
+up to commit `442ed0f`): `CHANGELOG.md` development history now reaches **v4.4.0** — a
+maintenance milestone, **not** a formal release/tag (latest formal GitHub Release remains
+`v4.0.1`), but unlike every milestone since v4.0.1, v4.4.0 **did** bump the package/runtime
+version: `jarvis.__version__`/`pyproject.toml` moved `4.1.0 → 4.4.0` in the same commit
+(`4bebc42`). v4.4.0 fixed a `parse_intent(None)` crash, a `WakeWordDetector` pure-tone false
+positive, 23 `subprocess.run(text=True)` call sites missing `encoding=`, expanded Tier-1
+`rule_engine` coverage, and adjusted the (now-superseded — see the STT eval section below)
+STT eval's old phrase categorization. The same `origin/main` pull also brought in, not yet
+under its own CHANGELOG heading as of `442ed0f` (that documentation landed in a later
+`origin/main` commit, `857d729` "v4.5.0", not part of this merge): SecretsManager wired into
+6 more production modules, a new N=152 text-only routing eval
+(`tests/eval/routing_eval_n150.py`), an emoji-detection regex extended to BMP ranges, and an
+audio echo-feedback-loop fix in `jarvis/core/app.py`. See CLAUDE.md's "Current baseline note"
+(§1) for the full breakdown.
 
 **Post-`d62cb61` evolution merged onto `main`:**
 
@@ -251,6 +262,17 @@ All four CI jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline S
     single `-q` from `pyproject.toml`'s `addopts` only, never a redundant second `-q` on the
     CLI (double `-q` silently suppresses the terminal summary line entirely, which was the
     proximate cause of the earlier missing-summary confusion).
+  - **(A-merge-note, 2026-09-02)** After merging `origin/main`, two things need to stay
+    distinct: `tests/eval/routing_eval_n150.py` (N=152, text-only Tier-1 `rule_engine`
+    routing accuracy, no STT/audio involved — a different eval answering a different
+    question than the acoustic eval above) must never be cited as acoustic/STT evidence; and
+    the historical 4 `MISROUTED` rows above are all `intent_gt="open_app"`/`phrase="variant_3"`
+    ("mở spotify", routed by Tier-1 to `action_name="spotify"`) — `main`'s own v4.4.0 CHANGELOG
+    entry independently found and fixed this same ambiguity in its own (separate, now-superseded)
+    phrase categorization, but `EXPECTED_ACTIONS["open_app"]` here deliberately still excludes
+    `"spotify"` so these 4 historical rows are not silently reclassified `CORRECT`. See
+    `tests/eval/stt_intent_eval.py` and `tests/eval/failure_decomposition.py`'s merge-note
+    comments for the full reasoning.
 - **(B) Real CUDA throughput benchmark, synthetic (non-speech) input** (`docs/benchmark_results.md`
   §1): genuine GPU latency measurement on real hardware (GTX 1650 Max-Q), but the input is a
   synthesized sine-wave signal, not recorded speech — it measures pipeline throughput (RTF), not

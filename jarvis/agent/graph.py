@@ -417,10 +417,11 @@ class ReActAgent:
             import os
 
             from jarvis.comms.telegram import TelegramBotController
+            from jarvis.security.secrets import get_secret as _get_secret
             chat_id = os.environ.get("TELEGRAM_CHAT_ID")
             if not chat_id:
                 return {"output": "Telegram: TELEGRAM_CHAT_ID not configured"}
-            tg = TelegramBotController(bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", ""))
+            tg = TelegramBotController(bot_token=_get_secret("TELEGRAM_BOT_TOKEN") or "")
             tg.send_message(int(chat_id), message)
             return {"output": f"Telegram: {message[:60]}"}
         except Exception as exc:
@@ -439,7 +440,7 @@ class ReActAgent:
         import sys
         try:
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            r = subprocess.run(["git", "status", "--short"], capture_output=True, text=True, timeout=5, creationflags=_cflags)
+            r = subprocess.run(["git", "status", "--short"], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5, creationflags=_cflags)
             return {"output": r.stdout or "Working tree clean"}
         except Exception as exc:
             return {"output": str(exc)}

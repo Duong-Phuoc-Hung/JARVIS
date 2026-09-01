@@ -194,7 +194,7 @@ class AutoUpdater:
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             result = subprocess.run(
                 ["git", "pull", "origin", "main"],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60,
                 creationflags=_cflags,
             )
             if result.returncode == 0:
@@ -230,7 +230,7 @@ class AutoUpdater:
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             result = subprocess.run(
                 ["git", "checkout", backup_tag],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30,
                 creationflags=_cflags,
             )
             if result.returncode == 0:

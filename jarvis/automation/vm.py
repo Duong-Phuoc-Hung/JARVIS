@@ -1,4 +1,4 @@
-"""
+﻿"""
 jarvis/automation/vm.py
 =======================
 Virtual Machine Orchestrator for VMware Workstation (vmrun) and Oracle VirtualBox (VBoxManage).
@@ -80,7 +80,7 @@ class VMOrchestrator:
                 cmd = [self.vboxmanage_path, "startvm", vm_name, "--type", "headless" if gui_mode == "nogui" else "gui"]
 
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30, creationflags=_cflags)
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, creationflags=_cflags)
             success = (proc.returncode == 0)
             return {
                 "success": success,
@@ -125,7 +125,7 @@ class VMOrchestrator:
                 cmd = [self.vboxmanage_path, "controlvm", vm_name, action]
 
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30, creationflags=_cflags)
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, creationflags=_cflags)
             success = (proc.returncode == 0)
             return {
                 "success": success,

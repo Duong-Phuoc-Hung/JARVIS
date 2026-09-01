@@ -434,7 +434,7 @@ class HardwareMonitor:
                     "Get-CimInstance -ClassName Win32_PerfFormattedData_Counters_ThermalZoneInformation -ErrorAction SilentlyContinue | Select-Object -ExpandProperty HighPrecisionTemperature | ConvertTo-Json",
                 ]
                 _cflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=1.5,
+                proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=1.5,
                                       creationflags=_cflags)
                 if proc.returncode == 0 and proc.stdout.strip():
                     raw_str = proc.stdout.strip()
@@ -466,7 +466,7 @@ class HardwareMonitor:
                 "--format=csv,noheader,nounits",
             ]
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=1.5, creationflags=_cflags)
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=1.5, creationflags=_cflags)
             if proc.returncode == 0 and proc.stdout.strip():
                 line = proc.stdout.strip().splitlines()[0]
                 tokens = [t.strip() for t in line.split(",")]
@@ -571,7 +571,7 @@ class HardwareMonitor:
                     "Get-CimInstance -Namespace 'root\\wmi' -ClassName 'MSStorageDriver_FailurePredictStatus' -ErrorAction SilentlyContinue | Select-Object InstanceName, Active, PredictFailure | ConvertTo-Json",
                 ]
                 _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=2.0, creationflags=_cflags)
+                proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=2.0, creationflags=_cflags)
                 if proc.returncode == 0 and proc.stdout.strip():
                     data = json.loads(proc.stdout.strip())
                     items = data if isinstance(data, list) else [data]

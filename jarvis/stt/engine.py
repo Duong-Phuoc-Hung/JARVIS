@@ -375,10 +375,8 @@ class OpenAIWhisperSTT(BaseSTTEngine):
         if "api_key" in self.config:
             self.api_key = self.config["api_key"]
         else:
-            self.api_key = (
-                os.environ.get("OPENAI_API_KEY")
-                or os.environ.get("JARVIS_OPENAI_API_KEY", "")
-            )
+            from jarvis.security.secrets import get_secret  # lazy import
+            self.api_key = get_secret("OPENAI_API_KEY") or ""
         self.model_name = self.config.get("model", "whisper-1")
         self.endpoint = self.config.get("endpoint", "https://api.openai.com/v1/audio/transcriptions")
         self.temperature = float(self.config.get("temperature", 0.0))

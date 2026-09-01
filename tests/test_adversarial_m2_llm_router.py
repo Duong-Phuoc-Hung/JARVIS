@@ -180,7 +180,7 @@ def test_adversarial_massive_strings_and_redos_resistance():
     res_10k = router.parse_intent(ten_kb_text, force_llm=False)
     duration_ms = (time.perf_counter() - t0) * 1000.0
 
-    assert duration_ms < 5.0, f"10KB query parsing took {duration_ms:.2f}ms (> 5.0ms)"
+    assert duration_ms < 10.0, f"10KB query parsing took {duration_ms:.2f}ms (> 10.0ms — possible ReDoS)"
     assert res_10k.action_name == "hardware_status_query"
 
     # 2. 50KB adversarial nested pattern

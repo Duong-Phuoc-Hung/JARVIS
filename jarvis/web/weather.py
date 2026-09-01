@@ -18,6 +18,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
+from jarvis.security.secrets import get_secret
+
 try:
     import requests
     REQUESTS_AVAILABLE = True
@@ -136,7 +138,7 @@ class WeatherProvider:
         self.api_key = (
             api_key
             if api_key is not None
-            else (os.environ.get("OPENWEATHER_API_KEY") or os.environ.get("JARVIS_WEATHER_API_KEY", ""))
+            else (get_secret("WEATHER_API_KEY") or "")
         )
         self.default_city = default_city
         self.cache = cache or TTLCache(default_ttl_seconds=cache_ttl)

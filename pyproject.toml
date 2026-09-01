@@ -31,7 +31,8 @@ dependencies = [
     "numpy>=1.24,<3",
     "Pillow>=10,<12",
     "requests>=2.31,<3",
-    "psutil>=5.9,<7",
+    "psutil>=5.9",
+    "keyring>=24",
     "pyperclip>=1.8,<2",
     "pystray>=0.19,<1",
     "keyboard>=0.13,<1",
@@ -66,6 +67,7 @@ gestures = [
     "mediapipe>=0.10,<1",
 ]
 dev = [
+    "pytest-env>=1.1",
     "pytest>=8.0,<9",
     "pytest-subtests>=0.12",
     "pytest-timeout>=2.2",
@@ -125,8 +127,18 @@ filterwarnings = [
 markers = [
     "slow: marks tests as slow (deselect with '-m not slow')",
     "integration: marks integration tests",
+    "real_os: marks tests requiring real OS-level isolation (Job Object, MIC, AppContainer)",
     "requires_audio: marks tests requiring audio hardware",
 ]
+# Fix UnicodeDecodeError on Windows Vietnamese locale (cp1252 cannot decode UTF-8 bytes).
+# PYTHONUTF8=1 sets UTF-8 mode for all Python I/O including subprocess pipe reads.
+# PYTHONIOENCODING=utf-8 ensures stdin/stdout/stderr use UTF-8 in test subprocesses.
+env = [
+    "PYTHONUTF8=1",
+    "PYTHONIOENCODING=utf-8",
+]
+# pytest-asyncio: auto mode runs all async def test_* without requiring @pytest.mark.asyncio
+asyncio_mode = "auto"
 
 [tool.coverage.run]
 source = ["jarvis"]

@@ -992,7 +992,9 @@ class MockCameraFeed:
 def mock_camera_feed(monkeypatch) -> MockCameraFeed:
     """
     Pytest fixture intercepting OpenCV VideoCapture, face_recognition, and MediaPipe hands.
+    Skipped automatically when cv2 / mediapipe are not installed (optional vision deps).
     """
+    pytest.importorskip("cv2", reason="opencv-python not installed; skip vision tests")
     feed = MockCameraFeed()
 
     class MockCv2VideoCapture:

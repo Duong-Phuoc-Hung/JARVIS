@@ -40,6 +40,16 @@ Outcome = Literal["CORRECT", "MISROUTED", "STT_EMPTY", "ROUTER_ABSTAIN"]
 # here; tests/eval/stt_intent_eval.py imports this instead of keeping its own
 # copy, so the two can no longer drift apart.
 EXPECTED_ACTIONS: dict[str, set[str]] = {
+    # NOTE (merge with origin/main v4.4.0, 2026-09-02): the router now
+    # consistently routes "mở spotify" to action_name="spotify", not
+    # app_open/web_open -- this is exactly the historical open_app/variant_3
+    # phrase, and accounts for all 4 MISROUTED rows in
+    # docs/eval/stt_eval_results.json (1 per model x condition). Deliberately
+    # NOT widened to include "spotify" here: doing so would silently
+    # reclassify those 4 historical rows as CORRECT with no new acoustic
+    # evidence. See tests/eval/stt_intent_eval.py's merge-note comment near
+    # BACKENDS for the full explanation. Left open for a future eval-taxonomy
+    # revision, not resolved here.
     "open_app":        {"app_open", "web_open"},
     "system_shutdown": {"system_power"},
     "system_restart":  {"system_power"},

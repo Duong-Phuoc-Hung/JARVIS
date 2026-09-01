@@ -12,8 +12,13 @@ Covering:
 
 from typing import Any, Dict, List, Optional
 
-import numpy as np
 import pytest
+
+# Optional vision dependencies — skip entire file when not installed in dev environment
+pytest.importorskip("cv2", reason="opencv-python not installed; biometrics tests require 'pip install opencv-python'")
+pytest.importorskip("mediapipe", reason="mediapipe not installed; biometrics tests require 'pip install mediapipe'")
+
+import numpy as np  # noqa: E402 (after importorskip guards)
 
 from jarvis.core.models import PrivilegeLevel, RequesterContext
 from jarvis.vision.biometrics import (
