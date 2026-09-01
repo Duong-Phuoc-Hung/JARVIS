@@ -180,29 +180,48 @@ All four CI jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline S
     executed this session: CUDA hardware is present (`nvidia-smi` succeeds) but
     `faster-whisper`/`ctranslate2` are not installed in any available interpreter and no
     project venv with them was found — reported as not-executed rather than faked, per
-    AUDIT_METHODOLOGY.md. **56** new deterministic CPU-only unit tests added
-    (`tests/unit/test_stt_eval_failure_decomposition.py`); full `tests/unit/` (pytest's own
-    terminal "collected"/pass-fail summary, NOT the JUnit XML `tests` attribute — see the
-    dedicated correction note immediately below this list for why those differ) —
-    base commit `2b73a49` (same commit as `main` at the time of this work): **1008 collected,
-    1008 passed, 0 failed, 0 skipped** locally (matches GitHub Actions CI run #126's 1008
-    collected exactly; CI's own pass/skip split, 1005 passed/3 skipped, is a known
-    local-vs-CI-runner divergence already documented earlier in this file for prior
-    checkpoints — not specific to this change). This branch (final pushed state, commit
-    `42098d6`): **1064 collected, 1064 passed, 0 failed, 0 skipped** (plus 50 subtests passed,
-    unchanged from base — see below). Net **+56**, exactly matching the 56 test methods in the
-    new file.
+    AUDIT_METHODOLOGY.md. This branch (`eval/stt-real-mic-baseline-correction`) landed the
+    STT eval baseline correction across **two** pushed commits, each independently reviewed —
+    do not describe either one in isolation as the branch's "final" state; only the current
+    branch head (identified by SHA, updated below as the branch evolves) is current. Full
+    `tests/unit/` counts below are pytest's own terminal "collected"/pass-fail summary, NOT
+    the JUnit XML `tests` attribute — see the dedicated correction note immediately below
+    this list for why those differ.
 
-    **Note on the +46/+56 discrepancy**: the originally pushed commit `42098d6`'s own commit
-    message and the first draft of this section's prose said "46 new tests"/"1054 collected" —
-    accurate for the test file's content partway through that same working session, before 10
-    more tests (`TestComputeTextSimilarityStats`, plus two `TestRenderMarkdownReport` cases)
-    were added later in the *same* commit to lock in the auxiliary text-similarity metric
-    (§ auxiliary text-quality note below) before it was ever pushed. The commit message itself
-    is not rewritten (the commit is public/pushed; only a normal follow-up commit corrects the
-    documentation) — but the actual file on this branch has always had all 56 tests since
-    `42098d6`, and 56/1064 are the only correct current numbers. Do not cite 46/1054 as this
-    branch's test evidence going forward.
+    - **Base** commit `2b73a49` (same commit as `main` at the time of this work): **1008
+      collected, 1008 passed, 0 failed, 0 skipped** locally (matches GitHub Actions CI run
+      #126's 1008 collected exactly; CI's own pass/skip split, 1005 passed/3 skipped, is a
+      known local-vs-CI-runner divergence already documented earlier in this file for prior
+      checkpoints — not specific to this change).
+    - **First commit, `42098d6`** ("eval(stt): separate recognition and routing failures" —
+      introduced the core CORRECT/MISROUTED/STT_EMPTY/ROUTER_ABSTAIN decomposition, the
+      single-sourced phrase manifest, the auxiliary text-similarity metric, and the
+      `--backend {direct,production}` evaluator refactor): **1064 collected, 1064 passed,
+      0 failed, 0 skipped** (plus 50 subtests passed, unchanged from base). Net **+56** versus
+      base, in `tests/unit/test_stt_eval_failure_decomposition.py`.
+    - **Second commit, `29da633`** ("eval(stt): harden baseline evidence reproducibility" —
+      fixed 5 issues an independent review found in `42098d6`: stale test-count prose,
+      an auxiliary-metric contradiction, a machine-specific hardcoded default in the report
+      generator, an ambiguous `"silent"` key in new evaluator output, and a
+      host-path-dependent historical-row lookup; added 21 more tests, including a new file
+      `tests/unit/test_stt_intent_eval_threshold_curve.py`) — **current branch head**:
+      **1085 collected, 1085 passed, 0 failed, 0 skipped** (plus the same 50 subtests,
+      unchanged). Net **+77** versus base (56 from the first commit + 21 from the second).
+      Running just the two dedicated STT-eval test files
+      (`test_stt_eval_failure_decomposition.py` + `test_stt_intent_eval_threshold_curve.py`)
+      in isolation: **77 passed**, 0 failed.
+
+    **Note on the +46/+56 discrepancy inside `42098d6` itself**: the originally pushed
+    commit `42098d6`'s own commit message and the first draft of this section's prose said
+    "46 new tests"/"1054 collected" — accurate for the test file's content partway through
+    that same working session, before 10 more tests (`TestComputeTextSimilarityStats`, plus
+    two `TestRenderMarkdownReport` cases) were added later in the *same* commit to lock in
+    the auxiliary text-similarity metric (§ auxiliary text-quality note below) before it was
+    ever pushed. The commit message itself is not rewritten (the commit is public/pushed) —
+    but the actual file has always had all 56 tests since `42098d6`, and 56/1064 are the
+    correct historical numbers **for that one commit**; they are no longer the current branch
+    totals now that `29da633` is on top of it (see the 77/1085 current numbers above). Do not
+    cite 46/1054 as evidence for anything.
 
     **Correction (found via independent GitHub Actions CI #126 verification against this
     exact base commit, 2026-09-02): an earlier draft of this evidence conflated pytest's own
@@ -214,13 +233,17 @@ All four CI jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline S
     top-level collected test items. At base commit `2b73a49`, pytest's terminal summary reads
     "1008 passed, **50 subtests** passed" (collected = 1008) while the JUnit XML `tests`
     attribute for the same run reports 1058 = 1008 + 50 — the JUnit total is inflated by
-    exactly the 50 pre-existing subtests, unrelated to this branch. On this branch (final
-    state), pytest's terminal summary reads "1064 passed, 50 subtests passed" (collected =
-    1064, the same 50 subtests carried over unchanged) while the JUnit `tests` attribute would
-    report 1114 = 1064 + 50 — again inflated by the same 50 subtests. Earlier drafts of this
-    document cited JUnit totals (1058/1104, then a stale intermediate 1054 pytest count) as
-    if they were the final pytest collected/passed counts; the correct, authoritative numbers
-    are the ones in the paragraph above, obtained via direct `subprocess.run()` capture of
+    exactly the 50 pre-existing subtests, unrelated to this branch. At the first commit
+    (`42098d6`), pytest's terminal summary read "1064 passed, 50 subtests passed" (collected =
+    1064) while the JUnit `tests` attribute would report 1114 = 1064 + 50; at the current
+    branch head (`29da633`), pytest's terminal summary reads "1085 passed, 50 subtests
+    passed" (collected = 1085) while the JUnit `tests` attribute would report 1135 = 1085 +
+    50 — both inflated by exactly the same 50 pre-existing subtests, which this branch never
+    changed. Earlier drafts of this document cited JUnit totals (1058/1104, then a stale
+    intermediate 1054 pytest count, then briefly called `42098d6`'s own 1064 the branch's
+    "final" number even after `29da633` was pushed on top of it) as if they were the current
+    pytest collected/passed counts; the correct, authoritative numbers for the current branch
+    head are the ones in the bulleted list above, obtained via direct `subprocess.run()` capture of
     pytest's own terminal output (not the JUnit XML file, and not piped through a shell
     `tail`/`tr`, both of which independently proved unreliable for capturing pytest's final
     `\r`-terminated summary line in this Windows Git-Bash environment — see this branch's own
