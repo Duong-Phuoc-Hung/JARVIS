@@ -189,6 +189,8 @@ Các no-diacritic fallback (vd: `tat man hinh`) xử lý trường hợp STT gar
 
 **`tests/eval/stt_intent_eval.py`** — Di chuyển `"mo spotify"` và `"launch spotify"` từ category `open_app` sang `music_play` (taxonomy đúng hơn). Router trả về `action_name="spotify"`, eval cũ kỳ vọng `{app_open, web_open}` → 4 MISROUTED. Sau fix: CORRECT.
 
+> **Ghi chú khi merge với `eval/stt-real-mic-baseline-correction` (2026-09-02)**: nhánh STT baseline-correction (mục v4.3.3 bên dưới) đã thay `INTENT_TEST_SET` hardcode trong file này bằng `tests/eval/phrase_manifest.py` — nguồn duy nhất, giữ nguyên phrase THẬT đã dùng để ghi âm 90 file WAV lịch sử (không phải danh sách phrase "nên dùng" cho routing hiện tại). Sau merge, sự thay đổi taxonomy ở đây (spotify: `open_app` → `music_play`) được phản ánh trong `EXPECTED_ACTIONS` của `tests/eval/failure_decomposition.py` cho mục đích phân loại CORRECT/MISROUTED hiện tại — nhưng **không** làm thay đổi phrase lịch sử đã ghi âm (`"mở spotify"` tại `open_app` variant 3 trong `phrase_manifest.py` vẫn mô tả đúng những gì đã thực sự được nói vào micro khi thu âm). Xem chú thích merge trong mã nguồn `tests/eval/stt_intent_eval.py` (gần `BACKENDS`) và `tests/eval/failure_decomposition.py` (tại `EXPECTED_ACTIONS`), cũng như mục "STT" trong CLAUDE.md, để biết chi tiết đầy đủ.
+
 ---
 
 ### 🔧 Test Suite Encoding Fix
@@ -206,6 +208,73 @@ Các no-diacritic fallback (vd: `tat man hinh`) xử lý trường hợp STT gar
 ### 📋 Version
 
 **`jarvis/__init__.py`**: `4.1.0` → `4.4.0`
+
+---
+
+## 🔬 v4.3.3 — Hiệu Chỉnh Baseline Đánh Giá STT Mic Thật (2026-09-02)
+
+> **Lưu ý ngữ nghĩa**: đây là một mốc phát triển trong CHANGELOG, không phải GitHub Release/tag chính thức (vẫn là `v4.0.1`). **Tại thời điểm nhánh `eval/stt-real-mic-baseline-correction` được tạo** (nhánh ra từ `main` khi `jarvis.__version__` còn là `4.1.0`), bản thân việc hiệu chỉnh baseline STT này không làm thay đổi phiên bản package/runtime hay `config.system.version`. **Cập nhật khi đọc lại sau merge**: nhánh này sau đó đã merge `origin/main` (mang theo mục v4.4.0 ở trên), nên `jarvis.__version__` của nhánh hiện đã là `4.4.0` — con số `4.1.0` nhắc đến trong toàn bộ mục v4.3.3 này mô tả đúng bối cảnh *tại thời điểm* công việc STT được viết, không phải phiên bản hiện tại của nhánh. Không có threshold STT production nào bị chỉnh (`no_speech_threshold`, `log_prob_threshold`, `compression_ratio_threshold`, `beam_size` mặc định), không có hành vi router nào bị đổi bởi chính công việc hiệu chỉnh STT này (những rule mới trong mục v4.4.0 ở trên là thay đổi độc lập, đến từ `main`), và hai file bằng chứng lịch sử `docs/eval/stt_eval_results.json`/`stt_eval_summaries.json` không bị sửa hay ghi đè.
+
+`eval(stt): separate recognition and routing failures`
+
+### Vấn đề
+
+Bộ đánh giá STT mic thật (v4.3.1, 90 bản ghi × 2 model = 180 dòng kết quả) dùng taxonomy 3 nhánh CORRECT/MISROUTED/SILENT_FAILURE, trong đó `SILENT_FAILURE` gộp chung hai tình huống khác nhau: (1) STT trả về transcript rỗng, và (2) STT trả về text không rỗng nhưng router (`rule_engine` Tier-1) không khớp từ khóa nào (`NO_INTENT`). Điều này khiến con số "silent_failure_rate 66–82%" trước đây dễ bị đọc nhầm thành "tỷ lệ nhận dạng giọng nói thất bại", trong khi thực chất phần lớn có thể là do router không khớp text đã nhận dạng được (dù đúng hay sai).
+
+### Phase 1 — Phân rã taxonomy
+
+`tests/eval/failure_decomposition.py` (mới) định nghĩa `classify_outcome()` — taxonomy 4 nhánh tính trực tiếp từ `(transcript, predicted_intent, intent_gt)` của từng dòng, không suy ra từ nhãn `outcome` cũ:
+
+- `CORRECT` = router action khớp action mong đợi
+- `MISROUTED` = transcript không rỗng, router chọn sai action
+- `STT_EMPTY` = `transcript.strip() == ""`
+- `ROUTER_ABSTAIN` = transcript không rỗng, router trả `NO_INTENT`
+
+Áp dụng lên toàn bộ 180 dòng lịch sử: trong 134 dòng `SILENT_FAILURE` cũ, chỉ **3 dòng** thực sự là `STT_EMPTY`; **131 dòng** còn lại là `ROUTER_ABSTAIN`. Tức là tỷ lệ "silent failure" lịch sử chủ yếu phản ánh việc router không khớp được text đã nhận dạng, không phải việc STT im lặng hoàn toàn. Theo quy tắc quy kết nhân quả của AUDIT_METHODOLOGY.md, kết quả phân rã này KHÔNG tự nó xác định được nguyên nhân gốc là do chất lượng nhận dạng kém hay do bộ khớp từ khóa Tier-1 quá chặt — cả hai đều phù hợp với transcript "không rỗng nhưng sai".
+
+### Phase 2 — Sửa lệch phrase manifest
+
+`tests/eval/stt_intent_eval.py` giữ một bản sao phrase list ASCII không dấu (ví dụ `"mo chrome"`) trong khi `tests/eval/record_test_set.py` — script thực sự dùng để ghi âm các file WAV đã commit dưới `tests/eval/audio/` — dùng câu prompt tiếng Việt có dấu thật (`"mở chrome"`). Ngoài khác biệt về dấu, một mục còn lệch cả nội dung: `stt_intent_eval.py` ghi biến thể thứ 5 của `open_app` là `"launch spotify"`, nhưng `record_test_set.py` (script đã thực sự chạy) dùng `"khởi động chrome"` cho vị trí đó — câu "launch spotify" chưa từng được ghi âm.
+
+Sửa bằng cách tạo `tests/eval/phrase_manifest.py` làm nguồn duy nhất (giữ nguyên phrase thật từ `record_test_set.py`, vì đó là câu đã thực sự được nói vào micro). Cả hai script giờ import từ đây thay vì giữ bản sao riêng. Không đổi tên file WAV nào. Thêm `validate_audio_root()` xác nhận toàn bộ 90 file WAV đã commit đều khớp được với một phrase trong manifest (xác nhận: 0 vấn đề).
+
+### Phase 3 — Metric chất lượng text (phụ trợ)
+
+`tests/eval/text_normalize.py` (mới, không thêm dependency): `normalize_text()` (Unicode NFC, hạ chữ thường, bỏ dấu câu, gộp khoảng trắng), `word_error_rate()`/`token_similarity()` (Word Error Rate cấp token qua Levenshtein distance tự triển khai). Đây là metric PHỤ TRỢ, mô tả độ giống transcript với câu đã nói — không dùng để quyết định outcome CORRECT/MISROUTED/ROUTER_ABSTAIN, và không đo an toàn của router.
+
+### Phase 4/5 — So sánh evaluator vs production, thêm backend `production`
+
+So sánh trực tiếp mã nguồn `stt_intent_eval.py::run_single_model()` (backend `direct` lịch sử) với `jarvis.stt.engine.FasterWhisperSTT.transcribe()` (production): khác biệt về API (raw `WhisperModel` vs abstraction), `beam_size` (3 vs mặc định production 5), không có RMS pre-gate ở backend direct, không có post-filter hallucination ở backend direct, và quan trọng nhất — abstraction production không trả về log-probability nên backend `production` của evaluator không thể tính `confidence`/threshold curve (khai báo rõ là giới hạn thật của abstraction, không giả lập). Toàn bộ bảng so sánh chi tiết nằm trong `docs/eval/stt_eval_failure_decomposition.md`.
+
+`tests/eval/stt_intent_eval.py` được thêm cờ `--backend {direct,production}` (mặc định `direct` để không đổi hành vi cũ). Backend `production` gọi thẳng `FasterWhisperSTT.transcribe()`, không tái triển khai logic filtering production. File output mặc định giờ có hậu tố theo backend (`stt_eval_results_direct.json`/`_production.json`) để không bao giờ vô tình ghi đè `docs/eval/stt_eval_results.json`/`stt_eval_summaries.json` đã commit.
+
+### Phase 6 — Tài liệu phân tích mới
+
+`docs/eval/stt_eval_failure_decomposition.json`/`.md` (mới): số liệu phân rã chính xác theo model/condition/tổng, bảng so sánh evaluator vs production, tình trạng phrase-manifest, và trạng thái rerun production backend. Không sửa hai file bằng chứng lịch sử.
+
+### Phase 8 — Rerun production backend thật
+
+**Chưa thực hiện.** Máy có GPU CUDA thật (`nvidia-smi` xác nhận), nhưng package `faster-whisper`/`ctranslate2` không được cài trong bất kỳ Python interpreter nào khả dụng, và không tìm thấy virtual environment nào của dự án có sẵn các package này. Theo đúng AUDIT_METHODOLOGY.md, không có kết quả giả lập/mock nào được dùng thay thế — đây vẫn là việc còn tồn đọng.
+
+### Test
+
+Thêm **56** unit test CPU-only, xác định (không cần CUDA/model/microphone/network) trong `tests/unit/test_stt_eval_failure_decomposition.py`: phân loại outcome (bao gồm test khóa cứng đúng số liệu 180 dòng lịch sử: 42 CORRECT/4 MISROUTED/3 STT_EMPTY/131 ROUTER_ABSTAIN), phrase manifest lookup/validate, normalize text, word error rate, token similarity, và metric tương đồng văn bản phụ trợ (`compute_text_similarity_stats`).
+
+Kết quả kiểm thử: `tests/unit/test_stt_eval_failure_decomposition.py` — **56 passed**. Toàn bộ `tests/unit/` (số liệu terminal thật của pytest, không phải thuộc tính `tests` trong file JUnit XML — xem đính chính bên dưới) — baseline tại commit gốc `2b73a49` (= `main`): **1008 collected, 1008 passed, 0 failed, 0 skipped** (khớp chính xác với GitHub Actions CI run #126: 1008 collected; phần passed/skipped của CI — 1005 passed/3 skipped — là khác biệt local-vs-CI đã biết từ trước, không liên quan nhánh này). Riêng commit này (`42098d6` — **không phải trạng thái cuối cùng của nhánh**, xem cập nhật bên dưới về commit thứ hai): **1064 collected, 1064 passed, 0 failed, 0 skipped** (cộng thêm 50 subtests passed, không đổi so với baseline). Đúng bằng **+56**, khớp chính xác số test mới trong commit này.
+
+**Ghi chú về chênh lệch +46/+56**: commit `42098d6` đã push và bản nháp đầu của mục này từng ghi "46 test mới"/"1054 collected" — con số đó đúng với nội dung file test tại một thời điểm giữa phiên làm việc, trước khi 10 test nữa (`TestComputeTextSimilarityStats` và 2 case bổ sung của `TestRenderMarkdownReport`) được thêm vào TRONG CÙNG commit đó để khóa cứng metric tương đồng văn bản phụ trợ — tất cả trước khi commit được push. Nội dung commit message công khai không bị viết lại (theo đúng yêu cầu không amend commit đã push); chỉ tài liệu được sửa để phản ánh đúng bằng chứng của chính commit đó. File thực tế của commit `42098d6`, kể từ khi được push, luôn có đủ 56 test — 56/1064 là con số lịch sử đúng **cho riêng commit này**, không còn là tổng số hiện tại của nhánh nữa (xem bên dưới). Không dùng lại 46/1054.
+
+**Đính chính (phát hiện qua việc người dùng tự kiểm tra độc lập GitHub Actions CI #126 trên đúng commit gốc, 2026-09-02): một bản nháp trước đó của báo cáo này đã nhầm số `tests` trong file JUnit XML với số "collected" thật của pytest — hai con số này KHÔNG giống nhau trong repo này.** `pytest-subtests` (dependency đã khai báo trong `pyproject.toml`) tạo thêm một `<testcase>` riêng trong JUnit XML cho mỗi lần gọi `subtests.test()`, ngoài các `<testcase>` của những test thường chứa nó — nhưng KHÔNG cộng vào số "collected N items" hay dòng "N passed" thật của pytest ở terminal. Tại baseline (`2b73a49`), pytest báo "1008 passed, 50 subtests passed" (collected = 1008), trong khi JUnit XML báo `tests=1058` = 1008 + 50 — bị thổi phồng đúng bằng 50 subtests có sẵn từ trước, không liên quan đến nhánh này. Tại commit `42098d6`, pytest báo "1064 passed, 50 subtests passed" (collected = 1064), JUnit sẽ báo `tests=1114` = 1064 + 50 — cũng bị thổi phồng đúng bằng 50 subtests đó. Số liệu đúng, xác thực cho commit `42098d6` là số ở đoạn trên, lấy trực tiếp từ dòng tóm tắt terminal thật của pytest (qua `subprocess.run()`, không dựa vào file JUnit XML, và không qua pipe shell `tail`/`tr`, và không truyền thêm `-q` thứ hai trên dòng lệnh — `pyproject.toml` đã có sẵn `-q` trong `addopts`, truyền thêm lần nữa sẽ làm pytest im lặng tới mức ẩn luôn dòng tóm tắt cuối). Không có bằng chứng lịch sử (CI run #126, file JUnit gốc) nào bị sửa — chỉ sửa cách diễn giải trong tài liệu này.
+
+### Cập nhật (commit thứ hai — hardening bằng chứng, `29da633`)
+
+Một review độc lập trên GitHub, sau khi commit `42098d6` đã được push công khai, phát hiện 5 vấn đề cần sửa (không được amend/rebase/force-push commit đã công khai — sửa bằng commit follow-up bình thường `29da633`, tiêu đề `eval(stt): harden baseline evidence reproducibility`): (1) số liệu test đã lỗi thời trong CHANGELOG/PROJECT_STATE (46/1054 thay vì 56/1064 — đã sửa ở trên); (2) một mâu thuẫn trong PROJECT_STATE nói metric tương đồng văn bản "chưa được thực hiện" trong khi thực tế đã tính cho toàn bộ 180 dòng; (3) `render_markdown_report()` hardcode sẵn thông tin phần cứng/dependency của đúng phiên làm việc đó (GPU, thiếu faster-whisper) làm giá trị mặc định — không tái lập được trên máy khác, nay mặc định trung lập và trạng thái thật phải truyền tường minh qua `--production-rerun-status`; (4) đổi tên key `"silent"` mơ hồ trong `compute_threshold_curve()` (đường code MỚI) thành `"end_to_end_abstention"` — file bằng chứng lịch sử `docs/eval/stt_eval_summaries.json` vẫn giữ nguyên `"silent"`, không đụng tới; (5) `compute_text_similarity_stats()` không còn phân tích đường dẫn tuyệt đối `audio_file` (vốn đặc thù theo máy) để tra cứu phrase lịch sử — giờ dùng trực tiếp `intent_gt`/`phrase` (`variant_N`) di động sẵn có trên mỗi dòng, qua hàm mới `phrase_manifest.resolve_phrase_by_stem()`.
+
+Thêm 21 test mới (CPU-only, xác định) trải trên `tests/unit/test_stt_eval_failure_decomposition.py` và file mới `tests/unit/test_stt_intent_eval_threshold_curve.py`. **Tổng số hiện tại của nhánh, tại commit `29da633` (đầu nhánh hiện tại — không phải `42098d6`)**: toàn bộ `tests/unit/` — **1085 collected, 1085 passed, 0 failed, 0 skipped** (cộng 50 subtests không đổi); tổng chênh lệch so với baseline `2b73a49` là **+77** (56 từ commit thứ nhất + 21 từ commit thứ hai). Chạy riêng 2 file test STT-eval (`test_stt_eval_failure_decomposition.py` + `test_stt_intent_eval_threshold_curve.py`): **77 passed**, 0 failed. Hai file bằng chứng lịch sử `docs/eval/stt_eval_results.json`/`stt_eval_summaries.json` tiếp tục không bị đụng tới.
+
+`ruff check` trên các file mới sạch; các file `tests/eval/stt_intent_eval.py`/`record_test_set.py` được sửa giữ nguyên phong cách terse (một dòng nhiều statement) đã có sẵn từ trước — không refactor lại toàn bộ style ngoài phạm vi nhiệm vụ.
+
+Không có số phiên bản nào bị thay đổi. Không có Git tag hay GitHub Release nào được tạo, di chuyển, hay xóa.
 
 ---
 
