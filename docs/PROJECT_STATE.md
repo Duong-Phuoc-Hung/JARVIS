@@ -18,11 +18,19 @@ use this checkpoint, plus actual `git log`/`git status`, as the source of truth 
 state. This checkpoint supersedes the prior `5f9f6da` checkpoint below (its own validation
 numbers are preserved as historical record further down, not rewritten).
 
-**Current `main`:** `1ad5b6d246d86ad2cb3af40840b13dd576041815` ("Merge pull request #20 from
-Huynh-Minh-Hoa/docs/night-shift-runtime-reality"). `CHANGELOG.md` development history currently
-reaches **v4.3.2-era** work — a maintenance milestone, **not** a formal release/tag (latest
-formal GitHub Release remains `v4.0.1`; package/runtime version `jarvis.__version__`/
-`pyproject.toml` remains `4.1.0` — neither was bumped by v4.3.2).
+**v4.3.2 checkpoint lineage** (deliberately phrased as lineage, not a single "Current main" SHA —
+that framing goes stale the moment the checkpoint PR itself merges):
+- pre-checkpoint merged `main`: `1ad5b6d246d86ad2cb3af40840b13dd576041815` ("Merge pull request
+  #20 from Huynh-Minh-Hoa/docs/night-shift-runtime-reality") — the last `main` commit before the
+  v4.3.2 documentation checkpoint was authored.
+- v4.3.2 documentation checkpoint commit: `6012487441dc03bdb78aa8d5538adf32e7547c08` (PR #21) —
+  once this PR merges, `main` moves to (or past) this commit; always confirm via `git log`/
+  `git rev-parse origin/main` rather than trusting either SHA above as permanently "current."
+
+`CHANGELOG.md` development history currently reaches **v4.3.2-era** work — a maintenance
+milestone, **not** a formal release/tag (latest formal GitHub Release remains `v4.0.1`;
+package/runtime version `jarvis.__version__`/`pyproject.toml` remains `4.1.0` — neither was
+bumped by v4.3.2).
 
 **Post-`d62cb61` evolution merged onto `main`:**
 
@@ -60,12 +68,18 @@ formal GitHub Release remains `v4.0.1`; package/runtime version `jarvis.__versio
   `jarvis/workers/night_shift.py` (no runtime logic changed). Follow-ups #1–#3 below are now DONE;
   see this checkpoint's "Immediate follow-ups" section for exact evidence per workstream.
 
-**Current CI baseline — GitHub Actions CI run #120, for commit `1ad5b6d` (externally verified —
-conclusion `success`, all four jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline
-Summary). The exact collected/passed/skipped/failed counts for run #120 itself were not
-independently pulled from that run's logs this session — not invented here. The most recent
-**locally**-verified full `tests/unit/` evidence (from the Night Shift reality-sync branch,
-run before merge — labeled LOCAL, distinct from CI run #120's own count):**
+**Newest checkpoint CI evidence — GitHub Actions CI run #121, PR #21, for commit `6012487`
+(the v4.3.2 documentation checkpoint commit itself; externally verified — conclusion `success`,
+all four jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline Summary). The exact
+collected/passed/skipped/failed counts for run #121 itself were not independently pulled from
+that run's logs this session — not invented here.**
+
+**Pre-checkpoint merged-main CI evidence — GitHub Actions CI run #120, for commit `1ad5b6d`
+(externally verified — conclusion `success`, all four jobs passed: Syntax Check, Unit Tests,
+Import Validation, Pipeline Summary). Exact counts for run #120 itself likewise not pulled from
+its logs.** The most recent **locally**-verified full `tests/unit/` evidence (from the Night
+Shift reality-sync branch, run before merge into `1ad5b6d` — labeled LOCAL, distinct from either
+CI run's own count):
 ```text
 1008 collected
 1008 passed

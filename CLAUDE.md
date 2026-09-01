@@ -30,7 +30,7 @@ Repository:
 
 ## 1A. Durable current-baseline invariants (keep current across sessions)
 
-Summarized invariants, verified directly against code as of commit `1ad5b6d` (v4.3.2-era `CHANGELOG.md` state) — first established at commit `a370633` (v4.3.1-era) and kept current through the ProactiveConfig, version-metadata, and Night Shift maintenance workstreams. Full rationale and file:line citations live in the referenced subsections below — update both together if either changes.
+Durable invariants verified through the v4.3.2 checkpoint commit `6012487` (branch `docs/v4.3.2-maintenance-checkpoint`, PR #21), based on merged main `1ad5b6d` (v4.3.2-era `CHANGELOG.md` state) — first established at commit `a370633` (v4.3.1-era) and kept current through the ProactiveConfig, version-metadata, and Night Shift maintenance workstreams. Treat `6012487`/`1ad5b6d` as the state as of this writing, not as a permanently-current SHA — once PR #21 merges, `main` moves past both; always confirm via actual Git state. Full rationale and file:line citations live in the referenced subsections below — update both together if either changes.
 
 **Safety** (see §8.3):
 - LLM output alone never authorizes destructive/high-risk action execution — `SafetyGateInterceptor.is_high_risk()` is a deterministic classifier (name sets, regexes, prefix matching), never an LLM decision.
@@ -154,7 +154,9 @@ At snapshot time:
 
 ## 5. CI baseline
 
-**Current baseline** — commit `1ad5b6d246d86ad2cb3af40840b13dd576041815` (v4.3.2-era, merge of PR #20), GitHub Actions CI run #120, externally verified: **conclusion `success`**, all four jobs passed (Syntax Check, Unit Tests, Import Validation, Pipeline Summary). The exact collected/passed/skipped/failed counts for run #120 specifically were not independently pulled from that run's logs — do not invent them. The most recent **locally**-verified full `tests/unit/` evidence (from the Night Shift reality-sync work merged in PR #20, run on that branch before merge — labeled LOCAL, not CI run #120's own count): 1008 collected, 1008 passed, 0 failed.
+**Newest checkpoint CI baseline** — commit `6012487441dc03bdb78aa8d5538adf32e7547c08` (the v4.3.2 documentation checkpoint commit, PR #21), GitHub Actions CI run #121, externally verified: **conclusion `success`**, all four jobs passed (Syntax Check, Unit Tests, Import Validation, Pipeline Summary). Exact collected/passed/skipped/failed counts for run #121 were not independently pulled from that run's logs — do not invent them.
+
+**Pre-checkpoint merged-main baseline** — commit `1ad5b6d246d86ad2cb3af40840b13dd576041815` (v4.3.2-era, merge of PR #20, the base this checkpoint branched from), GitHub Actions CI run #120, externally verified: **conclusion `success`**, all four jobs passed. Exact counts for run #120 likewise not pulled from its logs. The most recent **locally**-verified full `tests/unit/` evidence (from the Night Shift reality-sync work merged in PR #20, run on that branch before merge into `1ad5b6d` — labeled LOCAL, not either CI run's own count): 1008 collected, 1008 passed, 0 failed.
 
 **Historical baseline (a370633-era, superseded — kept for context only, do not cite as current):** CI run #108: 993 collected, 990 passed, 3 skipped, 0 failed, all four jobs green.
 
