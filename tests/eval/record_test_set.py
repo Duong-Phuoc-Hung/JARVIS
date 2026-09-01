@@ -49,23 +49,11 @@ TRIM_SILENCE_THRESHOLD = 0.01   # RMS threshold for silence trimming
 MIN_SPEECH_SECS = 0.5   # Reject if speech < 0.5s after trimming
 
 # ── Intent phrases ────────────────────────────────────────────────────────────
-# Imported directly from the eval framework
-INTENT_TEST_SET: dict[str, list[str]] = {
-    "open_app":       ["mở chrome", "mở ứng dụng chrome", "mở notepad", "mở spotify", "khởi động chrome"],
-    "system_shutdown":["tắt máy tính", "shutdown máy", "tắt nguồn"],
-    "system_restart": ["khởi động lại máy", "restart máy tính", "reboot"],
-    "volume_control": ["tăng âm lượng", "giảm âm lượng", "điều chỉnh âm lượng", "tắt tiếng", "mute"],
-    "weather_query":  ["thời tiết hôm nay", "thời tiết ngày mai", "dự báo thời tiết", "trời hôm nay thế nào"],
-    "timer_set":      ["hẹn giờ 5 phút", "đặt timer 10 phút", "nhắc tôi sau 15 phút"],
-    "reminder_set":   ["nhắc nhở lúc 3 giờ", "đặt nhắc lúc 8 giờ sáng"],
-    "screenshot":     ["chụp màn hình", "chụp ảnh màn hình", "screenshot"],
-    "stop":           ["dừng lại", "stop", "thôi", "hủy"],
-    "search":         ["tìm kiếm google", "tìm file word", "search chrome", "tìm kiếm youtube"],
-    "music_play":     ["mở nhạc", "phát nhạc", "play music"],
-    "screen_off":     ["tắt màn hình", "turn off monitor"],
-    "note_take":      ["ghi chú", "tạo ghi chú mới"],
-    "settings_open":  ["mở cài đặt", "open settings"],
-}
+# Single-sourced from tests/eval/phrase_manifest.py so this script (which
+# actually drives what gets recorded) and tests/eval/stt_intent_eval.py cannot
+# drift apart again — see phrase_manifest.py's module docstring for the
+# historical drift this replaced.
+from tests.eval.phrase_manifest import PHRASE_MANIFEST as INTENT_TEST_SET
 
 CONDITION_INSTRUCTIONS = {
     "clean": """

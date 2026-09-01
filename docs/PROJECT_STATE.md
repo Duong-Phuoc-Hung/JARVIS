@@ -131,10 +131,75 @@ All four CI jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline S
     ~853ms; noisy 17.8% correct / 2.2% misrouted / 80.0% silent-failure, ~780ms.
   - `large-v3` (int8_float16): clean 28.9% correct / 2.2% misrouted / 68.9% silent-failure,
     ~2.8s; noisy 31.1% correct / 2.2% misrouted / 66.7% silent-failure, ~2.8s.
-  - The dominant current problem is **high silent-failure / recognition-failure rate**, not
-    broad unsafe-action misrouting — misrouting sits flat at ~2.2% across every model/condition
+  - The dominant current problem is **high end-to-end abstention rate**, not broad
+    unsafe-action misrouting — misrouting sits flat at ~2.2% across every model/condition
     (that single case among the 90 recordings was arguably correct JARVIS behavior anyway),
     dropping to 0.0% above a per-model/condition confidence threshold (~0.5–0.7).
+  - **Corrected 2026-09-02, branch `eval/stt-real-mic-baseline-correction`
+    (`docs/eval/stt_eval_failure_decomposition.md`/`.json`): the "silent-failure" figures
+    quoted above are an end-to-end abstention rate (`STT_EMPTY` + `ROUTER_ABSTAIN`), not a
+    pure STT recognition-failure rate.** Re-deriving each of the 180 historical rows'
+    outcome directly from its own `(transcript, predicted_intent, intent_gt)` fields via the
+    new `classify_outcome()` (`tests/eval/failure_decomposition.py`) shows the 134 legacy
+    `SILENT_FAILURE` rows split into only **3 `STT_EMPTY`** (transcript truly empty) vs.
+    **131 `ROUTER_ABSTAIN`** (STT produced non-empty — often garbled — text that the Tier-1
+    rule-engine simply didn't match). Per AUDIT_METHODOLOGY.md's causal-attribution rule,
+    this decomposition alone does **not** establish whether the dominant cause is poor
+    transcription quality or an overly strict keyword matcher — both are consistent with
+    "non-empty but wrong" transcripts; distinguishing them needs the new auxiliary
+    token-similarity metric (`tests/eval/text_normalize.py`, deliberately NOT used to
+    determine intent outcome) or manual transcript review, neither of which was performed as
+    part of this correction. No production STT threshold
+    (`no_speech_threshold`/`log_prob_threshold`/`compression_ratio_threshold`/beam_size),
+    router behavior, or historical committed evidence file was changed — this was a
+    re-classification pass over existing evidence, not new acoustic evidence, and does not
+    by itself earn Tier 1 status for STT recognition quality. Also fixed in the same pass:
+    `tests/eval/stt_intent_eval.py` carried a stale ASCII/unaccented phrase list that had
+    drifted from what `tests/eval/record_test_set.py` actually recorded (one entry,
+    `open_app` variant 4, had drifted in content, not just accenting — recorded prompt was
+    "khởi động chrome", evaluator's stale copy claimed "launch spotify"); both scripts now
+    import a single-sourced `tests/eval/phrase_manifest.py`. The evaluator also gained an
+    explicit `--backend {direct,production}` flag — `production` calls
+    `jarvis.stt.engine.FasterWhisperSTT.transcribe()` directly (no reimplementation of its
+    filtering) so a real production-path rerun is possible without conflating it with the
+    historical raw-`WhisperModel` direct backend (`beam_size=3`, no RMS pre-gate, no
+    post-filter — see `docs/eval/stt_eval_failure_decomposition.md`'s Phase 4 table for the
+    full enumerated diff). A real CUDA production-backend rerun (Phase 8) was **not**
+    executed this session: CUDA hardware is present (`nvidia-smi` succeeds) but
+    `faster-whisper`/`ctranslate2` are not installed in any available interpreter and no
+    project venv with them was found — reported as not-executed rather than faked, per
+    AUDIT_METHODOLOGY.md. 46 new deterministic CPU-only unit tests added
+    (`tests/unit/test_stt_eval_failure_decomposition.py`); full `tests/unit/` (pytest's own
+    terminal "collected"/pass-fail summary, NOT the JUnit XML `tests` attribute — see the
+    dedicated correction note immediately below this list for why those differ) —
+    base commit `2b73a49` (same commit as `main` at the time of this work): **1008 collected,
+    1008 passed, 0 failed, 0 skipped** locally (matches GitHub Actions CI run #126's 1008
+    collected exactly; CI's own pass/skip split, 1005 passed/3 skipped, is a known
+    local-vs-CI-runner divergence already documented earlier in this file for prior
+    checkpoints — not specific to this change). This branch: **1054 collected, 1054 passed,
+    0 failed, 0 skipped** (plus 50 subtests passed, unchanged from base — see below). Net
+    **+46**, exactly matching the 46 new test methods added.
+
+    **Correction (found via independent GitHub Actions CI #126 verification against this
+    exact base commit, 2026-09-02): an earlier draft of this evidence conflated pytest's own
+    "collected items" count with the JUnit XML `<testsuite tests="...">` attribute, which are
+    NOT the same number in this repository.** `pytest-subtests` (`pyproject.toml`, declared
+    dependency) emits one additional `<testcase>` entry per `subtests.test()` invocation in
+    JUnit XML on top of the entries for the enclosing regular tests — it does **not** add to
+    pytest's own "collected N items" count or its terminal "N passed" line, which count only
+    top-level collected test items. At base commit `2b73a49`, pytest's terminal summary reads
+    "1008 passed, **50 subtests** passed" (collected = 1008) while the JUnit XML `tests`
+    attribute for the same run reports 1058 = 1008 + 50 — the JUnit total is inflated by
+    exactly the 50 pre-existing subtests, unrelated to this branch. On this branch, pytest's
+    terminal summary reads "1054 passed, 50 subtests passed" (collected = 1054, the same 50
+    subtests carried over unchanged) while the JUnit `tests` attribute reports 1104 = 1054 +
+    50 — again inflated by the same 50 subtests. An earlier draft of this document cited the
+    JUnit totals (1058/1104) as if they were pytest's collected/passed counts; the correct,
+    authoritative numbers are the ones in this paragraph, obtained via direct
+    `subprocess.run()` capture of pytest's own terminal output (not the JUnit XML file, and
+    not piped through a shell `tail`/`tr`, both of which independently proved unreliable for
+    capturing pytest's final `\r`-terminated summary line in this Windows Git-Bash
+    environment — see this branch's own git history for that investigation).
 - **(B) Real CUDA throughput benchmark, synthetic (non-speech) input** (`docs/benchmark_results.md`
   §1): genuine GPU latency measurement on real hardware (GTX 1650 Max-Q), but the input is a
   synthesized sine-wave signal, not recorded speech — it measures pipeline throughput (RTF), not
@@ -292,7 +357,12 @@ task, not bundled into a documentation-only sync):**
    1008 passed, 0 failed; `ruff check` — clean; `py_compile` — clean; `git diff --check` — clean;
    `git diff origin/main...HEAD --check` — clean.
 4. Evaluate STT accuracy/latency improvements using the now-committed real-microphone dataset
-   (`tests/eval/audio/`) rather than any synthetic proxy.
+   (`tests/eval/audio/`) rather than any synthetic proxy. **Baseline-correction prerequisite
+   DONE** (see the "STT reality" correction above, branch `eval/stt-real-mic-baseline-correction`)
+   — the historical evaluator's SILENT_FAILURE/ROUTER_ABSTAIN conflation, phrase-manifest
+   drift, and evaluator-vs-production-path differences are now documented and the evaluator
+   supports a real `--backend production` path; actual threshold/architecture tuning using
+   this corrected baseline is still open and deliberately out of scope for that branch.
 5. Decide whether `spawn_appcontainer_process()` should become (or be added alongside) the
    production `execute_python()` backend, after a dedicated compatibility/security validation
    pass — it is not a drop-in replacement without that evaluation.
