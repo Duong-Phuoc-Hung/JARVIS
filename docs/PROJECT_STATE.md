@@ -18,9 +18,19 @@ use this checkpoint, plus actual `git log`/`git status`, as the source of truth 
 state. This checkpoint supersedes the prior `5f9f6da` checkpoint below (its own validation
 numbers are preserved as historical record further down, not rewritten).
 
-**Current `main`:** `a370633e91be0e2e4c8cf9612e522e7889f7bad3` ("docs(eval): v4.3.1 — acoustic
-STT benchmark results & audio test dataset"). `CHANGELOG.md` development history currently
-reaches **v4.3.1-era** work — 29 commits ahead of the prior `d62cb61` reference point.
+**v4.3.2 checkpoint lineage** (deliberately phrased as lineage, not a single "Current main" SHA —
+that framing goes stale the moment the checkpoint PR itself merges):
+- pre-checkpoint merged `main`: `1ad5b6d246d86ad2cb3af40840b13dd576041815` ("Merge pull request
+  #20 from Huynh-Minh-Hoa/docs/night-shift-runtime-reality") — the last `main` commit before the
+  v4.3.2 documentation checkpoint was authored.
+- v4.3.2 documentation checkpoint commit: `6012487441dc03bdb78aa8d5538adf32e7547c08` (PR #21) —
+  once this PR merges, `main` moves to (or past) this commit; always confirm via `git log`/
+  `git rev-parse origin/main` rather than trusting either SHA above as permanently "current."
+
+`CHANGELOG.md` development history currently reaches **v4.3.2-era** work — a maintenance
+milestone, **not** a formal release/tag (latest formal GitHub Release remains `v4.0.1`;
+package/runtime version `jarvis.__version__`/`pyproject.toml` remains `4.1.0` — neither was
+bumped by v4.3.2).
 
 **Post-`d62cb61` evolution merged onto `main`:**
 
@@ -38,15 +48,47 @@ reaches **v4.3.1-era** work — 29 commits ahead of the prior `d62cb61` referenc
 - **v4.3.0:** AppContainer B2 real-OS dual-evidence confirmation; email IMAP 5-layer security
   hardening (`jarvis/comms/email_imap.py`); Windows Credential Manager/`keyring`-backed Secrets
   Manager (`jarvis/security/secrets.py`).
-- **v4.3.1 (current):** committed the real-microphone STT evaluation dataset — **90 real
+- **v4.3.1:** committed the real-microphone STT evaluation dataset — **90 real
   microphone recordings** (45 clean + 45 noisy) under `tests/eval/audio/`, each evaluated
   against both `small` and `large-v3` faster-whisper models, plus the resulting evaluation
   results/summaries in `docs/eval/`. 90 recordings, not 90 model-runs or 180 recordings — see
   the STT reality note below for exactly how the 90-recording dataset and the 180-row raw
   results file relate.
+- **v4.3.2 (current) — Maintenance & Runtime Reality Sync:** three merged maintenance
+  workstreams, consolidated under one CHANGELOG milestone (see `CHANGELOG.md`'s "v4.3.2" section
+  for full detail): (1) `ProactiveConfig.from_dict()`'s health-monitor fallback defaults now
+  single-sourced from the dataclass itself, fixing silent drift toward obsolete thresholds on
+  partial config dicts; (2) package/runtime/installer/dashboard version-metadata single-source
+  semantics — `pyproject.toml` dynamically derives its version from `jarvis.__version__`,
+  `installer/setup.iss` no longer owns a duplicate `AppVersion` literal, and
+  `jarvis/ui/dashboard.py` no longer displays a stale hardcoded `1.0.0`; (3) Night Shift
+  scheduler/reporting documentation reality sync — `docs/night_shift_audit.md` corrected to
+  match actual code (no enforced 02:00–05:00 window, `report_time` unused, `web_search`/`notify`
+  are placeholders, report delivery is local-file-only), plus a docstring-only correction in
+  `jarvis/workers/night_shift.py` (no runtime logic changed). Follow-ups #1–#3 below are now DONE;
+  see this checkpoint's "Immediate follow-ups" section for exact evidence per workstream.
 
-**Current CI baseline — GitHub Actions CI run #108, for commit `a370633` (externally verified,
-not personally re-executed by an agent unless a session states otherwise):**
+**Newest checkpoint CI evidence — GitHub Actions CI run #121, PR #21, for commit `6012487`
+(the v4.3.2 documentation checkpoint commit itself; externally verified — conclusion `success`,
+all four jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline Summary). The exact
+collected/passed/skipped/failed counts for run #121 itself were not independently pulled from
+that run's logs this session — not invented here.**
+
+**Pre-checkpoint merged-main CI evidence — GitHub Actions CI run #120, for commit `1ad5b6d`
+(externally verified — conclusion `success`, all four jobs passed: Syntax Check, Unit Tests,
+Import Validation, Pipeline Summary). Exact counts for run #120 itself likewise not pulled from
+its logs.** The most recent **locally**-verified full `tests/unit/` evidence (from the Night
+Shift reality-sync branch, run before merge into `1ad5b6d` — labeled LOCAL, distinct from either
+CI run's own count):
+```text
+1008 collected
+1008 passed
+0 skipped
+0 failed
+```
+
+**Historical CI baseline (a370633-era, superseded — kept for context only, do not cite as
+current):** GitHub Actions CI run #108, for commit `a370633`:
 ```text
 993 collected
 990 passed
@@ -168,7 +210,8 @@ task, not bundled into a documentation-only sync):**
    instead; the `pyproject.toml`-duplicate-literal test was kept unchanged (not weakened).
    New tests this follow-up: `tests/unit/test_build_installer_version.py` (3 tests, mocks the
    `ISCC.exe` subprocess boundary — Inno Setup is never required to run these) and 2 new tests in
-   `tests/unit/test_ui_dashboard.py` (HTML/API version-display coverage). Evidence:
+   `tests/unit/test_ui_dashboard.py` (HTML/API version-display coverage). Evidence at this point
+   (superseded by the CI follow-up below — do not cite as final):
    `tests/unit/test_version_metadata.py` + `test_build_installer_version.py` +
    `test_ui_dashboard.py` + `tests/test_cli.py` — 21 passed;
    `tests/integration/test_package_version_build.py` — 1 passed; full `tests/unit/` — 1007
@@ -177,11 +220,37 @@ task, not bundled into a documentation-only sync):**
    second real wheel build + clean temp venv install re-confirmed `jarvis.__version__` and
    `importlib.metadata.version("jarvis-assistant")` both report `4.1.0`, matching.
 
-   Evidence from the original pass in this same item (still accurate): full `tests/unit/` —
-   1002 collected, 1002 passed, 0 failed; `ruff check`/`py_compile`/`git diff --check` all clean;
-   real wheel built via `pip wheel . --no-deps --no-build-isolation` installed into a clean temp
-   venv confirmed `jarvis.__version__` and `importlib.metadata.version("jarvis-assistant")` both
-   report `4.1.0`, matching. (Note:
+   **CI follow-up (commit `dbb0b53`, a normal follow-up commit — not an amend, since the branch
+   was already public and PR #19 already open at this point) — this is the FINAL merged Version
+   Metadata evidence, superseding both blocks above.** PR #19's first GitHub Actions run (CI #114)
+   failed at test collection: `tests/unit/test_version_metadata.py` had a module-level
+   `import yaml`, but the CI Unit Tests job intentionally does not install PyYAML, producing
+   `ModuleNotFoundError: No module named 'yaml'` and failing Pipeline Summary as a downstream
+   consequence. Root cause confirmed by reading the actual CI job's install list, not assumed. Fix
+   (`dbb0b53`, `tests/unit/test_version_metadata.py` only — no dependency added, no production
+   code touched): removed `import yaml`; the `system.version`-presence test and the
+   `test_config_manager_system_version_is_generic_inert_data` test above were consolidated into
+   one test (`test_system_version_config_key_present_and_independent`) that reads the config via
+   `ConfigManager().load()` — which already has its own built-in fallback parser for when PyYAML
+   isn't installed — instead of calling `yaml.safe_load()` directly. Net effect: 5 → **4** tests in
+   `tests/unit/test_version_metadata.py`. Verified in a temporary venv containing CI's actual
+   package list (confirmed via that venv's `importlib.util.find_spec("yaml") is None`): both
+   `tests/unit/test_version_metadata.py --collect-only` and the full `tests/unit/ --collect-only`
+   succeeded with zero errors. **Final merged evidence**:
+   `tests/unit/test_version_metadata.py` + `test_build_installer_version.py` +
+   `test_ui_dashboard.py` + `tests/test_cli.py` — **20 passed** (was 21);
+   `tests/integration/test_package_version_build.py` — 1 passed; full `tests/unit/` — **1006
+   collected, 1006 passed, 0 failed** (was 1007 — the exact 5→4 reduction, nothing else changed);
+   `ruff check`/`py_compile`/`git diff --check` clean. PR #19's CI (run against the corrected
+   commit) passed. **1006 is PR #19's own final merged baseline — it is not the same number as
+   this checkpoint's current `main` baseline (1008), which is 1006 plus the 2 further tests Night
+   Shift (PR #20) added afterward; do not conflate the two.**
+
+   Evidence from the original pass in this same item (superseded, kept for context only): full
+   `tests/unit/` — 1002 collected, 1002 passed, 0 failed; `ruff check`/`py_compile`/`git diff --check`
+   all clean; real wheel built via `pip wheel . --no-deps --no-build-isolation` installed into a
+   clean temp venv confirmed `jarvis.__version__` and `importlib.metadata.version("jarvis-assistant")`
+   both report `4.1.0`, matching. (Note:
    `python -m build` could not be used directly from the repo root — a pre-existing, unrelated,
    tracked `build.py` file at the repo root, the real PyInstaller packaging entrypoint, shadows
    PyPA's `build` package for `-m build` invocations from that directory; not fixed here, out of

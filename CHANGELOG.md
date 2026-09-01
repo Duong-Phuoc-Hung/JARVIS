@@ -2,9 +2,53 @@
 
 ---
 
-## 🚀 Chưa phát hành (2026-09-01) — Night Shift Audit Documentation Reality Sync
+## 🧩 v4.3.2 — Maintenance & Runtime Reality Sync (2026-09-01)
 
-### 📝 docs(night-shift): align audit with runtime behavior
+> **Semantic note**: this is a CHANGELOG development milestone only. It is **not** a formal GitHub Release/tag — the latest formal release remains `v4.0.1`. No package/runtime version was bumped (`jarvis.__version__` stays `4.1.0`); no `config.system.version` change; no production behavior change beyond the docstring-only correction noted in the Night Shift subsection below. This milestone consolidates three maintenance workstreams merged to `main` on 2026-09-01: (1) a `ProactiveConfig` fallback-default single-source fix, (2) package/runtime/installer/dashboard version-metadata single-source semantics, and (3) a Night Shift scheduler/reporting documentation reality sync.
+
+### 🐛 ProactiveConfig Fallback Defaults
+
+`fix(proactive): ProactiveConfig.from_dict() fallback defaults now derive from the dataclass itself`
+
+**`jarvis/proactive/engine.py`** — `from_dict()`'s 7 health-monitor fallback values (`health_interval_s`, `cpu_threshold`, `ram_threshold`, `disk_min_free_gb`, `temp_threshold_c`, `battery_min_percent`, `health_cooldown_s`) were hardcoded to old, obsolete numbers (5.0/90.0/85.0/10.0/85.0/20.0/60.0) instead of the dataclass's current, raised defaults (30.0/92.0/92.0/5.0/92.0/15.0/600.0). A partial config dict (e.g. only overriding `cpu_threshold`) silently fell back to these stale thresholds for every omitted field.
+
+Fix: `from_dict()` now builds `_defaults = cls()` once and reads every fallback from that single instance instead of duplicating numeric constants — future dataclass-default tuning can no longer drift out of sync with `from_dict()`. Precedence preserved exactly: nested `health_monitor` value → flat `proactive` value → current `ProactiveConfig` default; no explicit user-supplied value's behavior changed.
+
+4 new regression tests added (`tests/unit/test_proactive_engine.py`): empty/None config matches dataclass defaults; partial nested `health_monitor` config falls back to current defaults for every omitted field; partial flat config does the same; nested value overrides a flat value for the same field.
+
+**Pre-existing test correction (consequence of the fix, not a new bug):** `test_proactive_engine_unified_tick`'s mock RAM value (92.0) implicitly relied on the old stale `ram_threshold` fallback (85.0) to trigger an alert; under the corrected default (92.0, strict `>`), 92.0 no longer breaches, so the fixture was bumped to 95.0 — the test's intent (a health alert surfaces via `tick()`) is unchanged.
+
+Validation at the time of this workstream: `tests/unit/test_proactive_engine.py` — 49 passed. Full `tests/unit/` — 997 collected, 997 passed, 0 failed.
+
+### 🔧 Version Metadata Single-Source Consistency
+
+`chore(version): clarify and single-source metadata`
+
+Not a release. Clarifies and consolidates version metadata across the repository without bumping any version number.
+
+**`pyproject.toml`** — `[project]` no longer declares a literal `version = "4.1.0"`. It now declares `dynamic = ["version"]`, resolved via `[tool.setuptools.dynamic] version = {attr = "jarvis.__version__"}` — setuptools reads the version through static AST analysis of `jarvis/__init__.py`, without importing `jarvis` or its runtime dependencies, so this works correctly in an isolated build environment.
+
+**`jarvis/__init__.py`** — `__version__ = "4.1.0"` is now the single canonical numeric literal for the package/runtime version (value unchanged). Kept as a plain top-level string assignment (not moved behind an import) because `jarvis/workers/auto_updater.py::get_current_version()` and `scripts/health_check_report.py::get_version()` both locate it by scanning this file's raw source text, not by importing `jarvis`.
+
+**`config/default_config.yaml`** — `system.version` (`"1.0.0"`, unchanged) is now explicitly documented as non-authoritative: repo-wide audit confirmed zero production consumers read this key. Kept for backward compatibility only; not required to track `jarvis.__version__`.
+
+**`README.md`** — the ambiguous single "Version" badge (linking to Releases while showing the source version) is split into three explicit, distinct pieces of information: source/runtime version (4.1.0), latest formal GitHub Release (v4.0.1), and CHANGELOG development-history state. The stale hardcoded "633+ passed" test badge was reworded to avoid re-staling.
+
+**`installer/setup.iss` / `scripts/build_installer.py`** — the Windows Inno Setup installer owned its own hardcoded `#define AppVersion "4.1.0"`, which actively drove `[Setup] AppVersion`, the installer's output filename, and the `[Registry]` `Version` value — not passive documentation, a real third duplicate. Fixed: `setup.iss` no longer declares any `AppVersion` literal — it requires the value externally via `#ifndef AppVersion` / `#error` — and `build_installer.py` gained `_get_canonical_version()` (a lightweight raw-text reader, mirroring `auto_updater.py`/`health_check_report.py`'s existing pattern, deliberately not importing `jarvis`) and now invokes `ISCC.exe /DAppVersion=<version> setup.iss`.
+
+**`jarvis/ui/dashboard.py`** — both the embedded HTML ("Windows AI Assistant Engine v1.0.0") and the `/api/status` `"version"` field were hardcoded `"1.0.0"` displays with no independent schema/protocol/component-version meaning. Both now derive from `jarvis.__version__` (imported once as `_jarvis_version`); the HTML substitution uses a literal `.replace("{{JARVIS_VERSION}}", _jarvis_version)`, not `.format()`/an f-string, since the document contains many literal CSS/JS `{ }` braces.
+
+**Tests (final, as merged):** `tests/unit/test_version_metadata.py` (4 tests — runtime/AST single-source consistency, `jarvis --version` flag output, `pyproject.toml` structural check for the dynamic-version declaration, and `system.version` presence/independence read via `ConfigManager` rather than a direct PyYAML parse — see the CI follow-up below); `tests/unit/test_build_installer_version.py` (3 tests — mocks the `ISCC.exe` subprocess boundary, Inno Setup is never required to run them); 2 tests in `tests/unit/test_ui_dashboard.py` (HTML/API version-display agreement); `tests/integration/test_package_version_build.py` (1 test — builds a real wheel and asserts its distribution version matches `jarvis.__version__`; not part of the `tests/unit/` fast baseline, run explicitly).
+
+**CI follow-up:** the initial PR's first CI run failed at test collection — `tests/unit/test_version_metadata.py` imported PyYAML (`import yaml`) at module scope, but the CI Unit Tests job intentionally does not install PyYAML, producing `ModuleNotFoundError: No module named 'yaml'`. Fixed in follow-up commit `dbb0b53`: removed the module-level `yaml` import and consolidated the `system.version` test to read the config through `ConfigManager` (which already has its own built-in fallback parser for a missing PyYAML) instead of calling `yaml.safe_load()` directly — reducing `test_version_metadata.py` from 5 tests to 4, with no duplicate coverage lost. No dependency was added to CI or production, and no production code changed.
+
+Final merged validation: focused version/installer/dashboard/CLI tests — **20 passed**. `tests/integration/test_package_version_build.py` — 1 passed. Full `tests/unit/` — **1006 collected, 1006 passed, 0 failed**. Real wheel build (`pip wheel . --no-deps --no-build-isolation`) installed into a clean temp venv: `jarvis.__version__` and `importlib.metadata.version("jarvis-assistant")` both report `4.1.0`, confirmed matching.
+
+No version number was changed. No Git tag or GitHub Release was created, moved, or deleted.
+
+### 📝 Night Shift Runtime Reality Sync
+
+`docs(night-shift): align audit with runtime behavior`
 
 Documentation-focused. No production behavior/runtime logic changed — `jarvis/workers/night_shift.py` had two stale docstrings/comments corrected (module `Features:` list, `_send_morning_report()`'s docstring), no code path or logic touched.
 
@@ -22,49 +66,7 @@ Documentation-focused. No production behavior/runtime logic changed — `jarvis/
 
 2 new regression tests added to `tests/unit/test_night_planner.py`: `test_schedule_task_ignores_report_time` (proves `report_time` has no effect on the computed scheduling delay) and `test_send_morning_report_writes_file_only` (proves the actual observable report-delivery behavior is a local file write).
 
-Validation: `tests/unit/test_night_planner.py` — 22 passed. `tests/e2e/test_r2_night_shift_e2e.py` — 10 passed (including `test_r2_audit_documentation_structure_and_verdict`, confirming the audit document's required sections remain intact). Full `tests/unit/` — 1008 collected, 1008 passed, 0 failed.
-
----
-
-## 🚀 Chưa phát hành (2026-09-01) — Version Metadata Semantics & Single-Source Consistency
-
-### 🔧 chore(version): clarify and single-source metadata
-
-Not a release. Clarifies and consolidates version metadata across the repository without bumping any version number.
-
-**`pyproject.toml`** — `[project]` no longer declares a literal `version = "4.1.0"`. It now declares `dynamic = ["version"]`, resolved via `[tool.setuptools.dynamic] version = {attr = "jarvis.__version__"}` — setuptools reads the version through static AST analysis of `jarvis/__init__.py`, without importing `jarvis` or its runtime dependencies, so this works correctly in an isolated build environment.
-
-**`jarvis/__init__.py`** — `__version__ = "4.1.0"` is now the single canonical numeric literal for the package/runtime version (value unchanged). Kept as a plain top-level string assignment (not moved behind an import) because `jarvis/workers/auto_updater.py::get_current_version()` and `scripts/health_check_report.py::get_version()` both locate it by scanning this file's raw source text, not by importing `jarvis`.
-
-**`config/default_config.yaml`** — `system.version` (`"1.0.0"`, unchanged) is now explicitly documented as non-authoritative: repo-wide audit confirmed zero production consumers read this key. Kept for backward compatibility only; not required to track `jarvis.__version__`.
-
-**`README.md`** — the ambiguous single "Version" badge (linking to Releases while showing the source version) is split into three explicit, distinct pieces of information: source/runtime version (4.1.0), latest formal GitHub Release (v4.0.1), and CHANGELOG development-history state (reaches v4.3.1-era work). The stale hardcoded "633+ passed" test badge was reworded to avoid re-staling.
-
-**`installer/setup.iss` / `scripts/build_installer.py`** — the Windows Inno Setup installer owned its own hardcoded `#define AppVersion "4.1.0"`, which actively drove `[Setup] AppVersion`, the installer's output filename, and the `[Registry]` `Version` value — not passive documentation, a real third duplicate. Fixed: `setup.iss` no longer declares any `AppVersion` literal — it requires the value externally via `#ifndef AppVersion` / `#error` — and `build_installer.py` gained `_get_canonical_version()` (a lightweight raw-text reader, mirroring `auto_updater.py`/`health_check_report.py`'s existing pattern, deliberately not importing `jarvis`) and now invokes `ISCC.exe /DAppVersion=<version> setup.iss`.
-
-**`jarvis/ui/dashboard.py`** — both the embedded HTML ("Windows AI Assistant Engine v1.0.0") and the `/api/status` `"version"` field were hardcoded `"1.0.0"` displays with no independent schema/protocol/component-version meaning. Both now derive from `jarvis.__version__` (imported once as `_jarvis_version`); the HTML substitution uses a literal `.replace("{{JARVIS_VERSION}}", _jarvis_version)`, not `.format()`/an f-string, since the document contains many literal CSS/JS `{ }` braces.
-
-**Tests added/revised:** `tests/unit/test_version_metadata.py` (5 tests — runtime/AST single-source consistency, `jarvis --version` flag output, `pyproject.toml` structural check for the dynamic-version declaration, and `system.version` coverage — the original textual source-scan test was replaced with an observable-behavior `ConfigManager.get()`/`.set()` round-trip + independence test, since a "no future file may ever contain this exact text" assertion was judged too brittle); `tests/unit/test_build_installer_version.py` (3 new tests — mocks the `ISCC.exe` subprocess boundary, Inno Setup is never required to run them); 2 new tests in `tests/unit/test_ui_dashboard.py` (HTML/API version-display agreement); `tests/integration/test_package_version_build.py` (1 test — builds a real wheel and asserts its distribution version matches `jarvis.__version__`; not part of the `tests/unit/` fast baseline, run explicitly).
-
-Validation: focused version/installer/dashboard/CLI tests — 21 passed. `tests/integration/test_package_version_build.py` — 1 passed. Full `tests/unit/` — 1007 collected, 1007 passed, 0 failed. Real wheel build (`pip wheel . --no-deps --no-build-isolation`) installed into a clean temp venv: `jarvis.__version__` and `importlib.metadata.version("jarvis-assistant")` both report `4.1.0`, confirmed matching.
-
-No version number was changed. No Git tag or GitHub Release was created, moved, or deleted.
-
----
-
-## 🚀 Chưa phát hành (2026-09-01) — ProactiveConfig Fallback-Default Fix
-
-### 🐛 fix(proactive): `ProactiveConfig.from_dict()` fallback defaults now derive from the dataclass itself
-
-**`jarvis/proactive/engine.py`** — `from_dict()`'s 7 health-monitor fallback values (`health_interval_s`, `cpu_threshold`, `ram_threshold`, `disk_min_free_gb`, `temp_threshold_c`, `battery_min_percent`, `health_cooldown_s`) were hardcoded to old, obsolete numbers (5.0/90.0/85.0/10.0/85.0/20.0/60.0) instead of the dataclass's current, raised defaults (30.0/92.0/92.0/5.0/92.0/15.0/600.0). A partial config dict (e.g. only overriding `cpu_threshold`) silently fell back to these stale thresholds for every omitted field.
-
-Fix: `from_dict()` now builds `_defaults = cls()` once and reads every fallback from that single instance instead of duplicating numeric constants — future dataclass-default tuning can no longer drift out of sync with `from_dict()`. Precedence preserved exactly: nested `health_monitor` value → flat `proactive` value → current `ProactiveConfig` default; no explicit user-supplied value's behavior changed.
-
-4 new regression tests added (`tests/unit/test_proactive_engine.py`): empty/None config matches dataclass defaults; partial nested `health_monitor` config falls back to current defaults for every omitted field; partial flat config does the same; nested value overrides a flat value for the same field.
-
-**Pre-existing test correction (consequence of the fix, not a new bug):** `test_proactive_engine_unified_tick`'s mock RAM value (92.0) implicitly relied on the old stale `ram_threshold` fallback (85.0) to trigger an alert; under the corrected default (92.0, strict `>`), 92.0 no longer breaches, so the fixture was bumped to 95.0 — the test's intent (a health alert surfaces via `tick()`) is unchanged.
-
-Validation: `tests/unit/test_proactive_engine.py` — 49 passed. Full `tests/unit/` — 997 collected, 997 passed, 0 failed.
+Validation at the time of this workstream: `tests/unit/test_night_planner.py` — 22 passed. `tests/e2e/test_r2_night_shift_e2e.py` — 10 passed (including `test_r2_audit_documentation_structure_and_verdict`, confirming the audit document's required sections remain intact). Full `tests/unit/` — 1008 collected, 1008 passed, 0 failed.
 
 ---
 
