@@ -16,6 +16,7 @@ env:
   PYTHONIOENCODING: utf-8
   JARVIS_HEADLESS: "1"
   JARVIS_MOCK_AUDIO: "1"
+  JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK: "1"
 
 jobs:
   # ── Build Windows .exe ─────────────────────────────────────────
