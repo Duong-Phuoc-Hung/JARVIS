@@ -175,3 +175,62 @@ while True:
         assert res.get("success") is True
         assert "night_output_" in str(res.get("result"))
 
+
+class TestNightShiftSchedulingAndReportingReality:
+    """Locks in the current, verified scheduling/reporting behavior documented
+    in docs/night_shift_audit.md (corrected 2026-09-01): report_time is task
+    metadata only and does not influence scheduling, and report "delivery"
+    is currently a local file write, not a Telegram/comms send."""
+
+    def test_schedule_task_ignores_report_time(self, tmp_path, monkeypatch):
+        """_schedule_task()'s computed delay must depend only on
+        scheduled_time -- two tasks sharing the same scheduled_time but
+        wildly different report_time values must be scheduled identically."""
+        import jarvis.workers.night_shift as mod
+        monkeypatch.setattr(mod, "_TASKS_FILE", tmp_path / "tasks.json")
+
+        captured_delays = []
+
+        class _FakeTimer:
+            def __init__(self, delay, fn, args=None):
+                captured_delays.append(delay)
+            def start(self):
+                pass
+            def cancel(self):
+                pass
+
+        monkeypatch.setattr(mod.threading, "Timer", _FakeTimer)
+
+        worker = NightShiftWorker(is_mock=False, sandbox_dir=tmp_path / "sandbox_scratch")
+        worker.add_task("A", "test", scheduled_time="03:00", report_time="04:00")
+        worker.add_task("B", "test", scheduled_time="03:00", report_time="23:59")
+
+        assert len(captured_delays) == 2
+        # Same scheduled_time -> same target datetime -> essentially the same
+        # delay (allowing a fraction of a second of real wall-clock drift
+        # between the two add_task() calls).
+        assert abs(captured_delays[0] - captured_delays[1]) < 2.0
+
+    def test_send_morning_report_writes_file_only(self, tmp_path, monkeypatch):
+        """_send_morning_report() currently persists the Markdown report to
+        a local file; this regression test locks in that observable
+        behavior. No comms delivery is implemented."""
+        import jarvis.workers.night_shift as mod
+        monkeypatch.setattr(mod, "_TASKS_FILE", tmp_path / "tasks.json")
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "appdata"))
+
+        worker = NightShiftWorker(is_mock=True)
+        task = worker.add_task("Report Delivery Test", "test")
+        task.status = "completed"
+        task.result = {
+            "steps_completed": 0, "all_success": True,
+            "elapsed_s": 0.1, "step_results": [],
+        }
+        report = worker.generate_report(task)
+
+        worker._send_morning_report(task, report)
+
+        expected_path = tmp_path / "appdata" / "JARVIS" / "logs" / f"night_report_{task.task_id}.md"
+        assert expected_path.exists()
+        assert expected_path.read_text(encoding="utf-8") == report
+

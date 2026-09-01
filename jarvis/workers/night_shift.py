@@ -9,7 +9,7 @@ Features:
   - Threading.Timer-based scheduled execution
   - Step-by-step execution with per-step results
   - Markdown report generation
-  - Telegram notification on completion
+  - Local Markdown report persistence after scheduled completion
   - Persistence via logs/night_shift_tasks.json
 """
 from __future__ import annotations
@@ -324,7 +324,7 @@ class NightShiftWorker:
                 log.error("Night shift task '%s' execution error: %s", task_id, exc)
 
     def _send_morning_report(self, task: NightShiftTask, report: str) -> None:
-        """Send report via Telegram if configured."""
+        """Persist the completed task report to the local JARVIS logs directory."""
         try:
             local_app_data = os.environ.get("LOCALAPPDATA", "")
             base_dir = Path(local_app_data) / "JARVIS" / "logs" if local_app_data else Path.home() / ".jarvis" / "logs"
