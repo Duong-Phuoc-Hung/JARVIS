@@ -4,8 +4,8 @@
 
 [![CI Status](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/workflows/ci.yml/badge.svg)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
 [![Tests](https://img.shields.io/badge/tests-passing-00ff88?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
-[![Source Version](https://img.shields.io/badge/source%20version-4.1.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
-[![Latest Release](https://img.shields.io/badge/latest%20release-v4.0.1-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
+[![Source Version](https://img.shields.io/badge/source%20version-4.5.1-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
+[![Latest Release](https://img.shields.io/badge/latest%20release-v4.5.1-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?style=flat-square)](https://python.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%2064--bit-0078D4?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)](LICENSE)
@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding), ghi nhớ ngữ nghĩa theo thời gian thực (Semantic RAG Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>Phiên bản mã nguồn (source/runtime, `jarvis.__version__`): **4.1.0** · Bản phát hành chính thức (GitHub Release) mới nhất: **v4.0.1** · Lịch sử phát triển trong CHANGELOG đã đến mốc bảo trì **v4.3.2** — các mốc CHANGELOG là nhật ký phát triển, không phải bản phát hành chính thức.</sub>
+<sub>Phiên bản mã nguồn (source/runtime, `jarvis.__version__`): **4.5.1** · Bản phát hành chính thức (GitHub Release) mục tiêu: **v4.5.1** (bản phát hành chính thức trước đó: v4.0.1) · Lịch sử phát triển trong CHANGELOG đã đến mốc **v4.5.1 — bản đóng gói phát hành chính thức**, đóng gói các mốc bảo trì v4.4.0/v4.5.0 cùng phần hiệu chỉnh baseline đánh giá STT.</sub>
 
 </div>
 
@@ -24,7 +24,7 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 1. [✨ Tính Năng Nổi Bật](#-tính-năng-nổi-bật)
 2. [💻 Yêu Cầu Hệ Thống (Prerequisites)](#-yêu-cầu-hệ-thống-prerequisites)
 3. [🚀 Hướng Dẫn Cài Đặt Từng Bước (Step-by-Step Installation)](#-hướng-dẫn-cài-đặt-từng-bước-step-by-step-installation)
-4. [⚡ Dành Cho Người Dùng Cuối — Quick Start (Standalone Installer)](#-dành-cho-người-dùng-cuối--quick-start-standalone-installer)
+4. [⚡ Dành Cho Người Dùng Cuối — Quick Start (Standalone ZIP)](#-dành-cho-người-dùng-cuối--quick-start-standalone-zip)
 5. [🛠️ Dành Cho Nhà Phát Triển (Developer Setup)](#%EF%B8%8F-dành-cho-nhà-phát-triển-developer-setup)
 6. [🔧 Các Lỗi Thường Gặp & Cách Khắc Phục (Common Errors & Fixes)](#-các-lỗi-thường-gặp--cách-khắc-phục-common-errors--fixes)
 7. [⚙️ Cấu Hình `.env`](#%EF%B8%8F-cấu-hình-env)
@@ -187,20 +187,20 @@ Sau khi khởi chạy:
 
 ---
 
-## ⚡ Dành Cho Người Dùng Cuối — Quick Start (Standalone Installer)
+## ⚡ Dành Cho Người Dùng Cuối — Quick Start (Standalone ZIP)
 
-Nếu bạn không muốn cài đặt Python hoặc cấu hình dòng lệnh, bạn có thể sử dụng bộ cài đặt độc lập:
+Nếu bạn không muốn cài đặt Python hoặc cấu hình dòng lệnh, bạn có thể sử dụng bản đóng gói độc lập (standalone `.exe` trong file ZIP — đây là artifact thật mà GitHub Actions release workflow phát hành; không có bộ cài đặt Setup Wizard đi kèm release chính thức):
 
-1. **Tải Bộ Cài Đặt:**
-   - Truy cập [Releases Page](https://github.com/Duong-Phuoc-Hung/JARVIS/releases) và tải file `JARVIS_Setup_v4.1.0.exe`.
-2. **Chạy Trình Cài Đặt (Setup Wizard):**
-   - Double-click vào `JARVIS_Setup_v4.1.0.exe` và làm theo các bước trên màn hình.
-   - Chọn đường dẫn cài đặt (mặc định: `C:\Program Files\JARVIS`).
-   - Tích chọn tạo shortcut ngoài Desktop và tự động khởi động cùng Windows.
+1. **Tải Bản Đóng Gói:**
+   - Truy cập [Releases Page](https://github.com/Duong-Phuoc-Hung/JARVIS/releases) và tải file `JARVIS_v4.5.1_windows_x64.zip`.
+2. **Giải Nén & Chạy:**
+   - Giải nén file ZIP vào thư mục bạn muốn (ví dụ: `C:\Program Files\JARVIS` hoặc bất kỳ thư mục nào).
+   - Double-click `JARVIS.exe`, hoặc chạy `JARVIS.exe --tray` để khởi động thẳng vào khay hệ thống.
+   - (Tùy chọn) Tự tạo shortcut ngoài Desktop hoặc thêm vào Startup folder của Windows nếu muốn tự động khởi động cùng máy — bản ZIP không tự làm việc này thay bạn.
 3. **Cấu Hình API Key:**
    - Điền Gemini API Key trong cửa sổ Settings ban đầu hoặc lưu vào `%LOCALAPPDATA%\JARVIS\.env`.
 4. **Sử Dụng Ngay:**
-   - Mở ứng dụng từ **Start Menu** hoặc icon **Desktop**.
+   - Mở `JARVIS.exe` từ thư mục đã giải nén, hoặc từ shortcut bạn tự tạo.
    - JARVIS sẽ chạy ngầm dưới khay hệ thống, không hiển thị cửa sổ console gây phiền toái.
 
 ---
@@ -255,7 +255,9 @@ mypy jarvis
 # 1. Đóng gói thành file chạy trực tiếp dist/JARVIS.exe:
 python scripts/build_exe.py
 
-# 2. Đóng gói thành file cài đặt Windows Installer dist/installer/JARVIS_Setup_v4.1.0.exe:
+# 2. Đóng gói thành file cài đặt Windows Installer dist/installer/JARVIS_Setup_v4.5.1.exe
+#    (chỉ build local qua Inno Setup — release workflow chính thức trên GitHub Actions
+#    KHÔNG publish file Setup này, chỉ publish JARVIS_v<version>_windows_x64.zip):
 python scripts/build_installer.py
 ```
 

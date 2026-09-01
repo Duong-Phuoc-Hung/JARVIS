@@ -2,6 +2,56 @@
 
 ---
 
+## 🚀 v4.5.1 — Official Patch Release (2026-09-02)
+
+> **Phân loại phiên bản (đọc kỹ trước khi diễn giải mục này)**: đây là **bản phát hành chính thức** (formal GitHub Release/tag), khác với các mốc CHANGELOG thuần phát triển ở trên/dưới. Package/runtime version (`jarvis.__version__`, `pyproject.toml`) trở thành **`4.5.1`**. Bản phát hành chính thức **trước đó** vẫn là `v4.0.1` — `v4.4.0` và `v4.5.0` (hai mục ngay bên dưới) chưa từng là release chính thức, chỉ là các mốc lịch sử phát triển trên `main`; chúng **không bị đổi tên, xóa, hay viết lại** — vẫn giữ nguyên làm bối cảnh lịch sử. `v4.5.1` là điểm đóng gói (release checkpoint) tổng hợp toàn bộ công việc bảo trì/bảo mật/ổn định đã tích lũy từ `v4.0.1` đến nay, bao gồm cả phần hiệu chỉnh baseline đánh giá STT mic thật từ PR #23.
+
+### A. Các fix production/ổn định đã merge trước PR #23
+
+- **E7**: fix crash `parse_intent(None)` (`AttributeError: 'NoneType' object has no attribute 'strip'` khi STT trả về `None`).
+- **E8**: fix `WakeWordDetector` kích hoạt nhầm (false-positive) trên pure tone 3kHz.
+- **E9**: fix vòng lặp phản hồi âm thanh (acoustic echo feedback loop) khiến JARVIS nói liên tục không dừng.
+- Xử lý subprocess an toàn UTF-8 (`jarvis/utils/subprocess_utils.py::run_safe()`, `encoding='utf-8', errors='replace'`) tại 23 vị trí `subprocess.run(text=True)` trước đó thiếu `encoding=`, cộng thêm `CREATE_NO_WINDOW` mặc định.
+- SecretsManager (Windows Credential Manager qua `keyring`) được wire thêm vào các module production: `jarvis/core/app.py`, `stt/engine.py`, `vision/screen.py`, `web/weather.py`, `agent/graph.py`, `workers/notification_hub.py`.
+- Mở rộng phát hiện emoji sang các dải BMP (`☀-➿`, `︀-️`).
+- Mở rộng Tier-1 `rule_engine` hiện tại (13 rule mới cho nhóm stop/settings/screen-off) và eval routing text-only N=152 (`tests/eval/routing_eval_n150.py`, Wilson CI — eval riêng, không phải bằng chứng âm học, xem mục B).
+- Dọn dẹp bộ test (~44 lỗi → 0 lỗi trên các nhóm router/subprocess/emoji/async/cv2-optional/psutil/ReDoS-timing).
+- Script kiểm tra môi trường mới: `scripts/system_diagnostic.ps1`.
+
+Chi tiết đầy đủ từng mục: xem hai mục `v4.5.0` và `v4.4.0` ngay bên dưới.
+
+### B. Hiệu chỉnh baseline đánh giá STT mic thật (PR #23, nhánh `eval/stt-real-mic-baseline-correction`)
+
+Taxonomy lịch sử 3 nhánh (`CORRECT`/`MISROUTED`/`SILENT_FAILURE`) được phân rã lại thành 4 nhánh xác định trực tiếp từ dữ liệu, không suy luận:
+
+- `CORRECT` = router action khớp action mong đợi
+- `MISROUTED` = transcript không rỗng, router chọn sai action
+- `STT_EMPTY` = transcript rỗng hoàn toàn
+- `ROUTER_ABSTAIN` = transcript không rỗng nhưng router không khớp từ khóa nào
+
+Áp dụng lên toàn bộ 180 dòng đánh giá lịch sử (90 bản ghi mic thật × 2 model `small`/`large-v3`):
+
+| Outcome | N | Tỷ lệ |
+|---|---:|---:|
+| CORRECT | 42 | 23.3% |
+| MISROUTED | 4 | 2.2% |
+| STT_EMPTY | 3 | 1.7% |
+| ROUTER_ABSTAIN | 131 | 72.8% |
+
+Chỉ **3/180** dòng là transcript rỗng thật sự; **131/180** là transcript không rỗng nhưng router không khớp được. Một metric phụ trợ đo độ tương đồng token (`tests/eval/failure_decomposition.py::compute_text_similarity_stats()`) đã được tính cho toàn bộ 180 dòng — kết quả cho thấy nhiều transcript không rỗng vẫn sai lệch đáng kể so với câu đã nói (similarity trung bình ~0.17, riêng nhóm `ROUTER_ABSTAIN` ~0.115) — đây là bằng chứng bổ sung, không phải kết luận nhân quả dứt khoát giữa lỗi nhận dạng âm học và việc router khớp từ khóa quá cứng nhắc. Hai file bằng chứng lịch sử gốc (`docs/eval/stt_eval_results.json`, `stt_eval_summaries.json`) **không bị sửa hay ghi đè**. Không có threshold STT production nào (`no_speech_threshold`, `log_prob_threshold`, `compression_ratio_threshold`, `beam_size` mặc định) bị chỉnh trong quá trình hiệu chỉnh này.
+
+**Không được suy diễn** rằng "chỉ 3/180 dòng rỗng nên chất lượng nhận dạng STT là tốt" — metric tương đồng văn bản ở trên cho thấy điều ngược lại: phần lớn transcript không rỗng vẫn sai đáng kể. Xem `docs/eval/stt_eval_failure_decomposition.md` để biết đầy đủ.
+
+### C. Kiểm thử (số liệu xác thực trên nhánh release, chạy sau khi cập nhật `jarvis.__version__` lên `4.5.1`)
+
+Toàn bộ `tests/unit/` (số liệu terminal thật của pytest): **1085 collected, 1085 passed, 0 failed, 0 skipped** (cộng 50 subtests passed). `python -c "import jarvis; print(jarvis.__version__)"` → `4.5.1`.
+
+### Không tuyên bố
+
+Bản phát hành này **không** tuyên bố "an toàn tuyệt đối", "production hoàn hảo", hay suy ra "chất lượng nhận dạng STT đã tốt" chỉ vì tỷ lệ transcript rỗng thấp — xem mục B ở trên. Đây là một bản đóng gói bảo trì/ổn định, không phải một tuyên bố hoàn thiện toàn hệ thống.
+
+---
+
 ## 🔧 v4.5.0 — E9 Echo Fix + SecretsManager + Test Suite Hoàn Chỉnh (2026-09-02)
 
 > **Commits:** `89e4c7d` → `29e8ade` → `1b1c847` → `442ed0f` | **Branch:** `main`
