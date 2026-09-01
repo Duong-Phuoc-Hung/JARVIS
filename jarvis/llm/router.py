@@ -824,6 +824,96 @@ class LLMIntentRouter:
                 danger_level="LOW",
             ),
 
+            # 7. Stop / Dừng (Category 7) — maps to lock screen as "stop session"
+            "dừng lại": IntentResult(
+                action_name="system_power",
+                parameters={"action": "lock"},
+                source="rule_fallback",
+                response_text="Đã dừng phiên làm việc và khóa màn hình, thưa Ngài.",
+                requires_confirmation=False,
+                danger_level="LOW",
+            ),
+            "dừng": IntentResult(
+                action_name="system_power",
+                parameters={"action": "lock"},
+                source="rule_fallback",
+                response_text="Đã dừng phiên làm việc và khóa màn hình, thưa Ngài.",
+                requires_confirmation=False,
+                danger_level="LOW",
+            ),
+            "dung lai": IntentResult(  # no-diacritic fallback for STT garbling
+                action_name="system_power",
+                parameters={"action": "lock"},
+                source="rule_fallback",
+                response_text="Đã dừng phiên làm việc và khóa màn hình, thưa Ngài.",
+                requires_confirmation=False,
+                danger_level="LOW",
+            ),
+
+            # 8. Settings Open (Category 8)
+            "mở cài đặt": IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "Settings", "app": "ms-settings:"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+            "cài đặt": IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "Settings", "app": "ms-settings:"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+            "mở settings": IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "Settings", "app": "ms-settings:"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+            "open settings": IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "Settings", "app": "ms-settings:"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+            "cai dat": IntentResult(  # no-diacritic fallback
+                action_name="app_open",
+                parameters={"app_name": "Settings", "app": "ms-settings:"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+
+            # 9. Screen Off (Category 9)
+            "tắt màn hình": IntentResult(
+                action_name="system_brightness",
+                parameters={"level": 0},
+                source="rule_fallback",
+                response_text="Đang tắt màn hình cho Ngài.",
+            ),
+            "tắt monitor": IntentResult(
+                action_name="system_brightness",
+                parameters={"level": 0},
+                source="rule_fallback",
+                response_text="Đang tắt màn hình cho Ngài.",
+            ),
+            "tắt màn": IntentResult(
+                action_name="system_brightness",
+                parameters={"level": 0},
+                source="rule_fallback",
+                response_text="Đang tắt màn hình cho Ngài.",
+            ),
+            "turn off screen": IntentResult(
+                action_name="system_brightness",
+                parameters={"level": 0},
+                source="rule_fallback",
+                response_text="Đang tắt màn hình cho Ngài.",
+            ),
+            "tat man hinh": IntentResult(  # no-diacritic fallback
+                action_name="system_brightness",
+                parameters={"level": 0},
+                source="rule_fallback",
+                response_text="Đang tắt màn hình cho Ngài.",
+            ),
+
             # Workflows
             "quét mạng nội bộ": IntentResult(
                 action_name="security_nmap_scan",
@@ -1849,6 +1939,16 @@ class LLMIntentRouter:
         Parses user voice/text query into structured tool calling IntentResult.
         Executes Two-Tier pipeline: Fast Rules -> LLM Tool Call -> Fallback Rules.
         """
+        # Guard: None input (e.g. STT silence/timeout returning None)
+        if text is None:
+            return IntentResult(
+                action_name="unknown_intent",
+                parameters={},
+                confidence=0.0,
+                source="rule_fast_path",
+                raw_text="",
+                response_text="",  # Silence → no TTS; caller decides UX
+            )
         clean = text.strip()
         clean_lower_full = clean.lower()  # Full text — safe for plain substring 'in' checks
         # Truncate for REGEX only to prevent ReDoS on long inputs (e.g. 50KB adversarial strings).

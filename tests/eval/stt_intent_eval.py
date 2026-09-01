@@ -47,20 +47,20 @@ if sys.platform == "win32":
                     os.environ["PATH"] = _bd + os.pathsep + os.environ["PATH"]
 
 INTENT_TEST_SET: dict[str, list[str]] = {
-    "open_app":       ["mo chrome","mo ung dung chrome","mo notepad","mo spotify","launch spotify"],
-    "system_shutdown":["tat may tinh","shutdown may","tat nguon"],
-    "system_restart": ["khoi dong lai may","restart may tinh","reboot"],
-    "volume_control": ["tang am luong","giam am luong","dieu chinh am luong","tat tieng","mute"],
-    "weather_query":  ["thoi tiet hom nay","thoi tiet ngay mai","du bao thoi tiet","troi hom nay"],
-    "timer_set":      ["hen gio 5 phut","dat timer 10 phut","nhac toi sau 15 phut"],
-    "reminder_set":   ["nhac nho luc 3 gio","dat nhac luc 8 gio sang"],
-    "screenshot":     ["chup man hinh","chup anh man hinh","screenshot"],
-    "stop":           ["dung lai","stop","thoi","huy"],
-    "search":         ["tim kiem google","tim file word","search chrome","tim kiem youtube"],
-    "music_play":     ["mo nhac","phat nhac","play music"],
-    "screen_off":     ["tat man hinh","turn off monitor"],
-    "note_take":      ["ghi chu","tao ghi chu moi"],
-    "settings_open":  ["mo cai dat","open settings"],
+    "open_app":       ["mo chrome", "mo ung dung chrome", "mo notepad"],
+    "system_shutdown":["tat may tinh", "shutdown may", "tat nguon"],
+    "system_restart": ["khoi dong lai may", "restart may tinh", "reboot"],
+    "volume_control": ["tang am luong", "giam am luong", "dieu chinh am luong", "tat tieng", "mute"],
+    "weather_query":  ["thoi tiet hom nay", "thoi tiet ngay mai", "du bao thoi tiet", "troi hom nay"],
+    "timer_set":      ["hen gio 5 phut", "dat timer 10 phut", "nhac toi sau 15 phut"],
+    "reminder_set":   ["nhac nho luc 3 gio", "dat nhac luc 8 gio sang"],
+    "screenshot":     ["chup man hinh", "chup anh man hinh", "screenshot"],
+    "stop":           ["dung lai", "stop", "thoi", "huy"],
+    "search":         ["tim kiem google", "tim file word", "search chrome", "tim kiem youtube"],
+    "music_play":     ["mo nhac", "phat nhac", "play music", "mo spotify", "launch spotify"],  # Spotify moved here (taxonomy fix)
+    "screen_off":     ["tat man hinh", "turn off monitor"],
+    "note_take":      ["ghi chu", "tao ghi chu moi"],
+    "settings_open":  ["mo cai dat", "open settings"],
 }
 
 Outcome = Literal["CORRECT","MISROUTED","SILENT_FAILURE"]

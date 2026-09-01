@@ -8,6 +8,7 @@ R3 (Screen Vision), and R4 (Computer Control).
 from __future__ import annotations
 
 import concurrent.futures
+import ctypes
 import io
 import math
 import os

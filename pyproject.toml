@@ -1,4 +1,4 @@
-[build-system]
+﻿[build-system]
 requires = ["setuptools>=72", "wheel"]
 build-backend = "setuptools.build_meta"
 
@@ -66,7 +66,7 @@ gestures = [
     "mediapipe>=0.10,<1",
 ]
 dev = [
-    "pytest>=8.0,<9",
+    "pytest-env>=1.1,`n    pytest>=8.0,<9",
     "pytest-subtests>=0.12",
     "pytest-timeout>=2.2",
     "pytest-cov>=5.0",
@@ -125,7 +125,15 @@ filterwarnings = [
 markers = [
     "slow: marks tests as slow (deselect with '-m not slow')",
     "integration: marks integration tests",
+    "real_os: marks tests requiring real OS-level isolation (Job Object, MIC, AppContainer)",
     "requires_audio: marks tests requiring audio hardware",
+]
+# Fix UnicodeDecodeError on Windows Vietnamese locale (cp1252 cannot decode UTF-8 bytes).
+# PYTHONUTF8=1 sets UTF-8 mode for all Python I/O including subprocess pipe reads.
+# PYTHONIOENCODING=utf-8 ensures stdin/stdout/stderr use UTF-8 in test subprocesses.
+env = [
+    "PYTHONUTF8=1",
+    "PYTHONIOENCODING=utf-8",
 ]
 
 [tool.coverage.run]
