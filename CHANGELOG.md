@@ -2,6 +2,30 @@
 
 ---
 
+## 🚀 Chưa phát hành (2026-09-01) — Night Shift Audit Documentation Reality Sync
+
+### 📝 docs(night-shift): align audit with runtime behavior
+
+Documentation-only. No production code changed.
+
+`docs/night_shift_audit.md` described a fixed "02:00–05:00 AM" execution window and described `[web_search]`/`[notify]`/the per-step `[generate_report]` type as performing real external work (search-API queries with `PromptGuard` sanitization, comms-channel notification posting, and shell-free report synthesis respectively). None of that matched `jarvis/workers/night_shift.py` as written:
+
+- `NightShiftTask.scheduled_time` defaults to `"23:00"`; `NightShiftWorker.add_task()` accepts any caller-supplied time; `_schedule_task()` has no time-of-day range check at all — no 02:00–05:00 window is enforced anywhere in code.
+- `NightShiftTask.report_time` (default `"07:00"`) is stored task metadata only — it is never read by `_schedule_task()` or anything else in the module.
+- `[web_search]` and `[notify]` are currently placeholders: each returns a canned confirmation string with no network call, no `PromptGuard` invocation, and no comms-channel delivery.
+- The per-step `[generate_report]` type is also a placeholder; the real Markdown report is synthesized separately by `NightShiftWorker.generate_report(task)`, called once at the end of `execute_task()`.
+- `[save_file]` writes directly from the host process (plain `Path.write_text()`), not routed through `CodeInterpreterSandbox` — the sandbox's directory-allowlisting preamble does not apply to it.
+- `_send_morning_report()`'s own docstring claims Telegram delivery; the actual implementation only writes the report to a local `.md` file.
+- The `[calculate]`/`[compute]`/`[analyze]`/`[analysis]`/`[code]`/`[script]` step types, and the underlying 6-layer `CodeInterpreterSandbox` defense framework, were independently re-verified accurate and are unchanged.
+
+`docs/night_shift_audit.md` corrected in place (all required audit sections — "Night Shift Daemon Security Audit", "Daemon State", "Sandbox Restriction", "Audit Conclusion" — preserved). A minimal footnote annotation was added to this file's own historical R2 entry below (2026-08-31) rather than rewriting it. `CLAUDE.md` and `docs/PROJECT_STATE.md` updated to match.
+
+2 new regression tests added to `tests/unit/test_night_planner.py`: `test_schedule_task_ignores_report_time` (proves `report_time` has no effect on the computed scheduling delay) and `test_send_morning_report_writes_file_only` (proves the actual observable report-delivery behavior is a local file write).
+
+Validation: `tests/unit/test_night_planner.py` — 22 passed. `tests/e2e/test_r2_night_shift_e2e.py` — 10 passed (including `test_r2_audit_documentation_structure_and_verdict`, confirming the audit document's required sections remain intact). Full `tests/unit/` — 1008 collected, 1008 passed, 0 failed.
+
+---
+
 ## 🚀 Chưa phát hành (2026-09-01) — Version Metadata Semantics & Single-Source Consistency
 
 ### 🔧 chore(version): clarify and single-source metadata
@@ -198,10 +222,12 @@ Cách dùng: thu âm → đặt vào `tests/eval/audio/{clean,noisy}/{intent}/va
 
 ### 🔴 R2 — Night Shift Daemon: Audit & Sandbox Isolation
 
-**`jarvis/workers/night_shift.py`** — Daemon chạy 2–5h sáng lần đầu được audit chính thức:
+**`jarvis/workers/night_shift.py`** — Daemon chạy 2–5h sáng lần đầu được audit chính thức: [^night-shift-window-correction]
 - `docs/night_shift_audit.md`: báo cáo audit với filesystem assertion tests thật
 - Sandbox restriction bổ sung tương đương skill executors
 - Test: `tests/e2e/test_r2_night_shift_e2e.py` (`@pytest.mark.real_os`)
+
+[^night-shift-window-correction]: **Correction (2026-09-01):** the "2–5h sáng" (02:00–05:00 AM) execution window described here was never actually enforced in code — `NightShiftTask.scheduled_time` defaults to `"23:00"` and `NightShiftWorker.add_task()` accepts any caller-supplied time, with no time-of-day range check anywhere in `jarvis/workers/night_shift.py`. This historical entry is left otherwise unchanged; see `docs/night_shift_audit.md` and CLAUDE.md for the corrected, current description.
 
 ### 🔴 R3 — AppContainer B2: Kernel-level Socket Blocking Verified
 

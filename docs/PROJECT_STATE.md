@@ -188,11 +188,35 @@ task, not bundled into a documentation-only sync):**
    scope. The task's own prescribed `pip wheel` fallback was used instead and works correctly.)
    See `CHANGELOG.md`'s "Version Metadata Semantics & Single-Source Consistency" entry and
    CLAUDE.md's "Version metadata" invariants in §1A for full detail.
-3. `docs/night_shift_audit.md`/`CHANGELOG.md` describe Night Shift as a "02:00–05:00 AM"
-   execution window; the actual `NightShiftTask` implementation defaults to
-   `scheduled_time="23:00"`/`report_time="07:00"` and accepts any arbitrary caller-supplied
-   time — no enforced 2-5am window exists in code. This is documentation drift; correct the
-   docs in a focused change, unless an actually-enforced window is separately desired.
+3. **DONE (2026-09-01, branch `docs/night-shift-runtime-reality`) — audit doc aligned with
+   actual scheduler/reporting behavior; no production code changed.** Confirmed against source
+   (not assumed): `NightShiftTask.scheduled_time` defaults to `"23:00"`; `add_task()` accepts any
+   caller-supplied `"HH:MM"`; `_schedule_task()` has no time-of-day range check anywhere — there
+   is no enforced 02:00–05:00 (or any other) window. `NightShiftTask.report_time` (default
+   `"07:00"`) is confirmed **stored task metadata only** — never read by `_schedule_task()` or
+   anywhere else in the module (repo-wide grep, 3 total occurrences, all definition/plumbing, zero
+   reads). Two further inaccuracies found beyond the original follow-up's scope and corrected in
+   the same pass: (a) `docs/night_shift_audit.md` described `[web_search]` as querying real search
+   APIs through `PromptGuard.sanitize()` and `[notify]` as posting to comms channels — both are
+   currently placeholders returning a canned confirmation string with no network/PromptGuard/comms
+   call (`night_shift.py` imports neither `PromptGuard` nor any network module); (b)
+   `_send_morning_report()`'s own docstring claims Telegram delivery, but the implementation only
+   writes the report to a local `.md` file — no comms delivery is implemented today. The
+   `[calculate]`/`[compute]`/`[analyze]`/`[analysis]`/`[code]`/`[script]` step types and the
+   underlying 6-layer `CodeInterpreterSandbox` defense framework were independently re-verified
+   accurate and left unchanged (still the Restricted-Token/Low-Integrity backend documented
+   elsewhere in this file — not AppContainer). `docs/night_shift_audit.md` corrected in place
+   (all 4 sections required by `tests/e2e/test_r2_night_shift_e2e.py::test_r2_audit_documentation_structure_and_verdict`
+   preserved verbatim); `CHANGELOG.md`'s historical v4.2.0/R2 entry received a minimal footnote
+   annotation rather than a rewrite; `CLAUDE.md` gained a "Night Shift" durable-invariant entry in
+   §1A. 2 new regression tests added to `tests/unit/test_night_planner.py`:
+   `test_schedule_task_ignores_report_time` and `test_send_morning_report_writes_file_only`.
+   Evidence this session: `tests/unit/test_night_planner.py` — 22 passed;
+   `tests/e2e/test_r2_night_shift_e2e.py` — 10 passed; full `tests/unit/` — 1008 collected, 1008
+   passed, 0 failed; `ruff check`/`py_compile` clean; `git diff --check` flagged 2 lines in
+   `docs/night_shift_audit.md` for trailing whitespace — both are intentional Markdown hard-line-break
+   syntax (trailing double-space) matching the exact pre-existing convention already used by that
+   file's unmodified "Target Component"/"Auditor"/"Verdict" header lines, not a defect.
 4. Evaluate STT accuracy/latency improvements using the now-committed real-microphone dataset
    (`tests/eval/audio/`) rather than any synthetic proxy.
 5. Decide whether `spawn_appcontainer_process()` should become (or be added alongside) the

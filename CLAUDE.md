@@ -70,6 +70,15 @@ Summarized invariants, verified directly against code as of commit `a370633` (v4
 
 No file in the repository declares a second hardcoded numeric package/application-version literal outside the single canonical `jarvis.__version__` source — the historical `installer/setup.iss` `#define AppVersion "4.1.0"` and `jarvis/ui/dashboard.py`'s hardcoded `"version": "1.0.0"` were both confirmed real application-version displays (not independent schema/protocol/component versions) and fixed to derive from `jarvis.__version__`, per items 2 and 7 above.
 
+**Night Shift** (`jarvis/workers/night_shift.py`; see `docs/night_shift_audit.md` for the full corrected audit, `tests/unit/test_night_planner.py` for the locking regression tests):
+- `NightShiftTask.scheduled_time` defaults to `"23:00"`; `NightShiftWorker.add_task()` accepts any caller-supplied `"HH:MM"` string; `_schedule_task()` schedules for that time today (or tomorrow if it has already passed) with **no time-of-day range check anywhere in the code** — there is no 02:00–05:00 (or any other) enforced execution window. Do not describe Night Shift as running in a fixed overnight window without checking this file first.
+- `NightShiftTask.report_time` (default `"07:00"`) is **stored task metadata only** — confirmed by repo-wide grep, it is never read by `_schedule_task()` or anywhere else in the module. Do not describe it as controlling when the report is sent.
+- Step types are a mix of real and placeholder behavior — do not describe all step types as equally implemented:
+  - Real, sandboxed: `calculate`/`compute` and `analyze`/`analysis`/`code`/`script` route through `CodeInterpreterSandbox.execute_python()` (same Restricted-Token/Low-Integrity backend documented in §8.2 — not AppContainer).
+  - Real, but *not* sandboxed: `save_file` writes directly from the host JARVIS process via plain `Path.write_text()` — the sandbox's directory-allowlisting preamble does not apply to it.
+  - Placeholder (canned confirmation string, no real external work): `web_search` (no search API call, no `PromptGuard` — the module doesn't import either), `notify` (no comms-channel delivery), the per-step `generate_report` type (no synthesis — the real Markdown report comes from the separate `NightShiftWorker.generate_report(task)` method, called once at the end of `execute_task()`), and any other/unrecognized step type.
+- `_send_morning_report()`'s docstring says "Send report via Telegram if configured," but the implementation only writes the report to a local `.md` file — **no Telegram/comms delivery is implemented today.** Do not describe report delivery as reaching Telegram or any other channel.
+
 ## 2. Startup procedure for every new Claude Code session
 
 Before editing:
