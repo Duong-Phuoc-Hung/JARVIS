@@ -26,11 +26,11 @@ Repository:
 - `Duong-Phuoc-Hung/JARVIS`
 - Default branch: `main`
 
-> **Current baseline note:** `main`'s `CHANGELOG.md` development history currently reaches **v4.3.1-era** work (real-microphone STT evaluation, sandbox/security hardening, `PromptGuard`, comms rate limiting, email IMAP hardening, Secrets Manager — see `docs/PROJECT_STATE.md` section 0 for the current checkpoint and exact commit). CHANGELOG milestone headings like "v4.3.1" are **development-history labels, not formal releases** — the latest actual formal GitHub Release/tag remains `v4.0.1`. `config/default_config.yaml`'s `system.version` (`1.0.0`) is a separate, currently-unused field (see §1A) and is not expected to track `jarvis.__version__`. Sections 4, 7, 9, and 10 below are **historical v4.0.1 release record**, kept for context; do not read them as describing the current `main`. Always trust `docs/PROJECT_STATE.md` and actual Git state for the current baseline.
+> **Current baseline note:** `main`'s `CHANGELOG.md` development history currently reaches **v4.3.2-era** work — a maintenance milestone (ProactiveConfig fallback-default single-source fix, package/runtime/installer/dashboard version-metadata single-source semantics, Night Shift scheduler/reporting documentation reality sync) layered on top of the earlier v4.3.1-era work (real-microphone STT evaluation, sandbox/security hardening, `PromptGuard`, comms rate limiting, email IMAP hardening, Secrets Manager — see `docs/PROJECT_STATE.md` section 0 for the current checkpoint and exact commit). CHANGELOG milestone headings like "v4.3.1"/"v4.3.2" are **development-history labels, not formal releases** — the latest actual formal GitHub Release/tag remains `v4.0.1`, and the package/runtime version (`jarvis.__version__`, `pyproject.toml`) remains `4.1.0` — neither was bumped by the v4.3.2 milestone. `config/default_config.yaml`'s `system.version` (`1.0.0`) is a separate, currently-unused field (see §1A) and is not expected to track `jarvis.__version__`. Sections 4, 7, 9, and 10 below are **historical v4.0.1 release record**, kept for context; do not read them as describing the current `main`. Always trust `docs/PROJECT_STATE.md` and actual Git state for the current baseline.
 
 ## 1A. Durable current-baseline invariants (keep current across sessions)
 
-Summarized invariants, verified directly against code as of commit `a370633` (v4.3.1-era `CHANGELOG.md` state). Full rationale and file:line citations live in the referenced subsections below — update both together if either changes.
+Summarized invariants, verified directly against code as of commit `1ad5b6d` (v4.3.2-era `CHANGELOG.md` state) — first established at commit `a370633` (v4.3.1-era) and kept current through the ProactiveConfig, version-metadata, and Night Shift maintenance workstreams. Full rationale and file:line citations live in the referenced subsections below — update both together if either changes.
 
 **Safety** (see §8.3):
 - LLM output alone never authorizes destructive/high-risk action execution — `SafetyGateInterceptor.is_high_risk()` is a deterministic classifier (name sets, regexes, prefix matching), never an LLM decision.
@@ -100,7 +100,7 @@ Source-of-truth priority:
 4. `CHANGELOG.md`.
 5. `pyproject.toml`, workflow files, `README.md`, `PROJECT.md`, `.agents/**` — useful for structure/config, but test-count strings in particular are known to drift and should not be trusted as current-state evidence over 1-4 above. (`pyproject.toml`'s version is no longer a separate literal to drift — see "Version metadata" in §1A.)
 
-Some historical docs are stale. `jarvis.__version__`/`pyproject.toml` intentionally do not track `CHANGELOG.md`'s development-milestone headings (v4.3.1-era work) or the latest formal GitHub Release (`v4.0.1`) — these are three distinct concepts, not one drifting number; see "Version metadata" in §1A. Do not silently "bump" any of them as a side effect of an unrelated task; only change version strings when the user gives explicit release/versioning intent.
+Some historical docs are stale. `jarvis.__version__`/`pyproject.toml` intentionally do not track `CHANGELOG.md`'s development-milestone headings (currently v4.3.2-era work) or the latest formal GitHub Release (`v4.0.1`) — these are three distinct concepts, not one drifting number; see "Version metadata" in §1A. Do not silently "bump" any of them as a side effect of an unrelated task; only change version strings when the user gives explicit release/versioning intent.
 
 ## 3. Git safety rules
 
@@ -154,14 +154,9 @@ At snapshot time:
 
 ## 5. CI baseline
 
-**Current baseline** — commit `a370633e91be0e2e4c8cf9612e522e7889f7bad3`, GitHub Actions CI run #108, externally verified (not personally re-executed by an agent unless a session states otherwise):
-```text
-993 collected
-990 passed
-3 skipped
-0 failed
-```
-All four jobs green: Syntax Check, Unit Tests, Import Validation, Pipeline Summary.
+**Current baseline** — commit `1ad5b6d246d86ad2cb3af40840b13dd576041815` (v4.3.2-era, merge of PR #20), GitHub Actions CI run #120, externally verified: **conclusion `success`**, all four jobs passed (Syntax Check, Unit Tests, Import Validation, Pipeline Summary). The exact collected/passed/skipped/failed counts for run #120 specifically were not independently pulled from that run's logs — do not invent them. The most recent **locally**-verified full `tests/unit/` evidence (from the Night Shift reality-sync work merged in PR #20, run on that branch before merge — labeled LOCAL, not CI run #120's own count): 1008 collected, 1008 passed, 0 failed.
+
+**Historical baseline (a370633-era, superseded — kept for context only, do not cite as current):** CI run #108: 993 collected, 990 passed, 3 skipped, 0 failed, all four jobs green.
 
 Workflow: `.github/workflows/ci.yml`
 
@@ -187,7 +182,7 @@ python -m pytest tests/unit/ -q --timeout=60 --tb=short
 
 Known cosmetic inconsistency (still present, non-blocking):
 - CI step is still named `Run 633 tests`.
-- Actual current collected count is 993 (see above), not 633.
+- Actual current collected count is well above 633 (see the current/historical baselines above), not 633.
 
 **Historical baseline (v4.0.1-era, superseded — kept for context only, do not cite as current):**
 - `tests/unit/`: 647 passed, 46 subtests, 0 failed.
