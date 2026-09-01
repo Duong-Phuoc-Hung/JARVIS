@@ -6,7 +6,7 @@
 
 ### 📝 docs(night-shift): align audit with runtime behavior
 
-Documentation-only. No production code changed.
+Documentation-focused. No production behavior/runtime logic changed — `jarvis/workers/night_shift.py` had two stale docstrings/comments corrected (module `Features:` list, `_send_morning_report()`'s docstring), no code path or logic touched.
 
 `docs/night_shift_audit.md` described a fixed "02:00–05:00 AM" execution window and described `[web_search]`/`[notify]`/the per-step `[generate_report]` type as performing real external work (search-API queries with `PromptGuard` sanitization, comms-channel notification posting, and shell-free report synthesis respectively). None of that matched `jarvis/workers/night_shift.py` as written:
 
@@ -15,7 +15,7 @@ Documentation-only. No production code changed.
 - `[web_search]` and `[notify]` are currently placeholders: each returns a canned confirmation string with no network call, no `PromptGuard` invocation, and no comms-channel delivery.
 - The per-step `[generate_report]` type is also a placeholder; the real Markdown report is synthesized separately by `NightShiftWorker.generate_report(task)`, called once at the end of `execute_task()`.
 - `[save_file]` writes directly from the host process (plain `Path.write_text()`), not routed through `CodeInterpreterSandbox` — the sandbox's directory-allowlisting preamble does not apply to it.
-- `_send_morning_report()`'s own docstring claims Telegram delivery; the actual implementation only writes the report to a local `.md` file.
+- `_send_morning_report()` previously had a stale Telegram-delivery docstring; that docstring has been corrected to describe what the implementation actually does — writes the report to a local `.md` file. No comms delivery is implemented.
 - The `[calculate]`/`[compute]`/`[analyze]`/`[analysis]`/`[code]`/`[script]` step types, and the underlying 6-layer `CodeInterpreterSandbox` defense framework, were independently re-verified accurate and are unchanged.
 
 `docs/night_shift_audit.md` corrected in place (all required audit sections — "Night Shift Daemon Security Audit", "Daemon State", "Sandbox Restriction", "Audit Conclusion" — preserved). A minimal footnote annotation was added to this file's own historical R2 entry below (2026-08-31) rather than rewriting it. `CLAUDE.md` and `docs/PROJECT_STATE.md` updated to match.

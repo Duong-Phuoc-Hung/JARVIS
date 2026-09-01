@@ -77,7 +77,7 @@ No file in the repository declares a second hardcoded numeric package/applicatio
   - Real, sandboxed: `calculate`/`compute` and `analyze`/`analysis`/`code`/`script` route through `CodeInterpreterSandbox.execute_python()` (same Restricted-Token/Low-Integrity backend documented in §8.2 — not AppContainer).
   - Real, but *not* sandboxed: `save_file` writes directly from the host JARVIS process via plain `Path.write_text()` — the sandbox's directory-allowlisting preamble does not apply to it.
   - Placeholder (canned confirmation string, no real external work): `web_search` (no search API call, no `PromptGuard` — the module doesn't import either), `notify` (no comms-channel delivery), the per-step `generate_report` type (no synthesis — the real Markdown report comes from the separate `NightShiftWorker.generate_report(task)` method, called once at the end of `execute_task()`), and any other/unrecognized step type.
-- `_send_morning_report()`'s docstring says "Send report via Telegram if configured," but the implementation only writes the report to a local `.md` file — **no Telegram/comms delivery is implemented today.** Do not describe report delivery as reaching Telegram or any other channel.
+- `_send_morning_report()`'s previous Telegram-delivery docstring ("Send report via Telegram if configured") was stale and has been corrected (2026-09-01) — both the docstring and the implementation now describe local Markdown persistence only. **No Telegram/comms delivery is implemented today.** Do not describe report delivery as reaching Telegram or any other channel.
 
 ## 2. Startup procedure for every new Claude Code session
 

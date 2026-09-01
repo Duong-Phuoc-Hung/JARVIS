@@ -212,9 +212,9 @@ class TestNightShiftSchedulingAndReportingReality:
         assert abs(captured_delays[0] - captured_delays[1]) < 2.0
 
     def test_send_morning_report_writes_file_only(self, tmp_path, monkeypatch):
-        """_send_morning_report()'s only observable effect today is writing
-        the Markdown report to a local file -- despite its own docstring
-        mentioning Telegram, no comms delivery is implemented."""
+        """_send_morning_report() currently persists the Markdown report to
+        a local file; this regression test locks in that observable
+        behavior. No comms delivery is implemented."""
         import jarvis.workers.night_shift as mod
         monkeypatch.setattr(mod, "_TASKS_FILE", tmp_path / "tasks.json")
         monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "appdata"))
