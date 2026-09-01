@@ -215,7 +215,7 @@ task, not bundled into a documentation-only sync):**
    annotation rather than a rewrite; `CLAUDE.md` gained a "Night Shift" durable-invariant entry in
    §1A. 2 new regression tests added to `tests/unit/test_night_planner.py`:
    `test_schedule_task_ignores_report_time` and `test_send_morning_report_writes_file_only`.
-   **Final validation evidence**, current as of this branch's third commit (which fixed
+   **Final validation evidence**, current as of the latest follow-up commit (which fixed
    "docstring still claims Telegram"-style wording that had been left describing the now-corrected
    `_send_morning_report()` docstring in present tense across `CLAUDE.md`/`CHANGELOG.md`/this
    entry/the audit doc/the new test's own docstring): `tests/unit/test_night_planner.py` — 22
