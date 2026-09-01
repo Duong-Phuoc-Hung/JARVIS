@@ -1580,7 +1580,7 @@ class LLMIntentRouter:
                 action_name="spotify",
                 parameters={"query": "", "name": "spotify"},
                 source="rule_fallback",
-                response_text="Đang mở Spotify cho Ngài.",
+                response_text="Đang mở Spotify và phát nhạc cho Ngài.",  # consistent with rule_engine entry
             )
         params = {"app_name": clean, "name": clean}
         return IntentResult(

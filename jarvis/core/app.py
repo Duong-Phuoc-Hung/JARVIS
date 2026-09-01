@@ -90,6 +90,9 @@ from jarvis.workers.notifications import WorkerNotificationDispatcher
 
 log = logging.getLogger("jarvis.core.app")
 
+# Secrets: read API keys from Windows Credential Manager first, fallback to .env
+from jarvis.security.secrets import get_secret  # noqa: E402
+
 
 # get_jarvis_data_dir is now in jarvis.core.paths
 from jarvis.core.paths import get_data_dir as get_jarvis_data_dir
@@ -243,8 +246,8 @@ class JarvisApp:
         # 6. Screen Vision Subsystem (R3)
         vis_cfg = self.config.get("vision", {})
         self.vision_manager = ScreenVisionManager(
-            gemini_api_key=vis_cfg.get("gemini_api_key") or os.environ.get("GEMINI_API_KEY", ""),
-            openai_api_key=vis_cfg.get("openai_api_key") or os.environ.get("OPENAI_API_KEY", ""),
+            gemini_api_key=vis_cfg.get("gemini_api_key") or get_secret("GEMINI_API_KEY") or "",
+            openai_api_key=vis_cfg.get("openai_api_key") or get_secret("OPENAI_API_KEY") or "",
             default_provider=vis_cfg.get("provider", "gemini"),
             gemini_model=vis_cfg.get("gemini_model", "gemini-1.5-flash"),
             openai_model=vis_cfg.get("openai_model", "gpt-4o"),
@@ -255,7 +258,7 @@ class JarvisApp:
         web_cfg = self.config.get("web", {})
         self.web_hub = WebIntelligenceHub(
             cache_ttl_seconds=float(web_cfg.get("cache_ttl_s", 600.0)),
-            weather_api_key=web_cfg.get("weather_api_key") or os.environ.get("OPENWEATHER_API_KEY", ""),
+            weather_api_key=web_cfg.get("weather_api_key") or get_secret("WEATHER_API_KEY") or "",
             default_city=web_cfg.get("default_city", "Hà Nội"),
         )
 
@@ -272,9 +275,13 @@ class JarvisApp:
 
         # 9. LLM Client & Intent Router (F-15 & R2)
         llm_cfg = self.config.get("llm", {})
+        _llm_provider = llm_cfg.get("provider", "openai")
+        _llm_secret_key = (
+            "GEMINI_API_KEY" if "gemini" in _llm_provider.lower() else "OPENAI_API_KEY"
+        )
         self.llm_client = LLMClient(
-            provider=llm_cfg.get("provider", "openai"),
-            api_key=llm_cfg.get("api_key", ""),
+            provider=_llm_provider,
+            api_key=llm_cfg.get("api_key") or get_secret(_llm_secret_key) or "",
             model=llm_cfg.get("model", "gpt-4o"),
         )
         self.llm_router = LLMIntentRouter(

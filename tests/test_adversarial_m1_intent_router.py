@@ -273,18 +273,18 @@ class TestFalsePositiveIsolation:
     @pytest.mark.parametrize(
         "utterance,expected_action",
         [
-            ("bat den phong khach", "home_assistant_call"),  # ASCII fallback to avoid encoding issues
-            ("tat quat phong khach", "home_assistant_call"),
-            ("kiem tra nhiet do cpu", "hardware_telemetry_check"),
-            ("tinh trang he thong", "hardware_status_query"),
-            ("mo spotify", "spotify"),
-            ("thoi tiet ha noi", "shell_exec"),
-            ("tat may tinh", "system_power"),
-            ("mo chrome", "app_open"),
-            ("mo youtube", "web_open"),
-            ("mo thu muc downloads", "folder_open"),
-            ("chup man hinh", "screen_capture"),
-            ("tang am luong", "system_volume"),
+            ("bật đèn phòng khách", "home_assistant_call"),
+            ("tắt quạt phòng khách", "home_assistant_call"),
+            ("kiểm tra nhiệt độ cpu", "hardware_telemetry_check"),
+            ("tình trạng hệ thống", "hardware_status_query"),
+            ("mở spotify", "spotify"),
+            ("thời tiết Hà Nội", "shell_exec"),
+            ("tắt máy tính", "system_power"),
+            ("mở chrome", "app_open"),
+            ("mở youtube", "web_open"),
+            ("mở thư mục downloads", "folder_open"),
+            ("chụp màn hình", "screen_capture"),
+            ("tăng âm lượng", "system_volume"),
         ],
     )
     def test_existing_core_intents_unaffected(self, router: LLMIntentRouter, utterance: str, expected_action: str):

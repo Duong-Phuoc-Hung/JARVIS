@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from jarvis.security.secrets import get_secret
+
 try:
     from PIL import Image, ImageGrab
     PIL_AVAILABLE = True
@@ -81,12 +83,12 @@ class ScreenVisionManager:
         self.gemini_api_key = (
             gemini_api_key
             if gemini_api_key is not None
-            else (os.environ.get("GEMINI_API_KEY") or os.environ.get("JARVIS_GEMINI_API_KEY", ""))
+            else (get_secret("GEMINI_API_KEY") or "")
         )
         self.openai_api_key = (
             openai_api_key
             if openai_api_key is not None
-            else (os.environ.get("OPENAI_API_KEY") or os.environ.get("JARVIS_OPENAI_API_KEY", ""))
+            else (get_secret("OPENAI_API_KEY") or "")
         )
         self.default_provider = default_provider.lower()
         self.gemini_model = gemini_model
