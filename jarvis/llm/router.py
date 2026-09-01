@@ -1960,8 +1960,16 @@ class LLMIntentRouter:
         # Early return for meaningless inputs — only check head to avoid processing 50KB
         import re as _re
         clean_head = clean_for_regex  # At most 512 chars
-        _clean_stripped = _re.sub(r'[\U00010000-\U0010ffff\U0001F600-\U0001F64F\U0001F300-\U0001F5FF'
-                                  r'\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\s]', '', clean_head)
+        _clean_stripped = _re.sub(
+            r'[\U00010000-\U0010ffff'   # Supplementary plane (most modern emoji: 🔥🚀🎉)
+            r'\U0001F600-\U0001F64F'    # Emoticons block
+            r'\U0001F300-\U0001F5FF'    # Misc Symbols & Pictographs
+            r'\U0001F680-\U0001F6FF'    # Transport & Map Symbols
+            r'\U0001F1E0-\U0001F1FF'    # Regional indicator / flags
+            r'\u2600-\u27BF'            # BMP emojis: Misc Symbols (⚡❄) + Dingbats (✨✅)
+            r'\uFE00-\uFE0F'            # Variation selectors (emoji modifier ️)
+            r'\s]', '', clean_head,
+        )
         _is_emoji_only = len(clean_head) > 0 and len(_clean_stripped) == 0
         _is_number_only = bool(_re.fullmatch(r'[\d\s\.\,\-\+]+', clean_head))
         if _is_emoji_only or _is_number_only:
