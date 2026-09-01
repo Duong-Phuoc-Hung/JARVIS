@@ -47,6 +47,25 @@ test-suite cleanup (~44 failures → 0); `CREATE_NO_WINDOW` added by default to
 `jarvis/utils/subprocess_utils.py::run_safe()`; and a new `scripts/system_diagnostic.ps1`.
 See CLAUDE.md's "Current baseline note" (§1) for the full breakdown.
 
+**Updated 2026-09-02 — v4.5.1 release prep (branch `release/v4.5.1`, based on `main` @
+`6666cd1`):** `eval/stt-real-mic-baseline-correction` (referenced throughout the paragraph
+above and elsewhere in this file) is no longer an active branch — it merged cleanly via
+**PR #23**, merge commit `6666cd15c25db4f372afcaa0b0628dee9dc5731d`, and post-merge GitHub
+Actions **CI #135** was verified **green (success)**. `main` before this release-prep work
+started: `6666cd15c25db4f372afcaa0b0628dee9dc5731d` (identical to the PR #23 merge commit —
+no other commits landed on `main` in between). This release-prep branch, `release/v4.5.1`,
+bumps `jarvis.__version__` to **`4.5.1`** and adds a new `v4.5.1` CHANGELOG section above
+`v4.5.0` — **v4.5.1 is the intended next official GitHub Release/tag**, packaging the
+v4.4.0/v4.5.0 CHANGELOG-milestone work described above plus PR #23's STT baseline
+correction into one release checkpoint. **The `v4.5.1` tag and GitHub Release have
+deliberately not been created yet** (separate follow-up action, explicitly out of scope for
+this release-prep commit) — until they exist, `v4.0.1` remains the actual latest formal
+release. Do not describe `v4.5.1` as published, and do not create the tag/release as a side
+effect of any other task without the user's explicit go-ahead. Full unit-suite evidence for
+this release-prep commit (`tests/unit/`, pytest's own terminal counts): **1085 collected,
+1085 passed, 0 failed, 0 skipped** (plus 50 subtests passed, unchanged from PR #23's own
+final evidence) — `python -c "import jarvis; print(jarvis.__version__)"` prints `4.5.1`.
+
 **Post-`d62cb61` evolution merged onto `main`:**
 
 - **v4.2.0 — Security Hardening & Stability (7 workstreams):** `__globals__` class-level
@@ -195,10 +214,11 @@ All four CI jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline S
     executed this session: CUDA hardware is present (`nvidia-smi` succeeds) but
     `faster-whisper`/`ctranslate2` are not installed in any available interpreter and no
     project venv with them was found — reported as not-executed rather than faked, per
-    AUDIT_METHODOLOGY.md. This branch (`eval/stt-real-mic-baseline-correction`) landed the
-    STT eval baseline correction across **two** pushed commits, each independently reviewed —
-    do not describe either one in isolation as the branch's "final" state; only the current
-    branch head (identified by SHA, updated below as the branch evolves) is current. Full
+    AUDIT_METHODOLOGY.md. Branch `eval/stt-real-mic-baseline-correction` (now merged into
+    `main` via **PR #23**, merge commit `6666cd15c25db4f372afcaa0b0628dee9dc5731d`, no
+    longer an active branch) landed the STT eval baseline correction across **two** pushed
+    commits, each independently reviewed — do not describe either one in isolation as the
+    final state; the merge commit above is what actually reached `main`. Full
     `tests/unit/` counts below are pytest's own terminal "collected"/pass-fail summary, NOT
     the JUnit XML `tests` attribute — see the dedicated correction note immediately below
     this list for why those differ.
