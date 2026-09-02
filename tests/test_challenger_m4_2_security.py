@@ -127,35 +127,33 @@ def test_scanner_and_capture_reject_unauthenticated_contexts(monkeypatch):
 ])
 def test_network_scanner_command_injection_resilience(malicious_target, monkeypatch):
     """
-    Verify that arbitrary injection strings passed as subnet targets are passed as a single
-    element in argument list to subprocess.run (shell=False) and do not trigger command execution.
+    [v4.5.2 scanner-scope-truthfulness hotfix] Verify that injection-laced
+    strings passed as scan targets are rejected by the private-range
+    target-scope validator BEFORE Nmap binary resolution or subprocess
+    execution is ever attempted. None of these strings are valid IPv4
+    addresses/CIDRs, so `validate_scan_target()` must reject them outright
+    -- the target never reaches Nmap at all, which is a strictly stronger
+    defense against injection via the scan target than merely proving the
+    payload survives intact as a single argv element.
     """
-    executed_commands = []
+    import jarvis.security.scanner as scanner_module
 
-    def mock_subprocess_run(cmd, *args, **kwargs):
-        executed_commands.append((cmd, kwargs))
-        assert kwargs.get("shell") is not True, "VULNERABILITY: shell=True detected in subprocess.run!"
-        assert malicious_target in cmd, f"Malicious payload was not kept intact: {cmd}"
-        
-        sample_xml = """<?xml version="1.0"?>
-        <nmaprun>
-          <host><status state="up"/><address addr="192.168.1.1" addrtype="ipv4"/></host>
-        </nmaprun>"""
-        mock_proc = MagicMock()
-        mock_proc.returncode = 0
-        mock_proc.stdout = sample_xml
-        return mock_proc
+    def _fail_resolve_nmap_binary(*args, **kwargs):
+        raise AssertionError("resolve_nmap_binary() must not be called for a rejected target")
 
-    monkeypatch.setattr(shutil, "which", lambda cmd: "C:\\Program Files\\Nmap\\nmap.exe")
-    monkeypatch.setattr(subprocess, "run", mock_subprocess_run)
+    def _fail_subprocess_run(*args, **kwargs):
+        raise AssertionError("subprocess.run() must not be called for a rejected target")
+
+    monkeypatch.setattr(scanner_module, "resolve_nmap_binary", _fail_resolve_nmap_binary)
+    monkeypatch.setattr(subprocess, "run", _fail_subprocess_run)
 
     scanner = NetworkScanner()
     res = scanner.scan_subnet(malicious_target)
 
-    assert len(executed_commands) == 1
-    cmd_list, kw = executed_commands[0]
-    assert cmd_list[-1] == malicious_target
-    assert res.status == "SUCCESS"
+    assert res.status == "TARGET_REJECTED"
+    assert res.hosts == []
+    assert res.total_hosts == 0
+    assert res.error_message
 
 
 @pytest.mark.parametrize("malicious_ports", [
