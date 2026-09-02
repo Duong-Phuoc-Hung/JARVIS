@@ -4,11 +4,12 @@ jarvis/audio/wake_word.py
 Offline Wake Word Detection Engine for JARVIS ("Hey JARVIS" / "JARVIS").
 Provides:
   - Multi-tier detection architecture:
-      * Tier 1: Offline lightweight keyword matching (Vosk, OpenWakeWord, Porcupine if available).
+      * Tier 1: Offline lightweight keyword matching (Vosk with Vietnamese model, Porcupine, OpenWakeWord).
+      * Tier 1.5: Whisper sliding-window STT keyword detector fallback (Faster-Whisper on speech-active windows).
       * Tier 2: Zero-dependency acoustic energy & spectral formant/fricative feature detector fallback (<1s latency).
   - Thread-safe audio block processing accepting 44.1kHz and 16kHz PCM audio frames.
   - Live runtime enable/disable toggle without requiring restart.
-  - False positive suppression (silence, white noise, impulse claps rejection).
+  - False positive suppression (silence, white noise, impulse claps, pure tone rejection).
   - Configurable refractory period (default 1.5s cooldown after trigger).
   - Mathematical synthetic wake word signal generator for deterministic testing.
 """
@@ -30,7 +31,7 @@ from jarvis.audio.dsp import calculate_rms
 
 logger = logging.getLogger("jarvis.audio.wake_word")
 
-# Optional Tier 1 library imports
+# Optional Tier 1 & Tier 1.5 library imports
 try:
     import vosk
     VOSK_AVAILABLE = True
@@ -52,12 +53,20 @@ except ImportError:
     pvporcupine = None
     PORCUPINE_AVAILABLE = False
 
+try:
+    import faster_whisper
+    FASTER_WHISPER_AVAILABLE = True
+except ImportError:
+    faster_whisper = None
+    FASTER_WHISPER_AVAILABLE = False
+
 
 class WakeWordEngineType(str, Enum):
     """Detection engine tier / implementation."""
     VOSK = "vosk"
     OPENWAKEWORD = "openwakeword"
     PORCUPINE = "porcupine"
+    WHISPER = "whisper"
     ACOUSTIC_FALLBACK = "acoustic_fallback"
     MOCK = "mock"
 
@@ -153,6 +162,109 @@ def generate_wake_word_signal(
     # Clip to valid audio range
     signal = np.clip(signal, -1.0, 1.0)
     return signal.astype(np.float32)
+
+
+class WhisperSlidingWindowDetector:
+    """
+    Tier 1.5: Lightweight speech-to-text keyword detector running Faster-Whisper
+    on voice-active sliding windows as a robust local STT fallback.
+    """
+
+    def __init__(
+        self,
+        model_size: str = "tiny",
+        sample_rate: int = 16000,
+        min_rms: float = 0.010,
+        model: Any | None = None,
+        check_interval_s: float = 0.3,
+        keywords: list[str] | None = None,
+    ) -> None:
+        self.sample_rate = sample_rate
+        self.min_rms = min_rms
+        self.check_interval_s = check_interval_s
+        self._last_check_time: float = 0.0
+        self.keywords = keywords or [
+            "jarvis",
+            "hey jarvis",
+            "chào jarvis",
+            "ê jarvis",
+            "ơi jarvis",
+            "hi jarvis",
+            "ok jarvis",
+            "hello jarvis",
+        ]
+        self.model = model
+        self._model_size = model_size
+        self._lock = threading.Lock()
+
+    def _get_model(self) -> Any:
+        if self.model is None and FASTER_WHISPER_AVAILABLE:
+            try:
+                from faster_whisper import WhisperModel
+                self.model = WhisperModel(self._model_size, device="cpu", compute_type="int8")
+            except Exception as e:
+                logger.warning("Failed to initialize Faster-Whisper model: %s", e)
+                self.model = False
+        return self.model if self.model is not False else None
+
+    def analyze_window(
+        self,
+        buffer: np.ndarray,
+        sensitivity: float = 0.5,
+        timestamp: float | None = None,
+    ) -> tuple[bool, str, float]:
+        """
+        Transcribes the sliding window if speech energy exceeds min_rms and check_interval
+        has elapsed.
+
+        Returns:
+            Tuple[bool, str, float]: (detected, keyword, confidence)
+        """
+        if len(buffer) == 0:
+            return False, "", 0.0
+
+        now = timestamp if timestamp is not None else time.monotonic()
+        if (now - self._last_check_time) < self.check_interval_s:
+            return False, "", 0.0
+
+        rms = calculate_rms(buffer)
+        threshold_rms = max(0.003, self.min_rms * (1.0 - 0.5 * sensitivity))
+        if rms < threshold_rms:
+            return False, "", 0.0
+
+        model = self._get_model()
+        if not model:
+            return False, "", 0.0
+
+        self._last_check_time = now
+
+        try:
+            audio_arr = buffer.astype(np.float32) if buffer.dtype != np.float32 else buffer
+            with self._lock:
+                segments, _ = model.transcribe(
+                    audio_arr,
+                    language="vi",
+                    beam_size=1,
+                    temperature=0.0,
+                    initial_prompt="JARVIS, hey JARVIS, chào JARVIS",
+                    vad_filter=False,
+                )
+                text = " ".join([getattr(s, "text", "") for s in segments]).lower().strip()
+
+            if not text:
+                return False, "", 0.0
+
+            for kw in self.keywords:
+                if kw in text:
+                    return True, "hey_jarvis", 0.92
+        except Exception as e:
+            logger.debug("WhisperSlidingWindowDetector transcribe error: %s", e)
+
+        return False, "", 0.0
+
+    def reset(self) -> None:
+        """Reset internal rate limit / state."""
+        self._last_check_time = 0.0
 
 
 class AcousticSpectralDetector:
@@ -340,8 +452,11 @@ class WakeWordDetector:
     Real-time, multi-tier Wake Word Detector for JARVIS.
 
     Features:
-      - Multi-tier detection cascade (Vosk/Porcupine Tier 1, Spectral DSP Tier 2).
-      - Live enable/disable toggle without restart (`set_enabled`, `is_enabled`).
+      - Multi-tier detection cascade:
+          * Tier 1: Vosk (Vietnamese model auto-discovery), OpenWakeWord, Porcupine.
+          * Tier 1.5: Faster-Whisper sliding window STT keyword fallback.
+          * Tier 2: Spectral DSP Acoustic Formant/Fricative Detector.
+      - Live enable/disable toggle without restart (`set_enabled`, `is_enabled`, `toggle_enabled`).
       - Cooldown & refractory period (1.5s default).
       - Accepts audio blocks in 44.1kHz or 16kHz, mono or stereo.
       - Full thread-safety for multi-subscriber audio architectures.
@@ -382,6 +497,12 @@ class WakeWordDetector:
             sample_rate=self.target_sample_rate,
             min_rms=float(self.config.get("min_rms", 0.005)),
         )
+        self._whisper_detector = WhisperSlidingWindowDetector(
+            model_size=self.config.get("whisper_model_size", "tiny"),
+            sample_rate=self.target_sample_rate,
+            min_rms=float(self.config.get("whisper_min_rms", 0.010)),
+            check_interval_s=float(self.config.get("whisper_check_interval_s", 0.3)),
+        )
         self._tier1_engine: Any | None = None
         self._porcupine_frame_buffer: _PorcupineFrameBuffer | None = None
         self._engine_type: WakeWordEngineType = self._init_tier1()
@@ -396,21 +517,59 @@ class WakeWordDetector:
 
     def _init_tier1(self) -> WakeWordEngineType:
         """Attempt to initialize Tier 1 local model if available."""
+        # Check explicit engine override in config
+        forced_engine = self.config.get("engine") or self.config.get("engine_type")
+        if forced_engine == "whisper" and FASTER_WHISPER_AVAILABLE:
+            return WakeWordEngineType.WHISPER
+        if forced_engine == "mock":
+            return WakeWordEngineType.MOCK
+
         # 1. Vosk
         if VOSK_AVAILABLE:
-            model_path = self.config.get("vosk_model_path", os.environ.get("JARVIS_VOSK_MODEL"))
-            if model_path and os.path.isdir(model_path):
+            candidate_paths = [
+                self.config.get("vosk_model_path"),
+                os.environ.get("JARVIS_VOSK_MODEL"),
+                os.environ.get("VOSK_MODEL_PATH"),
+                os.path.join(os.getcwd(), "models", "vosk-model-small-vn-0.4"),
+                os.path.join(os.getcwd(), "models", "vosk-model-vn"),
+                os.path.join(os.getcwd(), "models", "vosk-model-small-en-us-0.15"),
+                os.path.expanduser("~/.cache/vosk/vosk-model-small-vn-0.4"),
+                os.path.expanduser("~/.vosk/vosk-model-small-vn-0.4"),
+                os.path.expanduser("~/.cache/vosk/vosk-model-vn"),
+                os.path.expanduser("~/.vosk/vosk-model-vn"),
+            ]
+            model_path = None
+            for path in candidate_paths:
+                if path and os.path.isdir(path):
+                    model_path = path
+                    break
+
+            vosk_model = None
+            if model_path:
                 try:
                     vosk_model = vosk.Model(model_path)
+                except Exception as e:
+                    logger.warning("Vosk init failed for path '%s': %s", model_path, e)
+
+            # Auto-download if explicitly configured
+            if vosk_model is None and self.config.get("auto_download_vosk", False):
+                try:
+                    lang = self.config.get("vosk_lang", "vn")
+                    vosk_model = vosk.Model(lang=lang)
+                except Exception as e:
+                    logger.debug("Vosk auto-download failed for lang='%s': %s", self.config.get("vosk_lang", "vn"), e)
+
+            if vosk_model is not None:
+                try:
                     rec = vosk.KaldiRecognizer(
                         vosk_model,
                         self.target_sample_rate,
-                        '["hey jarvis", "jarvis", "chào jarvis", "[unk]"]',
+                        '["hey jarvis", "jarvis", "chào jarvis", "ê jarvis", "ơi jarvis", "[unk]"]',
                     )
                     self._tier1_engine = rec
                     return WakeWordEngineType.VOSK
                 except Exception as e:
-                    logger.warning("Vosk init failed: %s; falling back to Tier 2.", e)
+                    logger.warning("Vosk KaldiRecognizer init failed: %s; falling back to Tier 2.", e)
 
         # 2. OpenWakeWord
         if OPENWAKEWORD_AVAILABLE:
@@ -425,13 +584,6 @@ class WakeWordDetector:
         if PORCUPINE_AVAILABLE:
             access_key = self.config.get("porcupine_access_key", os.environ.get("PORCUPINE_ACCESS_KEY"))
             if access_key:
-                # Build the native engine and its frame-buffer adapter in local
-                # variables first, and only attach them to `self` once BOTH
-                # steps have fully succeeded. If anything fails after
-                # pvporcupine.create() itself succeeded, the native handle
-                # would otherwise be leaked (constructed but never attached,
-                # so shutdown()'s engine_type==PORCUPINE guard would never
-                # see it) — release it here instead.
                 porcupine_engine = None
                 try:
                     porcupine_engine = pvporcupine.create(
@@ -458,6 +610,13 @@ class WakeWordDetector:
                                 delete_err,
                             )
 
+        # 4. Faster-Whisper (if explicitly requested in config)
+        if (
+            self.config.get("use_whisper", False)
+            or self.config.get("whisper_enabled", False)
+        ) and FASTER_WHISPER_AVAILABLE:
+            return WakeWordEngineType.WHISPER
+
         return WakeWordEngineType.ACOUSTIC_FALLBACK
 
     # -----------------------------------------------------------------------
@@ -465,26 +624,16 @@ class WakeWordDetector:
     # -----------------------------------------------------------------------
     def _reset_stream_state_locked(self) -> None:
         """
-        Clear the two caller-owned streaming buffers (the sliding ring
+        Clear the caller-owned streaming buffers (the sliding ring
         buffer and any pending partial Porcupine frame) on an enable/disable
         transition, so caller-side PCM from before the transition is never
         concatenated with caller-side PCM from after it.
-
-        This does NOT reset the native Porcupine engine's own internal
-        state: no reset API is used or exists in the audited upstream
-        contract short of full reinitialization, which is intentionally out
-        of scope here. Whatever detection history the native engine keeps
-        internally may still span the disabled interval — this is the
-        deliberate, narrow lifecycle guarantee being made, not a known bug.
-
-        Caller must already hold `self._lock`. Deliberately does NOT reset
-        `_last_trigger_time`: cooldown is a real-time debounce against
-        duplicate triggers, independent of the enable toggle, so quickly
-        toggling disabled/enabled must not be usable to bypass it.
         """
         self._ring_buffer.fill(0.0)
         if self._porcupine_frame_buffer is not None:
             self._porcupine_frame_buffer.reset()
+        if hasattr(self, "_whisper_detector") and self._whisper_detector:
+            self._whisper_detector.reset()
 
     def set_enabled(self, enabled: bool) -> None:
         """Enable or disable wake word detection live without restart."""
@@ -504,9 +653,7 @@ class WakeWordDetector:
     def toggle_enabled(self) -> bool:
         """
         Thread-safe flip of the enabled state (True<->False) without restart.
-        Returns the resulting enabled state. Shares its buffer-clearing
-        transition logic with `set_enabled()` via `_reset_stream_state_locked()`
-        so the two cannot diverge.
+        Returns the resulting enabled state.
         """
         with self._lock:
             self._enabled = not self._enabled
@@ -531,16 +678,16 @@ class WakeWordDetector:
         with self._lock:
             self._reset_stream_state_locked()
             self._last_trigger_time = 0.0
+            if hasattr(self, "_whisper_detector") and self._whisper_detector:
+                self._whisper_detector.reset()
+            if self._tier1_engine and hasattr(self._tier1_engine, "Reset"):
+                try:
+                    self._tier1_engine.Reset()
+                except Exception:
+                    pass
 
     def _release_porcupine_native(self) -> None:
-        """
-        Release the native Porcupine engine exactly once, if one is attached.
-        Idempotent (a second call finds `_tier1_engine` already `None` and is
-        a no-op) and safe to call from `shutdown()` or after a runtime
-        `process()` failure — the two paths that need this same lifecycle
-        logic. Caller must already hold `self._lock` (re-entrant, so it is
-        also safe to call standalone).
-        """
+        """Release the native Porcupine engine exactly once, if attached."""
         with self._lock:
             engine = self._tier1_engine
             self._tier1_engine = None
@@ -552,11 +699,7 @@ class WakeWordDetector:
                     logger.debug("Porcupine delete() failed during release: %s", e)
 
     def shutdown(self) -> None:
-        """
-        Release native Tier 1 backend resources (currently: Porcupine).
-        Idempotent — safe to call multiple times, after a failed/partial
-        initialization, or when no native backend was ever created.
-        """
+        """Release native Tier 1 backend resources (Porcupine)."""
         with self._lock:
             if self._engine_type == WakeWordEngineType.PORCUPINE:
                 self._release_porcupine_native()
@@ -565,14 +708,7 @@ class WakeWordDetector:
     # Porcupine backend helpers
     # -----------------------------------------------------------------------
     def _degrade_porcupine_to_acoustic_fallback(self, error: Exception) -> None:
-        """
-        Permanently switch this detector off the native Porcupine backend for
-        the rest of its lifecycle after a `process()` runtime failure:
-        release native resources exactly once, drop any buffered PCM, and
-        fall back to Tier 2 for every subsequent call — retrying a
-        known-failed native engine on later audio callbacks is not safe.
-        Caller must already hold `self._lock`.
-        """
+        """Permanently switch this detector off the native Porcupine backend."""
         logger.warning(
             "Porcupine process() failed: %s; permanently switching this detector "
             "to the Tier 2 acoustic fallback.",
@@ -582,17 +718,7 @@ class WakeWordDetector:
         self._engine_type = WakeWordEngineType.ACOUSTIC_FALLBACK
 
     def _process_porcupine_tier(self, resampled: np.ndarray, arr: np.ndarray, in_sr: int) -> bool:
-        """
-        Feed audio through the Porcupine frame buffer. Caller must hold
-        `self._lock`. Porcupine is a streaming engine, so this always
-        consumes every complete frame regardless of cooldown state — cooldown
-        only ever suppresses whether a resulting detection is emitted as a
-        `WakeWordResult`, never whether Porcupine keeps receiving audio.
-        Returns whether a keyword was detected in this call. A native
-        runtime failure permanently degrades this detector to the Tier 2
-        acoustic fallback (see `_degrade_porcupine_to_acoustic_fallback`)
-        rather than retrying the known-bad engine on a later call.
-        """
+        """Feed audio through the Porcupine frame buffer."""
         if not self._tier1_engine or self._porcupine_frame_buffer is None:
             return False
         try:
@@ -627,12 +753,6 @@ class WakeWordDetector:
         """
         Ingests an audio block into the sliding buffer, classifies wake words,
         enforces refractory cooldowns, and dispatches callbacks.
-
-        Porcupine is a streaming engine: it keeps consuming every complete
-        frame even while the cooldown is suppressing event emission, so its
-        internal detection state and this detector's frame buffer never
-        desync from the live audio. Vosk and the Tier 2 acoustic fallback are
-        skipped entirely during cooldown, matching prior behavior.
         """
         if block is None or getattr(block, "size", 0) == 0:
             return None
@@ -641,13 +761,7 @@ class WakeWordDetector:
             if not self._enabled:
                 return None
 
-        # Sanitize and convert format. Integer PCM must be normalized to
-        # [-1.0, 1.0] BEFORE any multi-channel downmix: np.mean() on an
-        # integer array promotes to float64, which would make the later
-        # `np.issubdtype(arr.dtype, np.integer)` check false and silently
-        # skip normalization -- leaving stereo int16 PCM at raw amplitude
-        # scale (roughly [-32768, 32767]) instead of [-1.0, 1.0]. Mono
-        # int16/float input is unaffected by this ordering.
+        # Sanitize and convert format.
         arr = np.nan_to_num(block, nan=0.0, posinf=0.0, neginf=0.0)
 
         if np.issubdtype(arr.dtype, np.integer):
@@ -675,15 +789,12 @@ class WakeWordDetector:
             now = timestamp if timestamp is not None else time.monotonic()
             in_cooldown = (now - self._last_trigger_time) < self.cooldown_s
 
-            # Porcupine must keep streaming through cooldown (native engine
-            # state / our frame buffer must never desync from live audio);
-            # Vosk and Tier 2 are skipped entirely during cooldown (unchanged).
+            # Porcupine must keep streaming through cooldown
             porcupine_hit = False
             if self._engine_type == WakeWordEngineType.PORCUPINE:
                 porcupine_hit = self._process_porcupine_tier(resampled, arr, in_sr)
 
-            # Refractory period / cooldown guard — suppresses event emission
-            # only; Porcupine consumption above already happened either way.
+            # Refractory period / cooldown guard
             if in_cooldown:
                 return None
 
@@ -701,15 +812,63 @@ class WakeWordDetector:
             elif self._engine_type == WakeWordEngineType.VOSK and self._tier1_engine:
                 try:
                     int16_pcm = (resampled * 32767.0).astype(np.int16).tobytes()
+                    text = ""
                     if self._tier1_engine.AcceptWaveform(int16_pcm):
-                        res_json = json.loads(self._tier1_engine.Result())
-                        text = res_json.get("text", "").lower()
-                        if "jarvis" in text or "hey jarvis" in text:
-                            detected = True
-                            keyword = "hey_jarvis"
-                            confidence = 0.95
+                        raw_res = self._tier1_engine.Result()
+                        if isinstance(raw_res, str):
+                            try:
+                                res_json = json.loads(raw_res)
+                                text = res_json.get("text", "").lower()
+                            except json.JSONDecodeError:
+                                text = raw_res.lower()
+                        elif isinstance(raw_res, dict):
+                            text = raw_res.get("text", "").lower()
+                    else:
+                        if hasattr(self._tier1_engine, "PartialResult"):
+                            raw_partial = self._tier1_engine.PartialResult()
+                            if isinstance(raw_partial, str):
+                                try:
+                                    partial_json = json.loads(raw_partial)
+                                    text = partial_json.get("partial", "").lower()
+                                except json.JSONDecodeError:
+                                    text = raw_partial.lower()
+                            elif isinstance(raw_partial, dict):
+                                text = raw_partial.get("partial", "").lower()
+
+                    keywords = ["jarvis", "hey jarvis", "chào jarvis", "ê jarvis", "ơi jarvis", "hi jarvis", "ok jarvis"]
+                    if any(kw in text for kw in keywords):
+                        detected = True
+                        keyword = "hey_jarvis"
+                        confidence = 0.95
+                        if hasattr(self._tier1_engine, "Reset"):
+                            try:
+                                self._tier1_engine.Reset()
+                            except Exception:
+                                pass
                 except Exception as e:
                     logger.debug("Vosk recognition error: %s", e)
+
+            elif self._engine_type == WakeWordEngineType.WHISPER:
+                detected, keyword, confidence = self._whisper_detector.analyze_window(
+                    self._ring_buffer,
+                    sensitivity=self.sensitivity,
+                    timestamp=now,
+                )
+                if detected:
+                    engine_name = WakeWordEngineType.WHISPER.value
+
+            # Intermediate fallback: Whisper sliding window if configured as fallback
+            if not detected and self.config.get("whisper_fallback", False) and FASTER_WHISPER_AVAILABLE:
+                w_detected, w_kw, w_conf = self._whisper_detector.analyze_window(
+                    self._ring_buffer,
+                    sensitivity=self.sensitivity,
+                    timestamp=now,
+                )
+                if w_detected:
+                    detected = True
+                    keyword = w_kw
+                    confidence = w_conf
+                    engine_name = WakeWordEngineType.WHISPER.value
 
             # Fallback to Tier 2 Acoustic Spectral Detector
             if not detected:

@@ -286,27 +286,27 @@ def run_eval(verbose: bool = False) -> None:
             misrouted_cases.append((text, expected_cat, action))
 
         if verbose:
-            print(f"  [{outcome:8s}] {text!r:40s} → {action}")
+            print(f"  [{outcome:8s}] {text!r:40s} -> {action}")
 
     print(f"\n{'='*60}")
-    print(f"Text-Routing Eval — N={n_total} utterances")
+    print(f"Text-Routing Eval -- N={n_total} utterances")
     print(f"{'='*60}")
 
     for label, k in [("CORRECT", n_correct), ("SILENT_FAILURE", n_silent), ("MISROUTED", n_misrouted)]:
         lo, hi = wilson_ci(k, n_total)
         pct = k / n_total * 100
-        print(f"  {label:18s}: {k:3d}/{n_total} = {pct:5.1f}%  Wilson 95% CI [{lo*100:.1f}%–{hi*100:.1f}%]")
+        print(f"  {label:18s}: {k:3d}/{n_total} = {pct:5.1f}%  Wilson 95% CI [{lo*100:.1f}%-{hi*100:.1f}%]")
 
     if misrouted_cases:
-        print(f"\n  ⚠ MISROUTED cases ({len(misrouted_cases)}):")
+        print(f"\n  [!] MISROUTED cases ({len(misrouted_cases)}):")
         for txt, exp, got in misrouted_cases:
             print(f"    {txt!r:40s}  expected={exp}  got={got}")
 
-    print(f"\n  Δ vs acoustic eval (N=45, CORRECT=22%):")
+    print(f"\n  Delta vs acoustic eval (N=45, CORRECT=22%):")
     correct_pct = n_correct / n_total * 100
     print(f"    Routing accuracy (given correct transcript): {correct_pct:.1f}%")
     print(f"    Acoustic accuracy (real mic, includes STT errors): ~22%")
-    print(f"    Gap = {correct_pct - 22:.1f}pp → STT garbling accounts for ~{correct_pct - 22:.0f}pp of SILENT_FAILURE")
+    print(f"    Gap = {correct_pct - 22:.1f}pp -> STT garbling accounts for ~{correct_pct - 22:.0f}pp of SILENT_FAILURE")
     print()
 
 

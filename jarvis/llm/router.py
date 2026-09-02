@@ -934,13 +934,34 @@ class LLMIntentRouter:
                 response_text="Đang tiến hành tối ưu hóa bộ nhớ và kiểm tra tiến trình hệ thống cho Ngài.",
             ),
 
-            # App launchers (static, supplement regex for edge cases)
+            # App launchers (static, non-diacritic & standard, supplement regex for edge cases)
+            "mo chrome": IntentResult(action_name="app_open", parameters={"app_name": "chrome", "name": "chrome"}, source="rule_fallback", response_text="Đang mở Google Chrome cho Ngài."),
+            "mo ung dung chrome": IntentResult(action_name="app_open", parameters={"app_name": "chrome", "name": "chrome"}, source="rule_fallback", response_text="Đang mở Google Chrome cho Ngài."),
+            "mo notepad": IntentResult(action_name="app_open", parameters={"app_name": "notepad", "name": "notepad"}, source="rule_fallback", response_text="Đang mở Notepad cho Ngài."),
+            "open chrome": IntentResult(action_name="app_open", parameters={"app_name": "chrome", "name": "chrome"}, source="rule_fallback", response_text="Đang mở Google Chrome cho Ngài."),
+            "launch notepad": IntentResult(action_name="app_open", parameters={"app_name": "notepad", "name": "notepad"}, source="rule_fallback", response_text="Đang mở Notepad cho Ngài."),
+            "mo word": IntentResult(action_name="app_open", parameters={"app_name": "word", "name": "word"}, source="rule_fallback", response_text="Đang mở Microsoft Word cho Ngài."),
+            "mo excel": IntentResult(action_name="app_open", parameters={"app_name": "excel", "name": "excel"}, source="rule_fallback", response_text="Đang mở Microsoft Excel cho Ngài."),
+            "mo paint": IntentResult(action_name="app_open", parameters={"app_name": "paint", "name": "paint"}, source="rule_fallback", response_text="Đang mở Paint cho Ngài."),
+            "open file explorer": IntentResult(action_name="app_open", parameters={"app_name": "explorer"}, source="rule_fallback", response_text="Đang mở File Explorer cho Ngài."),
+            "mo calculator": IntentResult(action_name="app_open", parameters={"app_name": "calculator", "name": "calc"}, source="rule_fallback", response_text="Đang mở Máy tính cho Ngài."),
+            "mo powerpoint": IntentResult(action_name="app_open", parameters={"app_name": "powerpoint", "name": "powerpoint"}, source="rule_fallback", response_text="Đang mở PowerPoint cho Ngài."),
+            "mo cai dat": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
+            "cai dat he thong": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
+            "cài đặt hệ thống": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
+            "settings": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
+            "cai dat windows": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
+            "cài đặt windows": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
+            "mo settings": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
             "bật claude": IntentResult(action_name="web_open", parameters={"target": "claude", "site": "claude"}, source="rule_fallback", response_text="Đang mở Claude AI cho Ngài."),
             "mở claude": IntentResult(action_name="web_open", parameters={"target": "claude", "site": "claude"}, source="rule_fallback", response_text="Đang mở Claude AI cho Ngài."),
             "bật chatgpt": IntentResult(action_name="web_open", parameters={"target": "chatgpt", "site": "chatgpt"}, source="rule_fallback", response_text="Đang mở ChatGPT cho Ngài."),
             "mở chatgpt": IntentResult(action_name="web_open", parameters={"target": "chatgpt", "site": "chatgpt"}, source="rule_fallback", response_text="Đang mở ChatGPT cho Ngài."),
             "bật youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
             "mở youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "mo youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "open youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "vao youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
             "bật google": IntentResult(action_name="web_open", parameters={"target": "google", "site": "google"}, source="rule_fallback", response_text="Đang mở Google cho Ngài."),
             "mở google": IntentResult(action_name="web_open", parameters={"target": "google", "site": "google"}, source="rule_fallback", response_text="Đang mở Google cho Ngài."),
             "bật gmail": IntentResult(action_name="web_open", parameters={"target": "gmail", "site": "gmail"}, source="rule_fallback", response_text="Đang mở Gmail cho Ngài."),
@@ -949,6 +970,11 @@ class LLMIntentRouter:
             "mở github": IntentResult(action_name="web_open", parameters={"target": "github", "site": "github"}, source="rule_fallback", response_text="Đang mở GitHub cho Ngài."),
             "bật facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
             "mở facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
+            "mo facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
+            "open facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
+            "vao facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
+            "open website": IntentResult(action_name="web_open", parameters={"target": "https://www.google.com", "site": "google"}, source="rule_fallback", response_text="Đang mở trình duyệt cho Ngài."),
+            "mo trang web": IntentResult(action_name="web_open", parameters={"target": "https://www.google.com", "site": "google"}, source="rule_fallback", response_text="Đang mở trình duyệt cho Ngài."),
             "bật discord": IntentResult(action_name="app_open", parameters={"app_name": "discord"}, source="rule_fallback", response_text="Đang mở Discord cho Ngài."),
             "mở discord": IntentResult(action_name="app_open", parameters={"app_name": "discord"}, source="rule_fallback", response_text="Đang mở Discord cho Ngài."),
             "bật telegram": IntentResult(action_name="app_open", parameters={"app_name": "telegram"}, source="rule_fallback", response_text="Đang mở Telegram cho Ngài."),
@@ -982,10 +1008,94 @@ class LLMIntentRouter:
             # Volume & screen controls
             "tăng âm lượng": IntentResult(action_name="system_volume", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng âm lượng cho Ngài."),
             "giảm âm lượng": IntentResult(action_name="system_volume", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm âm lượng cho Ngài."),
+            "tang am luong": IntentResult(action_name="system_volume", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng âm lượng cho Ngài."),
+            "giam am luong": IntentResult(action_name="system_volume", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm âm lượng cho Ngài."),
+            "dieu chinh am luong": IntentResult(action_name="system_volume", parameters={"delta": 0}, source="rule_fallback", response_text="Đang điều chỉnh âm lượng cho Ngài."),
+            "volume up": IntentResult(action_name="system_volume", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng âm lượng cho Ngài."),
+            "volume down": IntentResult(action_name="system_volume", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm âm lượng cho Ngài."),
+            "giảm âm": IntentResult(action_name="system_volume", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm âm lượng cho Ngài."),
             "tắt tiếng": IntentResult(action_name="system_volume", parameters={"mute": True}, source="rule_fallback", response_text="Đã tắt tiếng máy tính, thưa Ngài."),
+            "tat tieng": IntentResult(action_name="system_volume", parameters={"mute": True}, source="rule_fallback", response_text="Đã tắt tiếng máy tính, thưa Ngài."),
+            "mute": IntentResult(action_name="system_volume", parameters={"mute": True}, source="rule_fallback", response_text="Đã tắt tiếng máy tính, thưa Ngài."),
             "bật tiếng": IntentResult(action_name="system_volume", parameters={"mute": False}, source="rule_fallback", response_text="Đã bật tiếng máy tính, thưa Ngài."),
             "tăng độ sáng": IntentResult(action_name="system_brightness", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng độ sáng màn hình cho Ngài."),
             "giảm độ sáng": IntentResult(action_name="system_brightness", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm độ sáng màn hình cho Ngài."),
+            "tang do sang": IntentResult(action_name="system_brightness", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng độ sáng màn hình cho Ngài."),
+            "giam do sang": IntentResult(action_name="system_brightness", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm độ sáng màn hình cho Ngài."),
+            "brightness up": IntentResult(action_name="system_brightness", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng độ sáng màn hình cho Ngài."),
+            "brightness down": IntentResult(action_name="system_brightness", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm độ sáng màn hình cho Ngài."),
+            "tat monitor": IntentResult(action_name="system_brightness", parameters={"level": 0}, source="rule_fallback", response_text="Đang tắt màn hình cho Ngài."),
+            "turn off monitor": IntentResult(action_name="system_brightness", parameters={"level": 0}, source="rule_fallback", response_text="Đang tắt màn hình cho Ngài."),
+            "tat man": IntentResult(action_name="system_brightness", parameters={"level": 0}, source="rule_fallback", response_text="Đang tắt màn hình cho Ngài."),
+            "screen off": IntentResult(action_name="system_brightness", parameters={"level": 0}, source="rule_fallback", response_text="Đang tắt màn hình cho Ngài."),
+
+            # Power & Shutdown (non-diacritic & English)
+            "tat may tinh": IntentResult(action_name="system_power", parameters={"action": "shutdown"}, source="rule_fallback", response_text="Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn tắt máy không?", danger_level="CRITICAL"),
+            "shutdown may": IntentResult(action_name="system_power", parameters={"action": "shutdown"}, source="rule_fallback", response_text="Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn tắt máy không?", danger_level="CRITICAL"),
+            "tat may": IntentResult(action_name="system_power", parameters={"action": "shutdown"}, source="rule_fallback", response_text="Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn tắt máy không?", danger_level="CRITICAL"),
+            "tat nguon": IntentResult(action_name="system_power", parameters={"action": "shutdown"}, source="rule_fallback", response_text="Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn tắt máy không?", danger_level="CRITICAL"),
+            "shut down": IntentResult(action_name="system_power", parameters={"action": "shutdown"}, source="rule_fallback", response_text="Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn tắt máy không?", danger_level="CRITICAL"),
+            "turn off computer": IntentResult(action_name="system_power", parameters={"action": "shutdown"}, source="rule_fallback", response_text="Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn tắt máy không?", danger_level="CRITICAL"),
+            "tat may di": IntentResult(action_name="system_power", parameters={"action": "shutdown"}, source="rule_fallback", response_text="Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn tắt máy không?", danger_level="CRITICAL"),
+            "tắt": IntentResult(action_name="system_power", parameters={"action": "shutdown"}, source="rule_fallback", response_text="Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn tắt máy không?", danger_level="CRITICAL"),
+            "power off": IntentResult(action_name="system_power", parameters={"action": "shutdown"}, source="rule_fallback", response_text="Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn tắt máy không?", danger_level="CRITICAL"),
+            "stop": IntentResult(action_name="system_power", parameters={"action": "lock"}, source="rule_fallback", response_text="Đã dừng phiên làm việc và khóa màn hình, thưa Ngài."),
+            "thoi": IntentResult(action_name="system_power", parameters={"action": "lock"}, source="rule_fallback", response_text="Đã dừng phiên làm việc và khóa màn hình, thưa Ngài."),
+            "huy": IntentResult(action_name="system_power", parameters={"action": "lock"}, source="rule_fallback", response_text="Đã hủy tác vụ hiện tại, thưa Ngài."),
+            "cancel": IntentResult(action_name="system_power", parameters={"action": "lock"}, source="rule_fallback", response_text="Đã hủy tác vụ hiện tại, thưa Ngài."),
+
+            # Restart (non-diacritic & English)
+            "khoi dong lai may": IntentResult(action_name="system_power", parameters={"action": "restart"}, source="rule_fallback", response_text="Lệnh khởi động lại hệ thống đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn khởi động lại máy không?", danger_level="CRITICAL"),
+            "khoi dong lai": IntentResult(action_name="system_power", parameters={"action": "restart"}, source="rule_fallback", response_text="Lệnh khởi động lại hệ thống đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn khởi động lại máy không?", danger_level="CRITICAL"),
+            "restart may tinh": IntentResult(action_name="system_power", parameters={"action": "restart"}, source="rule_fallback", response_text="Lệnh khởi động lại hệ thống đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn khởi động lại máy không?", danger_level="CRITICAL"),
+            "restart windows": IntentResult(action_name="system_power", parameters={"action": "restart"}, source="rule_fallback", response_text="Lệnh khởi động lại hệ thống đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn khởi động lại máy không?", danger_level="CRITICAL"),
+            "restart may": IntentResult(action_name="system_power", parameters={"action": "restart"}, source="rule_fallback", response_text="Lệnh khởi động lại hệ thống đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.", requires_confirmation=True, confirmation_prompt="Ngài có chắc chắn muốn khởi động lại máy không?", danger_level="CRITICAL"),
+
+            # Weather (non-diacritic & English)
+            "thoi tiet hom nay": IntentResult(action_name="shell_exec", parameters={"command": "curl -s wttr.in?format=3", "topic": "weather", "location": "current"}, source="rule_fallback", response_text="Đang kiểm tra thời tiết hôm nay cho Ngài."),
+            "thoi tiet ngay mai": IntentResult(action_name="shell_exec", parameters={"command": "curl -s wttr.in?format=3", "topic": "weather", "location": "tomorrow"}, source="rule_fallback", response_text="Đang kiểm tra dự báo thời tiết ngày mai cho Ngài."),
+            "du bao thoi tiet": IntentResult(action_name="shell_exec", parameters={"command": "curl -s wttr.in?format=3", "topic": "weather", "location": "current"}, source="rule_fallback", response_text="Đang xem dự báo thời tiết cho Ngài."),
+            "troi hom nay": IntentResult(action_name="shell_exec", parameters={"command": "curl -s wttr.in?format=3", "topic": "weather", "location": "current"}, source="rule_fallback", response_text="Đang kiểm tra tình hình thời tiết hôm nay cho Ngài."),
+            "weather today": IntentResult(action_name="shell_exec", parameters={"command": "curl -s wttr.in?format=3", "topic": "weather", "location": "current"}, source="rule_fallback", response_text="Đang kiểm tra thời tiết hôm nay cho Ngài."),
+            "thoi tiet ha noi": IntentResult(action_name="shell_exec", parameters={"command": "curl -s wttr.in/Hanoi?format=3", "topic": "weather", "location": "Hà Nội"}, source="rule_fallback", response_text="Đang kiểm tra thời tiết tại Hà Nội cho Ngài."),
+            "bao nhieu do": IntentResult(action_name="shell_exec", parameters={"command": "curl -s wttr.in?format=3", "topic": "weather", "location": "current"}, source="rule_fallback", response_text="Đang kiểm tra nhiệt độ hiện tại cho Ngài."),
+            "weather forecast": IntentResult(action_name="shell_exec", parameters={"command": "curl -s wttr.in?format=3", "topic": "weather", "location": "current"}, source="rule_fallback", response_text="Đang kiểm tra dự báo thời tiết cho Ngài."),
+
+            # Music (non-diacritic & English)
+            "mo nhac": IntentResult(action_name="spotify", parameters={"command": "play", "query": ""}, source="rule_fallback", response_text="Đang mở Spotify và phát nhạc cho Ngài."),
+            "phat nhac": IntentResult(action_name="spotify", parameters={"command": "play", "query": ""}, source="rule_fallback", response_text="Đang phát nhạc cho Ngài."),
+            "play music": IntentResult(action_name="spotify", parameters={"command": "play", "query": ""}, source="rule_fallback", response_text="Đang phát nhạc trên Spotify cho Ngài."),
+            "mo spotify": IntentResult(action_name="spotify", parameters={"query": "", "name": "spotify"}, source="rule_fallback", response_text="Đang mở Spotify cho Ngài."),
+            "launch spotify": IntentResult(action_name="spotify", parameters={"query": "", "name": "spotify"}, source="rule_fallback", response_text="Đang mở Spotify cho Ngài."),
+            "open spotify": IntentResult(action_name="spotify", parameters={"query": "", "name": "spotify"}, source="rule_fallback", response_text="Đang mở Spotify cho Ngài."),
+            "play song": IntentResult(action_name="spotify", parameters={"command": "play", "query": ""}, source="rule_fallback", response_text="Đang phát bài hát cho Ngài."),
+            "bat nhac len": IntentResult(action_name="spotify", parameters={"command": "play", "query": ""}, source="rule_fallback", response_text="Đang bật nhạc cho Ngài."),
+
+            # System status & Hardware
+            "tinh trang he thong": IntentResult(action_name="hardware_status_query", parameters={}, source="rule_fallback", response_text="Tình trạng hệ thống: Mọi dịch vụ đang hoạt động tối ưu, CPU và RAM ở mức an toàn, thưa Ngài."),
+            "kiem tra he thong": IntentResult(action_name="hardware_status_query", parameters={}, source="rule_fallback", response_text="Đang kiểm tra tình trạng hệ thống cho Ngài."),
+            "trang thai may": IntentResult(action_name="hardware_status_query", parameters={}, source="rule_fallback", response_text="Trạng thái hệ thống đang ổn định, thưa Ngài."),
+            "system status": IntentResult(action_name="hardware_status_query", parameters={}, source="rule_fallback", response_text="Tình trạng hệ thống đang ổn định, thưa Ngài."),
+            "hardware status": IntentResult(action_name="hardware_status_query", parameters={}, source="rule_fallback", response_text="Tình trạng phần cứng hoạt động tốt, thưa Ngài."),
+            "xem ram": IntentResult(action_name="hardware_telemetry_check", parameters={"component": "ram"}, source="rule_fallback", response_text="Bộ nhớ RAM đang sử dụng ở mức bình thường, thưa Ngài."),
+
+            # News headlines & Morning briefing
+            "tin tuc hom nay": IntentResult(action_name="news_headlines", parameters={"topic": "general"}, source="rule_fallback", response_text="Đang cập nhật tin tức hôm nay cho Ngài."),
+            "tin moi nhat": IntentResult(action_name="news_headlines", parameters={"topic": "breaking"}, source="rule_fallback", response_text="Đang tổng hợp các tin mới nhất cho Ngài."),
+            "doc tin tuc": IntentResult(action_name="news_headlines", parameters={"topic": "general"}, source="rule_fallback", response_text="Đang mở tin tức cho Ngài."),
+            "news today": IntentResult(action_name="news_headlines", parameters={"topic": "general"}, source="rule_fallback", response_text="Đang tổng hợp tin tức hôm nay cho Ngài."),
+            "tin tuc": IntentResult(action_name="news_headlines", parameters={"topic": "general"}, source="rule_fallback", response_text="Đang lấy tin tức mới nhất cho Ngài."),
+            "latest news": IntentResult(action_name="news_headlines", parameters={"topic": "breaking"}, source="rule_fallback", response_text="Đang cập nhật tin tức mới nhất cho Ngài."),
+            "doc bao": IntentResult(action_name="news_headlines", parameters={"topic": "general"}, source="rule_fallback", response_text="Đang mở các đầu báo điện tử cho Ngài."),
+            "bao cao buoi sang": IntentResult(action_name="morning_briefing", parameters={}, source="rule_fallback", response_text="Đang tổng hợp báo cáo buổi sáng cho Ngài."),
+            "morning briefing": IntentResult(action_name="morning_briefing", parameters={}, source="rule_fallback", response_text="Đang chuẩn bị thông tin buổi sáng cho Ngài."),
+            "thong tin buoi sang": IntentResult(action_name="morning_briefing", parameters={}, source="rule_fallback", response_text="Đang chuẩn bị thông tin buổi sáng cho Ngài."),
+
+            # Memory facts & Daily summary
+            "nho cho toi": IntentResult(action_name="memory_save_fact", parameters={}, source="rule_fallback", response_text="Đã ghi nhớ thông tin này cho Ngài."),
+            "save this": IntentResult(action_name="memory_save_fact", parameters={}, source="rule_fallback", response_text="Đã lưu thông tin vào bộ nhớ dài hạn, thưa Ngài."),
+            "tom tat hom nay": IntentResult(action_name="memory_summarize_daily", parameters={}, source="rule_fallback", response_text="Đang tóm tắt hoạt động trong ngày hôm nay cho Ngài."),
+            "summarize today": IntentResult(action_name="memory_summarize_daily", parameters={}, source="rule_fallback", response_text="Đang tổng kết các công việc hôm nay cho Ngài."),
 
             # Memory and facts
             "nhớ rằng": IntentResult(action_name="memory_save_fact", parameters={}, source="rule_fallback", response_text="Đã ghi nhớ thông tin này, thưa Ngài."),
@@ -995,16 +1105,46 @@ class LLMIntentRouter:
             # Screen capture
             "chụp màn hình": IntentResult(action_name="screen_capture", parameters={}, source="rule_fallback", response_text="Đã chụp ảnh màn hình và lưu vào Desktop cho Ngài."),
             "screenshot": IntentResult(action_name="screen_capture", parameters={}, source="rule_fallback", response_text="Đã chụp ảnh màn hình và lưu vào Desktop cho Ngài."),
+            "chup man hinh": IntentResult(action_name="screen_capture", parameters={}, source="rule_fallback", response_text="Đã chụp ảnh màn hình và lưu ra Desktop cho Ngài."),
+            "chup anh man hinh": IntentResult(action_name="screen_capture", parameters={}, source="rule_fallback", response_text="Đã chụp ảnh màn hình và lưu ra Desktop cho Ngài."),
+            "take screenshot": IntentResult(action_name="screen_capture", parameters={}, source="rule_fallback", response_text="Đã chụp ảnh màn hình và lưu ra Desktop cho Ngài."),
+            "chụp ảnh màn hình": IntentResult(action_name="screen_capture", parameters={}, source="rule_fallback", response_text="Đã chụp ảnh màn hình và lưu ra Desktop cho Ngài."),
+            "printscreen": IntentResult(action_name="screen_capture", parameters={}, source="rule_fallback", response_text="Đã chụp ảnh màn hình và lưu ra Desktop cho Ngài."),
+            "chup anh": IntentResult(action_name="screen_capture", parameters={}, source="rule_fallback", response_text="Đã chụp ảnh màn hình cho Ngài."),
 
             # Clipboard
             "sao chép": IntentResult(action_name="skill_clipboard", parameters={"action": "copy"}, source="rule_fallback", response_text="Đã sao chép nội dung vào clipboard, thưa Ngài."),
             "dán": IntentResult(action_name="skill_clipboard", parameters={"action": "paste"}, source="rule_fallback", response_text="Đã dán nội dung từ clipboard, thưa Ngài."),
 
+            # Search Web & File search (non-diacritic & English)
+            "tim kiem google": IntentResult(action_name="web_open", parameters={"query": "google", "target": "https://www.google.com"}, source="rule_fallback", response_text="Đang tìm kiếm trên Google cho Ngài."),
+            "search chrome": IntentResult(action_name="web_open", parameters={"query": "chrome", "target": "https://www.google.com"}, source="rule_fallback", response_text="Đang mở Google Chrome cho Ngài."),
+            "tim kiem youtube": IntentResult(action_name="web_open", parameters={"query": "youtube", "target": "https://www.youtube.com"}, source="rule_fallback", response_text="Đang tìm kiếm trên YouTube cho Ngài."),
+            "google thoi tiet": IntentResult(action_name="web_open", parameters={"query": "thời tiết", "target": "https://www.google.com/search?q=thời+tiết"}, source="rule_fallback", response_text="Đang tìm kiếm thời tiết trên Google cho Ngài."),
+            "search for news": IntentResult(action_name="web_open", parameters={"query": "news", "target": "https://www.google.com/search?q=news"}, source="rule_fallback", response_text="Đang tìm kiếm tin tức trên Google cho Ngài."),
+            "tim kiem tren google": IntentResult(action_name="web_open", parameters={"query": "", "target": "https://www.google.com"}, source="rule_fallback", response_text="Đang tìm kiếm trên Google cho Ngài."),
+            "tim file word": IntentResult(action_name="file_search", parameters={"action": "search", "query": "word"}, source="rule_fallback", response_text="Đang tìm kiếm file Word cho Ngài."),
+            "find file": IntentResult(action_name="file_search", parameters={"action": "search", "query": ""}, source="rule_fallback", response_text="Đang tìm kiếm file cho Ngài."),
+            "tim file pdf": IntentResult(action_name="file_search", parameters={"action": "search", "query": "pdf"}, source="rule_fallback", response_text="Đang tìm kiếm file PDF cho Ngài."),
+
+            # Folders (non-diacritic & English)
+            "mo thu muc downloads": IntentResult(action_name="folder_open", parameters={"folder": "downloads"}, source="rule_fallback", response_text="Đang mở thư mục Downloads cho Ngài."),
+            "open folder downloads": IntentResult(action_name="folder_open", parameters={"folder": "downloads"}, source="rule_fallback", response_text="Đang mở thư mục Downloads cho Ngài."),
+            "mo thu muc desktop": IntentResult(action_name="folder_open", parameters={"folder": "desktop"}, source="rule_fallback", response_text="Đang mở thư mục Desktop cho Ngài."),
+            "open documents": IntentResult(action_name="folder_open", parameters={"folder": "documents"}, source="rule_fallback", response_text="Đang mở thư mục Documents cho Ngài."),
+            "mo thu muc": IntentResult(action_name="folder_open", parameters={"folder": "documents"}, source="rule_fallback", response_text="Đang mở thư mục cho Ngài."),
+            "mo folder": IntentResult(action_name="folder_open", parameters={"folder": "documents"}, source="rule_fallback", response_text="Đang mở thư mục cho Ngài."),
+
             # Project & Workspace Management (Static Rules)
+            "mo du an jarvis": IntentResult(action_name="workspace_prepare", parameters={"action": "open", "project": "jarvis", "recipe": "jarvis"}, source="rule_fallback", response_text="Đang mở dự án jarvis cho Ngài."),
+            "open project jarvis": IntentResult(action_name="workspace_prepare", parameters={"action": "open", "project": "jarvis", "recipe": "jarvis"}, source="rule_fallback", response_text="Đang mở dự án jarvis cho Ngài."),
+            "switch sang project core": IntentResult(action_name="workspace_prepare", parameters={"action": "open", "project": "core", "recipe": "core"}, source="rule_fallback", response_text="Đang chuyển sang dự án core cho Ngài."),
+            "chuyen sang workspace dev": IntentResult(action_name="workspace_prepare", parameters={"action": "open", "project": "dev", "recipe": "dev"}, source="rule_fallback", response_text="Đang chuyển sang workspace dev cho Ngài."),
+            "tao project moi": IntentResult(action_name="project_create", parameters={"action": "create", "name": "", "project_name": ""}, source="rule_fallback", response_text="Đang khởi tạo dự án mới cho Ngài."),
+            "create project backend": IntentResult(action_name="project_create", parameters={"action": "create", "name": "backend", "project_name": "backend"}, source="rule_fallback", response_text="Đang khởi tạo dự án backend cho Ngài."),
             "mở dự án": IntentResult(action_name="workspace_prepare", parameters={"action": "open", "project": "", "recipe": "ai_development"}, source="rule_fallback", response_text="Đang chuẩn bị môi trường làm việc cho Ngài."),
             "chuyển workspace": IntentResult(action_name="workspace_prepare", parameters={"action": "open", "project": "", "recipe": "ai_development"}, source="rule_fallback", response_text="Đang chuẩn bị môi trường làm việc cho Ngài."),
             "chuyển dự án": IntentResult(action_name="workspace_prepare", parameters={"action": "open", "project": "", "recipe": "ai_development"}, source="rule_fallback", response_text="Đang chuẩn bị môi trường làm việc cho Ngài."),
-            "tạo project mới": IntentResult(action_name="project_create", parameters={"action": "create", "name": "", "project_name": ""}, source="rule_fallback", response_text="Đang khởi tạo dự án mới cho Ngài."),
             "tạo workspace mới": IntentResult(action_name="project_create", parameters={"action": "create", "name": "", "project_name": ""}, source="rule_fallback", response_text="Đang khởi tạo dự án mới cho Ngài."),
             "tạo dự án mới": IntentResult(action_name="project_create", parameters={"action": "create", "name": "", "project_name": ""}, source="rule_fallback", response_text="Đang khởi tạo dự án mới cho Ngài."),
             "tạo project": IntentResult(action_name="project_create", parameters={"action": "create", "name": "", "project_name": ""}, source="rule_fallback", response_text="Đang khởi tạo dự án mới cho Ngài."),
@@ -1012,6 +1152,7 @@ class LLMIntentRouter:
             "tạo workspace": IntentResult(action_name="project_create", parameters={"action": "create", "name": "", "project_name": ""}, source="rule_fallback", response_text="Đang khởi tạo dự án mới cho Ngài."),
             "liệt kê dự án": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
             "liệt kê project": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
+            "liet ke project": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
             "liệt kê workspace": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
             "show projects": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
             "các project đang có": IntentResult(action_name="project_list", parameters={"action": "list"}, source="rule_fallback", response_text="Đang liệt kê danh sách các dự án cho Ngài."),
@@ -1029,7 +1170,6 @@ class LLMIntentRouter:
             "git commit": IntentResult(action_name="skill_git_assistant", parameters={"action": "commit", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang commit các thay đổi dự án cho Ngài."),
             "git push": IntentResult(action_name="skill_git_assistant", parameters={"action": "push", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang đẩy các thay đổi lên Git repository cho Ngài."),
         }
-
 
         # Pre-sort rule dictionary keys by descending length for greedy exact match
         self._sorted_rule_keys: list[str] = sorted(self.rule_engine.keys(), key=len, reverse=True)
@@ -1092,14 +1232,17 @@ class LLMIntentRouter:
                     response_text="Đang tắt điều hòa cho Ngài.",
                 ),
             ),
-
             # 2. Hardware / Telemetry / Diagnostics
             (
-                re.compile(r"(?:kiểm tra|check|query|xem|báo cáo)\s+(?:(?:(cpu|gpu|ram|ổ\s*cứng|disk|bộ\s*nhớ)\s+(?:nhiệt độ|temp|temperature|mức\s*sử\s*dụng|tình\s*trạng|dung\s*lượng))|(?:(?:nhiệt độ|temp|temperature|mức\s*sử\s*dụng|tình\s*trạng|dung\s*lượng)\s+(cpu|gpu|ram|ổ\s*cứng|disk|bộ\s*nhớ))|(?:nhiệt độ|temp|temperature))", re.IGNORECASE),
+                re.compile(r"(?:kiểm\s*tra|kiem\s*tra|check|query|xem|báo\s*cáo|bao\s*cao)\s+(?:(?:(cpu|gpu|ram|ổ\s*cứng|o\s*cung|disk|bộ\s*nhớ|bo\s*nho)\s+(?:nhiệt\s*độ|nhiet\s*do|temp|temperature|mức\s*sử\s*dụng|tình\s*trạng|tinh\s*trang|dung\s*lượng))|(?:(?:nhiệt\s*độ|nhiet\s*do|temp|temperature|mức\s*sử\s*dụng|tình\s*trạng|tinh\s*trang|dung\s*lượng)\s+(cpu|gpu|ram|ổ\s*cứng|o\s*cung|disk|bộ\s*nhớ|bo\s*nho))|(?:nhiệt\s*độ|nhiet\s*do|temp|temperature))", re.IGNORECASE),
                 lambda m: self._make_hw_intent((m.group(1) or m.group(2) or "cpu").lower()),
             ),
             (
-                re.compile(r"(?:tình trạng|trạng thái|status|health)\s*(?:hệ thống|máy tính|system|pc|máy)", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:kiểm\s*tra|kiem\s*tra|xem|check)\s+(cpu|gpu|ram|disk|ổ\s*cứng|o\s*cung)$", re.IGNORECASE),
+                lambda m: self._make_hw_intent(m.group(1)),
+            ),
+            (
+                re.compile(r"(?:tình\s*trạng|trạng\s*thái|tinh\s*trang|trang\s*thai|status|health)\s*(?:hệ\s*thống|máy\s*tính|he\s*thong|may\s*tinh|system|pc|máy|may|hardware)", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="hardware_status_query",
                     parameters={},
@@ -1110,12 +1253,23 @@ class LLMIntentRouter:
 
             # 3. Spotify & Music (Specific Song Queries & Playback Controls)
             (
-                re.compile(r"(?:mở\s+spotify\s+bài|mở\s+bài\s+hát|bật\s+bài|phát\s+bài|nghe\s+bài|bật\s+nhạc\s+bài|mở\s+nhạc\s+bài|phát\s+nhạc\s+bài|play\s+song|play\s+music)\s+(.+)", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:mở|bật|phát|nghe|mo|bat|phat|nghe|play|launch)\s+(?:spotify\s*(?:bài|bài\s*hát|bai|song)?|nhạc|nhac|bài\s*hát|bai\s*hat|bài|bai|music|song)(?:\s+(.+))?$", re.IGNORECASE),
+                lambda m: (
+                    lambda q: IntentResult(
+                        action_name="spotify",
+                        parameters={"query": q} if q else {"command": "play", "query": ""},
+                        source="rule_fallback",
+                        response_text=f"Đang mở Spotify và phát {q} cho Ngài." if q else "Đang mở Spotify và phát nhạc cho Ngài.",
+                    )
+                )(re.sub(r"^(?:bài\s*hát|bai\s*hat|bài|bai|song)\s+", "", m.group(1).strip(), flags=re.IGNORECASE) if (m.lastindex and m.group(1) and m.group(1).strip()) else "")
+            ),
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:bật\s*nhạc\s*lên|bat\s*nhac\s*len|phát\s*nhạc\s*đi|phat\s*nhac\s*di|\bspotify\b)$", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="spotify",
-                    parameters={"query": m.group(1).strip()},
+                    parameters={"query": "", "name": "spotify"},
                     source="rule_fallback",
-                    response_text=f"Đang mở Spotify và phát {m.group(1).strip()} cho Ngài.",
+                    response_text="Đang mở Spotify cho Ngài.",
                 ),
             ),
             (
@@ -1139,8 +1293,21 @@ class LLMIntentRouter:
 
             # 4. Weather
             (
-                re.compile(r"(?:dự\s*báo|xem|kiểm\s*tra)?\s*thời\s*tiết\s*(?:hôm\s*nay|ngày\s*mai|tại|ở|khu\s*vực)?\s*(.+)?", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:dự\s*báo|du\s*bao|xem|kiểm\s*tra|kiem\s*tra)?\s*(?:thời\s*tiết|thoi\s*tiet|weather|trời|troi)\s*(?:hôm\s*nay|hom\s*nay|ngày\s*mai|ngay\s*mai|hiện\s*tại|today|forecast|tại|ở|khu\s*vực)?\s*(.*)$", re.IGNORECASE),
                 lambda m: self._make_weather_intent(m.group(1) if m.group(1) else ""),
+            ),
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:nhiệt\s*độ|nhiet\s*do)\s+(?:ngoài\s*trời|hôm\s*nay|hom\s*nay|ngày\s*mai|ngay\s*mai|hiện\s*tại|today|tại|ở)\s*(.*)$", re.IGNORECASE),
+                lambda m: self._make_weather_intent(m.group(1) if m.group(1) else ""),
+            ),
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:bao\s*nhiêu\s*độ|bao\s*nhieu\s*do|nhiệt\s*độ\s*bao\s*nhiêu)$", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="shell_exec",
+                    parameters={"command": "curl -s wttr.in?format=3", "topic": "weather", "location": "current"},
+                    source="rule_fallback",
+                    response_text="Đang kiểm tra nhiệt độ hiện tại cho Ngài.",
+                ),
             ),
 
             # 5. Reminder & Alarms (Duration, Clock Time, Custom Message)
@@ -1168,7 +1335,7 @@ class LLMIntentRouter:
 
             # 6. System Power
             (
-                re.compile(r"(?:tắt\s*máy|shutdown|power\s*off|tắt\s*máy\s*tính|tắt\s*nguồn)", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:tắt\s*máy|shutdown|shut\s*down|power\s*off|turn\s*off\s*computer|tắt\s*máy\s*tính|tắt\s*nguồn|tat\s*may|tat\s*may\s*tinh|tat\s*nguon|tat\s*may\s*di|\btắt\b|\btat\b)$", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="system_power",
                     parameters={"action": "shutdown"},
@@ -1180,7 +1347,7 @@ class LLMIntentRouter:
                 ),
             ),
             (
-                re.compile(r"(?:khởi\s*động\s*lại|restart|reboot)", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:khởi\s*động\s*lại|khoi\s*dong\s*lai|restart|reboot|restart\s*máy|restart\s*may|restart\s*windows|khoi\s*dong\s*lai\s*may)$", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="system_power",
                     parameters={"action": "restart"},
@@ -1189,6 +1356,15 @@ class LLMIntentRouter:
                     requires_confirmation=True,
                     confirmation_prompt="Ngài có chắc chắn muốn khởi động lại máy không?",
                     danger_level="CRITICAL",
+                ),
+            ),
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:dừng\s*lại|dừng|dung\s*lai|dung|stop|thôi|thoi|hủy|huy|cancel|abort)$", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="system_power",
+                    parameters={"action": "lock"},
+                    source="rule_fallback",
+                    response_text="Đã dừng phiên làm việc và khóa màn hình, thưa Ngài.",
                 ),
             ),
             (
@@ -1203,56 +1379,31 @@ class LLMIntentRouter:
                     danger_level="MEDIUM",
                 ),
             ),
-            (
-                re.compile(r"(?:khóa\s*máy|lock\s*screen|khóa\s*màn\s*hình)", re.IGNORECASE),
-                lambda m: IntentResult(
-                    action_name="system_power",
-                    parameters={"action": "lock"},
-                    source="rule_fallback",
-                    response_text="Đã khóa màn hình máy tính, thưa Ngài.",
-                    requires_confirmation=False,
-                    danger_level="LOW",
-                ),
-            ),
-
-            # Workflows & Security
-            (
-                re.compile(r"(?:quét|scan|audit)\s*(?:mạng|network|subnet)(?:\s+([\d\.\/]+))?", re.IGNORECASE),
-                lambda m: IntentResult(
-                    action_name="security_nmap_scan",
-                    parameters={"target": m.group(1) or "192.168.1.0/24"},
-                    source="rule_fallback",
-                    response_text="Đang thực hiện quét an ninh mạng nội bộ cho Ngài.",
-                ),
-            ),
             # Project & Workspace Management
-            # 1. Open / Switch Project or Workspace
             (
                 re.compile(
-                    r"^(?:jarvis[,\s]*)?(?:mở|chuyển\s*(?:sang)?|switch\s*(?:to|sang)?|open)\s+(?:dự\s*án|project|workspace|không\s*gian\s*làm\s*việc)(?:\s+(.+))?$",
+                    r"^(?:jarvis[,\s]*)?(?:mở|mo|chuyển\s*(?:sang)?|chuyen\s*(?:sang)?|switch\s*(?:to|sang)?|open)\s+(?:dự\s*án|du\s*an|project|workspace|không\s*gian\s*làm\s*việc)(?:\s+(.+))?$",
                     re.IGNORECASE,
                 ),
                 lambda m: self._make_workspace_intent("open", m.group(1)),
             ),
             (
                 re.compile(
-                    r"^(?:jarvis[,\s]*)?(?:chuyển\s+sang|switch\s+(?:to|sang))\s+(?:dự\s*án|project|workspace)(?:\s+(.+))?$",
+                    r"^(?:jarvis[,\s]*)?(?:chuyển\s+sang|chuyen\s+sang|switch\s+(?:to|sang))\s+(?:dự\s*án|du\s*an|project|workspace)(?:\s+(.+))?$",
                     re.IGNORECASE,
                 ),
                 lambda m: self._make_workspace_intent("open", m.group(1)),
             ),
-            # 2. Create Project or Workspace
             (
                 re.compile(
-                    r"^(?:jarvis[,\s]*)?(?:tạo|khởi\s*tạo|create|new)\s+(?:dự\s*án|project|workspace)(?:\s+(.*))?$",
+                    r"^(?:jarvis[,\s]*)?(?:tạo|tao|khởi\s*tạo|khoi\s*tao|create|new)\s+(?:dự\s*án|du\s*an|project|workspace)(?:\s+(.*))?$",
                     re.IGNORECASE,
                 ),
                 lambda m: self._make_workspace_intent("create", m.group(1)),
             ),
-            # 3. List Projects or Workspaces
             (
                 re.compile(
-                    r"^(?:jarvis[,\s]*)?(?:xem\s+|kiểm\s*tra\s+)?(?:liệt\s*kê|danh\s*sách|show|list|các)\s+(?:dự\s*án|project|workspace|projects|workspaces)(?:\s+(?:đang\s*có|hiện\s*có|available|mới\s*nhất))?$",
+                    r"^(?:jarvis[,\s]*)?(?:xem\s+|kiểm\s*tra\s+|kiem\s*tra\s+)?(?:liệt\s*kê|liet\s*ke|danh\s*sách|danh\s*sach|show|list|các|cac)\s+(?:dự\s*án|du\s*an|project|workspace|projects|workspaces)(?:\s+(?:đang\s*có|hiện\s*có|available|mới\s*nhất))?$",
                     re.IGNORECASE,
                 ),
                 lambda m: self._make_workspace_intent("list", None),
@@ -1266,31 +1417,30 @@ class LLMIntentRouter:
                     response_text="Đang chuẩn bị môi trường làm việc cho Ngài.",
                 ),
             ),
-            (
-                re.compile(r"(?:tự\s*phục\s*hồi|dọn\s*dẹp\s*ram|giải\s*phóng\s*bộ\s*nhớ|heal\s*system)", re.IGNORECASE),
-                lambda m: IntentResult(
-                    action_name="healing_watchdog_heal",
-                    parameters={},
-                    source="rule_fallback",
-                    response_text="Đang tiến hành tối ưu hóa bộ nhớ và kiểm tra tiến trình hệ thống cho Ngài.",
-                ),
-            ),
-
             # 7. Universal Application & Software Launchers
             (
-                re.compile(r"^(?:jarvis[,\s]*)?(?:mở|bật|chạy|khởi\s*động|open|launch|start)(?:\s+(?:ứng\s*dụng|app|phần\s*mềm|chương\s*trình))?\s+(chrome|google\s*chrome|cốc\s*cốc|firefox|edge|notepad|sổ\s*tay|ghi\s*chú|calculator|máy\s*tính|calc|word|ms\s*word|excel|ms\s*excel|bảng\s*tính|powerpoint|ppt|vscode|vs\s*code|visual\s*studio\s*code|cursor|cursor\s*ai|task\s*manager|quản\s*lý\s*tác\s*vụ|taskmgr|terminal|powershell|cmd|dòng\s*lệnh|paint|vẽ|spotify|discord|telegram|zalo|cài\s*đặt|settings|explorer|file\s*explorer|quản\s*lý\s*file|obsidian|notion|slack|zoom|teams|microsoft\s*teams|winrar|7zip|vlc|media\s*player|gimp|photoshop|figma|postman|docker|git|github\s*desktop|obs|audacity)$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:mở|bật|chạy|khởi\s*động|mo|bat|chay|khoi\s*dong|open|launch|start)(?:\s+(?:ứng\s*dụng|app|phần\s*mềm|chương\s*trình|ung\s*dung|phan\s*mem))?\s+(chrome|google\s*chrome|cốc\s*cốc|firefox|edge|notepad|sổ\s*tay|ghi\s*chú|calculator|máy\s*tính|calc|word|ms\s*word|excel|ms\s*excel|bảng\s*tính|powerpoint|ppt|vscode|vs\s*code|visual\s*studio\s*code|cursor|cursor\s*ai|task\s*manager|quản\s*lý\s*tác\s*vụ|taskmgr|terminal|powershell|cmd|dòng\s*lệnh|paint|vẽ|spotify|discord|telegram|zalo|cài\s*đặt|cai\s*dat|settings|explorer|file\s*explorer|quản\s*lý\s*file|obsidian|notion|slack|zoom|teams|microsoft\s*teams|winrar|7zip|vlc|media\s*player|gimp|photoshop|figma|postman|docker|git|github\s*desktop|obs|audacity)$", re.IGNORECASE),
                 lambda m: self._make_app_intent(m.group(1)),
             ),
-
             # 8. Universal Website & Online Service Launchers (bật/mở/vào/truy cập)
             (
-                re.compile(r"^(?:jarvis[,\s]*)?(?:mở|bật|vào|truy\s*cập|open|visit|go\s*to|launch|start)(?:\s+(?:trang\s*web|web|website|trang))?\s*(youtube|yt|google|gg|facebook|fb|github|gh|chatgpt|gpt|chat\s*gpt|claude|claude\s*ai|anthropic|binance|zalo\s*web|gmail|mail|email|hòm\s*thư|vnexpress|báo|dantri|dân\s*trí|shopee|tiki|lazada|reddit|twitter|maps|bản\s*đồ|dịch|translate|google\s*dịch|notion|figma|canva|trello|jira|confluence|[\w\-]+(?:\.com|\.vn|\.net|\.org|\.io|\.edu))(?:\s+(.*))?$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:mở|bật|vào|truy\s*cập|mo|bat|vao|truy\s*cap|open|visit|go\s*to|launch|start)(?:\s+(?:trang\s*web|web|website|trang))?\s*(youtube|yt|google|gg|facebook|fb|github|gh|chatgpt|gpt|chat\s*gpt|claude|claude\s*ai|anthropic|binance|zalo\s*web|gmail|mail|email|hòm\s*thư|vnexpress|báo|dantri|dân\s*trí|shopee|tiki|lazada|reddit|twitter|maps|bản\s*đồ|dịch|translate|google\s*dịch|notion|figma|canva|trello|jira|confluence|[\w\-]+(?:\.com|\.vn|\.net|\.org|\.io|\.edu))(?:\s+(.*))?$", re.IGNORECASE),
                 lambda m: self._make_web_intent(m.group(1), m.group(2)),
+            ),
+            # 8b. File Search
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:tìm\s*file|tim\s*file|search\s*file|find\s*file)\s*(.*)$", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="file_search",
+                    parameters={"action": "search", "query": m.group(1).strip() if (m.lastindex and m.group(1)) else ""},
+                    source="rule_fallback",
+                    response_text=f"Đang tìm kiếm file '{m.group(1).strip()}' cho Ngài." if (m.lastindex and m.group(1) and m.group(1).strip()) else "Đang tìm kiếm file cho Ngài.",
+                ),
             ),
 
             # 9. Web Search & Query
             (
-                re.compile(r"^(?:tìm\s*kiếm|search|tra\s*cứu|tìm)\s+(.+?)(?:\s+(?:trên|ở|qua)\s+(?:google|web|mạng|internet|youtube))?$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:tìm\s*kiếm|search|tra\s*cứu|tìm|tim\s*kiem|tim)\s+(.+?)(?:\s+(?:trên|ở|qua)\s+(?:google|web|mạng|internet|youtube))?$", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="web_open",
                     parameters={"query": m.group(1).strip(), "target": f"https://www.google.com/search?q={m.group(1).strip()}"},
@@ -1298,13 +1448,20 @@ class LLMIntentRouter:
                     response_text=f"Đang tìm kiếm '{m.group(1).strip()}' trên Google cho Ngài.",
                 ),
             ),
-
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?google\s+(.+)$", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="web_open",
+                    parameters={"query": m.group(1).strip(), "target": f"https://www.google.com/search?q={m.group(1).strip()}"},
+                    source="rule_fallback",
+                    response_text=f"Đang tìm kiếm '{m.group(1).strip()}' trên Google cho Ngài.",
+                ),
+            ),
             # 10. Folder & Storage Navigation
             (
-                re.compile(r"^(?:mở|open)\s+(?:thư\s*mục|folder|ổ|ổ\s*đĩa|mục)\s*(.+)$", re.IGNORECASE),
-                lambda m: self._make_folder_intent(m.group(1)),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:mở|mo|open)\s+(?:thư\s*mục|thu\s*muc|folder|ổ|o|mục|muc)\s*(.+)?$", re.IGNORECASE),
+                lambda m: self._make_folder_intent(m.group(1) if (m.lastindex and m.group(1)) else "documents"),
             ),
-
             # 11. Window & Screen Management
             (
                 re.compile(r"^(?:thu\s*nhỏ|ẩn|minimize)\s+(?:tất\s*cả|cửa\s*sổ|hết|desktop|màn\s*hình)", re.IGNORECASE),
@@ -1325,7 +1482,7 @@ class LLMIntentRouter:
                 ),
             ),
             (
-                re.compile(r"^(?:chụp|chụp\s*ảnh|screenshot|capture)\s*(?:màn\s*hình|desktop)?$", re.IGNORECASE),
+                re.compile(r"^(?:chụp|chụp\s*ảnh|screenshot|capture|chup|chup\s*anh)\s*(?:màn\s*hình|desktop|man\s*hinh)?$", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="screen_capture",
                     parameters={},
@@ -1333,54 +1490,93 @@ class LLMIntentRouter:
                     response_text="Đã chụp ảnh màn hình và lưu ra Desktop cho Ngài.",
                 ),
             ),
-
             # 12. Volume & Brightness Quick Controls
             (
-                re.compile(r"^(?:tăng|mở\s*to)\s*âm\s*lượng(?:\s+(?:lên)?\s*(\d+))?", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:tăng|mở\s*to|tang|mo\s*to)\s*âm\s*lượng(?:\s+(?:lên)?\s*(\d+))?|^(?:volume\s*up)$", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="system_volume",
-                    parameters={"delta": int(m.group(1)) if m.group(1) else 10},
+                    parameters={"delta": int(m.group(1)) if (m.lastindex and m.group(1)) else 10},
                     source="rule_fallback",
                     response_text="Đang tăng âm lượng hệ thống cho Ngài.",
                 ),
             ),
             (
-                re.compile(r"^(?:giảm|mở\s*nhỏ)\s*âm\s*lượng(?:\s+(?:xuống)?\s*(\d+))?", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:giảm|mở\s*nhỏ|giam|mo\s*nho)\s*âm\s*lượng(?:\s+(?:xuống)?\s*(\d+))?|^(?:volume\s*down)$", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="system_volume",
-                    parameters={"delta": -(int(m.group(1)) if m.group(1) else 10)},
+                    parameters={"delta": -(int(m.group(1)) if (m.lastindex and m.group(1)) else 10)},
                     source="rule_fallback",
                     response_text="Đang giảm âm lượng hệ thống cho Ngài.",
                 ),
             ),
             (
-                re.compile(r"^(?:tăng)\s*độ\s*sáng(?:\s+(?:lên)?\s*(\d+))?", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:tắt\s*tiếng|tat\s*tieng|mute|bật\s*tiếng|bat\s*tieng|unmute|điều\s*chỉnh\s*âm\s*lượng|dieu\s*chinh\s*am\s*luong|giảm\s*âm|giam\s*am)$", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="system_volume",
+                    parameters={"mute": True} if any(w in m.group(0).lower() for w in ("tắt", "tat", "mute")) else ({"delta": -10} if any(w in m.group(0).lower() for w in ("giảm", "giam")) else {"delta": 0}),
+                    source="rule_fallback",
+                    response_text="Đã điều chỉnh âm lượng cho Ngài.",
+                ),
+            ),
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:tăng|tang)\s*(?:độ\s*sáng|do\s*sang)(?:\s+(?:lên)?\s*(\d+))?|^(?:brightness\s*up)$", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="system_brightness",
-                    parameters={"delta": int(m.group(1)) if m.group(1) else 10},
+                    parameters={"delta": int(m.group(1)) if (m.lastindex and m.group(1)) else 10},
                     source="rule_fallback",
                     response_text="Đang tăng độ sáng màn hình cho Ngài.",
                 ),
             ),
             (
-                re.compile(r"^(?:giảm)\s*độ\s*sáng(?:\s+(?:xuống)?\s*(\d+))?", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:giảm|giam)\s*(?:độ\s*sáng|do\s*sang)(?:\s+(?:xuống)?\s*(\d+))?|^(?:brightness\s*down)$", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="system_brightness",
-                    parameters={"delta": -(int(m.group(1)) if m.group(1) else 10)},
+                    parameters={"delta": -(int(m.group(1)) if (m.lastindex and m.group(1)) else 10)},
                     source="rule_fallback",
                     response_text="Đang giảm độ sáng màn hình cho Ngài.",
                 ),
             ),
-            # 8. Built-in Skills Fast-Path Patterns
+            # 13. News & Morning Briefing
             (
-                re.compile(r"(?:briefing\s*(?:sáng|hôm\s*nay)?|báo\s*cáo\s*sáng|tổng\s*hợp\s*sáng|điểm\s*tin\s*sáng|morning\s*briefing)", re.IGNORECASE),
+                re.compile(r"(?:briefing\s*(?:sáng|hôm\s*nay)?|báo\s*cáo\s*sáng|tổng\s*hợp\s*sáng|điểm\s*tin\s*sáng|morning\s*briefing|báo\s*cáo\s*buổi\s*sáng|bao\s*cao\s*buoi\s*sang|thông\s*tin\s*buổi\s*sáng|thong\s*tin\s*buoi\s*sang)", re.IGNORECASE),
                 lambda m: IntentResult(
-                    action_name="skill_briefing",
+                    action_name="morning_briefing",
                     parameters={},
                     source="rule_fallback",
                     response_text="Đang tổng hợp báo cáo buổi sáng cho Ngài.",
                 ),
             ),
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:đọc|doc|xem|tin|news|báo|bao)\s*(?:tức|tuc|báo|bao|mới\s*nhất|moi\s*nhat|hôm\s*nay|hom\s*nay|today|headlines|latest)?(?:\s+(.+))?$", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="news_headlines",
+                    parameters={"topic": "general"},
+                    source="rule_fallback",
+                    response_text="Đang cập nhật tin tức cho Ngài.",
+                ),
+            ),
+
+            # 14. Memory Facts & Daily Summary
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:nhớ\s*cho\s*tôi|nho\s*cho\s*toi|nhớ\s*rằng|nho\s*rang|lưu\s*lại|luu\s*lai|save\s*this|remember\s*this)\s*[:,\s]?\s*(.*)$", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="memory_save_fact",
+                    parameters={"fact": m.group(1).strip()} if (m.lastindex and m.group(1)) else {},
+                    source="rule_fallback",
+                    response_text="Đã ghi nhớ thông tin này cho Ngài.",
+                ),
+            ),
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:tóm\s*tắt\s*hôm\s*nay|tom\s*tat\s*hom\s*nay|tổng\s*kết\s*ngày|summarize\s*today|daily\s*summary)$", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="memory_summarize_daily",
+                    parameters={},
+                    source="rule_fallback",
+                    response_text="Đang tóm tắt hoạt động trong ngày hôm nay cho Ngài.",
+                ),
+            ),
+
+            # 15. Built-in Skills Fast-Path Patterns
             (
                 re.compile(r"(?:bắt\s*đầu\s*pomodoro|chế\s*độ\s*tập\s*trung|start\s*pomodoro|focus\s*mode)(?:\s+(\d+)\s*(?:phút|m|mins))?", re.IGNORECASE),
                 lambda m: IntentResult(
@@ -1422,31 +1618,31 @@ class LLMIntentRouter:
                     response_text="Đang quy đổi tỷ giá tiền tệ cho Ngài.",
                 ),
             ),
-            # 8b. Git Operations & Repository Controls
+            # 16. Git Operations & Repository Controls
             (
                 re.compile(
-                    r"^(?:jarvis[,\s]*)?git\s+(status|commit|push|log|branch|diff)(?:\s+(?:dự\s*án|project|workspace|repo))?(?:\s+(.+))?$",
+                    r"^(?:jarvis[,\s]*)?git\s+(status|commit|push|log|branch|diff)(?:\s+(?:dự\s*án|du\s*an|project|workspace|repo))?(?:\s+(.+))?$",
                     re.IGNORECASE,
                 ),
                 lambda m: self._make_git_project_intent(m.group(1), m.group(2)),
             ),
             (
                 re.compile(
-                    r"^(?:jarvis[,\s]*)?(commit|push)\s+(?:dự\s*án|project|workspace|code|repo)(?:\s+(.+))?$",
+                    r"^(?:jarvis[,\s]*)?(commit|push)\s+(?:dự\s*án|du\s*an|project|workspace|code|repo)(?:\s+(.+))?$",
                     re.IGNORECASE,
                 ),
                 lambda m: self._make_git_project_intent(m.group(1), m.group(2)),
             ),
             (
                 re.compile(
-                    r"^(?:jarvis[,\s]*)?(?:kiểm\s*tra|trạng\s*thái|lịch\s*sử|nhánh)\s+git\s+(?:dự\s*án|project|workspace)?(?:\s+(.+))?$",
+                    r"^(?:jarvis[,\s]*)?(?:kiểm\s*tra|kiem\s*tra|trạng\s*thái|trang\s*thai|lịch\s*sử|nhánh)\s+git\s+(?:dự\s*án|du\s*an|project|workspace)?(?:\s+(.+))?$",
                     re.IGNORECASE,
                 ),
-                lambda m: self._make_git_project_intent("status" if "kiểm" in m.group(0).lower() or "trạng" in m.group(0).lower() else ("log" if "lịch" in m.group(0).lower() else "branch"), m.group(1)),
+                lambda m: self._make_git_project_intent("status" if "kiểm" in m.group(0).lower() or "kiem" in m.group(0).lower() or "trạng" in m.group(0).lower() or "trang" in m.group(0).lower() else ("log" if "lịch" in m.group(0).lower() else "branch"), m.group(1)),
             ),
             (
                 re.compile(
-                    r"^(?:jarvis[,\s]*)?(?:git\s*status|kiểm\s*tra\s*git|trạng\s*thái\s*git)(?:\s+(?:dự\s*án|project|workspace))?(?:\s+(.+))?$",
+                    r"^(?:jarvis[,\s]*)?(?:git\s*status|kiểm\s*tra\s*git|trạng\s*thái\s*git)(?:\s+(?:dự\s*án|du\s*an|project|workspace))?(?:\s+(.+))?$",
                     re.IGNORECASE,
                 ),
                 lambda m: self._make_git_project_intent("status", m.group(1)),
@@ -1454,7 +1650,7 @@ class LLMIntentRouter:
             (
                 re.compile(r"(?:chụp\s*ảnh\s*màn\s*hình|chụp\s*màn\s*hình|take\s*screenshot)", re.IGNORECASE),
                 lambda m: IntentResult(
-                    action_name="skill_system_control",
+                    action_name="screen_capture",
                     parameters={"action": "screenshot"},
                     source="rule_fallback",
                     response_text="Đang chụp ảnh màn hình và lưu vào Desktop cho Ngài.",
@@ -1469,13 +1665,17 @@ class LLMIntentRouter:
                     response_text="Đã hiển thị màn hình nền Desktop cho Ngài.",
                 ),
             ),
+            # 17. Security Network / Nmap Scan
             (
-                re.compile(r"(?:tìm\s*file|search\s*file|find\s*file)\s+(.+)", re.IGNORECASE),
+                re.compile(
+                    r"^(?:jarvis[,\s]*)?(?:scan\s+(?:network|subnet|ip)|quet\s+(?:mang|dải\s*mạng|dai\s*mang|ip|mạng\s*nội\s*bộ|mang\s*noi\s*bo)|quét\s+(?:mạng|dải\s*mạng|dai\s*mang|ip|mạng\s*nội\s*bộ|mang\s*noi\s*bo)|nmap(?:\s+scan)?)\s+([\d\.\/\:]+)",
+                    re.IGNORECASE,
+                ),
                 lambda m: IntentResult(
-                    action_name="skill_file_manager",
-                    parameters={"action": "search", "query": m.group(1).strip()},
+                    action_name="security_nmap_scan",
+                    parameters={"target": m.group(1).strip()},
                     source="rule_fallback",
-                    response_text=f"Đang tìm kiếm file '{m.group(1).strip()}' cho Ngài.",
+                    response_text="Đang thực hiện quét an ninh mạng nội bộ cho Ngài.",
                 ),
             ),
         ]
@@ -2035,6 +2235,7 @@ class LLMIntentRouter:
                     return res
 
         # 2. TIER 2: LLM Semantic Reasoning
+        logger.info("Tier-1 fast-path miss for query %r; invoking Tier-2 LLM semantic reasoning", text)
         try:
             tools = None
             if self.dispatcher:
@@ -2055,15 +2256,24 @@ class LLMIntentRouter:
             if isinstance(llm_resp, LLMResponse):
                 if llm_resp.tool_calls:
                     top_tool = llm_resp.tool_calls[0]
+                    params = top_tool.arguments
+                    if isinstance(params, str):
+                        try:
+                            import json
+                            params = json.loads(params)
+                        except Exception:
+                            params = {"raw": params}
+                    elif not isinstance(params, dict):
+                        params = {}
                     res = IntentResult(
                         action_name=top_tool.name,
-                        parameters=top_tool.arguments,
+                        parameters=params,
                         confidence=0.95,
                         source="llm",
                         reasoning=llm_resp.content,
                         raw_text=text,
                         llm_response=llm_resp,
-                        response_text=self.get_natural_response(top_tool.name, top_tool.arguments, text),
+                        response_text=self.get_natural_response(top_tool.name, params, text),
                     )
                     return res
                 reply = llm_resp.content or ""

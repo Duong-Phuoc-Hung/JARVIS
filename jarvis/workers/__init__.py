@@ -12,6 +12,19 @@ from jarvis.workers.models import (
     WorkerTelemetry,
 )
 from jarvis.workers.notifications import WorkerNotificationDispatcher
+from jarvis.workers.proactive import (
+    DailyBriefingScheduler,
+    HealthAlert,
+    InactivityMonitor,
+    PomodoroState,
+    PomodoroStatus,
+    PomodoroTimer,
+    ProactiveConfig,
+    ProactiveEngine,
+    ReminderScheduler,
+    ScheduledReminder,
+    SystemHealthMonitor,
+)
 from jarvis.workers.worker import BackgroundWorker, WorkerCancelledException
 
 __all__ = [
@@ -23,4 +36,16 @@ __all__ = [
     "WorkerCancelledException",
     "SubAgentManager",
     "WorkerNotificationDispatcher",
+    "ProactiveEngine",
+    "ProactiveConfig",
+    "ReminderScheduler",
+    "ScheduledReminder",
+    "SystemHealthMonitor",
+    "HealthAlert",
+    "PomodoroTimer",
+    "PomodoroState",
+    "PomodoroStatus",
+    "DailyBriefingScheduler",
+    "InactivityMonitor",
 ]
+
