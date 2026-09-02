@@ -17,6 +17,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
 from jarvis.core.models import ActionResult, PrivilegeLevel
@@ -150,6 +151,197 @@ def test_llm_client_clean_and_parse_json():
     malformed = "action: 'spotify_play', track: 'daft_punk'"
     res = client._clean_and_parse_json(malformed)
     assert res.get("action") == "spotify_play"
+
+
+# ============================================================================
+# 1B. LLM PROVIDER TRUTHFULNESS TESTS (v4.5.2 P0 hotfix)
+# A real configured provider's request failure must never silently become a
+# synthetic mock success. Mock behavior remains available ONLY through an
+# explicit provider=MOCK or mock_mode=True path.
+# ============================================================================
+
+def test_llm_explicit_mock_provider_still_returns_deterministic_success():
+    """[1] Explicit provider='mock' still returns deterministic mock success."""
+    client = LLMClient(provider="mock")
+    resp = client.generate("Hello")
+    assert resp.success is True
+    assert "mock" in resp.provider
+
+
+def test_llm_explicit_mock_mode_on_real_provider_still_uses_mock(monkeypatch):
+    """[2] Explicit mock_mode=True on a real provider still intentionally uses mock."""
+    def _fail_post(*args, **kwargs):
+        raise AssertionError("A real HTTP call must not happen when mock_mode=True")
+
+    client = LLMClient(provider="openai", api_key="sk-real-looking-key", mock_mode=True)
+    monkeypatch.setattr(client.session, "post", _fail_post)
+
+    resp = client.generate("Hello")
+    assert resp.success is True
+    assert resp.provider == "openai"
+
+
+def test_llm_invalid_provider_string_does_not_become_mock():
+    """[3] An invalid provider string must fail closed, not silently become MOCK."""
+    with pytest.raises(ValueError) as exc_info:
+        LLMClient(provider="definitely-not-a-provider")
+    assert "definitely-not-a-provider" in str(exc_info.value)
+
+
+@pytest.mark.parametrize("exc_to_raise", [
+    requests.ConnectionError("Connection refused"),
+    requests.Timeout("Request timed out"),
+])
+def test_llm_ollama_real_failure_never_calls_execute_mock(monkeypatch, exc_to_raise):
+    """[4][5] Real OLLAMA connection failure/timeout must never call _execute_mock()."""
+    def _fail_execute_mock(*args, **kwargs):
+        raise AssertionError("_execute_mock() must not be called for a real OLLAMA failure")
+
+    def _raise(*args, **kwargs):
+        raise exc_to_raise
+
+    client = LLMClient(provider="ollama", max_retries=0)
+    monkeypatch.setattr(client, "_execute_mock", _fail_execute_mock)
+    monkeypatch.setattr(client.session, "post", _raise)
+    monkeypatch.setattr("time.sleep", lambda *a, **k: None)
+
+    if isinstance(exc_to_raise, requests.Timeout):
+        with pytest.raises(LLMTimeoutError):
+            client.generate("Local prompt")
+    else:
+        with pytest.raises(LLMProviderError):
+            client.generate("Local prompt")
+
+
+def test_llm_ollama_connection_error_respects_retry_policy(monkeypatch):
+    """[4] Ollama ConnectionError retries per max_retries, then raises truthfully (no mock)."""
+    call_count = {"n": 0}
+
+    def _raise(*args, **kwargs):
+        call_count["n"] += 1
+        raise requests.ConnectionError("Connection refused")
+
+    def _fail_execute_mock(*args, **kwargs):
+        raise AssertionError("_execute_mock() must not be called")
+
+    client = LLMClient(provider="ollama", max_retries=2)
+    monkeypatch.setattr(client, "_execute_mock", _fail_execute_mock)
+    monkeypatch.setattr(client.session, "post", _raise)
+    monkeypatch.setattr("time.sleep", lambda *a, **k: None)
+
+    with pytest.raises(LLMProviderError):
+        client.generate("Local prompt")
+
+    # max_retries=2 => 3 total attempts
+    assert call_count["n"] == 3
+
+
+@pytest.mark.parametrize("provider", ["openai", "gemini", "claude"])
+@pytest.mark.parametrize("exc_to_raise", [
+    requests.ConnectionError("Connection refused"),
+    requests.Timeout("Request timed out"),
+    requests.RequestException("Generic transport failure"),
+])
+def test_llm_cloud_provider_real_failure_never_calls_execute_mock(monkeypatch, provider, exc_to_raise):
+    """[6] Real OPENAI/GEMINI/CLAUDE connection/request failure never calls _execute_mock() and surfaces truthfully."""
+    def _fail_execute_mock(*args, **kwargs):
+        raise AssertionError(f"_execute_mock() must not be called for a real {provider} failure")
+
+    def _raise(*args, **kwargs):
+        raise exc_to_raise
+
+    client = LLMClient(provider=provider, api_key="sk-real-looking-key", max_retries=0)
+    monkeypatch.setattr(client, "_execute_mock", _fail_execute_mock)
+    monkeypatch.setattr(client.session, "post", _raise)
+    monkeypatch.setattr("time.sleep", lambda *a, **k: None)
+
+    with pytest.raises(LLMError):
+        client.generate("Hello")
+
+
+def test_llm_generic_request_exception_does_not_synthesize_response(monkeypatch):
+    """[7] A generic requests.RequestException must not synthesize a response."""
+    def _fail_execute_mock(*args, **kwargs):
+        raise AssertionError("_execute_mock() must not be called")
+
+    def _raise(*args, **kwargs):
+        raise requests.RequestException("Generic transport failure")
+
+    client = LLMClient(provider="openai", api_key="sk-real-looking-key", max_retries=0)
+    monkeypatch.setattr(client, "_execute_mock", _fail_execute_mock)
+    monkeypatch.setattr(client.session, "post", _raise)
+
+    with pytest.raises(LLMProviderError):
+        client.generate("Hello")
+
+
+def test_llm_os_error_does_not_synthesize_response(monkeypatch):
+    """[8] A bare OSError during transport must not synthesize a response."""
+    def _fail_execute_mock(*args, **kwargs):
+        raise AssertionError("_execute_mock() must not be called")
+
+    def _raise(*args, **kwargs):
+        raise OSError("Network is unreachable")
+
+    client = LLMClient(provider="openai", api_key="sk-real-looking-key", max_retries=0)
+    monkeypatch.setattr(client, "_execute_mock", _fail_execute_mock)
+    monkeypatch.setattr(client.session, "post", _raise)
+
+    with pytest.raises(LLMProviderError):
+        client.generate("Hello")
+
+
+def test_llm_unsupported_provider_dispatch_state_does_not_synthesize_response(monkeypatch):
+    """[9] An unexpected/unsupported provider-dispatch state must fail closed, not synthesize a response."""
+    def _fail_execute_mock(*args, **kwargs):
+        raise AssertionError("_execute_mock() must not be called for an unsupported dispatch state")
+
+    class _FakeUnsupportedProvider:
+        """Stand-in with a `.value` attribute (used unconditionally by chat()'s
+        call-history recording and error messages) that is never equal to any
+        real LLMProvider member, so it exercises the dispatch loop's fail-closed
+        else-branch instead of any explicit provider branch."""
+        value = "unsupported_provider"
+
+        def __eq__(self, other):
+            return False
+
+        def __hash__(self):
+            return id(self)
+
+    client = LLMClient(provider="openai", api_key="sk-real-looking-key", max_retries=0)
+    monkeypatch.setattr(client, "_execute_mock", _fail_execute_mock)
+    # Force the dispatch loop's else-branch by mutating provider after
+    # construction to an impossible-in-practice value not handled by any
+    # explicit branch (constructor validation normally prevents this).
+    client.provider = _FakeUnsupportedProvider()
+
+    with pytest.raises(LLMProviderError):
+        client.generate("Hello")
+
+
+def test_llm_dummy_looking_api_key_does_not_activate_mock_for_real_provider(monkeypatch):
+    """[10] A dummy-looking API key alone must not switch a real provider into mock."""
+    def _fail_execute_mock(*args, **kwargs):
+        raise AssertionError("_execute_mock() must not be called just because the key looks dummy/test-like")
+
+    def _fake_post(url, headers=None, json=None, timeout=None):
+        resp = MagicMock()
+        resp.raise_for_status.return_value = None
+        resp.json.return_value = {
+            "choices": [{"message": {"content": "real response"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 5, "total_tokens": 10},
+        }
+        return resp
+
+    for dummy_key in ("test_dummy_ci_key", "mock-key", "dummy", "fake", "key", "gemini_key_123"):
+        client = LLMClient(provider="openai", api_key=dummy_key, max_retries=0)
+        monkeypatch.setattr(client, "_execute_mock", _fail_execute_mock)
+        monkeypatch.setattr(client.session, "post", _fake_post)
+
+        resp = client.generate("Hello")
+        assert resp.success is True
+        assert resp.content == "real response"
 
 
 # ============================================================================
