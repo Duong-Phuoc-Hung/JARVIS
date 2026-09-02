@@ -716,6 +716,12 @@ Sprint 4 (Tháng 4+ / v5.0.0)  ──> Đóng gói Bộ cài đặt Windows, B�
     subtests passed, 0 failed.**
   Các phát hiện khác chưa liên quan (TShark/network/v.v., nếu có trong các tài liệu audit khác)
   không bị ảnh hưởng và không được đóng theo mục này.
+- **Đồng bộ tài liệu (documentation state sync, không phải hạng mục roadmap sản phẩm) —
+  PR #35** (`docs/finalize-dispatch-merge-state`, merge commit
+  `399a70cc471bf35d98e1b976f8c895054d4f7524`, post-merge CI #162 SUCCESS): cập nhật 7 file
+  tài liệu để phản ánh trạng thái đã merge của PR #34 ở trên — **không phải** một tính năng
+  sản phẩm mới, không mở lại hay thay đổi trạng thái ĐÃ HOÀN THÀNH của central dispatch
+  truthfulness / `hardware_status_query` alias.
 
 ---
 
