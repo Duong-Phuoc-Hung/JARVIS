@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, List, Optional
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -60,17 +61,66 @@ def test_stt_transcribe_audio_buffer_tier1(audio_synthesizer):
     assert "bật đèn phòng khách" in text
 
 
-def test_llm_multi_provider_client_tier1():
+def test_llm_multi_provider_client_tier1(monkeypatch):
     """
-    [F-15] Validate unified LLMClient connects to OpenAI, Gemini, Claude, and Ollama.
+    [F-15] Validate unified LLMClient connects to Gemini and Ollama through
+    real provider dispatch and real response parsing, with only the HTTP
+    transport layer mocked -- no live Internet request occurs and no local
+    Ollama daemon is required. Also proves `_execute_mock()` is never
+    reached for a real provider's successful call, per the v4.5.2 LLM
+    provider-truthfulness hotfix: a dummy-looking API key or an
+    unreachable-Ollama-daemon condition must never silently substitute a
+    synthetic mock response for a real one.
     """
-    gemini_client = LLMClient(provider="gemini", api_key="gemini_key_123")
-    res_gemini = gemini_client.generate("Hi Jarvis")
-    assert "gemini" in res_gemini
+    def _fail_execute_mock(*args, **kwargs):
+        raise AssertionError("_execute_mock() must not be called for a real provider's successful response")
 
-    ollama_client = LLMClient(provider="ollama")
+    # -- Gemini: real provider dispatch, real response parsing, mocked transport --
+    gemini_client = LLMClient(provider="gemini", api_key="test-key", max_retries=0)
+    monkeypatch.setattr(gemini_client, "_execute_mock", _fail_execute_mock)
+
+    gemini_payload = {
+        "candidates": [
+            {"content": {"parts": [{"text": "Hello from Gemini"}]}},
+        ],
+        "usageMetadata": {"promptTokenCount": 5, "candidatesTokenCount": 6, "totalTokenCount": 11},
+    }
+
+    def _fake_gemini_post(url, headers=None, json=None, timeout=None):
+        resp = MagicMock()
+        resp.raise_for_status.return_value = None
+        resp.json.return_value = gemini_payload
+        return resp
+
+    monkeypatch.setattr(gemini_client.session, "post", _fake_gemini_post)
+
+    res_gemini = gemini_client.generate("Hi Jarvis")
+    assert res_gemini.provider == "gemini"
+    assert res_gemini.content == "Hello from Gemini"
+    assert res_gemini.usage.total_tokens == 11
+
+    # -- Ollama: real provider dispatch, real response parsing, mocked transport --
+    ollama_client = LLMClient(provider="ollama", max_retries=0)
+    monkeypatch.setattr(ollama_client, "_execute_mock", _fail_execute_mock)
+
+    ollama_payload = {
+        "message": {"role": "assistant", "content": "Hello from local Ollama"},
+        "prompt_eval_count": 4,
+        "eval_count": 5,
+    }
+
+    def _fake_ollama_post(url, headers=None, json=None, timeout=None):
+        resp = MagicMock()
+        resp.raise_for_status.return_value = None
+        resp.json.return_value = ollama_payload
+        return resp
+
+    monkeypatch.setattr(ollama_client.session, "post", _fake_ollama_post)
+
     res_ollama = ollama_client.generate("Local prompt")
-    assert "ollama" in res_ollama
+    assert res_ollama.provider == "ollama"
+    assert res_ollama.content == "Hello from local Ollama"
+    assert res_ollama.usage.total_tokens == 9
 
 
 def test_llm_router_tool_call_intent_extraction_tier1():

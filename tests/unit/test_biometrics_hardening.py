@@ -501,6 +501,252 @@ def test_surveillance_malformed_embedding_not_owner_verified(tmp_path):
 
 
 # ============================================================================
+# 9B. INTRUDER LOCK/EVIDENCE TRUTHFULNESS (v4.5.2 P0 hotfix)
+# All frames/embeddings are synthetic. No real camera, network, or
+# workstation lock is ever exercised by these tests.
+# ============================================================================
+
+class _FailIfLockCalled:
+    """Test double proving lock_workstation() is never invoked in a given path."""
+
+    def lock_workstation(self):
+        raise AssertionError("lock_workstation() must not be called in this scenario")
+
+
+class _FailIfAlertSent:
+    """Test double proving no evidence/alert dispatch happens in a given path."""
+
+    def handle_telegram_send_photo(self, **kwargs):
+        raise AssertionError("no photo/alert should be dispatched in this scenario")
+
+
+class _LockDouble:
+    """Deterministic, synthetic lock backend: configurable result or exception,
+    and a call counter proving the lock is attempted exactly once."""
+
+    def __init__(self, result: bool | None = None, raise_exc: Exception | None = None):
+        self.calls = 0
+        self._result = result
+        self._raise_exc = raise_exc
+
+    def lock_workstation(self) -> bool:
+        self.calls += 1
+        if self._raise_exc is not None:
+            raise self._raise_exc
+        return bool(self._result)
+
+
+class _CounterOnlyWin32:
+    """Test double that only exposes a bookkeeping call-counter attribute,
+    with NO real callable lock method -- the exact ambiguous shape the P0
+    hotfix must not treat as proof of a successful lock."""
+
+    def __init__(self):
+        self.lock_workstation_calls = 0
+
+
+def _intruder_engine(tmp_path):
+    """Builds an engine with one enrolled owner and a candidate far enough
+    away to be classified as a non-matching intruder."""
+    owner = _unit_vec(0)
+    storage = FaceEmbeddingStorage(storage_path=tmp_path / "faces.json")
+    storage.add_face("owner", owner)
+    intruder = _unit_vec(50)  # distance = sqrt(2), well outside default tolerance
+    cam = MockCam(encodings=[intruder])
+    engine = BiometricsEngine(camera_feed=cam, storage=storage)
+    return engine
+
+
+def test_surveillance_no_enrolled_embeddings_is_not_classified_as_intruder(tmp_path):
+    """[1] A valid face with zero enrolled references must never be reported
+    as an intruder, must never attempt a lock, and must never dispatch
+    evidence -- there is nothing to compare against."""
+    cam = MockCam(encodings=[_unit_vec(1)])
+    engine = BiometricsEngine(camera_feed=cam, storage=FaceEmbeddingStorage(storage_path=tmp_path / "faces.json"))
+    assert engine.enrolled_embeddings == []
+
+    res = engine.process_surveillance_frame(
+        BRIGHT_FRAME, win32_platform=_FailIfLockCalled(), http_server=_FailIfAlertSent()
+    )
+
+    assert res["status"] == "no_enrolled_faces"
+    assert res["status"] != "intruder_locked"
+    assert res["locked"] is False
+    assert res["distance"] is None
+
+
+def test_surveillance_real_intruder_lock_success(tmp_path):
+    """[2] A genuine intruder with a lock backend that reports True."""
+    engine = _intruder_engine(tmp_path)
+    win32 = _LockDouble(result=True)
+
+    res = engine.process_surveillance_frame(BRIGHT_FRAME, win32_platform=win32)
+
+    assert res["status"] == "intruder_locked"
+    assert res["locked"] is True
+    assert win32.calls == 1
+
+
+def test_surveillance_real_intruder_lock_returns_false(tmp_path):
+    """[3] A genuine intruder with a lock backend that reports False."""
+    engine = _intruder_engine(tmp_path)
+    win32 = _LockDouble(result=False)
+
+    res = engine.process_surveillance_frame(BRIGHT_FRAME, win32_platform=win32)
+
+    assert res["status"] != "intruder_locked"
+    assert res["status"] == "intruder_lock_failed"
+    assert res["locked"] is False
+    assert win32.calls == 1
+
+
+def test_surveillance_real_intruder_lock_raises(tmp_path):
+    """[4] A genuine intruder whose lock backend raises: no exception escapes."""
+    engine = _intruder_engine(tmp_path)
+    win32 = _LockDouble(raise_exc=RuntimeError("simulated lock backend failure"))
+
+    res = engine.process_surveillance_frame(BRIGHT_FRAME, win32_platform=win32)  # must not raise
+
+    assert res["status"] == "intruder_lock_failed"
+    assert res["locked"] is False
+    assert win32.calls == 1
+
+
+def test_surveillance_counter_only_win32_double_cannot_confirm_lock(tmp_path):
+    """The mere presence/increment of a call-counter attribute must never be
+    treated as proof of a successful lock -- only an actual callable result
+    counts. A test double exposing only `.lock_workstation_calls` (no real
+    `lock_workstation()` method) must resolve to a failed, unconfirmed lock."""
+    engine = _intruder_engine(tmp_path)
+    win32 = _CounterOnlyWin32()
+
+    res = engine.process_surveillance_frame(BRIGHT_FRAME, win32_platform=win32)
+
+    assert res["locked"] is False
+    assert res["status"] == "intruder_lock_failed"
+    # The counter must not have been silently incremented by production code
+    # pretending a lock occurred.
+    assert win32.lock_workstation_calls == 0
+
+
+def test_surveillance_evidence_uses_real_encoder_output_not_fake_sentinel(tmp_path, monkeypatch):
+    """[5] Evidence bytes delivered to the alert transport are the actual
+    (mocked) encoder output for the real frame -- never a hardcoded sentinel."""
+    engine = _intruder_engine(tmp_path)
+    win32 = _LockDouble(result=True)
+
+    real_encoder_bytes = b"\xff\xd8\xff\xe0REAL_JPEG_BYTES_FROM_ENCODER"
+    monkeypatch.setattr(engine, "_encode_frame_as_jpeg", lambda frame: real_encoder_bytes)
+
+    captured: dict[str, Any] = {}
+
+    class CaptureHTTP:
+        def handle_telegram_send_photo(self, chat_id, photo_bytes, caption):
+            captured["photo_bytes"] = photo_bytes
+            captured["caption"] = caption
+
+    res = engine.process_surveillance_frame(BRIGHT_FRAME, win32_platform=win32, http_server=CaptureHTTP())
+
+    assert res["locked"] is True
+    assert captured["photo_bytes"] == real_encoder_bytes
+    assert captured["photo_bytes"] != b"fake_intruder_photo_jpeg"
+
+
+def test_surveillance_cv2_unavailable_no_photo_sent_lock_still_truthful(tmp_path, monkeypatch):
+    """[6] With cv2 unavailable, no fake photo is sent, and the lock result
+    remains truthful and independent of evidence dispatch."""
+    import jarvis.vision.biometrics as biometrics_mod
+    monkeypatch.setattr(biometrics_mod, "cv2", None)
+
+    engine = _intruder_engine(tmp_path)
+    win32 = _LockDouble(result=True)
+
+    res = engine.process_surveillance_frame(BRIGHT_FRAME, win32_platform=win32, http_server=_FailIfAlertSent())
+
+    assert res["status"] == "intruder_locked"
+    assert res["locked"] is True
+
+
+def test_surveillance_encoder_failure_no_photo_sent_lock_still_truthful(tmp_path, monkeypatch):
+    """[7] When encoding fails (returns None), no fake photo is sent, and the
+    lock result remains truthful."""
+    engine = _intruder_engine(tmp_path)
+    win32 = _LockDouble(result=True)
+    monkeypatch.setattr(engine, "_encode_frame_as_jpeg", lambda frame: None)
+
+    res = engine.process_surveillance_frame(BRIGHT_FRAME, win32_platform=win32, http_server=_FailIfAlertSent())
+
+    assert res["status"] == "intruder_locked"
+    assert res["locked"] is True
+
+
+def test_surveillance_alert_transport_exception_does_not_affect_lock_truth(tmp_path, monkeypatch):
+    """[8] An alert-transport exception must not flip a successful lock to
+    failed, nor a failed lock to successful, and must not crash the call."""
+    engine = _intruder_engine(tmp_path)
+    monkeypatch.setattr(engine, "_encode_frame_as_jpeg", lambda frame: b"jpegbytes")
+
+    class RaisingHTTP:
+        def handle_telegram_send_photo(self, **kwargs):
+            raise RuntimeError("simulated network failure")
+
+    # Successful lock must remain locked=True despite the alert exception.
+    win32_ok = _LockDouble(result=True)
+    res_ok = engine.process_surveillance_frame(BRIGHT_FRAME, win32_platform=win32_ok, http_server=RaisingHTTP())
+    assert res_ok["locked"] is True
+    assert res_ok["status"] == "intruder_locked"
+
+    # Failed lock must remain locked=False despite the alert exception.
+    win32_fail = _LockDouble(result=False)
+    res_fail = engine.process_surveillance_frame(BRIGHT_FRAME, win32_platform=win32_fail, http_server=RaisingHTTP())
+    assert res_fail["locked"] is False
+    assert res_fail["status"] == "intruder_lock_failed"
+
+
+def test_surveillance_owner_match_still_no_lock_no_photo(tmp_path):
+    """[9] An actual owner match remains owner_verified, with no lock attempt
+    and no intruder evidence dispatch."""
+    owner = _unit_vec(0)
+    storage = FaceEmbeddingStorage(storage_path=tmp_path / "faces.json")
+    storage.add_face("owner", owner)
+    cam = MockCam(encodings=[owner])  # exact match
+    engine = BiometricsEngine(camera_feed=cam, storage=storage)
+
+    res = engine.process_surveillance_frame(
+        BRIGHT_FRAME, win32_platform=_FailIfLockCalled(), http_server=_FailIfAlertSent()
+    )
+
+    assert res["status"] == "owner_verified"
+    assert res["locked"] is False
+
+
+def test_surveillance_ambiguous_and_malformed_never_lock_or_dispatch(tmp_path):
+    """[10] Ambiguous multi-face and malformed-embedding frames must never
+    attempt a lock or dispatch intruder evidence."""
+    owner = _unit_vec(0)
+    storage = FaceEmbeddingStorage(storage_path=tmp_path / "faces.json")
+    storage.add_face("owner", owner)
+
+    # Ambiguous: two faces detected.
+    cam_ambiguous = MockCam(encodings=[owner, owner])
+    engine_ambiguous = BiometricsEngine(camera_feed=cam_ambiguous, storage=storage)
+    res_ambiguous = engine_ambiguous.process_surveillance_frame(
+        BRIGHT_FRAME, win32_platform=_FailIfLockCalled(), http_server=_FailIfAlertSent()
+    )
+    assert res_ambiguous["status"] == "ambiguous_faces"
+    assert res_ambiguous["locked"] is False
+
+    # Malformed embedding.
+    cam_malformed = MockCam(encodings=[[0.0] * 5])
+    engine_malformed = BiometricsEngine(camera_feed=cam_malformed, storage=storage)
+    res_malformed = engine_malformed.process_surveillance_frame(
+        BRIGHT_FRAME, win32_platform=_FailIfLockCalled(), http_server=_FailIfAlertSent()
+    )
+    assert res_malformed["status"] == "invalid_face_data"
+    assert res_malformed["locked"] is False
+
+
+# ============================================================================
 # 10. PUBLIC API COMPATIBILITY
 # ============================================================================
 

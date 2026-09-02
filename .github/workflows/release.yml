@@ -16,6 +16,7 @@ env:
   PYTHONIOENCODING: utf-8
   JARVIS_HEADLESS: "1"
   JARVIS_MOCK_AUDIO: "1"
+  JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK: "1"
 
 jobs:
   # ── Build Windows .exe ─────────────────────────────────────────
@@ -110,7 +111,7 @@ jobs:
 
             ---
             *Built automatically from tag `${{ github.ref_name }}` by GitHub Actions*
-            *Tests: 633 passed | Size: ${{ steps.build.outputs.exe_size }}*
+            *Tests: release workflow test suite passed | Size: ${{ steps.build.outputs.exe_size }}*
           files: "*.zip"
           draft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}

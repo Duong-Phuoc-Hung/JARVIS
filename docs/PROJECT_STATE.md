@@ -1,5 +1,19 @@
 # JARVIS — PROJECT_STATE.md
 
+> **Original feature concept attribution:** The original JARVIS concepts for
+> voice-first interaction, wake-word activation, STT/TTS, Local/Cloud AI
+> routing, hardware diagnostics and window management, internal-network
+> InfoSec auditing, workflow automation, data analysis, IoT/Home Assistant,
+> biometric face authentication, gesture control, multi-channel
+> communications, self-healing, and destructive-action safety guardrails were
+> designed by **Huynh Minh Hoa
+> ([@hoahuynh19a-crypto](https://github.com/hoahuynh19a-crypto))**.
+>
+> This is feature-origin attribution only. It does not claim authorship of
+> PROJECT_STATE.md as a whole and does not include later extensions,
+> implementation details, testing, security hardening, benchmarking, or
+> maintenance work; those remain attributable through Git history and pull
+> requests.
 > Durable current-state handoff for future sessions.
 > Snapshot: 2026-09-01.
 > Always verify Git state and current code before relying on this snapshot.
@@ -27,10 +41,44 @@ that framing goes stale the moment the checkpoint PR itself merges):
   once this PR merges, `main` moves to (or past) this commit; always confirm via `git log`/
   `git rev-parse origin/main` rather than trusting either SHA above as permanently "current."
 
-`CHANGELOG.md` development history currently reaches **v4.3.2-era** work — a maintenance
-milestone, **not** a formal release/tag (latest formal GitHub Release remains `v4.0.1`;
-package/runtime version `jarvis.__version__`/`pyproject.toml` remains `4.1.0` — neither was
-bumped by v4.3.2).
+**Updated 2026-09-02** (branch `eval/stt-real-mic-baseline-correction` merged `origin/main`
+a second time, now up to commit `857d729`): `CHANGELOG.md` development history now reaches
+**v4.5.0** — a maintenance milestone, **not** a formal release/tag (latest formal GitHub
+Release remains `v4.0.1`). **`jarvis.__version__`/`pyproject.toml` is still `4.4.0` — v4.5.0
+did NOT bump it** (no `### Version` note in its CHANGELOG entry; confirmed directly against
+`jarvis/__init__.py`). v4.4.0 remains the one exception where a CHANGELOG heading and the
+runtime version moved together (`4.1.0 → 4.4.0`, commit `4bebc42`) — v4.5.0 reverts to the
+normal pattern of every other milestone since v4.0.1 (dev-history label only). Always check
+`jarvis/__init__.py` directly; never infer the runtime version from the latest heading.
+v4.4.0 fixed a `parse_intent(None)` crash, a `WakeWordDetector` pure-tone false positive, 23
+`subprocess.run(text=True)` call sites missing `encoding=`, expanded Tier-1 `rule_engine`
+coverage, and adjusted the (now-superseded — see the STT eval section below) STT eval's old
+phrase categorization. v4.5.0 (commits `89e4c7d`→`29e8ade`→`1b1c847`→`442ed0f`→`857d729`,
+all now merged) added: an E9 acoustic-echo-feedback-loop fix in `jarvis/core/app.py`;
+SecretsManager wired into 6 more production modules; a new N=152 text-only routing eval
+(`tests/eval/routing_eval_n150.py`); an emoji-detection regex extended to BMP ranges; a full
+test-suite cleanup (~44 failures → 0); `CREATE_NO_WINDOW` added by default to
+`jarvis/utils/subprocess_utils.py::run_safe()`; and a new `scripts/system_diagnostic.ps1`.
+See CLAUDE.md's "Current baseline note" (§1) for the full breakdown.
+
+**Updated 2026-09-02 — v4.5.1 release prep (branch `release/v4.5.1`, based on `main` @
+`6666cd1`):** `eval/stt-real-mic-baseline-correction` (referenced throughout the paragraph
+above and elsewhere in this file) is no longer an active branch — it merged cleanly via
+**PR #23**, merge commit `6666cd15c25db4f372afcaa0b0628dee9dc5731d`, and post-merge GitHub
+Actions **CI #135** was verified **green (success)**. `main` before this release-prep work
+started: `6666cd15c25db4f372afcaa0b0628dee9dc5731d` (identical to the PR #23 merge commit —
+no other commits landed on `main` in between). This release-prep branch, `release/v4.5.1`,
+bumps `jarvis.__version__` to **`4.5.1`** and adds a new `v4.5.1` CHANGELOG section above
+`v4.5.0` — **v4.5.1 is the intended next official GitHub Release/tag**, packaging the
+v4.4.0/v4.5.0 CHANGELOG-milestone work described above plus PR #23's STT baseline
+correction into one release checkpoint. **The `v4.5.1` tag and GitHub Release have
+deliberately not been created yet** (separate follow-up action, explicitly out of scope for
+this release-prep commit) — until they exist, `v4.0.1` remains the actual latest formal
+release. Do not describe `v4.5.1` as published, and do not create the tag/release as a side
+effect of any other task without the user's explicit go-ahead. Full unit-suite evidence for
+this release-prep commit (`tests/unit/`, pytest's own terminal counts): **1085 collected,
+1085 passed, 0 failed, 0 skipped** (plus 50 subtests passed, unchanged from PR #23's own
+final evidence) — `python -c "import jarvis; print(jarvis.__version__)"` prints `4.5.1`.
 
 **Post-`d62cb61` evolution merged onto `main`:**
 
@@ -131,10 +179,138 @@ All four CI jobs passed: Syntax Check, Unit Tests, Import Validation, Pipeline S
     ~853ms; noisy 17.8% correct / 2.2% misrouted / 80.0% silent-failure, ~780ms.
   - `large-v3` (int8_float16): clean 28.9% correct / 2.2% misrouted / 68.9% silent-failure,
     ~2.8s; noisy 31.1% correct / 2.2% misrouted / 66.7% silent-failure, ~2.8s.
-  - The dominant current problem is **high silent-failure / recognition-failure rate**, not
-    broad unsafe-action misrouting — misrouting sits flat at ~2.2% across every model/condition
+  - The dominant current problem is **high end-to-end abstention rate**, not broad
+    unsafe-action misrouting — misrouting sits flat at ~2.2% across every model/condition
     (that single case among the 90 recordings was arguably correct JARVIS behavior anyway),
     dropping to 0.0% above a per-model/condition confidence threshold (~0.5–0.7).
+  - **Corrected 2026-09-02, branch `eval/stt-real-mic-baseline-correction`
+    (`docs/eval/stt_eval_failure_decomposition.md`/`.json`): the "silent-failure" figures
+    quoted above are an end-to-end abstention rate (`STT_EMPTY` + `ROUTER_ABSTAIN`), not a
+    pure STT recognition-failure rate.** Re-deriving each of the 180 historical rows'
+    outcome directly from its own `(transcript, predicted_intent, intent_gt)` fields via the
+    new `classify_outcome()` (`tests/eval/failure_decomposition.py`) shows the 134 legacy
+    `SILENT_FAILURE` rows split into only **3 `STT_EMPTY`** (transcript truly empty) vs.
+    **131 `ROUTER_ABSTAIN`** (STT produced non-empty — often garbled — text that the Tier-1
+    rule-engine simply didn't match). Per AUDIT_METHODOLOGY.md's causal-attribution rule,
+    this decomposition alone does **not** establish whether the dominant cause is poor
+    transcription quality or an overly strict keyword matcher — both are consistent with
+    "non-empty but wrong" transcripts. **The auxiliary token-similarity metric WAS computed**
+    for all 180 historical rows (`tests/eval/failure_decomposition.py::compute_text_similarity_stats()`,
+    built on `tests/eval/text_normalize.py::token_similarity()`, deliberately never used to
+    determine intent outcome — see `docs/eval/stt_eval_failure_decomposition.md`'s "auxiliary"
+    section for the full per-model/condition/outcome breakdown): overall mean similarity is
+    only ~0.17 (median 0.0), and `ROUTER_ABSTAIN` rows specifically average ~0.115 — i.e. most
+    non-empty transcripts, including the large majority of `ROUTER_ABSTAIN` rows, are also
+    substantially textually wrong, not merely differently-phrased-but-accurate. This is real
+    evidence against the naive "only 3/180 are STT_EMPTY, so transcription must be mostly fine"
+    inference. It does **not**, by itself, conclusively separate the two candidate causes —
+    a low similarity score cannot distinguish "STT acoustically mis-heard the words" from "STT
+    heard something close but the Tier-1 rule-engine's fixed keyword list wouldn't have matched
+    it anyway," and a manual per-row causal review (reading each garbled transcript against its
+    audio and judging which failure mode applies) was **not** performed as part of this
+    correction — that remains the one way to fully resolve the two candidate causes. No
+    production STT threshold
+    (`no_speech_threshold`/`log_prob_threshold`/`compression_ratio_threshold`/beam_size),
+    router behavior, or historical committed evidence file was changed — this was a
+    re-classification pass over existing evidence, not new acoustic evidence, and does not
+    by itself earn Tier 1 status for STT recognition quality. Also fixed in the same pass:
+    `tests/eval/stt_intent_eval.py` carried a stale ASCII/unaccented phrase list that had
+    drifted from what `tests/eval/record_test_set.py` actually recorded (one entry,
+    `open_app` variant 4, had drifted in content, not just accenting — recorded prompt was
+    "khởi động chrome", evaluator's stale copy claimed "launch spotify"); both scripts now
+    import a single-sourced `tests/eval/phrase_manifest.py`. The evaluator also gained an
+    explicit `--backend {direct,production}` flag — `production` calls
+    `jarvis.stt.engine.FasterWhisperSTT.transcribe()` directly (no reimplementation of its
+    filtering) so a real production-path rerun is possible without conflating it with the
+    historical raw-`WhisperModel` direct backend (`beam_size=3`, no RMS pre-gate, no
+    post-filter — see `docs/eval/stt_eval_failure_decomposition.md`'s Phase 4 table for the
+    full enumerated diff). A real CUDA production-backend rerun (Phase 8) was **not**
+    executed this session: CUDA hardware is present (`nvidia-smi` succeeds) but
+    `faster-whisper`/`ctranslate2` are not installed in any available interpreter and no
+    project venv with them was found — reported as not-executed rather than faked, per
+    AUDIT_METHODOLOGY.md. Branch `eval/stt-real-mic-baseline-correction` (now merged into
+    `main` via **PR #23**, merge commit `6666cd15c25db4f372afcaa0b0628dee9dc5731d`, no
+    longer an active branch) landed the STT eval baseline correction across **two** pushed
+    commits, each independently reviewed — do not describe either one in isolation as the
+    final state; the merge commit above is what actually reached `main`. Full
+    `tests/unit/` counts below are pytest's own terminal "collected"/pass-fail summary, NOT
+    the JUnit XML `tests` attribute — see the dedicated correction note immediately below
+    this list for why those differ.
+
+    - **Base** commit `2b73a49` (same commit as `main` at the time of this work): **1008
+      collected, 1008 passed, 0 failed, 0 skipped** locally (matches GitHub Actions CI run
+      #126's 1008 collected exactly; CI's own pass/skip split, 1005 passed/3 skipped, is a
+      known local-vs-CI-runner divergence already documented earlier in this file for prior
+      checkpoints — not specific to this change).
+    - **First commit, `42098d6`** ("eval(stt): separate recognition and routing failures" —
+      introduced the core CORRECT/MISROUTED/STT_EMPTY/ROUTER_ABSTAIN decomposition, the
+      single-sourced phrase manifest, the auxiliary text-similarity metric, and the
+      `--backend {direct,production}` evaluator refactor): **1064 collected, 1064 passed,
+      0 failed, 0 skipped** (plus 50 subtests passed, unchanged from base). Net **+56** versus
+      base, in `tests/unit/test_stt_eval_failure_decomposition.py`.
+    - **Second commit, `29da633`** ("eval(stt): harden baseline evidence reproducibility" —
+      fixed 5 issues an independent review found in `42098d6`: stale test-count prose,
+      an auxiliary-metric contradiction, a machine-specific hardcoded default in the report
+      generator, an ambiguous `"silent"` key in new evaluator output, and a
+      host-path-dependent historical-row lookup; added 21 more tests, including a new file
+      `tests/unit/test_stt_intent_eval_threshold_curve.py`) — **current branch head**:
+      **1085 collected, 1085 passed, 0 failed, 0 skipped** (plus the same 50 subtests,
+      unchanged). Net **+77** versus base (56 from the first commit + 21 from the second).
+      Running just the two dedicated STT-eval test files
+      (`test_stt_eval_failure_decomposition.py` + `test_stt_intent_eval_threshold_curve.py`)
+      in isolation: **77 passed**, 0 failed.
+
+    **Note on the +46/+56 discrepancy inside `42098d6` itself**: the originally pushed
+    commit `42098d6`'s own commit message and the first draft of this section's prose said
+    "46 new tests"/"1054 collected" — accurate for the test file's content partway through
+    that same working session, before 10 more tests (`TestComputeTextSimilarityStats`, plus
+    two `TestRenderMarkdownReport` cases) were added later in the *same* commit to lock in
+    the auxiliary text-similarity metric (§ auxiliary text-quality note below) before it was
+    ever pushed. The commit message itself is not rewritten (the commit is public/pushed) —
+    but the actual file has always had all 56 tests since `42098d6`, and 56/1064 are the
+    correct historical numbers **for that one commit**; they are no longer the current branch
+    totals now that `29da633` is on top of it (see the 77/1085 current numbers above). Do not
+    cite 46/1054 as evidence for anything.
+
+    **Correction (found via independent GitHub Actions CI #126 verification against this
+    exact base commit, 2026-09-02): an earlier draft of this evidence conflated pytest's own
+    "collected items" count with the JUnit XML `<testsuite tests="...">` attribute, which are
+    NOT the same number in this repository.** `pytest-subtests` (`pyproject.toml`, declared
+    dependency) emits one additional `<testcase>` entry per `subtests.test()` invocation in
+    JUnit XML on top of the entries for the enclosing regular tests — it does **not** add to
+    pytest's own "collected N items" count or its terminal "N passed" line, which count only
+    top-level collected test items. At base commit `2b73a49`, pytest's terminal summary reads
+    "1008 passed, **50 subtests** passed" (collected = 1008) while the JUnit XML `tests`
+    attribute for the same run reports 1058 = 1008 + 50 — the JUnit total is inflated by
+    exactly the 50 pre-existing subtests, unrelated to this branch. At the first commit
+    (`42098d6`), pytest's terminal summary read "1064 passed, 50 subtests passed" (collected =
+    1064) while the JUnit `tests` attribute would report 1114 = 1064 + 50; at the current
+    branch head (`29da633`), pytest's terminal summary reads "1085 passed, 50 subtests
+    passed" (collected = 1085) while the JUnit `tests` attribute would report 1135 = 1085 +
+    50 — both inflated by exactly the same 50 pre-existing subtests, which this branch never
+    changed. Earlier drafts of this document cited JUnit totals (1058/1104, then a stale
+    intermediate 1054 pytest count, then briefly called `42098d6`'s own 1064 the branch's
+    "final" number even after `29da633` was pushed on top of it) as if they were the current
+    pytest collected/passed counts; the correct, authoritative numbers for the current branch
+    head are the ones in the bulleted list above, obtained via direct `subprocess.run()` capture of
+    pytest's own terminal output (not the JUnit XML file, and not piped through a shell
+    `tail`/`tr`, both of which independently proved unreliable for capturing pytest's final
+    `\r`-terminated summary line in this Windows Git-Bash environment — see this branch's own
+    git history for that investigation) — and critically, invoked with pytest's own
+    single `-q` from `pyproject.toml`'s `addopts` only, never a redundant second `-q` on the
+    CLI (double `-q` silently suppresses the terminal summary line entirely, which was the
+    proximate cause of the earlier missing-summary confusion).
+  - **(A-merge-note, 2026-09-02)** After merging `origin/main`, two things need to stay
+    distinct: `tests/eval/routing_eval_n150.py` (N=152, text-only Tier-1 `rule_engine`
+    routing accuracy, no STT/audio involved — a different eval answering a different
+    question than the acoustic eval above) must never be cited as acoustic/STT evidence; and
+    the historical 4 `MISROUTED` rows above are all `intent_gt="open_app"`/`phrase="variant_3"`
+    ("mở spotify", routed by Tier-1 to `action_name="spotify"`) — `main`'s own v4.4.0 CHANGELOG
+    entry independently found and fixed this same ambiguity in its own (separate, now-superseded)
+    phrase categorization, but `EXPECTED_ACTIONS["open_app"]` here deliberately still excludes
+    `"spotify"` so these 4 historical rows are not silently reclassified `CORRECT`. See
+    `tests/eval/stt_intent_eval.py` and `tests/eval/failure_decomposition.py`'s merge-note
+    comments for the full reasoning.
 - **(B) Real CUDA throughput benchmark, synthetic (non-speech) input** (`docs/benchmark_results.md`
   §1): genuine GPU latency measurement on real hardware (GTX 1650 Max-Q), but the input is a
   synthesized sine-wave signal, not recorded speech — it measures pipeline throughput (RTF), not
@@ -292,7 +468,12 @@ task, not bundled into a documentation-only sync):**
    1008 passed, 0 failed; `ruff check` — clean; `py_compile` — clean; `git diff --check` — clean;
    `git diff origin/main...HEAD --check` — clean.
 4. Evaluate STT accuracy/latency improvements using the now-committed real-microphone dataset
-   (`tests/eval/audio/`) rather than any synthetic proxy.
+   (`tests/eval/audio/`) rather than any synthetic proxy. **Baseline-correction prerequisite
+   DONE** (see the "STT reality" correction above, branch `eval/stt-real-mic-baseline-correction`)
+   — the historical evaluator's SILENT_FAILURE/ROUTER_ABSTAIN conflation, phrase-manifest
+   drift, and evaluator-vs-production-path differences are now documented and the evaluator
+   supports a real `--backend production` path; actual threshold/architecture tuning using
+   this corrected baseline is still open and deliberately out of scope for that branch.
 5. Decide whether `spawn_appcontainer_process()` should become (or be added alongside) the
    production `execute_python()` backend, after a dedicated compatibility/security validation
    pass — it is not a drop-in replacement without that evaluation.

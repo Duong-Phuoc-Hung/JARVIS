@@ -1,0 +1,156 @@
+{
+  "n_rows": 180,
+  "n_distinct_audio_files": 90,
+  "by_model_condition": {
+    "large-v3/clean": {
+      "model": "large-v3",
+      "condition": "clean",
+      "n_trials": 45,
+      "n_correct": 13,
+      "n_misrouted": 1,
+      "n_stt_empty": 0,
+      "n_router_abstain": 31,
+      "correct_rate": 0.28888888888888886,
+      "misrouting_rate": 0.022222222222222223,
+      "stt_empty_rate": 0.0,
+      "router_abstain_rate": 0.6888888888888889,
+      "end_to_end_abstention_rate": 0.6888888888888889
+    },
+    "large-v3/noisy": {
+      "model": "large-v3",
+      "condition": "noisy",
+      "n_trials": 45,
+      "n_correct": 14,
+      "n_misrouted": 1,
+      "n_stt_empty": 0,
+      "n_router_abstain": 30,
+      "correct_rate": 0.3111111111111111,
+      "misrouting_rate": 0.022222222222222223,
+      "stt_empty_rate": 0.0,
+      "router_abstain_rate": 0.6666666666666666,
+      "end_to_end_abstention_rate": 0.6666666666666666
+    },
+    "small/clean": {
+      "model": "small",
+      "condition": "clean",
+      "n_trials": 45,
+      "n_correct": 7,
+      "n_misrouted": 1,
+      "n_stt_empty": 1,
+      "n_router_abstain": 36,
+      "correct_rate": 0.15555555555555556,
+      "misrouting_rate": 0.022222222222222223,
+      "stt_empty_rate": 0.022222222222222223,
+      "router_abstain_rate": 0.8,
+      "end_to_end_abstention_rate": 0.8222222222222222
+    },
+    "small/noisy": {
+      "model": "small",
+      "condition": "noisy",
+      "n_trials": 45,
+      "n_correct": 8,
+      "n_misrouted": 1,
+      "n_stt_empty": 2,
+      "n_router_abstain": 34,
+      "correct_rate": 0.17777777777777778,
+      "misrouting_rate": 0.022222222222222223,
+      "stt_empty_rate": 0.044444444444444446,
+      "router_abstain_rate": 0.7555555555555555,
+      "end_to_end_abstention_rate": 0.8
+    }
+  },
+  "total": {
+    "n_trials": 180,
+    "n_correct": 42,
+    "n_misrouted": 4,
+    "n_stt_empty": 3,
+    "n_router_abstain": 131,
+    "correct_rate": 0.23333333333333334,
+    "misrouting_rate": 0.022222222222222223,
+    "stt_empty_rate": 0.016666666666666666,
+    "router_abstain_rate": 0.7277777777777777,
+    "end_to_end_abstention_rate": 0.7444444444444445
+  },
+  "legacy_silent_failure_decomposition": {
+    "legacy_silent_failure_total": 134,
+    "of_which_stt_empty": 3,
+    "of_which_router_abstain": 131
+  },
+  "crosswalk_legacy_to_new": {
+    "CORRECT->CORRECT": 42,
+    "MISROUTED->MISROUTED": 4,
+    "SILENT_FAILURE->ROUTER_ABSTAIN": 131,
+    "SILENT_FAILURE->STT_EMPTY": 3
+  },
+  "phrase_manifest_validation_problems": [],
+  "text_similarity_aux": {
+    "n_resolved": 180,
+    "n_unresolved": 0,
+    "overall": {
+      "n": 180,
+      "mean": 0.16990740740740742,
+      "median": 0.0,
+      "stdev": 0.33592612297021435
+    },
+    "by_model_condition": {
+      "large-v3/clean": {
+        "n": 45,
+        "mean": 0.2351851851851852,
+        "median": 0.0,
+        "stdev": 0.3824136236766584
+      },
+      "large-v3/noisy": {
+        "n": 45,
+        "mean": 0.30185185185185187,
+        "median": 0.0,
+        "stdev": 0.4246540811818744
+      },
+      "small/clean": {
+        "n": 45,
+        "mean": 0.03703703703703704,
+        "median": 0.0,
+        "stdev": 0.17727200782610347
+      },
+      "small/noisy": {
+        "n": 45,
+        "mean": 0.10555555555555556,
+        "median": 0.0,
+        "stdev": 0.23796803961622218
+      }
+    },
+    "by_outcome": {
+      "CORRECT": {
+        "n": 42,
+        "mean": 0.3333333333333333,
+        "median": 0.0,
+        "stdev": 0.4656201971797188
+      },
+      "MISROUTED": {
+        "n": 4,
+        "mean": 0.375,
+        "median": 0.25,
+        "stdev": 0.47871355387816905
+      },
+      "ROUTER_ABSTAIN": {
+        "n": 131,
+        "mean": 0.11513994910941476,
+        "median": 0.0,
+        "stdev": 0.26096836745206436
+      },
+      "STT_EMPTY": {
+        "n": 3,
+        "mean": 0.0,
+        "median": 0.0,
+        "stdev": 0.0
+      }
+    },
+    "distribution": {
+      "0.0-0.2": 138,
+      "0.2-0.4": 7,
+      "0.4-0.6": 9,
+      "0.6-0.8": 7,
+      "0.8-1.0": 0,
+      "1.0": 19
+    }
+  }
+}

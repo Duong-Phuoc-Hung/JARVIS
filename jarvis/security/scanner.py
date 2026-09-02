@@ -9,6 +9,7 @@ Features:
 """
 from __future__ import annotations
 
+import ipaddress
 import logging
 import os
 import shutil
@@ -87,7 +88,7 @@ class ScanReport:
     hosts: list[HostScanResult] = field(default_factory=list)
     total_hosts: int = 0
     duration_s: float = 0.0
-    status: str = "SUCCESS"                  # "SUCCESS", "TOOL_NOT_FOUND", "TIMEOUT", "PERMISSION_DENIED", "ERROR"
+    status: str = "SUCCESS"                  # "SUCCESS", "TOOL_NOT_FOUND", "TIMEOUT", "PERMISSION_DENIED", "TARGET_REJECTED", "ERROR"
     error_message: str | None = None
     timestamp: float = field(default_factory=time.time)
 
@@ -178,6 +179,65 @@ def resolve_nmap_binary(override_path: str | None = None) -> str | None:
     return None
 
 
+# Explicit private-range scan-scope allowlist. This is a deliberate, narrow
+# policy allowlist -- NOT ipaddress.ip_address(...).is_private, which also
+# permits ranges outside this policy (e.g. link-local 169.254.0.0/16, CGNAT
+# 100.64.0.0/10, IPv6 ULA). Public/external scanning is forbidden; a target
+# must be fully contained within exactly one of these four supernets.
+ALLOWED_SCAN_SUPERNETS: tuple[ipaddress.IPv4Network, ...] = (
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+)
+
+
+def validate_scan_target(target: str) -> tuple[bool, str]:
+    """
+    Validates a scan target against the private-range allowlist above,
+    BEFORE any Nmap binary resolution or subprocess execution is attempted.
+
+    Fails closed:
+    - a bare host literal (e.g. "192.168.1.50") is treated as an equivalent
+      /32 target;
+    - a CIDR must be fully contained within exactly one allowed supernet --
+      a CIDR that extends even partially outside every allowed supernet is
+      rejected, not accepted because part of it overlaps;
+    - IPv6 targets are always rejected;
+    - hostnames/DNS names are always rejected -- no DNS resolution is ever
+      attempted here or by any caller of this function;
+    - any malformed/unparseable target string is rejected.
+
+    Returns (True, "") if the target may be scanned, or
+    (False, <truthful human-readable reason>) otherwise.
+    """
+    if not isinstance(target, str) or not target.strip():
+        return False, "Scan target is empty or not a string."
+
+    candidate = target.strip()
+
+    try:
+        network = ipaddress.ip_network(candidate, strict=False)
+    except ValueError:
+        return False, (
+            f"Scan target '{candidate}' is not a valid IPv4 address or CIDR "
+            "(hostnames/DNS names are never resolved or accepted)."
+        )
+
+    if network.version != 4:
+        return False, f"Scan target '{candidate}' is IPv6; only IPv4 targets are permitted."
+
+    for supernet in ALLOWED_SCAN_SUPERNETS:
+        if network.subnet_of(supernet):
+            return True, ""
+
+    return False, (
+        f"Scan target '{candidate}' is outside the permitted private-range "
+        "allowlist (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16); "
+        "public/external scanning is forbidden."
+    )
+
+
 class NetworkScanner:
     """
     Subprocess CLI wrapper executing Nmap subnet discovery and vulnerability audits.
@@ -214,6 +274,19 @@ class NetworkScanner:
                     error_message="Biometric authentication required.",
                 )
 
+        # 2. Target Scope Validation (must happen before Nmap binary resolution
+        # or any subprocess execution -- see validate_scan_target() above).
+        is_allowed, validation_reason = validate_scan_target(subnet)
+        if not is_allowed:
+            log.warning("Security scan rejected for target %r: %s", subnet, validation_reason)
+            return ScanReport(
+                target=subnet,
+                hosts=[],
+                total_hosts=0,
+                status="TARGET_REJECTED",
+                error_message=validation_reason,
+            )
+
         binary = resolve_nmap_binary(self.nmap_path)
         if not binary:
             log.info("Nmap binary not found on host. Gracefully returning TOOL_NOT_FOUND.")
@@ -246,23 +319,66 @@ class NetworkScanner:
             )
             duration = time.time() - start_time
 
-            if proc.returncode != 0 and not proc.stdout.strip():
-                # If Nmap failed because of permissions (e.g. raw socket need admin), or mock environment
-                # In test mock environments where nmap.exe is mocked via monkeypatch shutil.which:
-                hosts = self._fallback_simulated_parse(subnet)
+            if proc.returncode != 0:
+                # Nmap did not complete successfully (e.g. permissions/raw-socket
+                # requirements, or the binary genuinely failed). A nonzero exit
+                # code is never overridden by SUCCESS just because stdout happens
+                # to contain parseable or partial-looking XML -- the process's
+                # own exit status is the truthful signal here, and it must never
+                # be papered over with fabricated (or even genuine-but-partial)
+                # host data.
+                stderr_snippet = (proc.stderr or "").strip()
+                if not proc.stdout.strip():
+                    message = f"Nmap exited with code {proc.returncode} and produced no output."
+                else:
+                    message = f"Nmap exited with code {proc.returncode}."
+                if stderr_snippet:
+                    message += f" {stderr_snippet[:300]}"
                 return ScanReport(
                     target=subnet,
-                    hosts=hosts,
-                    total_hosts=len(hosts),
-                    duration_s=duration or 1.2,
-                    status="SUCCESS",
+                    hosts=[],
+                    total_hosts=0,
+                    duration_s=duration,
+                    status="ERROR",
+                    error_message=message,
                 )
 
-            # Parse XML output
-            hosts = self._parse_nmap_xml(proc.stdout)
-            if not hosts:
-                # If XML empty or simulated mock
-                hosts = self._fallback_simulated_parse(subnet)
+            if not self._xml_parses_successfully(proc.stdout):
+                # Nmap ran, but the output is either not well-formed XML, or
+                # is well-formed XML that is not a genuine <nmaprun> document
+                # (syntactic XML validity alone is not proof of a real Nmap
+                # result). This is distinct from a genuine, well-formed,
+                # zero-host result -- do not fabricate hosts to fill the gap.
+                return ScanReport(
+                    target=subnet,
+                    hosts=[],
+                    total_hosts=0,
+                    duration_s=duration,
+                    status="ERROR",
+                    error_message="Nmap output could not be parsed as valid Nmap XML.",
+                )
+
+            # Parse XML output. An empty `hosts` list here is a genuine,
+            # truthful zero-host result (e.g. no hosts responded) -- it is
+            # reported as-is, never replaced with fabricated data. Unlike
+            # `_parse_nmap_xml()` (kept lenient for existing direct callers),
+            # `_parse_nmap_xml_strict()` does NOT swallow a semantic
+            # extraction failure on otherwise well-formed <nmaprun> XML (e.g.
+            # a non-numeric portid) into an empty list -- that would be
+            # indistinguishable from a genuine empty scan. Such a failure is
+            # reported as a truthful ERROR instead.
+            try:
+                hosts = self._parse_nmap_xml_strict(proc.stdout)
+            except Exception as e:
+                log.warning("Nmap XML failed semantic parsing for target %r: %s", subnet, e)
+                return ScanReport(
+                    target=subnet,
+                    hosts=[],
+                    total_hosts=0,
+                    duration_s=duration,
+                    status="ERROR",
+                    error_message=f"Nmap output could not be semantically parsed: {e}",
+                )
 
             return ScanReport(
                 target=subnet,
@@ -283,94 +399,129 @@ class NetworkScanner:
                 error_message=f"Scan exceeded timeout limit of {timeout}s",
             )
         except Exception as e:
-            # Handle mock fixture where binary doesn't actually exist on disk or fails to execute
-            log.debug("Nmap subprocess execution returned: %s. Using simulated parser.", e)
-            hosts = self._fallback_simulated_parse(subnet)
+            # Genuine execution failure (binary could not be launched, etc).
+            # Report truthfully -- never fabricate hosts.
+            log.warning("Nmap subprocess execution failed for target %r: %s", subnet, e)
             return ScanReport(
                 target=subnet,
-                hosts=hosts,
-                total_hosts=len(hosts),
-                duration_s=1.2,
-                status="SUCCESS",
+                hosts=[],
+                total_hosts=0,
+                duration_s=time.time() - start_time,
+                status="ERROR",
+                error_message=f"Nmap execution failed: {e}",
             )
 
+    def _extract_hosts_from_root(self, root: ET.Element) -> list[HostScanResult]:
+        """
+        Core Nmap <nmaprun> host/port extraction, shared by `_parse_nmap_xml()`
+        (lenient -- swallows any extraction failure to []) and
+        `_parse_nmap_xml_strict()` (used by `scan_subnet()` -- lets an
+        extraction failure, e.g. a non-numeric portid, propagate). This
+        method itself does not catch exceptions; callers decide whether to
+        swallow or propagate them.
+        """
+        hosts: list[HostScanResult] = []
+        for host_el in root.findall("host"):
+            status_el = host_el.find("status")
+            if status_el is not None and status_el.get("state") != "up":
+                continue
+
+            # IP address
+            ip = ""
+            for addr in host_el.findall("address"):
+                if addr.get("addrtype") == "ipv4":
+                    ip = addr.get("addr", "")
+                    break
+            if not ip:
+                continue
+
+            # Hostname
+            hostname = ip
+            hostnames_el = host_el.find("hostnames")
+            if hostnames_el is not None:
+                hname_el = hostnames_el.find("hostname")
+                if hname_el is not None:
+                    hostname = hname_el.get("name", ip)
+
+            # Ports
+            open_ports: list[int] = []
+            services: dict[int, str] = {}
+            ports_el = host_el.find("ports")
+            if ports_el is not None:
+                for p in ports_el.findall("port"):
+                    state_el = p.find("state")
+                    if state_el is not None and state_el.get("state") == "open":
+                        p_id = int(p.get("portid", 0))
+                        if p_id > 0:
+                            open_ports.append(p_id)
+                            s_el = p.find("service")
+                            if s_el is not None:
+                                services[p_id] = s_el.get("name", "unknown")
+
+            hosts.append(
+                HostScanResult(
+                    ip=ip,
+                    hostname=hostname,
+                    status="UP",
+                    open_ports=open_ports,
+                    services=services,
+                )
+            )
+        return hosts
+
     def _parse_nmap_xml(self, xml_content: str) -> list[HostScanResult]:
-        """Parses Nmap -oX XML output into HostScanResult list."""
+        """
+        Parses Nmap -oX XML output into HostScanResult list.
+
+        Legacy, lenient contract preserved for existing direct callers: any
+        problem at all -- structurally malformed XML, or a semantic value
+        that cannot be interpreted (e.g. a non-numeric portid) -- is
+        swallowed and returns []. `scan_subnet()` itself does not rely on
+        this lenient behavior; it calls `_parse_nmap_xml_strict()` instead,
+        so a genuine parsing failure is never silently indistinguishable
+        from a truthful empty scan result there.
+        """
         if not xml_content or not xml_content.strip():
             return []
         try:
             root = ET.fromstring(xml_content)
-            hosts: list[HostScanResult] = []
-            for host_el in root.findall("host"):
-                status_el = host_el.find("status")
-                if status_el is not None and status_el.get("state") != "up":
-                    continue
-
-                # IP address
-                ip = ""
-                for addr in host_el.findall("address"):
-                    if addr.get("addrtype") == "ipv4":
-                        ip = addr.get("addr", "")
-                        break
-                if not ip:
-                    continue
-
-                # Hostname
-                hostname = ip
-                hostnames_el = host_el.find("hostnames")
-                if hostnames_el is not None:
-                    hname_el = hostnames_el.find("hostname")
-                    if hname_el is not None:
-                        hostname = hname_el.get("name", ip)
-
-                # Ports
-                open_ports: list[int] = []
-                services: dict[int, str] = {}
-                ports_el = host_el.find("ports")
-                if ports_el is not None:
-                    for p in ports_el.findall("port"):
-                        state_el = p.find("state")
-                        if state_el is not None and state_el.get("state") == "open":
-                            p_id = int(p.get("portid", 0))
-                            if p_id > 0:
-                                open_ports.append(p_id)
-                                s_el = p.find("service")
-                                if s_el is not None:
-                                    services[p_id] = s_el.get("name", "unknown")
-
-                hosts.append(
-                    HostScanResult(
-                        ip=ip,
-                        hostname=hostname,
-                        status="UP",
-                        open_ports=open_ports,
-                        services=services,
-                    )
-                )
-            return hosts
+            return self._extract_hosts_from_root(root)
         except Exception as e:
             log.debug("XML parse error in Nmap output: %s", e)
             return []
 
-    def _fallback_simulated_parse(self, subnet: str) -> list[HostScanResult]:
-        """Provides simulated host scan results for test environments and mock testing."""
-        prefix = subnet.rsplit(".", 1)[0] if "." in subnet else "192.168.1"
-        return [
-            HostScanResult(
-                ip=f"{prefix}.1",
-                hostname="router.lan",
-                status="UP",
-                open_ports=[80, 443, 53],
-                services={80: "http", 443: "https", 53: "domain"},
-            ),
-            HostScanResult(
-                ip=f"{prefix}.15",
-                hostname="desktop.lan",
-                status="UP",
-                open_ports=[22, 8000],
-                services={22: "ssh", 8000: "http-alt"},
-            ),
-        ]
+    def _parse_nmap_xml_strict(self, xml_content: str) -> list[HostScanResult]:
+        """
+        Used only by `scan_subnet()`, after `_xml_parses_successfully()` has
+        already confirmed well-formed <nmaprun> XML. Unlike `_parse_nmap_xml()`,
+        this does NOT swallow a semantic extraction failure (e.g. a
+        non-numeric portid) into an empty list -- it lets the underlying
+        exception propagate, so `scan_subnet()` can report a truthful ERROR
+        instead of a result indistinguishable from a genuine zero-host scan.
+        """
+        root = ET.fromstring(xml_content)
+        return self._extract_hosts_from_root(root)
+
+    def _xml_parses_successfully(self, xml_content: str) -> bool:
+        """
+        Reports whether `xml_content` is well-formed XML with the expected
+        Nmap `<nmaprun>` root element, distinct from `_parse_nmap_xml()`'s own
+        lenient "return [] on any problem" contract. Syntactic XML validity
+        alone is NOT sufficient proof of a genuine Nmap result -- an
+        unrelated-but-well-formed document (e.g. "<foo></foo>") must not be
+        silently treated as a truthful zero-host SUCCESS. Used by
+        `scan_subnet()` to tell a genuine, well-formed, zero-host Nmap result
+        apart from empty/malformed/non-Nmap/unparseable output that must
+        never be silently treated as a (fabricated-or-otherwise) successful
+        scan.
+        """
+        if not xml_content or not xml_content.strip():
+            return False
+        try:
+            root = ET.fromstring(xml_content)
+        except Exception:
+            return False
+        return root.tag == "nmaprun"
 
 
 # Alias for test suite compatibility
