@@ -77,3 +77,50 @@ whether `faster-whisper` happens to be installed on the machine running the suit
 not change any production security architecture, isolation boundary, or wake-word runtime
 behavior described elsewhere in this document** — do not cite it as a security-architecture
 change.
+
+## 5. Central dispatch truthfulness — action-outcome trust boundary (`jarvis/core/dispatcher.py`, `jarvis/core/app.py`)
+
+Implemented and validated (not yet committed/merged as of this writing) on branch
+`fix/dispatch-truthfulness`, 2026-09-03. `ActionDispatcher.dispatch_action()`/
+`dispatch_action_async()` is the central choke point through which intent-routed commands,
+gesture patterns, skills, and other consumers execute registered actions — it is a trust
+boundary between an action handler's own outcome and everything downstream that reasons
+about whether that action succeeded (the spoken/UI response, the interaction log, the
+persistent memory episode log, and the `action.post_dispatch` event).
+
+- **An explicit handler failure must never be upgraded into a dispatcher-reported success.**
+  Previously, once a handler returned without raising an exception, the dispatcher
+  unconditionally treated the outcome as `success=True` regardless of what the handler's
+  return value actually signaled — silently discarding an `ActionResult(success=False, ...)`,
+  a `{"success": False, ...}` dict, or a `{"status": "failed"/"error", ...}` dict. This is
+  now normalized through a single shared function
+  (`jarvis/core/dispatcher.py::_normalize_handler_outcome()`, used identically by both the
+  sync and async dispatch paths) that recognizes only the established, evidence-audited
+  failure/success contracts in this repository — see CLAUDE.md's durable
+  "Dispatch truthfulness" invariant for the full contract and the return-convention audit
+  behind it. Generic falsy data (`0`, `""`, `[]`, `{}`, `None`, a bare boolean `False`) is
+  never treated as failure absent an established contract saying otherwise.
+- **This is a truthfulness boundary, not a new isolation/authorization boundary.** It does
+  not change, weaken, or bypass any existing security control: `SafetyGateInterceptor`'s
+  destructive-action classification and confirmation-token binding (§8.3-equivalent in
+  CLAUDE.md), RBAC/privilege interception, and `ACTION_NOT_FOUND` handling in
+  `jarvis/core/dispatcher.py` are all untouched. `CONFIRMATION_REQUIRED` and every other
+  `CONFIRMATION_*`/safety-gate failure reason remains a reported failure end-to-end (top-level
+  application response, memory episode, interaction log) exactly as before — a gated
+  high-risk action's real handler never executes without a valid confirmation token,
+  independent of this change.
+- **`jarvis/core/app.py`'s `process_text_command()` now derives its own truthfulness from
+  `action_result.success`** instead of "no Python exception occurred," so a dispatcher-level
+  safety/privilege/not-found failure and a handler-level explicit failure are both surfaced
+  truthfully to the end user, to the persisted interaction log, and to the persisted memory
+  episode — closing a path where a security-relevant failure (e.g. a rejected confirmation)
+  could previously have been narrated back to the user, logged, and remembered as if it had
+  succeeded.
+- **The `hardware_status_query` compatibility alias (`jarvis/core/app.py::_register_core_actions()`)
+  is a routing/registration compatibility fix, not a privilege or trust-boundary change.**
+  It registers the same, already-`system_status`-registered handler
+  (`self._handle_system_status`) under a second action name the router already intentionally
+  emits — no new privilege level, no new RBAC path, no new safety-gate classification. It
+  was this dispatch-truthfulness fix itself that correctly surfaced the pre-existing
+  `ACTION_NOT_FOUND` this alias resolves (previously masked by the bug this document's §5
+  otherwise describes).

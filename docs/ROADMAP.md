@@ -689,10 +689,30 @@ Sprint 4 (Tháng 4+ / v5.0.0)  ──> Đóng gói Bộ cài đặt Windows, B�
   #32, merge commit `aaeeb53f834134bb4490147c238e82e863558caa`): test-only fix, đóng góp cho
   tiêu chí nghiệm thu "0 test failures" của Sprint 1/2 — không thay đổi hành vi wake-word
   production, không phải một sửa lỗi kiến trúc mới cho Item P0-1.
-- **🔴 CHƯA XỬ LÝ — Central dispatch truthfulness (OPEN/PENDING)**: `ActionDispatcher` /
-  `process_text_command` (`jarvis/core/app.py`) có thể vẫn báo cáo sai một kết quả hành động
-  thất bại tường minh thành công. Đây là một phát hiện **riêng biệt**, chưa có nhánh nào xử lý —
-  không được đánh dấu hoàn thành, không được gộp chung với healing truthfulness (PR #31) ở trên.
+- **✅ ĐÃ TRIỂN KHAI VÀ KIỂM CHỨNG (chưa commit/merge) — Central dispatch truthfulness**
+  (nhánh `fix/dispatch-truthfulness`, 2026-09-03): `jarvis/core/dispatcher.py`
+  (`dispatch_action()`/`dispatch_action_async()`, hàm chuẩn hóa dùng chung
+  `_normalize_handler_outcome()`) và `jarvis/core/app.py` (`process_text_command()`,
+  `_on_gesture_event()`) giờ lan truyền trung thực một thất bại tường minh của handler
+  xuyên suốt: handler → dispatcher → phản hồi ứng dụng → bộ nhớ → nhật ký tương tác → sự
+  kiện `action.post_dispatch`. Không còn tự động biến thất bại tường minh thành `success=True`.
+  57 test tất định (`tests/unit/test_dispatch_truthfulness.py`) cộng với
+  `test_action_dispatcher_safety.py`/`test_app_integration.py` không đổi hành vi. **Chưa
+  được commit/merge vào `main`** — cho tới khi đó, `main` vẫn còn lỗi gốc. Xem `CLAUDE.md`
+  §0/§1A "Dispatch truthfulness" và `docs/PROJECT_STATE.md` checkpoint 2026-09-03 để biết
+  chi tiết đầy đủ.
+  - **✅ HOÀN THÀNH (chỉ định trực tiếp từ chủ sở hữu kho mã, cùng nhánh) — `hardware_status_query`
+    compatibility alias**: router (`jarvis/llm/router.py`) cố ý định tuyến "Báo cáo tình
+    trạng hệ thống" và các câu hỏi phần cứng/trạng thái khác tới action `hardware_status_query`
+    từ nhiều nơi, nhưng `app.py` trước đây chỉ đăng ký `system_status` — gây `ACTION_NOT_FOUND`
+    thật, trước đây bị chính lỗi dispatch-truthfulness che giấu. Theo quyết định của chủ sở
+    hữu, **không** sửa `jarvis/llm/router.py` (hợp đồng router có chủ đích, đa điểm gọi); sửa
+    hẹp trong `jarvis/core/app.py::_register_core_actions()` — đăng ký thêm
+    `hardware_status_query` dùng lại đúng handler `self._handle_system_status` hiện có (không
+    trùng lặp logic, `system_status` giữ nguyên). 5 test mới xác nhận
+    (`TestHardwareStatusQueryAlias`); `tests/unit/test_integration_e2e.py::test_memory_recording_in_process_text_command`
+    pass lại **không sửa file test đó**. Toàn bộ `tests/unit/`: **1413 passed, 1 skipped, 50
+    subtests passed, 0 failed.**
   Các phát hiện khác chưa liên quan (TShark/network/v.v., nếu có trong các tài liệu audit khác)
   không bị ảnh hưởng và không được đóng theo mục này.
 

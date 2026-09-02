@@ -3,7 +3,7 @@
 > Durable project instructions for Claude Code and coding agents.
 > Read this file first, then read `docs/PROJECT_STATE.md` before non-trivial work.
 
-## 0. CURRENT BASELINE (2026-09-02) — READ THIS FIRST
+## 0. CURRENT BASELINE (updated 2026-09-03) — READ THIS FIRST
 
 This section is the single most current "what's true right now" summary. Where it
 disagrees with any other paragraph below (including the "Current baseline note" and
@@ -31,19 +31,44 @@ specifically marked otherwise.
     deterministic across environments with/without `faster-whisper` installed. **Test-only
     change — no production wake-word behavior was modified.** See the durable
     "Optional-dependency test determinism" invariant below.
-- **Current `main` CI after PR #32: green.** Latest verified `tests/unit/` evidence: 1353
-  passed, 4 skipped, 50 subtests passed, 0 failures, 0 errors. Skip counts can vary by
-  environment (which optional dependencies happen to be installed) — this is expected, not
-  a regression signal.
-- **OPEN / NOT YET FIXED — Central dispatch truthfulness.** `ActionDispatcher` /
-  `process_text_command` (`jarvis/core/app.py`) may still incorrectly propagate an
-  explicit failed action outcome as a reported success. This is a **separate, still-open**
-  truthfulness gap from the healing fix in PR #31 above — do not describe it as fixed, and
-  do not conflate it with PR #31's scope (which only touched `jarvis/healing/terminator.py`).
-  See `docs/PROJECT_STATE.md`'s current checkpoint for tracking.
-- Full detail for both PRs: `CHANGELOG.md`'s "Post-v4.7.0 Maintenance" section;
-  `docs/PROJECT_STATE.md`'s current checkpoint; `docs/TECHNICAL_AUDIT_REPORT.md`'s updated
-  audit-status entries.
+- **`main` itself, at `aaeeb53f8341...`, CI after PR #32: green.** Latest verified
+  `tests/unit/` evidence on `main`: 1353 passed, 4 skipped, 50 subtests passed, 0 failures,
+  0 errors. Skip counts can vary by environment (which optional dependencies happen to be
+  installed) — this is expected, not a regression signal.
+- **Central dispatch truthfulness — IMPLEMENTED AND VALIDATED on branch
+  `fix/dispatch-truthfulness` (2026-09-03), NOT YET COMMITTED/MERGED to `main`.**
+  `jarvis/core/dispatcher.py`'s `dispatch_action()`/`dispatch_action_async()` previously
+  wrapped any normally-returning handler result as `success=True` unconditionally, ignoring
+  an explicit handler-signaled failure (`ActionResult(success=False, ...)`,
+  `{"success": False, ...}`, `{"status": "failed"/"error", ...}`); `jarvis/core/app.py`'s
+  `process_text_command()` separately never re-derived its own `status_flag` from
+  `action_result.success` after dispatch. Both are now fixed — see the durable "Dispatch
+  truthfulness" invariant below and `CHANGELOG.md`'s entry for full detail (root cause,
+  normalization contract, sync/async parity, event truthfulness, 57 focused tests,
+  full-suite evidence). **Until this branch is committed/merged, `main` itself still has
+  the original bug** — do not describe `main` as fixed until the merge actually lands;
+  update this bullet to "RESOLVED, merged into main @ <SHA>" only once that happens.
+  - **Resolved (owner-authorized, same branch): `hardware_status_query` compatibility
+    alias.** The dispatch-truthfulness fix surfaced a genuine, separate, pre-existing
+    router/registration name mismatch: the LLM router (`jarvis/llm/router.py`)
+    intentionally routes several hardware/status voice queries (e.g. "Báo cáo tình trạng
+    hệ thống") to action name `hardware_status_query` from multiple call sites (system
+    prompt examples, Vietnamese/unaccented rule fallback, status regex handling, response
+    generation), but `jarvis/core/app.py` had only ever registered a dispatcher action
+    named `system_status` — so dispatch correctly returned `ACTION_NOT_FOUND`, previously
+    masked by the dispatch-truthfulness bug itself. Per explicit owner direction,
+    `jarvis/llm/router.py` was left untouched (changing an intentional, multi-site router
+    contract would be a broad change); the narrow fix is a compatibility alias in
+    `jarvis/core/app.py::_register_core_actions()` — `hardware_status_query` registered
+    against the **same** existing `self._handle_system_status` handler as `system_status`
+    (no duplicated logic; `system_status` itself unchanged). Covered by 5 new tests in
+    `tests/unit/test_dispatch_truthfulness.py::TestHardwareStatusQueryAlias`.
+    `tests/unit/test_integration_e2e.py::test_memory_recording_in_process_text_command`
+    now passes **without that test file being modified**. Full `tests/unit/`: **1413
+    passed, 1 skipped, 50 subtests passed, 0 failed.**
+- Full detail: `CHANGELOG.md`'s "Post-v4.7.0 Maintenance" section (PR #31, PR #32, and the
+  dispatch-truthfulness entry); `docs/PROJECT_STATE.md`'s current checkpoint;
+  `docs/TECHNICAL_AUDIT_REPORT.md`'s updated audit-status entries.
 
 ### Permanent project policy: DOCUMENTATION IS PART OF DEFINITION OF DONE
 
@@ -90,6 +115,53 @@ change), because stale docs elsewhere in the repo actively mislead future sessio
   installed on the developer's or CI runner's machine. A test whose outcome silently
   depends on ambient package availability is non-deterministic across environments even
   though it looks deterministic on any one machine.
+
+### Durable dispatch-truthfulness invariant (branch `fix/dispatch-truthfulness`)
+
+- **An action handler's explicit failure must remain failure through the entire chain:**
+  handler → `ActionDispatcher` (`jarvis/core/dispatcher.py`) → application response
+  (`process_text_command()` in `jarvis/core/app.py`) → memory episode → interaction log →
+  events (`action.post_dispatch`). No layer in this chain may upgrade an explicit failure
+  into a reported success.
+- **The established failure/success contracts, and only these, are recognized** (see
+  `jarvis/core/dispatcher.py::_normalize_handler_outcome()`, the single shared
+  normalization function used by both `dispatch_action()` and `dispatch_action_async()`):
+  an `ActionResult` handler return is authoritative as-is; a dict with an explicit boolean
+  `"success"` key is authoritative; a dict with `"status"` literally `"failed"` or
+  `"error"` is failure. Nothing else is treated as failure.
+- **Generic falsy payload != failure, unless an explicit handler contract says otherwise.**
+  `0`, `""`, `[]`, `{}`, `None`, and a bare boolean `False` (no established handler in this
+  repository returns a raw `True`/`False` as its entire payload — booleans only ever appear
+  nested inside an explicit `"success"` key) all remain ordinary successful data. Custom
+  domain-specific status strings that are neither `"failed"` nor `"error"` literally (e.g.
+  `"skipped"`, `"tts_unavailable"`, `"overlay_unavailable"`, `"healthy"`) are likewise left
+  as success — there is no established repository-wide contract for them, and guessing
+  would misclassify genuine successful payloads. Do not add generic falsiness-based failure
+  detection (`if not data: failure`) to this normalization; extend the established-contract
+  list explicitly instead, only after auditing real handler return conventions.
+- **`process_text_command()` derives `status_flag` from `action_result.success`** (not from
+  "no Python exception occurred") immediately after dispatch, before response-text
+  selection. Failure response-text precedence: `action_result.error` →
+  `action_result.data["message"]` (structured failure message) → `action_result.error_code`
+  → a neutral truthful fallback (`"Không thể thực hiện lệnh."`) — never a fabricated reason,
+  never the success-flavored `"Đã thực hiện lệnh: ..."` fallback for a failed action.
+  `CONFIRMATION_REQUIRED` remains failure end-to-end (top-level, memory episode, and
+  interaction log all report failure), and a gated high-risk handler never executes.
+- **Gesture dispatch consumers** (`_on_gesture_event()`'s `triple_clap`/`clap_pause_clap`/
+  generic-pattern loops) must track each dispatched action's real `ActionResult.success`
+  and reflect it in the interaction log status — never hardcode `status="success"`
+  regardless of outcome. The `double_clap` welcome-sequence branch is a deliberate
+  exception: it logs the *launch* of an async background sequence, not per-action outcomes,
+  which is a different (and honest) claim — do not "fix" it into the same per-action-outcome
+  shape without a dedicated task, since it would require restructuring its threading model.
+- **`hardware_status_query` is a registered compatibility alias for `system_status`**
+  (`jarvis/core/app.py::_register_core_actions()`, both bound to the same
+  `self._handle_system_status` — no duplicated logic), added because `jarvis/llm/router.py`
+  intentionally emits `hardware_status_query` as an intent name from several call sites
+  while only `system_status` had ever been registered with the dispatcher. This is an
+  owner-authorized, narrow, app.py-only compatibility fix — `jarvis/llm/router.py` was
+  deliberately left untouched. If a future task ever removes or renames `system_status`,
+  update or remove this alias in the same change; do not let them silently diverge.
 
 ## 1. Project identity
 
