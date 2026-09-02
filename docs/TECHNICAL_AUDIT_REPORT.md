@@ -174,4 +174,22 @@ Xuyên suốt quá trình, các nguyên tắc sau đã được chứng minh là
 
 ---
 
-*Báo cáo này tổng hợp nội dung từ 13 vòng trao đổi kỹ thuật, bao gồm các commit: `ec32e4d`, `3039bb4`, `dfa2eaf`, `adab40d`, `40adeeb`, `48cef9b`, `296e49c`, `5c31c3f`, `2ee3669`, `dfffc0e`.*
+## 7. Cập Nhật Trạng Thái Kiểm Toán Bổ Sung (2026-09-02)
+
+> Phần này bổ sung — không thay thế — 13 vòng audit gốc ở trên. Các phát hiện TShark/network/khác
+> đã liệt kê ở Mục 3.2–3.3 và Mục 5 **không** bị đóng lại ở đây; chỉ 3 hạng mục sau được cập nhật,
+> dựa trên bằng chứng nguồn/commit thực tế được đối chiếu trực tiếp trong phiên làm việc này.
+
+| # | Phát hiện | Trạng thái | Bằng chứng |
+|---|---|:---:|---|
+| 1 | **Healing false-success / fabricated recovery** (`jarvis/healing/terminator.py`) — báo cáo thành công chấm dứt tiến trình dù chưa xác nhận thực sự xảy ra, và bịa đặt số liệu RAM đã giải phóng bằng công thức giả lập | ✅ **RESOLVED** — PR #31 | Merge commit `10d470237b0fe4bc295f02215b4606590d79d17e` (feature commit `e24a366d98a38a53f3467e2b8ee17e1d4e44c63e`). Xem `docs/SECURITY_ARCHITECTURE.md` §4 và `CLAUDE.md` §0 cho hợp đồng trung thực (truthfulness contract) đầy đủ. |
+| 2 | **Wake-word optional-dependency CI nondeterminism** (`tests/unit/test_wake_word_p0.py`) — test Whisper fallback không tất định giữa môi trường có/không cài `faster-whisper` | ✅ **RESOLVED** — PR #32 — **chỉ là vấn đề test, không phải sửa lỗi hành vi wake-word production** | Merge commit `aaeeb53f834134bb4490147c238e82e863558caa` (feature commit `c70c79384744e1756bc893125cd967c69f2276d8`). Không thay đổi `jarvis/audio/wake_word.py` hay bất kỳ hành vi runtime nào. |
+| 3 | **Central dispatch truthfulness** (`ActionDispatcher` / `process_text_command`, `jarvis/core/app.py`) — có thể vẫn báo cáo sai một kết quả hành động thất bại tường minh thành công | 🔴 **OPEN** — chưa xử lý | Chưa có nhánh/PR nào giải quyết hạng mục này tại thời điểm viết. Không được đánh dấu đã giải quyết, không gộp chung với hạng mục #1 (phạm vi hoàn toàn khác: `jarvis/core/dispatcher.py`/`app.py` so với `jarvis/healing/terminator.py`). |
+
+Mọi phát hiện khác trong Mục 3–6 phía trên (TShark, network isolation ứng dụng tầng, Computer
+Vision chưa audit, Browser Automation chưa audit, v.v.) **giữ nguyên trạng thái như đã ghi** —
+không có bằng chứng nguồn mới nào trong phiên làm việc này chứng minh chúng đã được xử lý.
+
+---
+
+*Báo cáo này tổng hợp nội dung từ 13 vòng trao đổi kỹ thuật, bao gồm các commit: `ec32e4d`, `3039bb4`, `dfa2eaf`, `adab40d`, `40adeeb`, `48cef9b`, `296e49c`, `5c31c3f`, `2ee3669`, `dfffc0e`. Mục 7 (2026-09-02) bổ sung thêm 3 phát hiện mới ngoài phạm vi 13 vòng gốc.*

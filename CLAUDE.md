@@ -3,6 +3,94 @@
 > Durable project instructions for Claude Code and coding agents.
 > Read this file first, then read `docs/PROJECT_STATE.md` before non-trivial work.
 
+## 0. CURRENT BASELINE (2026-09-02) — READ THIS FIRST
+
+This section is the single most current "what's true right now" summary. Where it
+disagrees with any other paragraph below (including the "Current baseline note" and
+"Release-prep note" under §1, which describe an earlier point in time), **this section
+wins**. Older v4.3/v4.5 baseline paragraphs elsewhere in this file are historical unless
+specifically marked otherwise.
+
+- **Current development runtime:** `4.7.0` (`jarvis.__version__`, `jarvis/__init__.py`).
+- **Current verified `main`:** `aaeeb53f834134bb4490147c238e82e863558caa` (merge of PR #32).
+- **Latest formal GitHub Release:** `v4.5.1` (tag `v4.5.1` confirmed present in the
+  repository and confirmed an ancestor of current `main` — the release-prep note under
+  §1 describing the `v4.5.1` tag as "not yet created" is now stale/historical; the tag
+  and release were created after that note was written). `v4.0.1` is no longer the latest
+  formal release.
+- **Development source/runtime (`4.7.0`) and the latest formal release (`v4.5.1`) are
+  different concepts** — `main` has moved well past `v4.5.1` in CHANGELOG/runtime terms
+  without a new tag/release having been cut yet. Do not describe `4.7.0` as "released" or
+  `v4.5.1` as "the current source version."
+- **Completed since the last documentation sync:**
+  - **PR #31** (`fix/healing-truthfulness`, merge commit `10d470237b0fe4bc295f02215b4606590d79d17e`) —
+    self-healing (`jarvis/healing/terminator.py`) now reports recovery outcomes truthfully.
+    See the durable "Healing truthfulness" invariant below.
+  - **PR #32** (`fix/wake-word-whisper-ci`, merge commit `aaeeb53f834134bb4490147c238e82e863558caa`) —
+    made the Whisper wake-word fallback test (`tests/unit/test_wake_word_p0.py`)
+    deterministic across environments with/without `faster-whisper` installed. **Test-only
+    change — no production wake-word behavior was modified.** See the durable
+    "Optional-dependency test determinism" invariant below.
+- **Current `main` CI after PR #32: green.** Latest verified `tests/unit/` evidence: 1353
+  passed, 4 skipped, 50 subtests passed, 0 failures, 0 errors. Skip counts can vary by
+  environment (which optional dependencies happen to be installed) — this is expected, not
+  a regression signal.
+- **OPEN / NOT YET FIXED — Central dispatch truthfulness.** `ActionDispatcher` /
+  `process_text_command` (`jarvis/core/app.py`) may still incorrectly propagate an
+  explicit failed action outcome as a reported success. This is a **separate, still-open**
+  truthfulness gap from the healing fix in PR #31 above — do not describe it as fixed, and
+  do not conflate it with PR #31's scope (which only touched `jarvis/healing/terminator.py`).
+  See `docs/PROJECT_STATE.md`'s current checkpoint for tracking.
+- Full detail for both PRs: `CHANGELOG.md`'s "Post-v4.7.0 Maintenance" section;
+  `docs/PROJECT_STATE.md`'s current checkpoint; `docs/TECHNICAL_AUDIT_REPORT.md`'s updated
+  audit-status entries.
+
+### Permanent project policy: DOCUMENTATION IS PART OF DEFINITION OF DONE
+
+For every future non-trivial task:
+
+**BEFORE editing:**
+- Read `CLAUDE.md` (this file).
+- Read `README.md`.
+- Read `CHANGELOG.md`.
+- Read `docs/PROJECT_STATE.md`.
+- Read `docs/ROADMAP.md`.
+- Read any relevant subsystem/security/audit doc (e.g. `docs/SECURITY_ARCHITECTURE.md`,
+  `docs/TECHNICAL_AUDIT_REPORT.md`) for the area being touched.
+
+**AFTER code + tests land:**
+- Update `CHANGELOG.md`.
+- Update `CLAUDE.md`'s durable decisions/invariants (§1A and this §0 baseline).
+- Review and update `README.md`.
+- Update `docs/PROJECT_STATE.md`'s current checkpoint.
+- Update `docs/ROADMAP.md` / `docs/SECURITY_ARCHITECTURE.md` / `docs/TECHNICAL_AUDIT_REPORT.md`
+  when the change is relevant to any of them.
+- Search for stale current-state references left behind by the change (version numbers,
+  status claims, "not yet fixed" language that is now fixed, etc.).
+
+**A task is NOT complete until documentation synchronization has been reviewed** — this
+applies even to fixes that look self-contained (e.g. a single-file bug fix or a test-only
+change), because stale docs elsewhere in the repo actively mislead future sessions.
+
+### Durable healing invariant (see PR #31 above)
+
+- **Attempted kill != confirmed kill.** Calling `.terminate()`/`.kill()`
+  (`jarvis/healing/terminator.py`) without it raising is never, by itself, proof a process
+  actually exited — only a confirmed post-wait/return-code outcome counts as success.
+- **Observed RAM recovery != fabricated RAM recovery.** `reclaimed_ram` is only ever the
+  actual measured `ram_before - ram_after` delta; it is omitted (not defaulted to a made-up
+  number) when RAM cannot be measured, and healing code never mutates a hardware-telemetry
+  provider to manufacture a "reclaimed" value.
+
+### Durable optional-dependency test invariant (see PR #32 above)
+
+- Tests must **explicitly control optional-dependency availability** (e.g. patch
+  `FASTER_WHISPER_AVAILABLE`/`PORCUPINE_AVAILABLE`/`VOSK_AVAILABLE`-style flags **before**
+  constructing the object under test) rather than relying on whatever happens to be
+  installed on the developer's or CI runner's machine. A test whose outcome silently
+  depends on ambient package availability is non-deterministic across environments even
+  though it looks deterministic on any one machine.
+
 ## 1. Project identity
 
 JARVIS is a Windows-first autonomous personal AI assistant written in Python.
@@ -42,7 +130,8 @@ Core goals:
 
 Authoritative package metadata:
 - Package: `jarvis-assistant`
-- Package/runtime version: single-sourced from `jarvis.__version__` (a plain string literal in `jarvis/__init__.py`, currently `"4.5.1"` — bumped from `4.4.0` on branch `release/v4.5.1` as explicit, user-directed release prep for the intended **v4.5.1 formal release** (tag/GitHub Release not yet created — do not treat `v4.5.1` as published until the tag exists), 2026-09-02). `pyproject.toml` declares `dynamic = ["version"]` and resolves it via `[tool.setuptools.dynamic] version = {attr = "jarvis.__version__"}` — there is no second hardcoded version literal in `pyproject.toml`. See "Version metadata" in §1A below for the full classification (package vs. runtime vs. config vs. formal-release vs. CHANGELOG-milestone version). Do not bump this value without explicit release/versioning intent from the user.
+- Package/runtime version: single-sourced from `jarvis.__version__` (a plain string literal in `jarvis/__init__.py`, **currently `"4.7.0"`** as of `main` @ `aaeeb53f834134bb4490147c238e82e863558caa` — see §0 CURRENT BASELINE above for the authoritative current state). `pyproject.toml` declares `dynamic = ["version"]` and resolves it via `[tool.setuptools.dynamic] version = {attr = "jarvis.__version__"}` — there is no second hardcoded version literal in `pyproject.toml`. See "Version metadata" in §1A below for the full classification (package vs. runtime vs. config vs. formal-release vs. CHANGELOG-milestone version). Do not bump this value without explicit release/versioning intent from the user.
+- **HISTORICAL v4.5.1 RELEASE-PREP SNAPSHOT (as of 2026-09-02, branch `release/v4.5.1`, before it merged) — not current, kept for record only:** at that point in time, `jarvis.__version__` had just been bumped from `4.4.0` to `4.5.1` as explicit, user-directed release prep for the intended v4.5.1 formal release; the tag/GitHub Release did not exist yet at that moment, and `v4.0.1` was still the latest published release at that moment. **None of that is current anymore**: the `v4.5.1` tag and GitHub Release were subsequently created and published (confirmed present in the repository and confirmed an ancestor of current `main` — see §0), and `main`'s runtime has since advanced to `4.7.0` via v4.6.0/v4.7.0 and the post-v4.7.0 maintenance PRs. Do not read "currently 4.5.1" or "tag/GitHub Release not yet created" anywhere in the historical paragraphs below (§1's "Current baseline note"/"Release-prep note", and similar phrasing in `docs/PROJECT_STATE.md`) as describing anything later than that 2026-09-02 release-prep moment.
 - Declared Python: `>=3.10`
 - Main CI / release Python: `3.13`
 - Console entry point: `jarvis = "jarvis.__main__:main"`
@@ -52,6 +141,13 @@ Repository:
 - `Duong-Phuoc-Hung/JARVIS`
 - Default branch: `main`
 
+> **Historical — superseded by §0 CURRENT BASELINE above.** The two notes immediately
+> below describe `main` and the `v4.5.1` release-prep branch as they stood on 2026-09-02
+> *before* the `v4.5.1` tag/GitHub Release were actually created and before `main` advanced
+> through v4.6.0/v4.7.0 and PRs #31/#32. In particular, do not trust the "tag/GitHub Release
+> not yet created" language below — `v4.5.1` has since been tagged and is now the latest
+> formal release per §0. Kept verbatim for historical detail; not rewritten.
+>
 > **Current baseline note (updated 2026-09-02, after `eval/stt-real-mic-baseline-correction` merged `origin/main` a second time, up to commit `857d729`):** `main`'s `CHANGELOG.md` development history now reaches **v4.5.0** — but `jarvis.__version__` is still `4.4.0`; **v4.5.0 did NOT bump the runtime version** (confirmed: no `### Version` bump note in its CHANGELOG entry, and `jarvis/__init__.py` is unchanged since v4.4.0). This makes v4.4.0 the exception, not the rule: v4.4.0 was the first (and so far only) milestone where the CHANGELOG heading and `jarvis.__version__` moved together (`4.1.0 → 4.4.0`, commit `4bebc42`); v4.5.0 reverts to the normal pattern (every other milestone since v4.0.1 is a dev-history label that does not move the runtime version). **Always check `jarvis/__init__.py` directly — never infer the runtime version from the latest CHANGELOG heading.**
 >
 > v4.5.0 (commits `89e4c7d`→`29e8ade`→`1b1c847`→`442ed0f`→`857d729`) added: an E9 acoustic-echo-feedback-loop fix (`jarvis/core/app.py` — a wake-word-triggered `unknown_intent` no longer speaks "Xin lỗi", so the mic can't re-hear its own TTS and re-trigger); SecretsManager wired into 6 more production modules (`jarvis/core/app.py`, `stt/engine.py`, `vision/screen.py`, `web/weather.py`, `agent/graph.py`, `workers/notification_hub.py`); a new N=152 text-only Tier-1 routing eval (`tests/eval/routing_eval_n150.py`, Wilson-CI — separate evidence from the acoustic STT eval, see §"STT" below, do not conflate); an emoji-detection regex extended to BMP ranges; a full test-suite cleanup (~44 failures → 0, across router/subprocess/emoji/async/cv2-optional-dep/psutil/ReDoS-timing fixes, `psutil>=5.9` and `asyncio_mode = "auto"` added to `pyproject.toml`); `jarvis/utils/subprocess_utils.py`'s `run_safe()` gained `CREATE_NO_WINDOW` by default; and a new `scripts/system_diagnostic.ps1` environment-check script. It sits on top of v4.4.0 (three production bug fixes — `parse_intent(None)` crash, `WakeWordDetector` pure-tone false positive, 23 `subprocess.run(text=True)` call sites missing `encoding=` — plus Tier-1 rule_engine expansion and a now-superseded STT-eval phrase categorization change), which itself sits on v4.3.2-era and v4.3.1-era work (real-microphone STT evaluation, sandbox/security hardening, `PromptGuard`, comms rate limiting, email IMAP hardening, Secrets Manager). This paragraph describes `main`, which is unaffected by the release-prep note immediately below it — `main` itself is still at `jarvis.__version__ = "4.4.0"` until the v4.5.1 release-prep branch is merged back. `config/default_config.yaml`'s `system.version` (`1.0.0`) remains a separate, currently-unused field (see §1A), unaffected. Sections 4, 7, 9, and 10 below are **historical v4.0.1 release record**, kept for context; do not read them as describing the current `main`. Always trust `docs/PROJECT_STATE.md` and actual Git state for the current baseline.
@@ -133,7 +229,7 @@ Source-of-truth priority:
 4. `CHANGELOG.md`.
 5. `pyproject.toml`, workflow files, `README.md`, `PROJECT.md`, `.agents/**` — useful for structure/config, but test-count strings in particular are known to drift and should not be trusted as current-state evidence over 1-4 above. (`pyproject.toml`'s version is no longer a separate literal to drift — see "Version metadata" in §1A.)
 
-Some historical docs are stale. `jarvis.__version__`/`pyproject.toml` do not automatically track `CHANGELOG.md`'s development-milestone headings (currently v4.5.1, a release-prep section on branch `release/v4.5.1` — see §1's release-prep note) or the latest formal GitHub Release (still `v4.0.1` until the v4.5.1 tag is actually created) — these are three distinct concepts, not one drifting number; see "Version metadata" in §1A. v4.5.1 is the deliberate exception where all three are converging by explicit user intent (like v4.4.0 before it) — this does not change the general rule. Do not silently "bump" any of them as a side effect of an unrelated task; only change version strings when the user gives explicit release/versioning intent.
+Some historical docs are stale. `jarvis.__version__`/`pyproject.toml` do not automatically track `CHANGELOG.md`'s development-milestone headings (currently `v4.7.0`, plus a "Post-v4.7.0 Maintenance" section that does not bump the runtime version — see §0 CURRENT BASELINE) or the latest formal GitHub Release (currently `v4.5.1`, published — see §0) — these are three distinct concepts, not one drifting number; see "Version metadata" in §1A. (Historically, `v4.5.1` was itself a deliberate exception where the package/runtime version and the intended formal-release tag were made to converge by explicit user intent, the same way `v4.4.0` had before it — that release has since actually been tagged and published, which is why it is now the current latest formal release; this convergence pattern does not change the general rule that the three concepts normally drift independently.) Do not silently "bump" any of them as a side effect of an unrelated task; only change version strings when the user gives explicit release/versioning intent.
 
 ## 3. Git safety rules
 
