@@ -264,24 +264,41 @@ def test_p0a_wake_word_detector_whisper_fallback_mode():
     """
     Verify WakeWordDetector uses Whisper sliding window fallback when configured
     and Vosk is absent.
+
+    This test validates the Whisper routing/detection path itself, not
+    whether the optional `faster-whisper` package happens to be installed in
+    the environment the test runs in. `WakeWordDetector._init_tier1()` only
+    ever selects `WakeWordEngineType.WHISPER` for `engine="whisper"` when the
+    module-level `FASTER_WHISPER_AVAILABLE` flag is True (jarvis/audio/wake_word.py) --
+    CI's normal unit-test dependency install does not install faster-whisper,
+    so without patching this flag, engine selection would silently fall back
+    to `ACOUSTIC_FALLBACK` before the mock Whisper model injected below is
+    ever wired up, making this test's own assertions meaningless (and
+    non-deterministic across environments where the package happens to be
+    installed). Patching the flag makes the routing decision deterministic
+    while still injecting a MagicMock model -- no real Whisper model is ever
+    downloaded or initialized.
     """
     mock_whisper_model = MagicMock()
     mock_segment = MagicMock()
     mock_segment.text = "ê jarvis"
     mock_whisper_model.transcribe.return_value = ([mock_segment], MagicMock())
 
-    detector = WakeWordDetector(
-        config={
-            "engine": "whisper",
-            "whisper_min_rms": 0.005,
-            "whisper_check_interval_s": 0.05,
-        },
-        enabled=True,
-    )
-    detector._whisper_detector.model = mock_whisper_model
+    with patch("jarvis.audio.wake_word.FASTER_WHISPER_AVAILABLE", True):
+        detector = WakeWordDetector(
+            config={
+                "engine": "whisper",
+                "whisper_min_rms": 0.005,
+                "whisper_check_interval_s": 0.05,
+            },
+            enabled=True,
+        )
+        assert detector._engine_type == WakeWordEngineType.WHISPER
 
-    audio = np.full(16000, 0.05, dtype=np.float32)
-    res = detector.feed_audio_block(audio, timestamp=100.0)
+        detector._whisper_detector.model = mock_whisper_model
+
+        audio = np.full(16000, 0.05, dtype=np.float32)
+        res = detector.feed_audio_block(audio, timestamp=100.0)
 
     assert res is not None
     assert res.keyword == "hey_jarvis"
