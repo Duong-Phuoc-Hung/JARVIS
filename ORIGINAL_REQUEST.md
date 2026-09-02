@@ -1,5 +1,18 @@
 # Original User Request
 
+> **Original feature concept attribution:** The pre-existing JARVIS concepts
+> for voice-first interaction, wake-word activation, STT/TTS, Local/Cloud AI
+> routing, hardware diagnostics and window management, internal-network
+> InfoSec auditing, workflow automation, data analysis, IoT/Home Assistant,
+> biometric face authentication, gesture control, multi-channel
+> communications, self-healing, and destructive-action safety guardrails were
+> originally designed by **Huynh Minh Hoa
+> ([@hoahuynh19a-crypto](https://github.com/hoahuynh19a-crypto))**.
+>
+> This credit is limited to those original concepts. Later extensions and the
+> implementation, testing, security-hardening, benchmarking, and maintenance
+> work in this repository are attributed separately through Git history and
+> pull requests.
 ## 2026-08-24T01:02:20Z
 
 JARVIS là một Windows desktop AI assistant với 67 modules, 537+ tests đang pass. Hệ thống hiện có gesture detection, voice pipeline (STT→LLM→TTS), overlay UI, và smart keyword router. Tuy nhiên JARVIS vẫn còn rất hạn chế — không có memory, không nhìn được màn hình, không tự động hóa được máy tính, không thể làm việc liên tục như một trợ lý thực sự. Mục tiêu: khai phá toàn bộ tiềm năng, biến JARVIS thành Personal AI không thua gì các sản phẩm thương mại.

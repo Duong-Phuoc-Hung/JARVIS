@@ -7,6 +7,32 @@
 
 JARVIS is a Windows-first autonomous personal AI assistant written in Python.
 
+### Original feature concept attribution
+
+The following original JARVIS feature concepts were designed by
+**Huynh Minh Hoa ([@hoahuynh19a-crypto](https://github.com/hoahuynh19a-crypto))**:
+
+- Voice-first assistant architecture.
+- Wake-word activation.
+- Speech-to-text and text-to-speech interaction.
+- Local AI / Cloud AI routing.
+- Hardware diagnostics and window management.
+- Internal-network InfoSec auditing.
+- Workflow automation.
+- Data analysis.
+- IoT / Home Assistant integration.
+- Biometric face authentication.
+- Gesture control.
+- Multi-channel communications.
+- Self-healing system monitoring.
+- Destructive-action safety guardrails and internal-network-only InfoSec scope.
+
+This attribution applies **only to the original feature concepts above**.
+Later extensions, implementation details, security hardening, testing,
+benchmarking, maintenance work, and additional features are not included in
+this attribution. Implementation authorship remains tracked through Git
+commits and pull requests. Repository ownership and repository URLs must not
+be interpreted as authorship of these feature concepts.
 Core goals:
 - Voice-first Windows assistant.
 - CLI/voice/Telegram/Zalo/Discord control.
