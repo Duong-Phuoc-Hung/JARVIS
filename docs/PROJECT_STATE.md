@@ -1,5 +1,19 @@
 # JARVIS — PROJECT_STATE.md
 
+> **Original feature concept attribution:** The original JARVIS concepts for
+> voice-first interaction, wake-word activation, STT/TTS, Local/Cloud AI
+> routing, hardware diagnostics and window management, internal-network
+> InfoSec auditing, workflow automation, data analysis, IoT/Home Assistant,
+> biometric face authentication, gesture control, multi-channel
+> communications, self-healing, and destructive-action safety guardrails were
+> designed by **Huynh Minh Hoa
+> ([@hoahuynh19a-crypto](https://github.com/hoahuynh19a-crypto))**.
+>
+> This is feature-origin attribution only. It does not claim authorship of
+> PROJECT_STATE.md as a whole and does not include later extensions,
+> implementation details, testing, security hardening, benchmarking, or
+> maintenance work; those remain attributable through Git history and pull
+> requests.
 > Durable current-state handoff for future sessions.
 > Snapshot: 2026-09-01.
 > Always verify Git state and current code before relying on this snapshot.
