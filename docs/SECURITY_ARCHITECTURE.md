@@ -80,8 +80,10 @@ change.
 
 ## 5. Central dispatch truthfulness — action-outcome trust boundary (`jarvis/core/dispatcher.py`, `jarvis/core/app.py`)
 
-Implemented and validated (not yet committed/merged as of this writing) on branch
-`fix/dispatch-truthfulness`, 2026-09-03. `ActionDispatcher.dispatch_action()`/
+Implemented, validated, and merged into `main` via PR #34 (feature commit
+`e99c522be808d9160a5b9c57bf9bd8ec11d3dd69`, merge commit
+`ae6d5d8ffd98f4629af951e19820bf047f9c05d7`, post-merge CI #160 SUCCESS).
+`ActionDispatcher.dispatch_action()`/
 `dispatch_action_async()` is the central choke point through which intent-routed commands,
 gesture patterns, skills, and other consumers execute registered actions — it is a trust
 boundary between an action handler's own outcome and everything downstream that reasons
