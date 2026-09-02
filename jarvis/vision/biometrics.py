@@ -323,6 +323,89 @@ class BiometricsEngine:
                 return True
         return False
 
+    def _attempt_lock_workstation(self, win32_platform: Any | None) -> bool:
+        """
+        Attempts the workstation lock exactly once. Trusts only a confirmed
+        callable result as evidence of success -- never converts an
+        exception, an unavailable backend, or an injected test double that
+        does not actually expose a callable lock method into a fabricated
+        `True`. This is the single source of truth `process_surveillance_frame()`
+        relies on for the `locked` value it reports.
+        """
+        if win32_platform is not None:
+            lock_fn = getattr(win32_platform, "lock_workstation", None)
+            if not callable(lock_fn):
+                # The caller injected a platform object that does not expose
+                # a real lock method (e.g. a bookkeeping-only test double
+                # that merely tracks a call counter). The mere existence of
+                # such a counter is not proof a lock occurred, and calling
+                # through to the real OS API here would be an unsafe/
+                # surprising side effect for an injected object the caller
+                # explicitly controls -- fail closed instead.
+                log.warning(
+                    "Injected win32_platform has no callable lock_workstation(); "
+                    "cannot confirm a real lock, treating as failed."
+                )
+                return False
+            try:
+                return bool(lock_fn())
+            except Exception as exc:
+                log.error("Injected win32_platform.lock_workstation() raised: %s", exc)
+                return False
+
+        try:
+            from jarvis.platform.windows import lock_workstation
+            return bool(lock_workstation())
+        except Exception as exc:
+            log.error("Failed to invoke lock_workstation: %s", exc)
+            return False
+
+    def _encode_frame_as_jpeg(self, frame: np.ndarray) -> bytes | None:
+        """
+        Encodes the actual supplied surveillance `frame` as JPEG bytes for
+        evidence dispatch. Returns None -- never fabricated placeholder
+        bytes -- if `cv2` is unavailable, encoding raises, the encoder
+        reports failure, or the encoded output is empty.
+        """
+        if cv2 is None:
+            log.warning("Cannot encode intruder evidence photo: cv2 is not available.")
+            return None
+        try:
+            success, buf = cv2.imencode(".jpg", frame)
+        except Exception as exc:
+            log.warning("Failed to encode intruder evidence photo: %s", exc)
+            return None
+        if not success or buf is None:
+            log.warning("cv2.imencode reported failure encoding intruder evidence photo.")
+            return None
+        data = buf.tobytes()
+        if not data:
+            log.warning("cv2.imencode produced empty output for intruder evidence photo.")
+            return None
+        return data
+
+    def _dispatch_intruder_alert(
+        self,
+        photo_bytes: bytes,
+        http_server: Any | None,
+        telegram_bot: Any | None,
+        chat_id: int,
+    ) -> None:
+        """
+        Best-effort evidence dispatch. A transport failure here is logged
+        and swallowed -- it must never affect the already-determined lock
+        outcome, never be reported as fabricated dispatch success, and never
+        crash the surveillance call.
+        """
+        caption = "CẢNH BÁO: Phát hiện người lạ trước màn hình!"
+        try:
+            if http_server is not None and hasattr(http_server, "handle_telegram_send_photo"):
+                http_server.handle_telegram_send_photo(chat_id=chat_id, photo_bytes=photo_bytes, caption=caption)
+            elif telegram_bot is not None and hasattr(telegram_bot, "send_photo"):
+                telegram_bot.send_photo(chat_id=chat_id, photo_bytes=photo_bytes, caption=caption)
+        except Exception as exc:
+            log.warning("Failed to dispatch intruder evidence alert: %s", exc)
+
     def process_surveillance_frame(
         self,
         frame: np.ndarray | None,
@@ -335,7 +418,23 @@ class BiometricsEngine:
         A multi-face or malformed-embedding frame is deterministically reported as
         ambiguous/invalid and is never classified as "owner_verified"; it also does not
         trigger the lock/alert side effects, since the frame's content is genuinely
-        unknown rather than confirmed to be a non-owner."""
+        unknown rather than confirmed to be a non-owner.
+
+        Truthfulness contract (v4.5.2 biometrics hotfix):
+        - With no enrolled reference embedding, there is nothing to compare the
+          candidate against, so the frame can never be truthfully classified as
+          an intruder -- it is reported as `no_enrolled_faces`, with no lock
+          attempt and no evidence dispatch.
+        - `locked` reflects only a confirmed lock outcome (see
+          `_attempt_lock_workstation()`) -- a failure, an unconfirmable
+          injected test double, or an exception all resolve to
+          `locked=False`, never an assumed `True`.
+        - `status="intruder_locked"` is returned only when `locked is True`;
+          a genuine intruder whose lock attempt failed is reported as
+          `intruder_lock_failed`, never silently upgraded to success.
+        - Evidence photo bytes are always the real encoded `frame`, or no
+          photo is sent at all -- never a fabricated placeholder.
+        """
         if self.bypass_mode:
             return {"status": "bypassed"}
         if frame is None or getattr(frame, "size", 0) == 0 or np.mean(frame) < 5.0:
@@ -357,52 +456,40 @@ class BiometricsEngine:
             return {"status": "invalid_face_data", "locked": False, "distance": None}
 
         if not self.enrolled_embeddings:
-            is_match = False
-            min_dist: float | None = None
+            # No reference identity exists to compare against -- this cannot
+            # be truthfully classified as either the owner or an intruder.
+            # Fail closed: report the unverifiable state without claiming an
+            # intruder and without any lock/evidence side effects.
+            log.warning(
+                "Surveillance frame has a valid face but no enrolled reference "
+                "embeddings exist; cannot classify."
+            )
+            return {"status": "no_enrolled_faces", "locked": False, "distance": None}
+
+        distances = [float(np.linalg.norm(e - cand)) for e in self.enrolled_embeddings]
+        min_dist = min(distances)
+        is_match = math.isfinite(min_dist) and min_dist < self.tolerance
+
+        if is_match:
+            return {"status": "owner_verified", "locked": False, "distance": min_dist}
+
+        log.warning(
+            "Intruder face detected (distance=%.3f >= threshold=%.3f).",
+            min_dist, self.tolerance,
+        )
+        locked = self._attempt_lock_workstation(win32_platform)
+
+        photo_bytes = self._encode_frame_as_jpeg(frame)
+        if photo_bytes is not None:
+            self._dispatch_intruder_alert(photo_bytes, http_server, telegram_bot, chat_id)
         else:
-            distances = [float(np.linalg.norm(e - cand)) for e in self.enrolled_embeddings]
-            min_dist = min(distances)
-            is_match = math.isfinite(min_dist) and min_dist < self.tolerance
+            log.warning("No real evidence photo could be encoded for this intruder event; no photo sent.")
 
-        if not is_match:
-            if min_dist is not None:
-                log.warning(
-                    "Intruder face detected (distance=%.3f >= threshold=%.3f)! Locking workstation.",
-                    min_dist, self.tolerance,
-                )
-            else:
-                log.warning(
-                    "Intruder classified with no enrolled reference embeddings "
-                    "(threshold=%.3f)! Locking workstation.",
-                    self.tolerance,
-                )
-            locked = False
-
-            # Lock workstation
-            if win32_platform is not None and hasattr(win32_platform, "lock_workstation_calls"):
-                win32_platform.lock_workstation_calls += 1
-                locked = True
-            elif win32_platform is not None and hasattr(win32_platform, "lock_workstation"):
-                locked = bool(win32_platform.lock_workstation())
-            else:
-                try:
-                    from jarvis.platform.windows import lock_workstation
-                    locked = lock_workstation()
-                except Exception as exc:
-                    log.error("Failed to invoke lock_workstation: %s", exc)
-                    locked = True
-
-            # Dispatch photo alert
-            caption = "CẢNH BÁO: Phát hiện người lạ trước màn hình!"
-            photo_bytes = b"fake_intruder_photo_jpeg"
-            if http_server is not None and hasattr(http_server, "handle_telegram_send_photo"):
-                http_server.handle_telegram_send_photo(chat_id=chat_id, photo_bytes=photo_bytes, caption=caption)
-            elif telegram_bot is not None and hasattr(telegram_bot, "send_photo"):
-                telegram_bot.send_photo(chat_id=chat_id, photo_bytes=photo_bytes, caption=caption)
-
+        if locked:
             return {"status": "intruder_locked", "locked": True, "distance": min_dist}
 
-        return {"status": "owner_verified", "locked": False, "distance": min_dist}
+        log.error("Intruder detected but workstation lock could not be confirmed successful.")
+        return {"status": "intruder_lock_failed", "locked": False, "distance": min_dist}
 
 
 class BiometricPrivilegeGate:
