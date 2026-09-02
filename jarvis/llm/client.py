@@ -190,8 +190,11 @@ class LLMClient:
         if isinstance(provider, str):
             try:
                 self.provider = LLMProvider(provider.lower())
-            except ValueError:
-                self.provider = LLMProvider.MOCK
+            except ValueError as exc:
+                valid = ", ".join(p.value for p in LLMProvider)
+                raise ValueError(
+                    f"Unknown LLM provider {provider!r}. Valid providers: {valid}."
+                ) from exc
         else:
             self.provider = provider
 
@@ -236,12 +239,18 @@ class LLMClient:
         self._mock_error = mock_error
         self._mock_delay_s = mock_delay_s
 
-    def _is_test_dummy_key(self) -> bool:
-        """Determines if the provided API key is a dummy/test token in CI/tests."""
-        k = str(self.api_key).strip().lower()
-        if not k:
-            return False
-        return k.startswith("test") or k.startswith("mock") or k in ("gemini_key_123", "key", "dummy", "fake")
+    def _sanitize_error_text(self, text: str) -> str:
+        """
+        Strips the configured API key out of an error message before it is
+        raised or logged. Some transport-layer exceptions embed the request
+        URL verbatim (e.g. a Gemini ConnectionError, whose URL carries the
+        key as a `?key=...` query parameter) -- this keeps that key from
+        leaking into logs/exception text now that real transport failures
+        are surfaced instead of silently swallowed into a mock response.
+        """
+        if self.api_key and text:
+            return text.replace(self.api_key, "***REDACTED***")
+        return text
 
     def generate(
         self,
@@ -286,8 +295,15 @@ class LLMClient:
         if not self.api_key and self.provider not in (LLMProvider.OLLAMA, LLMProvider.MOCK):
             raise LLMAuthenticationError(f"API key required for cloud LLM provider '{self.provider.value}'")
 
-        # 2. Check Mock / Synthetic Test Mode
-        if self.provider == LLMProvider.MOCK or self.mock_mode or self._is_test_dummy_key() or (self.provider == LLMProvider.OLLAMA and not self.base_url and os.environ.get("JARVIS_TEST_MODE") == "1"):
+        # 2. Check Mock / Synthetic Test Mode. These are the only paths that
+        # may return a synthetic response: explicit MOCK provider, explicit
+        # mock_mode, or the explicit (env-var-gated, no-base-url) Ollama test
+        # mode. A REAL configured provider's request failure (timeout,
+        # connection error, transport error, etc.) must never silently
+        # become a synthetic success -- see the exception handling below.
+        if self.provider == LLMProvider.MOCK or self.mock_mode or (
+            self.provider == LLMProvider.OLLAMA and not self.base_url and os.environ.get("JARVIS_TEST_MODE") == "1"
+        ):
             return self._execute_mock(normalized_messages, tools, mock_http=mock_http)
 
         # 3. Record Call History
@@ -318,19 +334,35 @@ class LLMClient:
                 elif self.provider == LLMProvider.OLLAMA:
                     resp = self._call_ollama(normalized_messages, tools, temp, tokens)
                 else:
-                    resp = self._execute_mock(normalized_messages, tools, mock_http=mock_http)
+                    # Unreachable in practice (the constructor rejects any
+                    # provider string that isn't a valid LLMProvider member,
+                    # and MOCK always returns above before this loop is ever
+                    # entered) -- but a production dispatch path must fail
+                    # closed rather than ever synthesize a response for an
+                    # unsupported/unexpected provider state.
+                    raise LLMProviderError(f"Unsupported LLM provider state: {self.provider!r}")
 
                 resp.latency_ms = (time.perf_counter() - t0) * 1000.0
                 self._update_usage(resp.usage, self.model)
                 return resp
 
-            except (requests.Timeout, requests.ConnectionError) as exc:
-                # If Ollama or test runner has no local daemon running, fallback to mock execution in tests
-                if self.provider == LLMProvider.OLLAMA:
-                    logger.debug("Ollama not running locally; returning synthetic response for tests.")
-                    return self._execute_mock(normalized_messages, tools, mock_http=mock_http)
+            except requests.Timeout as exc:
                 if attempt == self.max_retries:
-                    raise LLMTimeoutError(f"LLM request to {self.provider.value} timed out after {self.timeout}s: {exc}")
+                    raise LLMTimeoutError(
+                        f"LLM request to {self.provider.value} timed out after {self.timeout}s: "
+                        f"{self._sanitize_error_text(str(exc))}"
+                    ) from exc
+                time.sleep(0.5 * (2 ** attempt))
+            except requests.ConnectionError as exc:
+                # A real connection failure (daemon not running, host
+                # unreachable, DNS failure, etc.) is a genuine provider
+                # unavailability -- it must never be reported as a
+                # successful (mocked or otherwise) response, for Ollama or
+                # any other provider.
+                if attempt == self.max_retries:
+                    raise LLMProviderError(
+                        f"Could not connect to {self.provider.value}: {self._sanitize_error_text(str(exc))}"
+                    ) from exc
                 time.sleep(0.5 * (2 ** attempt))
             except requests.HTTPError as exc:
                 status = exc.response.status_code if exc.response is not None else 0
@@ -345,14 +377,24 @@ class LLMClient:
                         raise LLMProviderError(f"Server error from {self.provider.value} (HTTP {status}).")
                     time.sleep(1.0 * (2 ** attempt))
                 else:
-                    raise LLMProviderError(f"HTTP {status} error from {self.provider.value}: {exc}")
+                    raise LLMProviderError(
+                        f"HTTP {status} error from {self.provider.value}: {self._sanitize_error_text(str(exc))}"
+                    )
             except Exception as exc:
                 if isinstance(exc, LLMError):
                     raise
-                # Fallback for connection errors in test harness
+                # A real transport/OS-level failure is a genuine provider
+                # failure -- it must never be silently converted into a
+                # synthetic successful response. Only provider=MOCK or
+                # mock_mode may ever produce a mock LLMResponse (checked
+                # above, before this loop is ever entered).
                 if isinstance(exc, (requests.RequestException, ConnectionError, OSError)):
-                    return self._execute_mock(normalized_messages, tools, mock_http=mock_http)
-                raise LLMProviderError(f"Unexpected error calling {self.provider.value}: {exc}") from exc
+                    raise LLMProviderError(
+                        f"Transport error calling {self.provider.value}: {self._sanitize_error_text(str(exc))}"
+                    ) from exc
+                raise LLMProviderError(
+                    f"Unexpected error calling {self.provider.value}: {self._sanitize_error_text(str(exc))}"
+                ) from exc
 
         raise LLMProviderError(f"Exhausted retries calling {self.provider.value}")
 
