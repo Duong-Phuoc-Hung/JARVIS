@@ -3,7 +3,7 @@
 > Durable project instructions for Claude Code and coding agents.
 > Read this file first, then read `docs/PROJECT_STATE.md` before non-trivial work.
 
-## 0. CURRENT BASELINE (updated 2026-09-03) — READ THIS FIRST
+## 0. CURRENT BASELINE — READ THIS FIRST
 
 This section is the single most current "what's true right now" summary. Where it
 disagrees with any other paragraph below (including the "Current baseline note" and
@@ -11,19 +11,33 @@ disagrees with any other paragraph below (including the "Current baseline note" 
 wins**. Older v4.3/v4.5 baseline paragraphs elsewhere in this file are historical unless
 specifically marked otherwise.
 
+> **Read this before trusting any SHA in this file.** This section — like every session
+> before it — has repeatedly recorded "current main" as a fixed commit SHA, only for that
+> claim to go stale the instant the *next* change (including a docs-only sync like this
+> one) merges and advances `main` past it. That is not a one-time mistake to fix; it is a
+> structural property of writing a mutable fact into a static file. **Do not repeat the
+> pattern.** Any SHA recorded below is **checkpoint/historical evidence for the PR that
+> produced it**, not a durable claim about what `main` points to right now. Before relying
+> on "current state" for any non-trivial task: run `git fetch origin --prune`, then
+> `git rev-parse origin/main`, and trust that output over anything written here.
+
+- **Documentation state verified through PR #35** (docs-only sync, merge commit
+  `399a70cc471bf35d98e1b976f8c895054d4f7524`, post-merge JARVIS CI **#162 SUCCESS** — all
+  four jobs green: Syntax Check, Unit Tests, Import Validation, Pipeline Summary). This is
+  the **last verified repository checkpoint before this documentation sync** — not a
+  permanent "current HEAD" pointer. By the time you read this, `main` may already be ahead
+  of it; verify with `git fetch`/`git rev-parse origin/main` as noted above.
 - **Current development runtime:** `4.7.0` (`jarvis.__version__`, `jarvis/__init__.py`).
   Unchanged by any of the work below — this is **not** `4.7.1` and no new tag/release was
-  cut.
-- **Current verified `main`:** `ae6d5d8ffd98f4629af951e19820bf047f9c05d7` (merge of PR #34,
-  `fix/dispatch-truthfulness`).
+  cut. Runtime version is itself durable, stable evidence (unlike a commit SHA) — verify it
+  directly with `python -c "import jarvis; print(jarvis.__version__)"` if in doubt.
 - **Latest formal GitHub Release:** `v4.5.1` (unchanged; tag confirmed present in the
-  repository and confirmed an ancestor of current `main`). `v4.0.1` is no longer the latest
-  formal release.
+  repository at the PR #35 checkpoint). `v4.0.1` is no longer the latest formal release.
 - **Development source/runtime (`4.7.0`) and the latest formal release (`v4.5.1`) are
   different concepts** — `main` has moved well past `v4.5.1` in CHANGELOG/runtime terms
   without a new tag/release having been cut yet. Do not describe `4.7.0` as "released" or
   `v4.5.1` as "the current source version."
-- **Completed and merged into `main` since the last major documentation sync:**
+- **Completed and merged, as of the PR #35 checkpoint:**
   - **PR #31** (`fix/healing-truthfulness`, merge commit `10d470237b0fe4bc295f02215b4606590d79d17e`) —
     self-healing (`jarvis/healing/terminator.py`) now reports recovery outcomes truthfully.
     See the durable "Healing truthfulness" invariant below.
@@ -34,19 +48,22 @@ specifically marked otherwise.
     "Optional-dependency test determinism" invariant below.
   - **PR #34** (`fix/dispatch-truthfulness`, feature commit
     `e99c522be808d9160a5b9c57bf9bd8ec11d3dd69`, merge commit
-    `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`) — **central dispatch truthfulness is
-    RESOLVED ON `main`**, and the `hardware_status_query` compatibility alias is
-    **RESOLVED ON `main`** (same PR/commit). See the durable "Dispatch truthfulness"
-    invariant below for the full contract.
-- **Post-merge CI evidence for PR #34: JARVIS CI #160, conclusion SUCCESS** — all four jobs
-  green (Syntax Check, Import Validation, Unit Tests, Pipeline Summary).
-- **`main` at `ae6d5d8...`, full `tests/unit/` evidence: 1413 passed, 1 skipped, 50
-  subtests passed, 0 failed.** (Prior evidence at `aaeeb53f8341...`, post-PR #32: 1353
-  passed, 4 skipped, 50 subtests passed, 0 failures — kept here as historical lineage, not
-  the current count.) Skip counts can vary by environment (which optional dependencies
-  happen to be installed) — this is expected, not a regression signal.
-- **Central dispatch truthfulness — RESOLVED, merged into `main` via PR #34 @
-  `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`.** `jarvis/core/dispatcher.py`'s
+    `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`, post-merge JARVIS CI #160 SUCCESS) —
+    **central dispatch truthfulness is RESOLVED**, and the `hardware_status_query`
+    compatibility alias is **RESOLVED** (same PR/commit). See the durable "Dispatch
+    truthfulness" invariant below for the full contract.
+  - **PR #35** (`docs/finalize-dispatch-merge-state`, feature commit
+    `a344af1f7b408306d92f781f01a2fc2e5253043d`, merge commit `399a70cc471bf35d98e1b976f8c895054d4f7524`,
+    post-merge JARVIS CI #162 SUCCESS) — **documentation-only** finalization of PR #34's
+    merged state across all seven docs files; no code/test/config/runtime/version change.
+- **`tests/unit/` evidence at the PR #34 checkpoint (`ae6d5d8...`): 1413 passed, 1 skipped,
+  50 subtests passed, 0 failed.** (Prior evidence at the PR #32 checkpoint
+  (`aaeeb53f8341...`): 1353 passed, 4 skipped, 50 subtests passed, 0 failures — kept here as
+  historical lineage, not the current count.) PR #35 was docs-only, so this evidence is
+  unchanged by it. Skip counts can vary by environment (which optional dependencies happen
+  to be installed) — this is expected, not a regression signal.
+- **Central dispatch truthfulness — RESOLVED via PR #34 (checkpoint commit
+  `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`).** `jarvis/core/dispatcher.py`'s
   `dispatch_action()`/`dispatch_action_async()` previously wrapped any normally-returning
   handler result as `success=True` unconditionally, ignoring an explicit handler-signaled
   failure (`ActionResult(success=False, ...)`, `{"success": False, ...}`,
@@ -73,11 +90,26 @@ specifically marked otherwise.
     `tests/unit/test_integration_e2e.py::test_memory_recording_in_process_text_command`
     passes **without that test file ever being modified**.
   - **No remaining known issue from the dispatch-truthfulness task.**
-- Full detail: `CHANGELOG.md`'s "Post-v4.7.0 Maintenance" section (PR #31, PR #32, PR #34);
-  `docs/PROJECT_STATE.md`'s current checkpoint; `docs/TECHNICAL_AUDIT_REPORT.md`'s updated
-  audit-status entries.
+- Full detail: `CHANGELOG.md`'s "Post-v4.7.0 Maintenance" section (PR #31, PR #32, PR #34,
+  PR #35); `docs/PROJECT_STATE.md`'s current checkpoint; `docs/TECHNICAL_AUDIT_REPORT.md`'s
+  updated audit-status entries.
 
 ### Permanent project policy: DOCUMENTATION IS PART OF DEFINITION OF DONE
+
+**Before starting any new task, regardless of what this file says:**
+```bash
+git fetch origin --prune
+git rev-parse origin/main
+```
+Do not rely on a checkpoint SHA recorded in `CLAUDE.md`/`docs/PROJECT_STATE.md`/
+`CHANGELOG.md` as the actual current `main` — treat every recorded SHA in this repository's
+documentation as historical evidence for the PR that produced it, never as a live pointer.
+This is the fix for a recurring failure mode: a docs-only sync PR records "current main is
+SHA X," that PR's own merge commit becomes the new `main`, and the recorded SHA is stale
+before the PR is even reviewed. Durable current-state claims in this file (runtime version,
+release version, resolved/open status of a fix) do not have this problem — only raw commit
+SHAs do — so prefer "resolved via PR #N" / "documentation state verified through PR #N"
+phrasing over "current main is `<SHA>`" when writing future updates to this section.
 
 For every future non-trivial task:
 
