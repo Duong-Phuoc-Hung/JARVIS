@@ -18,10 +18,122 @@
 > Snapshot: 2026-09-01.
 > Always verify Git state and current code before relying on this snapshot.
 
-## 0. Current Checkpoint (2026-09-02) — READ THIS FIRST
+## 0. Current Checkpoint (2026-09-03) — READ THIS FIRST
 
 This is the single authoritative "what's true right now" section, superseding the
-`2026-09-01` checkpoint immediately below it (now demoted to `0-PREV`, kept as historical
+`2026-09-02` checkpoint immediately below it (now demoted to `0-PREV`, kept as historical
+record — not rewritten; the `2026-09-01` checkpoint below that is `0-PREV2`).
+
+**State:**
+- Branch: `fix/dispatch-truthfulness`, based on `main` @
+  `1f89bfffcc9eda8cc976642535c40d838b456d88` (merge of PR #33, `docs/sync-v4.7-maintenance`).
+  **This branch's changes are implemented and validated but NOT committed and NOT merged**
+  — `main` itself is still at `1f89bff...` and still has the original dispatch-truthfulness
+  bug until this branch is committed, pushed, reviewed, and merged.
+- runtime: `4.7.0` (`jarvis.__version__`, unchanged by this work).
+- formal release: `v4.5.1` (unchanged).
+
+**Central dispatch truthfulness — IMPLEMENTED AND VALIDATED (uncommitted), root cause
+confirmed and fixed.** `jarvis/core/dispatcher.py`'s `dispatch_action()`/
+`dispatch_action_async()` previously wrapped any normally-returning handler result as
+`success=True` unconditionally — an explicit handler failure (`ActionResult(success=False)`,
+`{"success": False}`, `{"status": "failed"/"error"}`) was silently turned into dispatcher
+success. `jarvis/core/app.py`'s `process_text_command()` separately initialized
+`status_flag = "success"` and never re-derived it from `action_result.success` after
+dispatch, so a failed action could still produce a top-level `{"success": True}`, a
+`status="success"` interaction-log entry, a `success=True` memory episode, and the
+success-flavored fallback text `"Đã thực hiện lệnh: ..."`.
+
+**Return-convention audit (evidence, not guesswork):**
+- `ActionResult` handler returns: no current production handler does this, but it is the
+  dataclass's own official contract (`jarvis/core/models.py`) and is supported.
+- `{"success": bool, ...}`: the dominant established contract — `jarvis/automation/control.py`,
+  `jarvis/comms/mobile_bridge.py`/`discord.py`, `jarvis/smart_home/home_assistant.py`,
+  `jarvis/ui/dashboard.py`, `jarvis/workers/night_shift.py`/`auto_updater.py`,
+  `jarvis/plugins/spotify.py`.
+- `{"status": "failed"/"error", ...}`: the dominant contract inside `jarvis/core/app.py`'s
+  own ~60 dispatcher-registered `_handle_*` methods, and `jarvis/plugins/spotify.py`.
+- **Bare boolean `False`/`True` as a handler's entire payload has no established contract
+  anywhere in the repository** (confirmed by grep across every dispatcher-registered
+  handler) — booleans only ever appear nested inside an explicit `"success"` key. Decision:
+  a bare `False` remains ordinary successful data, per the "no generic falsiness" rule.
+- Many custom `"status"` strings (`"welcome_spoken"`, `"tts_unavailable"`,
+  `"overlay_unavailable"`, `"healthy"`, `"skipped"`, `"started"`, `"ok"`) do **not** match
+  `"failed"`/`"error"` literally and are correctly left as success — inventing a broader
+  failure rule for them would misclassify real successful payloads (e.g.
+  `_handle_tts_welcome()` returning `{"status": "tts_unavailable"}` when TTS is off, which
+  is not an error condition worth failing the whole dispatch over).
+
+**Fix implemented:**
+- New shared pure function `jarvis/core/dispatcher.py::_normalize_handler_outcome(raw)` →
+  `(success, data, error, error_code)`, used identically by both `dispatch_action()` (sync)
+  and `dispatch_action_async()` — no sync/async divergence.
+- `action.post_dispatch`'s `success=` event parameter now reflects the real normalized
+  outcome (previously hardcoded `True`) — a failed normalized result never emits a
+  `success=True` event. No new event type was added; existing `action.pre_dispatch`/
+  `action.failed` (exception path) architecture is untouched.
+- `process_text_command()` now sets `status_flag = "success" if action_result.success else "failed"`
+  immediately after dispatch, before response-text selection. Failure response-text
+  precedence: `action_result.error` → `action_result.data["message"]` → `action_result.error_code`
+  → neutral fallback `"Không thể thực hiện lệnh."` — never a fabricated reason, never the
+  success-flavored `"Đã thực hiện lệnh: ..."` fallback for a failed action.
+  `CONFIRMATION_REQUIRED` remains failure end-to-end (verified: gated handler never runs).
+- `_on_gesture_event()`'s `triple_clap`/`clap_pause_clap`/generic-pattern loops (previously
+  discarding each `ActionResult` and unconditionally logging `status="success"`) now track
+  real per-action success and log `status="failed"` truthfully when any action fails. The
+  `double_clap` welcome-sequence branch was deliberately left unchanged — it logs the
+  *launch* of an async background sequence, a genuinely different claim from per-action
+  outcome, and correcting it would need a threading-model restructure out of this task's
+  narrow scope.
+- Safety preserved unchanged: `SafetyGateInterceptor`, RBAC/privilege checks,
+  `ACTION_NOT_FOUND`, and all `CONFIRMATION_*` semantics were not touched.
+
+**`hardware_status_query` compatibility alias — owner-authorized, RESOLVED (same branch,
+2026-09-03).** The dispatch-truthfulness fix above surfaced a genuine, separate,
+pre-existing bug: `jarvis/llm/router.py` intentionally routes several hardware/status voice
+queries (e.g. "Báo cáo tình trạng hệ thống") to action name `hardware_status_query` from
+multiple call sites (system prompt examples, Vietnamese/unaccented rule fallback, status
+regex handling, response-generation compatibility logic), but `jarvis/core/app.py` had only
+ever registered a dispatcher action named `system_status` — so dispatch correctly returned
+`ACTION_NOT_FOUND`, a failure previously masked by the dispatch-truthfulness bug itself
+(the dispatcher used to report `success=True` regardless). Owner decision: leave
+`jarvis/llm/router.py` untouched (an intentional, multi-site router contract; changing it
+would be a broad change) and fix the narrow registration gap instead. Fix
+(`jarvis/core/app.py::_register_core_actions()`): register `hardware_status_query` against
+the **same** existing `self._handle_system_status` handler already used by `system_status`
+— no duplicated implementation logic, `system_status` itself unchanged. Covered by 5 new
+tests (`tests/unit/test_dispatch_truthfulness.py::TestHardwareStatusQueryAlias`): both
+action names exist after core registration, both resolve to the identical underlying
+function (`.handler.__func__` identity), `hardware_status_query` no longer returns
+`ACTION_NOT_FOUND`, and both names dispatch to the same behavior/result shape.
+`tests/unit/test_integration_e2e.py::test_memory_recording_in_process_text_command` now
+passes **without that test file being modified**, per explicit owner instruction.
+
+**Final validation evidence (after both fixes, this checkpoint):**
+```text
+tests/unit/test_dispatch_truthfulness.py (57 tests, +4 alias tests):   57 passed
+tests/unit/test_action_dispatcher_safety.py (unchanged):               15 passed
+tests/unit/test_app_integration.py (unchanged):                         1 passed
+tests/unit/test_integration_e2e.py::test_memory_recording_in_process_text_command
+    (NOT modified — now passes via the alias registration):            1 passed
+tests/unit/ (full suite):        1413 passed, 1 skipped, 50 subtests passed, 0 FAILED
+```
+`jarvis.__version__` unchanged at `4.7.0` — not described as a separate version/release.
+Files touched: `jarvis/core/dispatcher.py`, `jarvis/core/app.py` (both authorized production
+files), plus the authorized test file `tests/unit/test_dispatch_truthfulness.py`. No other
+production file was modified — in particular, `jarvis/llm/router.py` and
+`tests/unit/test_integration_e2e.py` remain untouched, per explicit owner direction.
+
+**No remaining known issues from this task.** The full unit suite is green (0 failures).
+This branch's changes are still uncommitted — see "State" above.
+
+---
+
+## 0-PREV. Prior Checkpoint (2026-09-02) — historical, superseded by the 2026-09-03
+checkpoint above
+
+This is the single authoritative "what's true right now" section, superseding the
+`2026-09-01` checkpoint immediately below it (now demoted to `0-PREV2`, kept as historical
 record — not rewritten).
 
 **State:**
@@ -102,16 +214,17 @@ Skip counts can and do vary by environment (which optional dependencies — e.g.
 `faster-whisper`, `cv2`, `mediapipe` — happen to be installed on the machine running the
 suite); a different skip count than this snapshot is not by itself evidence of a regression.
 
-**CENTRAL DISPATCH TRUTHFULNESS IS STILL OPEN.** Known issue, not fixed by PR #31 or PR
-#32: `ActionDispatcher` / `process_text_command` (`jarvis/core/app.py`) may still
-incorrectly propagate an explicit failed action outcome as a reported success. This is a
-distinct truthfulness gap from the healing fix above (PR #31 only touched
-`jarvis/healing/terminator.py`) — do not describe central-dispatch truthfulness as merged,
-resolved, or in progress; it is pending future work with no branch currently addressing it.
+**CENTRAL DISPATCH TRUTHFULNESS WAS OPEN AS OF THIS CHECKPOINT.** Known issue, not fixed by
+PR #31 or PR #32: `ActionDispatcher` / `process_text_command` (`jarvis/core/app.py`) may
+still incorrectly propagate an explicit failed action outcome as a reported success. **This
+is now superseded — see the `0` checkpoint above**: it was implemented and validated on
+branch `fix/dispatch-truthfulness` on 2026-09-03 (not yet committed/merged as of that
+checkpoint). Do not read this paragraph as describing the current state; kept verbatim as
+historical record of what was true at this checkpoint's own snapshot time.
 
 ---
 
-## 0-PREV. Prior Checkpoint (2026-09-01) — historical, superseded by the 2026-09-02
+## 0-PREV2. Prior Checkpoint (2026-09-01) — historical, superseded by the 2026-09-02
 checkpoint above
 
 This section is the single authoritative "what's true right now" section. Everything below it —

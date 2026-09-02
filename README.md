@@ -464,6 +464,7 @@ Các phím tắt hoạt động toàn cầu trên Windows (ngay cả khi ứng d
 - Tự phục hồi hệ thống (Self-Healing) giờ chỉ báo thành công sau khi việc chấm dứt tiến trình đã được **xác nhận thực sự xảy ra** — không còn tự nhận thành công chỉ vì lệnh chấm dứt được gọi.
 - RAM đã giải phóng không bao giờ bị bịa đặt — chỉ báo cáo từ phép đo trước/sau thực tế, bỏ qua khi không đo được.
 - Test wake-word Whisper trên CI đã được làm tất định giữa các môi trường có/không cài `faster-whisper` — **không** thay đổi hành vi wake-word thật khi chạy production.
+- Kết quả thất bại của một lệnh giờ được lan truyền trung thực xuyên suốt hệ thống — từ hành động thực thi, qua bộ điều phối hành động, đến phản hồi hiển thị cho người dùng, nhật ký tương tác và bộ nhớ — không còn trường hợp một lệnh thất bại bị báo cáo nhầm thành công.
 
 ---
 

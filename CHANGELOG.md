@@ -2,9 +2,76 @@
 
 ---
 
-## 🔧 Post-v4.7.0 Maintenance / Unreleased Maintenance (2026-09-02)
+## 🔧 Post-v4.7.0 Maintenance / Unreleased Maintenance (2026-09-02 → 2026-09-03)
 
-> **Lưu ý ngữ nghĩa**: đây là mốc bảo trì phát triển trên `main` sau v4.7.0 — **không phải** `4.7.1` và không phải một GitHub Release/tag mới. `jarvis.__version__` **giữ nguyên `4.7.0`** trong suốt hai PR bên dưới; không có version bump nào xảy ra. Bản phát hành chính thức (GitHub Release) mới nhất vẫn là `v4.5.1`. Xem `CLAUDE.md` "CURRENT BASELINE" và `docs/PROJECT_STATE.md` Checkpoint 2026-09-02 để biết trạng thái đầy đủ.
+> **Lưu ý ngữ nghĩa**: đây là mốc bảo trì phát triển trên `main` sau v4.7.0 — **không phải** `4.7.1` và không phải một GitHub Release/tag mới. `jarvis.__version__` **giữ nguyên `4.7.0`** trong suốt các mục bên dưới; không có version bump nào xảy ra. Bản phát hành chính thức (GitHub Release) mới nhất vẫn là `v4.5.1`. Xem `CLAUDE.md` "CURRENT BASELINE" và `docs/PROJECT_STATE.md` Checkpoint hiện tại để biết trạng thái đầy đủ.
+
+### 🟢 Central Dispatch Truthfulness (branch `fix/dispatch-truthfulness`, 2026-09-03, NOT YET MERGED — awaiting owner review)
+
+**Nguyên nhân gốc (root cause):** `ActionDispatcher.dispatch_action()`/`dispatch_action_async()` (`jarvis/core/dispatcher.py`) tạo đúng các `ActionResult` thất bại cho: hành động không tồn tại (`ACTION_NOT_FOUND`), thiếu quyền (`PERMISSION_DENIED`), an toàn/xác nhận bị từ chối (`CONFIRMATION_*`), và exception. Nhưng sau khi một handler trả về bình thường (không raise exception), dispatcher trước đây luôn làm tương đương `publish post_dispatch success=True; return ActionResult(success=True, data=handler_result)` **bất kể nội dung `handler_result` thực sự báo hiệu gì** — biến một thất bại tường minh của handler (`ActionResult(success=False, ...)`, `{"success": False, ...}`, `{"status": "failed", ...}`) thành thành công của dispatcher. `jarvis/core/app.py::process_text_command()` cũng khởi tạo `status_flag = "success"` và không bao giờ đọc lại `action_result.success` sau khi dispatch — top-level `{"success": True}`, log tương tác `status="success"`, episode bộ nhớ `success=True`, và phản hồi kiểu thành công `"Đã thực hiện lệnh: ..."` đều có thể xảy ra cho một hành động đã thất bại tường minh.
+
+**Kiểm toán quy ước trả về (return-convention audit) — bằng chứng thực tế từ mã nguồn hiện tại:**
+- `ActionResult` được trả trực tiếp bởi handler: không có handler nào đang đăng ký với dispatcher làm điều này hiện nay, nhưng đây là quy ước chính thức của kiểu `ActionResult` (`jarvis/core/models.py`) nên được hỗ trợ tổng quát.
+- `{"success": bool, ...}` là quy ước thất bại/thành công **thống trị** trên toàn kho mã: `jarvis/automation/control.py`, `jarvis/comms/mobile_bridge.py`, `jarvis/comms/discord.py`, `jarvis/smart_home/home_assistant.py`, `jarvis/ui/dashboard.py`, `jarvis/workers/night_shift.py`/`auto_updater.py`, `jarvis/plugins/spotify.py` (`{"status": "started", "success": True, ...}`).
+- `{"status": "failed"}`/`{"status": "error"}` là quy ước thất bại được thiết lập, chiếm ưu thế trong chính ~60 handler `_handle_*` do `jarvis/core/app.py` tự đăng ký với dispatcher, và trong `jarvis/plugins/spotify.py`.
+- **Bool `False` trần (không bọc trong dict) KHÔNG có quy ước thất bại nào được thiết lập trong kho mã** — kiểm toán toàn bộ các handler đã đăng ký dispatcher xác nhận: không handler production nào trả về `True`/`False` trần làm toàn bộ payload; boolean chỉ luôn xuất hiện lồng bên trong khóa `"success"` tường minh của dict. Quyết định: `False` trần vẫn là dữ liệu thành công thông thường (an toàn hơn theo đúng nguyên tắc "không dùng falsiness chung chung").
+- Nhiều chuỗi `"status"` tùy biến theo domain (`"welcome_spoken"`, `"tts_unavailable"`, `"overlay_unavailable"`, `"healthy"`, `"skipped"`, `"started"`, `"ok"`) **không** khớp `"failed"`/`"error"` literal — các giá trị này **không** bị coi là thất bại, tránh đoán mò ngoài quy ước đã xác lập.
+
+**Cơ chế chuẩn hóa đã triển khai (`jarvis/core/dispatcher.py::_normalize_handler_outcome()`)** — một hàm thuần túy dùng chung bởi cả `dispatch_action()` (đồng bộ) và `dispatch_action_async()` (bất đồng bộ), đảm bảo ngữ nghĩa hoàn toàn giống nhau giữa hai đường:
+1. `ActionResult` trả về → giữ nguyên `success`/`data`/`error`/`error_code` của chính nó, không bao giờ bọc lại thành công.
+2. `dict` có khóa `"success"` kiểu `bool` → là nguồn xác thực; khi `False`, `error` ưu tiên lấy từ `dict["error"]` rồi mới đến `dict["message"]`, `error_code` lấy từ `dict["error_code"]` nếu có.
+3. `dict` có khóa `"status"` giá trị literal `"failed"`/`"error"` → thất bại, cùng logic lấy `error`/`error_code` như trên.
+4. Mọi trường hợp khác (dữ liệu falsy thông thường `0`/`""`/`[]`/`{}`/`None`, bool trần, chuỗi status tùy biến chưa xác lập) → giữ nguyên là dữ liệu thành công như hành vi dispatcher trước đây — **không dùng falsiness chung chung**.
+
+**Bảo vệ dữ liệu falsy thông thường** — `0`, `""`, `[]`, `{}`, `None`, và bool `False` trần **vẫn luôn là payload thành công hợp lệ**, không bị hiểu nhầm là thất bại.
+
+**Đồng bộ sync/async:** cả `dispatch_action()` và `dispatch_action_async()` đều gọi cùng `_normalize_handler_outcome()`; timeout/async-exception handling hiện có được giữ nguyên hoàn toàn không đổi.
+
+**Sự kiện `action.post_dispatch` trung thực:** tham số `success=` của sự kiện này giờ phản ánh đúng kết quả đã chuẩn hóa (trước đây luôn cứng `True`) — một kết quả thất bại đã chuẩn hóa không bao giờ phát ra sự kiện tuyên bố `success=True`. Không phát sinh sự kiện trùng lặp mới; kiến trúc sự kiện hiện có (`action.pre_dispatch`, `action.failed` cho exception) được giữ nguyên.
+
+**`process_text_command()` (`jarvis/core/app.py`):** `status_flag` giờ được suy ra ngay từ `action_result.success` (không còn chỉ dựa vào "không có exception Python nào xảy ra"), trước bước chọn văn bản phản hồi. Thứ tự ưu tiên văn bản thất bại: (1) `action_result.error` nếu có nội dung hữu ích; (2) thông báo thất bại có cấu trúc trong `action_result.data["message"]`; (3) `action_result.error_code` nếu hữu ích; (4) fallback trung thực trung tính `"Không thể thực hiện lệnh."` — không bao giờ bịa lý do, không bao giờ rơi vào fallback kiểu thành công `"Đã thực hiện lệnh: ..."` cho một hành động thất bại. `CONFIRMATION_REQUIRED` vẫn là thất bại xuyên suốt đầu-cuối (top-level `success=False`, log tương tác `status="failed"`, episode bộ nhớ `success=False`), và handler bị gate **không bao giờ thực thi**.
+
+**Bảo toàn an toàn (safety preservation):** không có thay đổi nào đối với `SafetyGateInterceptor`, các kiểm tra RBAC/privilege, `ACTION_NOT_FOUND`, hay ngữ nghĩa `CONFIRMATION_REQUIRED`/`CONFIRMATION_*` — cơ chế gate hành động rủi ro cao (`_evaluate_safety_gate()`) hoàn toàn không bị đụng tới.
+
+**Đường tiêu thụ dispatcher khác (gesture) — sửa trong cùng phạm vi:** `jarvis/core/app.py::_on_gesture_event()`'s các nhánh `triple_clap`, `clap_pause_clap`, và pattern chung trước đây gọi `dispatcher.dispatch_action()` trong vòng lặp, **bỏ qua hoàn toàn giá trị `ActionResult.success` trả về**, và luôn ghi `log_interaction(..., status="success")` bất kể hành động nào thất bại. Đã sửa: mỗi vòng lặp giờ theo dõi `all_succeeded` dựa trên `result.success` thực tế của từng hành động, ghi `status="failed"` và thông điệp trung thực khi có ít nhất một hành động thất bại. **Không sửa** nhánh `double_clap`'s welcome-sequence (ngữ nghĩa khác biệt có chủ đích: log mô tả việc *khởi chạy* chuỗi hành động nền bất đồng bộ, không phải kết quả từng hành động — sửa nhánh này đòi hỏi tái cấu trúc mô hình luồng nền, vượt phạm vi "sửa hẹp" của công việc này).
+
+**Bằng chứng kiểm chứng (validation evidence, sau khi sửa alias bên dưới):**
+```text
+tests/unit/test_dispatch_truthfulness.py (57 test, +4 test alias mới):  57 passed
+tests/unit/test_action_dispatcher_safety.py (không đổi):                15 passed
+tests/unit/test_app_integration.py (không đổi):                          1 passed
+tests/unit/test_integration_e2e.py::test_memory_recording_in_process_text_command
+    (KHÔNG sửa file test này — pass lại nhờ alias registration): 1 passed
+tests/unit/ (toàn bộ suite):        1413 passed, 1 skipped, 50 subtests passed, 0 FAILED
+```
+`jarvis.__version__` không đổi, vẫn `4.7.0`. Đây **không phải** một phiên bản/release riêng biệt.
+
+### 🟢 `hardware_status_query` compatibility alias (chỉ định trực tiếp từ chủ sở hữu kho mã)
+
+**Phát hiện gốc:** thất bại duy nhất còn lại trong toàn bộ suite sau khi sửa dispatch truthfulness ở trên (`tests/unit/test_integration_e2e.py::test_memory_recording_in_process_text_command`) lộ ra một lỗi thật, riêng biệt, đã tồn tại từ trước và **trước đây bị chính lỗi dispatch-truthfulness che giấu**: router (`jarvis/llm/router.py`) cố ý phát ra tên hành động `hardware_status_query` từ nhiều nơi (ví dụ trong system prompt, rule fallback tiếng Việt có dấu, rule fallback không dấu, xử lý regex trạng thái hệ thống, và logic tương thích sinh phản hồi) cho các câu hỏi phần cứng/trạng thái hệ thống, nhưng `jarvis/core/app.py` chỉ từng đăng ký một hành động dispatcher tên `system_status` — không có `hardware_status_query` nào được đăng ký, nên dispatch trả về `ACTION_NOT_FOUND` một cách hợp lệ.
+
+**Quyết định của chủ sở hữu kho mã:** vì `hardware_status_query` là một tên hành động công khai có chủ đích trong router (thay đổi router sẽ là một thay đổi hợp đồng (contract) rộng), lỗi thiếu đăng ký dispatcher mới là khiếm khuyết tương thích hẹp cần sửa — **không đụng `jarvis/llm/router.py`**.
+
+**Sửa (`jarvis/core/app.py::_register_core_actions()`):** đăng ký thêm `hardware_status_query` như một alias tương thích, dùng lại **chính** handler `self._handle_system_status` đã có — không có logic triển khai trùng lặp:
+```python
+self.dispatcher.register_action(
+    name="system_status",
+    handler=self._handle_system_status,
+    description="Reports system health summary and hardware status",
+)
+self.dispatcher.register_action(
+    name="hardware_status_query",
+    handler=self._handle_system_status,
+    description="Alias for system_status (router emits this intent name for hardware/status voice queries)",
+)
+```
+`system_status` được giữ nguyên không đổi, không bị đổi tên/xóa.
+
+**Kiểm chứng bổ sung (`tests/unit/test_dispatch_truthfulness.py`, +4 test mới, class `TestHardwareStatusQueryAlias`):** cả `system_status` và `hardware_status_query` đều tồn tại sau khi đăng ký hành động lõi; cả hai đều trỏ tới cùng một hàm gốc `self._handle_system_status.__func__` (chứng minh không trùng lặp logic); `hardware_status_query` không còn trả về `ACTION_NOT_FOUND`; cả hai tên dispatch ra cùng một hành vi/kết quả.
+
+`tests/unit/test_integration_e2e.py::test_memory_recording_in_process_text_command` giờ **pass lại mà không sửa file test đó** — đúng theo chỉ định của chủ sở hữu kho mã. Xem `docs/PROJECT_STATE.md`'s checkpoint hiện tại và `docs/TECHNICAL_AUDIT_REPORT.md` §7 để biết chi tiết đầy đủ.
+
+---
 
 ### 🟢 PR #31 — `fix(healing): report recovery outcomes truthfully`
 

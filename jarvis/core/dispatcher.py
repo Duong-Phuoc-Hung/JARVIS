@@ -225,6 +225,59 @@ class EventBus:
         return results
 
 
+def _normalize_handler_outcome(raw: Any) -> tuple[bool, Any, str | None, str | None]:
+    """
+    Determine (success, data, error, error_code) from a handler's raw return
+    value, per the return-value contracts actually established across the
+    repository's dispatcher-registered handlers (jarvis/core/app.py,
+    jarvis/automation/control.py, jarvis/comms/*, jarvis/workers/*,
+    jarvis/smart_home/home_assistant.py, jarvis/ui/dashboard.py, jarvis/plugins/*):
+
+      - An ``ActionResult`` returned directly by a handler is authoritative --
+        its own ``success``/``data``/``error``/``error_code`` are used as-is
+        and never re-wrapped as success.
+      - A dict carrying an explicit boolean ``"success"`` key is authoritative
+        (the dominant convention -- e.g. ``{"success": False, "error": ...}``
+        in `jarvis/automation/control.py`, `jarvis/comms/mobile_bridge.py`,
+        `jarvis/smart_home/home_assistant.py`, `jarvis/ui/dashboard.py`,
+        `jarvis/workers/night_shift.py`/`auto_updater.py`).
+      - A dict carrying a ``"status"`` key whose value is literally
+        ``"failed"`` or ``"error"`` is treated as failure (the dominant
+        convention across `jarvis/core/app.py`'s own ~60 dispatcher-registered
+        `_handle_*` methods, and `jarvis/plugins/spotify.py`).
+      - Anything else -- including ordinary falsy data (``0``, ``""``, ``[]``,
+        ``{}``, ``None``), a bare ``bool`` (no established handler in this
+        repository returns a raw ``True``/``False`` as its entire payload --
+        booleans only ever appear nested inside an explicit ``"success"``
+        key), and unrecognized/custom status strings such as ``"skipped"``,
+        ``"welcome_spoken"``, ``"overlay_unavailable"``, ``"healthy"`` --
+        is left as ordinary successful data, exactly as the dispatcher
+        already treated it before this fix. There is no established
+        repository-wide contract that would justify treating those as
+        failure, and guessing would misclassify genuine successful payloads
+        (see CLAUDE.md's durable dispatch-truthfulness invariant).
+    """
+    if isinstance(raw, ActionResult):
+        return raw.success, raw.data, raw.error, raw.error_code
+
+    if isinstance(raw, dict):
+        success_flag = raw.get("success")
+        if isinstance(success_flag, bool):
+            if success_flag:
+                return True, raw, None, None
+            error = raw.get("error") or raw.get("message")
+            error_code = raw.get("error_code")
+            return False, raw, error, error_code
+
+        status = raw.get("status")
+        if isinstance(status, str) and status in ("failed", "error"):
+            error = raw.get("error") or raw.get("message")
+            error_code = raw.get("error_code")
+            return False, raw, error, error_code
+
+    return True, raw, None, None
+
+
 def default_privilege_interceptor(
     action_name: str,
     payload: dict[str, Any],
@@ -512,12 +565,19 @@ class ActionDispatcher:
             else:
                 data = action_def.handler(**payload)
 
+            success, norm_data, error, error_code = _normalize_handler_outcome(data)
             elapsed = (time.perf_counter() - t0) * 1000.0
-            self.event_bus.publish("action.post_dispatch", action_name=action_name, success=True)
+            self.event_bus.publish("action.post_dispatch", action_name=action_name, success=success)
+            if not success:
+                logger.warning(
+                    "Action '%s' handler reported failure: %s", action_name, error or "(no error detail)"
+                )
             return ActionResult(
                 action_name=action_name,
-                success=True,
-                data=data,
+                success=success,
+                data=norm_data,
+                error=error,
+                error_code=error_code,
                 execution_time_ms=elapsed,
                 requester=context.requester_id
             )
@@ -609,12 +669,19 @@ class ActionDispatcher:
                 else:
                     data = await loop.run_in_executor(None, lambda: action_def.handler(**payload))
 
+            success, norm_data, error, error_code = _normalize_handler_outcome(data)
             elapsed = (time.perf_counter() - t0) * 1000.0
-            await self.event_bus.publish_async("action.post_dispatch", action_name=action_name, success=True)
+            await self.event_bus.publish_async("action.post_dispatch", action_name=action_name, success=success)
+            if not success:
+                logger.warning(
+                    "Action '%s' handler reported failure (async): %s", action_name, error or "(no error detail)"
+                )
             return ActionResult(
                 action_name=action_name,
-                success=True,
-                data=data,
+                success=success,
+                data=norm_data,
+                error=error,
+                error_code=error_code,
                 execution_time_ms=elapsed,
                 requester=context.requester_id
             )

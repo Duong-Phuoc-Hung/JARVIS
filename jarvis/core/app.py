@@ -537,6 +537,11 @@ class JarvisApp:
             description="Reports system health summary and hardware status",
         )
         self.dispatcher.register_action(
+            name="hardware_status_query",
+            handler=self._handle_system_status,
+            description="Alias for system_status (router emits this intent name for hardware/status voice queries)",
+        )
+        self.dispatcher.register_action(
             name="toggle_mute",
             handler=self._handle_toggle_mute,
             description="Toggles microphone listening state",
@@ -1665,49 +1670,76 @@ class JarvisApp:
 
         if pattern_name == "triple_clap":
             action_names = self.config.get("gesture.patterns.triple_clap.actions", ["system_status"])
+            all_succeeded = True
             for act in action_names:
                 try:
-                    self.dispatcher.dispatch_action(act, requester=RequesterContext.system())
+                    result = self.dispatcher.dispatch_action(act, requester=RequesterContext.system())
+                    if not result.success:
+                        all_succeeded = False
+                        log.warning("Action [%s] reported failure for pattern [triple_clap]: %s", act, result.error)
                 except Exception as e:
+                    all_succeeded = False
                     log.error("Action [%s] failed for pattern [triple_clap]: %s", act, e)
             self.log_interaction(
                 trigger="GESTURE:triple_clap",
                 input_text="triple_clap",
                 action=",".join(action_names),
-                response="Báo cáo tình trạng hệ thống và phần cứng",
-                status="success",
+                response=(
+                    "Báo cáo tình trạng hệ thống và phần cứng"
+                    if all_succeeded
+                    else "Một hoặc nhiều hành động cho [triple_clap] không thành công."
+                ),
+                status="success" if all_succeeded else "failed",
             )
             return
 
         if pattern_name == "clap_pause_clap":
             action_names = self.config.get("gesture.patterns.clap_pause_clap.actions", ["show_overlay"])
+            all_succeeded = True
             for act in action_names:
                 try:
-                    self.dispatcher.dispatch_action(act, requester=RequesterContext.system())
+                    result = self.dispatcher.dispatch_action(act, requester=RequesterContext.system())
+                    if not result.success:
+                        all_succeeded = False
+                        log.warning("Action [%s] reported failure for pattern [clap_pause_clap]: %s", act, result.error)
                 except Exception as e:
+                    all_succeeded = False
                     log.error("Action [%s] failed for pattern [clap_pause_clap]: %s", act, e)
             self.log_interaction(
                 trigger="GESTURE:clap_pause_clap",
                 input_text="clap_pause_clap",
                 action=",".join(action_names),
-                response="Hiển thị cửa sổ giao diện JARVIS Overlay HUD",
-                status="success",
+                response=(
+                    "Hiển thị cửa sổ giao diện JARVIS Overlay HUD"
+                    if all_succeeded
+                    else "Một hoặc nhiều hành động cho [clap_pause_clap] không thành công."
+                ),
+                status="success" if all_succeeded else "failed",
             )
             return
 
         action_names = self.config.get(f"gesture.patterns.{pattern_name}.actions", [])
+        all_succeeded = True
         for act in action_names:
             try:
-                self.dispatcher.dispatch_action(act, requester=RequesterContext.system())
+                result = self.dispatcher.dispatch_action(act, requester=RequesterContext.system())
+                if not result.success:
+                    all_succeeded = False
+                    log.warning("Action [%s] reported failure for pattern [%s]: %s", act, pattern_name, result.error)
             except Exception as e:
+                all_succeeded = False
                 log.error("Action [%s] failed for pattern [%s]: %s", act, pattern_name, e)
         if action_names:
             self.log_interaction(
                 trigger=f"GESTURE:{pattern_name}",
                 input_text=pattern_name,
                 action=",".join(action_names),
-                response=f"Thực thi actions cho pattern {pattern_name}",
-                status="success",
+                response=(
+                    f"Thực thi actions cho pattern {pattern_name}"
+                    if all_succeeded
+                    else f"Một hoặc nhiều hành động cho pattern [{pattern_name}] không thành công."
+                ),
+                status="success" if all_succeeded else "failed",
             )
 
     def process_voice_command(self, audio_buffer: np.ndarray) -> dict[str, Any]:
@@ -1818,9 +1850,33 @@ class JarvisApp:
                         payload=intent_result.parameters,
                         requester=RequesterContext.user(requester_id=requester, authenticated=True),
                     )
-                    if (
-                        action_result
-                        and action_result.data
+                    # Status must derive from action_result.success, not from
+                    # "no Python exception occurred" -- see CLAUDE.md's
+                    # dispatch-truthfulness invariant. This must run BEFORE
+                    # the response-text selection below so a failed action
+                    # never falls through to a success-flavored fallback.
+                    status_flag = "success" if action_result.success else "failed"
+
+                    if not action_result.success:
+                        # Truthful failure response precedence:
+                        #   1. action_result.error, if useful/non-empty.
+                        #   2. an explicit structured failure message inside
+                        #      action_result.data (many handlers already embed
+                        #      a truthful Vietnamese failure message there).
+                        #   3. a useful action_result.error_code.
+                        #   4. a neutral truthful failure fallback -- never a
+                        #      success-flavored fallback and never a
+                        #      fabricated reason.
+                        if action_result.error:
+                            response_text = str(action_result.error)
+                        elif isinstance(action_result.data, dict) and action_result.data.get("message"):
+                            response_text = str(action_result.data["message"])
+                        elif action_result.error_code:
+                            response_text = f"Không thể thực hiện lệnh ({action_result.error_code})."
+                        else:
+                            response_text = "Không thể thực hiện lệnh."
+                    elif (
+                        action_result.data
                         and isinstance(action_result.data, dict)
                         and action_result.data.get("message")
                     ):
