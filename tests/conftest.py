@@ -564,6 +564,22 @@ class MockWin32Platform:
                 return win
         return None
 
+    def lock_workstation(self) -> bool:
+        """
+        Simulated, confirmed-successful mock lock. Never calls ctypes or any
+        real Windows API -- this is test-harness compatibility with the
+        production `BiometricsEngine._attempt_lock_workstation()` contract,
+        which only trusts an actual callable `lock_workstation()` result
+        (never the mere presence of a `lock_workstation_calls` counter) as
+        proof of a successful lock. Increments the same counter the
+        ctypes-level `MockUser32.LockWorkStation()` simulation in the
+        `mock_win32_platform` fixture below already uses, so callers that go
+        through either path are counted consistently and exactly once per
+        invocation.
+        """
+        self.lock_workstation_calls += 1
+        return True
+
 
 @pytest.fixture
 def mock_win32_platform(monkeypatch) -> MockWin32Platform:

@@ -61,6 +61,28 @@ class MockCameraWithEncodings:
         return [self.cand_encoding]
 
 
+class FakeLockBackend:
+    """
+    Deterministic, synthetic workstation-lock backend for tests. Exposes a
+    real callable `lock_workstation()` (never the real Windows
+    LockWorkStation API) with a configurable boolean result and a call
+    counter, so intruder-path tests can safely exercise
+    `process_surveillance_frame()` without ever touching this machine's
+    actual desktop session. The mere presence of a `lock_workstation_calls`
+    counter attribute alone is NOT sufficient under the current production
+    contract -- only an actual callable result is trusted -- so this double
+    always provides that callable.
+    """
+
+    def __init__(self, result: bool = True):
+        self.calls = 0
+        self.result = result
+
+    def lock_workstation(self) -> bool:
+        self.calls += 1
+        return self.result
+
+
 def test_adversarial_biometrics_boundary_distances():
     """
     [Adversarial Challenge 1.1] Boundary Euclidean distances:
@@ -92,20 +114,24 @@ def test_adversarial_biometrics_boundary_distances():
     cand_60[1] = 0.60
     cam.set_candidate_encoding(cand_60)
     assert engine.verify_frame(dummy_frame) is False
-    res_60 = engine.process_surveillance_frame(dummy_frame)
+    win32_60 = FakeLockBackend(result=True)
+    res_60 = engine.process_surveillance_frame(dummy_frame, win32_platform=win32_60)
     assert res_60["status"] == "intruder_locked"
     assert res_60["locked"] is True
     assert pytest.approx(res_60["distance"], 0.001) == 0.60
+    assert win32_60.calls == 1
 
     # 3. Distance = 0.61 (> 0.60) -> Intruder, Lock
     cand_61 = np.copy(base_encoding)
     cand_61[1] = 0.61
     cam.set_candidate_encoding(cand_61)
     assert engine.verify_frame(dummy_frame) is False
-    res_61 = engine.process_surveillance_frame(dummy_frame)
+    win32_61 = FakeLockBackend(result=True)
+    res_61 = engine.process_surveillance_frame(dummy_frame, win32_platform=win32_61)
     assert res_61["status"] == "intruder_locked"
     assert res_61["locked"] is True
     assert pytest.approx(res_61["distance"], 0.001) == 0.61
+    assert win32_61.calls == 1
 
 
 def test_adversarial_biometrics_custom_tolerances_and_multi_enrollment():
@@ -142,8 +168,11 @@ def test_adversarial_biometrics_custom_tolerances_and_multi_enrollment():
     cand_rejected[1] = 0.46
     cam.set_candidate_encoding(cand_rejected)
     assert engine.verify_frame(dummy_frame) is False
-    surv_rej = engine.process_surveillance_frame(dummy_frame)
+    win32_rej = FakeLockBackend(result=True)
+    surv_rej = engine.process_surveillance_frame(dummy_frame, win32_platform=win32_rej)
     assert surv_rej["status"] == "intruder_locked"
+    assert surv_rej["locked"] is True
+    assert win32_rej.calls == 1
 
 
 def test_adversarial_biometrics_dark_and_occluded_frames():
@@ -179,9 +208,13 @@ def test_adversarial_biometrics_dark_and_occluded_frames():
     assert mock_win32.lock_workstation_calls == 0
 
 
-def test_adversarial_biometrics_intruder_lock_and_telegram_dispatch():
+def test_adversarial_biometrics_intruder_lock_and_telegram_dispatch(monkeypatch):
     """
     [Adversarial Challenge 1.4] Intruder face triggers workstation lock AND Telegram alert snapshot.
+    Image encoding is mocked deterministically (never depends on the optional
+    cv2 dependency being installed), and the test asserts the actual
+    (mocked) encoder-output bytes are what gets delivered -- never the
+    removed `fake_intruder_photo_jpeg` sentinel.
     """
     owner_enc = np.zeros(128, dtype=np.float64)
     owner_enc[0] = 1.0
@@ -196,26 +229,30 @@ def test_adversarial_biometrics_intruder_lock_and_telegram_dispatch():
     cam.set_candidate_encoding(intruder_enc)
     intruder_frame = np.full((480, 640, 3), 60, dtype=np.uint8)
 
-    mock_win32 = MagicMock()
-    mock_win32.lock_workstation_calls = 0
+    win32 = FakeLockBackend(result=True)
+
+    real_encoder_bytes = b"\xff\xd8\xff\xe0REAL_JPEG_BYTES_FROM_ENCODER"
+    monkeypatch.setattr(engine, "_encode_frame_as_jpeg", lambda frame: real_encoder_bytes)
 
     mock_bot = MagicMock()
     mock_bot.send_photo = MagicMock()
 
     res = engine.process_surveillance_frame(
         intruder_frame,
-        win32_platform=mock_win32,
+        win32_platform=win32,
         telegram_bot=mock_bot,
         chat_id=987654321,
     )
 
     assert res["status"] == "intruder_locked"
     assert res["locked"] is True
-    assert mock_win32.lock_workstation_calls == 1
+    assert win32.calls == 1
     mock_bot.send_photo.assert_called_once()
     call_args = mock_bot.send_photo.call_args[1]
     assert call_args["chat_id"] == 987654321
     assert "CẢNH BÁO" in call_args["caption"]
+    assert call_args["photo_bytes"] == real_encoder_bytes
+    assert call_args["photo_bytes"] != b"fake_intruder_photo_jpeg"
 
 
 def test_adversarial_hand_gesture_debounce_and_velocity_thresholds():
