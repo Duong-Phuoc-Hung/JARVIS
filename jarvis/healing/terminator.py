@@ -145,6 +145,18 @@ class AutonomousTerminator:
         Executes two-phase safe termination:
         Phase 1: Graceful WM_CLOSE / SIGTERM.
         Phase 2: Forceful TerminateProcess / SIGKILL if process remains alive.
+
+        Truthfulness contract (v4.5.2 self-healing hotfix): only a confirmed
+        outcome is ever reported as True. An injected test/simulation
+        backend's result is trusted only via an explicit callable it
+        exposes -- the mere presence of a bookkeeping attribute (e.g.
+        `killed_pids`) is never, by itself, treated as proof of a real or
+        simulated successful termination. Every real-backend failure path
+        (access denied, missing process, failed kill, a failed
+        TerminateProcess return value, an exception, or an unconfirmed
+        outcome) returns False -- `.terminate()`/`.kill()` being *called*
+        without raising is not, by itself, proof the process actually
+        exited.
         """
         if self.is_protected(process_name, pid=pid):
             log.warning("Refused termination of protected process: [%s] (pid=%d)", process_name, pid)
@@ -152,14 +164,16 @@ class AutonomousTerminator:
 
         log.info("Initiating safe termination for process [%s] (pid=%d)", process_name, pid)
 
-        # 1. Handle mock win32 fixture in test suite
-        if hasattr(self.win32, "killed_pids"):
-            self.win32.killed_pids.append(pid)
-            if hasattr(self.win32, "windows") and isinstance(self.win32.windows, dict):
-                to_del = [h for h, w in self.win32.windows.items() if getattr(w, "pid", None) == pid]
-                for h in to_del:
-                    del self.win32.windows[h]
-            return True
+        # 1. Explicit injected test/simulation backend. Trust only its
+        # actual confirmed boolean result -- never the mere presence of a
+        # `killed_pids`-style counter attribute.
+        term_fn = getattr(self.win32, "terminate_process", None)
+        if callable(term_fn):
+            try:
+                return bool(term_fn(pid))
+            except Exception as exc:
+                log.error("Injected win32.terminate_process() raised for pid=%d: %s", pid, exc)
+                return False
 
         # 2. Phase 1: Graceful WM_CLOSE if window handle known
         if hwnd and hasattr(self.win32, "close_window"):
@@ -174,14 +188,22 @@ class AutonomousTerminator:
             try:
                 proc_obj = psutil.Process(pid)
                 proc_obj.terminate()
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
+            except (psutil.NoSuchProcess, psutil.AccessDenied) as exc:
+                log.warning("Cannot signal pid=%d (%s) for termination: %s", pid, process_name, exc)
+                proc_obj = None
+            except Exception as exc:
+                log.error("Unexpected error signaling pid=%d (%s) for termination: %s", pid, process_name, exc)
+                proc_obj = None
 
-        # Wait grace period
+        # Wait grace period and confirm the process actually exited.
         if proc_obj:
             try:
                 proc_obj.wait(timeout=self.grace_period_s)
                 log.info("Process [%s] (pid=%d) exited gracefully.", process_name, pid)
+                return True
+            except psutil.NoSuchProcess:
+                # Confirmed gone -- a genuine successful exit, not an error.
+                log.info("Process [%s] (pid=%d) no longer exists after wait.", process_name, pid)
                 return True
             except psutil.TimeoutExpired:
                 log.warning(
@@ -189,18 +211,35 @@ class AutonomousTerminator:
                     process_name,
                     pid,
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                log.error("Unexpected error waiting on pid=%d (%s): %s", pid, process_name, exc)
 
-        # 3. Phase 2: Forceful TerminateProcess / kill
+        # 3. Phase 2: Forceful TerminateProcess / kill, with confirmed exit.
         if proc_obj:
             try:
                 proc_obj.kill()
+            except psutil.NoSuchProcess:
+                return True  # Already gone -- confirmed.
+            except psutil.AccessDenied as exc:
+                log.error("Access denied killing pid=%d (%s): %s", pid, process_name, exc)
+                return False
+            except Exception as exc:
+                log.error("psutil.kill failed on pid %d (%s): %s", pid, process_name, exc)
+                return False
+
+            # Do not assume success merely because .kill() was invoked
+            # without raising -- confirm the process actually exited.
+            try:
+                proc_obj.wait(timeout=self.grace_period_s)
                 return True
             except psutil.NoSuchProcess:
                 return True
-            except Exception as e:
-                log.error("psutil.kill failed on pid %d: %s", pid, e)
+            except psutil.TimeoutExpired:
+                log.error("Process [%s] (pid=%d) still alive after forceful kill.", process_name, pid)
+                return False
+            except Exception as exc:
+                log.error("Unexpected error confirming kill for pid=%d (%s): %s", pid, process_name, exc)
+                return False
 
         # Direct Win32 TerminateProcess fallback via ctypes
         if sys.platform == "win32":
@@ -210,8 +249,11 @@ class AutonomousTerminator:
                     h_proc = kernel32.OpenProcess(0x0001, False, pid)  # PROCESS_TERMINATE = 0x0001
                     if h_proc:
                         try:
-                            kernel32.TerminateProcess(h_proc, 1)
-                            return True
+                            result = kernel32.TerminateProcess(h_proc, 1)
+                            # A falsy/zero return means the API itself
+                            # reported failure -- do not assume success
+                            # merely because the function was invoked.
+                            return bool(result)
                         finally:
                             if hasattr(kernel32, "CloseHandle"):
                                 kernel32.CloseHandle(h_proc)
@@ -262,6 +304,32 @@ class HealingEngine:
                 pass
         return False
 
+    def _read_ram_percent(self) -> float | None:
+        """
+        Reads the current observed system RAM percentage. Never fabricates a
+        value -- returns None when RAM genuinely cannot be measured (no
+        hardware provider and no psutil), so callers can omit the metric
+        rather than inventing one.
+        """
+        if self.hardware is not None:
+            # A single getattr() access -- not a `hasattr(...)` check
+            # followed by a separate attribute read, which would invoke a
+            # `ram_percent` property getter twice (once for the hasattr
+            # probe, once for the real read) if the provider ever exposes
+            # it as a property rather than a plain attribute.
+            ram = getattr(self.hardware, "ram_percent", None)
+            if ram is not None:
+                try:
+                    return float(ram)
+                except Exception:
+                    return None
+        if HAS_PSUTIL:
+            try:
+                return float(psutil.virtual_memory().percent)
+            except Exception:
+                return None
+        return None
+
     def find_hung_windows(self) -> list[Any]:
         """Returns list of unresponsive windows/applications."""
         return self.detector.find_hung_windows()
@@ -275,7 +343,17 @@ class HealingEngine:
         Remediates a hung or leaking application process:
         - Rejects protected system processes.
         - Issues spoken warning in Advisory mode.
-        - Executes 2-phase termination and memory reclamation in Autonomous mode.
+        - Executes 2-phase termination in Autonomous mode.
+
+        Truthfulness contract (v4.5.2 self-healing hotfix): `success` and the
+        spoken message reflect only a CONFIRMED termination outcome --
+        `terminator.terminate_process()`'s actual return value is captured
+        and trusted, never assumed. An unexpected exception from the
+        terminator is caught locally and reported as a truthful failure, not
+        upgraded to success. RAM is never fabricated or mutated by this
+        method: `reclaimed_ram` (when present) is the actual observed
+        `ram_before - ram_after` delta (floored at 0.0), and is omitted
+        entirely when RAM cannot be measured.
         """
         # 1. Protected whitelist check
         if self.is_protected(name, pid=pid):
@@ -298,28 +376,68 @@ class HealingEngine:
             }
             return report
 
-        # 3. Autonomous kill execution
-        self.terminator.terminate_process(pid=pid, process_name=name, hwnd=hwnd)
+        # 3. Autonomous kill execution -- capture and trust the real result.
+        ram_before = self._read_ram_percent()
+        try:
+            terminated = self.terminator.terminate_process(pid=pid, process_name=name, hwnd=hwnd)
+        except Exception as exc:
+            log.error("terminate_process raised for pid=%d (%s): %s", pid, name, exc)
+            report = {
+                "success": False,
+                "pid": pid,
+                "name": name,
+                "reason": "TERMINATION_FAILED",
+                "spoken_message": f"Lỗi hệ thống khi cố gắng chấm dứt tiến trình {name}.",
+            }
+            self.healing_log.append(report)
+            return report
 
-        # 4. Memory reclamation calculation
-        new_ram = 50.0
-        if self.hardware is not None and hasattr(self.hardware, "set_ram") and hasattr(self.hardware, "ram_percent"):
-            new_ram = max(40.0, self.hardware.ram_percent - 25.0)
-            self.hardware.set_ram(new_ram)
-        elif HAS_PSUTIL:
-            try:
-                new_ram = float(psutil.virtual_memory().percent)
-            except Exception:
-                pass
+        if not terminated:
+            log.warning("Termination not confirmed for pid=%d (%s).", pid, name)
+            report = {
+                "success": False,
+                "pid": pid,
+                "name": name,
+                "reason": "TERMINATION_FAILED",
+                "spoken_message": f"Cảnh báo: không thể xác nhận đã chấm dứt tiến trình {name}.",
+            }
+            self.healing_log.append(report)
+            return report
 
-        speech = f"Hệ thống bị quá tải. Đã xử lý: {name}. RAM hiện tại: {new_ram:.0f}%."
-        report = {
+        # 4. Observed memory reclamation only -- never fabricated, never
+        # mutated into the telemetry provider.
+        ram_after = self._read_ram_percent()
+        reclaimed_ram: float | None = None
+        if ram_before is not None and ram_after is not None:
+            reclaimed_ram = max(0.0, ram_before - ram_after)
+
+        # Neutral, truthful base claim: only that the confirmed action
+        # (terminating `name`) succeeded. heal_hung_process() is invoked for
+        # any hung process, RAM-critical or not, so an "overloaded system"
+        # claim is prepended ONLY when RAM was actually measured before the
+        # termination attempt AND proven to be at/above the configured
+        # critical threshold -- never asserted unconditionally.
+        speech_segments = [f"Đã xử lý: {name}."]
+        if ram_before is not None and ram_before >= self.ram_threshold:
+            speech_segments.insert(0, "Hệ thống bị quá tải.")
+        if reclaimed_ram:
+            speech_segments.append(f"RAM hiện tại: {ram_after:.0f}%, đã giải phóng {reclaimed_ram:.0f}%.")
+        elif ram_after is not None:
+            speech_segments.append(f"RAM hiện tại: {ram_after:.0f}%.")
+        speech = " ".join(speech_segments)
+
+        report: dict[str, Any] = {
             "success": True,
             "pid": pid,
             "name": name,
-            "reclaimed_ram": new_ram,
             "spoken_message": speech,
         }
+        if reclaimed_ram is not None:
+            report["reclaimed_ram"] = reclaimed_ram
+        if ram_before is not None:
+            report["ram_before_percent"] = ram_before
+        if ram_after is not None:
+            report["ram_after_percent"] = ram_after
         self.healing_log.append(report)
         return report
 

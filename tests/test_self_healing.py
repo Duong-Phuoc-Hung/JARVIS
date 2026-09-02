@@ -56,7 +56,15 @@ def test_healing_unresponsive_app_ishungappwindow_probe_tier1(mock_win32_platfor
 
 def test_healing_autonomous_process_kill_and_reclaim_tier1(mock_win32_platform, mock_hardware_provider):
     """
-    [F-43] Validate autonomous termination of hung process, memory reclamation, and spoken status report.
+    [F-43] Validate autonomous termination of hung process and spoken status report.
+
+    Truthfulness contract (v4.5.2 self-healing hotfix): production code must
+    never mutate hardware telemetry to fabricate a RAM drop. RAM before/after
+    are both read from `mock_hardware_provider` without it changing in
+    between (nothing in this test simulates a real reduction), so the
+    telemetry must remain exactly what the fake provider actually reports,
+    and `reclaimed_ram` must be the truthful (zero) observed delta -- not an
+    invented recovery figure.
     """
     mock_hardware_provider.set_ram(94.0)
     mock_win32_platform.add_hung_window("leak_worker.exe", pid=7788)
@@ -66,9 +74,12 @@ def test_healing_autonomous_process_kill_and_reclaim_tier1(mock_win32_platform, 
 
     assert report["success"] is True
     assert 7788 in mock_win32_platform.killed_pids
-    assert mock_hardware_provider.ram_percent < 80.0
+    # Production must NEVER mutate the telemetry provider to fabricate a drop.
+    assert mock_hardware_provider.ram_percent == 94.0
+    assert report.get("reclaimed_ram", 0.0) == 0.0
     assert "Đã xử lý: leak_worker.exe" in report["spoken_message"]
     assert "RAM hiện tại" in report["spoken_message"]
+    assert "giải phóng" not in report["spoken_message"]
 
 
 # ============================================================================

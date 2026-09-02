@@ -580,6 +580,25 @@ class MockWin32Platform:
         self.lock_workstation_calls += 1
         return True
 
+    def terminate_process(self, pid: int) -> bool:
+        """
+        Simulated, confirmed-successful mock process termination. Never
+        calls ctypes, psutil, subprocess, or any real OS process API. This
+        is test-harness compatibility with
+        `AutonomousTerminator.terminate_process()`'s explicit-callable
+        contract: the mere presence of the `killed_pids` bookkeeping list
+        is not, by itself, treated as proof of a real or simulated
+        successful termination -- only this method's actual confirmed
+        return value is trusted. Records the PID as killed and removes any
+        matching simulated window only when success is simulated (always,
+        for this default double).
+        """
+        self.killed_pids.append(pid)
+        to_del = [h for h, w in self.windows.items() if getattr(w, "pid", None) == pid]
+        for h in to_del:
+            del self.windows[h]
+        return True
+
 
 @pytest.fixture
 def mock_win32_platform(monkeypatch) -> MockWin32Platform:
