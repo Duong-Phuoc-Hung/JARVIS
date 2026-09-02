@@ -12,17 +12,18 @@ wins**. Older v4.3/v4.5 baseline paragraphs elsewhere in this file are historica
 specifically marked otherwise.
 
 - **Current development runtime:** `4.7.0` (`jarvis.__version__`, `jarvis/__init__.py`).
-- **Current verified `main`:** `aaeeb53f834134bb4490147c238e82e863558caa` (merge of PR #32).
-- **Latest formal GitHub Release:** `v4.5.1` (tag `v4.5.1` confirmed present in the
-  repository and confirmed an ancestor of current `main` — the release-prep note under
-  §1 describing the `v4.5.1` tag as "not yet created" is now stale/historical; the tag
-  and release were created after that note was written). `v4.0.1` is no longer the latest
+  Unchanged by any of the work below — this is **not** `4.7.1` and no new tag/release was
+  cut.
+- **Current verified `main`:** `ae6d5d8ffd98f4629af951e19820bf047f9c05d7` (merge of PR #34,
+  `fix/dispatch-truthfulness`).
+- **Latest formal GitHub Release:** `v4.5.1` (unchanged; tag confirmed present in the
+  repository and confirmed an ancestor of current `main`). `v4.0.1` is no longer the latest
   formal release.
 - **Development source/runtime (`4.7.0`) and the latest formal release (`v4.5.1`) are
   different concepts** — `main` has moved well past `v4.5.1` in CHANGELOG/runtime terms
   without a new tag/release having been cut yet. Do not describe `4.7.0` as "released" or
   `v4.5.1` as "the current source version."
-- **Completed since the last documentation sync:**
+- **Completed and merged into `main` since the last major documentation sync:**
   - **PR #31** (`fix/healing-truthfulness`, merge commit `10d470237b0fe4bc295f02215b4606590d79d17e`) —
     self-healing (`jarvis/healing/terminator.py`) now reports recovery outcomes truthfully.
     See the durable "Healing truthfulness" invariant below.
@@ -31,24 +32,30 @@ specifically marked otherwise.
     deterministic across environments with/without `faster-whisper` installed. **Test-only
     change — no production wake-word behavior was modified.** See the durable
     "Optional-dependency test determinism" invariant below.
-- **`main` itself, at `aaeeb53f8341...`, CI after PR #32: green.** Latest verified
-  `tests/unit/` evidence on `main`: 1353 passed, 4 skipped, 50 subtests passed, 0 failures,
-  0 errors. Skip counts can vary by environment (which optional dependencies happen to be
-  installed) — this is expected, not a regression signal.
-- **Central dispatch truthfulness — IMPLEMENTED AND VALIDATED on branch
-  `fix/dispatch-truthfulness` (2026-09-03), NOT YET COMMITTED/MERGED to `main`.**
-  `jarvis/core/dispatcher.py`'s `dispatch_action()`/`dispatch_action_async()` previously
-  wrapped any normally-returning handler result as `success=True` unconditionally, ignoring
-  an explicit handler-signaled failure (`ActionResult(success=False, ...)`,
-  `{"success": False, ...}`, `{"status": "failed"/"error", ...}`); `jarvis/core/app.py`'s
-  `process_text_command()` separately never re-derived its own `status_flag` from
-  `action_result.success` after dispatch. Both are now fixed — see the durable "Dispatch
-  truthfulness" invariant below and `CHANGELOG.md`'s entry for full detail (root cause,
-  normalization contract, sync/async parity, event truthfulness, 57 focused tests,
-  full-suite evidence). **Until this branch is committed/merged, `main` itself still has
-  the original bug** — do not describe `main` as fixed until the merge actually lands;
-  update this bullet to "RESOLVED, merged into main @ <SHA>" only once that happens.
-  - **Resolved (owner-authorized, same branch): `hardware_status_query` compatibility
+  - **PR #34** (`fix/dispatch-truthfulness`, feature commit
+    `e99c522be808d9160a5b9c57bf9bd8ec11d3dd69`, merge commit
+    `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`) — **central dispatch truthfulness is
+    RESOLVED ON `main`**, and the `hardware_status_query` compatibility alias is
+    **RESOLVED ON `main`** (same PR/commit). See the durable "Dispatch truthfulness"
+    invariant below for the full contract.
+- **Post-merge CI evidence for PR #34: JARVIS CI #160, conclusion SUCCESS** — all four jobs
+  green (Syntax Check, Import Validation, Unit Tests, Pipeline Summary).
+- **`main` at `ae6d5d8...`, full `tests/unit/` evidence: 1413 passed, 1 skipped, 50
+  subtests passed, 0 failed.** (Prior evidence at `aaeeb53f8341...`, post-PR #32: 1353
+  passed, 4 skipped, 50 subtests passed, 0 failures — kept here as historical lineage, not
+  the current count.) Skip counts can vary by environment (which optional dependencies
+  happen to be installed) — this is expected, not a regression signal.
+- **Central dispatch truthfulness — RESOLVED, merged into `main` via PR #34 @
+  `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`.** `jarvis/core/dispatcher.py`'s
+  `dispatch_action()`/`dispatch_action_async()` previously wrapped any normally-returning
+  handler result as `success=True` unconditionally, ignoring an explicit handler-signaled
+  failure (`ActionResult(success=False, ...)`, `{"success": False, ...}`,
+  `{"status": "failed"/"error", ...}`); `jarvis/core/app.py`'s `process_text_command()`
+  separately never re-derived its own `status_flag` from `action_result.success` after
+  dispatch. Both are now fixed on `main` — see the durable "Dispatch truthfulness"
+  invariant below and `CHANGELOG.md`'s entry for full detail (root cause, normalization
+  contract, sync/async parity, event truthfulness, 57 focused tests, full-suite evidence).
+  - **Also resolved on `main` (same PR/commit): `hardware_status_query` compatibility
     alias.** The dispatch-truthfulness fix surfaced a genuine, separate, pre-existing
     router/registration name mismatch: the LLM router (`jarvis/llm/router.py`)
     intentionally routes several hardware/status voice queries (e.g. "Báo cáo tình trạng
@@ -61,14 +68,14 @@ specifically marked otherwise.
     contract would be a broad change); the narrow fix is a compatibility alias in
     `jarvis/core/app.py::_register_core_actions()` — `hardware_status_query` registered
     against the **same** existing `self._handle_system_status` handler as `system_status`
-    (no duplicated logic; `system_status` itself unchanged). Covered by 5 new tests in
+    (no duplicated logic; `system_status` itself unchanged). Covered by 5 tests in
     `tests/unit/test_dispatch_truthfulness.py::TestHardwareStatusQueryAlias`.
     `tests/unit/test_integration_e2e.py::test_memory_recording_in_process_text_command`
-    now passes **without that test file being modified**. Full `tests/unit/`: **1413
-    passed, 1 skipped, 50 subtests passed, 0 failed.**
-- Full detail: `CHANGELOG.md`'s "Post-v4.7.0 Maintenance" section (PR #31, PR #32, and the
-  dispatch-truthfulness entry); `docs/PROJECT_STATE.md`'s current checkpoint;
-  `docs/TECHNICAL_AUDIT_REPORT.md`'s updated audit-status entries.
+    passes **without that test file ever being modified**.
+  - **No remaining known issue from the dispatch-truthfulness task.**
+- Full detail: `CHANGELOG.md`'s "Post-v4.7.0 Maintenance" section (PR #31, PR #32, PR #34);
+  `docs/PROJECT_STATE.md`'s current checkpoint; `docs/TECHNICAL_AUDIT_REPORT.md`'s updated
+  audit-status entries.
 
 ### Permanent project policy: DOCUMENTATION IS PART OF DEFINITION OF DONE
 
@@ -116,7 +123,7 @@ change), because stale docs elsewhere in the repo actively mislead future sessio
   depends on ambient package availability is non-deterministic across environments even
   though it looks deterministic on any one machine.
 
-### Durable dispatch-truthfulness invariant (branch `fix/dispatch-truthfulness`)
+### Durable dispatch-truthfulness invariant (PR #34, merged into `main` @ `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`)
 
 - **An action handler's explicit failure must remain failure through the entire chain:**
   handler → `ActionDispatcher` (`jarvis/core/dispatcher.py`) → application response

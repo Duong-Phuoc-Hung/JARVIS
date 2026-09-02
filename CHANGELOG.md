@@ -6,7 +6,9 @@
 
 > **Lưu ý ngữ nghĩa**: đây là mốc bảo trì phát triển trên `main` sau v4.7.0 — **không phải** `4.7.1` và không phải một GitHub Release/tag mới. `jarvis.__version__` **giữ nguyên `4.7.0`** trong suốt các mục bên dưới; không có version bump nào xảy ra. Bản phát hành chính thức (GitHub Release) mới nhất vẫn là `v4.5.1`. Xem `CLAUDE.md` "CURRENT BASELINE" và `docs/PROJECT_STATE.md` Checkpoint hiện tại để biết trạng thái đầy đủ.
 
-### 🟢 Central Dispatch Truthfulness (branch `fix/dispatch-truthfulness`, 2026-09-03, NOT YET MERGED — awaiting owner review)
+### 🟢 Central Dispatch Truthfulness — MERGED via PR #34 (2026-09-03)
+
+**Feature commit:** `e99c522be808d9160a5b9c57bf9bd8ec11d3dd69` (`fix(core): propagate action failures truthfully`) · **Merge commit / current `main`:** `ae6d5d8ffd98f4629af951e19820bf047f9c05d7` (`Merge pull request #34 from Huynh-Minh-Hoa/fix/dispatch-truthfulness`) · **Post-merge CI:** JARVIS CI **#160**, conclusion **SUCCESS** — all four jobs green (Syntax Check, Import Validation, Unit Tests, Pipeline Summary). Both the central-dispatch-truthfulness fix and the `hardware_status_query` compatibility alias below shipped together in this one PR/commit. Implementation, return-convention audit, and validation evidence below are preserved verbatim from the pre-merge branch record — only the merge/CI status changed.
 
 **Nguyên nhân gốc (root cause):** `ActionDispatcher.dispatch_action()`/`dispatch_action_async()` (`jarvis/core/dispatcher.py`) tạo đúng các `ActionResult` thất bại cho: hành động không tồn tại (`ACTION_NOT_FOUND`), thiếu quyền (`PERMISSION_DENIED`), an toàn/xác nhận bị từ chối (`CONFIRMATION_*`), và exception. Nhưng sau khi một handler trả về bình thường (không raise exception), dispatcher trước đây luôn làm tương đương `publish post_dispatch success=True; return ActionResult(success=True, data=handler_result)` **bất kể nội dung `handler_result` thực sự báo hiệu gì** — biến một thất bại tường minh của handler (`ActionResult(success=False, ...)`, `{"success": False, ...}`, `{"status": "failed", ...}`) thành thành công của dispatcher. `jarvis/core/app.py::process_text_command()` cũng khởi tạo `status_flag = "success"` và không bao giờ đọc lại `action_result.success` sau khi dispatch — top-level `{"success": True}`, log tương tác `status="success"`, episode bộ nhớ `success=True`, và phản hồi kiểu thành công `"Đã thực hiện lệnh: ..."` đều có thể xảy ra cho một hành động đã thất bại tường minh.
 
@@ -46,7 +48,7 @@ tests/unit/ (toàn bộ suite):        1413 passed, 1 skipped, 50 subtests passe
 ```
 `jarvis.__version__` không đổi, vẫn `4.7.0`. Đây **không phải** một phiên bản/release riêng biệt.
 
-### 🟢 `hardware_status_query` compatibility alias (chỉ định trực tiếp từ chủ sở hữu kho mã)
+### 🟢 `hardware_status_query` compatibility alias — MERGED via PR #34 (chỉ định trực tiếp từ chủ sở hữu kho mã, cùng commit/PR với mục trên)
 
 **Phát hiện gốc:** thất bại duy nhất còn lại trong toàn bộ suite sau khi sửa dispatch truthfulness ở trên (`tests/unit/test_integration_e2e.py::test_memory_recording_in_process_text_command`) lộ ra một lỗi thật, riêng biệt, đã tồn tại từ trước và **trước đây bị chính lỗi dispatch-truthfulness che giấu**: router (`jarvis/llm/router.py`) cố ý phát ra tên hành động `hardware_status_query` từ nhiều nơi (ví dụ trong system prompt, rule fallback tiếng Việt có dấu, rule fallback không dấu, xử lý regex trạng thái hệ thống, và logic tương thích sinh phản hồi) cho các câu hỏi phần cứng/trạng thái hệ thống, nhưng `jarvis/core/app.py` chỉ từng đăng ký một hành động dispatcher tên `system_status` — không có `hardware_status_query` nào được đăng ký, nên dispatch trả về `ACTION_NOT_FOUND` một cách hợp lệ.
 

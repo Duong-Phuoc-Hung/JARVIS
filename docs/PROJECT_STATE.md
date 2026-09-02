@@ -21,10 +21,39 @@
 ## 0. Current Checkpoint (2026-09-03) — READ THIS FIRST
 
 This is the single authoritative "what's true right now" section, superseding the
-`2026-09-02` checkpoint immediately below it (now demoted to `0-PREV`, kept as historical
-record — not rewritten; the `2026-09-01` checkpoint below that is `0-PREV2`).
+`2026-09-03` checkpoint immediately below it (now demoted to `0-PREV`, kept as historical
+record — not rewritten; the `2026-09-02` checkpoint below that is `0-PREV2`, and
+`2026-09-01` is `0-PREV3`).
 
 **State:**
+- `main`: `ae6d5d8ffd98f4629af951e19820bf047f9c05d7` — merge of **PR #34**
+  (`fix/dispatch-truthfulness`, feature commit `e99c522be808d9160a5b9c57bf9bd8ec11d3dd69`).
+  **This PR is MERGED.** `main` now carries both the central-dispatch-truthfulness fix and
+  the `hardware_status_query` compatibility alias described in the `0-PREV` checkpoint
+  below — that checkpoint's "NOT committed and NOT merged" language described a real,
+  earlier point in time (2026-09-03, before this merge) and is not being rewritten, but it
+  no longer describes current state; this section does.
+- **Post-merge CI: JARVIS CI #160, conclusion SUCCESS** — all four jobs green: Syntax
+  Check, Import Validation, Unit Tests, Pipeline Summary.
+- runtime: `4.7.0` (`jarvis.__version__`, unchanged by this merge — not `4.7.1`, no new
+  tag/release).
+- formal release: `v4.5.1` (unchanged).
+
+**Central dispatch truthfulness — RESOLVED ON `main`.** **`hardware_status_query`
+compatibility alias — RESOLVED ON `main`.** Both shipped together in PR #34. Full
+implementation detail, return-convention audit, normalization contract, and validation
+evidence are preserved verbatim in the `0-PREV` checkpoint immediately below (all of it
+still accurate — only the commit/merge/CI status has changed, which this section records).
+**No remaining known issue from the dispatch-truthfulness task.**
+
+---
+
+## 0-PREV. Prior Checkpoint (2026-09-03, pre-merge) — historical, superseded by the
+`0` checkpoint above (PR #34 has since merged — see above; this section's own "NOT
+committed/NOT merged" language below describes an earlier point on 2026-09-03, before
+that merge, and is kept verbatim as historical record)
+
+**State (as of 2026-09-03, before PR #34 merged):**
 - Branch: `fix/dispatch-truthfulness`, based on `main` @
   `1f89bfffcc9eda8cc976642535c40d838b456d88` (merge of PR #33, `docs/sync-v4.7-maintenance`).
   **This branch's changes are implemented and validated but NOT committed and NOT merged**
@@ -129,8 +158,8 @@ This branch's changes are still uncommitted — see "State" above.
 
 ---
 
-## 0-PREV. Prior Checkpoint (2026-09-02) — historical, superseded by the 2026-09-03
-checkpoint above
+## 0-PREV2. Prior Checkpoint (2026-09-02) — historical, superseded by the `0-PREV`
+checkpoint below (itself now superseded by the `0` checkpoint at the top of this file)
 
 This is the single authoritative "what's true right now" section, superseding the
 `2026-09-01` checkpoint immediately below it (now demoted to `0-PREV2`, kept as historical
@@ -224,7 +253,7 @@ historical record of what was true at this checkpoint's own snapshot time.
 
 ---
 
-## 0-PREV2. Prior Checkpoint (2026-09-01) — historical, superseded by the 2026-09-02
+## 0-PREV3. Prior Checkpoint (2026-09-01) — historical, superseded by the 2026-09-02
 checkpoint above
 
 This section is the single authoritative "what's true right now" section. Everything below it —

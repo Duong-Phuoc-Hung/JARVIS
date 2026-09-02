@@ -689,19 +689,20 @@ Sprint 4 (Tháng 4+ / v5.0.0)  ──> Đóng gói Bộ cài đặt Windows, B�
   #32, merge commit `aaeeb53f834134bb4490147c238e82e863558caa`): test-only fix, đóng góp cho
   tiêu chí nghiệm thu "0 test failures" của Sprint 1/2 — không thay đổi hành vi wake-word
   production, không phải một sửa lỗi kiến trúc mới cho Item P0-1.
-- **✅ ĐÃ TRIỂN KHAI VÀ KIỂM CHỨNG (chưa commit/merge) — Central dispatch truthfulness**
-  (nhánh `fix/dispatch-truthfulness`, 2026-09-03): `jarvis/core/dispatcher.py`
-  (`dispatch_action()`/`dispatch_action_async()`, hàm chuẩn hóa dùng chung
-  `_normalize_handler_outcome()`) và `jarvis/core/app.py` (`process_text_command()`,
-  `_on_gesture_event()`) giờ lan truyền trung thực một thất bại tường minh của handler
-  xuyên suốt: handler → dispatcher → phản hồi ứng dụng → bộ nhớ → nhật ký tương tác → sự
-  kiện `action.post_dispatch`. Không còn tự động biến thất bại tường minh thành `success=True`.
-  57 test tất định (`tests/unit/test_dispatch_truthfulness.py`) cộng với
-  `test_action_dispatcher_safety.py`/`test_app_integration.py` không đổi hành vi. **Chưa
-  được commit/merge vào `main`** — cho tới khi đó, `main` vẫn còn lỗi gốc. Xem `CLAUDE.md`
-  §0/§1A "Dispatch truthfulness" và `docs/PROJECT_STATE.md` checkpoint 2026-09-03 để biết
-  chi tiết đầy đủ.
-  - **✅ HOÀN THÀNH (chỉ định trực tiếp từ chủ sở hữu kho mã, cùng nhánh) — `hardware_status_query`
+- **✅ HOÀN THÀNH, ĐÃ MERGE VÀO `main` qua PR #34 — Central dispatch truthfulness**
+  (merge commit `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`, feature commit
+  `e99c522be808d9160a5b9c57bf9bd8ec11d3dd69`, post-merge CI #160 SUCCESS):
+  `jarvis/core/dispatcher.py` (`dispatch_action()`/`dispatch_action_async()`, hàm chuẩn hóa
+  dùng chung `_normalize_handler_outcome()`) và `jarvis/core/app.py`
+  (`process_text_command()`, `_on_gesture_event()`) giờ lan truyền trung thực một thất bại
+  tường minh của handler xuyên suốt: handler → dispatcher → phản hồi ứng dụng → bộ nhớ →
+  nhật ký tương tác → sự kiện `action.post_dispatch`. Không còn tự động biến thất bại tường
+  minh thành `success=True`. 57 test tất định (`tests/unit/test_dispatch_truthfulness.py`)
+  cộng với `test_action_dispatcher_safety.py`/`test_app_integration.py` không đổi hành vi.
+  Xem `CLAUDE.md` §0/§1A "Dispatch truthfulness" và `docs/PROJECT_STATE.md` checkpoint hiện
+  tại để biết chi tiết đầy đủ.
+  - **✅ HOÀN THÀNH, ĐÃ MERGE VÀO `main` (chỉ định trực tiếp từ chủ sở hữu kho mã, cùng
+    PR #34) — `hardware_status_query`
     compatibility alias**: router (`jarvis/llm/router.py`) cố ý định tuyến "Báo cáo tình
     trạng hệ thống" và các câu hỏi phần cứng/trạng thái khác tới action `hardware_status_query`
     từ nhiều nơi, nhưng `app.py` trước đây chỉ đăng ký `system_status` — gây `ACTION_NOT_FOUND`
