@@ -18,9 +18,103 @@
 > Snapshot: 2026-09-01.
 > Always verify Git state and current code before relying on this snapshot.
 
-## 0. Current Checkpoint (2026-09-01) — READ THIS FIRST
+## 0. Current Checkpoint (2026-09-02) — READ THIS FIRST
 
-This is the single authoritative "what's true right now" section. Everything below it —
+This is the single authoritative "what's true right now" section, superseding the
+`2026-09-01` checkpoint immediately below it (now demoted to `0-PREV`, kept as historical
+record — not rewritten).
+
+**State:**
+- `main`: `aaeeb53f834134bb4490147c238e82e863558caa` (merge of PR #32, `fix/wake-word-whisper-ci`).
+- runtime: `4.7.0` (`jarvis.__version__`, unchanged by either PR below).
+- formal release: `v4.5.1` (latest tagged/published GitHub Release; tag confirmed present
+  and confirmed an ancestor of the `main` commit above — the `0-PREV` checkpoint's
+  "tag/GitHub Release have deliberately not been created yet" language for `v4.5.1` is now
+  stale; the tag was created after that checkpoint was written. `v4.0.1` is no longer the
+  latest formal release).
+- CHANGELOG development history reaches `v4.7.0` ("Sprint 2 Acoustic & UX Hardening
+  Release"), plus a `main`-only "Post-v4.7.0 Maintenance" section (not a version bump)
+  covering the two PRs below.
+
+**PR #31 — `fix(healing): report recovery outcomes truthfully` — MERGED, RESOLVED.**
+Feature commit `e24a366d98a38a53f3467e2b8ee17e1d4e44c63e`, merge commit
+`10d470237b0fe4bc295f02215b4606590d79d17e`. `jarvis/healing/terminator.py`
+(`AutonomousTerminator.terminate_process()`, `HealingEngine.heal_hung_process()`,
+`HealingEngine._read_ram_percent()`) now guarantees:
+- Attempted process termination (`.terminate()`/`.kill()` called without raising) is
+  **never** by itself treated as successful termination — only a confirmed post-wait
+  outcome (`psutil.NoSuchProcess`, a successful `.wait()`, or a nonzero Win32
+  `TerminateProcess()` return code) counts as success.
+- Healing success requires a confirmed termination outcome; a mocked/injected test backend
+  is trusted only via an explicit `terminate_process()` callable's actual boolean return —
+  never via the mere presence of a `killed_pids`-style bookkeeping attribute.
+- False, exception-raising, or unconfirmed termination remains a reported failure.
+- `report["reason"] == "TERMINATION_FAILED"` is set truthfully whenever termination could
+  not be confirmed or raised an exception.
+- No fabricated reclaimed RAM: the old `max(40.0, ram_percent - 25.0)` synthetic formula is
+  gone. `reclaimed_ram` is only ever an observed `ram_before - ram_after` delta (floored at
+  0.0) and is omitted from the report entirely when RAM cannot be measured.
+- No production `hardware.set_ram()`-style fake telemetry mutation — `_read_ram_percent()`
+  only reads.
+- Unavailable RAM (no hardware provider, no `psutil`) stays reported as unavailable — never
+  defaulted to an invented number.
+- "Hệ thống bị quá tải" ("system overloaded") wording is only prepended when RAM was
+  actually measured before termination AND is at/above the configured `ram_threshold` —
+  never asserted unconditionally.
+- "Success"/"đã xử lý" wording only appears after termination has been confirmed.
+- psutil/Win32 termination results are verified (their actual return values/exceptions
+  inspected), never assumed.
+- Mixed recovery (multiple processes in one healing pass) preserves truthful per-process
+  outcomes — one process's success/failure never leaks onto another's report.
+
+Validation evidence (from the merged PR): `tests/unit/test_healing_truthfulness.py` — 20
+passed; `tests/test_self_healing.py` (legacy) — 7 passed; feature-branch full unit
+evidence — 1135 passed, 50 subtests passed; independent safe smoke — PASS. No real existing
+process was intentionally terminated during validation.
+
+**PR #32 — `fix(test): make whisper wake-word fallback deterministic` — MERGED, RESOLVED,
+TEST-ONLY.** Feature commit `c70c79384744e1756bc893125cd967c69f2276d8`, merge commit /
+current `main` `aaeeb53f834134bb4490147c238e82e863558caa`. Root cause: `WakeWordDetector`
+only selects the `WHISPER` engine when `FASTER_WHISPER_AVAILABLE` is true
+(`jarvis/audio/wake_word.py`); the prior version of `tests/unit/test_wake_word_p0.py`
+injected a mocked Whisper model **after** detector construction without forcing that
+optional-dependency-availability flag deterministically, so in an environment without
+`faster-whisper` installed the detector would already have selected `ACOUSTIC_FALLBACK`
+before the mock could exercise the Whisper path — an environment-dependent, non-deterministic
+test outcome, not a production defect. Fix (test file only): the test now explicitly patches
+`FASTER_WHISPER_AVAILABLE=True`, constructs the detector inside that patch, and asserts
+`engine == WHISPER`; the `MagicMock` model injection is unchanged. **No production
+wake-word behavior changed; no heavy dependency added to CI.**
+
+Validation evidence: focused test — 1 passed; wake-word P0 (`test_wake_word_p0.py`) — 19
+passed, 1 skipped; wake-word + acoustic hardening combined — 64 passed; feature-branch full
+unit evidence — 1356 passed, 1 skipped, 50 subtests passed. **Post-merge `main` CI: GREEN.**
+
+**Latest verified unit evidence on `main` (post-PR #32):**
+```text
+1353 passed
+4 skipped
+50 subtests passed
+0 failures
+0 errors
+```
+Skip counts can and do vary by environment (which optional dependencies — e.g.
+`faster-whisper`, `cv2`, `mediapipe` — happen to be installed on the machine running the
+suite); a different skip count than this snapshot is not by itself evidence of a regression.
+
+**CENTRAL DISPATCH TRUTHFULNESS IS STILL OPEN.** Known issue, not fixed by PR #31 or PR
+#32: `ActionDispatcher` / `process_text_command` (`jarvis/core/app.py`) may still
+incorrectly propagate an explicit failed action outcome as a reported success. This is a
+distinct truthfulness gap from the healing fix above (PR #31 only touched
+`jarvis/healing/terminator.py`) — do not describe central-dispatch truthfulness as merged,
+resolved, or in progress; it is pending future work with no branch currently addressing it.
+
+---
+
+## 0-PREV. Prior Checkpoint (2026-09-01) — historical, superseded by the 2026-09-02
+checkpoint above
+
+This section is the single authoritative "what's true right now" section. Everything below it —
 `0-PRE`, `0-PRE2`, `0-PRE3`, `0A`, `0B`, `0C`, `0D`, and the older `## 1` onward sections —
 is a **historical, point-in-time snapshot** captured while each piece of work was still
 in progress. Their "in progress, uncommitted, not pushed, no PR opened" language describes

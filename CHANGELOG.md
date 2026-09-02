@@ -2,6 +2,78 @@
 
 ---
 
+## 🔧 Post-v4.7.0 Maintenance / Unreleased Maintenance (2026-09-02)
+
+> **Lưu ý ngữ nghĩa**: đây là mốc bảo trì phát triển trên `main` sau v4.7.0 — **không phải** `4.7.1` và không phải một GitHub Release/tag mới. `jarvis.__version__` **giữ nguyên `4.7.0`** trong suốt hai PR bên dưới; không có version bump nào xảy ra. Bản phát hành chính thức (GitHub Release) mới nhất vẫn là `v4.5.1`. Xem `CLAUDE.md` "CURRENT BASELINE" và `docs/PROJECT_STATE.md` Checkpoint 2026-09-02 để biết trạng thái đầy đủ.
+
+### 🟢 PR #31 — `fix(healing): report recovery outcomes truthfully`
+
+**Feature commit:** `e24a366d98a38a53f3467e2b8ee17e1d4e44c63e` · **Merge commit:** `10d470237b0fe4bc295f02215b4606590d79d17e`
+
+**`jarvis/healing/terminator.py`** — `AutonomousTerminator.terminate_process()` và `HealingEngine.heal_hung_process()` trước đây có thể báo cáo "đã chấm dứt tiến trình" / "đã giải phóng RAM" ngay cả khi việc chấm dứt tiến trình chưa từng được xác nhận thực sự xảy ra (ví dụ: chỉ dựa vào sự hiện diện của thuộc tính `killed_pids` trên mock, hoặc coi `.terminate()`/`.kill()` được gọi mà không raise exception là bằng chứng thành công), và luôn gán cứng RAM sau khi xử lý bằng công thức giả lập (`max(40.0, ram_percent - 25.0)`) thay vì đo đạc thực tế.
+
+**Đảm bảo cuối cùng đã triển khai:**
+- Việc gọi `.terminate()`/`.kill()` (attempted termination) **không** được coi là chấm dứt thành công — chỉ một kết quả **xác nhận** (confirmed) mới được báo `True`.
+- Thành công healing đòi hỏi kết quả chấm dứt tiến trình đã được xác nhận (`proc_obj.wait()` xác nhận tiến trình thực sự không còn tồn tại, hoặc API Win32 `TerminateProcess` trả về giá trị khác 0).
+- Chấm dứt sai/qua exception/không xác nhận được vẫn giữ nguyên là thất bại (`False`), không được nâng cấp thành thành công.
+- `TERMINATION_FAILED` được báo cáo trung thực trong `report["reason"]` khi việc chấm dứt không được xác nhận hoặc raise exception.
+- **Không còn RAM đã giải phóng bị bịa đặt (fabricated)** — không còn công thức `max(40.0, ram_percent - 25.0)` giả lập.
+- **Không còn mutate telemetry giả qua `hardware.set_ram()`** trong đường production — `_read_ram_percent()` chỉ đọc, không bao giờ ghi.
+- RAM đã giải phóng (`reclaimed_ram`) chỉ được báo cáo từ phép đo trước/sau thực tế (`ram_before - ram_after`, floor tại 0.0) và bị **lược bỏ hoàn toàn** khỏi báo cáo khi không đo được (không suy diễn giá trị mặc định).
+- RAM không đo được (không có hardware provider và không có `psutil`) vẫn giữ nguyên trạng thái "không đo được" — không có giá trị bịa ra để lấp chỗ trống.
+- Câu nói "hệ thống bị quá tải" chỉ được thêm vào khi RAM **đã đo được trước khi chấm dứt** VÀ vượt ngưỡng cấu hình (`ram_threshold`) — không còn khẳng định vô điều kiện.
+- Câu nói "thành công"/"đã xử lý" chỉ xuất hiện sau khi việc chấm dứt tiến trình đã được xác nhận.
+- Kết quả từ backend `psutil`/Win32 (`proc_obj.wait()`, `TerminateProcess()` return code) được **xác minh** (verified) chứ không phải giả định (assumed) là thành công.
+- Trường hợp xử lý nhiều tiến trình cùng lúc (mixed recovery) giữ đúng kết quả trung thực cho từng tiến trình riêng lẻ — không lây lan thành công/thất bại giữa các tiến trình khác nhau trong cùng một lượt healing.
+
+**Kiểm chứng (validation evidence từ công việc đã hoàn thành):**
+```text
+focused healing truthfulness (tests/unit/test_healing_truthfulness.py): 20 passed
+legacy healing (tests/test_self_healing.py):                             7 passed
+feature-branch full unit evidence:                                    1135 passed
+                                                                          50 subtests passed
+independent safe smoke:                                                  PASS
+```
+Không có tiến trình thật đang chạy nào bị chấm dứt cố ý trong quá trình kiểm chứng.
+
+---
+
+### 🟢 PR #32 — `fix(test): make whisper wake-word fallback deterministic`
+
+**Feature commit:** `c70c79384744e1756bc893125cd967c69f2276d8` · **Merge commit / current `main`:** `aaeeb53f834134bb4490147c238e82e863558caa`
+
+**Nguyên nhân gốc (root cause):** `WakeWordDetector` chỉ chọn engine `WHISPER` khi `FASTER_WHISPER_AVAILABLE` là `True`. Test cũ inject một Whisper model đã mock **sau khi** detector được khởi tạo, nhưng không ép buộc tính khả dụng (availability) của optional dependency này là tất định (deterministic). Trong môi trường không cài `faster-whisper`, detector đã chọn `ACOUSTIC_FALLBACK` **trước khi** mock kịp phát huy tác dụng trên đường Whisper — khiến test không tất định giữa các môi trường CI/máy phát triển khác nhau.
+
+**Sửa lỗi (`tests/unit/test_wake_word_p0.py`):**
+- Test giờ patch tường minh `FASTER_WHISPER_AVAILABLE=True` **trước khi** khởi tạo detector.
+- Detector được khởi tạo **bên trong** khối patch đó, đảm bảo nhánh Whisper luôn được chọn tất định.
+- Test khẳng định (assert) `engine == WHISPER` một cách tường minh.
+- Mock `MagicMock` model vẫn được giữ nguyên như phương án inject cũ.
+- **Không** tải model Whisper thật, **không** thay đổi hành vi production, **không** thêm heavy dependency nào vào CI.
+
+**Kiểm chứng:**
+```text
+focused test:                                    1 passed
+wake-word P0 (test_wake_word_p0.py):             19 passed, 1 skipped
+wake-word + acoustic hardening (combined):       64 passed
+feature-branch full unit evidence:             1356 passed
+                                                    1 skipped
+                                                   50 subtests passed
+post-merge main CI:                                 GREEN
+```
+
+**Bằng chứng unit đã xác minh mới nhất trên `main` (sau merge):**
+```text
+1353 passed
+4 skipped
+50 subtests passed
+0 failures
+0 errors
+```
+Số lượng test bị skip có thể thay đổi theo môi trường (tuỳ optional dependency nào được cài trên máy chạy) — không phải dấu hiệu hồi quy.
+
+---
+
 ## 🚀 [4.7.0] - 2026-09-02 — Sprint 2 Acoustic & UX Hardening Release
 
 > **Commits:** `HEAD` | **Branch:** `main` | **Version:** `4.6.0 → 4.7.0`

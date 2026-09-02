@@ -4,7 +4,7 @@
 
 [![CI Status](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/workflows/ci.yml/badge.svg)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
 [![Tests](https://img.shields.io/badge/tests-passing-00ff88?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
-[![Source Version](https://img.shields.io/badge/source%20version-4.5.1-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
+[![Source Version](https://img.shields.io/badge/source%20version-4.7.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
 [![Latest Release](https://img.shields.io/badge/latest%20release-v4.5.1-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?style=flat-square)](https://python.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%2064--bit-0078D4?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS)
@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding), ghi nhớ ngữ nghĩa theo thời gian thực (Semantic RAG Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>Phiên bản mã nguồn (source/runtime, `jarvis.__version__`): **4.5.1** · Bản phát hành chính thức (GitHub Release) mục tiêu: **v4.5.1** (bản phát hành chính thức trước đó: v4.0.1) · Lịch sử phát triển trong CHANGELOG đã đến mốc **v4.5.1 — bản đóng gói phát hành chính thức**, đóng gói các mốc bảo trì v4.4.0/v4.5.0 cùng phần hiệu chỉnh baseline đánh giá STT.</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 4.7.0** · **Bản phát hành chính thức (GitHub Release) mới nhất: v4.5.1** (bản phát hành chính thức trước đó: v4.0.1) · Lịch sử phát triển trong CHANGELOG đã đến mốc **v4.7.0 — Sprint 2 Acoustic & UX Hardening**, cộng thêm mốc bảo trì sau v4.7.0 (không đổi phiên bản runtime) sửa lỗi báo cáo thiếu trung thực của self-healing và làm tất định test wake-word Whisper trên CI. Phiên bản mã nguồn/phát triển và bản phát hành chính thức là hai khái niệm khác nhau — `main` đã tiến xa hơn `v4.5.1` mà chưa gắn tag/release mới.</sub>
 
 </div>
 
@@ -255,7 +255,7 @@ mypy jarvis
 # 1. Đóng gói thành file chạy trực tiếp dist/JARVIS.exe:
 python scripts/build_exe.py
 
-# 2. Đóng gói thành file cài đặt Windows Installer dist/installer/JARVIS_Setup_v4.5.1.exe
+# 2. Đóng gói thành file cài đặt Windows Installer dist/installer/JARVIS_Setup_v4.7.0.exe
 #    (chỉ build local qua Inno Setup — release workflow chính thức trên GitHub Actions
 #    KHÔNG publish file Setup này, chỉ publish JARVIS_v<version>_windows_x64.zip):
 python scripts/build_installer.py
@@ -459,6 +459,11 @@ Các phím tắt hoạt động toàn cầu trên Windows (ngay cả khi ứng d
 - **Chạy Ngầm Tĩnh Lặng (No Console Flash):** Toàn bộ các tiến trình subprocess/PowerShell/CMD được spawn đều chạy ẩn hoàn toàn (`CREATE_NO_WINDOW`), không gián đoạn trải nghiệm người dùng.
 - **Bảo Mật Bộ Nhớ Cục Bộ:** Dữ liệu ghi chú, ký ức và cấu hình được lưu cục bộ trên máy tại `%LOCALAPPDATA%\JARVIS\` và thư mục người dùng `~/.jarvis/`.
 - **An Toàn Mã Nguồn:** Tính năng tự tạo kỹ năng (Self-Coding) được kiểm tra cú pháp và chạy thử nghiệm trong sandbox an toàn trước khi tích hợp vào hệ thống.
+
+**Ghi chú bảo trì gần đây nhất (sau v4.7.0, không đổi phiên bản runtime):**
+- Tự phục hồi hệ thống (Self-Healing) giờ chỉ báo thành công sau khi việc chấm dứt tiến trình đã được **xác nhận thực sự xảy ra** — không còn tự nhận thành công chỉ vì lệnh chấm dứt được gọi.
+- RAM đã giải phóng không bao giờ bị bịa đặt — chỉ báo cáo từ phép đo trước/sau thực tế, bỏ qua khi không đo được.
+- Test wake-word Whisper trên CI đã được làm tất định giữa các môi trường có/không cài `faster-whisper` — **không** thay đổi hành vi wake-word thật khi chạy production.
 
 ---
 

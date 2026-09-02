@@ -672,6 +672,32 @@ Sprint 4 (Tháng 4+ / v5.0.0)  ──> Đóng gói Bộ cài đặt Windows, B�
 
 ---
 
+### Post-Sprint 2 Maintenance (2026-09-02): Healing Truthfulness & Wake-Word CI Determinism
+
+> Hai hạng mục bảo trì này nằm **ngoài** danh sách backlog P0–P3 gốc của roadmap này — chúng
+> là các phát hiện/lỗi được xử lý sau khi Sprint 2 (`v4.7.0`) đã đóng, trên `main`, không bump
+> phiên bản runtime. Ghi nhận tại đây để giữ roadmap đồng bộ với trạng thái thật của `main`.
+
+- **✅ HOÀN THÀNH — Healing truthfulness** (`jarvis/healing/terminator.py`, PR #31, merge
+  commit `10d470237b0fe4bc295f02215b4606590d79d17e`): tự phục hồi hệ thống (thuộc module
+  `jarvis/healing/` đã đánh dấu `✅ Done` ở bảng A.1 phía trên) giờ chỉ báo thành công sau khi
+  việc chấm dứt tiến trình được xác nhận thực sự xảy ra, và RAM đã giải phóng chỉ được báo cáo
+  từ phép đo trước/sau thực tế — không còn bịa đặt số liệu hay tự nhận thành công khi chưa xác
+  nhận. Xem `CLAUDE.md` §0/§1A "Healing truthfulness" và `docs/PROJECT_STATE.md` checkpoint
+  2026-09-02 để biết chi tiết đầy đủ.
+- **✅ HOÀN THÀNH — Wake-word Whisper CI determinism** (`tests/unit/test_wake_word_p0.py`, PR
+  #32, merge commit `aaeeb53f834134bb4490147c238e82e863558caa`): test-only fix, đóng góp cho
+  tiêu chí nghiệm thu "0 test failures" của Sprint 1/2 — không thay đổi hành vi wake-word
+  production, không phải một sửa lỗi kiến trúc mới cho Item P0-1.
+- **🔴 CHƯA XỬ LÝ — Central dispatch truthfulness (OPEN/PENDING)**: `ActionDispatcher` /
+  `process_text_command` (`jarvis/core/app.py`) có thể vẫn báo cáo sai một kết quả hành động
+  thất bại tường minh thành công. Đây là một phát hiện **riêng biệt**, chưa có nhánh nào xử lý —
+  không được đánh dấu hoàn thành, không được gộp chung với healing truthfulness (PR #31) ở trên.
+  Các phát hiện khác chưa liên quan (TShark/network/v.v., nếu có trong các tài liệu audit khác)
+  không bị ảnh hưởng và không được đóng theo mục này.
+
+---
+
 ### Sprint 3 (Tháng 2–3 / v4.8.0): Multimodal Feature Completion
 - **Chủ đề (Theme):** Hoàn thiện Trí tuệ Đa phương thức (Bộ nhớ, Thị giác, Web, IoT)
 - **Thời lượng:** 1–2 Tháng
