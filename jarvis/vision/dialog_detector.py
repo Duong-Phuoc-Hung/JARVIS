@@ -85,8 +85,9 @@ class ErrorDialogDetector:
 
                     # Get Title
                     length = user32.GetWindowTextLengthW(hwnd)
-                    title_buf = ctypes.create_unicode_buffer(length + 1)
-                    user32.GetWindowTextW(hwnd, title_buf, length + 1)
+                    buf_size = max(length + 1, 512)
+                    title_buf = ctypes.create_unicode_buffer(buf_size)
+                    user32.GetWindowTextW(hwnd, title_buf, buf_size)
                     title = title_buf.value
 
                     # Get Window Rect
@@ -119,9 +120,12 @@ class ErrorDialogDetector:
 
                     if is_32770_dialog or has_error_title or has_error_body:
                         # Determine severity
-                        severity = "critical" if ("crash" in title.lower() or "fatal" in title.lower()) else "warning"
-                        if has_error_title or has_error_body:
+                        if "crash" in title.lower() or "fatal" in title.lower() or "crash" in full_text.lower() or "fatal" in full_text.lower():
+                            severity = "critical"
+                        elif has_error_title or has_error_body:
                             severity = "error"
+                        else:
+                            severity = "warning"
 
                         dialogs.append({
                             "hwnd": hwnd,
@@ -212,3 +216,7 @@ class ErrorDialogDetector:
         if text:
             return f"Phát hiện hộp thoại cảnh báo '{title}': {text}."
         return f"Phát hiện hộp thoại cảnh báo '{title}' đang hiển thị trên màn hình."
+
+
+# Backward compatibility alias
+DialogDetector = ErrorDialogDetector

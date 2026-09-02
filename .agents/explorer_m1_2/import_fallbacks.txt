@@ -1,0 +1,1174 @@
+File: jarvis\audio\engine.py:31 -> except (ImportError, OSError):
+  logger = logging.getLogger("jarvis.audio.engine")
+  
+  try:
+      import sounddevice as sd
+      SOUNDDEVICE_AVAILABLE = True
+  except (ImportError, OSError):
+      sd = None
+      SOUNDDEVICE_AVAILABLE = False
+  
+  
+  class AudioEngineMode(str, Enum):
+      """Operational mode of the audio engine."""
+      LIVE = "live"            # Physical SoundDevice / PortAudio stream
+      MOCK = "mock"            # Synthetic buffer generator for tests
+      HEADLESS = "headless"    # Degraded silent mode on systems without audio cards
+  
+============================================================
+
+File: jarvis\audio\fullduplex.py:112 -> except ImportError:
+                                  if on_barge_in:
+                                      on_barge_in()
+                                  break
+                          else:
+                              consecutive = max(0, consecutive - 1)
+              except ImportError:
+                  log.debug("sounddevice/numpy not available — barge-in disabled")
+              except Exception as exc:
+                  log.warning("Barge-in detection error: %s", exc)
+  
+          self._barge_in_thread = threading.Thread(target=_detect, daemon=True, name="barge-in")
+          self._barge_in_thread.start()
+  
+      def stop_current_speech(self) -> None:
+          """Signal that TTS playback has ended (natural or interrupted)."""
+          self._playback_stop_event.set()
+============================================================
+
+File: jarvis\audio\sound_effects.py:81 -> except ImportError:
+              tone = np.sin(2 * np.pi * frequency_hz * t).astype(np.float32)
+              fade = min(50, n // 4)
+              tone[:fade] *= np.linspace(0, 1, fade)
+              tone[-fade:] *= np.linspace(1, 0, fade)
+              return tone * self.config.volume
+          except ImportError:
+              return None
+          except Exception as exc:
+              log.debug("Tone synthesis error: %s", exc)
+              return None
+  
+      def _play_sequence(self, tones: list[tuple[float, float]], gap_ms: int = 0) -> None:
+          """Play a sequence of (frequency_hz, duration_s) tones."""
+          if self.is_mock or not self.config.enabled:
+              return
+  
+============================================================
+
+File: jarvis\audio\sound_effects.py:106 -> except ImportError:
+                      if tone is None:
+                          return
+                      sd.play(tone, samplerate=sr, blocking=True)
+                      if gap_ms > 0 and i < len(tones) - 1:
+                          sd.play(np.zeros(gap_samples, dtype=np.float32), samplerate=sr, blocking=True)
+              except ImportError:
+                  log.debug("sounddevice/numpy not available — sound effects disabled")
+              except Exception as exc:
+                  log.debug("Sound playback error: %s", exc)
+  
+          if self.config.async_playback:
+              threading.Thread(target=_worker, daemon=True, name="sound-fx").start()
+          else:
+              _worker()
+  
+  
+============================================================
+
+File: jarvis\audio\vad.py:78 -> except ImportError:
+      def _init_backend(self) -> None:
+          try:
+              import webrtcvad  # type: ignore[import]
+              self._vad_backend = webrtcvad.Vad(self.config.aggressiveness)
+              log.info("webrtcvad loaded (aggressiveness=%d)", self.config.aggressiveness)
+          except ImportError:
+              log.info("webrtcvad not installed — using energy-based VAD")
+          except Exception as exc:
+              log.warning("webrtcvad init failed (%s) — using energy fallback", exc)
+  
+      def is_speech(self, audio_chunk: bytes, sample_rate: int | None = None) -> bool:
+          """Returns True if audio_chunk contains speech (PCM 16-bit signed mono)."""
+          if self.is_mock:
+              return False
+          sr = sample_rate or self.config.sample_rate
+          if self._vad_backend is not None:
+============================================================
+
+File: jarvis\audio\wake_word.py:37 -> except ImportError:
+  
+  # Optional Tier 1 library imports
+  try:
+      import vosk
+      VOSK_AVAILABLE = True
+  except ImportError:
+      vosk = None
+      VOSK_AVAILABLE = False
+  
+  try:
+      import openwakeword
+      OPENWAKEWORD_AVAILABLE = True
+  except ImportError:
+      openwakeword = None
+      OPENWAKEWORD_AVAILABLE = False
+  
+============================================================
+
+File: jarvis\audio\wake_word.py:44 -> except ImportError:
+      VOSK_AVAILABLE = False
+  
+  try:
+      import openwakeword
+      OPENWAKEWORD_AVAILABLE = True
+  except ImportError:
+      openwakeword = None
+      OPENWAKEWORD_AVAILABLE = False
+  
+  try:
+      import pvporcupine
+      PORCUPINE_AVAILABLE = True
+  except ImportError:
+      pvporcupine = None
+      PORCUPINE_AVAILABLE = False
+  
+============================================================
+
+File: jarvis\audio\wake_word.py:51 -> except ImportError:
+      OPENWAKEWORD_AVAILABLE = False
+  
+  try:
+      import pvporcupine
+      PORCUPINE_AVAILABLE = True
+  except ImportError:
+      pvporcupine = None
+      PORCUPINE_AVAILABLE = False
+  
+  
+  class WakeWordEngineType(str, Enum):
+      """Detection engine tier / implementation."""
+      VOSK = "vosk"
+      OPENWAKEWORD = "openwakeword"
+      PORCUPINE = "porcupine"
+      ACOUSTIC_FALLBACK = "acoustic_fallback"
+============================================================
+
+File: jarvis\browser\cdp_controller.py:89 -> except ImportError:
+          if self.is_mock:
+              return True
+          try:
+              import playwright  # type: ignore[import]  # noqa: F401
+              return True
+          except ImportError:
+              return False
+  
+      # ------------------------------------------------------------------
+      # Lifecycle
+      # ------------------------------------------------------------------
+  
+      def launch(self) -> bool:
+          """Launch browser. Returns True on success."""
+          if self.is_mock:
+              log.info("Browser mock launched")
+============================================================
+
+File: jarvis\browser\driver.py:195 -> except ImportError:
+              self._page = self._context.new_page()
+              self._page.set_default_timeout(self.config.timeout_ms)
+              self._is_running = True
+              logger.info("PlaywrightBrowserDriver successfully launched.")
+              return True
+          except ImportError:
+              logger.warning("Playwright is not installed in the current environment.")
+              self._is_running = False
+              return False
+          except Exception as exc:
+              logger.error("Failed to launch PlaywrightBrowserDriver: %s", exc)
+              self.close()
+              return False
+  
+      def close(self) -> None:
+          try:
+============================================================
+
+File: jarvis\browser\driver.py:1026 -> except (ImportError, Exception):
+          Checks Playwright availability, then CDP (port 9222), falling back to HttpScraper.
+          """
+          try:
+              from playwright.sync_api import sync_playwright  # type: ignore
+              return BrowserDriverType.PLAYWRIGHT
+          except (ImportError, Exception):
+              pass
+  
+          try:
+              import requests
+              resp = requests.get("http://127.0.0.1:9222/json/version", timeout=0.5)
+              if resp.status_code == 200:
+                  return BrowserDriverType.CDP
+          except Exception:
+              pass
+  
+============================================================
+
+File: jarvis\comms\email_imap.py:136 -> except ImportError:
+          """
+          try:
+              from jarvis.security.prompt_guard import PromptGuard
+              result = PromptGuard().sanitize(text)
+              sanitized = str(result)
+          except ImportError:
+              # PromptGuard not available — fall back to basic stripping
+              sanitized = re.sub(r"(ignore|disregard|forget)\s+(all|previous|prior)", "",
+                                 text, flags=re.IGNORECASE)
+          except Exception as exc:
+              log.warning("email: PromptGuard failed (%s) — using raw text", exc)
+              sanitized = text
+  
+          return sanitized[:_MAX_BODY_LEN].strip()
+  
+      # ── Public API ────────────────────────────────────────────────────────────
+============================================================
+
+File: jarvis\comms\mobile_bridge.py:219 -> except ImportError:
+              import mss
+              import mss.tools
+              with mss.mss() as sct:
+                  img = sct.grab(sct.monitors[1])
+                  return mss.tools.to_png(img.rgb, img.size)
+          except ImportError:
+              pass
+          try:
+              import io
+  
+              from PIL import ImageGrab
+              buf = io.BytesIO()
+              ImageGrab.grab().save(buf, format="PNG")
+              return buf.getvalue()
+          except ImportError:
+              return None
+============================================================
+
+File: jarvis\comms\mobile_bridge.py:228 -> except ImportError:
+  
+              from PIL import ImageGrab
+              buf = io.BytesIO()
+              ImageGrab.grab().save(buf, format="PNG")
+              return buf.getvalue()
+          except ImportError:
+              return None
+  
+      def _log_transfer(
+          self,
+          transfer_type: str,
+          source: str,
+          destination: str,
+          size: int,
+      ) -> None:
+          record = {
+============================================================
+
+File: jarvis\core\config.py:19 -> except ImportError:
+  from typing import Any
+  
+  try:
+      import yaml
+      HAS_YAML = True
+  except ImportError:
+      HAS_YAML = False
+  
+  try:
+      import tomllib
+      HAS_TOMLLIB = True
+  except ImportError:
+      HAS_TOMLLIB = False
+  
+  try:
+      from dotenv import load_dotenv
+============================================================
+
+File: jarvis\core\config.py:25 -> except ImportError:
+      HAS_YAML = False
+  
+  try:
+      import tomllib
+      HAS_TOMLLIB = True
+  except ImportError:
+      HAS_TOMLLIB = False
+  
+  try:
+      from dotenv import load_dotenv
+      HAS_DOTENV = True
+  except ImportError:
+      HAS_DOTENV = False
+  
+  log = logging.getLogger("jarvis.core.config")
+  
+============================================================
+
+File: jarvis\core\config.py:31 -> except ImportError:
+      HAS_TOMLLIB = False
+  
+  try:
+      from dotenv import load_dotenv
+      HAS_DOTENV = True
+  except ImportError:
+      HAS_DOTENV = False
+  
+  log = logging.getLogger("jarvis.core.config")
+  
+  # Legacy environment variable to internal dot-notation key mapping
+  LEGACY_ENV_MAPPING: dict[str, tuple[str, type]] = {
+      "ELEVENLABS_API_KEY": ("tts.elevenlabs.api_key", str),
+      "ELEVENLABS_VOICE_ID": ("tts.elevenlabs.voice_id", str),
+      "ELEVENLABS_MODEL_ID": ("tts.elevenlabs.model_id", str),
+      "ELEVENLABS_OUTPUT_FORMAT": ("tts.elevenlabs.output_format", str),
+============================================================
+
+File: jarvis\data\analysis_service.py:247 -> except ImportError:
+          """
+          try:
+              import matplotlib
+              matplotlib.use("Agg", force=True)
+              import matplotlib.pyplot as plt
+          except ImportError:
+              return ChartRenderResult(
+                  spec=spec, rendered=False, error="matplotlib is not installed (optional 'charts' extra)"
+              )
+  
+          fig = None
+          try:
+              fig, ax = plt.subplots()
+              for s in spec.series:
+                  if spec.chart_type == "line":
+                      ax.plot(s.x, s.y, label=s.name)
+============================================================
+
+File: jarvis\gesture\hand_tracker.py:41 -> except ImportError:
+  logger = logging.getLogger("jarvis.gesture.hand_tracker")
+  
+  try:
+      import cv2  # type: ignore[import-untyped]
+      CV2_AVAILABLE = True
+  except ImportError:
+      cv2 = None  # type: ignore[assignment]
+      CV2_AVAILABLE = False
+  
+  try:
+      import mediapipe as mp  # type: ignore[import-untyped]
+      MEDIAPIPE_AVAILABLE = True
+  except ImportError:
+      mp = None  # type: ignore[assignment]
+      MEDIAPIPE_AVAILABLE = False
+  
+============================================================
+
+File: jarvis\gesture\hand_tracker.py:48 -> except ImportError:
+      CV2_AVAILABLE = False
+  
+  try:
+      import mediapipe as mp  # type: ignore[import-untyped]
+      MEDIAPIPE_AVAILABLE = True
+  except ImportError:
+      mp = None  # type: ignore[assignment]
+      MEDIAPIPE_AVAILABLE = False
+  
+  
+  def get_available_backend() -> HandGestureBackend:
+      """Report which real camera/landmark backend, if any, is importable right now."""
+      if CV2_AVAILABLE and MEDIAPIPE_AVAILABLE:
+          return HandGestureBackend.MEDIAPIPE
+      return HandGestureBackend.UNAVAILABLE
+  
+============================================================
+
+File: jarvis\hardware\monitor.py:26 -> except ImportError:
+  from typing import Any
+  
+  try:
+      import psutil
+      HAS_PSUTIL = True
+  except ImportError:
+      HAS_PSUTIL = False
+  
+  log = logging.getLogger("jarvis.hardware.monitor")
+  
+  
+  # ---------------------------------------------------------------------------
+  # Win32 Ctypes Structures for Zero-Dependency Telemetry
+  # ---------------------------------------------------------------------------
+  
+  class MEMORYSTATUSEX(ctypes.Structure):
+============================================================
+
+File: jarvis\healing\terminator.py:26 -> except ImportError:
+  from typing import Any
+  
+  try:
+      import psutil
+      HAS_PSUTIL = True
+  except ImportError:
+      HAS_PSUTIL = False
+  
+  from jarvis.healing.watchdog import UnresponsiveAppDetector
+  from jarvis.platform.windows import platform_win32
+  
+  log = logging.getLogger("jarvis.healing.terminator")
+  
+  # Immutable Windows OS & JARVIS process whitelist (case-insensitive)
+  PROTECTED_PROCESS_WHITELIST: set[str] = {
+      "system",
+============================================================
+
+File: jarvis\healing\watchdog.py:24 -> except ImportError:
+  from typing import Any
+  
+  try:
+      import psutil
+      HAS_PSUTIL = True
+  except ImportError:
+      HAS_PSUTIL = False
+  
+  from jarvis.platform.windows import platform_win32
+  
+  log = logging.getLogger("jarvis.healing.watchdog")
+  
+  
+  @dataclass
+  class HungProcessInfo:
+      """Metadata representing an unresponsive application window."""
+============================================================
+
+File: jarvis\llm\client.py:24 -> except ImportError:
+  from typing import Any
+  
+  try:
+      import requests
+      REQUESTS_AVAILABLE = True
+  except ImportError:
+      requests = None  # type: ignore[assignment]
+      REQUESTS_AVAILABLE = False
+  
+  logger = logging.getLogger("jarvis.llm.client")
+  
+  
+  class LLMProvider(str, Enum):
+      OPENAI = "openai"
+      GEMINI = "gemini"
+      CLAUDE = "claude"
+============================================================
+
+File: jarvis\platform\autostart.py:52 -> except ImportError:
+          log.warning("set_autostart is only supported on Windows.")
+          return False
+  
+      try:
+          import winreg
+      except ImportError:
+          log.error("winreg module unavailable.")
+          return False
+  
+      try:
+          if enabled:
+              if not exe_path:
+                  py_exe = sys.executable
+                  if py_exe.lower().endswith("python.exe"):
+                      pyw = os.path.join(os.path.dirname(py_exe), "pythonw.exe")
+                      if os.path.isfile(pyw):
+============================================================
+
+File: jarvis\platform\autostart.py:120 -> except ImportError:
+      if sys.platform != "win32":
+          return AutostartStatus(False, None)
+  
+      try:
+          import winreg
+      except ImportError:
+          return AutostartStatus(False, None)
+  
+      try:
+          key_or_ctx = winreg.OpenKey(
+              winreg.HKEY_CURRENT_USER,
+              RUN_KEY_PATH,
+              0,
+              winreg.KEY_READ,
+          )
+          try:
+============================================================
+
+File: jarvis\plugins\loader.py:158 -> except ImportError:
+                      self._plugins[manifest.name] = manifest
+                      loaded.append(manifest)
+                      log.info("Loaded pip plugin: %s", ep.name)
+                  except Exception as exc:
+                      log.error("Failed to load pip plugin %s: %s", ep.name, exc)
+          except ImportError:
+              pass  # Python < 3.9, skip
+          return loaded
+  
+      # ------------------------------------------------------------------
+      # Queries
+      # ------------------------------------------------------------------
+  
+      def list_plugins(self) -> list[dict[str, Any]]:
+          return [p.to_dict() for p in self._plugins.values()]
+  
+============================================================
+
+File: jarvis\proactive\health_monitor.py:30 -> except ImportError:
+  from typing import Any
+  
+  try:
+      import psutil
+      HAS_PSUTIL = True
+  except ImportError:
+      HAS_PSUTIL = False
+  
+  logger = logging.getLogger("jarvis.proactive.health_monitor")
+  
+  
+  @dataclass
+  class HealthAlert:
+      """Represents a system health threshold alert."""
+      alert_type: str            # 'cpu', 'ram', 'disk', 'cpu_temp', 'battery'
+      level: str                 # 'WARNING', 'CRITICAL'
+============================================================
+
+File: jarvis\security\secrets.py:49 -> except ImportError:
+  
+  def _keyring_available() -> bool:
+      try:
+          import keyring  # noqa: F401
+          return True
+      except ImportError:
+          return False
+  
+  
+  def get_secret(name: str, fallback_env: bool = True) -> str | None:
+      """
+      Read a secret by name.
+  
+      Priority order:
+        1. Windows Credential Manager (via keyring) — preferred
+        2. Environment variable (fallback, for CI/Docker compatibility)
+============================================================
+
+File: jarvis\smart_home\mqtt.py:21 -> except ImportError:
+  
+  log = logging.getLogger("jarvis.smart_home.mqtt")
+  
+  try:
+      import paho.mqtt.client as mqtt_client  # type: ignore
+  except ImportError:
+      mqtt_client = None
+  
+  
+  class MQTTAdapter:
+      """MQTT Protocol publisher and subscriber coordinator with mock & paho-mqtt support."""
+  
+      def __init__(
+          self,
+          broker_host: str = "localhost",
+          broker_port: int = 1883,
+============================================================
+
+File: jarvis\stt\engine.py:35 -> except ImportError:
+  log = logging.getLogger("jarvis.stt.engine")
+  
+  try:
+      import requests
+      REQUESTS_AVAILABLE = True
+  except ImportError:
+      requests = None  # type: ignore[assignment]
+      REQUESTS_AVAILABLE = False
+  
+  
+  # ── Windows: make nvidia pip-wheel DLLs discoverable by ctranslate2.
+  #    ctranslate2 uses Windows LoadLibrary() which searches os.environ["PATH"],
+  #    NOT the directories added via os.add_dll_directory().
+  #    We add both for maximum compatibility.
+  #    Structure: site-packages/nvidia/<pkg>/bin/*.dll
+  if sys.platform == "win32":
+============================================================
+
+File: jarvis\stt\engine.py:71 -> except ImportError:
+          pass
+  
+  try:
+      from faster_whisper import WhisperModel
+      FASTER_WHISPER_AVAILABLE = True
+  except ImportError:
+      WhisperModel = None
+      FASTER_WHISPER_AVAILABLE = False
+  
+  
+  class STTError(Exception):
+      """Base exception for Speech-to-Text transcription errors."""
+      pass
+  
+  
+  # ============================================================================
+============================================================
+
+File: jarvis\stt\engine.py:507 -> except ImportError:
+                      continue
+              # DLL not in PATH — try locating via nvidia wheel
+              try:
+                  import nvidia.cublas.lib  # noqa: F401 (nvidia-cublas-cu12 wheel)
+                  return "cuda"
+              except ImportError:
+                  pass
+              log.warning("CUDA device found but cublas DLL missing. Falling back to CPU.")
+              return "cpu"
+          except Exception:
+              return "cpu"
+  
+      @property
+      def engine_name(self) -> str:
+          return "faster_whisper"
+  
+============================================================
+
+File: jarvis\stt\faster_whisper.py:79 -> except ImportError:
+          if self.is_mock:
+              return True
+          try:
+              import faster_whisper  # type: ignore[import]  # noqa: F401
+              return True
+          except ImportError:
+              return False
+  
+      def _load_model(self) -> Any:
+          """Lazy-load the Faster-Whisper model."""
+          with self._lock:
+              if self._model is None:
+                  if not self.is_available():
+                      raise ImportError(
+                          "faster-whisper not installed. Run: pip install faster-whisper"
+                      )
+============================================================
+
+File: jarvis\stt\faster_whisper.py:208 -> except ImportError as exc:
+                  confidence=avg_conf,
+                  duration_ms=duration_ms,
+                  segments=segments,
+              )
+  
+          except ImportError as exc:
+              log.error("faster-whisper or numpy missing: %s", exc)
+              return TranscriptionResult(
+                  text="",
+                  language=self.config.language,
+                  confidence=0.0,
+                  duration_ms=(time.monotonic() - t0) * 1000,
+              )
+          except Exception as exc:
+              log.error("Faster-Whisper transcription error: %s", exc)
+              return TranscriptionResult(
+============================================================
+
+File: jarvis\tts\elevenlabs.py:93 -> except ImportError:
+                  output_format=target_format,
+              )
+              raw_bytes = b"".join(audio_generator)
+              if raw_bytes:
+                  return raw_bytes
+          except ImportError:
+              log.debug("elevenlabs package not installed, using REST HTTP client")
+          except Exception as e:
+              log.warning("ElevenLabs SDK synthesis failed: %s", e)
+  
+          # 2. Direct HTTP REST fallback via requests
+          try:
+              import requests
+              url = f"https://api.elevenlabs.io/v1/text-to-speech/{target_voice}?output_format={target_format}"
+              headers = {
+                  "xi-api-key": self.api_key,
+============================================================
+
+File: jarvis\tts\piper.py:68 -> except ImportError:
+          if not model_path.exists() or not config_path.exists():
+              return False
+          try:
+              import onnxruntime  # type: ignore[import]  # noqa: F401
+              return True
+          except ImportError:
+              return False
+  
+      def _load_model(self) -> Any:
+          """Lazy-load the ONNX voice model."""
+          with self._lock:
+              if self._model is None:
+                  if not self.is_available():
+                      raise PiperNotAvailableError(
+                          f"Piper model not found at '{self.config.model_path}'. "
+                          "Install: pip install onnxruntime piper-phonemize\n"
+============================================================
+
+File: jarvis\tts\piper.py:122 -> except ImportError as exc:
+              return header + b"\x00" * data_size
+  
+          try:
+              import numpy as np  # type: ignore[import]
+              from piper_phonemize import phonemize_espeak  # type: ignore[import]
+          except ImportError as exc:
+              raise PiperNotAvailableError(
+                  f"piper_phonemize or numpy not installed: {exc}. "
+                  "Run: pip install piper-phonemize numpy"
+              ) from exc
+  
+          model = self._load_model()
+          cfg = self.config
+  
+          phonemes = phonemize_espeak(text, voice="vi")
+          phoneme_ids = self._phonemes_to_ids(phonemes)
+============================================================
+
+File: jarvis\tts\piper.py:184 -> except ImportError:
+              import sounddevice as sd  # type: ignore[import]
+              audio = np.frombuffer(wav_bytes[44:], dtype=np.int16).astype(np.float32) / 32768.0
+              sd.play(audio, samplerate=self.config.sample_rate, blocking=True)
+          except PiperNotAvailableError as exc:
+              log.warning("Piper TTS not available: %s", exc)
+          except ImportError:
+              log.debug("sounddevice not available for Piper playback")
+          except Exception as exc:
+              log.error("Piper speak error: %s", exc)
+  
+  
+  __all__ = ["PiperTTSEngine", "PiperConfig", "PiperNotAvailableError"]
+============================================================
+
+File: jarvis\ui\dashboard.py:33 -> except ImportError:
+  try:
+      import asyncio
+  
+      import websockets
+      WEBSOCKETS_AVAILABLE = True
+  except ImportError:
+      websockets = None  # type: ignore[assignment]
+      WEBSOCKETS_AVAILABLE = False
+  
+  
+  # ---------------------------------------------------------------------------
+  # Embedded Zero-Dependency HTML5/CSS3/JS Dark-Mode Dashboard
+  # ---------------------------------------------------------------------------
+  DASHBOARD_HTML = """<!DOCTYPE html>
+  <html lang="en">
+  <head>
+============================================================
+
+File: jarvis\ui\tray.py:23 -> except ImportError:
+  
+  # Check PIL (Pillow) availability
+  try:
+      from PIL import Image, ImageDraw
+      PIL_AVAILABLE = True
+  except ImportError:
+      PIL_AVAILABLE = False
+  
+  # Check pystray availability
+  try:
+      import pystray
+      PYSTRAY_AVAILABLE = True
+  except ImportError:
+      pystray = None
+      PYSTRAY_AVAILABLE = False
+  
+============================================================
+
+File: jarvis\ui\tray.py:30 -> except ImportError:
+  
+  # Check pystray availability
+  try:
+      import pystray
+      PYSTRAY_AVAILABLE = True
+  except ImportError:
+      pystray = None
+      PYSTRAY_AVAILABLE = False
+  
+  
+  class TrayStatus(str, Enum):
+      """Runtime status states reflected on the system tray icon."""
+      ACTIVE = "active"          # Ready and listening for claps/triggers (Neon Cyan / Emerald)
+      LISTENING = "listening"    # Actively recording and transcribing voice command (Amber / Gold)
+      MUTED = "muted"            # Microphone / detection paused (Crimson Red)
+      ERROR = "error"            # Error state or degraded connection (Orange / Red)
+============================================================
+
+File: jarvis\vision\biometrics.py:34 -> except ImportError:
+  log = logging.getLogger("jarvis.vision.biometrics")
+  
+  # Try optional imports
+  try:
+      import cv2  # type: ignore
+  except ImportError:
+      cv2 = None
+  
+  try:
+      import face_recognition  # type: ignore
+  except ImportError:
+      face_recognition = None
+  
+  
+  EMBEDDING_DIM = 128
+  MAX_LABEL_LENGTH = 128
+============================================================
+
+File: jarvis\vision\biometrics.py:39 -> except ImportError:
+  except ImportError:
+      cv2 = None
+  
+  try:
+      import face_recognition  # type: ignore
+  except ImportError:
+      face_recognition = None
+  
+  
+  EMBEDDING_DIM = 128
+  MAX_LABEL_LENGTH = 128
+  DEFAULT_TOLERANCE = 0.60
+  # Sanity ceiling for the tolerance *configuration* knob, not a claim about real
+  # embedding distance ranges. Guards against pathological misconfiguration
+  # (NaN/Inf/negative/absurdly-large) silently broadening authentication.
+  MAX_SANE_TOLERANCE = 10.0
+============================================================
+
+File: jarvis\vision\computer_use.py:30 -> except ImportError:
+  from typing import Any
+  
+  try:
+      from PIL import Image, ImageDraw
+      PIL_AVAILABLE = True
+  except ImportError:
+      Image = None  # type: ignore
+      ImageDraw = None  # type: ignore
+      PIL_AVAILABLE = False
+  
+  try:
+      import pytesseract  # type: ignore
+      PYTESSERACT_AVAILABLE = True
+  except ImportError:
+      pytesseract = None  # type: ignore
+      PYTESSERACT_AVAILABLE = False
+============================================================
+
+File: jarvis\vision\computer_use.py:38 -> except ImportError:
+      PIL_AVAILABLE = False
+  
+  try:
+      import pytesseract  # type: ignore
+      PYTESSERACT_AVAILABLE = True
+  except ImportError:
+      pytesseract = None  # type: ignore
+      PYTESSERACT_AVAILABLE = False
+  
+  try:
+      import win32gui  # type: ignore
+      WIN32GUI_AVAILABLE = True
+  except ImportError:
+      win32gui = None  # type: ignore
+      WIN32GUI_AVAILABLE = False
+  
+============================================================
+
+File: jarvis\vision\computer_use.py:45 -> except ImportError:
+      PYTESSERACT_AVAILABLE = False
+  
+  try:
+      import win32gui  # type: ignore
+      WIN32GUI_AVAILABLE = True
+  except ImportError:
+      win32gui = None  # type: ignore
+      WIN32GUI_AVAILABLE = False
+  
+  from jarvis.vision.ocr import DesktopOCR
+  from jarvis.vision.screen import ScreenVisionManager
+  
+  logger = logging.getLogger("jarvis.vision.computer_use")
+  
+  
+  # ──────────────────────────────────────────────────────────────────────────────
+============================================================
+
+File: jarvis\vision\ocr.py:19 -> except ImportError:
+  from typing import Any
+  
+  try:
+      from PIL import Image
+      PIL_AVAILABLE = True
+  except ImportError:
+      Image = None  # type: ignore
+      PIL_AVAILABLE = False
+  
+  try:
+      import pytesseract
+      PYTESSERACT_AVAILABLE = True
+  except ImportError:
+      pytesseract = None  # type: ignore
+      PYTESSERACT_AVAILABLE = False
+  
+============================================================
+
+File: jarvis\vision\ocr.py:26 -> except ImportError:
+      PIL_AVAILABLE = False
+  
+  try:
+      import pytesseract
+      PYTESSERACT_AVAILABLE = True
+  except ImportError:
+      pytesseract = None  # type: ignore
+      PYTESSERACT_AVAILABLE = False
+  
+  from jarvis.vision.screen import ScreenVisionManager
+  
+  logger = logging.getLogger("jarvis.vision.ocr")
+  
+  
+  class DesktopOCR:
+      """
+============================================================
+
+File: jarvis\vision\screen.py:26 -> except ImportError:
+  from jarvis.security.secrets import get_secret
+  
+  try:
+      from PIL import Image, ImageGrab
+      PIL_AVAILABLE = True
+  except ImportError:
+      Image = None  # type: ignore
+      ImageGrab = None  # type: ignore
+      PIL_AVAILABLE = False
+  
+  try:
+      import mss
+      MSS_AVAILABLE = True
+  except ImportError:
+      mss = None  # type: ignore
+      MSS_AVAILABLE = False
+============================================================
+
+File: jarvis\vision\screen.py:34 -> except ImportError:
+      PIL_AVAILABLE = False
+  
+  try:
+      import mss
+      MSS_AVAILABLE = True
+  except ImportError:
+      mss = None  # type: ignore
+      MSS_AVAILABLE = False
+  
+  try:
+      import requests
+      REQUESTS_AVAILABLE = True
+  except ImportError:
+      requests = None  # type: ignore
+      REQUESTS_AVAILABLE = False
+  
+============================================================
+
+File: jarvis\vision\screen.py:41 -> except ImportError:
+      MSS_AVAILABLE = False
+  
+  try:
+      import requests
+      REQUESTS_AVAILABLE = True
+  except ImportError:
+      requests = None  # type: ignore
+      REQUESTS_AVAILABLE = False
+  
+  from jarvis.vision.dialog_detector import ErrorDialogDetector
+  
+  logger = logging.getLogger("jarvis.vision.screen")
+  
+  
+  @dataclass
+  class ScreenCaptureResult:
+============================================================
+
+File: jarvis\vision\visual_verifier.py:28 -> except ImportError:
+  from typing import Any
+  
+  try:
+      from PIL import Image, ImageChops, ImageStat
+      PIL_AVAILABLE = True
+  except ImportError:
+      Image = None  # type: ignore
+      ImageChops = None  # type: ignore
+      ImageStat = None  # type: ignore
+      PIL_AVAILABLE = False
+  
+  from jarvis.vision.ocr import DesktopOCR
+  from jarvis.vision.screen import ScreenVisionManager
+  
+  logger = logging.getLogger("jarvis.vision.visual_verifier")
+  
+============================================================
+
+File: jarvis\web\finance.py:22 -> except ImportError:
+  from typing import Any
+  
+  try:
+      import requests
+      REQUESTS_AVAILABLE = True
+  except ImportError:
+      requests = None  # type: ignore
+      REQUESTS_AVAILABLE = False
+  
+  from jarvis.web.cache import TTLCache
+  
+  logger = logging.getLogger("jarvis.web.finance")
+  
+  
+  @dataclass
+  class CryptoQuote:
+============================================================
+
+File: jarvis\web\news.py:22 -> except ImportError:
+  from dataclasses import dataclass
+  
+  try:
+      import requests
+      REQUESTS_AVAILABLE = True
+  except ImportError:
+      requests = None  # type: ignore
+      REQUESTS_AVAILABLE = False
+  
+  from jarvis.web.cache import TTLCache
+  
+  logger = logging.getLogger("jarvis.web.news")
+  
+  # Standard RSS Feed URL Directory
+  DEFAULT_FEEDS = {
+      "tech": [
+============================================================
+
+File: jarvis\web\search.py:20 -> except ImportError:
+  from typing import Any
+  
+  try:
+      import requests
+      REQUESTS_AVAILABLE = True
+  except ImportError:
+      requests = None  # type: ignore
+      REQUESTS_AVAILABLE = False
+  
+  try:
+      from duckduckgo_search import DDGS
+      DDGS_AVAILABLE = True
+  except ImportError:
+      DDGS = None  # type: ignore
+      DDGS_AVAILABLE = False
+  
+============================================================
+
+File: jarvis\web\search.py:27 -> except ImportError:
+      REQUESTS_AVAILABLE = False
+  
+  try:
+      from duckduckgo_search import DDGS
+      DDGS_AVAILABLE = True
+  except ImportError:
+      DDGS = None  # type: ignore
+      DDGS_AVAILABLE = False
+  
+  from jarvis.web.cache import TTLCache
+  
+  logger = logging.getLogger("jarvis.web.search")
+  
+  
+  @dataclass
+  class SearchResultItem:
+============================================================
+
+File: jarvis\web\weather.py:26 -> except ImportError:
+  from jarvis.security.secrets import get_secret
+  
+  try:
+      import requests
+      REQUESTS_AVAILABLE = True
+  except ImportError:
+      requests = None  # type: ignore
+      REQUESTS_AVAILABLE = False
+  
+  from jarvis.web.cache import TTLCache
+  
+  logger = logging.getLogger("jarvis.web.weather")
+  
+  # City alias normalizer dictionary
+  CITY_ALIASES = {
+      "hanoi": "Hà Nội",
+============================================================
+
+File: jarvis\workers\notification_hub.py:216 -> except ImportError:
+                  duration="short",
+              )
+              toast.set_audio(audio.Default, loop=False)
+              toast.show()
+              return True
+          except ImportError:
+              pass
+          try:
+              # Fallback: PowerShell BurntToast / basic toast
+              import subprocess
+              import sys
+              ps = (
+                  f"[Windows.UI.Notifications.ToastNotificationManager, "
+                  f"Windows.UI.Notifications, ContentType=WindowsRuntime] | Out-Null; "
+                  f"$xml = [Windows.UI.Notifications.ToastNotificationManager]"
+                  f"::GetTemplateContent('ToastText02'); "
+============================================================
+
+File: jarvis\skills\macro_recorder\__init__.py:56 -> except ImportError:
+          elif step_type == "key":
+              keys = params.get("keys", "")
+              try:
+                  import pyautogui  # type: ignore[import]
+                  pyautogui.hotkey(*keys.split("+")) if "+" in keys else pyautogui.press(keys)
+              except ImportError:
+                  # Fallback: powershell SendKeys
+                  if sys.platform == "win32":
+                      _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                      subprocess.run(
+                          ["powershell", "-Command", f"[System.Windows.Forms.SendKeys]::SendWait('{keys}')"],
+                          timeout=5, capture_output=True,
+                          creationflags=_cflags,
+                      )
+              return {"success": True, "type": step_type, "description": description}
+  
+============================================================
+
+File: jarvis\skills\macro_recorder\__init__.py:72 -> except ImportError:
+          elif step_type == "type":
+              text = params.get("text", "")
+              try:
+                  import pyautogui  # type: ignore[import]
+                  pyautogui.typewrite(text, interval=0.05)
+              except ImportError:
+                  import pyperclip  # type: ignore[import]
+                  pyperclip.copy(text)
+                  log.info("type step: copied to clipboard (pyautogui not installed)")
+              return {"success": True, "type": step_type, "description": description}
+  
+          elif step_type == "open":
+              target = params.get("target", "")
+              if target:
+                  _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                  os.startfile(target) if sys.platform == "win32" else subprocess.Popen(["xdg-open", target], creationflags=_cflags)
+============================================================
+
+File: jarvis\skills\sound_board\__init__.py:82 -> except ImportError:
+      elif act == "stop":
+          try:
+              import sounddevice as sd  # type: ignore[import]
+              sd.stop()
+              msg = "⏹️ Đã dừng âm thanh."
+          except ImportError:
+              msg = "sounddevice chưa cài đặt — không có âm thanh nào đang phát."
+  
+      elif act == "custom":
+          player.play_tone(frequency_hz=frequency, duration_s=duration)
+          msg = f"🎵 Đã phát tone tùy chỉnh: {frequency:.0f}Hz, {duration:.2f}s"
+  
+      else:
+          msg = f"Hành động '{act}' không hợp lệ. Hỗ trợ: play, chime, alarm, alert, stop, custom."
+          return {"data": {"text": msg, "success": False}, "output": msg}
+  
+============================================================
+

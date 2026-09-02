@@ -46,17 +46,21 @@ class HardwareReporter:
         lang_clean = (lang or "vi").lower()
         if lang_clean.startswith("en"):
             temp_clause = f"CPU temperature is {metrics.cpu_temp_c:.0f} degrees Celsius. " if metrics.cpu_temp_c is not None else ""
+            gpu_clause = f"GPU temperature is {metrics.gpu_temp_c:.0f} degrees Celsius. " if metrics.gpu_temp_c is not None else ""
             return (
                 f"System status: CPU usage is {metrics.cpu_percent:.0f} percent. "
                 f"{temp_clause}"
+                f"{gpu_clause}"
                 f"RAM usage is {metrics.ram_percent:.0f} percent. "
                 f"Storage drive status is {metrics.smart_status}."
             )
 
         temp_clause = f"Nhiệt độ CPU là {metrics.cpu_temp_c:.0f} độ C. " if metrics.cpu_temp_c is not None else ""
+        gpu_clause = f"Nhiệt độ GPU là {metrics.gpu_temp_c:.0f} độ C. " if metrics.gpu_temp_c is not None else ""
         return (
             f"Tình trạng hệ thống: CPU đang sử dụng {metrics.cpu_percent:.0f} phần trăm. "
             f"{temp_clause}"
+            f"{gpu_clause}"
             f"RAM đang sử dụng {metrics.ram_percent:.0f} phần trăm. "
             f"Ổ đĩa trạng thái {metrics.smart_status}."
         )

@@ -1,58 +1,68 @@
-# BRIEFING — 2026-08-24T02:55:00Z
+# BRIEFING — 2026-09-02T08:12:00Z
 
 ## Mission
-Implement Milestone M5: HUD Telemetry, Memory Upgrades, System Integration & Health Check Diagnostics for the JARVIS Autonomous Agentic Superpower upgrade.
+Worker M5 for Sprint 2 (v4.7.0): R5 Hardware Voice Reporting & Intent Routing, and adversarial test suite fixes across hardware monitor, vision dialog detector, and router.
 
 ## 🔒 My Identity
-- Archetype: implementer
+- Archetype: worker_m5
 - Roles: implementer, qa, specialist
-- Working directory: d:/Software GitCode/JARVIS/.agents/worker_m5
-- Original parent: 066a3b59-4763-4416-9da6-bafb3993c06e
-- Milestone: M5
+- Working directory: d:\Software GitCode\JARVIS\.agents\worker_m5
+- Original parent: 9506425c-ec6d-40db-a68f-f37c461f99fc
+- Milestone: Sprint 2 (v4.7.0) - M5
 
 ## 🔒 Key Constraints
-- Exclusively Owned Files:
-  * `jarvis/ui/overlay.py`
-  * `jarvis/memory/sqlite_store.py`
-  * `jarvis/core/app.py`
-  * `jarvis/core/dispatcher.py`
-  * `jarvis/cli.py`
-- DO NOT CHEAT. All implementations must be genuine.
-- Zero regressions on baseline 921+ tests and all new tests.
-- `python -m jarvis health-check` must report READY/OK for all autonomous subsystems and exit with 0.
+- Exclusively owned files:
+  - `jarvis/hardware/reporter.py`
+  - `jarvis/hardware/monitor.py`
+  - `jarvis/llm/router.py`
+  - `jarvis/vision/dialog_detector.py`
+- DO NOT CHEAT: Genuine implementations only, no hardcoded test responses.
+- Ensure MISROUTED = 0 and SILENT = 0 in routing evaluations.
+- Ensure 0 failures across all relevant pytest and eval suites.
 
 ## Current Parent
-- Conversation ID: 066a3b59-4763-4416-9da6-bafb3993c06e
-- Updated: 2026-08-24T02:55:00Z
+- Conversation ID: 9506425c-ec6d-40db-a68f-f37c461f99fc
+- Updated: 2026-09-02T08:12:00Z
 
 ## Task Summary
-- **What to build**:
-  1. `jarvis/ui/overlay.py`: Extended `AlwaysOnOverlay` for Task DAG telemetry (`update_task_dag`), live code log streaming (`append_code_log`), and visual result card rendering (`display_visual_result`).
-  2. `jarvis/memory/sqlite_store.py`: Added `task_history`, `browser_sessions`, `learned_workflows` tables, indexes, and full API methods (`record_task_execution`, `get_task_history`, `save_browser_session`, `get_browser_session`, `save_learned_workflow`, `get_learned_workflows`, etc.).
-  3. `jarvis/core/dispatcher.py`: Verified action dispatcher and event bus routing.
-  4. `jarvis/core/app.py`: Registered actions for `planner_execute_task`, `subagent_spawn`, `sandbox_execute_code`, `skill_synthesize`, `browser_navigate`, `browser_scrape`, `browser_fill_form`, `vision_click_ui`, `vision_type_ui`, `vision_verify_state`. Bootstrapped all new subsystems (`ReActTaskEngine`, `CodeInterpreterSandbox`, `SkillRegistry`, `BrowserAgent`, `ComputerUseVision`, `GUIActor`, `SubAgentManager`). Multi-modal voice integration with `ReActTaskEngine`.
-  5. `jarvis/cli.py`: Updated `run_health_check()` to diagnose and report READY/OK for Autonomous ReAct Planner, Code Interpreter Sandbox, Persistent Skill Library, Browser Automation Agent, Computer-Use Vision & GUI Actor, Sub-Agent Worker Pool, alongside existing 11 subsystems.
-- **Success criteria**: All tests pass, zero regressions, health-check exits with 0.
+- **What was built**:
+  1. `jarvis/hardware/reporter.py`: Updated `format_voice_summary()` to include GPU temp when `metrics.gpu_temp_c is not None`.
+  2. `jarvis/hardware/monitor.py`: Allowed CRITICAL alerts to bypass warning cooldown when escalating; updated `get_voice_summary()` for GPU temp.
+  3. `jarvis/llm/router.py`: Added support for battery/pin in `_make_hw_intent()` and `get_natural_response()`; added regex patterns and static rule mappings for Vietnamese hardware queries ("cpu mấy phần trăm", "ram còn bao nhiêu", "nhiệt độ máy", "pin còn bao nhiêu", "tốc độ cpu", etc.); optimized keyword lookup with pre-substring checks and pre-compiled regex cache to eliminate ReDoS and latency on 50KB strings.
+  4. `jarvis/vision/dialog_detector.py`: Checked critical/crash before generic error to preserve `severity='critical'` and ensured title buffer size handles arbitrary lengths.
+  5. `tests/unit/test_router_hardware.py`: Created comprehensive unit test suite covering hardware queries, battery routing, voice reporting, cooldown bypass, severity preservation, and ReDoS resistance.
+- **Success criteria**:
+  - `routing_eval_n150.py`: 148/148 CORRECT (100.0%), 0 SILENT, 0 MISROUTED.
+  - Pytest suite: 283 passed, 1 skipped, 0 failed.
+- **Interface contracts**: PROJECT.md, ORIGINAL_REQUEST.md
+- **Code layout**: PROJECT.md
+
+## Key Decisions Made
+- Pre-compiled short key word-boundary regexes in `LLMIntentRouter.__init__` and guarded them with O(1) `key not in clean_lower` check to ensure sub-millisecond parsing even on 50KB adversarial inputs.
+- Structured `HardwareMonitor.check_thresholds()` to track `last_alert_levels` and allow CRITICAL alerts to immediately fire upon escalation from WARNING or initial state while preserving debouncing against tight-loop spam.
+- Enhanced `ErrorDialogDetector` title retrieval buffer capacity to `max(length + 1, 512)` to handle variable title lengths safely.
+
+## Artifact Index
+- `.agents/worker_m5/DISPATCH.md` — Dispatch prompt instructions
+- `.agents/worker_m5/BRIEFING.md` — Situational awareness
+- `.agents/worker_m5/progress.md` — Progress tracker
+- `.agents/worker_m5/handoff.md` — Final handoff report
 
 ## Change Tracker
 - **Files modified**:
-  * `jarvis/memory/sqlite_store.py`: Added `task_history`, `browser_sessions`, `learned_workflows` tables, WAL indexes, and full CRUD API.
-  * `jarvis/ui/overlay.py`: Added `update_task_dag`, `append_code_log`, `display_visual_result`, thread-safe UI rendering frames, and state buffers.
-  * `jarvis/core/app.py`: Integrated all 6 new autonomous subsystems in `initialize()`, registered 12 new autonomous actions in `ActionDispatcher`, added autonomous multi-step planning trigger in text/voice pipeline.
-  * `jarvis/cli.py`: Extended `run_health_check()` to test all 6 autonomous subsystems and return 0.
-  * `tests/unit/test_hud_telemetry_and_memory.py`: Added comprehensive unit tests covering all M5 additions.
-- **Build status**: PASS
+  - `jarvis/hardware/reporter.py`: Added GPU temp formatting in `format_voice_summary()`
+  - `jarvis/hardware/monitor.py`: Added CRITICAL escalation bypass and GPU temp voice summary
+  - `jarvis/llm/router.py`: Added battery support, hardware intent mappings/regexes, and O(n) regex optimization
+  - `jarvis/vision/dialog_detector.py`: Fixed severity check priority and buffer capacity
+  - `tests/unit/test_router_hardware.py`: New unit test suite
+  - `tests/eval/routing_eval_n150.py`: Added hardware queries to corpus and automated pytest runner
+- **Build status**: PASS (283 passed, 1 skipped, 0 failed)
 - **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: All unit and integration test scenarios verified.
-- **Lint status**: Clean strict typing, complete docstrings, no syntax errors.
-- **Tests added/modified**: `tests/unit/test_hud_telemetry_and_memory.py` extended with test cases for Task DAG telemetry, code logs, visual result cards, task history, browser sessions, learned workflows, and app action routing.
+- **Build/test result**: 283 passed, 1 skipped, 0 failed (100% pass rate)
+- **Lint status**: 0 violations
+- **Tests added/modified**: 22 new tests in `test_router_hardware.py`, 5 corpus entries in `routing_eval_n150.py`
 
 ## Loaded Skills
 - None
-
-## Key Decisions Made
-- Thread-safe Tkinter UI scheduling via `_schedule` / `root.after` with headless CI/CD fallback support.
-- Fully compatible argument signatures for HUD methods and SQLiteStore methods.
-- Clean and decoupled initialization in `JarvisApp` with graceful fallbacks.

@@ -200,6 +200,11 @@ TEST_CORPUS: list[tuple[str, str]] = [
     ("system_status",   "kiem tra cpu"),
     ("system_status",   "xem ram"),
     ("system_status",   "hardware status"),
+    ("system_status",   "cpu mấy phần trăm"),
+    ("system_status",   "ram còn bao nhiêu"),
+    ("system_status",   "nhiệt độ máy"),
+    ("system_status",   "pin còn bao nhiêu"),
+    ("system_status",   "tốc độ cpu"),
 
     # --- brightness / man hinh ---
     ("system_brightness", "tang do sang"),
@@ -313,5 +318,30 @@ def run_eval(verbose: bool = False) -> None:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Text-routing eval N=150")
     ap.add_argument("-v", "--verbose", action="store_true")
+    ap.add_argument("--skip-pytest", action="store_true", help="Skip pytest verification suite")
     args = ap.parse_args()
     run_eval(verbose=args.verbose)
+    if not args.skip_pytest:
+        import pytest
+        print("\n" + "="*60 + "\nRunning Pytest Validation Suite\n" + "="*60)
+        test_targets = [
+            "tests/unit/test_router_hardware.py",
+            "tests/test_hardware_monitor.py",
+            "tests/test_adversarial_challenger_1.py",
+            "tests/test_adversarial_harness.py",
+            "tests/test_adversarial_m1.py",
+            "tests/test_adversarial_m1_intent_router.py",
+            "tests/test_adversarial_m2_audio_gesture.py",
+            "tests/test_adversarial_m2_llm_router.py",
+            "tests/test_adversarial_m3_challenger1.py",
+            "tests/test_adversarial_m3_stt_llm.py",
+            "tests/test_adversarial_m3_ui_app.py",
+            "tests/test_adversarial_m4_challenger1.py",
+            "tests/test_adversarial_m5_2.py",
+            "tests/test_adversarial_m5_challenger1.py",
+            "-v",
+        ]
+        ret = pytest.main(test_targets)
+        print(f"\nPytest validation exit code: {ret}")
+        if ret != 0:
+            sys.exit(ret)

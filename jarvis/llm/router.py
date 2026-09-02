@@ -467,6 +467,108 @@ class LLMIntentRouter:
                 source="rule_fallback",
                 response_text="Ổ đĩa đang hoạt động trong trạng thái tốt, thưa Ngài.",
             ),
+            "cpu mấy phần trăm": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "cpu"},
+                source="rule_fallback",
+                response_text="Nhiệt độ CPU hiện tại là 45 độ C, hiệu năng ổn định, thưa Ngài.",
+            ),
+            "mức sử dụng cpu": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "cpu"},
+                source="rule_fallback",
+                response_text="Nhiệt độ CPU hiện tại là 45 độ C, hiệu năng ổn định, thưa Ngài.",
+            ),
+            "tốc độ cpu": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "cpu"},
+                source="rule_fallback",
+                response_text="Nhiệt độ CPU hiện tại là 45 độ C, hiệu năng ổn định, thưa Ngài.",
+            ),
+            "xung nhịp cpu": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "cpu"},
+                source="rule_fallback",
+                response_text="Nhiệt độ CPU hiện tại là 45 độ C, hiệu năng ổn định, thưa Ngài.",
+            ),
+            "ram còn bao nhiêu": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "ram"},
+                source="rule_fallback",
+                response_text="Bộ nhớ RAM đang sử dụng ở mức bình thường, tài nguyên dồi dào, thưa Ngài.",
+            ),
+            "ram còn lại bao nhiêu": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "ram"},
+                source="rule_fallback",
+                response_text="Bộ nhớ RAM đang sử dụng ở mức bình thường, tài nguyên dồi dào, thưa Ngài.",
+            ),
+            "bộ nhớ còn bao nhiêu": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "ram"},
+                source="rule_fallback",
+                response_text="Bộ nhớ RAM đang sử dụng ở mức bình thường, tài nguyên dồi dào, thưa Ngài.",
+            ),
+            "nhiệt độ máy": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "cpu"},
+                source="rule_fallback",
+                response_text="Nhiệt độ CPU hiện tại là 45 độ C, hiệu năng ổn định, thưa Ngài.",
+            ),
+            "nhiệt độ laptop": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "cpu"},
+                source="rule_fallback",
+                response_text="Nhiệt độ CPU hiện tại là 45 độ C, hiệu năng ổn định, thưa Ngài.",
+            ),
+            "nhiệt độ pc": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "cpu"},
+                source="rule_fallback",
+                response_text="Nhiệt độ CPU hiện tại là 45 độ C, hiệu năng ổn định, thưa Ngài.",
+            ),
+            "pin còn bao nhiêu": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "battery"},
+                source="rule_fallback",
+                response_text="Pin hệ thống đang ở mức an toàn, thưa Ngài.",
+            ),
+            "dung lượng pin": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "battery"},
+                source="rule_fallback",
+                response_text="Pin hệ thống đang ở mức an toàn, thưa Ngài.",
+            ),
+            "mức pin": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "battery"},
+                source="rule_fallback",
+                response_text="Pin hệ thống đang ở mức an toàn, thưa Ngài.",
+            ),
+            "kiểm tra pin": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "battery"},
+                source="rule_fallback",
+                response_text="Pin hệ thống đang ở mức an toàn, thưa Ngài.",
+            ),
+            "pin mấy phần trăm": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "battery"},
+                source="rule_fallback",
+                response_text="Pin hệ thống đang ở mức an toàn, thưa Ngài.",
+            ),
+            "pin": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "battery"},
+                source="rule_fallback",
+                response_text="Pin hệ thống đang ở mức an toàn, thưa Ngài.",
+            ),
+            "battery": IntentResult(
+                action_name="hardware_telemetry_check",
+                parameters={"component": "battery"},
+                source="rule_fallback",
+                response_text="Pin hệ thống đang ở mức an toàn, thưa Ngài.",
+            ),
             "tình trạng hệ thống": IntentResult(
                 action_name="hardware_status_query",
                 parameters={},
@@ -1173,6 +1275,11 @@ class LLMIntentRouter:
 
         # Pre-sort rule dictionary keys by descending length for greedy exact match
         self._sorted_rule_keys: list[str] = sorted(self.rule_engine.keys(), key=len, reverse=True)
+        self._short_key_regexes: dict[str, re.Pattern] = {
+            k: re.compile(r"(?:\b|^)" + re.escape(k) + r"(?:\b|$)", re.IGNORECASE)
+            for k in self.rule_engine
+            if len(k) <= 4 and k.isascii()
+        }
 
         # Advanced Parametric Regex Rules (Run before static substring fallback)
         self._regex_rules: list[tuple[re.Pattern, Callable[[re.Match], IntentResult]]] = [
@@ -1234,12 +1341,16 @@ class LLMIntentRouter:
             ),
             # 2. Hardware / Telemetry / Diagnostics
             (
-                re.compile(r"(?:kiểm\s*tra|kiem\s*tra|check|query|xem|báo\s*cáo|bao\s*cao)\s+(?:(?:(cpu|gpu|ram|ổ\s*cứng|o\s*cung|disk|bộ\s*nhớ|bo\s*nho)\s+(?:nhiệt\s*độ|nhiet\s*do|temp|temperature|mức\s*sử\s*dụng|tình\s*trạng|tinh\s*trang|dung\s*lượng))|(?:(?:nhiệt\s*độ|nhiet\s*do|temp|temperature|mức\s*sử\s*dụng|tình\s*trạng|tinh\s*trang|dung\s*lượng)\s+(cpu|gpu|ram|ổ\s*cứng|o\s*cung|disk|bộ\s*nhớ|bo\s*nho))|(?:nhiệt\s*độ|nhiet\s*do|temp|temperature))", re.IGNORECASE),
+                re.compile(r"(?:kiểm\s*tra|kiem\s*tra|check|query|xem|báo\s*cáo|bao\s*cao)?\s*(?:(?:(cpu|gpu|ram|ổ\s*cứng|o\s*cung|disk|bộ\s*nhớ|bo\s*nho|pin|battery)\s+(?:nhiệt\s*độ|nhiet\s*do|temp|temperature|mức\s*sử\s*dụng|mấy\s*phần\s*trăm|tốc\s*độ|còn\s*bao\s*nhiêu|còn\s*lại\s*bao\s*nhiêu|tình\s*trạng|tinh\s*trang|dung\s*lượng))|(?:(?:nhiệt\s*độ|nhiet\s*do|temp|temperature|mức\s*sử\s*dụng|mấy\s*phần\s*trăm|tốc\s*độ|còn\s*bao\s*nhiêu|còn\s*lại\s*bao\s*nhiêu|dung\s*lượng)\s+(cpu|gpu|ram|ổ\s*cứng|o\s*cung|disk|bộ\s*nhớ|bo\s*nho|pin|battery|máy|laptop|pc|thiết\s*bị))|(?:nhiệt\s*độ|nhiet\s*do|temp|temperature))", re.IGNORECASE),
                 lambda m: self._make_hw_intent((m.group(1) or m.group(2) or "cpu").lower()),
             ),
             (
-                re.compile(r"^(?:jarvis[,\s]*)?(?:kiểm\s*tra|kiem\s*tra|xem|check)\s+(cpu|gpu|ram|disk|ổ\s*cứng|o\s*cung)$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:kiểm\s*tra|kiem\s*tra|xem|check)\s+(cpu|gpu|ram|disk|ổ\s*cứng|o\s*cung|pin|battery)$", re.IGNORECASE),
                 lambda m: self._make_hw_intent(m.group(1)),
+            ),
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:pin\s*còn\s*bao\s*nhiêu|dung\s*lượng\s*pin|mức\s*pin|kiem\s*tra\s*pin|pin\s*mấy\s*phần\s*trăm|pin)$", re.IGNORECASE),
+                lambda m: self._make_hw_intent("battery"),
             ),
             (
                 re.compile(r"(?:tình\s*trạng|trạng\s*thái|tinh\s*trang|trang\s*thai|status|health)\s*(?:hệ\s*thống|máy\s*tính|he\s*thong|may\s*tinh|system|pc|máy|may|hardware)", re.IGNORECASE),
@@ -1684,9 +1795,19 @@ class LLMIntentRouter:
         """Determines if clean_lower matches the deterministic key."""
         if not key or not clean_lower:
             return False
+        if key not in clean_lower:
+            return False
         if len(key) <= 4 and key.isascii():
-            return bool(re.search(r"(?:\b|^)" + re.escape(key) + r"(?:\b|$)", clean_lower))
-        return key in clean_lower
+            if clean_lower == key:
+                return True
+            pattern = getattr(self, "_short_key_regexes", {}).get(key)
+            if pattern is None:
+                pattern = re.compile(r"(?:\b|^)" + re.escape(key) + r"(?:\b|$)", re.IGNORECASE)
+                if not hasattr(self, "_short_key_regexes"):
+                    self._short_key_regexes = {}
+                self._short_key_regexes[key] = pattern
+            return bool(pattern.search(clean_lower))
+        return True
 
     def _make_light_intent(self, service: str, target: str | None) -> IntentResult:
         t = (target or "").lower().strip()
@@ -1714,6 +1835,8 @@ class LLMIntentRouter:
             comp = "ram"
         elif "disk" in c or "ổ cứng" in c or "smart" in c:
             comp = "disk"
+        elif "pin" in c or "battery" in c:
+            comp = "battery"
         else:
             comp = "cpu"
 
@@ -1972,6 +2095,8 @@ class LLMIntentRouter:
                 return "Card đồ họa hoạt động bình thường, nhiệt độ trong ngưỡng an toàn, thưa Ngài."
             elif "disk" in comp or "smart" in comp or "ổ" in comp:
                 return "Ổ đĩa đang hoạt động trong trạng thái tốt, thưa Ngài."
+            elif "pin" in comp or "battery" in comp:
+                return "Pin hệ thống đang ở mức an toàn, thưa Ngài."
             return "Đang kiểm tra thông số phần cứng hệ thống cho Ngài."
 
         # 5. Spotify & Music (Category 3)
@@ -2302,7 +2427,7 @@ class LLMIntentRouter:
 
             # 3. TIER 3: Graceful Rule Fallback on Error
             for pattern, extractor in self._regex_rules:
-                m = pattern.search(clean)
+                m = pattern.search(clean_for_regex)
                 if m:
                     res = extractor(m)
                     res.raw_text = text

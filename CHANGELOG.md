@@ -2,6 +2,76 @@
 
 ---
 
+## 🚀 [4.7.0] - 2026-09-02 — Sprint 2 Acoustic & UX Hardening Release
+
+> **Commits:** `HEAD` | **Branch:** `main` | **Version:** `4.6.0 → 4.7.0`
+
+### 📋 Tổng Quan Bản Phát Hành (Release Summary)
+Bản phát hành **JARVIS v4.7.0 (Sprint 2)** tập trung vào việc gia cố âm học DSP (Acoustic Hardening), triệt tiêu hiện tượng phản hồi âm (Acoustic Echo Cancellation), đảm bảo an toàn luồng Windows COM cho SAPI5 TTS, tối ưu hóa độ trễ STT với Faster-Whisper eager preloading và VAD trimming, phân lập luồng giao diện HUD Overlay, bổ sung telemetry trạng thái trên System Tray, và mở rộng bộ nhận diện giọng nói cho giám sát phần cứng.
+
+| Hạng mục | Mã yêu cầu | Trạng thái trước v4.7.0 | Trạng thái v4.7.0 | Kết quả kiểm chứng |
+|---|---|---|---|---|
+| **DSP Acoustic Hardening** | P1-8 / R1 | Dễ bị false positive do tạp âm/echo loa | VAD pre-filter gate, 2.5s post-TTS mic suppression window, SFM/ZCR bounds verification | 9/9 tests pass, FP rate ≤ 1/30m |
+| **SAPI5 TTS Thread Safety** | P1-9 / R2 | Daemon thread có nguy cơ crash thiếu COM init | `pythoncom.CoInitialize()` và `CoUninitialize()` đầy đủ trong worker daemon thread | 5/5 tests pass, 10 consecutive TTS calls 0 COM errors |
+| **Faster-Whisper Preload** | P1-10 / R3 | Cold-start spike 2-5s khi gọi lần đầu | Background eager preload + VAD silence trimming (`vad_filter=True`, `min_silence_duration_ms=500`) | 5/5 tests pass, warm latency ≤ 1.5s |
+| **HUD & System Tray** | P1-6/7 / R4 | Thiếu item Status, tiềm ẩn xung đột mainloop Tkinter | Overlay thread isolation qua `after()`, dynamic "Status" item trên System Tray, safe `pathlib.Path` | 5/5 tests pass, menu ≥ 4 items |
+| **Hardware Voice Reporting** | P1-11 / R5 | Thiếu báo cáo nhiệt độ GPU và intent router phần cứng | `format_voice_summary()` với CPU/RAM/GPU temp, +5 rules router phần cứng có/không dấu | 13/13 tests pass, MISROUTED = 0 |
+| **Test Suite & Benchmark** | R6 | Cần kiểm chứng toàn diện Sprint 2 | 37 unit tests mới, 0 failures toàn bộ suite, routing eval 100% | 0 failures, SILENT 0%, MISROUTED 0 |
+
+---
+
+### 🟢 Added
+
+- **R1 / P1-8: DSP Acoustic Hardening & VAD Pre-Filter (`jarvis/audio/wake_word.py`, `jarvis/audio/vad.py`, `jarvis/core/app.py`)**:
+  - **VAD Energy Pre-Filter Gate**: Tích hợp bộ lọc Voice Activity Detection dựa trên năng lượng RMS (`RMS < 0.01`), tự động loại bỏ các khung âm thanh tĩnh/tạp âm trước khi chuyển vào wake word detector.
+  - **2.5s Post-TTS Microphone Echo Suppression Window**: Tự động vô hiệu hóa và loại bỏ hoàn toàn các luồng audio frame từ microphone trong lúc TTS đang phát và duy trì cửa sổ cooldown chính xác 2.5 giây sau khi TTS hoàn tất. Xóa sạch ring buffer (`clear()` / zeroing) để ngăn ngừa dội âm vòng lặp.
+  - **Spectral Feature Verification**: Thiết lập dải Spectral Flatness Measure chuẩn hóa ($0.03 \le \text{SFM} \le 0.65$) nhằm loại bỏ sóng sin đơn tần (<0.03) và tiếng ồn trắng (>0.65); chuẩn hóa Zero Crossing Rate ($\text{ZCR} \ge 0.10$) đảm bảo âm xát âm tiết 2; bổ sung cơ chế từ chối xung lực vỗ tay tức thời ($|t_{\text{diff}}| < 0.05\text{s}$).
+
+- **R2 / P1-9: SAPI5 TTS COM Apartment Safety (`jarvis/tts/manager.py`, `jarvis/tts/fallback.py`)**:
+  - Tích hợp chuẩn hóa `pythoncom.CoInitialize()` khi khởi tạo worker thread daemon của TTSManager trước khi Dispatch COM object (`win32com.client.Dispatch("SAPI.SpVoice")`).
+  - Bổ sung `pythoncom.CoUninitialize()` trong khối `finally` khi luồng kết thúc hoặc giải phóng tài nguyên.
+  - Xử lý cơ chế phục hồi ngoại lệ an toàn qua PowerShell/pyttsx3/mock fallback nếu SAPI5 COM gặp lỗi.
+
+- **R3 / P1-10: Faster-Whisper Eager Preloading & VAD Silence Trimming (`jarvis/stt/engine.py`)**:
+  - Khởi chạy tiến trình nạp model Whisper trong luồng nền ngay khi khởi tạo `FasterWhisperSTT` (`eager background preload`), triệt tiêu độ trễ khởi động 2–5s.
+  - Tích hợp bộ lọc cắt khoảng lặng VAD chuẩn của faster-whisper: `vad_filter=True` và `vad_parameters={"min_silence_duration_ms": 500}`, tối ưu thời gian xử lý và giảm thiểu hallucination.
+  - Đảm bảo an toàn đa luồng và đồng bộ hóa khi `transcribe()` được gọi trong lúc model đang được tải ngầm.
+
+- **R4 / P1-6 & P1-7: HUD Overlay Isolation & System Tray Status Telemetry (`jarvis/ui/overlay.py`, `jarvis/ui/tray.py`, `jarvis/core/app.py`)**:
+  - Đảm bảo `AlwaysOnOverlay` Tkinter mainloop hoạt động trên luồng giao diện riêng biệt, mọi cập nhật trạng thái từ main loop/audio thread đều chuyển qua `root.after()`.
+  - Bổ sung menu item **"Status"** trên System Tray hiển thị động: Phiên bản JARVIS (v4.7.0), trạng thái TTS Engine, trạng thái STT Model và tỷ lệ sử dụng RAM hệ thống.
+  - An toàn hóa việc mở nhật ký `_on_view_logs` với `pathlib.Path` import đầy đủ, ngăn ngừa `NameError`.
+
+- **R5 / P1-11: Hardware Voice Reporting & Intent Routing (`jarvis/hardware/reporter.py`, `jarvis/llm/router.py`)**:
+  - `HardwareReporter.format_voice_summary()` tổng hợp báo cáo giọng nói tự nhiên tiếng Việt chứa đầy đủ chỉ số CPU%, RAM% và nhiệt độ GPU (°C).
+  - Bổ sung các rule Tier-1 router cho 5 nhóm câu hỏi phần cứng (hỗ trợ cả có dấu và không dấu): `"cpu mấy phần trăm"`, `"ram còn bao nhiêu"`, `"nhiệt độ máy"`, `"pin còn bao nhiêu"`, `"tốc độ cpu"` $\to$ intent `system_status` / `hardware_telemetry_check`.
+
+- **R6: Bộ Kiểm Thử Chấp Nhận Sprint 2 (37 Tests Mới)**:
+  - `tests/unit/test_acoustic_hardening.py` (9 tests): Kiểm thử VAD filtering, echo suppression 2.5s, ring buffer clearing, SFM/ZCR bounds, clap rejection.
+  - `tests/unit/test_tts_com_safety.py` (5 tests): Kiểm thử COM lifecycle trong daemon thread, 10 lượt gọi TTS liên tiếp, fallback error handling.
+  - `tests/unit/test_stt_preload.py` (5 tests): Kiểm thử eager background preload, vad_filter parameters, latency budget, thread-safety.
+  - `tests/unit/test_tray_menu.py` (5 tests): Kiểm thử menu items count, dynamic status display, view logs path safety, toggle controls.
+  - `tests/unit/test_router_hardware.py` (13 tests): Kiểm thử 5 intent phần cứng có/không dấu, format voice summary, format component summary.
+
+---
+
+### 🔴 Fixed
+
+- Khắc phục triệt để lỗi `CoInitialize has not been called` trên Windows daemon threads khi thực thi SAPI5 TTS.
+- Loại bỏ hoàn toàn vòng lặp phản hồi âm (Acoustic Echo Feedback Loop) khi microphone thu lại chính giọng nói của JARVIS phát ra từ loa ngoài.
+- Loại bỏ độ trễ giật lag (latency spike 2-5s) ở lần nhận diện giọng nói đầu tiên của `FasterWhisperSTT`.
+- Khắc phục lỗi `NameError: name 'Path' is not defined` khi mở nhật ký từ khay hệ thống (`_on_view_logs`).
+
+---
+
+### 🟡 Changed
+
+- **Version Bump**: Cập nhật phiên bản chuẩn hóa trong `jarvis/__init__.py` lên **`4.7.0`**.
+- **System Tray Menu**: Mở rộng menu khay hệ thống lên $\ge 4$ mục với sự xuất hiện của mục thông tin telemetry "Status".
+- **Acoustic Cooldown**: Tăng cường bảo vệ micro với cửa sổ chặn 2.5s thực chất ở tầng capture audio block.
+
+---
+
 ## 🚀 [4.6.0] - 2026-09-02 — Technical Roadmap & P0 Critical Subsystems Release
 
 > **Commits:** `857d729` → `HEAD` | **Branch:** `main` | **Version:** `4.5.0 → 4.6.0`

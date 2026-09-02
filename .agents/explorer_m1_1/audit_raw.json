@@ -1,0 +1,3901 @@
+[
+  {
+    "rel_path": "__init__.py",
+    "lines": 25,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.config",
+      "jarvis.core.logger"
+    ]
+  },
+  {
+    "rel_path": "__main__.py",
+    "lines": 11,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.cli",
+      "sys"
+    ]
+  },
+  {
+    "rel_path": "cli.py",
+    "lines": 341,
+    "classes": [],
+    "functions_count": 5,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "argparse",
+      "collections.abc",
+      "ctypes",
+      "jarvis",
+      "jarvis.audio.wake_word",
+      "jarvis.automation.control",
+      "jarvis.automation.gui_actor",
+      "jarvis.automation.safety_gate",
+      "jarvis.automation.shell_assistant",
+      "jarvis.browser.driver",
+      "jarvis.core.app",
+      "jarvis.core.config",
+      "jarvis.core.logger",
+      "jarvis.core.paths",
+      "jarvis.memory.sqlite_store",
+      "jarvis.planner.engine",
+      "jarvis.platform.windows",
+      "jarvis.proactive.engine",
+      "jarvis.sandbox.interpreter",
+      "jarvis.skills.registry",
+      "jarvis.ui.overlay",
+      "jarvis.vision.computer_use",
+      "jarvis.vision.dialog_detector",
+      "jarvis.vision.screen",
+      "jarvis.web.hub",
+      "jarvis.workers.manager",
+      "os",
+      "sounddevice",
+      "sys",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "agent/__init__.py",
+    "lines": 4,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.agent.graph"
+    ]
+  },
+  {
+    "rel_path": "agent/graph.py",
+    "lines": 463,
+    "classes": [
+      "AgentState",
+      "ThoughtStep",
+      "AgentTask",
+      "Tool",
+      "ReActAgent"
+    ],
+    "functions_count": 29,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "jarvis.agent.tool_runtime",
+      "jarvis.comms.telegram",
+      "jarvis.llm.client",
+      "jarvis.memory.manager",
+      "jarvis.sandbox.interpreter",
+      "jarvis.security.secrets",
+      "jarvis.skills.briefing",
+      "jarvis.skills.browser_control",
+      "jarvis.skills.calculator",
+      "jarvis.skills.note_taker",
+      "jarvis.skills.system_control",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "time",
+      "typing",
+      "uuid"
+    ]
+  },
+  {
+    "rel_path": "agent/tool_runtime.py",
+    "lines": 133,
+    "classes": [
+      "ToolExecutionResult"
+    ],
+    "functions_count": 6,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "jarvis.sandbox.interpreter",
+      "re",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "audio/__init__.py",
+    "lines": 32,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.audio.dsp",
+      "jarvis.audio.engine"
+    ]
+  },
+  {
+    "rel_path": "audio/dsp.py",
+    "lines": 295,
+    "classes": [
+      "DSPBlockResult",
+      "NoiseFloorTracker",
+      "SchmittTrigger",
+      "AudioDSPProcessor"
+    ],
+    "functions_count": 21,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "math",
+      "numpy",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "audio/engine.py",
+    "lines": 522,
+    "classes": [
+      "AudioEngineMode",
+      "AudioDeviceInfo",
+      "MicrophoneProbeManager",
+      "AudioEngine"
+    ],
+    "functions_count": 24,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "jarvis.audio.dsp",
+      "logging",
+      "numpy",
+      "os",
+      "sounddevice",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "audio/fullduplex.py",
+    "lines": 142,
+    "classes": [
+      "VoiceState",
+      "BargeInConfig",
+      "FullDuplexVoiceManager"
+    ],
+    "functions_count": 8,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "logging",
+      "numpy",
+      "sounddevice",
+      "threading"
+    ]
+  },
+  {
+    "rel_path": "audio/sound_effects.py",
+    "lines": 117,
+    "classes": [
+      "SoundConfig",
+      "SoundEffectsPlayer"
+    ],
+    "functions_count": 10,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "logging",
+      "numpy",
+      "sounddevice",
+      "threading"
+    ]
+  },
+  {
+    "rel_path": "audio/vad.py",
+    "lines": 182,
+    "classes": [
+      "VoiceActivityConfig",
+      "SpeechSegment",
+      "VoiceActivityDetector"
+    ],
+    "functions_count": 6,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "logging",
+      "math",
+      "struct",
+      "threading",
+      "time",
+      "typing",
+      "webrtcvad"
+    ]
+  },
+  {
+    "rel_path": "audio/wake_word.py",
+    "lines": 757,
+    "classes": [
+      "WakeWordEngineType",
+      "WakeWordResult",
+      "AcousticSpectralDetector",
+      "_PorcupineFrameBuffer",
+      "WakeWordDetector"
+    ],
+    "functions_count": 24,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "jarvis.audio.dsp",
+      "json",
+      "logging",
+      "numpy",
+      "openwakeword",
+      "os",
+      "pvporcupine",
+      "threading",
+      "time",
+      "typing",
+      "vosk"
+    ]
+  },
+  {
+    "rel_path": "automation/__init__.py",
+    "lines": 33,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.automation.control",
+      "jarvis.automation.gui_actor",
+      "jarvis.automation.safety_gate",
+      "jarvis.automation.shell_assistant",
+      "jarvis.automation.vm",
+      "jarvis.automation.workspace"
+    ]
+  },
+  {
+    "rel_path": "automation/control.py",
+    "lines": 790,
+    "classes": [
+      "ComputerController"
+    ],
+    "functions_count": 34,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "collections",
+      "comtypes",
+      "ctypes",
+      "datetime",
+      "jarvis.platform.windows",
+      "mss",
+      "os",
+      "pyautogui",
+      "pycaw.pycaw",
+      "pyperclip",
+      "re",
+      "screen_brightness_control",
+      "subprocess",
+      "sys",
+      "time",
+      "typing",
+      "webbrowser"
+    ]
+  },
+  {
+    "rel_path": "automation/gui_actor.py",
+    "lines": 536,
+    "classes": [
+      "GUIActionResult",
+      "GUIActor"
+    ],
+    "functions_count": 13,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "jarvis.automation.control",
+      "jarvis.vision.computer_use",
+      "jarvis.vision.screen",
+      "jarvis.vision.visual_verifier",
+      "logging",
+      "pyautogui",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "automation/safety_gate.py",
+    "lines": 219,
+    "classes": [
+      "PendingConfirmation",
+      "SafetyGate"
+    ],
+    "functions_count": 14,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ]
+  },
+  {
+    "rel_path": "automation/shell_assistant.py",
+    "lines": 608,
+    "classes": [
+      "ShellAssistant"
+    ],
+    "functions_count": 13,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.automation.safety_gate",
+      "json",
+      "os",
+      "re",
+      "subprocess",
+      "sys",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "automation/vm.py",
+    "lines": 184,
+    "classes": [
+      "HypervisorType",
+      "VMState",
+      "VMActionResult",
+      "VMOrchestrator"
+    ],
+    "functions_count": 5,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "enum",
+      "logging",
+      "shutil",
+      "subprocess",
+      "sys",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "automation/workspace.py",
+    "lines": 94,
+    "classes": [
+      "WindowPlacementRecipe",
+      "WorkspaceRecipe",
+      "WorkspaceRecipeManager"
+    ],
+    "functions_count": 3,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "logging",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "browser/__init__.py",
+    "lines": 64,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.browser.actions",
+      "jarvis.browser.agent",
+      "jarvis.browser.driver",
+      "jarvis.browser.models",
+      "jarvis.browser.scraper",
+      "jarvis.browser.session"
+    ]
+  },
+  {
+    "rel_path": "browser/actions.py",
+    "lines": 356,
+    "classes": [
+      "BrowserActions"
+    ],
+    "functions_count": 10,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "base64",
+      "collections.abc",
+      "jarvis.browser.driver",
+      "jarvis.browser.models",
+      "logging",
+      "os",
+      "pathlib",
+      "requests",
+      "time",
+      "typing",
+      "urllib.parse"
+    ]
+  },
+  {
+    "rel_path": "browser/agent.py",
+    "lines": 362,
+    "classes": [
+      "BrowserAgent"
+    ],
+    "functions_count": 14,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "collections.abc",
+      "jarvis.browser.actions",
+      "jarvis.browser.driver",
+      "jarvis.browser.models",
+      "jarvis.browser.scraper",
+      "jarvis.browser.session",
+      "logging",
+      "time",
+      "typing",
+      "urllib.parse"
+    ]
+  },
+  {
+    "rel_path": "browser/cdp_controller.py",
+    "lines": 368,
+    "classes": [
+      "BrowserConfig",
+      "PageInfo",
+      "ElementResult",
+      "BrowserCDPController"
+    ],
+    "functions_count": 17,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "jarvis.security.prompt_guard",
+      "logging",
+      "pathlib",
+      "playwright",
+      "playwright.sync_api",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "browser/driver.py",
+    "lines": 1079,
+    "classes": [
+      "BaseBrowserDriver",
+      "PlaywrightBrowserDriver",
+      "CDPBrowserDriver",
+      "HttpScrapingDriver",
+      "MockBrowserDriver",
+      "DriverFactory"
+    ],
+    "functions_count": 100,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [
+      "launch:46(doc+pass)",
+      "close:51(doc+pass)",
+      "navigate:56(doc+pass)",
+      "click:61(doc+pass)",
+      "type_text:66(doc+pass)",
+      "select_option:77(doc+pass)",
+      "wait_for_selector:82(doc+pass)",
+      "evaluate_script:92(doc+pass)",
+      "get_html:97(doc+pass)",
+      "get_text:102(doc+pass)",
+      "capture_page_screenshot:107(doc+pass)",
+      "get_cookies:112(doc+pass)",
+      "set_cookies:117(doc+pass)",
+      "get_current_url:122(doc+pass)",
+      "get_title:127(doc+pass)",
+      "find_elements:132(doc+pass)",
+      "scroll:137(doc+pass)"
+    ],
+    "imports": [
+      "abc",
+      "html",
+      "jarvis.browser.models",
+      "logging",
+      "playwright.sync_api",
+      "re",
+      "requests",
+      "time",
+      "typing",
+      "urllib.parse"
+    ]
+  },
+  {
+    "rel_path": "browser/models.py",
+    "lines": 131,
+    "classes": [
+      "BrowserDriverType",
+      "BrowserConfig",
+      "PageElement",
+      "BrowserActionResult",
+      "PriceComparisonItem",
+      "ScrapeResult",
+      "DownloadProgress"
+    ],
+    "functions_count": 4,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "dataclasses",
+      "enum",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "browser/scraper.py",
+    "lines": 573,
+    "classes": [
+      "HTMLToMarkdownConverter",
+      "HTMLTableParser",
+      "StructuredDataExtractor",
+      "PriceComparisonAggregator",
+      "WebScraper"
+    ],
+    "functions_count": 14,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "html",
+      "html.parser",
+      "jarvis.browser.models",
+      "jarvis.security.prompt_guard",
+      "json",
+      "logging",
+      "re",
+      "typing",
+      "urllib.parse"
+    ]
+  },
+  {
+    "rel_path": "browser/session.py",
+    "lines": 331,
+    "classes": [
+      "BrowserSessionManager"
+    ],
+    "functions_count": 11,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "datetime",
+      "jarvis.browser.driver",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "sqlite3",
+      "threading",
+      "typing",
+      "urllib.parse"
+    ]
+  },
+  {
+    "rel_path": "comms/__init__.py",
+    "lines": 24,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.comms.discord",
+      "jarvis.comms.email_imap",
+      "jarvis.comms.rate_limiter",
+      "jarvis.comms.telegram"
+    ]
+  },
+  {
+    "rel_path": "comms/discord.py",
+    "lines": 422,
+    "classes": [
+      "DiscordConfig",
+      "DiscordEmbed",
+      "DiscordBotController"
+    ],
+    "functions_count": 21,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "hashlib",
+      "io",
+      "jarvis.comms.rate_limiter",
+      "jarvis.core.health",
+      "jarvis.skills",
+      "json",
+      "logging",
+      "mss",
+      "mss.tools",
+      "threading",
+      "time",
+      "typing",
+      "urllib.error",
+      "urllib.request"
+    ]
+  },
+  {
+    "rel_path": "comms/email_imap.py",
+    "lines": 214,
+    "classes": [
+      "EmailMessage",
+      "EmailSummaryResult",
+      "IMAPEmailReader"
+    ],
+    "functions_count": 6,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "html",
+      "jarvis.security.prompt_guard",
+      "logging",
+      "re",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "comms/mobile_bridge.py",
+    "lines": 256,
+    "classes": [
+      "MobileFileBridge"
+    ],
+    "functions_count": 10,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "ctypes",
+      "datetime",
+      "io",
+      "jarvis.comms.rate_limiter",
+      "jarvis.core.paths",
+      "json",
+      "logging",
+      "mss",
+      "mss.tools",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "comms/rate_limiter.py",
+    "lines": 193,
+    "classes": [
+      "RateLimitConfig",
+      "TokenBucket",
+      "RateLimitResult",
+      "TokenBucketRateLimiter"
+    ],
+    "functions_count": 9,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "logging",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "comms/telegram.py",
+    "lines": 274,
+    "classes": [
+      "TelegramConfig",
+      "TelegramUpdate",
+      "TelegramBotController"
+    ],
+    "functions_count": 7,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "jarvis.comms.rate_limiter",
+      "jarvis.platform.windows",
+      "logging",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "comms/zalo.py",
+    "lines": 419,
+    "classes": [
+      "ZaloConfig",
+      "ZaloMessage",
+      "ZaloSendResult",
+      "ZaloBotController",
+      "ZaloWebhookHandler"
+    ],
+    "functions_count": 22,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [
+      "log_message:407(pass)"
+    ],
+    "imports": [
+      "__future__",
+      "base64",
+      "dataclasses",
+      "hashlib",
+      "hmac",
+      "http.server",
+      "jarvis.comms.rate_limiter",
+      "jarvis.llm.client",
+      "jarvis.skills.briefing",
+      "jarvis.skills.calculator",
+      "jarvis.skills.note_taker",
+      "jarvis.skills.registry",
+      "jarvis.skills.system_control",
+      "json",
+      "logging",
+      "threading",
+      "time",
+      "typing",
+      "urllib.error",
+      "urllib.request"
+    ]
+  },
+  {
+    "rel_path": "core/__init__.py",
+    "lines": 39,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.config",
+      "jarvis.core.logger",
+      "jarvis.core.models"
+    ]
+  },
+  {
+    "rel_path": "core/app.py",
+    "lines": 2015,
+    "classes": [
+      "JarvisApp"
+    ],
+    "functions_count": 72,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "concurrent.futures",
+      "jarvis.audio.engine",
+      "jarvis.audio.wake_word",
+      "jarvis.automation.control",
+      "jarvis.automation.gui_actor",
+      "jarvis.automation.safety_gate",
+      "jarvis.automation.shell_assistant",
+      "jarvis.browser.agent",
+      "jarvis.browser.models",
+      "jarvis.browser.session",
+      "jarvis.core.config",
+      "jarvis.core.dispatcher",
+      "jarvis.core.logger",
+      "jarvis.core.models",
+      "jarvis.core.paths",
+      "jarvis.core.plugin",
+      "jarvis.gesture.detector",
+      "jarvis.hardware.monitor",
+      "jarvis.hardware.reporter",
+      "jarvis.llm.client",
+      "jarvis.llm.router",
+      "jarvis.memory.manager",
+      "jarvis.planner.engine",
+      "jarvis.planner.models",
+      "jarvis.planner.reflection",
+      "jarvis.planner.safety_interceptor",
+      "jarvis.platform.hotkeys",
+      "jarvis.plugins.chrome",
+      "jarvis.plugins.cursor",
+      "jarvis.plugins.shell",
+      "jarvis.plugins.spotify",
+      "jarvis.plugins.webhook",
+      "jarvis.proactive.engine",
+      "jarvis.sandbox.interpreter",
+      "jarvis.security.secrets",
+      "jarvis.skills.registry",
+      "jarvis.skills.synthesizer",
+      "jarvis.stt.engine",
+      "jarvis.tts.manager",
+      "jarvis.ui.dashboard",
+      "jarvis.ui.overlay",
+      "jarvis.ui.tray",
+      "jarvis.vision.computer_use",
+      "jarvis.vision.screen",
+      "jarvis.vision.visual_verifier",
+      "jarvis.web.hub",
+      "jarvis.workers.manager",
+      "jarvis.workers.models",
+      "jarvis.workers.notifications",
+      "logging",
+      "numpy",
+      "os",
+      "signal",
+      "sounddevice",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ]
+  },
+  {
+    "rel_path": "core/config.py",
+    "lines": 849,
+    "classes": [
+      "ConfigNode",
+      "AudioConfig",
+      "TTSConfig",
+      "WindowsConfig",
+      "LoggingConfig",
+      "WakeWordConfig",
+      "MemoryConfig",
+      "VisionConfig",
+      "WebConfig",
+      "AutomationConfig",
+      "ProactiveConfigNode",
+      "OverlayConfig",
+      "JarvisConfig",
+      "ConfigManager"
+    ],
+    "functions_count": 43,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "copy",
+      "dotenv",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "threading",
+      "time",
+      "tomllib",
+      "typing",
+      "yaml"
+    ]
+  },
+  {
+    "rel_path": "core/dispatcher.py",
+    "lines": 643,
+    "classes": [
+      "EventBus",
+      "ActionDispatcher"
+    ],
+    "functions_count": 19,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "asyncio",
+      "collections.abc",
+      "fnmatch",
+      "functools",
+      "inspect",
+      "jarvis.core.models",
+      "jarvis.planner.safety_interceptor",
+      "logging",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ]
+  },
+  {
+    "rel_path": "core/logger.py",
+    "lines": 323,
+    "classes": [
+      "LogColors",
+      "ColoredConsoleFormatter",
+      "StructuredFileFormatter",
+      "JarvisLoggerAdapter",
+      "LogContext"
+    ],
+    "functions_count": 15,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [
+      "__exit__:301(pass)"
+    ],
+    "imports": [
+      "__future__",
+      "ctypes",
+      "datetime",
+      "logging",
+      "logging.handlers",
+      "os",
+      "pathlib",
+      "sys",
+      "threading",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "core/models.py",
+    "lines": 180,
+    "classes": [
+      "PrivilegeLevel",
+      "PluginStatus",
+      "RequesterContext",
+      "HandlerResult",
+      "ActionResult",
+      "ActionDefinition",
+      "SubscriptionRecord",
+      "PluginMetadata",
+      "PluginHealth",
+      "MonitorInfo",
+      "WindowInfo"
+    ],
+    "functions_count": 4,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "core/paths.py",
+    "lines": 87,
+    "classes": [],
+    "functions_count": 5,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys"
+    ]
+  },
+  {
+    "rel_path": "core/plugin.py",
+    "lines": 362,
+    "classes": [
+      "BasePlugin",
+      "CircularDependencyError",
+      "PluginRegistry"
+    ],
+    "functions_count": 21,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [
+      "_define_metadata:53(doc+pass)"
+    ],
+    "imports": [
+      "__future__",
+      "abc",
+      "collections.abc",
+      "importlib.util",
+      "inspect",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "logging",
+      "pathlib",
+      "sys",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "data/__init__.py",
+    "lines": 65,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.data.analysis_service",
+      "jarvis.data.document",
+      "jarvis.data.stats"
+    ]
+  },
+  {
+    "rel_path": "data/analysis_service.py",
+    "lines": 318,
+    "classes": [
+      "AnalysisOperation",
+      "UnsupportedOperationError",
+      "FileTooLargeError",
+      "DataAnalysisRequest",
+      "DataAnalysisResult",
+      "ChartSeries",
+      "ChartSpec",
+      "ChartRenderResult",
+      "DataAnalysisService"
+    ],
+    "functions_count": 11,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "enum",
+      "io",
+      "jarvis.data.stats",
+      "matplotlib",
+      "matplotlib.pyplot",
+      "pathlib",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "data/document.py",
+    "lines": 459,
+    "classes": [
+      "DocxReportBuilder",
+      "PdfReportBuilder",
+      "VoiceSummaryGenerator",
+      "DocumentExporter"
+    ],
+    "functions_count": 20,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.data.stats",
+      "logging",
+      "pathlib",
+      "re",
+      "time",
+      "typing",
+      "zipfile"
+    ]
+  },
+  {
+    "rel_path": "data/stats.py",
+    "lines": 632,
+    "classes": [
+      "DistributionType",
+      "DataStatsReport",
+      "DescriptiveStats",
+      "CorrelationResult",
+      "AnomalyItem",
+      "AnomalyReport",
+      "TrendResult",
+      "MonteCarloConfig",
+      "MonteCarloResult",
+      "TabularDataset",
+      "DataAnalyticsEngine",
+      "MonteCarloEngine"
+    ],
+    "functions_count": 11,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "csv",
+      "dataclasses",
+      "enum",
+      "io",
+      "math",
+      "numpy",
+      "pathlib",
+      "typing",
+      "xml.etree.ElementTree",
+      "zipfile"
+    ]
+  },
+  {
+    "rel_path": "gesture/__init__.py",
+    "lines": 58,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.gesture.detector",
+      "jarvis.gesture.hand_models",
+      "jarvis.gesture.hand_preprocess",
+      "jarvis.gesture.hand_tracker",
+      "jarvis.gesture.models",
+      "jarvis.gesture.patterns"
+    ]
+  },
+  {
+    "rel_path": "gesture/detector.py",
+    "lines": 484,
+    "classes": [
+      "GestureDetector"
+    ],
+    "functions_count": 13,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "jarvis.audio.dsp",
+      "jarvis.core.logger",
+      "jarvis.core.models",
+      "jarvis.gesture.models",
+      "jarvis.gesture.patterns",
+      "logging",
+      "numpy",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "gesture/hand_models.py",
+    "lines": 139,
+    "classes": [
+      "HandLandmarkIndex",
+      "HandGestureType",
+      "HandGestureBackend",
+      "HandTrackerState",
+      "HandLandmarkPoint",
+      "HandLandmarks",
+      "HandGestureResult"
+    ],
+    "functions_count": 8,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "numpy",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "gesture/hand_preprocess.py",
+    "lines": 113,
+    "classes": [],
+    "functions_count": 4,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "jarvis.gesture.hand_models",
+      "numpy"
+    ]
+  },
+  {
+    "rel_path": "gesture/hand_tracker.py",
+    "lines": 299,
+    "classes": [
+      "HandGestureTracker"
+    ],
+    "functions_count": 13,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections",
+      "collections.abc",
+      "cv2",
+      "jarvis.gesture.hand_models",
+      "jarvis.gesture.hand_preprocess",
+      "logging",
+      "mediapipe",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "gesture/models.py",
+    "lines": 111,
+    "classes": [
+      "GestureType",
+      "DetectorState",
+      "ClapEvent",
+      "GesturePatternConfig",
+      "GestureResult"
+    ],
+    "functions_count": 4,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "enum",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "gesture/patterns.py",
+    "lines": 50,
+    "classes": [],
+    "functions_count": 1,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.gesture.models"
+    ]
+  },
+  {
+    "rel_path": "hardware/__init__.py",
+    "lines": 26,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.hardware.monitor",
+      "jarvis.hardware.reporter"
+    ]
+  },
+  {
+    "rel_path": "hardware/monitor.py",
+    "lines": 708,
+    "classes": [
+      "MEMORYSTATUSEX",
+      "FILETIME",
+      "DiskSmartMetrics",
+      "HardwareMetrics",
+      "HardwareMonitor"
+    ],
+    "functions_count": 15,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "ctypes",
+      "dataclasses",
+      "json",
+      "logging",
+      "psutil",
+      "shutil",
+      "subprocess",
+      "sys",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "hardware/reporter.py",
+    "lines": 200,
+    "classes": [
+      "HardwareReporter"
+    ],
+    "functions_count": 7,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.hardware.monitor",
+      "json",
+      "logging",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "healing/__init__.py",
+    "lines": 34,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.healing.terminator",
+      "jarvis.healing.watchdog"
+    ]
+  },
+  {
+    "rel_path": "healing/terminator.py",
+    "lines": 340,
+    "classes": [
+      "HealingMode",
+      "HealingReport",
+      "AutonomousTerminator",
+      "HealingEngine"
+    ],
+    "functions_count": 15,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "ctypes",
+      "dataclasses",
+      "enum",
+      "jarvis.healing.watchdog",
+      "jarvis.platform.windows",
+      "logging",
+      "os",
+      "psutil",
+      "sys",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "healing/watchdog.py",
+    "lines": 244,
+    "classes": [
+      "HungProcessInfo",
+      "UnresponsiveAppDetector",
+      "ResourceWatchdog"
+    ],
+    "functions_count": 12,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "ctypes",
+      "dataclasses",
+      "jarvis.platform.windows",
+      "logging",
+      "psutil",
+      "sys",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "llm/__init__.py",
+    "lines": 46,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.llm.client",
+      "jarvis.llm.router"
+    ]
+  },
+  {
+    "rel_path": "llm/client.py",
+    "lines": 691,
+    "classes": [
+      "LLMProvider",
+      "LLMError",
+      "LLMAuthenticationError",
+      "LLMRateLimitError",
+      "LLMTimeoutError",
+      "LLMProviderError",
+      "LLMResponseParsingError",
+      "TokenUsage",
+      "ToolCall",
+      "ChatMessage",
+      "LLMResponse",
+      "LLMClient"
+    ],
+    "functions_count": 17,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "json",
+      "logging",
+      "os",
+      "re",
+      "requests",
+      "time",
+      "typing",
+      "uuid"
+    ]
+  },
+  {
+    "rel_path": "llm/router.py",
+    "lines": 2163,
+    "classes": [
+      "IntentResult",
+      "LLMIntentRouter"
+    ],
+    "functions_count": 19,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "inspect",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.llm.client",
+      "logging",
+      "re",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "memory/__init__.py",
+    "lines": 21,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.memory.manager",
+      "jarvis.memory.session",
+      "jarvis.memory.sqlite_store"
+    ]
+  },
+  {
+    "rel_path": "memory/manager.py",
+    "lines": 466,
+    "classes": [
+      "MemoryManager",
+      "MemoryCommandResult"
+    ],
+    "functions_count": 29,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections",
+      "jarvis.memory.session",
+      "jarvis.memory.sqlite_store",
+      "jarvis.memory.vector_store",
+      "logging",
+      "os",
+      "pathlib",
+      "re",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "memory/session.py",
+    "lines": 146,
+    "classes": [
+      "ConversationTurn",
+      "SessionContextManager"
+    ],
+    "functions_count": 11,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections",
+      "dataclasses",
+      "jarvis.llm.client",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ]
+  },
+  {
+    "rel_path": "memory/sqlite_store.py",
+    "lines": 781,
+    "classes": [
+      "SQLiteMemoryStore"
+    ],
+    "functions_count": 27,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [
+      "close:779(doc+pass)"
+    ],
+    "imports": [
+      "__future__",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "sqlite3",
+      "sys",
+      "threading",
+      "typing",
+      "urllib.parse"
+    ]
+  },
+  {
+    "rel_path": "memory/vector_store.py",
+    "lines": 266,
+    "classes": [
+      "VectorStoreConfig",
+      "DocumentVector",
+      "SearchResult",
+      "SemanticVectorStore"
+    ],
+    "functions_count": 16,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections",
+      "dataclasses",
+      "json",
+      "logging",
+      "math",
+      "pathlib",
+      "re",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "planner/__init__.py",
+    "lines": 41,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.planner.dag",
+      "jarvis.planner.engine",
+      "jarvis.planner.models",
+      "jarvis.planner.reflection",
+      "jarvis.planner.safety_interceptor"
+    ]
+  },
+  {
+    "rel_path": "planner/dag.py",
+    "lines": 476,
+    "classes": [
+      "TaskDAGException",
+      "CycleDetectedException",
+      "NodeNotFoundException",
+      "TaskDAG"
+    ],
+    "functions_count": 30,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.planner.models",
+      "json",
+      "logging",
+      "re",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "planner/engine.py",
+    "lines": 435,
+    "classes": [
+      "ReActTaskEngine"
+    ],
+    "functions_count": 9,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "concurrent.futures",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.planner.dag",
+      "jarvis.planner.models",
+      "jarvis.planner.reflection",
+      "jarvis.planner.safety_interceptor",
+      "logging",
+      "time",
+      "typing",
+      "uuid"
+    ]
+  },
+  {
+    "rel_path": "planner/models.py",
+    "lines": 189,
+    "classes": [
+      "StepStatus",
+      "PlanMode",
+      "RecoveryStrategy",
+      "TaskNode",
+      "ReflectionResult",
+      "PlanResult"
+    ],
+    "functions_count": 7,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "enum",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "planner/reflection.py",
+    "lines": 312,
+    "classes": [
+      "SelfReflectionEngine"
+    ],
+    "functions_count": 6,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.planner.dag",
+      "jarvis.planner.models",
+      "json",
+      "logging",
+      "re",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "planner/safety_interceptor.py",
+    "lines": 327,
+    "classes": [
+      "SafetyGateInterceptor"
+    ],
+    "functions_count": 12,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.automation.safety_gate",
+      "jarvis.planner.models",
+      "logging",
+      "re",
+      "threading",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "platform/__init__.py",
+    "lines": 67,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.platform.autostart",
+      "jarvis.platform.hotkeys",
+      "jarvis.platform.windows"
+    ]
+  },
+  {
+    "rel_path": "platform/autostart.py",
+    "lines": 170,
+    "classes": [
+      "AutoStartMode",
+      "AutostartStatus",
+      "AutoStartManager"
+    ],
+    "functions_count": 12,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "enum",
+      "logging",
+      "os",
+      "sys",
+      "winreg"
+    ]
+  },
+  {
+    "rel_path": "platform/hotkeys.py",
+    "lines": 312,
+    "classes": [
+      "HotkeyRegistration",
+      "GlobalHotkeyManager"
+    ],
+    "functions_count": 11,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "ctypes",
+      "dataclasses",
+      "logging",
+      "sys",
+      "threading",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "platform/windows.py",
+    "lines": 732,
+    "classes": [
+      "RECT",
+      "POINT",
+      "MONITORINFOEXW",
+      "MOUSEINPUT",
+      "KEYBDINPUT",
+      "HARDWAREINPUT",
+      "_INPUTunion",
+      "INPUT",
+      "WindowsPlatformAPI"
+    ],
+    "functions_count": 27,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "ctypes",
+      "jarvis.core.models",
+      "os",
+      "sys",
+      "winreg"
+    ]
+  },
+  {
+    "rel_path": "plugins/__init__.py",
+    "lines": 19,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.plugins.chrome",
+      "jarvis.plugins.cursor",
+      "jarvis.plugins.shell",
+      "jarvis.plugins.spotify",
+      "jarvis.plugins.webhook"
+    ]
+  },
+  {
+    "rel_path": "plugins/chrome.py",
+    "lines": 125,
+    "classes": [
+      "ChromeMultiMonitorPlugin"
+    ],
+    "functions_count": 6,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.core.plugin",
+      "os",
+      "shutil",
+      "subprocess",
+      "sys",
+      "typing",
+      "webbrowser"
+    ]
+  },
+  {
+    "rel_path": "plugins/cursor.py",
+    "lines": 122,
+    "classes": [
+      "CursorPlugin"
+    ],
+    "functions_count": 4,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.core.plugin",
+      "jarvis.platform.windows",
+      "os",
+      "shutil",
+      "subprocess",
+      "sys",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "plugins/loader.py",
+    "lines": 209,
+    "classes": [
+      "PluginManifest",
+      "PluginLoader"
+    ],
+    "functions_count": 13,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "importlib",
+      "importlib.metadata",
+      "importlib.util",
+      "json",
+      "logging",
+      "pathlib",
+      "sys",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "plugins/shell.py",
+    "lines": 56,
+    "classes": [
+      "ShellPlugin"
+    ],
+    "functions_count": 3,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.core.plugin",
+      "subprocess",
+      "sys",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "plugins/spotify.py",
+    "lines": 65,
+    "classes": [
+      "SpotifyPlugin"
+    ],
+    "functions_count": 3,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.core.plugin",
+      "os",
+      "typing",
+      "webbrowser"
+    ]
+  },
+  {
+    "rel_path": "plugins/webhook.py",
+    "lines": 56,
+    "classes": [
+      "WebhookPlugin"
+    ],
+    "functions_count": 3,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.core.plugin",
+      "logging",
+      "requests",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "proactive/__init__.py",
+    "lines": 28,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.proactive.briefing_scheduler",
+      "jarvis.proactive.engine",
+      "jarvis.proactive.health_monitor",
+      "jarvis.proactive.inactivity",
+      "jarvis.proactive.pomodoro",
+      "jarvis.proactive.reminders"
+    ]
+  },
+  {
+    "rel_path": "proactive/briefing_scheduler.py",
+    "lines": 211,
+    "classes": [
+      "DailyBriefingScheduler"
+    ],
+    "functions_count": 11,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "datetime",
+      "logging",
+      "threading",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "proactive/engine.py",
+    "lines": 380,
+    "classes": [
+      "ProactiveConfig",
+      "ProactiveEngine"
+    ],
+    "functions_count": 21,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "datetime",
+      "jarvis.proactive.briefing_scheduler",
+      "jarvis.proactive.health_monitor",
+      "jarvis.proactive.inactivity",
+      "jarvis.proactive.pomodoro",
+      "jarvis.proactive.reminders",
+      "logging",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "proactive/health_monitor.py",
+    "lines": 429,
+    "classes": [
+      "HealthAlert",
+      "SystemHealthMonitor",
+      "SYSTEM_POWER_STATUS"
+    ],
+    "functions_count": 13,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "ctypes",
+      "dataclasses",
+      "logging",
+      "psutil",
+      "sys",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "proactive/inactivity.py",
+    "lines": 175,
+    "classes": [
+      "InactivityMonitor"
+    ],
+    "functions_count": 12,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "logging",
+      "threading",
+      "time"
+    ]
+  },
+  {
+    "rel_path": "proactive/pomodoro.py",
+    "lines": 367,
+    "classes": [
+      "PomodoroState",
+      "PomodoroStatus",
+      "PomodoroTimer"
+    ],
+    "functions_count": 16,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "logging",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "proactive/reminders.py",
+    "lines": 311,
+    "classes": [
+      "ScheduledReminder",
+      "ReminderScheduler"
+    ],
+    "functions_count": 15,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "heapq",
+      "logging",
+      "re",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ]
+  },
+  {
+    "rel_path": "sandbox/__init__.py",
+    "lines": 17,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.sandbox.artifacts",
+      "jarvis.sandbox.interpreter",
+      "jarvis.sandbox.validator"
+    ]
+  },
+  {
+    "rel_path": "sandbox/artifacts.py",
+    "lines": 223,
+    "classes": [
+      "ArtifactInfo",
+      "ArtifactManager"
+    ],
+    "functions_count": 7,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "hashlib",
+      "logging",
+      "mimetypes",
+      "os",
+      "pathlib",
+      "shutil",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "sandbox/interpreter.py",
+    "lines": 579,
+    "classes": [
+      "SandboxResult",
+      "CodeInterpreterSandbox"
+    ],
+    "functions_count": 9,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "ctypes",
+      "dataclasses",
+      "jarvis.sandbox.artifacts",
+      "jarvis.sandbox.security",
+      "jarvis.sandbox.validator",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "shutil",
+      "subprocess",
+      "sys",
+      "time",
+      "typing",
+      "uuid"
+    ]
+  },
+  {
+    "rel_path": "sandbox/security.py",
+    "lines": 1438,
+    "classes": [
+      "JOBOBJECT_BASIC_LIMIT_INFORMATION",
+      "IO_COUNTERS",
+      "JOBOBJECT_EXTENDED_LIMIT_INFORMATION",
+      "WindowsJobObject",
+      "STARTUPINFOW",
+      "PROCESS_INFORMATION",
+      "SECURITY_ATTRIBUTES",
+      "SECURITY_CAPABILITIES",
+      "STARTUPINFOEXW",
+      "RestrictedProcessBootstrapError",
+      "SID_AND_ATTRIBUTES",
+      "TOKEN_MANDATORY_LABEL"
+    ],
+    "functions_count": 20,
+    "todos": [],
+    "not_impl": [
+      513,
+      948
+    ],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "builtins",
+      "ctypes",
+      "io",
+      "logging",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "threading",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "sandbox/validator.py",
+    "lines": 321,
+    "classes": [
+      "ValidationResult",
+      "_PythonASTSafetyVisitor",
+      "ASTCodeValidator"
+    ],
+    "functions_count": 9,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "ast",
+      "dataclasses",
+      "logging",
+      "re",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "security/__init__.py",
+    "lines": 41,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.security.prompt_guard",
+      "jarvis.security.report",
+      "jarvis.security.scanner"
+    ]
+  },
+  {
+    "rel_path": "security/prompt_guard.py",
+    "lines": 283,
+    "classes": [
+      "SanitizationResult",
+      "PromptGuard"
+    ],
+    "functions_count": 4,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "html",
+      "logging",
+      "re",
+      "typing",
+      "unicodedata"
+    ]
+  },
+  {
+    "rel_path": "security/report.py",
+    "lines": 170,
+    "classes": [
+      "SecurityPrivilegeGate",
+      "SecurityReportGenerator"
+    ],
+    "functions_count": 5,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.models",
+      "jarvis.security.scanner",
+      "logging",
+      "pathlib",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "security/scanner.py",
+    "lines": 514,
+    "classes": [
+      "VulnerabilitySeverity",
+      "Vulnerability",
+      "HostScanResult",
+      "ScanReport",
+      "PacketCaptureResult",
+      "NetworkScanner",
+      "PacketCapture"
+    ],
+    "functions_count": 17,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "jarvis.core.models",
+      "logging",
+      "os",
+      "pathlib",
+      "shutil",
+      "subprocess",
+      "time",
+      "typing",
+      "xml.etree.ElementTree"
+    ]
+  },
+  {
+    "rel_path": "security/secrets.py",
+    "lines": 179,
+    "classes": [],
+    "functions_count": 5,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "argparse",
+      "keyring",
+      "logging",
+      "os",
+      "sys"
+    ]
+  },
+  {
+    "rel_path": "skills/__init__.py",
+    "lines": 20,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.skills.models",
+      "jarvis.skills.registry",
+      "jarvis.skills.synthesizer"
+    ]
+  },
+  {
+    "rel_path": "skills/models.py",
+    "lines": 199,
+    "classes": [
+      "SkillMetadata",
+      "SkillDefinition",
+      "SkillExecutionResult"
+    ],
+    "functions_count": 9,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "jarvis.skills.validation",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/registry.py",
+    "lines": 611,
+    "classes": [
+      "SkillRegistry"
+    ],
+    "functions_count": 21,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "importlib.util",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.skills.models",
+      "jarvis.skills.telemetry",
+      "jarvis.skills.validation",
+      "json",
+      "logging",
+      "pathlib",
+      "shutil",
+      "sys",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/synthesizer.py",
+    "lines": 353,
+    "classes": [
+      "DynamicSkillSynthesizer"
+    ],
+    "functions_count": 5,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "ast",
+      "jarvis.skills.models",
+      "json",
+      "logging",
+      "pathlib",
+      "re",
+      "shutil",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/telemetry.py",
+    "lines": 172,
+    "classes": [
+      "SkillTelemetryStore"
+    ],
+    "functions_count": 8,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "hashlib",
+      "jarvis.core.paths",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/validation.py",
+    "lines": 77,
+    "classes": [],
+    "functions_count": 8,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "re",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/app_launcher/__init__.py",
+    "lines": 88,
+    "classes": [],
+    "functions_count": 2,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "os",
+      "pathlib",
+      "shutil",
+      "subprocess",
+      "sys",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/auto_updater/__init__.py",
+    "lines": 137,
+    "classes": [],
+    "functions_count": 2,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.workers.auto_updater",
+      "logging",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/briefing/__init__.py",
+    "lines": 91,
+    "classes": [],
+    "functions_count": 1,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "datetime",
+      "jarvis.web.hub",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/browser_control/__init__.py",
+    "lines": 156,
+    "classes": [],
+    "functions_count": 2,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.browser.cdp_controller",
+      "logging",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/calculator/__init__.py",
+    "lines": 178,
+    "classes": [],
+    "functions_count": 3,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "ast",
+      "math",
+      "operator",
+      "re",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/clipboard/__init__.py",
+    "lines": 107,
+    "classes": [],
+    "functions_count": 3,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "ctypes",
+      "sys",
+      "tkinter",
+      "typing",
+      "win32clipboard",
+      "win32con"
+    ]
+  },
+  {
+    "rel_path": "skills/file_manager/__init__.py",
+    "lines": 138,
+    "classes": [],
+    "functions_count": 2,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/git_assistant/__init__.py",
+    "lines": 118,
+    "classes": [],
+    "functions_count": 2,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/macro_recorder/__init__.py",
+    "lines": 182,
+    "classes": [],
+    "functions_count": 4,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "datetime",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "pyautogui",
+      "pyperclip",
+      "subprocess",
+      "sys",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/night_planner/__init__.py",
+    "lines": 132,
+    "classes": [],
+    "functions_count": 2,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.workers.night_shift",
+      "logging",
+      "pathlib",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/note_taker/__init__.py",
+    "lines": 125,
+    "classes": [],
+    "functions_count": 4,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "datetime",
+      "json",
+      "os",
+      "pathlib",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/pomodoro/__init__.py",
+    "lines": 90,
+    "classes": [],
+    "functions_count": 1,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/rag_search/__init__.py",
+    "lines": 111,
+    "classes": [],
+    "functions_count": 2,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.memory.vector_store",
+      "logging",
+      "os",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/screen_context/__init__.py",
+    "lines": 131,
+    "classes": [],
+    "functions_count": 3,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "PIL",
+      "PIL.Image",
+      "__future__",
+      "base64",
+      "datetime",
+      "google.generativeai",
+      "io",
+      "jarvis.security.prompt_guard",
+      "logging",
+      "mss",
+      "mss.tools",
+      "pathlib",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/skill_synthesizer/__init__.py",
+    "lines": 270,
+    "classes": [],
+    "functions_count": 4,
+    "todos": [
+      100
+    ],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "ast",
+      "datetime",
+      "json",
+      "logging",
+      "pathlib",
+      "re",
+      "shutil",
+      "textwrap",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/smart_home_discovery/__init__.py",
+    "lines": 115,
+    "classes": [],
+    "functions_count": 3,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.smart_home.discovery",
+      "logging",
+      "threading",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/sound_board/__init__.py",
+    "lines": 93,
+    "classes": [],
+    "functions_count": 2,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.audio.sound_effects",
+      "logging",
+      "sounddevice",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "skills/system_control/__init__.py",
+    "lines": 120,
+    "classes": [],
+    "functions_count": 1,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "ctypes",
+      "jarvis.automation.control",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "smart_home/__init__.py",
+    "lines": 13,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.smart_home.home_assistant",
+      "jarvis.smart_home.mqtt"
+    ]
+  },
+  {
+    "rel_path": "smart_home/discovery.py",
+    "lines": 293,
+    "classes": [
+      "DiscoveredDevice",
+      "DiscoveryConfig",
+      "SmartHomeDiscovery"
+    ],
+    "functions_count": 17,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "ipaddress",
+      "json",
+      "logging",
+      "pathlib",
+      "socket",
+      "threading",
+      "time",
+      "urllib.error",
+      "urllib.request"
+    ]
+  },
+  {
+    "rel_path": "smart_home/home_assistant.py",
+    "lines": 141,
+    "classes": [
+      "HomeAssistantClient"
+    ],
+    "functions_count": 8,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "json",
+      "logging",
+      "typing",
+      "urllib.error",
+      "urllib.request"
+    ]
+  },
+  {
+    "rel_path": "smart_home/mqtt.py",
+    "lines": 162,
+    "classes": [
+      "MQTTAdapter"
+    ],
+    "functions_count": 8,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "json",
+      "logging",
+      "paho.mqtt.client",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "stt/__init__.py",
+    "lines": 40,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.stt.engine"
+    ]
+  },
+  {
+    "rel_path": "stt/engine.py",
+    "lines": 931,
+    "classes": [
+      "STTError",
+      "VADSegmenter",
+      "BaseSTTEngine",
+      "OpenAIWhisperSTT",
+      "FasterWhisperSTT",
+      "WindowsSpeechSTT",
+      "MockSTTEngine",
+      "STTEngine"
+    ],
+    "functions_count": 38,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [
+      "transcribe:332(doc+pass)",
+      "is_available:351(doc+pass)",
+      "engine_name:357(doc+pass)"
+    ],
+    "imports": [
+      "__future__",
+      "abc",
+      "collections.abc",
+      "ctranslate2",
+      "ctypes",
+      "faster_whisper",
+      "io",
+      "jarvis.audio.dsp",
+      "jarvis.security.secrets",
+      "logging",
+      "numpy",
+      "nvidia.cublas.lib",
+      "os",
+      "pathlib",
+      "requests",
+      "site",
+      "subprocess",
+      "sys",
+      "tempfile",
+      "threading",
+      "typing",
+      "wave"
+    ]
+  },
+  {
+    "rel_path": "stt/faster_whisper.py",
+    "lines": 231,
+    "classes": [
+      "TranscriptionSegment",
+      "TranscriptionResult",
+      "FasterWhisperConfig",
+      "FasterWhisperSTTEngine"
+    ],
+    "functions_count": 4,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "faster_whisper",
+      "io",
+      "logging",
+      "numpy",
+      "threading",
+      "time",
+      "typing",
+      "wave"
+    ]
+  },
+  {
+    "rel_path": "tts/__init__.py",
+    "lines": 22,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.tts.base",
+      "jarvis.tts.cache",
+      "jarvis.tts.elevenlabs",
+      "jarvis.tts.engine",
+      "jarvis.tts.fallback",
+      "jarvis.tts.manager"
+    ]
+  },
+  {
+    "rel_path": "tts/base.py",
+    "lines": 68,
+    "classes": [
+      "TTSError",
+      "BaseTTSEngine"
+    ],
+    "functions_count": 6,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [
+      "speak:24(doc+pass)",
+      "synthesize_to_bytes:39(doc+pass)",
+      "is_available:53(doc+pass)",
+      "engine_name:61(doc+pass)"
+    ],
+    "imports": [
+      "__future__",
+      "abc",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "tts/cache.py",
+    "lines": 242,
+    "classes": [
+      "TTSAudioCache",
+      "LocalTTSCache"
+    ],
+    "functions_count": 9,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "hashlib",
+      "logging",
+      "numpy",
+      "os",
+      "pathlib",
+      "sounddevice",
+      "sys",
+      "threading",
+      "time",
+      "wave",
+      "winsound"
+    ]
+  },
+  {
+    "rel_path": "tts/elevenlabs.py",
+    "lines": 133,
+    "classes": [
+      "ElevenLabsTTS"
+    ],
+    "functions_count": 6,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "elevenlabs.client",
+      "jarvis.tts.base",
+      "logging",
+      "numpy",
+      "os",
+      "requests",
+      "sounddevice",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "tts/engine.py",
+    "lines": 89,
+    "classes": [
+      "TTSEngine"
+    ],
+    "functions_count": 4,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.tts.cache",
+      "jarvis.tts.elevenlabs",
+      "jarvis.tts.fallback",
+      "logging",
+      "pathlib",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "tts/fallback.py",
+    "lines": 128,
+    "classes": [
+      "SAPI5FallbackTTS"
+    ],
+    "functions_count": 7,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "base64",
+      "jarvis.tts.base",
+      "logging",
+      "numpy",
+      "pythoncom",
+      "pyttsx3",
+      "subprocess",
+      "sys",
+      "typing",
+      "win32com.client"
+    ]
+  },
+  {
+    "rel_path": "tts/manager.py",
+    "lines": 215,
+    "classes": [
+      "TTSManager"
+    ],
+    "functions_count": 9,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "jarvis.tts.base",
+      "jarvis.tts.cache",
+      "jarvis.tts.elevenlabs",
+      "jarvis.tts.fallback",
+      "logging",
+      "os",
+      "pathlib",
+      "queue",
+      "random",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "tts/piper.py",
+    "lines": 190,
+    "classes": [
+      "PiperNotAvailableError",
+      "PiperConfig",
+      "PiperTTSEngine"
+    ],
+    "functions_count": 7,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "logging",
+      "numpy",
+      "onnxruntime",
+      "pathlib",
+      "piper_phonemize",
+      "sounddevice",
+      "struct",
+      "threading",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "ui/__init__.py",
+    "lines": 16,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.ui.dashboard",
+      "jarvis.ui.tray"
+    ]
+  },
+  {
+    "rel_path": "ui/dashboard.py",
+    "lines": 752,
+    "classes": [
+      "DashboardHTTPRequestHandler",
+      "_DashboardHTTPServer",
+      "DashboardServer"
+    ],
+    "functions_count": 28,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "asyncio",
+      "collections",
+      "http.server",
+      "jarvis",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "threading",
+      "time",
+      "typing",
+      "urllib.parse",
+      "websockets"
+    ]
+  },
+  {
+    "rel_path": "ui/overlay.py",
+    "lines": 1850,
+    "classes": [
+      "OverlayState",
+      "OverlayMode",
+      "TurnRecord",
+      "AlwaysOnOverlay",
+      "SYSTEM_POWER_STATUS",
+      "MEMORYSTATUSEX"
+    ],
+    "functions_count": 97,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections",
+      "collections.abc",
+      "ctypes",
+      "dataclasses",
+      "enum",
+      "logging",
+      "math",
+      "psutil",
+      "random",
+      "sys",
+      "threading",
+      "time",
+      "tkinter",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "ui/tray.py",
+    "lines": 363,
+    "classes": [
+      "TrayStatus",
+      "SystemTrayController"
+    ],
+    "functions_count": 25,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "enum",
+      "logging",
+      "os",
+      "pystray",
+      "sys",
+      "threading",
+      "typing",
+      "webbrowser"
+    ]
+  },
+  {
+    "rel_path": "utils/__init__.py",
+    "lines": 1,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": []
+  },
+  {
+    "rel_path": "utils/subprocess_utils.py",
+    "lines": 89,
+    "classes": [],
+    "functions_count": 1,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "logging",
+      "subprocess",
+      "sys",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "vision/__init__.py",
+    "lines": 56,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.vision.biometrics",
+      "jarvis.vision.computer_use",
+      "jarvis.vision.dialog_detector",
+      "jarvis.vision.hands",
+      "jarvis.vision.ocr",
+      "jarvis.vision.screen",
+      "jarvis.vision.visual_verifier"
+    ]
+  },
+  {
+    "rel_path": "vision/biometrics.py",
+    "lines": 442,
+    "classes": [
+      "FaceEmbeddingStorage",
+      "BiometricsEngine",
+      "BiometricPrivilegeGate"
+    ],
+    "functions_count": 20,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "cv2",
+      "face_recognition",
+      "jarvis.core.models",
+      "jarvis.platform.windows",
+      "json",
+      "logging",
+      "math",
+      "numpy",
+      "os",
+      "pathlib",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "vision/computer_use.py",
+    "lines": 675,
+    "classes": [
+      "BoundingBox",
+      "UIElement",
+      "CoordinateMapper",
+      "UIElementDetector",
+      "ComputerUseVision"
+    ],
+    "functions_count": 31,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "ctypes",
+      "dataclasses",
+      "io",
+      "jarvis.vision.ocr",
+      "jarvis.vision.screen",
+      "json",
+      "logging",
+      "pytesseract",
+      "re",
+      "sys",
+      "typing",
+      "win32gui"
+    ]
+  },
+  {
+    "rel_path": "vision/dialog_detector.py",
+    "lines": 214,
+    "classes": [
+      "ErrorDialogDetector",
+      "RECT"
+    ],
+    "functions_count": 9,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "ctypes",
+      "logging",
+      "sys",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "vision/hands.py",
+    "lines": 212,
+    "classes": [
+      "NormalizedLandmark",
+      "GestureType",
+      "HandLandmarkTracker",
+      "HandGestureClassifier",
+      "HandGestureEngine"
+    ],
+    "functions_count": 10,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "enum",
+      "jarvis.platform.windows",
+      "logging",
+      "mediapipe",
+      "numpy",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "vision/ocr.py",
+    "lines": 141,
+    "classes": [
+      "DesktopOCR"
+    ],
+    "functions_count": 6,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "io",
+      "jarvis.vision.screen",
+      "logging",
+      "pathlib",
+      "pytesseract",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "vision/screen.py",
+    "lines": 421,
+    "classes": [
+      "ScreenCaptureResult",
+      "ScreenVisionManager"
+    ],
+    "functions_count": 10,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "base64",
+      "dataclasses",
+      "io",
+      "jarvis.security.secrets",
+      "jarvis.vision.dialog_detector",
+      "logging",
+      "mss",
+      "os",
+      "pathlib",
+      "requests",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "vision/visual_verifier.py",
+    "lines": 409,
+    "classes": [
+      "VisualDiffResult",
+      "VisualVerifier"
+    ],
+    "functions_count": 8,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "io",
+      "jarvis.vision.ocr",
+      "jarvis.vision.screen",
+      "logging",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "web/__init__.py",
+    "lines": 27,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "jarvis.web.cache",
+      "jarvis.web.finance",
+      "jarvis.web.hub",
+      "jarvis.web.news",
+      "jarvis.web.search",
+      "jarvis.web.weather"
+    ]
+  },
+  {
+    "rel_path": "web/cache.py",
+    "lines": 152,
+    "classes": [
+      "CacheEntry",
+      "TTLCache"
+    ],
+    "functions_count": 13,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "hashlib",
+      "json",
+      "logging",
+      "threading",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "web/finance.py",
+    "lines": 349,
+    "classes": [
+      "CryptoQuote",
+      "StockQuote",
+      "FinanceTracker"
+    ],
+    "functions_count": 12,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "jarvis.web.cache",
+      "json",
+      "logging",
+      "requests",
+      "time",
+      "typing",
+      "urllib.parse",
+      "urllib.request"
+    ]
+  },
+  {
+    "rel_path": "web/hub.py",
+    "lines": 167,
+    "classes": [
+      "WebIntelligenceHub"
+    ],
+    "functions_count": 8,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "datetime",
+      "jarvis.web.cache",
+      "jarvis.web.finance",
+      "jarvis.web.news",
+      "jarvis.web.search",
+      "jarvis.web.weather",
+      "logging",
+      "socket",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "web/news.py",
+    "lines": 308,
+    "classes": [
+      "NewsArticle",
+      "NewsAggregator"
+    ],
+    "functions_count": 10,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "html",
+      "jarvis.web.cache",
+      "logging",
+      "re",
+      "requests",
+      "urllib.parse",
+      "urllib.request",
+      "xml.etree.ElementTree"
+    ]
+  },
+  {
+    "rel_path": "web/search.py",
+    "lines": 252,
+    "classes": [
+      "SearchResultItem",
+      "WebSearcher"
+    ],
+    "functions_count": 8,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "duckduckgo_search",
+      "html",
+      "jarvis.web.cache",
+      "logging",
+      "re",
+      "requests",
+      "typing",
+      "urllib.parse",
+      "urllib.request"
+    ]
+  },
+  {
+    "rel_path": "web/weather.py",
+    "lines": 336,
+    "classes": [
+      "WeatherData",
+      "WeatherProvider"
+    ],
+    "functions_count": 8,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "jarvis.security.secrets",
+      "jarvis.web.cache",
+      "json",
+      "logging",
+      "os",
+      "re",
+      "requests",
+      "time",
+      "typing",
+      "urllib.parse",
+      "urllib.request"
+    ]
+  },
+  {
+    "rel_path": "workers/__init__.py",
+    "lines": 26,
+    "classes": [],
+    "functions_count": 0,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.workers.manager",
+      "jarvis.workers.models",
+      "jarvis.workers.notifications",
+      "jarvis.workers.worker"
+    ]
+  },
+  {
+    "rel_path": "workers/auto_updater.py",
+    "lines": 310,
+    "classes": [
+      "ReleaseInfo",
+      "UpdateStatus",
+      "AutoUpdater"
+    ],
+    "functions_count": 15,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "datetime",
+      "json",
+      "logging",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "threading",
+      "time",
+      "typing",
+      "urllib.error",
+      "urllib.request"
+    ]
+  },
+  {
+    "rel_path": "workers/manager.py",
+    "lines": 225,
+    "classes": [
+      "SubAgentManager"
+    ],
+    "functions_count": 13,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections",
+      "concurrent.futures",
+      "jarvis.core.dispatcher",
+      "jarvis.healing.watchdog",
+      "jarvis.workers.models",
+      "jarvis.workers.notifications",
+      "jarvis.workers.worker",
+      "logging",
+      "threading",
+      "time"
+    ]
+  },
+  {
+    "rel_path": "workers/models.py",
+    "lines": 126,
+    "classes": [
+      "WorkerStatus",
+      "WorkerPriority",
+      "WorkerTask",
+      "WorkerTelemetry"
+    ],
+    "functions_count": 3,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "time",
+      "typing"
+    ]
+  },
+  {
+    "rel_path": "workers/night_shift.py",
+    "lines": 363,
+    "classes": [
+      "NightShiftTask",
+      "NightShiftWorker"
+    ],
+    "functions_count": 16,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "datetime",
+      "jarvis.sandbox.interpreter",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "re",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ]
+  },
+  {
+    "rel_path": "workers/notification_hub.py",
+    "lines": 433,
+    "classes": [
+      "Priority",
+      "Channel",
+      "Notification",
+      "ScheduledNotification",
+      "AlertRule",
+      "NotificationHub"
+    ],
+    "functions_count": 19,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "datetime",
+      "enum",
+      "jarvis.audio.sound_effects",
+      "jarvis.comms.discord",
+      "jarvis.comms.telegram",
+      "jarvis.comms.zalo",
+      "jarvis.security.secrets",
+      "jarvis.tts.engine",
+      "logging",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "threading",
+      "time",
+      "typing",
+      "uuid",
+      "winotify"
+    ]
+  },
+  {
+    "rel_path": "workers/notifications.py",
+    "lines": 214,
+    "classes": [
+      "WorkerNotificationDispatcher"
+    ],
+    "functions_count": 8,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "jarvis.comms.telegram",
+      "jarvis.core.dispatcher",
+      "jarvis.tts.manager",
+      "jarvis.ui.overlay",
+      "jarvis.workers.models",
+      "logging",
+      "os"
+    ]
+  },
+  {
+    "rel_path": "workers/worker.py",
+    "lines": 310,
+    "classes": [
+      "WorkerCancelledException",
+      "BackgroundWorker"
+    ],
+    "functions_count": 16,
+    "todos": [],
+    "not_impl": [],
+    "pass_funcs": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "inspect",
+      "jarvis.core.dispatcher",
+      "jarvis.healing.watchdog",
+      "jarvis.workers.models",
+      "logging",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ]
+  }
+]

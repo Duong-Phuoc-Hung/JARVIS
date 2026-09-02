@@ -180,6 +180,7 @@ class HardwareMonitor:
         # Alert tracking
         self.last_alert_time: float = 0.0
         self.last_alert_times: dict[str, float] = {}
+        self.last_alert_levels: dict[str, str] = {}
 
         # CPU calculation state for kernel32.GetSystemTimes
         self._prev_idle_time: int | None = None
@@ -622,8 +623,9 @@ class HardwareMonitor:
         # 1. CPU Temperature Check
         if metrics.cpu_temp_c is not None and metrics.cpu_temp_c >= self.cpu_temp_threshold:
             last_t = self.last_alert_times.get("cpu", self.last_alert_time)
+            last_lvl = self.last_alert_levels.get("cpu", "")
             level = "CRITICAL" if metrics.cpu_temp_c >= 95.0 else "WARNING"
-            if (now - last_t) >= self.alert_cooldown_s:
+            if (now - last_t) >= self.alert_cooldown_s or (level == "CRITICAL" and last_lvl != "CRITICAL"):
                 alerts.append({
                     "component": "cpu",
                     "level": level,
@@ -635,11 +637,14 @@ class HardwareMonitor:
                 })
                 self.last_alert_times["cpu"] = now
                 self.last_alert_time = now
+                self.last_alert_levels["cpu"] = level
 
         # 2. RAM Pressure Check
         if metrics.ram_percent >= self.ram_threshold:
             last_t = self.last_alert_times.get("ram", 0.0)
-            if (now - last_t) >= self.alert_cooldown_s:
+            last_lvl = self.last_alert_levels.get("ram", "")
+            level = "CRITICAL"
+            if (now - last_t) >= self.alert_cooldown_s or last_lvl != "CRITICAL":
                 alerts.append({
                     "component": "ram",
                     "level": "CRITICAL",
@@ -650,12 +655,14 @@ class HardwareMonitor:
                     "timestamp": now,
                 })
                 self.last_alert_times["ram"] = now
+                self.last_alert_levels["ram"] = level
 
         # 3. GPU Temperature Check
         if metrics.gpu_temp_c is not None and metrics.gpu_temp_c >= self.gpu_temp_threshold:
             last_t = self.last_alert_times.get("gpu", 0.0)
+            last_lvl = self.last_alert_levels.get("gpu", "")
             level = "CRITICAL" if metrics.gpu_temp_c >= 95.0 else "WARNING"
-            if (now - last_t) >= self.alert_cooldown_s:
+            if (now - last_t) >= self.alert_cooldown_s or (level == "CRITICAL" and last_lvl != "CRITICAL"):
                 alerts.append({
                     "component": "gpu",
                     "level": level,
@@ -666,21 +673,25 @@ class HardwareMonitor:
                     "timestamp": now,
                 })
                 self.last_alert_times["gpu"] = now
+                self.last_alert_levels["gpu"] = level
 
         # 4. S.M.A.R.T. Disk Degradation Check
         for drive_name, disk in metrics.disks.items():
             if disk.status in ("WARNING", "FAILING"):
                 last_t = self.last_alert_times.get(f"smart_{drive_name}", 0.0)
-                if (now - last_t) >= (self.alert_cooldown_s * 2):
+                last_lvl = self.last_alert_levels.get(f"smart_{drive_name}", "")
+                level = "CRITICAL" if disk.status == "FAILING" else "WARNING"
+                if (now - last_t) >= (self.alert_cooldown_s * 2) or (level == "CRITICAL" and last_lvl != "CRITICAL"):
                     alerts.append({
                         "component": "disk_smart",
                         "drive": drive_name,
-                        "level": "CRITICAL" if disk.status == "FAILING" else "WARNING",
+                        "level": level,
                         "message": f"Cảnh báo: Ổ đĩa {drive_name} phát hiện lỗi S.M.A.R.T.",
                         "message_en": f"Warning: Drive {drive_name} reported S.M.A.R.T. degradation",
                         "timestamp": now,
                     })
                     self.last_alert_times[f"smart_{drive_name}"] = now
+                    self.last_alert_levels[f"smart_{drive_name}"] = level
 
         return alerts
 
@@ -691,18 +702,22 @@ class HardwareMonitor:
 
         if lang_clean.startswith("en"):
             temp_clause = f"CPU temperature is {m.cpu_temp_c:.0f} degrees Celsius. " if m.cpu_temp_c is not None else ""
+            gpu_clause = f"GPU temperature is {m.gpu_temp_c:.0f} degrees Celsius. " if m.gpu_temp_c is not None else ""
             return (
                 f"System status: CPU usage is {m.cpu_percent:.0f} percent. "
                 f"{temp_clause}"
+                f"{gpu_clause}"
                 f"RAM usage is {m.ram_percent:.0f} percent. "
                 f"Storage drive status is {m.smart_status}."
             )
 
         # Default Vietnamese format matching R7, F-22 and test suite assertions
         temp_clause = f"Nhiệt độ CPU là {m.cpu_temp_c:.0f} độ C. " if m.cpu_temp_c is not None else ""
+        gpu_clause = f"Nhiệt độ GPU là {m.gpu_temp_c:.0f} độ C. " if m.gpu_temp_c is not None else ""
         return (
             f"Tình trạng hệ thống: CPU đang sử dụng {m.cpu_percent:.0f} phần trăm. "
             f"{temp_clause}"
+            f"{gpu_clause}"
             f"RAM đang sử dụng {m.ram_percent:.0f} phần trăm. "
             f"Ổ đĩa trạng thái {m.smart_status}."
         )

@@ -1,0 +1,271 @@
+﻿
+======================================================================
+JARVIS SYSTEM DIAGNOSTIC
+======================================================================
+Time       : 09/02/2026 02:03:49
+Repo       : d:\Software GitCode\JARVIS
+Computer   : MSI
+User       : Duong Phuoc Hung
+
+======================================================================
+1. WINDOWS / HARDWARE
+======================================================================
+
+[Windows]
+
+
+Caption        : Microsoft Windows 11 Pro
+Version        : 10.0.26200
+BuildNumber    : 26200
+OSArchitecture : 64-bit
+
+
+
+
+
+
+[CPU]
+
+
+Name                      : Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+NumberOfCores             : 6
+NumberOfLogicalProcessors : 12
+MaxClockSpeed             : 2592
+
+
+
+
+
+
+[RAM]
+Total RAM : 15.83 GB
+Used RAM  : 12.26 GB
+Free RAM  : 3.57 GB
+
+
+[Disk]
+C: Total=366.22 GB Free=57.38 GB
+D: Total=585.94 GB Free=248.54 GB
+
+
+======================================================================
+2. GPU / CUDA
+======================================================================
+
+[NVIDIA SMI]
+Wed Sep  2 02:03:52 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 616.56                 KMD Version: 616.56        CUDA UMD Version: 13.4     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                  Driver-Model | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce GTX 1650 ...  WDDM  |   00000000:02:00.0 Off |                  N/A |
+| N/A   55C    P8              5W /   30W |     594MiB /   4096MiB |     42%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            2528    C+G   ...\plugins\capture\ZaloCall.exe      N/A      |
+|    0   N/A  N/A            3756    C+G   ...cord\app-1.0.9255\Discord.exe      N/A      |
+|    0   N/A  N/A            6988    C+G   ...s\Antigravity\Antigravity.exe      N/A      |
+|    0   N/A  N/A           10136    C+G   ...2txyewy\CrossDeviceResume.exe      N/A      |
+|    0   N/A  N/A           10568    C+G   ..._cw5n1h2txyewy\SearchHost.exe      N/A      |
+|    0   N/A  N/A           10576    C+G   ...y\StartMenuExperienceHost.exe      N/A      |
+|    0   N/A  N/A           11452    C+G   ...ffice6\promecefpluginhost.exe      N/A      |
+|    0   N/A  N/A           12304    C+G   ...0.4129.107\msedgewebview2.exe      N/A      |
+|    0   N/A  N/A           12848    C+G   ...s\Antigravity\Antigravity.exe      N/A      |
+|    0   N/A  N/A           13080    C+G   ...5n1h2txyewy\TextInputHost.exe      N/A      |
+|    0   N/A  N/A           13296    C+G   ...App_cw5n1h2txyewy\LockApp.exe      N/A      |
+|    0   N/A  N/A           15212    C+G   ...lare WARP\Cloudflare WARP.exe      N/A      |
+|    0   N/A  N/A           15916    C+G   ...x64__dt26b99r8h8gj\RtkUWP.exe      N/A      |
+|    0   N/A  N/A           17108    C+G   ...ms\Zalo\Zalo-26.8.20\Zalo.exe      N/A      |
+|    0   N/A  N/A           17440    C+G   ..._pzs8sxrjxfjjc\app\claude.exe      N/A      |
+|    0   N/A  N/A           18056    C+G   ...al\Programs\Notion\Notion.exe      N/A      |
+|    0   N/A  N/A           19112    C+G   ..._pzs8sxrjxfjjc\app\claude.exe      N/A      |
+|    0   N/A  N/A           19196    C+G   ...__c21gt4mdw3wc8\DCv2\DCv2.exe      N/A      |
++-----------------------------------------------------------------------------------------+
+
+
+[CTranslate2 CUDA]
+ctranslate2 version: 4.8.1
+CUDA devices: 1
+
+
+======================================================================
+3. PYTHON
+======================================================================
+
+[Python executable]
+D:\Software GitCode\JARVIS\.venv\Scripts\python.exe
+
+
+[Python version + architecture]
+Version: 3.13.13 (tags/v3.13.13:01104ce, Apr  7 2026, 19:25:48) [MSC v.1944 64 bit (AMD64)]
+Arch: ('64bit', 'WindowsPE')
+
+
+[pip]
+pip 26.0.1 from D:\Software GitCode\JARVIS\.venv\Lib\site-packages\pip (python 3.13)
+
+
+
+[Important Python packages]
+OK      numpy                     2.5.2
+OK      pytest                    9.1.1
+OK      requests                  2.34.2
+OK      faster_whisper            1.2.1
+OK      ctranslate2               4.8.1
+OK      sounddevice               0.5.6
+OK      soundfile                 0.14.0
+MISSING psutil                    ModuleNotFoundError: No module named 'psutil'
+MISSING keyring                   ModuleNotFoundError: No module named 'keyring'
+OK      pytest_env                1.7.0
+OK      pytest_asyncio            1.4.0
+
+
+======================================================================
+4. JARVIS IMPORT CHECK
+======================================================================
+
+[Import jarvis]
+jarvis.__version__ = 4.4.0
+
+
+[Import STT engine]
+python : Traceback (most recent call last):
+At D:\Software GitCode\JARVIS\scripts\system_diagnostic.ps1:62 char:9
++         python $tmp 2>&1
++         ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\Duong Phuoc Hung\AppData\Local\Temp\tmp47A1.tmp.py", line 2, in <module>
+    from jarvis.stt.engine import FasterWhisperSTT, FASTER_WHISPER_AVAILABLE
+ModuleNotFoundError: No module named 'jarvis'
+
+
+[SecretsManager (presence only - no values printed)]
+python : Traceback (most recent call last):
+At D:\Software GitCode\JARVIS\scripts\system_diagnostic.ps1:62 char:9
++         python $tmp 2>&1
++         ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\Duong Phuoc Hung\AppData\Local\Temp\tmp482F.tmp.py", line 2, in <module>
+    from jarvis.security.secrets import get_secret, _keyring_available
+ModuleNotFoundError: No module named 'jarvis'
+
+
+[Compile production modules]
+OK - no output
+
+======================================================================
+5. GIT STATE
+======================================================================
+
+[Git version]
+git version 2.55.0.windows.4
+
+
+[Current branch]
+main
+
+
+[Git status]
+ M jarvis/agent/graph.py
+ M jarvis/core/app.py
+ M jarvis/llm/router.py
+ M jarvis/stt/engine.py
+ M jarvis/utils/subprocess_utils.py
+ M jarvis/vision/screen.py
+ M jarvis/web/weather.py
+ M jarvis/workers/notification_hub.py
+ M pyproject.toml
+?? reports/system_diagnostic_20260902_015614.txt
+?? reports/system_diagnostic_20260902_020209.txt
+?? reports/system_diagnostic_20260902_020349.txt
+?? scripts/system_diagnostic.ps1
+?? test_results.xml
+?? test_stderr.txt
+?? tests/eval/routing_eval_n150.py
+
+
+[Latest commits]
+4f75a2e (HEAD -> main, origin/main, origin/HEAD) docs(changelog): add v4.4.0 entry
+4bebc42 fix(prod): v4.4.0 - Fix 3 production bugs + expand Tier-1 rules + test suite encoding
+2b73a49 docs(audit): add AUDIT_METHODOLOGY.md ΓÇö 22-round adversarial audit framework
+fcc8d1d Merge pull request #22 from Huynh-Minh-Hoa/docs/v4.3.2-vietnamese-changelog
+cfe2543 docs: localize v4.3.2 changelog to Vietnamese
+
+
+[Remote]
+origin	https://github.com/Duong-Phuoc-Hung/JARVIS.git (fetch)
+origin	https://github.com/Duong-Phuoc-Hung/JARVIS.git (push)
+
+
+======================================================================
+6. ENVIRONMENT VARIABLES (presence check - values never printed)
+======================================================================
+OPENAI_API_KEY : SET
+JARVIS_OPENAI_API_KEY : NOT SET (checked Process + User + Machine)
+GEMINI_API_KEY : NOT SET (checked Process + User + Machine)
+GOOGLE_API_KEY : SET
+TELEGRAM_BOT_TOKEN : NOT SET (checked Process + User + Machine)
+DISCORD_BOT_TOKEN : NOT SET (checked Process + User + Machine)
+OPENWEATHER_API_KEY : NOT SET (checked Process + User + Machine)
+TELEGRAM_CHAT_ID : NOT SET (checked Process + User + Machine)
+
+======================================================================
+7. ERROR LOG SCAN
+======================================================================
+
+Scanning: d:\Software GitCode\JARVIS\logs
+
+ERRORS in: jarvis.log
+  L33517: Traceback (most recent call last):
+  L33520: File "C:\Users\Duong Phuoc Hung\AppData\Local\Temp\tmpiperv57s\error_tester\__init__.py", line 18, in execute
+  L33521: raise ValueError("Simulated skill computation error")
+  L33522: ValueError: Simulated skill computation error
+  L33538: [2026-08-24 09:59:05.153] [WARNING] [TID:21488:MainThread] [jarvis.tts.manager] Primary TTS engine failed (HTTP 500 Internal Server Error); switching to SAPI5 fallback.
+  L33543: [2026-08-24 09:59:07.035] [DEBUG] [TID:21488:MainThread] [jarvis.ui.tray] SystemTrayController status updated to: error
+  L33587: [2026-08-24 09:59:07.257] [ERROR] [TID:21488:MainThread] [jarvis.audio.wake_word] WakeWord callback error: Simulated callback failure
+  L33588: Traceback (most recent call last):
+  L33593: raise RuntimeError("Simulated callback failure")
+  L33594: RuntimeError: Simulated callback failure
+  L33595: [2026-08-24 09:59:07.260] [ERROR] [TID:21488:MainThread] [jarvis.audio.wake_word] WakeWord on_wake_word error: Simulated detailed callback failure
+  L33596: Traceback (most recent call last):
+  L33601: raise ValueError("Simulated detailed callback failure")
+  L33602: ValueError: Simulated detailed callback failure
+  L33610: [2026-08-24 09:59:07.308] [DEBUG] [TID:21488:MainThread] [jarvis.audio.wake_word] Vosk recognition error: Vosk corrupted model buffer
+
+INTERACTION STATUS:failed total: 495 lines in jarvis.log
+(These are user commands JARVIS could not route. See CHANGELOG for known fixes.)
+Recent unique failed commands:
+  - 
+  - (silence)
+  - Bật Claude
+  - bật tắt mic
+  - câu lệnh hoàn toàn không có nghĩa abcxyz123
+  - lệnh hoàn toàn lạ chưa từng thấy
+  - mở cursor ide
+  - mở trình duyệt claude
+  - unknown gibberish query 9999
+  - xyz gibberish random query 12345
+
+======================================================================
+9. QUICK DIAGNOSIS
+======================================================================
+No obvious system-level problem detected.
+Check sections above for Python/import/log-specific errors.
+
+======================================================================
+DONE
+======================================================================
+Report saved to: d:\Software GitCode\JARVIS\reports\system_diagnostic_20260902_020349.txt

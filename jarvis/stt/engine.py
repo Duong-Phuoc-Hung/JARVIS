@@ -481,6 +481,15 @@ class FasterWhisperSTT(BaseSTTEngine):
             if self.compute_type in ("float16", "int8_float16", "bfloat16"):
                 self.compute_type = "int8"
 
+        self._preload_thread: threading.Thread | None = None
+        if self.config.get("preload", True) and FASTER_WHISPER_AVAILABLE:
+            self._preload_thread = threading.Thread(
+                target=self._get_model,
+                name="FasterWhisper-Preload",
+                daemon=True,
+            )
+            self._preload_thread.start()
+
     @staticmethod
     def _resolve_device(requested: str) -> str:
         """Returns 'cuda' if CUDA is truly usable, else 'cpu'."""
@@ -518,17 +527,26 @@ class FasterWhisperSTT(BaseSTTEngine):
     def is_available(self) -> bool:
         return FASTER_WHISPER_AVAILABLE
 
+    @property
+    def is_model_loaded(self) -> bool:
+        """Returns True if WhisperModel is already instantiated in memory."""
+        return self._model is not None
+
     def _get_model(self) -> Any:
         if self._model is None:
             with self._lock:
                 if self._model is None and FASTER_WHISPER_AVAILABLE:
-                    os.makedirs(self.download_root, exist_ok=True)
-                    self._model = WhisperModel(
-                        self.model_size,
-                        device=self.device,
-                        compute_type=self.compute_type,
-                        download_root=self.download_root,
-                    )
+                    try:
+                        os.makedirs(self.download_root, exist_ok=True)
+                        self._model = WhisperModel(
+                            self.model_size,
+                            device=self.device,
+                            compute_type=self.compute_type,
+                            download_root=self.download_root,
+                        )
+                        log.info("FasterWhisperSTT model preloaded successfully.")
+                    except Exception as e:
+                        log.warning("FasterWhisperSTT model load error: %s", e)
         return self._model
 
     def transcribe(
@@ -554,11 +572,19 @@ class FasterWhisperSTT(BaseSTTEngine):
         audio_rms = float(calculate_rms(arr))
         audio_duration_s = len(arr) / 16000
 
+        vad_filter = kwargs.pop("vad_filter", self.config.get("vad_filter", True))
+        vad_parameters = kwargs.pop(
+            "vad_parameters",
+            self.config.get("vad_parameters", {"min_silence_duration_ms": 500}),
+        )
+
         with self._lock:
             segments, info = model.transcribe(
                 arr,
                 language=language,
                 beam_size=kwargs.pop("beam_size", 5),
+                vad_filter=vad_filter,
+                vad_parameters=vad_parameters,
                 # ── Hallucination mitigations ─────────────────────────────
                 # (1) Don't condition each segment on previous text output:
                 #     prevents one hallucinated segment from "infecting" the next.

@@ -1,0 +1,420 @@
+File: jarvis\browser\driver.py:46
+Class: BaseBrowserDriver
+Func: launch
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Launch and initialize the browser driver instance.
+Context:
+      def launch(self, config: BrowserConfig | None = None) -> bool:
+          """Launch and initialize the browser driver instance."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:51
+Class: BaseBrowserDriver
+Func: close
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Close the browser instance and release all associated resources.
+Context:
+      def close(self) -> None:
+          """Close the browser instance and release all associated resources."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:56
+Class: BaseBrowserDriver
+Func: navigate
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Navigate to the specified URL.
+Context:
+      def navigate(self, url: str, wait_until: str = "domcontentloaded") -> bool:
+          """Navigate to the specified URL."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:61
+Class: BaseBrowserDriver
+Func: click
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Click on the DOM element matching the selector.
+Context:
+      def click(self, selector: str, timeout_ms: int = 5000) -> bool:
+          """Click on the DOM element matching the selector."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:66
+Class: BaseBrowserDriver
+Func: type_text
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Type text into the input element matching the selector.
+Context:
+      def type_text(
+          self,
+          selector: str,
+          text: str,
+          delay_ms: int = 50,
+============================================================
+
+File: jarvis\browser\driver.py:77
+Class: BaseBrowserDriver
+Func: select_option
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Select an option by value in a dropdown select element.
+Context:
+      def select_option(self, selector: str, value: str) -> bool:
+          """Select an option by value in a dropdown select element."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:82
+Class: BaseBrowserDriver
+Func: wait_for_selector
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Wait until a selector reaches the expected state (visible, attached, hidden).
+Context:
+      def wait_for_selector(
+          self,
+          selector: str,
+          state: str = "visible",
+          timeout_ms: int = 10000,
+============================================================
+
+File: jarvis\browser\driver.py:92
+Class: BaseBrowserDriver
+Func: evaluate_script
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Evaluate a JavaScript expression in the context of the current page.
+Context:
+      def evaluate_script(self, script: str, *args: Any) -> Any:
+          """Evaluate a JavaScript expression in the context of the current page."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:97
+Class: BaseBrowserDriver
+Func: get_html
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Get the full HTML source code of the current page.
+Context:
+      def get_html(self) -> str:
+          """Get the full HTML source code of the current page."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:102
+Class: BaseBrowserDriver
+Func: get_text
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Get visible text content of the page or specified selector.
+Context:
+      def get_text(self, selector: str | None = None) -> str:
+          """Get visible text content of the page or specified selector."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:107
+Class: BaseBrowserDriver
+Func: capture_page_screenshot
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Capture screenshot of the current page returning raw image bytes.
+Context:
+      def capture_page_screenshot(self, full_page: bool = False) -> bytes:
+          """Capture screenshot of the current page returning raw image bytes."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:112
+Class: BaseBrowserDriver
+Func: get_cookies
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Retrieve all cookies for the current session.
+Context:
+      def get_cookies(self) -> list[dict[str, Any]]:
+          """Retrieve all cookies for the current session."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:117
+Class: BaseBrowserDriver
+Func: set_cookies
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Inject cookies into the current browser session.
+Context:
+      def set_cookies(self, cookies: list[dict[str, Any]]) -> None:
+          """Inject cookies into the current browser session."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:122
+Class: BaseBrowserDriver
+Func: get_current_url
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Return the current active page URL.
+Context:
+      def get_current_url(self) -> str:
+          """Return the current active page URL."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:127
+Class: BaseBrowserDriver
+Func: get_title
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Return the current document title.
+Context:
+      def get_title(self) -> str:
+          """Return the current document title."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:132
+Class: BaseBrowserDriver
+Func: find_elements
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Query and return matching PageElements in the DOM.
+Context:
+      def find_elements(self, selector: str) -> list[PageElement]:
+          """Query and return matching PageElements in the DOM."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\browser\driver.py:137
+Class: BaseBrowserDriver
+Func: scroll
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Scroll the current page up, down, or to top/bottom.
+Context:
+      def scroll(self, direction: str = "down", distance: int = 500) -> bool:
+          """Scroll the current page up, down, or to top/bottom."""
+          pass
+  
+      def is_running(self) -> bool:
+============================================================
+
+File: jarvis\comms\zalo.py:407
+Class: ZaloBotController.ZaloWebhookHandler
+Func: log_message
+Is Abstract: False
+Decorators: []
+Docstring: None
+Context:
+              def log_message(self, format, *args):
+                  pass  # Suppress default HTTP logs
+  
+          try:
+              server = HTTPServer((controller.config.host, controller.config.webhook_port), ZaloWebhookHandler)
+============================================================
+
+File: jarvis\core\logger.py:301
+Class: LogContext
+Func: __exit__
+Is Abstract: False
+Decorators: []
+Docstring: None
+Context:
+      def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+          pass
+  
+  
+  def get_logger(name: str) -> JarvisLoggerAdapter:
+============================================================
+
+File: jarvis\core\plugin.py:53
+Class: BasePlugin
+Func: _define_metadata
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Define static metadata for the plugin.
+Context:
+      def _define_metadata(self) -> PluginMetadata:
+          """Define static metadata for the plugin."""
+          pass
+  
+      @abstractmethod
+============================================================
+
+File: jarvis\memory\sqlite_store.py:779
+Class: SQLiteMemoryStore
+Func: close
+Is Abstract: False
+Decorators: []
+Docstring: No-op for connection-per-call architecture, provided for lifecycle symmetry.
+Context:
+      def close(self) -> None:
+          """No-op for connection-per-call architecture, provided for lifecycle symmetry."""
+          pass
+============================================================
+
+File: jarvis\stt\engine.py:332
+Class: BaseSTTEngine
+Func: transcribe
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: 
+        Transcribe audio input to text.
+
+        Args:
+            audio: Audio samples array, raw bytes, WAV buffer, or file path.
+            language: ISO language code (e.g. 'vi', 'en').
+
+        Returns:
+            str: Transcribed speech text (empty string on silence or error).
+        
+Context:
+      def transcribe(
+          self,
+          audio: np.ndarray | bytes | Path | io.BytesIO | str,
+          language: str = "vi",
+          **kwargs: Any,
+============================================================
+
+File: jarvis\stt\engine.py:351
+Class: BaseSTTEngine
+Func: is_available
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: Check if provider is operational and configured.
+Context:
+      def is_available(self) -> bool:
+          """Check if provider is operational and configured."""
+          pass
+  
+      @property
+============================================================
+
+File: jarvis\stt\engine.py:357
+Class: BaseSTTEngine
+Func: engine_name
+Is Abstract: True
+Decorators: ['property', 'abstractmethod']
+Docstring: Identifier name of the STT engine.
+Context:
+      def engine_name(self) -> str:
+          """Identifier name of the STT engine."""
+          pass
+  
+      @property
+============================================================
+
+File: jarvis\tts\base.py:24
+Class: BaseTTSEngine
+Func: speak
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: 
+        Synthesize text and play audio immediately.
+
+        Args:
+            text: Text to vocalize.
+            voice_id: Optional voice identifier override.
+            wait: If True, blocks until audio playback finishes.
+
+        Returns:
+            bool: True if speech synthesis and playback succeeded, False otherwise.
+        
+Context:
+      def speak(self, text: str, voice_id: str | None = None, wait: bool = False, **kwargs) -> bool:
+          """
+          Synthesize text and play audio immediately.
+  
+          Args:
+============================================================
+
+File: jarvis\tts\base.py:39
+Class: BaseTTSEngine
+Func: synthesize_to_bytes
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: 
+        Synthesize text into raw PCM or WAV audio bytes without playing.
+
+        Args:
+            text: Text to synthesize.
+            voice_id: Optional voice identifier override.
+
+        Returns:
+            bytes: Audio buffer (16-bit PCM or WAV container).
+        
+Context:
+      def synthesize_to_bytes(self, text: str, voice_id: str | None = None, **kwargs) -> bytes:
+          """
+          Synthesize text into raw PCM or WAV audio bytes without playing.
+  
+          Args:
+============================================================
+
+File: jarvis\tts\base.py:53
+Class: BaseTTSEngine
+Func: is_available
+Is Abstract: True
+Decorators: ['abstractmethod']
+Docstring: 
+        Check if the engine is ready and operational (e.g. valid API key or local driver present).
+        
+Context:
+      def is_available(self) -> bool:
+          """
+          Check if the engine is ready and operational (e.g. valid API key or local driver present).
+          """
+          pass
+============================================================
+
+File: jarvis\tts\base.py:61
+Class: BaseTTSEngine
+Func: engine_name
+Is Abstract: True
+Decorators: ['property', 'abstractmethod']
+Docstring: Return identifier name of the TTS engine.
+Context:
+      def engine_name(self) -> str:
+          """Return identifier name of the TTS engine."""
+          pass
+  
+      @property
+============================================================
+

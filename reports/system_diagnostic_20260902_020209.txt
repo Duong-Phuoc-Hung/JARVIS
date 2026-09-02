@@ -1,0 +1,103 @@
+﻿
+======================================================================
+JARVIS SYSTEM DIAGNOSTIC
+======================================================================
+Time       : 09/02/2026 02:02:09
+Repo       : d:\Software GitCode\JARVIS
+Computer   : MSI
+User       : Duong Phuoc Hung
+
+======================================================================
+1. WINDOWS / HARDWARE
+======================================================================
+
+[Windows]
+
+
+Caption        : Microsoft Windows 11 Pro
+Version        : 10.0.26200
+BuildNumber    : 26200
+OSArchitecture : 64-bit
+
+
+
+
+
+
+[CPU]
+
+
+Name                      : Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz
+NumberOfCores             : 6
+NumberOfLogicalProcessors : 12
+MaxClockSpeed             : 2592
+
+
+
+
+
+
+[RAM]
+Total RAM : 15.83 GB
+Used RAM  : 12.03 GB
+Free RAM  : 3.8 GB
+
+
+[Disk]
+C: Total=366.22 GB Free=57.4 GB
+D: Total=585.94 GB Free=248.54 GB
+
+
+======================================================================
+2. GPU / CUDA
+======================================================================
+
+[NVIDIA SMI]
+Wed Sep  2 02:02:12 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 616.56                 KMD Version: 616.56        CUDA UMD Version: 13.4     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                  Driver-Model | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce GTX 1650 ...  WDDM  |   00000000:02:00.0 Off |                  N/A |
+| N/A   54C    P5              7W /   30W |     559MiB /   4096MiB |     30%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            2528    C+G   ...\plugins\capture\ZaloCall.exe      N/A      |
+|    0   N/A  N/A            3756    C+G   ...cord\app-1.0.9255\Discord.exe      N/A      |
+|    0   N/A  N/A            6988    C+G   ...s\Antigravity\Antigravity.exe      N/A      |
+|    0   N/A  N/A           10136    C+G   ...2txyewy\CrossDeviceResume.exe      N/A      |
+|    0   N/A  N/A           10568    C+G   ..._cw5n1h2txyewy\SearchHost.exe      N/A      |
+|    0   N/A  N/A           10576    C+G   ...y\StartMenuExperienceHost.exe      N/A      |
+|    0   N/A  N/A           11452    C+G   ...ffice6\promecefpluginhost.exe      N/A      |
+|    0   N/A  N/A           12304    C+G   ...0.4129.107\msedgewebview2.exe      N/A      |
+|    0   N/A  N/A           12848    C+G   ...s\Antigravity\Antigravity.exe      N/A      |
+|    0   N/A  N/A           13080    C+G   ...5n1h2txyewy\TextInputHost.exe      N/A      |
+|    0   N/A  N/A           13296    C+G   ...App_cw5n1h2txyewy\LockApp.exe      N/A      |
+|    0   N/A  N/A           15212    C+G   ...lare WARP\Cloudflare WARP.exe      N/A      |
+|    0   N/A  N/A           15916    C+G   ...x64__dt26b99r8h8gj\RtkUWP.exe      N/A      |
+|    0   N/A  N/A           17108    C+G   ...ms\Zalo\Zalo-26.8.20\Zalo.exe      N/A      |
+|    0   N/A  N/A           17440    C+G   ..._pzs8sxrjxfjjc\app\claude.exe      N/A      |
+|    0   N/A  N/A           18056    C+G   ...al\Programs\Notion\Notion.exe      N/A      |
+|    0   N/A  N/A           19112    C+G   ..._pzs8sxrjxfjjc\app\claude.exe      N/A      |
+|    0   N/A  N/A           19196    C+G   ...__c21gt4mdw3wc8\DCv2\DCv2.exe      N/A      |
++-----------------------------------------------------------------------------------------+
+
+
+[CTranslate2 CUDA]
+ctranslate2 version: 4.7.2
+CUDA devices: 1
+
+
+======================================================================
+3. PYTHON
+======================================================================
+

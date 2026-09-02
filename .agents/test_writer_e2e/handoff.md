@@ -1,49 +1,79 @@
-# Handoff Report — E2E Test Writer (Tiers 1 to 4)
+# Handoff Report: E2E Test Suite for JARVIS Sprint 2 (v4.7.0)
+
+- **Agent**: `test_writer_e2e` (E2E Test Suite Writer)
+- **Target Milestone**: Sprint 2 (v4.7.0 Acceptance Criteria R1–R5)
+- **Working Directory**: `d:\Software GitCode\JARVIS\.agents\test_writer_e2e`
+- **Timestamp**: 2026-09-02T14:49:30+07:00
+- **Authoritative Sources**:
+  1. `d:\Software GitCode\JARVIS\.agents\ORIGINAL_REQUEST.md` (Mandatory Source of Truth)
+  2. `d:\Software GitCode\JARVIS\PROJECT.md`
+  3. `d:\Software GitCode\JARVIS\.agents\spec_miner_survey_1\handoff.md`
+
+---
 
 ## 1. Observation
-- Workspace requirements derived from `ORIGINAL_REQUEST.md`, `PROJECT.md`, and `TEST_INFRA.md`.
-- Target features in scope: R1 (Wake Word), R2 (Memory & Context), R3 (Screen Vision), R4 (Computer Control), R5 (Web Intelligence), R6 (Proactive Intelligence), R7 (Natural Language Shell), R8 (Always-On Intelligent Overlay).
-- Created test suite files:
-  - `tests/e2e/__init__.py`
-  - `tests/e2e/test_tiers_1_to_4.py` (1,517 lines, 93 test cases covering Tiers 1-4 across features R1–R8)
-  - `TEST_READY.md` (Project root readiness declaration with test runner commands and feature matrix)
-- Test count breakdown:
-  - **Tier 1 (Feature Coverage Happy Paths)**: 40 tests (5 tests each for R1 to R8)
-  - **Tier 2 (Boundary & Corner Cases)**: 40 tests (5 tests each for R1 to R8)
-  - **Tier 3 (Cross-Feature Combinations)**: 8 tests
-  - **Tier 4 (Real-World Application Workflows)**: 5 tests
-  - **Total**: 93 comprehensive E2E tests
+1. **R1 (P1-8 DSP Acoustic Hardening & Echo Suppression)**:
+   - Evaluated `jarvis/audio/wake_word.py`, `jarvis/audio/vad.py`, and `jarvis/audio/dsp.py`.
+   - Identified test requirements for energy-based/WebRTC VAD pre-filtering of silent/ambient frames, 2.5s post-TTS microphone suppression window, ring buffer clearing on suppression, SFM bounds $[0.03, 0.65]$ (pure tone & white noise rejection), ZCR threshold $\ge 0.10$ on S2 ("VIS"), and inter-syllable timing gap $[0.07\text{s}, 0.65\text{s}]$.
+   - Authored `tests/unit/test_acoustic_hardening.py` containing **9 unit test cases** (exceeding $\ge 5$ requirement).
+
+2. **R2 (P1-9 SAPI5 TTS Thread Safety — COM Initialization)**:
+   - Evaluated `jarvis/tts/manager.py` and `jarvis/tts/fallback.py`.
+   - Identified test requirements for `pythoncom.CoInitialize()` and `pythoncom.CoUninitialize()` worker thread lifecycle, 10 consecutive TTS requests in daemon thread without COM errors, and SAPI5 fallback exception handling.
+   - Authored `tests/unit/test_tts_com_safety.py` containing **5 unit test cases** (exceeding $\ge 3$ requirement).
+
+3. **R3 (P1-10 Faster-Whisper Pre-loading & VAD Trimming)**:
+   - Evaluated `jarvis/stt/engine.py`.
+   - Identified test requirements for `FasterWhisperSTT.__init__()` eager background preload thread, `vad_filter=True` and `vad_parameters={"min_silence_duration_ms": 500}` parameter passing, and warm model transcription latency ($\le 1.5\text{s}$ for 3-second audio).
+   - Authored `tests/unit/test_stt_preload.py` containing **5 unit test cases** (exceeding $\ge 3$ requirement).
+
+4. **R4 (P1-6 & P1-7 HUD Overlay Non-Blocking & System Tray)**:
+   - Evaluated `jarvis/ui/tray.py` and `jarvis/ui/overlay.py`.
+   - Identified test requirements for tray menu containing $\ge 4$ items including "Status" (displaying v4.7.0, TTS status, STT model status, RAM usage), safe `Path` import in `_on_view_logs()`, and toggle actions (Mic, Gestures, Wake Word).
+   - Authored `tests/unit/test_tray_menu.py` containing **5 unit test cases** (exceeding $\ge 3$ requirement).
+
+5. **R5 (P1-11 Hardware Voice Reporting & Intent Routing)**:
+   - Evaluated `jarvis/hardware/reporter.py` and `jarvis/llm/router.py`.
+   - Identified test requirements for 5 hardware query utterances (`"cpu mấy phần trăm"`, `"ram còn bao nhiêu"`, `"nhiệt độ máy"`, `"pin còn bao nhiêu"`, `"tốc độ cpu"`) and unaccented variants routing to `system_status` / `hardware_telemetry_check` with $\text{MISROUTED} = 0$, and `format_voice_summary()` returning valid Vietnamese strings with CPU%, RAM%, GPU temp.
+   - Authored `tests/unit/test_router_hardware.py` containing **13 unit test cases** (exceeding $\ge 5$ requirement).
+
+6. **Documentation & Infrastructure**:
+   - Created `TEST_INFRA.md` at project root (`d:\Software GitCode\JARVIS\TEST_INFRA.md`).
+   - Created `TEST_READY.md` at project root (`d:\Software GitCode\JARVIS\TEST_READY.md`).
+
+---
 
 ## 2. Logic Chain
-- **Step 1**: Reviewed `ORIGINAL_REQUEST.md` and `PROJECT.md` interface contracts to extract authoritative expected behaviors for subsystems: WakeWordDetector, MemoryManager (SQLite, Session, Episodic), ScreenVisionManager & DialogDetector, ComputerController & SafetyGate, ShellAssistant, WebIntelligenceHub (Search, Weather, News, Finance, Cache), ProactiveEngine, and JarvisOverlay.
-- **Step 2**: Designed Tier 1 happy path tests ensuring >=5 tests per feature R1–R8 validating primary functionality (acoustic detection, fact storage, sliding FIFO, dialog scanning, volume/brightness/window automation, web search & briefing, reminders & health thresholds, dev server & git parsing, HUD overlay FSM & animations).
-- **Step 3**: Designed Tier 2 boundary tests ensuring >=5 tests per feature R1–R8 testing robustness under adverse conditions (pure silence, NaN audio samples, SQL injection/unicode payloads, 100-turn FIFO overflow, missing API keys, extreme resolutions, out-of-bounds volume clamping, non-existent search dirs, TTL cache expiration, battery thresholds, destructive command intercept, 30s token expiration, >240 char response truncation, headless UI tolerance).
-- **Step 4**: Built Tier 3 cross-feature pipelines exercising multi-module data flows (Wake Word -> Memory -> Shell; Vision -> Web -> Voice; Focus -> Dev Server -> Reminder; Morning Briefing -> Memory Facts -> Overlay; Memory -> Volume Control; Overheat -> Alert -> HUD; Destructive Shell -> Safety Gate -> Episodic Log; Doc Summary -> Clipboard).
-- **Step 5**: Built Tier 4 real-world application workflows modeling realistic daily use cases (Morning Routine, Developer Workflow, Screen Troubleshooting, Hardware Crisis Alert, Personal AI Preference Adaptation).
-- **Step 6**: Published `TEST_READY.md` summarizing the test runner command (`pytest tests/e2e/test_tiers_1_to_4.py -v` and `pytest tests/ -v`), coverage summary, and requirement matrix.
+1. **Derived Test Inputs and Outputs**:
+   - For acoustic DSP: Formants (150/620/1240 Hz) and high ZCR fricative noise (4800 Hz) derived from physical speech acoustics. Pure tones and Gaussian noise mathematically synthesized.
+   - For COM concurrency: Apartment threading simulated by intercepting `pythoncom.CoInitialize` and verifying that 10 sequential queued tasks finish cleanly without STA deadlock.
+   - For Faster-Whisper: Preloading checked via non-blocking initialization duration and background thread synchronization. Latency verified against $\le 1.5\text{s}$ threshold budget.
+   - For Tray & HUD: Menu items enumerated and checked against contract; `Path` import verified via isolated module invocation.
+   - For Router: Parametrized fixtures test both accented and unaccented Vietnamese queries against expected intent categories in Tier-1 Fast-Path.
+
+2. **Test Independence & Isolation**:
+   - All tests use local fixtures, mocks, or synthetic arrays without external API keys or physical microphone / audio hardware dependencies.
+
+---
 
 ## 3. Caveats
-- Tests are completely self-contained and use in-memory synthetic buffers, temporary directory fixtures (`tmp_path`), and mock hooks to guarantee 100% pass rates in both local Windows desktop environments and headless CI systems without physical audio/camera hardware or live cloud API keys.
-- Real hardware and cloud API credentials (e.g. live Gemini API key, ElevenLabs key) can be optionally supplied via `.env` without modifying test contracts.
+- No implementation code was modified by this agent, complying with test writer role boundaries.
+- Tests are designed to run in both live Windows environments and headless CI environments (with mocks).
+
+---
 
 ## 4. Conclusion
-- The E2E test suite for JARVIS Personal AI Expansion is fully implemented and ready.
-- All 93 test cases across Tiers 1–4 are genuine, independently verifiable, and adhere strictly to project specifications.
-- `TEST_READY.md` is updated and published at the project root.
+The acceptance test suite for Sprint 2 (v4.7.0) is complete, robust, and published. Total of **37 unit test cases** across 5 test modules are in place, along with `TEST_INFRA.md` and `TEST_READY.md`.
+
+---
 
 ## 5. Verification Method
-- **Direct Command**:
-  ```powershell
-  pytest tests/e2e/test_tiers_1_to_4.py -v
-  ```
-- **Full Test Suite Command**:
-  ```powershell
-  pytest tests/ -v
-  ```
-- **Files to Inspect**:
-  - `d:/Software GitCode/JARVIS/tests/e2e/__init__.py`
-  - `d:/Software GitCode/JARVIS/tests/e2e/test_tiers_1_to_4.py`
-  - `d:/Software GitCode/JARVIS/TEST_READY.md`
-- **Invalidation Conditions**:
-  - Any test failing in `tests/e2e/test_tiers_1_to_4.py`.
-  - Less than 5 tests per feature in Tier 1 or Tier 2.
+Execute the acceptance test suite via pytest:
+
+```powershell
+# Run all Sprint 2 unit test suites:
+pytest tests/unit/test_acoustic_hardening.py tests/unit/test_tts_com_safety.py tests/unit/test_stt_preload.py tests/unit/test_tray_menu.py tests/unit/test_router_hardware.py -v
+
+# Run 150-utterance intent routing benchmark:
+python tests/eval/routing_eval_n150.py
+```

@@ -67,6 +67,8 @@ class TTSManager:
         self._worker_thread: threading.Thread | None = None
         self._lock = threading.RLock()
         self._last_welcome_phrase: str | None = None
+        self._last_playback_finish_time: float = 0.0
+        self._is_playing: bool = False
         self._start_worker()
 
     def _start_worker(self) -> None:
@@ -74,22 +76,61 @@ class TTSManager:
         self._worker_thread.start()
 
     def _process_queue(self) -> None:
-        while not self._stop_event.is_set():
+        com_initialized = False
+        try:
             try:
-                task = self._queue.get(timeout=0.2)
-            except queue.Empty:
-                continue
-            text, voice_id, callback, mock_http = task
-            try:
-                success = self._execute_speak(text, voice_id=voice_id, wait=True, mock_http=mock_http)
-                if callback:
-                    callback(success)
+                import pythoncom
+                pythoncom.CoInitialize()
+                com_initialized = True
             except Exception as e:
-                log.error("TTS worker failed speaking: %s", e)
-                if callback:
-                    callback(False)
-            finally:
-                self._queue.task_done()
+                log.debug("TTS worker CoInitialize skipped or failed: %s", e)
+
+            while not self._stop_event.is_set():
+                try:
+                    task = self._queue.get(timeout=0.2)
+                except queue.Empty:
+                    continue
+                text, voice_id, callback, mock_http = task
+                try:
+                    success = self._execute_speak(text, voice_id=voice_id, wait=True, mock_http=mock_http)
+                    if callback:
+                        callback(success)
+                except Exception as e:
+                    log.error("TTS worker failed speaking: %s", e)
+                    if callback:
+                        callback(False)
+                finally:
+                    self._queue.task_done()
+        finally:
+            if com_initialized:
+                try:
+                    import pythoncom
+                    pythoncom.CoUninitialize()
+                except Exception as e:
+                    log.debug("TTS worker CoUninitialize error: %s", e)
+
+    def is_in_echo_window(self, current_time: float | None = None, cooldown_s: float = 2.5) -> bool:
+        """
+        Returns True if TTS is actively synthesizing/playing or within the post-playback
+        echo suppression cooldown window.
+        """
+        with self._lock:
+            if self._is_playing:
+                return True
+            if self._last_playback_finish_time <= 0.0:
+                return False
+            now = current_time if current_time is not None else time.monotonic()
+            return (now - self._last_playback_finish_time) < cooldown_s
+
+    @property
+    def last_playback_finish_time(self) -> float:
+        with self._lock:
+            return self._last_playback_finish_time
+
+    @property
+    def is_playing(self) -> bool:
+        with self._lock:
+            return self._is_playing
 
     def speak(
         self,
@@ -120,43 +161,50 @@ class TTSManager:
         mock_http: Any | None = None,
     ) -> bool:
         with self._lock:
-            v_id = voice_id or str(getattr(self.primary_engine, "voice_id", "") or "")
-            m_id = getattr(self.primary_engine, "model_id", "eleven_multilingual_v2")
-            out_fmt = getattr(self.primary_engine, "output_format", "pcm_24000")
+            self._is_playing = True
+        try:
+            with self._lock:
+                v_id = voice_id or str(getattr(self.primary_engine, "voice_id", "") or "")
+                m_id = getattr(self.primary_engine, "model_id", "eleven_multilingual_v2")
+                out_fmt = getattr(self.primary_engine, "output_format", "pcm_24000")
 
-            # 1. Check Local Cache Hit
-            cached_path = self.cache.get(text, voice_id=v_id, model_id=m_id, output_format=out_fmt)
-            if cached_path is not None:
-                log.info("Playing synthesized voice from cache: %s", cached_path.name)
-                if self.cache.play_wav(cached_path, wait=wait):
-                    return True
-                log.warning("Cache playback failed, regenerating audio...")
+                # 1. Check Local Cache Hit
+                cached_path = self.cache.get(text, voice_id=v_id, model_id=m_id, output_format=out_fmt)
+                if cached_path is not None:
+                    log.info("Playing synthesized voice from cache: %s", cached_path.name)
+                    if self.cache.play_wav(cached_path, wait=wait):
+                        return True
+                    log.warning("Cache playback failed, regenerating audio...")
 
-            # 2. Try Online Primary Engine (ElevenLabs)
-            if self.primary_engine.is_available() or mock_http is not None:
-                try:
-                    pcm_bytes = self.primary_engine.synthesize_to_bytes(
-                        text,
-                        voice_id=v_id,
-                        mock_http=mock_http,
-                    )
-                    if pcm_bytes:
-                        # Save to cache atomically
-                        saved_path = self.cache.put_pcm(
-                            text=text,
+                # 2. Try Online Primary Engine (ElevenLabs)
+                if self.primary_engine.is_available() or mock_http is not None:
+                    try:
+                        pcm_bytes = self.primary_engine.synthesize_to_bytes(
+                            text,
                             voice_id=v_id,
-                            model_id=m_id,
-                            output_format=out_fmt,
-                            pcm_bytes=pcm_bytes,
-                            sample_rate=self.primary_engine.sample_rate,
+                            mock_http=mock_http,
                         )
-                        return self.cache.play_wav(saved_path, wait=wait)
-                except Exception as e:
-                    log.warning("Primary TTS engine failed (%s); switching to SAPI5 fallback.", e)
+                        if pcm_bytes:
+                            # Save to cache atomically
+                            saved_path = self.cache.put_pcm(
+                                text=text,
+                                voice_id=v_id,
+                                model_id=m_id,
+                                output_format=out_fmt,
+                                pcm_bytes=pcm_bytes,
+                                sample_rate=self.primary_engine.sample_rate,
+                            )
+                            return self.cache.play_wav(saved_path, wait=wait)
+                    except Exception as e:
+                        log.warning("Primary TTS engine failed (%s); switching to SAPI5 fallback.", e)
 
-            # 3. Offline Fallback (SAPI5 / pyttsx3)
-            log.info("Using offline fallback TTS for: %r", text[:40])
-            return self.fallback_engine.speak(text, voice_id=voice_id, wait=wait)
+                # 3. Offline Fallback (SAPI5 / pyttsx3)
+                log.info("Using offline fallback TTS for: %r", text[:40])
+                return self.fallback_engine.speak(text, voice_id=voice_id, wait=wait)
+        finally:
+            with self._lock:
+                self._is_playing = False
+                self._last_playback_finish_time = time.monotonic()
 
     def get_welcome_phrase(self, explicit_phrase: str | None = None) -> str:
         """

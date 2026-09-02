@@ -51,10 +51,12 @@ class SAPI5FallbackTTS(BaseTTSEngine):
 
         if sys.platform == "win32":
             # Priority 1: win32com.client SAPI.SpVoice
+            com_initialized = False
             try:
                 try:
                     import pythoncom
                     pythoncom.CoInitialize()
+                    com_initialized = True
                 except Exception:
                     pass
 
@@ -72,6 +74,13 @@ class SAPI5FallbackTTS(BaseTTSEngine):
                 return True
             except Exception as e:
                 log.debug("win32com SAPI speak failed (%s), trying PowerShell fallback", e)
+            finally:
+                if com_initialized:
+                    try:
+                        import pythoncom
+                        pythoncom.CoUninitialize()
+                    except Exception:
+                        pass
 
             # Priority 2: PowerShell System.Speech.Synthesis
             try:

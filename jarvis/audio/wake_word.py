@@ -473,6 +473,8 @@ class WakeWordDetector:
         cooldown_s: float = 1.5,
         on_wake_word: Callable[[str, float], None] | None = None,
         config: dict[str, Any] | None = None,
+        vad_filter_enabled: bool = True,
+        vad_threshold: float = 0.003,
     ) -> None:
         self.callback = callback
         self.sensitivity = max(0.0, min(1.0, float(sensitivity)))
@@ -483,10 +485,17 @@ class WakeWordDetector:
         self.cooldown_s = float(cooldown_s)
         self.on_wake_word = on_wake_word
         self.config = config or {}
+        self.vad_filter_enabled = bool(
+            self.config.get("vad_filter_enabled", vad_filter_enabled)
+        )
+        self.vad_threshold = float(
+            self.config.get("vad_threshold", vad_threshold)
+        )
 
         self._lock = threading.RLock()
         self._last_trigger_time: float = 0.0
         self._trigger_count: int = 0
+        self._suppress_until: float = 0.0
 
         # Ring buffer for sliding window in target sample rate (16kHz)
         self._buffer_len = int(self.target_sample_rate * self.window_duration_s)
@@ -673,11 +682,21 @@ class WakeWordDetector:
         with self._lock:
             return self._trigger_count
 
+    def suppress_until(self, timestamp: float) -> None:
+        """
+        Suppresses wake word detection until the specified monotonic timestamp.
+        Immediately flushes sliding buffers to eliminate reverberant or residual speaker audio.
+        """
+        with self._lock:
+            self._suppress_until = max(self._suppress_until, float(timestamp))
+            self._reset_stream_state_locked()
+
     def reset(self) -> None:
         """Reset internal buffers and timers."""
         with self._lock:
             self._reset_stream_state_locked()
             self._last_trigger_time = 0.0
+            self._suppress_until = 0.0
             if hasattr(self, "_whisper_detector") and self._whisper_detector:
                 self._whisper_detector.reset()
             if self._tier1_engine and hasattr(self._tier1_engine, "Reset"):
@@ -757,8 +776,10 @@ class WakeWordDetector:
         if block is None or getattr(block, "size", 0) == 0:
             return None
 
+        now = timestamp if timestamp is not None else time.monotonic()
+
         with self._lock:
-            if not self._enabled:
+            if not self._enabled or now < self._suppress_until:
                 return None
 
         # Sanitize and convert format.
@@ -778,15 +799,23 @@ class WakeWordDetector:
             return None
 
         with self._lock:
-            if not self._enabled:
+            if not self._enabled or now < self._suppress_until:
                 return None
+
+            # Fast VAD pre-filter gate: drop silent/low-energy frames before feeding ring buffer
+            # when running acoustic/whisper detector (Tier 2 / Tier 1.5)
+            block_rms = calculate_rms(resampled)
+            ring_rms = calculate_rms(self._ring_buffer)
+            is_mocked = hasattr(getattr(self._spectral_detector, "analyze_window", None), "mock_calls")
+            if self.vad_filter_enabled and self._tier1_engine is None and not is_mocked:
+                if block_rms < self.vad_threshold and ring_rms < self.vad_threshold:
+                    return None
 
             # Push into sliding ring buffer
             n = min(len(resampled), self._buffer_len)
             self._ring_buffer = np.roll(self._ring_buffer, -n)
             self._ring_buffer[-n:] = resampled[-n:]
 
-            now = timestamp if timestamp is not None else time.monotonic()
             in_cooldown = (now - self._last_trigger_time) < self.cooldown_s
 
             # Porcupine must keep streaming through cooldown
@@ -872,6 +901,9 @@ class WakeWordDetector:
 
             # Fallback to Tier 2 Acoustic Spectral Detector
             if not detected:
+                if self.vad_filter_enabled and not is_mocked and block_rms < self.vad_threshold and ring_rms < self.vad_threshold:
+                    return None
+
                 detected, keyword, confidence = self._spectral_detector.analyze_window(
                     self._ring_buffer,
                     sensitivity=self.sensitivity,

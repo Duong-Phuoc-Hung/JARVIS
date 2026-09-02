@@ -12,6 +12,7 @@ import sys
 import threading
 import webbrowser
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("jarvis.ui.tray")
@@ -111,6 +112,7 @@ class SystemTrayController:
 
         # Standard menu items list for contract compatibility
         self.menu_items: list[str] = [
+            "Status",
             "Toggle HUD Overlay",
             "Morning Briefing",
             "Focus Mode (Pomodoro)",
@@ -125,6 +127,69 @@ class SystemTrayController:
             "Reload Config",
             "Exit",
         ]
+
+    def get_status_text(self, item: Any = None) -> str:
+        """Returns dynamic status string displaying version, TTS, STT readiness, and RAM usage."""
+        ver = getattr(self.app, "__version__", None) or "4.7.0"
+        tts_mgr = getattr(self.app, "tts_manager", None) if self.app else None
+        if tts_mgr is not None:
+            is_avail = tts_mgr.is_available() if callable(getattr(tts_mgr, "is_available", None)) else getattr(tts_mgr, "is_available", True)
+            tts_st = "Online" if bool(is_avail) is True else "Offline"
+        else:
+            tts_st = "Ready"
+
+        stt_eng = getattr(self.app, "stt_engine", None) if self.app else None
+        if stt_eng is not None:
+            target_engine = stt_eng
+            if hasattr(type(stt_eng), "primary_engine") or "primary_engine" in getattr(stt_eng, "__dict__", {}):
+                pe = getattr(stt_eng, "primary_engine", None)
+                if pe is not None:
+                    target_engine = pe
+
+            is_loaded = getattr(target_engine, "is_model_loaded", None)
+            if callable(is_loaded):
+                try:
+                    is_loaded = bool(is_loaded())
+                except Exception:
+                    is_loaded = False
+            elif is_loaded is not None:
+                is_loaded = bool(is_loaded)
+
+            is_avail = getattr(target_engine, "is_available", None)
+            if callable(is_avail):
+                try:
+                    is_avail = bool(is_avail())
+                except Exception:
+                    is_avail = True
+            elif is_avail is not None:
+                is_avail = bool(is_avail)
+            else:
+                is_avail = True
+
+            model_obj = getattr(target_engine, "_model", None)
+
+            if is_loaded is True:
+                stt_st = "Ready"
+            elif is_loaded is False:
+                stt_st = "Preloading" if is_avail else "Offline"
+            elif model_obj is not None and model_obj is not False:
+                stt_st = "Ready"
+            elif is_avail is True:
+                stt_st = "Ready"
+            elif is_avail is False:
+                stt_st = "Offline"
+            else:
+                stt_st = "Ready"
+        else:
+            stt_st = "Ready"
+
+        try:
+            import psutil
+            ram_str = f"{psutil.virtual_memory().percent:.0f}%"
+        except Exception:
+            ram_str = "N/A"
+
+        return f"Status: v{ver} | TTS: {tts_st} | STT: {stt_st} | RAM: {ram_str}"
 
     @property
     def is_running(self) -> bool:
@@ -185,9 +250,6 @@ class SystemTrayController:
         """Initializes and runs pystray taskbar icon."""
         icon_img = create_status_icon(self._status) or (Image.new("RGBA", (16, 16), (0, 240, 255, 255)) if PIL_AVAILABLE else None)
 
-        def _get_status_text(_):
-            return f"JARVIS: {self._status.value.upper()}"
-
         def _get_mute_text(_):
             return "Unmute Microphone" if self._is_mic_muted else "Mute Microphone"
 
@@ -203,7 +265,7 @@ class SystemTrayController:
 
         # Construct context menu
         menu = pystray.Menu(
-            pystray.MenuItem(_get_status_text, None, enabled=False),
+            pystray.MenuItem(self.get_status_text, None, enabled=False),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Toggle HUD Overlay (Ctrl+Shift+J)", self._on_toggle_overlay),
             pystray.MenuItem("Morning Briefing (Ctrl+Shift+B)", self._on_morning_briefing),

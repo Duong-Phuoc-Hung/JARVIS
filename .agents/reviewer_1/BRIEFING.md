@@ -1,7 +1,7 @@
-# BRIEFING — 2026-08-24T02:55:12Z
+# BRIEFING — 2026-09-02T08:16:10Z
 
 ## Mission
-Review the JARVIS Autonomous Agentic Superpower Upgrade (M1: Planner & Workers, M2: Sandbox & Skills, M5: Memory, Overlay HUD & CLI Diagnostics) for architecture conformance, correctness, completeness, robustness, and adversarial integrity.
+Comprehensive, independent code and quality review across all JARVIS Sprint 2 (v4.7.0) deliverables (R1: DSP Acoustic Hardening & Echo Cancellation, R2: SAPI5 TTS COM Thread Safety, R3: Faster-Whisper Preload & VAD, R4: HUD Isolation & System Tray Status, R5: Hardware Voice Reporting & Router Intent Rules, R6: Test Suite Integrity & Release Artifacts).
 
 ## 🔒 My Identity
 - Archetype: reviewer_critic
@@ -10,7 +10,7 @@ Review the JARVIS Autonomous Agentic Superpower Upgrade (M1: Planner & Workers, 
 - Original parent: 364e0524-0df4-4ff6-8ff2-160d3074cab3
 - Milestone: Review and Verification
 - Instance: 1 of 1
-- Current Parent: 066a3b59-4763-4416-9da6-bafb3993c06e (Autonomous Agentic Superpower Upgrade)
+- Current Parent: 9506425c-ec6d-40db-a68f-f37c461f99fc (JARVIS Sprint 2 v4.7.0)
 
 ## 🔒 Key Constraints
 - Review-only — do NOT modify implementation code
@@ -19,53 +19,60 @@ Review the JARVIS Autonomous Agentic Superpower Upgrade (M1: Planner & Workers, 
 - Output review_report.md and handoff.md in .agents/reviewer_1/
 
 ## Current Parent
-- Conversation ID: 066a3b59-4763-4416-9da6-bafb3993c06e
-- Updated: 2026-08-24T02:55:12Z
+- Conversation ID: 9506425c-ec6d-40db-a68f-f37c461f99fc
+- Updated: 2026-09-02T08:16:10Z
 
 ## Review Scope
 - **Files to review**:
-  - Milestone M1: `jarvis/planner/` (`dag.py`, `engine.py`, `models.py`, `reflection.py`, `safety_interceptor.py`), `jarvis/workers/` (`manager.py`, `models.py`, `notifications.py`, `worker.py`)
-  - Milestone M2: `jarvis/sandbox/` (`artifacts.py`, `interpreter.py`, `validator.py`), `jarvis/skills/` (`models.py`, `registry.py`, `synthesizer.py`)
-  - Milestone M5: `jarvis/memory/sqlite_store.py`, `jarvis/ui/overlay.py`, `jarvis/cli.py`
-  - Tests: `tests/unit/test_react_planner.py`, `tests/unit/test_skill_synthesis.py`, `tests/unit/test_background_workers.py`, `tests/unit/test_hud_telemetry_and_memory.py`
+  - R1: `jarvis/audio/wake_word.py`, `jarvis/core/app.py`, `jarvis/audio/dsp.py`
+  - R2: `jarvis/tts/manager.py`, `jarvis/tts/fallback.py`
+  - R3: `jarvis/stt/engine.py`
+  - R4: `jarvis/ui/overlay.py`, `jarvis/ui/tray.py`
+  - R5: `jarvis/hardware/reporter.py`, `jarvis/hardware/monitor.py`, `jarvis/llm/router.py`, `jarvis/vision/dialog_detector.py`
+  - Acceptance Tests: `tests/unit/test_acoustic_hardening.py`, `tests/unit/test_tts_com_safety.py`, `tests/unit/test_stt_preload.py`, `tests/unit/test_tray_menu.py`, `tests/unit/test_router_hardware.py`
+  - Evaluation Benchmark: `tests/eval/routing_eval_n150.py`
 - **Interface contracts**: PROJECT.md, ORIGINAL_REQUEST.md, TEST_READY.md
-- **Review criteria**: Correctness, Completeness, Thread-safety, Typing, Docstrings, Robustness, Security, Integrity
+- **Review criteria**: Correctness, Completeness, Thread-safety, Integrity, Robustness
 
 ## Key Decisions Made
-- Completed static code analysis, interface contract verification, and adversarial testing across M1, M2, M5, and CLI diagnostics.
-- Identified 4 signature/attribute mismatches causing diagnostic errors in `jarvis/cli.py` and instantiation failures in `jarvis/core/app.py`:
-  1. `DriverFactory.detect_best_driver()` does not exist in `jarvis/browser/driver.py` (called in `jarvis/cli.py:222`).
-  2. `GUIActor.__init__()` expects `computer_use`, `controller`, `verifier`, `vision_manager` (called with `vision=cuv` in `jarvis/cli.py:232` and `vision=..., safety_gate=...` in `jarvis/core/app.py:389`).
-  3. `CodeInterpreterSandbox.__init__()` takes `default_timeout` (called with `max_execution_seconds` in `jarvis/core/app.py:361`).
-  4. `DynamicSkillSynthesizer.__init__()` takes `skills_dir` (called with `registry=self.skill_registry` in `jarvis/core/app.py:373`).
-- Issued explicit verdict: `REQUEST_CHANGES`.
+- Verified R1 (VAD pre-filter gate, 2.5s post-TTS mic suppression, SFM/ZCR bounds): Genuine and complete.
+- Verified R2 (SAPI5 COM CoInitialize/CoUninitialize thread safety & fallback cascade): Genuine and complete.
+- Verified R3 (Faster-Whisper background eager preloading & VAD silence trim): Genuine and complete.
+- Verified R4 (HUD Overlay _schedule Tkinter thread isolation & System Tray "Status" item + Path import): Genuine and complete.
+- Verified R5 (Hardware voice summary with GPU temp & 5 hardware intent routing rules with MISROUTED=0): Genuine and complete.
+- Verified Benchmark (`routing_eval_n150.py`): 100% CORRECT (150/150), 0% SILENT (0/150), 0% MISROUTED (0/150).
+- Identified R6 release gate findings: `jarvis/__init__.py` line 12 is still `4.6.0` (must be `4.7.0`), and `CHANGELOG.md` is missing `[4.7.0]` release section.
+- Issued verdict: `REQUEST_CHANGES` (blocking on version bump to v4.7.0 and CHANGELOG.md entry before release commit/push).
 
 ## Artifact Index
 - `.agents/reviewer_1/DISPATCH.md` — Incoming dispatch logs
 - `.agents/reviewer_1/BRIEFING.md` — Agent briefing & working memory
 - `.agents/reviewer_1/progress.md` — Progress tracker and heartbeat
-- `C:/Users/Duong Phuoc Hung/.gemini/antigravity/brain/7449a57a-ab7f-44e0-a360-a2460a92005a/handoff.md` — Full Review & Adversarial Challenge Report
+- `C:/Users/Duong Phuoc Hung/.gemini/antigravity/brain/08712d71-1d4d-4072-ade6-44116add16c1/handoff.md` — Full Review & Adversarial Challenge Report
 
 ## Review Checklist
 - **Items reviewed**:
-  - `jarvis/planner/` (`dag.py`, `engine.py`, `models.py`, `reflection.py`, `safety_interceptor.py`): PASS (Kahn DAG, DFS cycle detection, parameter path interpolation, exponential backoff reflection, 30s safety gate).
-  - `jarvis/workers/` (`manager.py`, `models.py`, `notifications.py`, `worker.py`): PASS (Cooperative cancellation, watchdog heartbeats, telemetry snapshots, multi-modal notifications).
-  - `jarvis/sandbox/` (`artifacts.py`, `interpreter.py`, `validator.py`): PASS (AST NodeVisitor security filter, subprocess isolation, SHA256 artifact classification).
-  - `jarvis/skills/` (`models.py`, `registry.py`, `synthesizer.py`): PASS (AST schema inference, disk packaging, dynamic importlib loader, ActionDispatcher binding).
-  - `jarvis/memory/sqlite_store.py`: PASS (WAL journal mode, task_history, browser_sessions, learned_workflows, thread safety).
-  - `jarvis/ui/overlay.py`: PASS (Sidebar HUD, 5-turn history FIFO, live Task DAG widget, live code log stream, visual result cards, 5s system status).
-  - `jarvis/cli.py`: FAIL (2 method/parameter mismatches in `run_health_check`).
-  - `jarvis/core/app.py`: FAIL (3 constructor parameter mismatches in autonomous subsystem bootstrap).
-  - Unit test suites (`test_react_planner.py`, `test_skill_synthesis.py`, `test_background_workers.py`, `test_hud_telemetry_and_memory.py`): PASS.
-- **Verdict**: REQUEST_CHANGES
-- **Unverified claims**: Live physical sound card and live cloud API tokens.
+  - `jarvis/audio/wake_word.py`, `jarvis/core/app.py`: PASS
+  - `jarvis/tts/manager.py`, `jarvis/tts/fallback.py`: PASS
+  - `jarvis/stt/engine.py`: PASS
+  - `jarvis/ui/overlay.py`, `jarvis/ui/tray.py`: PASS
+  - `jarvis/hardware/reporter.py`, `jarvis/llm/router.py`, `jarvis/vision/dialog_detector.py`: PASS
+  - `tests/unit/test_*.py` acceptance test suite (37 unit tests): PASS
+  - `tests/eval/routing_eval_n150.py` benchmark: PASS
+  - `jarvis/__init__.py`: FAIL (Line 12 holds 4.6.0 instead of 4.7.0)
+  - `CHANGELOG.md`: FAIL (Missing v4.7.0 release section)
+- **Verdict**: REQUEST_CHANGES (Actionable release artifacts remediation)
+- **Unverified claims**: Live physical COM audio output and live CUDA hardware sensors.
 
 ## Attack Surface
 - **Hypotheses tested**:
-  - AST Sandbox Bypass: Tested forbidden calls, imports, reflection dunder escapes — ALL BLOCKED.
-  - TaskDAG Circular Deadlock: Tested 3-state DFS cycle detection — CycleDetectedException properly raised.
-  - SubAgent Concurrency Race Conditions: Verified `threading.RLock` and thread cancellation events.
-  - Interface Contract Drift: Found 4 parameter/method naming mismatches between `cli.py`/`app.py` and subsystem constructors.
-- **Vulnerabilities found**: 2 Critical and 2 Major interface drift defects.
-- **Untested angles**: Live physical audio hardware and live cloud API credentials in production.
+  - Echo Loop Re-triggering: Verified 2.5s post-TTS suppression drops all mic frames and zeros ring buffer.
+  - SAPI5 Thread Crash: Verified `pythoncom.CoInitialize()` and `CoUninitialize()` around daemon thread loop.
+  - STT Cold Start Latency: Verified background daemon preloading initializes WhisperModel without blocking caller.
+  - Tkinter Race Conditions: Verified `_schedule(root.after)` ensures UI thread isolation.
+  - Hardware Query Intent Drift: Verified 5 mandatory queries route with 0 misrouting on N=150 benchmark.
+  - 50KB ReDoS Attack: Verified < 20ms parsing throughput.
+- **Vulnerabilities found**: 0 code/security defects in R1–R5; 2 release gate omissions in R6 (`__version__` & `CHANGELOG.md`).
+- **Untested angles**: Physical audio device drivers under heavy host load.
+
 

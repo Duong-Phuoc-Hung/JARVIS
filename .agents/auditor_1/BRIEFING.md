@@ -1,69 +1,68 @@
-# BRIEFING — 2026-08-24T03:00:00Z
+# BRIEFING — 2026-09-02T15:16:00Z
 
 ## Mission
-Forensic Integrity Audit for the JARVIS Autonomous Agentic Superpower Upgrade across all newly implemented packages, algorithms, and test suites.
+Perform independent forensic integrity verification on all Sprint 2 (v4.7.0) implementations against benchmark mode constraints and deliver verdict.
 
 ## 🔒 My Identity
 - Archetype: forensic_auditor
-- Roles: [critic, specialist, auditor]
-- Working directory: d:/Software GitCode/JARVIS/.agents/auditor_1
-- Original parent: 066a3b59-4763-4416-9da6-bafb3993c06e
-- Target: full project (Autonomous Agentic Superpower Upgrade)
+- Roles: critic, specialist, auditor
+- Working directory: d:\Software GitCode\JARVIS\.agents\auditor_1
+- Original parent: 9506425c-ec6d-40db-a68f-f37c461f99fc
+- Target: Sprint 2 (v4.7.0) full implementation
 
 ## 🔒 Key Constraints
 - Audit-only — do NOT modify implementation code
 - Trust NOTHING — verify everything independently
-- Integrity Mode: development (from ORIGINAL_REQUEST.md line 8)
-- Check for hardcoded test result shortcuts, dummy facades, fake return values, fabricated verification logs, bypassed execution logic.
-- Confirm genuine algorithmic implementation of Kahn's DAG sorting, DFS cycle detection, AST parsing, multi-tier browser fallbacks, coordinate conversion formulas, and SQLite persistence.
+- Integrity Mode: benchmark (from ORIGINAL_REQUEST.md)
+- Prohibited: Hardcoded test outputs, dummy/facade implementations, bypassed assertions, pre-populated verification artifacts, cheating patterns.
 
 ## Current Parent
-- Conversation ID: 066a3b59-4763-4416-9da6-bafb3993c06e
-- Updated: 2026-08-24T03:00:00Z
+- Conversation ID: 9506425c-ec6d-40db-a68f-f37c461f99fc
+- Updated: 2026-09-02T15:16:00Z
 
 ## Audit Scope
-- **Work product**:
-  - `jarvis/planner/` (`dag.py`, `engine.py`, `models.py`, `reflection.py`, `safety_interceptor.py`)
-  - `jarvis/workers/` (`manager.py`, `worker.py`, `models.py`, `notifications.py`)
-  - `jarvis/sandbox/` (`interpreter.py`, `validator.py`, `artifacts.py`)
-  - `jarvis/skills/` (`models.py`, `registry.py`, `synthesizer.py`)
-  - `jarvis/browser/` (`driver.py`, `agent.py`, `scraper.py`, `session.py`, `actions.py`, `models.py`)
-  - `jarvis/vision/` (`computer_use.py`, `visual_verifier.py`)
-  - `jarvis/automation/gui_actor.py`
-  - `jarvis/memory/sqlite_store.py`
-  - `jarvis/ui/overlay.py`
-  - `jarvis/core/app.py`
-  - `jarvis/cli.py`
-  - `tests/unit/test_*.py` and `tests/e2e/test_autonomous_workflows.py`
-- **Profile loaded**: General Project
-- **Audit type**: Forensic Integrity Audit
-
-## Audit Progress
-- **Phase**: Reporting completed
-- **Checks completed**:
-  - Phase 1: Source code analysis & anti-cheat inspection across all 11 subsystems
-  - Phase 2: Algorithmic verification (Kahn's DAG, DFS cycle detection, AST parsing, multi-tier browser driver, 1000x1000 coordinate conversions, SQLite WAL persistence)
-  - Phase 3: Artifact verification (pre-populated log check, runtime traces)
-  - Phase 4: Test suite authenticity and coverage verification (Tiers 1-4, unit, e2e)
-- **Checks remaining**: None
-- **Findings so far**: CLEAN — No hardcoded test shortcuts, dummy facades, or fabricated outputs detected.
+- **Work products**:
+  - `jarvis/audio/wake_word.py` & `jarvis/audio/vad.py` & `jarvis/core/app.py`
+  - `jarvis/tts/manager.py` & `jarvis/tts/fallback.py`
+  - `jarvis/stt/engine.py`
+  - `jarvis/ui/tray.py` & `jarvis/ui/overlay.py`
+  - `jarvis/hardware/reporter.py` & `jarvis/hardware/monitor.py`
+  - `jarvis/llm/router.py`
+  - `jarvis/vision/dialog_detector.py`
+  - `tests/unit/test_acoustic_hardening.py`
+  - `tests/unit/test_tts_com_safety.py`
+  - `tests/unit/test_stt_preload.py`
+  - `tests/unit/test_tray_menu.py`
+  - `tests/unit/test_router_hardware.py`
+  - `tests/eval/routing_eval_n150.py`
+- **Profile loaded**: General Project (Integrity Forensics)
+- **Audit type**: Forensic Integrity Check & Verification
 
 ## Attack Surface
 - **Hypotheses tested**:
-  - Assumption that DAG topological sort might be hardcoded for sample nodes -> Disproven: Full Kahn's algorithm with wave scheduling and DFS 3-color cycle detection.
-  - Assumption that Code Interpreter AST validation might be bypassed with dunder attributes -> Disproven: Visitor explicitly blocks `__subclasses__`, `__globals__`, etc.
-  - Assumption that Browser agent might return static mock data unconditionally -> Disproven: 4-tier driver architecture with active Playwright/CDP/HTTP scraping with virtual DOM and HTML-to-markdown converters.
-  - Assumption that Coordinate mapping might be static constants -> Disproven: Full bidirectional 1000x1000 Anthropic grid formulas and pixel clamping.
-  - Assumption that SQLite store might be dummy in-memory mock -> Disproven: Genuine SQLite connection with WAL mode, foreign keys, and indexes.
+  - H1: Are wake word / VAD checks real mathematical/DSP logic or dummy mocks? -> VERIFIED: Real DSP calculations (RMS power, band energy ratio, SFM geom/arith mean, ZCR, suppress_until monotonic deadlines).
+  - H2: Are TTS COM safety calls authentically invoking pythoncom/SAPI5 or no-op facades? -> VERIFIED: Authentic `pythoncom.CoInitialize()` and `pythoncom.CoUninitialize()` in daemon worker and SAPI5 `try/finally` blocks with multi-tier fallback.
+  - H3: Does STT eager preload actually spawn background thread and apply genuine VAD filter parameters? -> VERIFIED: `threading.Thread(target=self._get_model, name="FasterWhisper-Preload", daemon=True)` and `vad_filter=True`, `vad_parameters={"min_silence_duration_ms": 500}`.
+  - H4: Does tray status query actual system metrics (RAM/version/TTS/STT)? -> VERIFIED: Dynamic metric extraction via `psutil.virtual_memory().percent`, STT model state, TTS state, and safe `Path` logging path resolution.
+  - H5: Does HardwareReporter calculate and format real telemetry values into Vietnamese? -> VERIFIED: Accurate Vietnamese & English speech synthesis with CPU%, RAM%, GPU temp, SMART storage.
+  - H6: Are test suites executing genuine logic without hardcoded assertions or bypasses? -> VERIFIED: All 5 unit test suites test genuine code paths without dummy assertions or hardcoded strings.
+- **Vulnerabilities found**: None.
+- **Untested angles**: Hardware-specific physical microphone hardware loop (tested via mathematical synthetic waveforms & real-time mocks in CI).
 
 ## Loaded Skills
-- None required (standard forensic audit profile)
+- None specified in dispatch
+
+## Audit Progress
+- **Phase**: reporting
+- **Checks completed**: Phase 1, Phase 2, Phase 3 completed.
+- **Checks remaining**: None.
+- **Findings so far**: CLEAN
 
 ## Key Decisions Made
-- Confirmed verdict: CLEAN. Full report written to handoff.md.
+- All 11 target implementation modules and 5 unit test modules verified against Benchmark Mode strictness criteria.
 
 ## Artifact Index
-- `d:/Software GitCode/JARVIS/.agents/auditor_1/DISPATCH.md` — Dispatch log
-- `d:/Software GitCode/JARVIS/.agents/auditor_1/BRIEFING.md` — Situational awareness
-- `d:/Software GitCode/JARVIS/.agents/auditor_1/progress.md` — Progress and heartbeat
-- `d:/Software GitCode/JARVIS/.agents/auditor_1/handoff.md` — Forensic Audit Report
+- `d:\Software GitCode\JARVIS\.agents\auditor_1\DISPATCH.md` — Dispatch log
+- `d:\Software GitCode\JARVIS\.agents\auditor_1\BRIEFING.md` — Situational awareness
+- `d:\Software GitCode\JARVIS\.agents\auditor_1\progress.md` — Progress tracker
+- `d:\Software GitCode\JARVIS\.agents\auditor_1\handoff.md` — Final audit report

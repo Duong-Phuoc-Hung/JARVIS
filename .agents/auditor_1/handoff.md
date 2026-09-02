@@ -1,137 +1,117 @@
-# Forensic Integrity Audit Report
+# Forensic Audit Report: JARVIS Sprint 2 (v4.7.0)
 
-**Target Work Product**: JARVIS Autonomous Agentic Superpower Upgrade (Milestones M1–M6)  
-**Profile**: General Project  
-**Integrity Mode**: Development (`ORIGINAL_REQUEST.md` line 8)  
-**Audit Verdict**: **`CLEAN`**  
+**Target Scope**: Sprint 2 (v4.7.0) Implementations & Acceptance Unit Test Suites  
+**Working Directory**: `d:\Software GitCode\JARVIS`  
+**Integrity Mode**: `benchmark` (from `d:\Software GitCode\JARVIS\.agents\ORIGINAL_REQUEST.md`)  
+**Verdict**: **CLEAN**  
 
 ---
 
 ## 1. Observation
 
-A systematic, line-by-line forensic source code audit was conducted across all newly created and updated packages in `d:/Software GitCode/JARVIS/`:
+Direct code and test observations across all Sprint 2 deliverables:
 
-### A. ReAct Planner & TaskDAG Subsystem (`jarvis/planner/`)
-- **`jarvis/planner/dag.py` (Lines 116–201)**:
-  - **DFS Cycle Detection**: Implemented via 3-state coloring (`0=UNVISITED`, `1=VISITING`, `2=VISITED`) traversing `_dependents`. Raises `CycleDetectedException` when back-edges are encountered.
-  - **Kahn's Topological Sorting**: Implements in-degree tracking across all `TaskNode` objects, groups nodes with `in_degree == 0` into parallel executable execution waves (`waves: List[List[TaskNode]]`), decrements dependent in-degrees, and confirms `processed_count == len(self._nodes)`.
-  - **Parameter Interpolation (Lines 393–473)**: Recursive variable path resolver (`interpolate_parameters`, `_lookup_path`) parsing expressions such as `{{steps.<node_id>.output.<field>}}`, bracket indices (`steps.s2.data[0].id`), and context attributes preserving object types for exact matches.
-- **`jarvis/planner/engine.py` (Lines 155–260)**:
-  - **Execution Engine**: Genuine concurrent parallel orchestration using `concurrent.futures.ThreadPoolExecutor` up to `max_parallel_workers`.
-  - **Safety Interception**: Real-time evaluation of `WAITING_CONFIRMATION` tokens with polling and EventBus notifications.
-- **`jarvis/planner/reflection.py` (Lines 118–298)**:
-  - **Self-Reflection & Self-Healing**: Deterministic failure triage evaluating `RecoveryStrategy.RETRY` (with exponential backoff $base \times 2^{retry}$ and timeout multiplier), `RecoveryStrategy.ALTERNATIVE_TOOL` (mapping blocked actions to fallbacks), `RecoveryStrategy.REPLAN` (subgraph injection), and `RecoveryStrategy.ABORT` (blocking downstream dependents).
-- **`jarvis/planner/safety_interceptor.py` (Lines 25–93)**:
-  - **Destructive Action Gating**: Regex scanning of 16 high-risk command patterns (e.g. `rm -rf`, `format`, `drop table`, `Remove-Item -Recurse`, `taskkill /f`) and 30-second tokenized FSM integration via `SafetyGate`.
+### 1.1 R1: DSP Acoustic Hardening & Echo Suppression
+- **`jarvis/audio/wake_word.py` (Lines 805–813, 685–693, 350–364)**:
+  - VAD pre-filter gate: Evaluates `block_rms = calculate_rms(resampled)` and `ring_rms = calculate_rms(self._ring_buffer)` against `self.vad_threshold` (default `0.003`). If below threshold and not running Vosk/mock, returns `None` immediately, preventing silent or low-energy noise frames from shifting the ring buffer.
+  - `suppress_until(timestamp)`: Atomically updates `self._suppress_until = max(self._suppress_until, float(timestamp))` and invokes `self._reset_stream_state_locked()`, filling `self._ring_buffer` with zeros (`0.0`) and resetting pending streaming state.
+  - `AcousticSpectralDetector.analyze_window()`: Implements real STFT FFT spectrum calculations (`np.fft.rfft`), calculates Spectral Flatness Measure ($\text{SFM} = \frac{\exp(\text{mean}(\ln(\text{spec})))}{\text{mean}(\text{spec})}$), enforces $0.03 \le \text{SFM} \le 0.65$ (rejecting pure tones $< 0.03$ and white noise $> 0.65$), enforces $\text{ZCR} \ge 0.10$ on Syllable 2 ("VIS"), and rejects simultaneous broadband clap impulses where $|t_{\text{diff}}| < 0.05\text{s}$.
+- **`jarvis/core/app.py` (Lines 332–341)**:
+  - `_on_audio_blocks_dispatch`: Checks `if self.tts_manager and self.tts_manager.is_in_echo_window(current_time=now, cooldown_s=2.5): self.wake_word_detector.suppress_until(now + 0.1); return`. Drops incoming microphone frames during active TTS synthesis and within the 2.5s post-playback window.
+- **`tests/unit/test_acoustic_hardening.py`**: 9 unit tests verifying VAD silent frame discard, speech frame pass-through, `suppress_until()` ring buffer zeroing, 2.5s echo window lockout, and SFM/ZCR spectral bounds.
 
-### B. Autonomous Background Workers Subsystem (`jarvis/workers/`)
-- **`jarvis/workers/worker.py` (Lines 27–295)**:
-  - **Worker Lifecycle**: Implements `BackgroundWorker` as a dedicated daemon thread with `threading.RLock`, cooperative cancellation (`threading.Event`), pause/resume synchronization, and periodic heartbeat pulses to `ResourceWatchdog`.
-- **`jarvis/workers/manager.py` (Lines 24–226)**:
-  - **Worker Pool Management**: Manages active workers registry, history buffer, graceful thread pool shutdown, and event publishing.
-- **`jarvis/workers/notifications.py` (Lines 24–216)**:
-  - **Multi-Modal Dispatch**: Dispatches Vietnamese TTS voice announcements, HUD overlay card updates, Telegram messages, and photo/file artifact uploads.
+### 1.2 R2: SAPI5 TTS COM Apartment Concurrency Safety
+- **`jarvis/tts/manager.py` (Lines 78–111, 112–124)**:
+  - `_process_queue()`: Spawns worker thread initialized with `pythoncom.CoInitialize()`, wraps queue execution loop, and guarantees `pythoncom.CoUninitialize()` in the enclosing `finally:` block.
+  - `is_in_echo_window()`: Returns `True` if `self._is_playing` is active or if `(now - self._last_playback_finish_time) < cooldown_s` (default 2.5s).
+- **`jarvis/tts/fallback.py` (Lines 52–84)**:
+  - `SAPI5FallbackTTS.speak()`: Wraps `win32com.client.Dispatch("SAPI.SpVoice")` in `try: pythoncom.CoInitialize() ... finally: pythoncom.CoUninitialize()`, gracefully falling back to PowerShell `System.Speech.Synthesis.SpeechSynthesizer`, `pyttsx3`, and mock loggers on failure.
+- **`tests/unit/test_tts_com_safety.py`**: 5 unit tests validating COM initialization/uninitialization lifecycle on daemon thread startup/teardown, 10 consecutive queued phrases in daemon thread with 0 COM errors, and exception recovery.
 
-### C. Code Interpreter Sandbox Subsystem (`jarvis/sandbox/`)
-- **`jarvis/sandbox/validator.py` (Lines 34–294)**:
-  - **AST Security Validator**: Subclasses `ast.NodeVisitor` to statically inspect Python AST trees (`visit_Import`, `visit_ImportFrom`, `visit_Call`, `visit_Attribute`). Strictly blocks low-level OS tampering (`ctypes`, `subprocess`, `socket`, `win32api`), forbidden built-ins (`eval`, `exec`, `compile`, `__import__`), dunder reflection exploits (`__subclasses__`, `__bases__`, `__globals__`), and dangerous PowerShell regex patterns.
-- **`jarvis/sandbox/interpreter.py` (Lines 154–291)**:
-  - **Subprocess Isolation**: Allocates isolated per-run scratch directories, executes Python/PowerShell in isolated subprocesses with timeout enforcement, captures stdout/stderr streams, and extracts JSON structured data.
-- **`jarvis/sandbox/artifacts.py` (Lines 44–224)**:
-  - **Artifact Indexing**: Snapshots directory state pre/post execution, computes SHA256 digests, classifies MIME types (images, spreadsheets, CSVs, documents), and exports output files to persistent storage.
+### 1.3 R3: Faster-Whisper Eager Background Preloading & VAD Trim
+- **`jarvis/stt/engine.py` (Lines 484–492, 575–602)**:
+  - `FasterWhisperSTT.__init__()`: Checks `if self.config.get("preload", True) and FASTER_WHISPER_AVAILABLE:`, launching `threading.Thread(target=self._get_model, name="FasterWhisper-Preload", daemon=True)`.
+  - `_get_model()`: Thread-safe double-checked lock (`threading.RLock`) loading `WhisperModel`.
+  - `transcribe()`: Passes `vad_filter=True`, `vad_parameters={"min_silence_duration_ms": 500}`, along with hallucination mitigation parameters `condition_on_previous_text=False`, `no_speech_threshold=0.6`, `log_prob_threshold=-1.0`, and `compression_ratio_threshold=2.4`.
+- **`tests/unit/test_stt_preload.py`**: 5 unit tests validating eager background thread initialization, concurrency synchronization, VAD parameter propagation, and custom override handling.
 
-### D. Persistent Skill Library Subsystem (`jarvis/skills/`)
-- **`jarvis/skills/synthesizer.py` (Lines 53–304)**:
-  - **Auto-Packaging & Schema Inference**: Parses AST function signatures to extract JSON input parameter schemas, wraps raw code into standardized modules, and generates `__init__.py`, `metadata.json`, and `SKILL.md`.
-- **`jarvis/skills/registry.py` (Lines 26–452)**:
-  - **Dynamic Importer**: Utilizes `importlib.util.spec_from_file_location` and `module_from_spec` to hot-load skill entrypoints into `sys.modules`, tracks usage telemetry (success rate, average latency), and dynamically binds actions to `ActionDispatcher`.
+### 1.4 R4: HUD Overlay Thread Isolation & System Tray Telemetry
+- **`jarvis/ui/overlay.py` (Lines 1820–1837)**:
+  - `_schedule(fn)`: Thread-safe dispatch mechanism routing all UI mutations via `self._root.after(0, fn)` when Tkinter event loop is active, with seamless direct invocation fallback in headless CI environments.
+- **`jarvis/ui/tray.py` (Lines 114–129, 131–193, 267–285, 404–413)**:
+  - `self.menu_items`: Exposes 14 menu actions including `"Status"`, `"Toggle HUD Overlay"`, `"Mute Microphone"`, and `"Exit"`.
+  - `get_status_text()`: Dynamically formats telemetry string `f"Status: v{ver} | TTS: {tts_st} | STT: {stt_st} | RAM: {ram_str}"` querying `psutil.virtual_memory().percent`, STT model readiness state, and TTS availability.
+  - `_on_view_logs()`: Correctly imports and utilizes `Path` from `pathlib`, resolving log path to `%LOCALAPPDATA%\JARVIS\logs\jarvis.log` and executing `os.startfile()` on Windows or `webbrowser.open()` on Linux/macOS.
+- **`tests/unit/test_tray_menu.py`**: 5 unit tests verifying menu items count ($\ge 4$), dynamic status formatting across offline/preloading/ready states, and `_on_view_logs` path resolution without `NameError`.
 
-### E. Browser Automation Agent Subsystem (`jarvis/browser/`)
-- **`jarvis/browser/driver.py` (Lines 39–1056)**:
-  - **4-Tier Driver Architecture**: Implements `PlaywrightBrowserDriver` (Tier 1), `CDPBrowserDriver` (Tier 2), `HttpScrapingDriver` (Tier 3), and `MockBrowserDriver` (Tier 4).
-  - `HttpScrapingDriver` provides an authentic zero-browser fallback with virtual DOM parsing of HTML inputs, forms, links, cookies, and HTTP GET/POST form submission.
-- **`jarvis/browser/scraper.py` (Lines 32–220, 226–290, 420–550)**:
-  - **HTML to Markdown**: Custom `HTMLToMarkdownConverter` extending `html.parser.HTMLParser` stripping noisy elements and producing clean GitHub-Flavored Markdown.
-  - **Table & Structured Extraction**: Parses HTML `<table>` elements into structured records, extracts Schema.org JSON-LD and OpenGraph metadata, and aggregates eCommerce price comparisons.
-
-### F. Computer-Use Vision & GUI Actor Subsystem (`jarvis/vision/`, `jarvis/automation/`)
-- **`jarvis/vision/computer_use.py` (Lines 60–167, 300–450)**:
-  - **Anthropic 1000x1000 Coordinate Grid**: Exact normalized bounding box math (`to_pixel_coords`, `from_pixel_coords`, `center_pixel`, `iou`) with bidirectional scaling and boundary clamping.
-  - **4-Tier Grounding Engine**: Multi-tier resolution spanning Vision LLM structured prompting, OCR word/line bounding boxes, Win32 child window handles, and synthetic UI fallbacks.
-- **`jarvis/vision/visual_verifier.py` (Lines 86–197, 200–350)**:
-  - **Visual Diffing Loop**: Computes pixel delta ratio, changed bounding box ROI, and MSE using PIL `ImageChops` and `ImageStat`.
-- **`jarvis/automation/gui_actor.py` (Lines 93–280)**:
-  - **Verified GUI Interaction**: Executes mouse and keyboard interactions with pre/post visual state verification and self-healing offset jitter / double-click retries.
-
-### G. Memory, HUD Telemetry & System Integration (`jarvis/memory/`, `jarvis/ui/`, `jarvis/core/`, `jarvis/cli.py`)
-- **`jarvis/memory/sqlite_store.py` (Lines 59–160)**:
-  - **SQLite WAL Schema**: Thread-safe database with tables for `facts` (UPSERT), `episodes`, `user_habits`, `task_history`, `browser_sessions`, and `learned_workflows`.
-- **`jarvis/ui/overlay.py` (Lines 197–550)**:
-  - **HUD Telemetry**: Supports sidebar mode, 5-turn history queue, live Task DAG telemetry rendering, code log streaming, visual result cards, and 5s status bar updates (CPU, RAM, Battery).
-- **`jarvis/core/app.py` & `jarvis/cli.py`**:
-  - Full app wiring coordinating all 17 autonomous subsystems; `python -m jarvis health-check` diagnostic suite covers all subsystems with exit code 0.
-
-### H. Anti-Cheat & Forensic Checks
-- **Search for Hardcoded Strings**: No static string returns tailored specifically to bypass tests.
-- **Search for Dummy Facades**: No methods raising `NotImplementedError` or returning constant dummy values in core logic.
-- **Search for Pre-populated Artifacts**: Only active application runtime log (`logs/jarvis.log`) was present; zero fabricated verification tokens or mock attestations.
+### 1.5 R5: Hardware Voice Reporting & Intent Router Coverage
+- **`jarvis/hardware/reporter.py` (Lines 41–67, 68–115)**:
+  - `format_voice_summary(metrics, lang="vi")`: Generates natural Vietnamese speech summaries including CPU%, RAM%, GPU temperature when available, and storage SMART status.
+  - `format_component_summary(component, metrics, lang="vi")`: Targets component-specific telemetry inquiries for CPU, RAM, GPU, and S.M.A.R.T. disks.
+- **`jarvis/llm/router.py` (Lines 470–545)**:
+  - `self.rule_engine`: Contains deterministic Tier-1 routing entries for the 5 mandatory Vietnamese hardware queries: `"cpu mấy phần trăm"`, `"ram còn bao nhiêu"`, `"nhiệt độ máy"`, `"pin còn bao nhiêu"`, `"tốc độ cpu"`, as well as unaccented and extended variants (`"mức pin"`, `"dung lượng pin"`, `"nhiệt độ laptop"`, `"nhiệt độ pc"`, `"xung nhịp cpu"`), mapping to `hardware_telemetry_check` with confidence $\ge 0.95$.
+- **`jarvis/vision/dialog_detector.py` (Lines 122–129, 186–205)**:
+  - `ErrorDialogDetector`: Traverses Win32 `#32770` modal window trees and preserves `severity="critical"` when fatal/crash signatures are observed in window title or child texts.
+- **`tests/unit/test_router_hardware.py`**: 13 test cases verifying mandatory hardware queries, GPU temperature formatting, critical alert cooldown bypass, dialog severity preservation, and ReDoS resistance on 50KB adversarial inputs.
 
 ---
 
 ## 2. Logic Chain
 
-1. **Premise**: Under Development Integrity Mode, the software must demonstrate genuine, un-fabricated algorithmic implementation without hardcoded shortcuts, facade dummies, or fabricated logs.
-2. **Observation**: 
-   - Kahn's algorithm and DFS 3-color cycle detection are fully coded and mathematically sound in `jarvis/planner/dag.py`.
-   - AST security validator explicitly walks Python AST nodes and blocks unsafe operations in `jarvis/sandbox/validator.py`.
-   - Subprocess sandbox executes real Python/PowerShell scripts, produces real filesystem artifacts, and computes authentic SHA-256 hashes.
-   - Dynamic skill synthesizer formats Python modules and writes valid JSON metadata to disk.
-   - Browser driver hierarchy implements four distinct drivers with genuine HTML parsing and form submission.
-   - Coordinate conversion implements authentic 0–1000 normalized grid formulas with pixel clamping.
-   - SQLite store creates genuine tables with `PRAGMA journal_mode = WAL` and handles concurrent thread locks.
-3. **Inference**: Every subsystem fulfills its technical contract with genuine logic and zero integrity violations.
-4. **Conclusion**: The entire work product is clean and authentic.
+1. **Static Analysis & Pattern Search**:
+   - Analyzed all 11 target implementation modules: `jarvis/audio/wake_word.py`, `jarvis/audio/vad.py`, `jarvis/core/app.py`, `jarvis/tts/manager.py`, `jarvis/tts/fallback.py`, `jarvis/stt/engine.py`, `jarvis/ui/tray.py`, `jarvis/ui/overlay.py`, `jarvis/hardware/reporter.py`, `jarvis/hardware/monitor.py`, `jarvis/llm/router.py`, and `jarvis/vision/dialog_detector.py`.
+   - Verified that zero methods contain constant-return dummy facades (`return True`, `return "hardcoded"`, or empty stubs). All algorithms (spectral STFT, RMS power estimation, Win32 COM lifecycle, CTranslate2 preload threading, Tkinter queue scheduling, telemetry extraction, regex intent matching) contain authentic, functional logic.
+
+2. **Benchmark Mode Integrity Verification**:
+   - Searched for hardcoded test result cheating, string match bypasses, and self-certifying tautological assertions in test suites (`tests/unit/test_acoustic_hardening.py`, `tests/unit/test_tts_com_safety.py`, `tests/unit/test_stt_preload.py`, `tests/unit/test_tray_menu.py`, `tests/unit/test_router_hardware.py`).
+   - Verified that test cases supply dynamic, mathematically synthesized inputs (e.g., Hann-windowed sinusoids and fricative noise bursts in `generate_wake_word_signal`, multi-threaded queue bursts in TTS safety tests, realistic mock telemetry structs) and assert real boundary behavior.
+
+3. **Behavioral & Concurrency Isolation**:
+   - Verified that COM apartment initialization is paired with uninitialization in `finally:` blocks on daemon worker threads and SAPI5 fallback paths.
+   - Verified that Faster-Whisper background preloading uses reentrant locks to prevent race conditions during cold-start `transcribe()` invocations.
+   - Verified that UI updates in `AlwaysOnOverlay` strictly marshal through `root.after(0, fn)` to protect Tkinter's single-threaded event loop from audio worker thread interruptions.
+
+4. **Intent Coverage & Telemetry Integrity**:
+   - Inspected `tests/eval/routing_eval_n150.py` and `jarvis/llm/router.py`. Verified that the 5 mandatory hardware queries (`"cpu mấy phần trăm"`, `"ram còn bao nhiêu"`, `"nhiệt độ máy"`, `"pin còn bao nhiêu"`, `"tốc độ cpu"`) map to `hardware_telemetry_check` / `system_status` with $\text{MISROUTED} = 0$.
 
 ---
 
 ## 3. Caveats
 
-- **No Caveats**: All 11 major subsystems, 70+ test files, and all new modules were thoroughly audited.
+- **Physical Microphone Hardware Loop**: Verification was performed using mathematical synthetic waveform generators (`generate_wake_word_signal`), real-time streaming audio buffers, and mock device streams as appropriate for headless/CI forensic auditing. Live physical acoustic hardware testing with ambient room speakers requires runtime hardware deployment.
+- **Release Version Metadata**: In `jarvis/__init__.py`, `__version__ = "4.6.0"`, and `CHANGELOG.md` currently records v4.6.0. Bumping to `4.7.0`, writing the release notes, and pushing to `origin main` are assigned to the release finalization milestone (M6).
 
 ---
 
 ## 4. Conclusion
 
-**Verdict: `CLEAN`**
+**Verdict**: **CLEAN**
 
-The JARVIS Autonomous Agentic Superpower Upgrade is completely free of hardcoded shortcuts, dummy facades, and fabricated outputs. All modules implement robust, genuine logic adhering to the project architecture.
+All Sprint 2 (v4.7.0) deliverables — DSP acoustic hardening, 2.5s post-TTS echo suppression, SAPI5 COM apartment concurrency safety, Faster-Whisper eager background preloading with VAD trimming, HUD overlay thread safety, System Tray telemetry status, hardware voice reporting, and intent routing — are authentically implemented and rigorously tested with **zero integrity violations**.
 
 ---
 
 ## 5. Verification Method
 
-To independently verify the audited work product:
+To independently verify all claims and execute the Sprint 2 test suite:
 
-1. **Full Regression & E2E Test Suite**:
-   ```bash
-   pytest tests/ -v
-   ```
-   *Expected*: All 1000+ tests pass with exit code 0.
+```powershell
+# 1. Run Sprint 2 unit acceptance tests:
+pytest tests/unit/test_acoustic_hardening.py tests/unit/test_tts_com_safety.py tests/unit/test_stt_preload.py tests/unit/test_tray_menu.py tests/unit/test_router_hardware.py -v
 
-2. **System Health Check Diagnostics**:
-   ```bash
-   python -m jarvis health-check
-   ```
-   *Expected*: Reports all 17 core and autonomous subsystems in `READY` status with exit code 0.
+# 2. Run intent routing evaluation benchmark (N=150):
+python tests/eval/routing_eval_n150.py
 
-3. **Subsystem Unit Test Verifications**:
-   ```bash
-   pytest tests/unit/test_react_planner.py -v
-   pytest tests/unit/test_skill_synthesis.py -v
-   pytest tests/unit/test_browser_agent.py -v
-   pytest tests/unit/test_computer_use_vision.py -v
-   pytest tests/unit/test_background_workers.py -v
-   pytest tests/unit/test_hud_telemetry_and_memory.py -v
-   pytest tests/e2e/test_autonomous_workflows.py -v
-   pytest tests/e2e/test_tiers_1_to_4.py -v
-   ```
+# 3. Inspect target source code files:
+# jarvis/audio/wake_word.py
+# jarvis/core/app.py
+# jarvis/tts/manager.py
+# jarvis/tts/fallback.py
+# jarvis/stt/engine.py
+# jarvis/ui/tray.py
+# jarvis/ui/overlay.py
+# jarvis/hardware/reporter.py
+# jarvis/hardware/monitor.py
+# jarvis/llm/router.py
+# jarvis/vision/dialog_detector.py
+```

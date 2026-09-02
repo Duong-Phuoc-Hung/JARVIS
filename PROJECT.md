@@ -1,70 +1,82 @@
-# Project: JARVIS v4.1.0 Security & Stability Hardening
+# Project: JARVIS Sprint 2 (v4.7.0) - P1 Accuracy, Acoustic & UX Hardening
 
 ## Architecture
-JARVIS v4.1.0 is an AI assistant running on Windows 11 64-bit Python 3.13. This project fixes 7 critical security vulnerabilities and stability deficits across 4 core subsystems:
-1. **Sandbox & Security Subsystem**: `jarvis/sandbox/security.py`, `jarvis/sandbox/validator.py`, and `jarvis/workers/night_shift.py`.
-2. **AI Defense Subsystem**: `jarvis/security/prompt_guard.py`, `jarvis/browser/`, and `jarvis/skills/screen_context/`.
-3. **Communications Subsystem**: `jarvis/comms/rate_limiter.py`, `jarvis/comms/telegram.py`, `zalo.py`, `discord.py`, and `mobile_bridge.py`.
-4. **Resilience & Performance Subsystem**: `jarvis/automation/safety_gate.py`, `jarvis/healing/`, and `jarvis/stt/`.
+JARVIS is a modular AI voice assistant for Windows 11.
+- **Audio & Acoustic Engine (`jarvis/audio/`, `jarvis/core/app.py`)**: Real-time microphone capture via SoundDevice, multi-tier wake word detection (Vosk, Faster-Whisper sliding window, Acoustic spectral detector), energy/WebRTC VAD pre-filter gate, 2.5s post-TTS microphone suppression window.
+- **TTS Engine (`jarvis/tts/`)**: TTS Manager with ElevenLabs cloud synthesis and SAPI5 offline fallback. Background worker thread with Windows Single-Threaded Apartment COM lifecycle discipline (`pythoncom.CoInitialize()` and `pythoncom.CoUninitialize()`).
+- **STT Engine (`jarvis/stt/`)**: Faster-Whisper CTranslate2 STT with eager background thread model preloading on initialization and built-in VAD silence trimming (`vad_filter=True`).
+- **UI & HUD Overlay (`jarvis/ui/`)**: AlwaysOnOverlay Tkinter interface running in a dedicated background daemon thread with all mutations marshaled via `_schedule()` / `root.after(0, fn)`. SystemTrayController with dynamic status generator (version, TTS status, STT model readiness, RAM usage) and safe path resolution.
+- **Hardware Telemetry & Intent Routing (`jarvis/hardware/`, `jarvis/llm/router.py`)**: HardwareReporter formatting natural Vietnamese voice summary with CPU%, RAM%, GPU temp, SMART storage. LLMIntentRouter with fast regex and dictionary rules routing hardware inquiries (CPU, RAM, GPU, battery/pin, temperature) directly to `system_status` / `hardware_telemetry_check`.
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | R1: Sandbox `__globals__` Escape Patch | Neutralize `type(fn).__call__.__globals__` access in sandbox preamble via private scope, metaclass protection, and globals purge. | M1 | ORIGINAL_REQUEST §R1 |
-| 2 | R1: Adversarial Non-Mock Test | Verify class-level `__globals__` access is blocked and 15 existing sandbox tests pass. | M1 | ORIGINAL_REQUEST §R1 |
-| 3 | R2: Night Shift Daemon Audit Report | Document audit findings in `docs/night_shift_audit.md` detailing un-sandboxed daemon state. | M2 | ORIGINAL_REQUEST §R2 |
-| 4 | R2: Night Shift Sandboxing | Route night task execution through `CodeInterpreterSandbox` with Job Object and Low Integrity restrictions. | M2 | ORIGINAL_REQUEST §R2 |
-| 5 | R3: AppContainer Network Blocking B2 | Wire `SECURITY_CAPABILITIES` with 0 network capabilities into Windows AppContainer subprocess creation. | M3 | ORIGINAL_REQUEST §R3 |
-| 6 | R3: Real OS AppContainer Socket Test | Test `socket.connect(("8.8.8.8", 80))` raises `PermissionError`/`OSError` under `@pytest.mark.real_os` without mock. | M3 | ORIGINAL_REQUEST §R3 |
-| 7 | R4: Prompt-Injection Defense Pipeline | Implement `PromptGuard` with Unicode normalization, template neutralization, and XML isolation tags. | M4 | ORIGINAL_REQUEST §R4 |
-| 8 | R4: Browser & Screen Context Integration | Integrate `PromptGuard` into WebScraper, CDP controller, and ScreenContext before LLM prompts. | M4 | ORIGINAL_REQUEST §R4 |
-| 9 | R4: Adversarial Injection Tests | Verify >=5 injection payloads (instruction override, script jailbreak, role spoof, etc.) are sanitized and not executed. | M4 | ORIGINAL_REQUEST §R4 |
-| 10 | R5: Token Bucket Rate Limiter | Implement thread-safe `TokenBucketRateLimiter` supporting burst limit, rate per minute, and HTTP 429 status. | M5 | ORIGINAL_REQUEST §R5 |
-| 11 | R5: Comms Channel Integration & Config | Add rate limiting per user_id to Telegram, Zalo, Discord, and Mobile Bridge with YAML config in `config/default_config.yaml`. | M5 | ORIGINAL_REQUEST §R5 |
-| 12 | R5: Rate Limit Throttle Tests | Verify 30 req/s from single user_id yields >=50% HTTP 429 rejections across all 4 channels. | M5 | ORIGINAL_REQUEST §R5 |
-| 13 | R6: Discord Functional Slash Command Tests | Add functional tests for `/help`, `/status`, `/calc`, `/skills`, and Rich Embed generation in Discord controller. | M6 | ORIGINAL_REQUEST §R6 |
-| 14 | R6: Safety Gate Watchdog Chaos Test | Chaos test killing supervised subprocesses 3 times, verify MTTR < 10s per recovery, and log MTTR to stdout. | M6 | ORIGINAL_REQUEST §R6 |
-| 15 | R7: Real STT Benchmark on CUDA | Benchmark Faster-Whisper `large-v3` on CUDA with synthetic 1s, 3s, 5s, 10s audio buffers and calculate real RTF. | M7 | ORIGINAL_REQUEST §R7 |
-| 16 | R7: Benchmark Results Documentation | Create `docs/benchmark_results.md` with real CUDA metrics and mark old adapter measurements as `[MOCK — đo trên adapter, không phản ánh model thật]`. | M7 | ORIGINAL_REQUEST §R7 |
-| 17 | Final: E2E Test Suite Validation | Execute comprehensive E2E test suite across all 7 items (Tiers 1-4) with 100% pass rate. | M8 | ORIGINAL_REQUEST Acceptance Criteria |
-| 18 | Final: Adversarial Coverage Hardening | Run white-box adversarial stress tests (Tier 5) across all modified modules. | M8 | Orchestrator Quality Standard |
+| F-01 | VAD Filter Gate | Pre-filter raw audio blocks before wake word ring buffer | M1 | ORIGINAL_REQUEST §R1 |
+| F-02 | 2.5s Echo Lockout | Suppress/ignore microphone frames during and 2.5s after TTS | M1 | ORIGINAL_REQUEST §R1 |
+| F-03 | SFM/ZCR Thresholds | Verify/maintain spectral flatness [0.03, 0.65] and ZCR >= 0.10 | M1 | ORIGINAL_REQUEST §R1 |
+| F-04 | TTS Worker COM Safety | pythoncom.CoInitialize/CoUninitialize in TTSManager worker thread | M2 | ORIGINAL_REQUEST §R2 |
+| F-05 | SAPI5 COM Lifecycle | Ensure CoUninitialize in finally block in fallback.py | M2 | ORIGINAL_REQUEST §R2 |
+| F-06 | FasterWhisper Preload | Background eager model loading on FasterWhisperSTT.__init__() | M3 | ORIGINAL_REQUEST §R3 |
+| F-07 | STT VAD Silence Trim | Configure vad_filter=True & min_silence_duration_ms=500 in transcribe() | M3 | ORIGINAL_REQUEST §R3 |
+| F-08 | HUD Thread Isolation | Confirm AlwaysOnOverlay uses _schedule(fn) -> root.after(0, fn) | M4 | ORIGINAL_REQUEST §R4 |
+| F-09 | System Tray Status Item | Add "Status" item (v4.7.0, TTS, STT, RAM%) and fix Path import | M4 | ORIGINAL_REQUEST §R4 |
+| F-10 | Hardware Voice Summary | Format Vietnamese voice summary with CPU%, RAM%, GPU temp | M5 | ORIGINAL_REQUEST §R5 |
+| F-11 | Hardware Intent Routing | Route 5 hardware queries (cpu, ram, temp, pin, speed) with MISROUTED=0 | M5 | ORIGINAL_REQUEST §R5 |
+| F-12 | Adversarial Test Fixes | Fix dialog detector severity, 50KB regex speed, and alert debounce | M5 | Survey Handoff |
+| F-13 | E2E & Unit Test Suites | Create unit/E2E test suites for R1-R5 (acoustic, com, preload, tray, hw) | Test Track | ORIGINAL_REQUEST §R6 |
+| F-14 | Routing Benchmark Eval | routing_eval_n150.py with SILENT <= 5% and MISROUTED = 0 | M6 | ORIGINAL_REQUEST §R6 |
+| F-15 | Version Bump & Release | Bump to v4.7.0, update CHANGELOG.md, commit & push to origin main | M6 | ORIGINAL_REQUEST §R6 |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| E2E | E2E Testing Suite Track | Design and construct opaque-box E2E test harness covering all 7 requirements (Tiers 1-4) and publish `TEST_READY.md`. | none | DONE |
-| M1 | R1: Sandbox `__globals__` Escape Patch | Patch `jarvis/sandbox/security.py`, implement adversarial tests, verify no regression on 15 existing sandbox tests. | none | DONE |
-| M2 | R2: Night Shift Daemon Audit & Sandboxing | Create `docs/night_shift_audit.md`, sandbox `jarvis/workers/night_shift.py` via `CodeInterpreterSandbox`, add verification tests. | none | DONE |
-| M3 | R3: AppContainer Network Sandbox B2 | Implement AppContainer network socket blocking and real OS non-mock test `@pytest.mark.real_os`. | M1 | DONE |
-| M4 | R4: Prompt-Injection Defense Pipeline | Implement `jarvis/security/prompt_guard.py`, integrate with browser/screen_context, add adversarial test suite (>=5 payloads). | none | DONE |
-| M5 | R5: Comms Token Bucket Rate Limiting | Implement `TokenBucketRateLimiter`, update `config/default_config.yaml`, integrate with Telegram, Zalo, Discord, Mobile Bridge, write tests. | none | DONE |
-| M6 | R6: Discord Tests & Watchdog Chaos Test | Implement Discord slash-command/Rich Embed tests, implement Watchdog 3x chaos test with MTTR measurement. | none | DONE |
-| M7 | R7: Real STT Benchmark on CUDA & Docs | Measure Faster-Whisper `large-v3` CUDA RTF on 1s/3s/5s/10s, write `docs/benchmark_results.md`, mark mock numbers. | none | DONE |
-| M8 | Final Milestone: 100% E2E Pass & Verification Gate | Pass 100% of test suite (1,189 tests), obtain APPROVE review and CLEAN forensic audit. | E2E, M1-M7 | DONE |
+| E2E | E2E Testing Track | Design & write test suites (Tiers 1-4) across R1–R5, publish TEST_READY.md | none | IN_PROGRESS |
+| M1 | DSP Acoustic Hardening | VAD pre-filter gate, 2.5s post-TTS mic suppression, SFM/ZCR bounds | none | PLANNED |
+| M2 | SAPI5 TTS COM Safety | CoInitialize/CoUninitialize on daemon thread & SAPI5 fallback | none | PLANNED |
+| M3 | Faster-Whisper Preload & VAD | Background preload thread, vad_filter=True, cold-start latency | none | PLANNED |
+| M4 | HUD Isolation & Tray Status | AlwaysOnOverlay thread safety, Tray Status menu item, Path import fix | none | PLANNED |
+| M5 | Hardware Voice & Router Rules | GPU temp voice summary, 5 hardware query rules, adversarial fixes | none | PLANNED |
+| M6 | Final Verification & Release | Pytest 0 failures, routing eval benchmark, version bump, CHANGELOG, git push | M1, M2, M3, M4, M5, E2E | PLANNED |
 
 ## Interface Contracts
-### `jarvis.security.prompt_guard` ↔ Browser & Screen Context
-- `PromptGuard.sanitize(text: str, source: str = "web") -> SanitizationResult(str)`: Returns XML-quarantined string `<untrusted_external_content source="...">...</untrusted_external_content>` while exposing inspection attributes `.clean_text`, `.is_suspicious`, `.risk_level`, `.detected_patterns`.
-- `PromptGuard.contains_injection(text: str) -> tuple[bool, str | None]`: Checks for malicious instruction override signatures.
+### Audio & TTS Interaction (`jarvis/audio/` ↔ `jarvis/tts/manager.py`)
+- `TTSManager.is_in_echo_window(current_time: float | None = None, cooldown_s: float = 2.5) -> bool`: returns True if TTS is actively playing or finished < 2.5s ago.
+- `WakeWordDetector.suppress_until(timestamp: float) -> None`: clears ring buffer and resets sliding window detectors.
+- `WakeWordDetector.feed_audio_block(block, timestamp)`: drops frames when VAD detects silence or when in echo window.
 
-### `jarvis.comms.rate_limiter` ↔ Comms Channels (Telegram, Zalo, Discord, Mobile Bridge)
-- `TokenBucketRateLimiter(rate_per_minute: float = 60.0, burst_limit: int = 10, requests_per_minute: float | None = None)`
-- `limiter.acquire(user_id: str | int) -> RateLimitResult`: Evaluates as boolean and unpacks as `(allowed: bool, retry_after_s: float)`.
-- Rejections return standard HTTP 429 status response.
+### TTS COM Safety Contract (`jarvis/tts/manager.py`, `jarvis/tts/fallback.py`)
+- `TTSManager._process_queue()`: wraps worker thread lifecycle with `pythoncom.CoInitialize()` and `pythoncom.CoUninitialize()` in `finally:`.
+- `SAPI5FallbackTTS.speak()`: wraps COM speech calls in `try: pythoncom.CoInitialize() ... finally: pythoncom.CoUninitialize()`.
 
-### `jarvis.workers.night_shift` ↔ `jarvis.sandbox.security`
-- Night Shift background execution delegates untrusted/dynamic script steps to `CodeInterpreterSandbox` using Low Integrity Token and Job Object restrictions.
+### STT Preloading Contract (`jarvis/stt/engine.py`)
+- `FasterWhisperSTT.__init__(config=None, preload=True)`: starts background daemon thread for `_get_model()`.
+- `FasterWhisperSTT.transcribe(audio, vad_filter=True, vad_parameters={"min_silence_duration_ms": 500}, ...)`: trims silence and transcribes within 1.5s.
+
+### System Tray Status Contract (`jarvis/ui/tray.py`)
+- `SystemTrayController.menu_items`: contains `"Status"` item that dynamically generates version, TTS state, STT state, and RAM%.
+- `_on_view_logs`: safely references `Path` from `pathlib`.
+
+### Hardware Reporter & Router Contract (`jarvis/hardware/reporter.py`, `jarvis/llm/router.py`)
+- `HardwareReporter.format_voice_summary(metrics, lang="vi") -> str`: includes CPU%, RAM%, and GPU temp when available.
+- `LLMIntentRouter.parse_intent(text, force_llm=False)`: parses `"cpu mấy phần trăm"`, `"ram còn bao nhiêu"`, `"nhiệt độ máy"`, `"pin còn bao nhiêu"`, `"tốc độ cpu"` into `action_name="system_status"` (or `hardware_telemetry_check`) with confidence >= 0.95.
 
 ## Code Layout
-- `jarvis/sandbox/security.py`: Sandbox bootstrap preamble, AppContainer and Low Integrity process isolation.
-- `jarvis/workers/night_shift.py`: Night shift worker daemon with sandbox execution wrapper.
-- `jarvis/security/prompt_guard.py`: Prompt injection sanitization and XML quarantine pipeline.
-- `jarvis/comms/rate_limiter.py`: Token bucket rate limiter.
-- `jarvis/comms/`: Telegram, Zalo, Discord, and Mobile Bridge inbound message handlers.
-- `jarvis/automation/safety_gate.py`: Safety gate confirmation and watchdog supervision.
-- `jarvis/stt/`: Faster-Whisper STT engine and benchmarking scripts.
-- `docs/night_shift_audit.md`: Formal Night Shift daemon security audit report.
-- `docs/benchmark_results.md`: Formal STT CUDA benchmark report with RTF metrics and mock data classification.
-- `tests/unit/`: Unit tests for rate limiting, discord controller, prompt guard, and watchdog chaos.
-- `tests/integration/`: Integration tests for sandbox OS boundaries and AppContainer socket blocking.
-- `tests/e2e/`: E2E test suite covering all 7 requirements.
+- `jarvis/audio/wake_word.py`: Wake word detector, VAD filter gate, ring buffer, spectral detector.
+- `jarvis/audio/dsp.py`: DSP utilities, RMS calculation, spectral analysis.
+- `jarvis/core/app.py`: Main JarvisApp loop, audio block dispatch, 2.5s mic suppression window.
+- `jarvis/tts/manager.py`: TTSManager, daemon queue worker thread, COM lifecycle, echo window tracking.
+- `jarvis/tts/fallback.py`: SAPI5FallbackTTS COM wrapper.
+- `jarvis/stt/engine.py`: FasterWhisperSTT, background preload thread, VAD silence trimming.
+- `jarvis/ui/overlay.py`: AlwaysOnOverlay, Tkinter event scheduling via `_schedule()`.
+- `jarvis/ui/tray.py`: SystemTrayController, pystray menu, "Status" item.
+- `jarvis/hardware/reporter.py`: HardwareReporter, `format_voice_summary()`.
+- `jarvis/hardware/monitor.py`: HardwareMonitor, telemetry probe, emergency alert debounce logic.
+- `jarvis/llm/router.py`: LLMIntentRouter, Tier-1 regex/dictionary rules for hardware queries.
+- `jarvis/vision/dialog_detector.py`: DialogDetector severity precedence.
+- `jarvis/__init__.py`: Package metadata, `__version__ = "4.7.0"`.
+- `tests/unit/test_acoustic_hardening.py`: Unit tests for VAD filter and 2.5s echo suppression.
+- `tests/unit/test_tts_com_safety.py`: Unit tests for SAPI5 COM apartment thread safety.
+- `tests/unit/test_stt_preload.py`: Unit tests for Faster-Whisper background preload and VAD trim.
+- `tests/unit/test_tray_menu.py`: Unit tests for tray status menu and Path import safety.
+- `tests/unit/test_router_hardware.py`: Unit tests for 5 hardware query intent rules.
+- `CHANGELOG.md`: Release notes for v4.7.0.

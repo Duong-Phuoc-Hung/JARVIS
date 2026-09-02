@@ -330,6 +330,16 @@ class JarvisApp:
 
         # 14. AudioEngine with Multi-Subscriber Dispatch
         def _on_audio_blocks_dispatch(block: np.ndarray, timestamp: float | None = None) -> None:
+            now = timestamp if timestamp is not None else time.monotonic()
+            if self.tts_manager and self.tts_manager.is_in_echo_window(current_time=now, cooldown_s=2.5):
+                # Acoustic Echo Suppression: drop incoming microphone frames while TTS is speaking or in cooldown
+                if self.wake_word_detector:
+                    try:
+                        self.wake_word_detector.suppress_until(now + 0.1)
+                    except Exception:
+                        pass
+                return
+
             if self.gesture_detector:
                 try:
                     self.gesture_detector.feed_audio_block(block, timestamp=timestamp)

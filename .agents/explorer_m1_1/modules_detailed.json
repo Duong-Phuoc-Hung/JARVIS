@@ -1,0 +1,4389 @@
+[
+  {
+    "pkg": "root",
+    "rel_path": "__init__.py",
+    "filename": "__init__.py",
+    "lines": 25,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.config",
+      "jarvis.core.logger"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "root",
+    "rel_path": "__main__.py",
+    "filename": "__main__.py",
+    "lines": 11,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.cli",
+      "sys"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_autonomous_workflows.py",
+      "test_background_workers.py"
+    ]
+  },
+  {
+    "pkg": "root",
+    "rel_path": "cli.py",
+    "filename": "cli.py",
+    "lines": 341,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "argparse",
+      "collections.abc",
+      "ctypes",
+      "jarvis",
+      "jarvis.audio.wake_word",
+      "jarvis.automation.control",
+      "jarvis.automation.gui_actor",
+      "jarvis.automation.safety_gate",
+      "jarvis.automation.shell_assistant",
+      "jarvis.browser.driver",
+      "jarvis.core.app",
+      "jarvis.core.config",
+      "jarvis.core.logger",
+      "jarvis.core.paths",
+      "jarvis.memory.sqlite_store",
+      "jarvis.planner.engine",
+      "jarvis.platform.windows",
+      "jarvis.proactive.engine",
+      "jarvis.sandbox.interpreter",
+      "jarvis.skills.registry",
+      "jarvis.ui.overlay",
+      "jarvis.vision.computer_use",
+      "jarvis.vision.dialog_detector",
+      "jarvis.vision.screen",
+      "jarvis.web.hub",
+      "jarvis.workers.manager",
+      "os",
+      "sounddevice",
+      "sys",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_harness.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_audio_gesture.py"
+    ]
+  },
+  {
+    "pkg": "agent",
+    "rel_path": "agent/__init__.py",
+    "filename": "__init__.py",
+    "lines": 4,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.agent.graph"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_agent_tool_runtime.py",
+      "test_audio_dsp.py"
+    ]
+  },
+  {
+    "pkg": "agent",
+    "rel_path": "agent/graph.py",
+    "filename": "graph.py",
+    "lines": 463,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "jarvis.agent.tool_runtime",
+      "jarvis.comms.telegram",
+      "jarvis.llm.client",
+      "jarvis.memory.manager",
+      "jarvis.sandbox.interpreter",
+      "jarvis.security.secrets",
+      "jarvis.skills.briefing",
+      "jarvis.skills.browser_control",
+      "jarvis.skills.calculator",
+      "jarvis.skills.note_taker",
+      "jarvis.skills.system_control",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "time",
+      "typing",
+      "uuid"
+    ],
+    "matching_tests": [
+      "test_adversarial_m1.py",
+      "test_adversarial_m5_challenger1.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_agent_tool_runtime.py",
+      "test_browser_agent.py"
+    ]
+  },
+  {
+    "pkg": "agent",
+    "rel_path": "agent/tool_runtime.py",
+    "filename": "tool_runtime.py",
+    "lines": 133,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "jarvis.sandbox.interpreter",
+      "re",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_agent_tool_runtime.py",
+      "test_react_agent.py"
+    ]
+  },
+  {
+    "pkg": "audio",
+    "rel_path": "audio/__init__.py",
+    "filename": "__init__.py",
+    "lines": 32,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.audio.dsp",
+      "jarvis.audio.engine"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py"
+    ]
+  },
+  {
+    "pkg": "audio",
+    "rel_path": "audio/dsp.py",
+    "filename": "dsp.py",
+    "lines": 295,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "math",
+      "numpy",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_harness.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "audio",
+    "rel_path": "audio/engine.py",
+    "filename": "engine.py",
+    "lines": 522,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "jarvis.audio.dsp",
+      "logging",
+      "numpy",
+      "os",
+      "sounddevice",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "audio",
+    "rel_path": "audio/fullduplex.py",
+    "filename": "fullduplex.py",
+    "lines": 142,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "logging",
+      "numpy",
+      "sounddevice",
+      "threading"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_audio_engine.py"
+    ]
+  },
+  {
+    "pkg": "audio",
+    "rel_path": "audio/sound_effects.py",
+    "filename": "sound_effects.py",
+    "lines": 117,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "logging",
+      "numpy",
+      "sounddevice",
+      "threading"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_audio_engine.py"
+    ]
+  },
+  {
+    "pkg": "audio",
+    "rel_path": "audio/vad.py",
+    "filename": "vad.py",
+    "lines": 182,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "logging",
+      "math",
+      "struct",
+      "threading",
+      "time",
+      "typing",
+      "webrtcvad"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_audio_engine.py"
+    ]
+  },
+  {
+    "pkg": "audio",
+    "rel_path": "audio/wake_word.py",
+    "filename": "wake_word.py",
+    "lines": 757,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "jarvis.audio.dsp",
+      "json",
+      "logging",
+      "numpy",
+      "openwakeword",
+      "os",
+      "pvporcupine",
+      "threading",
+      "time",
+      "typing",
+      "vosk"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_audio_engine.py"
+    ]
+  },
+  {
+    "pkg": "automation",
+    "rel_path": "automation/__init__.py",
+    "filename": "__init__.py",
+    "lines": 33,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.automation.control",
+      "jarvis.automation.gui_actor",
+      "jarvis.automation.safety_gate",
+      "jarvis.automation.shell_assistant",
+      "jarvis.automation.vm",
+      "jarvis.automation.workspace"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py"
+    ]
+  },
+  {
+    "pkg": "automation",
+    "rel_path": "automation/control.py",
+    "filename": "control.py",
+    "lines": 790,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "collections",
+      "comtypes",
+      "ctypes",
+      "datetime",
+      "jarvis.platform.windows",
+      "mss",
+      "os",
+      "pyautogui",
+      "pycaw.pycaw",
+      "pyperclip",
+      "re",
+      "screen_brightness_control",
+      "subprocess",
+      "sys",
+      "time",
+      "typing",
+      "webbrowser"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py"
+    ]
+  },
+  {
+    "pkg": "automation",
+    "rel_path": "automation/gui_actor.py",
+    "filename": "gui_actor.py",
+    "lines": 536,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "jarvis.automation.control",
+      "jarvis.vision.computer_use",
+      "jarvis.vision.screen",
+      "jarvis.vision.visual_verifier",
+      "logging",
+      "pyautogui",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py"
+    ]
+  },
+  {
+    "pkg": "automation",
+    "rel_path": "automation/safety_gate.py",
+    "filename": "safety_gate.py",
+    "lines": 219,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py"
+    ]
+  },
+  {
+    "pkg": "automation",
+    "rel_path": "automation/shell_assistant.py",
+    "filename": "shell_assistant.py",
+    "lines": 608,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.automation.safety_gate",
+      "json",
+      "os",
+      "re",
+      "subprocess",
+      "sys",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py"
+    ]
+  },
+  {
+    "pkg": "automation",
+    "rel_path": "automation/vm.py",
+    "filename": "vm.py",
+    "lines": 184,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "enum",
+      "logging",
+      "shutil",
+      "subprocess",
+      "sys",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py"
+    ]
+  },
+  {
+    "pkg": "automation",
+    "rel_path": "automation/workspace.py",
+    "filename": "workspace.py",
+    "lines": 94,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "logging",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_llm_router.py"
+    ]
+  },
+  {
+    "pkg": "browser",
+    "rel_path": "browser/__init__.py",
+    "filename": "__init__.py",
+    "lines": 64,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.browser.actions",
+      "jarvis.browser.agent",
+      "jarvis.browser.driver",
+      "jarvis.browser.models",
+      "jarvis.browser.scraper",
+      "jarvis.browser.session"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "browser",
+    "rel_path": "browser/actions.py",
+    "filename": "actions.py",
+    "lines": 356,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "base64",
+      "collections.abc",
+      "jarvis.browser.driver",
+      "jarvis.browser.models",
+      "logging",
+      "os",
+      "pathlib",
+      "requests",
+      "time",
+      "typing",
+      "urllib.parse"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_ui_app.py"
+    ]
+  },
+  {
+    "pkg": "browser",
+    "rel_path": "browser/agent.py",
+    "filename": "agent.py",
+    "lines": 362,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "collections.abc",
+      "jarvis.browser.actions",
+      "jarvis.browser.driver",
+      "jarvis.browser.models",
+      "jarvis.browser.scraper",
+      "jarvis.browser.session",
+      "logging",
+      "time",
+      "typing",
+      "urllib.parse"
+    ],
+    "matching_tests": [
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_agent_tool_runtime.py",
+      "test_autonomous_workflows.py",
+      "test_background_workers.py"
+    ]
+  },
+  {
+    "pkg": "browser",
+    "rel_path": "browser/cdp_controller.py",
+    "filename": "cdp_controller.py",
+    "lines": 368,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "jarvis.security.prompt_guard",
+      "logging",
+      "pathlib",
+      "playwright",
+      "playwright.sync_api",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_autonomous_workflows.py",
+      "test_browser_agent.py",
+      "test_browser_control.py",
+      "test_challenger2_autonomous_stress.py",
+      "test_hud_telemetry_and_memory.py"
+    ]
+  },
+  {
+    "pkg": "browser",
+    "rel_path": "browser/driver.py",
+    "filename": "driver.py",
+    "lines": 1079,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "abc",
+      "html",
+      "jarvis.browser.models",
+      "logging",
+      "playwright.sync_api",
+      "re",
+      "requests",
+      "time",
+      "typing",
+      "urllib.parse"
+    ],
+    "matching_tests": [
+      "test_autonomous_workflows.py",
+      "test_browser_agent.py",
+      "test_browser_control.py",
+      "test_challenger2_autonomous_stress.py",
+      "test_hud_telemetry_and_memory.py"
+    ]
+  },
+  {
+    "pkg": "browser",
+    "rel_path": "browser/models.py",
+    "filename": "models.py",
+    "lines": 131,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "dataclasses",
+      "enum",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "browser",
+    "rel_path": "browser/scraper.py",
+    "filename": "scraper.py",
+    "lines": 573,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "html",
+      "html.parser",
+      "jarvis.browser.models",
+      "jarvis.security.prompt_guard",
+      "json",
+      "logging",
+      "re",
+      "typing",
+      "urllib.parse"
+    ],
+    "matching_tests": [
+      "test_autonomous_workflows.py",
+      "test_browser_agent.py",
+      "test_browser_control.py",
+      "test_challenger2_autonomous_stress.py",
+      "test_combined_security_stability_e2e.py"
+    ]
+  },
+  {
+    "pkg": "browser",
+    "rel_path": "browser/session.py",
+    "filename": "session.py",
+    "lines": 331,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "datetime",
+      "jarvis.browser.driver",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "sqlite3",
+      "threading",
+      "typing",
+      "urllib.parse"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_autonomous_workflows.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "comms",
+    "rel_path": "comms/__init__.py",
+    "filename": "__init__.py",
+    "lines": 24,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.comms.discord",
+      "jarvis.comms.email_imap",
+      "jarvis.comms.rate_limiter",
+      "jarvis.comms.telegram"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py"
+    ]
+  },
+  {
+    "pkg": "comms",
+    "rel_path": "comms/discord.py",
+    "filename": "discord.py",
+    "lines": 422,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "hashlib",
+      "io",
+      "jarvis.comms.rate_limiter",
+      "jarvis.core.health",
+      "jarvis.skills",
+      "json",
+      "logging",
+      "mss",
+      "mss.tools",
+      "threading",
+      "time",
+      "typing",
+      "urllib.error",
+      "urllib.request"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m5_2.py",
+      "test_combined_security_stability_e2e.py",
+      "test_comms_hub.py",
+      "test_discord_controller.py"
+    ]
+  },
+  {
+    "pkg": "comms",
+    "rel_path": "comms/email_imap.py",
+    "filename": "email_imap.py",
+    "lines": 214,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "html",
+      "jarvis.security.prompt_guard",
+      "logging",
+      "re",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m5_2.py",
+      "test_combined_security_stability_e2e.py",
+      "test_comms_hub.py",
+      "test_discord_controller.py"
+    ]
+  },
+  {
+    "pkg": "comms",
+    "rel_path": "comms/mobile_bridge.py",
+    "filename": "mobile_bridge.py",
+    "lines": 256,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "ctypes",
+      "datetime",
+      "io",
+      "jarvis.comms.rate_limiter",
+      "jarvis.core.paths",
+      "json",
+      "logging",
+      "mss",
+      "mss.tools",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m5_2.py",
+      "test_combined_security_stability_e2e.py",
+      "test_comms_hub.py",
+      "test_discord_controller.py"
+    ]
+  },
+  {
+    "pkg": "comms",
+    "rel_path": "comms/rate_limiter.py",
+    "filename": "rate_limiter.py",
+    "lines": 193,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "logging",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m5_2.py",
+      "test_combined_security_stability_e2e.py",
+      "test_comms_hub.py",
+      "test_discord_controller.py"
+    ]
+  },
+  {
+    "pkg": "comms",
+    "rel_path": "comms/telegram.py",
+    "filename": "telegram.py",
+    "lines": 274,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "jarvis.comms.rate_limiter",
+      "jarvis.platform.windows",
+      "logging",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_autonomous_workflows.py",
+      "test_background_workers.py"
+    ]
+  },
+  {
+    "pkg": "comms",
+    "rel_path": "comms/zalo.py",
+    "filename": "zalo.py",
+    "lines": 419,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "base64",
+      "dataclasses",
+      "hashlib",
+      "hmac",
+      "http.server",
+      "jarvis.comms.rate_limiter",
+      "jarvis.llm.client",
+      "jarvis.skills.briefing",
+      "jarvis.skills.calculator",
+      "jarvis.skills.note_taker",
+      "jarvis.skills.registry",
+      "jarvis.skills.system_control",
+      "json",
+      "logging",
+      "threading",
+      "time",
+      "typing",
+      "urllib.error",
+      "urllib.request"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m5_2.py",
+      "test_combined_security_stability_e2e.py",
+      "test_comms_hub.py",
+      "test_discord_controller.py"
+    ]
+  },
+  {
+    "pkg": "core",
+    "rel_path": "core/__init__.py",
+    "filename": "__init__.py",
+    "lines": 39,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.config",
+      "jarvis.core.logger",
+      "jarvis.core.models"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "core",
+    "rel_path": "core/app.py",
+    "filename": "app.py",
+    "lines": 2015,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "concurrent.futures",
+      "jarvis.audio.engine",
+      "jarvis.audio.wake_word",
+      "jarvis.automation.control",
+      "jarvis.automation.gui_actor",
+      "jarvis.automation.safety_gate",
+      "jarvis.automation.shell_assistant",
+      "jarvis.browser.agent",
+      "jarvis.browser.models",
+      "jarvis.browser.session",
+      "jarvis.core.config",
+      "jarvis.core.dispatcher",
+      "jarvis.core.logger",
+      "jarvis.core.models",
+      "jarvis.core.paths",
+      "jarvis.core.plugin",
+      "jarvis.gesture.detector",
+      "jarvis.hardware.monitor",
+      "jarvis.hardware.reporter",
+      "jarvis.llm.client",
+      "jarvis.llm.router",
+      "jarvis.memory.manager",
+      "jarvis.planner.engine",
+      "jarvis.planner.models",
+      "jarvis.planner.reflection",
+      "jarvis.planner.safety_interceptor",
+      "jarvis.platform.hotkeys",
+      "jarvis.plugins.chrome",
+      "jarvis.plugins.cursor",
+      "jarvis.plugins.shell",
+      "jarvis.plugins.spotify",
+      "jarvis.plugins.webhook",
+      "jarvis.proactive.engine",
+      "jarvis.sandbox.interpreter",
+      "jarvis.security.secrets",
+      "jarvis.skills.registry",
+      "jarvis.skills.synthesizer",
+      "jarvis.stt.engine",
+      "jarvis.tts.manager",
+      "jarvis.ui.dashboard",
+      "jarvis.ui.overlay",
+      "jarvis.ui.tray",
+      "jarvis.vision.computer_use",
+      "jarvis.vision.screen",
+      "jarvis.vision.visual_verifier",
+      "jarvis.web.hub",
+      "jarvis.workers.manager",
+      "jarvis.workers.models",
+      "jarvis.workers.notifications",
+      "logging",
+      "numpy",
+      "os",
+      "signal",
+      "sounddevice",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_harness.py",
+      "test_adversarial_m1.py"
+    ]
+  },
+  {
+    "pkg": "core",
+    "rel_path": "core/config.py",
+    "filename": "config.py",
+    "lines": 849,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "copy",
+      "dotenv",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "threading",
+      "time",
+      "tomllib",
+      "typing",
+      "yaml"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py"
+    ]
+  },
+  {
+    "pkg": "core",
+    "rel_path": "core/dispatcher.py",
+    "filename": "dispatcher.py",
+    "lines": 643,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "asyncio",
+      "collections.abc",
+      "fnmatch",
+      "functools",
+      "inspect",
+      "jarvis.core.models",
+      "jarvis.planner.safety_interceptor",
+      "logging",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "core",
+    "rel_path": "core/logger.py",
+    "filename": "logger.py",
+    "lines": 323,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "ctypes",
+      "datetime",
+      "logging",
+      "logging.handlers",
+      "os",
+      "pathlib",
+      "sys",
+      "threading",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "core",
+    "rel_path": "core/models.py",
+    "filename": "models.py",
+    "lines": 180,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "core",
+    "rel_path": "core/paths.py",
+    "filename": "paths.py",
+    "lines": 87,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "core",
+    "rel_path": "core/plugin.py",
+    "filename": "plugin.py",
+    "lines": 362,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "abc",
+      "collections.abc",
+      "importlib.util",
+      "inspect",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "logging",
+      "pathlib",
+      "sys",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "data",
+    "rel_path": "data/__init__.py",
+    "filename": "__init__.py",
+    "lines": 65,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.data.analysis_service",
+      "jarvis.data.document",
+      "jarvis.data.stats"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_m5_challenger1.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py"
+    ]
+  },
+  {
+    "pkg": "data",
+    "rel_path": "data/analysis_service.py",
+    "filename": "analysis_service.py",
+    "lines": 318,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "enum",
+      "io",
+      "jarvis.data.stats",
+      "matplotlib",
+      "matplotlib.pyplot",
+      "pathlib",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m5_challenger1.py",
+      "test_data_analysis_service.py",
+      "test_data_analytics.py",
+      "test_e2e_scenarios.py",
+      "test_tier5_adversarial_sec_iot_comms_data.py"
+    ]
+  },
+  {
+    "pkg": "data",
+    "rel_path": "data/document.py",
+    "filename": "document.py",
+    "lines": 459,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.data.stats",
+      "logging",
+      "pathlib",
+      "re",
+      "time",
+      "typing",
+      "zipfile"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_m5_challenger1.py",
+      "test_data_analysis_service.py"
+    ]
+  },
+  {
+    "pkg": "data",
+    "rel_path": "data/stats.py",
+    "filename": "stats.py",
+    "lines": 632,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "csv",
+      "dataclasses",
+      "enum",
+      "io",
+      "math",
+      "numpy",
+      "pathlib",
+      "typing",
+      "xml.etree.ElementTree",
+      "zipfile"
+    ],
+    "matching_tests": [
+      "test_adversarial_m5_challenger1.py",
+      "test_data_analysis_service.py",
+      "test_data_analytics.py",
+      "test_e2e_scenarios.py",
+      "test_tier5_adversarial_sec_iot_comms_data.py"
+    ]
+  },
+  {
+    "pkg": "gesture",
+    "rel_path": "gesture/__init__.py",
+    "filename": "__init__.py",
+    "lines": 58,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.gesture.detector",
+      "jarvis.gesture.hand_models",
+      "jarvis.gesture.hand_preprocess",
+      "jarvis.gesture.hand_tracker",
+      "jarvis.gesture.models",
+      "jarvis.gesture.patterns"
+    ],
+    "matching_tests": [
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_app_integration.py"
+    ]
+  },
+  {
+    "pkg": "gesture",
+    "rel_path": "gesture/detector.py",
+    "filename": "detector.py",
+    "lines": 484,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "jarvis.audio.dsp",
+      "jarvis.core.logger",
+      "jarvis.core.models",
+      "jarvis.gesture.models",
+      "jarvis.gesture.patterns",
+      "logging",
+      "numpy",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_app_integration.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "gesture",
+    "rel_path": "gesture/hand_models.py",
+    "filename": "hand_models.py",
+    "lines": 139,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "numpy",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m2_audio_gesture.py",
+      "test_app_integration.py",
+      "test_empirical_challenger_m1_stabilization.py",
+      "test_empirical_challenger_m2.py",
+      "test_empirical_challenger_m2_3.py"
+    ]
+  },
+  {
+    "pkg": "gesture",
+    "rel_path": "gesture/hand_preprocess.py",
+    "filename": "hand_preprocess.py",
+    "lines": 113,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "jarvis.gesture.hand_models",
+      "numpy"
+    ],
+    "matching_tests": [
+      "test_adversarial_m2_audio_gesture.py",
+      "test_app_integration.py",
+      "test_empirical_challenger_m1_stabilization.py",
+      "test_empirical_challenger_m2.py",
+      "test_empirical_challenger_m2_3.py"
+    ]
+  },
+  {
+    "pkg": "gesture",
+    "rel_path": "gesture/hand_tracker.py",
+    "filename": "hand_tracker.py",
+    "lines": 299,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections",
+      "collections.abc",
+      "cv2",
+      "jarvis.gesture.hand_models",
+      "jarvis.gesture.hand_preprocess",
+      "logging",
+      "mediapipe",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m2_audio_gesture.py",
+      "test_app_integration.py",
+      "test_empirical_challenger_m1_stabilization.py",
+      "test_empirical_challenger_m2.py",
+      "test_empirical_challenger_m2_3.py"
+    ]
+  },
+  {
+    "pkg": "gesture",
+    "rel_path": "gesture/models.py",
+    "filename": "models.py",
+    "lines": 111,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "enum",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "gesture",
+    "rel_path": "gesture/patterns.py",
+    "filename": "patterns.py",
+    "lines": 50,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.gesture.models"
+    ],
+    "matching_tests": [
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m3_ui_app.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_app_integration.py",
+      "test_challenger2_stress.py"
+    ]
+  },
+  {
+    "pkg": "hardware",
+    "rel_path": "hardware/__init__.py",
+    "filename": "__init__.py",
+    "lines": 26,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.hardware.monitor",
+      "jarvis.hardware.reporter"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py"
+    ]
+  },
+  {
+    "pkg": "hardware",
+    "rel_path": "hardware/monitor.py",
+    "filename": "monitor.py",
+    "lines": 708,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "ctypes",
+      "dataclasses",
+      "json",
+      "logging",
+      "psutil",
+      "shutil",
+      "subprocess",
+      "sys",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m1.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_challenger2_stress.py",
+      "test_challenger_m1_2_empirical.py",
+      "test_comms_hub.py"
+    ]
+  },
+  {
+    "pkg": "hardware",
+    "rel_path": "hardware/reporter.py",
+    "filename": "reporter.py",
+    "lines": 200,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.hardware.monitor",
+      "json",
+      "logging",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m4_challenger1.py",
+      "test_challenger_m1_2_empirical.py",
+      "test_e2e_scenarios.py",
+      "test_empirical_challenger_m1_stabilization.py",
+      "test_hardware_monitor.py"
+    ]
+  },
+  {
+    "pkg": "healing",
+    "rel_path": "healing/__init__.py",
+    "filename": "__init__.py",
+    "lines": 34,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.healing.terminator",
+      "jarvis.healing.watchdog"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py"
+    ]
+  },
+  {
+    "pkg": "healing",
+    "rel_path": "healing/terminator.py",
+    "filename": "terminator.py",
+    "lines": 340,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "ctypes",
+      "dataclasses",
+      "enum",
+      "jarvis.healing.watchdog",
+      "jarvis.platform.windows",
+      "logging",
+      "os",
+      "psutil",
+      "sys",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_autonomous_workflows.py",
+      "test_background_workers.py",
+      "test_self_healing.py"
+    ]
+  },
+  {
+    "pkg": "healing",
+    "rel_path": "healing/watchdog.py",
+    "filename": "watchdog.py",
+    "lines": 244,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "ctypes",
+      "dataclasses",
+      "jarvis.platform.windows",
+      "logging",
+      "psutil",
+      "sys",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_autonomous_workflows.py",
+      "test_background_workers.py",
+      "test_combined_security_stability_e2e.py"
+    ]
+  },
+  {
+    "pkg": "llm",
+    "rel_path": "llm/__init__.py",
+    "filename": "__init__.py",
+    "lines": 46,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.llm.client",
+      "jarvis.llm.router"
+    ],
+    "matching_tests": [
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m3_ui_app.py",
+      "test_adversarial_m5_2.py"
+    ]
+  },
+  {
+    "pkg": "llm",
+    "rel_path": "llm/client.py",
+    "filename": "client.py",
+    "lines": 691,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "json",
+      "logging",
+      "os",
+      "re",
+      "requests",
+      "time",
+      "typing",
+      "uuid"
+    ],
+    "matching_tests": [
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m3_ui_app.py"
+    ]
+  },
+  {
+    "pkg": "llm",
+    "rel_path": "llm/router.py",
+    "filename": "router.py",
+    "lines": 2163,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "inspect",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.llm.client",
+      "logging",
+      "re",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m3_ui_app.py"
+    ]
+  },
+  {
+    "pkg": "memory",
+    "rel_path": "memory/__init__.py",
+    "filename": "__init__.py",
+    "lines": 21,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.memory.manager",
+      "jarvis.memory.session",
+      "jarvis.memory.sqlite_store"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py"
+    ]
+  },
+  {
+    "pkg": "memory",
+    "rel_path": "memory/manager.py",
+    "filename": "manager.py",
+    "lines": 466,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections",
+      "jarvis.memory.session",
+      "jarvis.memory.sqlite_store",
+      "jarvis.memory.vector_store",
+      "logging",
+      "os",
+      "pathlib",
+      "re",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "memory",
+    "rel_path": "memory/session.py",
+    "filename": "session.py",
+    "lines": 146,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections",
+      "dataclasses",
+      "jarvis.llm.client",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_autonomous_workflows.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "memory",
+    "rel_path": "memory/sqlite_store.py",
+    "filename": "sqlite_store.py",
+    "lines": 781,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "sqlite3",
+      "sys",
+      "threading",
+      "typing",
+      "urllib.parse"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_autonomous_workflows.py",
+      "test_challenger2_autonomous_stress.py",
+      "test_hud_telemetry_and_memory.py",
+      "test_memory_injection.py"
+    ]
+  },
+  {
+    "pkg": "memory",
+    "rel_path": "memory/vector_store.py",
+    "filename": "vector_store.py",
+    "lines": 266,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections",
+      "dataclasses",
+      "json",
+      "logging",
+      "math",
+      "pathlib",
+      "re",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_autonomous_workflows.py",
+      "test_challenger2_autonomous_stress.py",
+      "test_hud_telemetry_and_memory.py",
+      "test_memory_injection.py"
+    ]
+  },
+  {
+    "pkg": "planner",
+    "rel_path": "planner/__init__.py",
+    "filename": "__init__.py",
+    "lines": 41,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.planner.dag",
+      "jarvis.planner.engine",
+      "jarvis.planner.models",
+      "jarvis.planner.reflection",
+      "jarvis.planner.safety_interceptor"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py"
+    ]
+  },
+  {
+    "pkg": "planner",
+    "rel_path": "planner/dag.py",
+    "filename": "dag.py",
+    "lines": 476,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.planner.models",
+      "json",
+      "logging",
+      "re",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_autonomous_workflows.py",
+      "test_challenger2_autonomous_stress.py",
+      "test_empirical_challenger_m1.py"
+    ]
+  },
+  {
+    "pkg": "planner",
+    "rel_path": "planner/engine.py",
+    "filename": "engine.py",
+    "lines": 435,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "concurrent.futures",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.planner.dag",
+      "jarvis.planner.models",
+      "jarvis.planner.reflection",
+      "jarvis.planner.safety_interceptor",
+      "logging",
+      "time",
+      "typing",
+      "uuid"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_stt_llm.py"
+    ]
+  },
+  {
+    "pkg": "planner",
+    "rel_path": "planner/models.py",
+    "filename": "models.py",
+    "lines": 189,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "enum",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "planner",
+    "rel_path": "planner/reflection.py",
+    "filename": "reflection.py",
+    "lines": 312,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.planner.dag",
+      "jarvis.planner.models",
+      "json",
+      "logging",
+      "re",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_autonomous_workflows.py",
+      "test_combined_security_stability_e2e.py",
+      "test_react_agent.py"
+    ]
+  },
+  {
+    "pkg": "planner",
+    "rel_path": "planner/safety_interceptor.py",
+    "filename": "safety_interceptor.py",
+    "lines": 327,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.automation.safety_gate",
+      "jarvis.planner.models",
+      "logging",
+      "re",
+      "threading",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_autonomous_workflows.py",
+      "test_react_planner.py"
+    ]
+  },
+  {
+    "pkg": "platform",
+    "rel_path": "platform/__init__.py",
+    "filename": "__init__.py",
+    "lines": 67,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.platform.autostart",
+      "jarvis.platform.hotkeys",
+      "jarvis.platform.windows"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py"
+    ]
+  },
+  {
+    "pkg": "platform",
+    "rel_path": "platform/autostart.py",
+    "filename": "autostart.py",
+    "lines": 170,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "enum",
+      "logging",
+      "os",
+      "sys",
+      "winreg"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m1.py",
+      "test_cli.py",
+      "test_config.py",
+      "test_empirical_challenger_m1.py"
+    ]
+  },
+  {
+    "pkg": "platform",
+    "rel_path": "platform/hotkeys.py",
+    "filename": "hotkeys.py",
+    "lines": 312,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "ctypes",
+      "dataclasses",
+      "logging",
+      "sys",
+      "threading",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m1.py",
+      "test_config.py",
+      "test_empirical_challenger_m1.py",
+      "test_hotkeys.py"
+    ]
+  },
+  {
+    "pkg": "platform",
+    "rel_path": "platform/windows.py",
+    "filename": "windows.py",
+    "lines": 732,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "ctypes",
+      "jarvis.core.models",
+      "os",
+      "sys",
+      "winreg"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_harness.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_always_on_overlay.py"
+    ]
+  },
+  {
+    "pkg": "plugins",
+    "rel_path": "plugins/__init__.py",
+    "filename": "__init__.py",
+    "lines": 19,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.plugins.chrome",
+      "jarvis.plugins.cursor",
+      "jarvis.plugins.shell",
+      "jarvis.plugins.spotify",
+      "jarvis.plugins.webhook"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "plugins",
+    "rel_path": "plugins/chrome.py",
+    "filename": "chrome.py",
+    "lines": 125,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.core.plugin",
+      "os",
+      "shutil",
+      "subprocess",
+      "sys",
+      "typing",
+      "webbrowser"
+    ],
+    "matching_tests": [
+      "test_adversarial_m1_intent_router.py",
+      "test_app_integration.py",
+      "test_challenger_m1_2_empirical.py",
+      "test_computer_control.py",
+      "test_e2e_scenarios.py"
+    ]
+  },
+  {
+    "pkg": "plugins",
+    "rel_path": "plugins/cursor.py",
+    "filename": "cursor.py",
+    "lines": 122,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.core.plugin",
+      "jarvis.platform.windows",
+      "os",
+      "shutil",
+      "subprocess",
+      "sys",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_ui_app.py",
+      "test_app_integration.py",
+      "test_challenger_m1_2_empirical.py",
+      "test_e2e_scenarios.py",
+      "test_empirical_challenger_m1_stabilization.py"
+    ]
+  },
+  {
+    "pkg": "plugins",
+    "rel_path": "plugins/loader.py",
+    "filename": "loader.py",
+    "lines": 209,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "importlib",
+      "importlib.metadata",
+      "importlib.util",
+      "json",
+      "logging",
+      "pathlib",
+      "sys",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m1.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_build_installer_version.py",
+      "test_empirical_challenger_m2.py",
+      "test_empirical_challenger_m2_e2e_stress.py"
+    ]
+  },
+  {
+    "pkg": "plugins",
+    "rel_path": "plugins/shell.py",
+    "filename": "shell.py",
+    "lines": 56,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.core.plugin",
+      "subprocess",
+      "sys",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_adversarial_m5_2.py"
+    ]
+  },
+  {
+    "pkg": "plugins",
+    "rel_path": "plugins/spotify.py",
+    "filename": "spotify.py",
+    "lines": 65,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.core.plugin",
+      "os",
+      "typing",
+      "webbrowser"
+    ],
+    "matching_tests": [
+      "test_adversarial_m1.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m3_ui_app.py"
+    ]
+  },
+  {
+    "pkg": "plugins",
+    "rel_path": "plugins/webhook.py",
+    "filename": "webhook.py",
+    "lines": 56,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.core.plugin",
+      "logging",
+      "requests",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_empirical_challenger_m2.py",
+      "test_empirical_challenger_m2_e2e_stress.py",
+      "test_plugin_sdk.py",
+      "test_plugins.py",
+      "test_plugins_m2.py"
+    ]
+  },
+  {
+    "pkg": "proactive",
+    "rel_path": "proactive/__init__.py",
+    "filename": "__init__.py",
+    "lines": 28,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.proactive.briefing_scheduler",
+      "jarvis.proactive.engine",
+      "jarvis.proactive.health_monitor",
+      "jarvis.proactive.inactivity",
+      "jarvis.proactive.pomodoro",
+      "jarvis.proactive.reminders"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "proactive",
+    "rel_path": "proactive/briefing_scheduler.py",
+    "filename": "briefing_scheduler.py",
+    "lines": 211,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "datetime",
+      "logging",
+      "threading",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_challenger2_stress.py",
+      "test_proactive_engine.py",
+      "test_tiers_1_to_4.py",
+      "test_v460_e2e.py"
+    ]
+  },
+  {
+    "pkg": "proactive",
+    "rel_path": "proactive/engine.py",
+    "filename": "engine.py",
+    "lines": 380,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "datetime",
+      "jarvis.proactive.briefing_scheduler",
+      "jarvis.proactive.health_monitor",
+      "jarvis.proactive.inactivity",
+      "jarvis.proactive.pomodoro",
+      "jarvis.proactive.reminders",
+      "logging",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_stt_llm.py"
+    ]
+  },
+  {
+    "pkg": "proactive",
+    "rel_path": "proactive/health_monitor.py",
+    "filename": "health_monitor.py",
+    "lines": 429,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "ctypes",
+      "dataclasses",
+      "logging",
+      "psutil",
+      "sys",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_challenger2_stress.py",
+      "test_proactive_engine.py",
+      "test_tiers_1_to_4.py",
+      "test_v460_e2e.py"
+    ]
+  },
+  {
+    "pkg": "proactive",
+    "rel_path": "proactive/inactivity.py",
+    "filename": "inactivity.py",
+    "lines": 175,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "logging",
+      "threading",
+      "time"
+    ],
+    "matching_tests": [
+      "test_challenger2_stress.py",
+      "test_integration_e2e.py",
+      "test_proactive_engine.py",
+      "test_tiers_1_to_4.py",
+      "test_v460_e2e.py"
+    ]
+  },
+  {
+    "pkg": "proactive",
+    "rel_path": "proactive/pomodoro.py",
+    "filename": "pomodoro.py",
+    "lines": 367,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "logging",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_builtin_skills.py",
+      "test_challenger2_stress.py",
+      "test_integration_e2e.py",
+      "test_proactive_engine.py",
+      "test_skill_registry_hardening.py"
+    ]
+  },
+  {
+    "pkg": "proactive",
+    "rel_path": "proactive/reminders.py",
+    "filename": "reminders.py",
+    "lines": 311,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "heapq",
+      "logging",
+      "re",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ],
+    "matching_tests": [
+      "test_challenger2_stress.py",
+      "test_proactive_engine.py",
+      "test_tiers_1_to_4.py",
+      "test_v460_e2e.py"
+    ]
+  },
+  {
+    "pkg": "sandbox",
+    "rel_path": "sandbox/__init__.py",
+    "filename": "__init__.py",
+    "lines": 17,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.sandbox.artifacts",
+      "jarvis.sandbox.interpreter",
+      "jarvis.sandbox.validator"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_agent_tool_runtime.py",
+      "test_audio_dsp.py"
+    ]
+  },
+  {
+    "pkg": "sandbox",
+    "rel_path": "sandbox/artifacts.py",
+    "filename": "artifacts.py",
+    "lines": 223,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "hashlib",
+      "logging",
+      "mimetypes",
+      "os",
+      "pathlib",
+      "shutil",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_agent_tool_runtime.py",
+      "test_autonomous_workflows.py",
+      "test_background_workers.py",
+      "test_combined_security_stability_e2e.py"
+    ]
+  },
+  {
+    "pkg": "sandbox",
+    "rel_path": "sandbox/interpreter.py",
+    "filename": "interpreter.py",
+    "lines": 579,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "ctypes",
+      "dataclasses",
+      "jarvis.sandbox.artifacts",
+      "jarvis.sandbox.security",
+      "jarvis.sandbox.validator",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "shutil",
+      "subprocess",
+      "sys",
+      "time",
+      "typing",
+      "uuid"
+    ],
+    "matching_tests": [
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_agent_tool_runtime.py",
+      "test_autonomous_workflows.py",
+      "test_combined_security_stability_e2e.py",
+      "test_night_planner.py"
+    ]
+  },
+  {
+    "pkg": "sandbox",
+    "rel_path": "sandbox/security.py",
+    "filename": "security.py",
+    "lines": 1438,
+    "todos": [],
+    "not_impl": [
+      513,
+      948
+    ],
+    "imports": [
+      "__future__",
+      "builtins",
+      "ctypes",
+      "io",
+      "logging",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "threading",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py"
+    ]
+  },
+  {
+    "pkg": "sandbox",
+    "rel_path": "sandbox/validator.py",
+    "filename": "validator.py",
+    "lines": 321,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "ast",
+      "dataclasses",
+      "logging",
+      "re",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m1.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_agent_tool_runtime.py",
+      "test_autonomous_workflows.py",
+      "test_combined_security_stability_e2e.py"
+    ]
+  },
+  {
+    "pkg": "security",
+    "rel_path": "security/__init__.py",
+    "filename": "__init__.py",
+    "lines": 41,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.security.prompt_guard",
+      "jarvis.security.report",
+      "jarvis.security.scanner"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py"
+    ]
+  },
+  {
+    "pkg": "security",
+    "rel_path": "security/prompt_guard.py",
+    "filename": "prompt_guard.py",
+    "lines": 283,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "html",
+      "logging",
+      "re",
+      "typing",
+      "unicodedata"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_challenger_m4_2_security.py",
+      "test_combined_security_stability_e2e.py",
+      "test_prompt_guard.py"
+    ]
+  },
+  {
+    "pkg": "security",
+    "rel_path": "security/report.py",
+    "filename": "report.py",
+    "lines": 170,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.core.models",
+      "jarvis.security.scanner",
+      "logging",
+      "pathlib",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_adversarial_m5_challenger1.py",
+      "test_adversarial_r1_r2_r5_stress.py"
+    ]
+  },
+  {
+    "pkg": "security",
+    "rel_path": "security/scanner.py",
+    "filename": "scanner.py",
+    "lines": 514,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "jarvis.core.models",
+      "logging",
+      "os",
+      "pathlib",
+      "shutil",
+      "subprocess",
+      "time",
+      "typing",
+      "xml.etree.ElementTree"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_challenger_m4_2_security.py",
+      "test_combined_security_stability_e2e.py",
+      "test_e2e_scenarios.py"
+    ]
+  },
+  {
+    "pkg": "security",
+    "rel_path": "security/secrets.py",
+    "filename": "secrets.py",
+    "lines": 179,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "argparse",
+      "keyring",
+      "logging",
+      "os",
+      "sys"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_challenger_m4_2_security.py",
+      "test_combined_security_stability_e2e.py",
+      "test_night_planner.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/__init__.py",
+    "filename": "__init__.py",
+    "lines": 20,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.skills.models",
+      "jarvis.skills.registry",
+      "jarvis.skills.synthesizer"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/models.py",
+    "filename": "models.py",
+    "lines": 199,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "jarvis.skills.validation",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/registry.py",
+    "filename": "registry.py",
+    "lines": 611,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "importlib.util",
+      "jarvis.core.dispatcher",
+      "jarvis.core.models",
+      "jarvis.skills.models",
+      "jarvis.skills.telemetry",
+      "jarvis.skills.validation",
+      "json",
+      "logging",
+      "pathlib",
+      "shutil",
+      "sys",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_harness.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_autonomous_workflows.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/synthesizer.py",
+    "filename": "synthesizer.py",
+    "lines": 353,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "ast",
+      "jarvis.skills.models",
+      "json",
+      "logging",
+      "pathlib",
+      "re",
+      "shutil",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_harness.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py",
+      "test_builtin_skills.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/telemetry.py",
+    "filename": "telemetry.py",
+    "lines": 172,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "hashlib",
+      "jarvis.core.paths",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_harness.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_ui_app.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/validation.py",
+    "filename": "validation.py",
+    "lines": 77,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "re",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m5_2.py",
+      "test_adversarial_m5_challenger1.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_always_on_overlay.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/app_launcher/__init__.py",
+    "filename": "__init__.py",
+    "lines": 88,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "os",
+      "pathlib",
+      "shutil",
+      "subprocess",
+      "sys",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/auto_updater/__init__.py",
+    "filename": "__init__.py",
+    "lines": 137,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.workers.auto_updater",
+      "logging",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/briefing/__init__.py",
+    "filename": "__init__.py",
+    "lines": 91,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "datetime",
+      "jarvis.web.hub",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/browser_control/__init__.py",
+    "filename": "__init__.py",
+    "lines": 156,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.browser.cdp_controller",
+      "logging",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/calculator/__init__.py",
+    "filename": "__init__.py",
+    "lines": 178,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "ast",
+      "math",
+      "operator",
+      "re",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/clipboard/__init__.py",
+    "filename": "__init__.py",
+    "lines": 107,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "ctypes",
+      "sys",
+      "tkinter",
+      "typing",
+      "win32clipboard",
+      "win32con"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/file_manager/__init__.py",
+    "filename": "__init__.py",
+    "lines": 138,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/git_assistant/__init__.py",
+    "filename": "__init__.py",
+    "lines": 118,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/macro_recorder/__init__.py",
+    "filename": "__init__.py",
+    "lines": 182,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "datetime",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "pyautogui",
+      "pyperclip",
+      "subprocess",
+      "sys",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/night_planner/__init__.py",
+    "filename": "__init__.py",
+    "lines": 132,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.workers.night_shift",
+      "logging",
+      "pathlib",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/note_taker/__init__.py",
+    "filename": "__init__.py",
+    "lines": 125,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "datetime",
+      "json",
+      "os",
+      "pathlib",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/pomodoro/__init__.py",
+    "filename": "__init__.py",
+    "lines": 90,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/rag_search/__init__.py",
+    "filename": "__init__.py",
+    "lines": 111,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.memory.vector_store",
+      "logging",
+      "os",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/screen_context/__init__.py",
+    "filename": "__init__.py",
+    "lines": 131,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "PIL",
+      "PIL.Image",
+      "__future__",
+      "base64",
+      "datetime",
+      "google.generativeai",
+      "io",
+      "jarvis.security.prompt_guard",
+      "logging",
+      "mss",
+      "mss.tools",
+      "pathlib",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/skill_synthesizer/__init__.py",
+    "filename": "__init__.py",
+    "lines": 270,
+    "todos": [
+      100
+    ],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "ast",
+      "datetime",
+      "json",
+      "logging",
+      "pathlib",
+      "re",
+      "shutil",
+      "textwrap",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/smart_home_discovery/__init__.py",
+    "filename": "__init__.py",
+    "lines": 115,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.smart_home.discovery",
+      "logging",
+      "threading",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/sound_board/__init__.py",
+    "filename": "__init__.py",
+    "lines": 93,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.audio.sound_effects",
+      "logging",
+      "sounddevice",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "skills",
+    "rel_path": "skills/system_control/__init__.py",
+    "filename": "__init__.py",
+    "lines": 120,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "ctypes",
+      "jarvis.automation.control",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "smart_home",
+    "rel_path": "smart_home/__init__.py",
+    "filename": "__init__.py",
+    "lines": 13,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.smart_home.home_assistant",
+      "jarvis.smart_home.mqtt"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "smart_home",
+    "rel_path": "smart_home/discovery.py",
+    "filename": "discovery.py",
+    "lines": 293,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "ipaddress",
+      "json",
+      "logging",
+      "pathlib",
+      "socket",
+      "threading",
+      "time",
+      "urllib.error",
+      "urllib.request"
+    ],
+    "matching_tests": [
+      "test_builtin_skills.py",
+      "test_e2e_scenarios.py",
+      "test_security_scanner.py",
+      "test_skill_registry_hardening.py",
+      "test_skill_synthesis.py"
+    ]
+  },
+  {
+    "pkg": "smart_home",
+    "rel_path": "smart_home/home_assistant.py",
+    "filename": "home_assistant.py",
+    "lines": 141,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "json",
+      "logging",
+      "typing",
+      "urllib.error",
+      "urllib.request"
+    ],
+    "matching_tests": [
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_e2e_scenarios.py",
+      "test_llm_engine.py"
+    ]
+  },
+  {
+    "pkg": "smart_home",
+    "rel_path": "smart_home/mqtt.py",
+    "filename": "mqtt.py",
+    "lines": 162,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "json",
+      "logging",
+      "paho.mqtt.client",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_harness.py",
+      "test_e2e_scenarios.py",
+      "test_smart_home.py",
+      "test_tier5_adversarial_sec_iot_comms_data.py"
+    ]
+  },
+  {
+    "pkg": "stt",
+    "rel_path": "stt/__init__.py",
+    "filename": "__init__.py",
+    "lines": 40,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.stt.engine"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m3_ui_app.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py"
+    ]
+  },
+  {
+    "pkg": "stt",
+    "rel_path": "stt/engine.py",
+    "filename": "engine.py",
+    "lines": 931,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "abc",
+      "collections.abc",
+      "ctranslate2",
+      "ctypes",
+      "faster_whisper",
+      "io",
+      "jarvis.audio.dsp",
+      "jarvis.security.secrets",
+      "logging",
+      "numpy",
+      "nvidia.cublas.lib",
+      "os",
+      "pathlib",
+      "requests",
+      "site",
+      "subprocess",
+      "sys",
+      "tempfile",
+      "threading",
+      "typing",
+      "wave"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_stt_llm.py"
+    ]
+  },
+  {
+    "pkg": "stt",
+    "rel_path": "stt/faster_whisper.py",
+    "filename": "faster_whisper.py",
+    "lines": 231,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "faster_whisper",
+      "io",
+      "logging",
+      "numpy",
+      "threading",
+      "time",
+      "typing",
+      "wave"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m3_ui_app.py",
+      "test_challenger_m1_2_empirical.py",
+      "test_empirical_challenger_m1_stabilization.py"
+    ]
+  },
+  {
+    "pkg": "tts",
+    "rel_path": "tts/__init__.py",
+    "filename": "__init__.py",
+    "lines": 22,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.tts.base",
+      "jarvis.tts.cache",
+      "jarvis.tts.elevenlabs",
+      "jarvis.tts.engine",
+      "jarvis.tts.fallback",
+      "jarvis.tts.manager"
+    ],
+    "matching_tests": [
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m3_ui_app.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py"
+    ]
+  },
+  {
+    "pkg": "tts",
+    "rel_path": "tts/base.py",
+    "filename": "base.py",
+    "lines": 68,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "abc",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_harness.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "tts",
+    "rel_path": "tts/cache.py",
+    "filename": "cache.py",
+    "lines": 242,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "hashlib",
+      "logging",
+      "numpy",
+      "os",
+      "pathlib",
+      "sounddevice",
+      "sys",
+      "threading",
+      "time",
+      "wave",
+      "winsound"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_ui_app.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "tts",
+    "rel_path": "tts/elevenlabs.py",
+    "filename": "elevenlabs.py",
+    "lines": 133,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "elevenlabs.client",
+      "jarvis.tts.base",
+      "logging",
+      "numpy",
+      "os",
+      "requests",
+      "sounddevice",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_harness.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_ui_app.py",
+      "test_challenger_m1_2_empirical.py",
+      "test_config.py"
+    ]
+  },
+  {
+    "pkg": "tts",
+    "rel_path": "tts/engine.py",
+    "filename": "engine.py",
+    "lines": 89,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.tts.cache",
+      "jarvis.tts.elevenlabs",
+      "jarvis.tts.fallback",
+      "logging",
+      "pathlib",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "tts",
+    "rel_path": "tts/fallback.py",
+    "filename": "fallback.py",
+    "lines": 128,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "base64",
+      "jarvis.tts.base",
+      "logging",
+      "numpy",
+      "pythoncom",
+      "pyttsx3",
+      "subprocess",
+      "sys",
+      "typing",
+      "win32com.client"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "tts",
+    "rel_path": "tts/manager.py",
+    "filename": "manager.py",
+    "lines": 215,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "jarvis.tts.base",
+      "jarvis.tts.cache",
+      "jarvis.tts.elevenlabs",
+      "jarvis.tts.fallback",
+      "logging",
+      "os",
+      "pathlib",
+      "queue",
+      "random",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "tts",
+    "rel_path": "tts/piper.py",
+    "filename": "piper.py",
+    "lines": 190,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "logging",
+      "numpy",
+      "onnxruntime",
+      "pathlib",
+      "piper_phonemize",
+      "sounddevice",
+      "struct",
+      "threading",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_ui_app.py",
+      "test_challenger_m1_2_empirical.py",
+      "test_empirical_challenger_m1_stabilization.py",
+      "test_empirical_challenger_m2.py"
+    ]
+  },
+  {
+    "pkg": "ui",
+    "rel_path": "ui/__init__.py",
+    "filename": "__init__.py",
+    "lines": 16,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.ui.dashboard",
+      "jarvis.ui.tray"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m3_ui_app.py",
+      "test_adversarial_m5_2.py"
+    ]
+  },
+  {
+    "pkg": "ui",
+    "rel_path": "ui/dashboard.py",
+    "filename": "dashboard.py",
+    "lines": 752,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "asyncio",
+      "collections",
+      "http.server",
+      "jarvis",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "threading",
+      "time",
+      "typing",
+      "urllib.parse",
+      "websockets"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_ui_app.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_always_on_overlay.py"
+    ]
+  },
+  {
+    "pkg": "ui",
+    "rel_path": "ui/overlay.py",
+    "filename": "overlay.py",
+    "lines": 1850,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections",
+      "collections.abc",
+      "ctypes",
+      "dataclasses",
+      "enum",
+      "logging",
+      "math",
+      "psutil",
+      "random",
+      "sys",
+      "threading",
+      "time",
+      "tkinter",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_ui_app.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_always_on_overlay.py"
+    ]
+  },
+  {
+    "pkg": "ui",
+    "rel_path": "ui/tray.py",
+    "filename": "tray.py",
+    "lines": 363,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "enum",
+      "logging",
+      "os",
+      "pystray",
+      "sys",
+      "threading",
+      "typing",
+      "webbrowser"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m3_challenger1.py",
+      "test_adversarial_m3_ui_app.py",
+      "test_always_on_overlay.py",
+      "test_autonomous_workflows.py"
+    ]
+  },
+  {
+    "pkg": "utils",
+    "rel_path": "utils/__init__.py",
+    "filename": "__init__.py",
+    "lines": 1,
+    "todos": [],
+    "not_impl": [],
+    "imports": [],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "utils",
+    "rel_path": "utils/subprocess_utils.py",
+    "filename": "subprocess_utils.py",
+    "lines": 89,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "logging",
+      "subprocess",
+      "sys",
+      "typing"
+    ],
+    "matching_tests": []
+  },
+  {
+    "pkg": "vision",
+    "rel_path": "vision/__init__.py",
+    "filename": "__init__.py",
+    "lines": 56,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.vision.biometrics",
+      "jarvis.vision.computer_use",
+      "jarvis.vision.dialog_detector",
+      "jarvis.vision.hands",
+      "jarvis.vision.ocr",
+      "jarvis.vision.screen",
+      "jarvis.vision.visual_verifier"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py"
+    ]
+  },
+  {
+    "pkg": "vision",
+    "rel_path": "vision/biometrics.py",
+    "filename": "biometrics.py",
+    "lines": 442,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "cv2",
+      "face_recognition",
+      "jarvis.core.models",
+      "jarvis.platform.windows",
+      "json",
+      "logging",
+      "math",
+      "numpy",
+      "os",
+      "pathlib",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m5_2.py",
+      "test_autonomous_workflows.py",
+      "test_biometrics.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "vision",
+    "rel_path": "vision/computer_use.py",
+    "filename": "computer_use.py",
+    "lines": 675,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "ctypes",
+      "dataclasses",
+      "io",
+      "jarvis.vision.ocr",
+      "jarvis.vision.screen",
+      "json",
+      "logging",
+      "pytesseract",
+      "re",
+      "sys",
+      "typing",
+      "win32gui"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m5_2.py",
+      "test_autonomous_workflows.py",
+      "test_biometrics.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "vision",
+    "rel_path": "vision/dialog_detector.py",
+    "filename": "dialog_detector.py",
+    "lines": 214,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "ctypes",
+      "logging",
+      "sys",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m5_2.py",
+      "test_autonomous_workflows.py",
+      "test_biometrics.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "vision",
+    "rel_path": "vision/hands.py",
+    "filename": "hands.py",
+    "lines": 212,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "enum",
+      "jarvis.platform.windows",
+      "logging",
+      "mediapipe",
+      "numpy",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m5_2.py",
+      "test_autonomous_workflows.py",
+      "test_biometrics.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "vision",
+    "rel_path": "vision/ocr.py",
+    "filename": "ocr.py",
+    "lines": 141,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "io",
+      "jarvis.vision.screen",
+      "logging",
+      "pathlib",
+      "pytesseract",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m5_2.py",
+      "test_autonomous_workflows.py",
+      "test_biometrics.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "vision",
+    "rel_path": "vision/screen.py",
+    "filename": "screen.py",
+    "lines": 421,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "base64",
+      "dataclasses",
+      "io",
+      "jarvis.security.secrets",
+      "jarvis.vision.dialog_detector",
+      "logging",
+      "mss",
+      "os",
+      "pathlib",
+      "requests",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m5_2.py",
+      "test_autonomous_workflows.py",
+      "test_biometrics.py"
+    ]
+  },
+  {
+    "pkg": "vision",
+    "rel_path": "vision/visual_verifier.py",
+    "filename": "visual_verifier.py",
+    "lines": 409,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "PIL",
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "io",
+      "jarvis.vision.ocr",
+      "jarvis.vision.screen",
+      "logging",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m5_2.py",
+      "test_autonomous_workflows.py",
+      "test_biometrics.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "web",
+    "rel_path": "web/__init__.py",
+    "filename": "__init__.py",
+    "lines": 27,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "jarvis.web.cache",
+      "jarvis.web.finance",
+      "jarvis.web.hub",
+      "jarvis.web.news",
+      "jarvis.web.search",
+      "jarvis.web.weather"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_biometrics_hardening.py"
+    ]
+  },
+  {
+    "pkg": "web",
+    "rel_path": "web/cache.py",
+    "filename": "cache.py",
+    "lines": 152,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "hashlib",
+      "json",
+      "logging",
+      "threading",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m4_challenger1.py",
+      "test_autonomous_workflows.py",
+      "test_browser_agent.py",
+      "test_challenger2_stress.py"
+    ]
+  },
+  {
+    "pkg": "web",
+    "rel_path": "web/finance.py",
+    "filename": "finance.py",
+    "lines": 349,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "jarvis.web.cache",
+      "json",
+      "logging",
+      "requests",
+      "time",
+      "typing",
+      "urllib.parse",
+      "urllib.request"
+    ],
+    "matching_tests": [
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_challenger2_stress.py",
+      "test_skill_registry_hardening.py",
+      "test_tiers_1_to_4.py",
+      "test_web_intelligence.py"
+    ]
+  },
+  {
+    "pkg": "web",
+    "rel_path": "web/hub.py",
+    "filename": "hub.py",
+    "lines": 167,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "datetime",
+      "jarvis.web.cache",
+      "jarvis.web.finance",
+      "jarvis.web.news",
+      "jarvis.web.search",
+      "jarvis.web.weather",
+      "logging",
+      "socket",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_browser_agent.py",
+      "test_challenger2_stress.py",
+      "test_comms_hub.py",
+      "test_hud_telemetry_and_memory.py",
+      "test_integration_e2e.py"
+    ]
+  },
+  {
+    "pkg": "web",
+    "rel_path": "web/news.py",
+    "filename": "news.py",
+    "lines": 308,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "html",
+      "jarvis.web.cache",
+      "logging",
+      "re",
+      "requests",
+      "urllib.parse",
+      "urllib.request",
+      "xml.etree.ElementTree"
+    ],
+    "matching_tests": [
+      "test_browser_agent.py",
+      "test_builtin_skills.py",
+      "test_challenger2_stress.py",
+      "test_hud_telemetry_and_memory.py",
+      "test_integration_e2e.py"
+    ]
+  },
+  {
+    "pkg": "web",
+    "rel_path": "web/search.py",
+    "filename": "search.py",
+    "lines": 252,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "duckduckgo_search",
+      "html",
+      "jarvis.web.cache",
+      "logging",
+      "re",
+      "requests",
+      "typing",
+      "urllib.parse",
+      "urllib.request"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m1_intent_router.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_autonomous_workflows.py",
+      "test_browser_agent.py"
+    ]
+  },
+  {
+    "pkg": "web",
+    "rel_path": "web/weather.py",
+    "filename": "weather.py",
+    "lines": 336,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "jarvis.security.secrets",
+      "jarvis.web.cache",
+      "json",
+      "logging",
+      "os",
+      "re",
+      "requests",
+      "time",
+      "typing",
+      "urllib.parse",
+      "urllib.request"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_always_on_overlay.py",
+      "test_challenger2_stress.py",
+      "test_hud_telemetry_and_memory.py"
+    ]
+  },
+  {
+    "pkg": "workers",
+    "rel_path": "workers/__init__.py",
+    "filename": "__init__.py",
+    "lines": 26,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.workers.manager",
+      "jarvis.workers.models",
+      "jarvis.workers.notifications",
+      "jarvis.workers.worker"
+    ],
+    "matching_tests": [
+      "test_adversarial_m3_stt_llm.py",
+      "test_adversarial_m5_2.py",
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_audio_dsp.py",
+      "test_auto_updater.py"
+    ]
+  },
+  {
+    "pkg": "workers",
+    "rel_path": "workers/auto_updater.py",
+    "filename": "auto_updater.py",
+    "lines": 310,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "datetime",
+      "json",
+      "logging",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "threading",
+      "time",
+      "typing",
+      "urllib.error",
+      "urllib.request"
+    ],
+    "matching_tests": [
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_auto_updater.py",
+      "test_autonomous_workflows.py",
+      "test_background_workers.py",
+      "test_combined_security_stability_e2e.py"
+    ]
+  },
+  {
+    "pkg": "workers",
+    "rel_path": "workers/manager.py",
+    "filename": "manager.py",
+    "lines": 225,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections",
+      "concurrent.futures",
+      "jarvis.core.dispatcher",
+      "jarvis.healing.watchdog",
+      "jarvis.workers.models",
+      "jarvis.workers.notifications",
+      "jarvis.workers.worker",
+      "logging",
+      "threading",
+      "time"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "workers",
+    "rel_path": "workers/models.py",
+    "filename": "models.py",
+    "lines": 126,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "enum",
+      "time",
+      "typing"
+    ],
+    "matching_tests": [
+      "test_action_dispatcher_safety.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py",
+      "test_adversarial_m3_challenger1.py"
+    ]
+  },
+  {
+    "pkg": "workers",
+    "rel_path": "workers/night_shift.py",
+    "filename": "night_shift.py",
+    "lines": 363,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "datetime",
+      "jarvis.sandbox.interpreter",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "re",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ],
+    "matching_tests": [
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_auto_updater.py",
+      "test_autonomous_workflows.py",
+      "test_background_workers.py",
+      "test_combined_security_stability_e2e.py"
+    ]
+  },
+  {
+    "pkg": "workers",
+    "rel_path": "workers/notification_hub.py",
+    "filename": "notification_hub.py",
+    "lines": 433,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "dataclasses",
+      "datetime",
+      "enum",
+      "jarvis.audio.sound_effects",
+      "jarvis.comms.discord",
+      "jarvis.comms.telegram",
+      "jarvis.comms.zalo",
+      "jarvis.security.secrets",
+      "jarvis.tts.engine",
+      "logging",
+      "os",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "threading",
+      "time",
+      "typing",
+      "uuid",
+      "winotify"
+    ],
+    "matching_tests": [
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_auto_updater.py",
+      "test_autonomous_workflows.py",
+      "test_background_workers.py",
+      "test_combined_security_stability_e2e.py"
+    ]
+  },
+  {
+    "pkg": "workers",
+    "rel_path": "workers/notifications.py",
+    "filename": "notifications.py",
+    "lines": 214,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "jarvis.comms.telegram",
+      "jarvis.core.dispatcher",
+      "jarvis.tts.manager",
+      "jarvis.ui.overlay",
+      "jarvis.workers.models",
+      "logging",
+      "os"
+    ],
+    "matching_tests": [
+      "test_adversarial_r1_r2_r5_stress.py",
+      "test_auto_updater.py",
+      "test_autonomous_workflows.py",
+      "test_background_workers.py",
+      "test_challenger2_stress.py"
+    ]
+  },
+  {
+    "pkg": "workers",
+    "rel_path": "workers/worker.py",
+    "filename": "worker.py",
+    "lines": 310,
+    "todos": [],
+    "not_impl": [],
+    "imports": [
+      "__future__",
+      "collections.abc",
+      "inspect",
+      "jarvis.core.dispatcher",
+      "jarvis.healing.watchdog",
+      "jarvis.workers.models",
+      "logging",
+      "threading",
+      "time",
+      "typing",
+      "uuid"
+    ],
+    "matching_tests": [
+      "test_adversarial_challenger_1.py",
+      "test_adversarial_challenger_2.py",
+      "test_adversarial_m1.py",
+      "test_adversarial_m2_audio_gesture.py",
+      "test_adversarial_m2_llm_router.py"
+    ]
+  }
+]
