@@ -12,6 +12,7 @@ from __future__ import annotations
 import inspect
 import logging
 import re
+import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Union, get_args, get_origin
@@ -21,6 +22,70 @@ from jarvis.core.models import ActionResult, RequesterContext
 from jarvis.llm.client import LLMClient, LLMResponse
 
 logger = logging.getLogger("jarvis.llm.router")
+
+_TABLE_SRC = (
+    "àáảãạăằắẳẵặâầấẩẫậ"
+    "èéẻẽẹêềếểễệ"
+    "ìíỉĩị"
+    "òóỏõọôồốổỗộơờớởỡợ"
+    "ùúủũụưừứửữự"
+    "ỳýỷỹỵ"
+    "đ"
+    "ÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬ"
+    "ÈÉẺẼẸÊỀẾỂỄỆ"
+    "ÌÍỈĨỊ"
+    "ÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢ"
+    "ÙÚỦŨỤƯỪỨỬỮỰ"
+    "ỲÝỶỸỴ"
+    "Đ"
+)
+_TABLE_DST = (
+    "a" * 17
+    + "e" * 11
+    + "i" * 5
+    + "o" * 17
+    + "u" * 11
+    + "y" * 5
+    + "d"
+    + "A" * 17
+    + "E" * 11
+    + "I" * 5
+    + "O" * 17
+    + "U" * 11
+    + "Y" * 5
+    + "D"
+)
+_VI_TRANS_TABLE = str.maketrans(_TABLE_SRC, _TABLE_DST)
+for _cp in range(0x0300, 0x0370):
+    _VI_TRANS_TABLE[_cp] = None
+
+_COMBINING_DIACRITICS_RE = re.compile(r"[\u0300-\u036f]")
+
+
+def strip_vietnamese_diacritics(text: str) -> str:
+    """
+    Strips all Vietnamese diacritics / tone marks and normalizes 'đ'/'Đ' to 'd'/'D'.
+    Supports both precomposed NFC and decomposed NFD Unicode representations.
+    Preserves all ASCII characters, whitespace, numbers, and punctuation.
+
+    Examples:
+        'Điều chỉnh âm lượng' -> 'Dieu chinh am luong'
+        'Tìm kiếm Google.'    -> 'Tim kiem Google.'
+        'Trời hôm nay thế nào?' -> 'Troi hom nay the nao?'
+        'đặc nhắc'            -> 'dac nhac'
+        'nhạc'                -> 'nhac'
+    """
+    if not text:
+        return ""
+    if text.isascii():
+        return text
+    res = text.translate(_VI_TRANS_TABLE)
+    if not res.isascii():
+        nfd = unicodedata.normalize("NFD", res)
+        d_mapped = nfd.replace("đ", "d").replace("Đ", "D")
+        res = _COMBINING_DIACRITICS_RE.sub("", d_mapped)
+    return res
+
 
 
 @dataclass
@@ -1280,15 +1345,128 @@ class LLMIntentRouter:
             "git status": IntentResult(action_name="skill_git_assistant", parameters={"action": "status", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang kiểm tra trạng thái Git cho Ngài."),
             "git commit": IntentResult(action_name="skill_git_assistant", parameters={"action": "commit", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang commit các thay đổi dự án cho Ngài."),
             "git push": IntentResult(action_name="skill_git_assistant", parameters={"action": "push", "project": "", "repo_path": ""}, source="rule_fallback", response_text="Đang đẩy các thay đổi lên Git repository cho Ngài."),
+
+            # Phonetic drift aliases for Whisper mishearings (v4.8.1 STT robustness)
+            # system_power
+            "tắc máy": IntentResult(
+                action_name="system_power",
+                parameters={"action": "shutdown", "command": "shutdown"},
+                source="rule_fallback",
+                response_text="Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.",
+                requires_confirmation=True,
+                confirmation_prompt="Ngài có chắc chắn muốn tắt máy không?",
+                danger_level="CRITICAL",
+            ),
+            "tập máy tính": IntentResult(
+                action_name="system_power",
+                parameters={"action": "shutdown", "command": "shutdown"},
+                source="rule_fallback",
+                response_text="Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.",
+                requires_confirmation=True,
+                confirmation_prompt="Ngài có chắc chắn muốn tắt máy không?",
+                danger_level="CRITICAL",
+            ),
+            "sắt đau má": IntentResult(
+                action_name="system_power",
+                parameters={"action": "shutdown", "command": "shutdown"},
+                source="rule_fallback",
+                response_text="Lệnh tắt máy đã được ghi nhận. Vui lòng xác nhận, thưa Ngài.",
+                requires_confirmation=True,
+                confirmation_prompt="Ngài có chắc chắn muốn tắt máy không?",
+                danger_level="CRITICAL",
+            ),
+
+            # app_open
+            "cái đặt": IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "settings", "app": "ms-settings:", "name": "settings"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+            "má kẻ đặt": IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "settings", "app": "ms-settings:", "name": "settings"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+            "open sentence": IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "settings", "app": "ms-settings:", "name": "settings"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+            "open sente": IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "settings", "app": "ms-settings:", "name": "settings"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",
+            ),
+
+            # reminder
+            "đặt time": IntentResult(
+                action_name="reminder",
+                parameters={"message": "hẹn giờ"},
+                source="rule_fallback",
+                response_text="Đã ghi nhận lời nhắc của Ngài.",
+            ),
+            "đặc nhắc": IntentResult(
+                action_name="reminder",
+                parameters={"message": "nhắc nhở"},
+                source="rule_fallback",
+                response_text="Đã ghi nhận lời nhắc của Ngài.",
+            ),
+
+            # system_volume
+            "tắc tính": IntentResult(
+                action_name="system_volume",
+                parameters={"action": "mute", "mute": True},
+                source="rule_fallback",
+                response_text="Đã tắt tiếng máy tính, thưa Ngài.",
+            ),
+            "tắt tính": IntentResult(
+                action_name="system_volume",
+                parameters={"action": "mute", "mute": True},
+                source="rule_fallback",
+                response_text="Đã tắt tiếng máy tính, thưa Ngài.",
+            ),
+
+            # memory_save_fact
+            "ghi chú": IntentResult(
+                action_name="memory_save_fact",
+                parameters={},
+                source="rule_fallback",
+                response_text="Đã ghi nhận ghi chú cho Ngài.",
+            ),
+            "ghi chu": IntentResult(
+                action_name="memory_save_fact",
+                parameters={},
+                source="rule_fallback",
+                response_text="Đã ghi nhận ghi chú cho Ngài.",
+            ),
+            "tạo ghi chú mới": IntentResult(
+                action_name="memory_save_fact",
+                parameters={},
+                source="rule_fallback",
+                response_text="Đã ghi nhận ghi chú mới cho Ngài.",
+            ),
+            "tao ghi chu moi": IntentResult(
+                action_name="memory_save_fact",
+                parameters={},
+                source="rule_fallback",
+                response_text="Đã ghi nhận ghi chú mới cho Ngài.",
+            ),
         }
 
         # Pre-sort rule dictionary keys by descending length for greedy exact match
         self._sorted_rule_keys: list[str] = sorted(self.rule_engine.keys(), key=len, reverse=True)
-        self._short_key_regexes: dict[str, re.Pattern] = {
-            k: re.compile(r"(?:\b|^)" + re.escape(k) + r"(?:\b|$)", re.IGNORECASE)
-            for k in self.rule_engine
-            if len(k) <= 4 and k.isascii()
+        self._stripped_rule_keys: dict[str, str] = {
+            k: strip_vietnamese_diacritics(k) for k in self.rule_engine
         }
+        self._rule_word_counts: dict[str, int] = {
+            k: len(k.strip().split()) for k in self.rule_engine
+        }
+        self._rule_key_regexes: dict[str, re.Pattern] = {}
+        self._short_key_regexes: dict[str, re.Pattern] = self._rule_key_regexes
 
         # Advanced Parametric Regex Rules (Run before static substring fallback)
         self._regex_rules: list[tuple[re.Pattern, Callable[[re.Match], IntentResult]]] = [
@@ -1800,23 +1978,70 @@ class LLMIntentRouter:
             ),
         ]
 
-    def _match_rule_key(self, key: str, clean_lower: str) -> bool:
-        """Determines if clean_lower matches the deterministic key."""
+    def _get_word_boundary_pattern(self, pattern_key: str) -> re.Pattern:
+        """Retrieves or compiles a cached word-boundary pattern."""
+        pattern = self._rule_key_regexes.get(pattern_key)
+        if pattern is None:
+            pattern = re.compile(r"(?:\b|^)" + re.escape(pattern_key) + r"(?:\b|$)", re.IGNORECASE)
+            self._rule_key_regexes[pattern_key] = pattern
+        return pattern
+
+    def _match_rule_key(
+        self,
+        key: str,
+        clean_lower: str,
+        clean_lower_stripped: str | None = None,
+    ) -> bool:
+        """
+        Determines if clean_lower matches the deterministic key with safe diacritic folding.
+        - Single-word rules (len(words) == 1): STRICT whole-word token match with diacritics PRESERVED.
+          Never substring, never diacritic-folded, completely preventing homophone collisions.
+        - Multi-word rules (len(words) >= 2): Diacritic folding enabled with word boundary verification.
+        """
         if not key or not clean_lower:
             return False
-        if key not in clean_lower:
-            return False
-        if len(key) <= 4:
+
+        word_count = self._rule_word_counts.get(key)
+        if word_count is None:
+            word_count = len(key.strip().split())
+
+        # 1. Single-word rules: preserve diacritics, enforce whole-word token boundary
+        if word_count == 1:
+            if key not in clean_lower:
+                return False
             if clean_lower == key:
                 return True
-            pattern = getattr(self, "_short_key_regexes", {}).get(key)
+            pattern = self._rule_key_regexes.get(key)
             if pattern is None:
                 pattern = re.compile(r"(?:\b|^)" + re.escape(key) + r"(?:\b|$)", re.IGNORECASE)
-                if not hasattr(self, "_short_key_regexes"):
-                    self._short_key_regexes = {}
-                self._short_key_regexes[key] = pattern
+                self._rule_key_regexes[key] = pattern
             return bool(pattern.search(clean_lower))
-        return True
+
+        # 2. Multi-word rules: check exact match first
+        if key in clean_lower:
+            return True
+
+        # For massive adversarial strings (>2048 chars), skip secondary diacritic scan to prevent DoS
+        if len(clean_lower) > 2048:
+            return False
+
+        # 3. Multi-word rules: safe diacritic folding
+        if clean_lower_stripped is None:
+            if len(clean_lower) > 2048:
+                return False
+            clean_lower_stripped = strip_vietnamese_diacritics(clean_lower)
+
+        key_stripped = self._stripped_rule_keys.get(key)
+        if key_stripped is None:
+            key_stripped = strip_vietnamese_diacritics(key)
+
+        if key_stripped not in clean_lower_stripped:
+            return False
+        if clean_lower_stripped == key_stripped:
+            return True
+
+        pattern_stripped = self._get_word_boundary_pattern(key_stripped)
+        return bool(pattern_stripped.search(clean_lower_stripped))
 
     def _make_light_intent(self, service: str, target: str | None) -> IntentResult:
         t = (target or "").lower().strip()
@@ -2290,6 +2515,11 @@ class LLMIntentRouter:
         _MAX_REGEX_LEN = 512
         clean_for_regex = clean[:_MAX_REGEX_LEN] if len(clean) > _MAX_REGEX_LEN else clean
         clean_lower = clean_lower_full  # Used for dict rule key matching (full-text safe)
+        clean_lower_stripped = (
+            strip_vietnamese_diacritics(clean_lower)
+            if len(clean_lower) <= 2048
+            else None
+        )
 
         # Early return for meaningless inputs — only check head to avoid processing 50KB
         import re as _re
@@ -2353,7 +2583,7 @@ class LLMIntentRouter:
 
             # Then check sorted rule dictionary keys — full text, O(n) substring checks are fast
             for key in self._sorted_rule_keys:
-                if self._match_rule_key(key, clean_lower):
+                if self._match_rule_key(key, clean_lower, clean_lower_stripped):
                     intent = self.rule_engine[key]
                     res = IntentResult(
                         action_name=intent.action_name,
@@ -2369,6 +2599,15 @@ class LLMIntentRouter:
                     return res
 
         # 2. TIER 2: LLM Semantic Reasoning
+        if self.llm is None:
+            return IntentResult(
+                action_name="unknown_intent",
+                parameters={"raw_text": text},
+                confidence=0.0,
+                source="rule_fast_path",
+                raw_text=text,
+                response_text="Tôi chưa hiểu lệnh này, vui lòng thử cách khác",
+            )
         logger.info("Tier-1 fast-path miss for query %r; invoking Tier-2 LLM semantic reasoning", text)
         try:
             tools = None
@@ -2446,7 +2685,7 @@ class LLMIntentRouter:
                     return res
 
             for key in self._sorted_rule_keys:
-                if self._match_rule_key(key, clean_lower):
+                if self._match_rule_key(key, clean_lower, clean_lower_stripped):
                     intent = self.rule_engine[key]
                     return IntentResult(
                         action_name=intent.action_name,

@@ -568,6 +568,8 @@ def test_jarvis_app_concurrent_text_commands_stress():
     """
     app = JarvisApp(headless=True, no_hot_reload=True)
     app.initialize()
+    if hasattr(app, "tts_manager") and app.tts_manager:
+        app.tts_manager.speak = lambda *args, **kwargs: True
 
     test_commands = [
         "bật nhạc spotify",

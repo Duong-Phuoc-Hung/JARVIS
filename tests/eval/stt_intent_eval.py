@@ -62,6 +62,11 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 if sys.platform == "win32":
     for _sp in site.getsitepackages():
         _nr = os.path.join(_sp, "nvidia")
@@ -143,19 +148,23 @@ _ROUTER = None  # initialised lazily inside subprocess
 
 def predict_intent(transcript: str) -> str:
     """
-    Route transcript through Tier-1 rule_engine (deterministic substring match).
+    Route transcript through Tier-1 production router with safe diacritic normalization.
     Returns router action_name (e.g. 'system_power') or 'NO_INTENT'.
     Use EXPECTED_ACTIONS to map action_name back to eval intent.
     """
     global _ROUTER
     if _ROUTER is None:
         _ROUTER = _build_router()
-    t = transcript.lower().strip()
-    if not t: return "NO_INTENT"
+    t = transcript.strip()
+    if not t:
+        return "NO_INTENT"
     if _ROUTER is not None:
-        for keyword, result in _ROUTER.rule_engine.items():
-            if keyword in t:
-                return result.action_name
+        try:
+            res = _ROUTER.parse_intent(t, force_llm=False)
+            if res and res.action_name and res.action_name not in ("unknown_intent", "generic_llm_response"):
+                return res.action_name
+        except Exception:
+            pass
     # Fallback: ASCII/English keyword match (stops, reboot, screenshot, etc.)
     simple = {
         "stop": "system_power", "shutdown": "system_power",
@@ -164,8 +173,10 @@ def predict_intent(transcript: str) -> str:
         "mute": "system_volume", "play music": "spotify",
         "open settings": "app_open",
     }
+    t_lower = t.lower()
     for kw, action in simple.items():
-        if kw in t: return action
+        if kw in t_lower:
+            return action
     return "NO_INTENT"
 
 def avg_logprob_to_confidence(avg_lp: float) -> float:
@@ -227,7 +238,15 @@ def run_single_model(model_name: str, audio_root: Path, conditions: list[str],
     compute = "int8" if model_name == "small" else "int8_float16"
     BEAM_SIZE = 3  # direct backend only — must match latency benchmarks for comparable numbers
 
-    print(f"\n{'='*60}\nModel: {model_name}  backend={backend}  compute={compute}")
+    device = "cuda"
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            device = "cpu"
+    except Exception:
+        device = "cpu"
+
+    print(f"\n{'='*60}\nModel: {model_name}  backend={backend}  compute={compute}  device={device}")
     if backend == "direct":
         print(f"beam_size={BEAM_SIZE} (NOTE: latency comparable to prior benchmark, also beam_size=3)")
     else:
@@ -236,15 +255,38 @@ def run_single_model(model_name: str, audio_root: Path, conditions: list[str],
 
     if backend == "direct":
         from faster_whisper import WhisperModel
-        model = WhisperModel(model_name, device="cuda", compute_type=compute, download_root=CACHE)
+        compute_mode = "int8" if device == "cpu" else compute
+        try:
+            model = WhisperModel(model_name, device=device, compute_type=compute_mode, download_root=CACHE)
+        except Exception as e:
+            if device == "cuda":
+                print(f"  CUDA init failed ({e}), falling back to CPU")
+                device = "cpu"
+                compute_mode = "int8"
+                model = WhisperModel(model_name, device=device, compute_type=compute_mode, download_root=CACHE)
+            else:
+                raise
         aw = (np.random.randn(int(16000 * 2)) * 0.05).astype("float32")
         model.transcribe(aw, language=language, beam_size=BEAM_SIZE, condition_on_previous_text=False)
     else:
         from jarvis.stt.engine import FasterWhisperSTT
-        model = FasterWhisperSTT({
-            "model_size": model_name, "compute_type": compute,
-            "device": "cuda", "download_root": CACHE,
-        })
+        compute_mode = "int8" if device == "cpu" else compute
+        try:
+            model = FasterWhisperSTT({
+                "model_size": model_name, "compute_type": compute_mode,
+                "device": device, "download_root": CACHE,
+            })
+        except Exception as e:
+            if device == "cuda":
+                print(f"  CUDA init failed ({e}), falling back to CPU")
+                device = "cpu"
+                compute_mode = "int8"
+                model = FasterWhisperSTT({
+                    "model_size": model_name, "compute_type": compute_mode,
+                    "device": device, "download_root": CACHE,
+                })
+            else:
+                raise
         aw = (np.random.randn(int(16000 * 2)) * 0.05).astype("float32")
         model.transcribe(aw, language=language)
     print("  Warmup done")
@@ -363,6 +405,8 @@ def main():
                           "evidence is never overwritten by default.")
     ap.add_argument("--out-summaries-name", default=None,
                      help="Override output summaries filename (see --out-results-name).")
+    ap.add_argument("--cached-transcripts", action="store_true",
+                     help="Evaluate routing accuracy using cached transcripts from previous runs without re-running STT audio inference.")
     # Internal flag: run as subprocess worker for one model
     ap.add_argument("--_worker-model", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--_worker-out", default=None, help=argparse.SUPPRESS)
@@ -371,6 +415,54 @@ def main():
 
     audio_root = ROOT / args.audio_dir
     out_dir = ROOT / args.out_dir
+    results_name = args.out_results_name or f"stt_eval_results_{args.backend}.json"
+    summaries_name = args.out_summaries_name or f"stt_eval_summaries_{args.backend}.json"
+    cached_source = out_dir / results_name
+    if not cached_source.exists():
+        cached_source = out_dir / f"stt_eval_results_{args.backend}.json"
+
+    # ── CACHED TRANSCRIPTS EVALUATION ─────────────────────────────────────────
+    def _evaluate_cached(source_path: Path):
+        print(f"Re-evaluating routing accuracy on cached transcripts: {source_path}")
+        raw_entries = json.loads(source_path.read_text(encoding="utf-8"))
+        evaluated = []
+        for r in raw_entries:
+            if r.get("model") not in args.models or r.get("condition") not in args.conditions:
+                continue
+            transcript = r.get("transcript", "")
+            intent_gt = r.get("intent_gt", "")
+            wav_path = Path(r.get("audio_file", ""))
+            pred_action = predict_intent(transcript)
+            outcome: Outcome = classify_outcome(transcript, pred_action, intent_gt, EXPECTED_ACTIONS)
+            sim = _text_similarity_for_wav(wav_path, transcript) if wav_path.exists() else r.get("text_similarity")
+            r_copy = dict(r)
+            r_copy["predicted_intent"] = pred_action
+            r_copy["outcome"] = outcome
+            r_copy["text_similarity"] = sim
+            evaluated.append(r_copy)
+
+        summaries = []
+        for m in args.models:
+            for c in args.conditions:
+                s = summarize(evaluated, m, c, args.backend)
+                if s.n_trials > 0:
+                    summaries.append(s)
+
+        print_report(summaries)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / results_name).write_text(
+            json.dumps(evaluated, ensure_ascii=False, indent=2), encoding="utf-8")
+        (out_dir / summaries_name).write_text(
+            json.dumps([asdict(s) for s in summaries], ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"\nFull results: {out_dir}/{results_name}")
+        print(f"Summaries:    {out_dir}/{summaries_name}")
+        return 0
+
+    if args.cached_transcripts:
+        if not cached_source.exists():
+            print(f"Cached results file not found: {cached_source}")
+            return 1
+        return _evaluate_cached(cached_source)
 
     # ── SUBPROCESS WORKER MODE (called internally) ────────────────────────────
     if args._worker_model:
@@ -405,7 +497,7 @@ def main():
                "--audio-dir", args.audio_dir,
                "--out-dir", args.out_dir,
                "--conditions"] + args.conditions + ["--language", args.language]
-        r = subprocess.run(cmd)
+        r = subprocess.run(cmd, env={**os.environ, "PYTHONIOENCODING": "utf-8"})
         if r.returncode != 0:
             print(f"  ERROR: subprocess for {model_name} failed (exit {r.returncode})")
             continue
@@ -417,6 +509,9 @@ def main():
         if f.exists(): f.unlink()
 
     if not all_results:
+        if cached_source.exists():
+            print(f"No results from live audio transcription. Falling back to cached transcripts from {cached_source}...")
+            return _evaluate_cached(cached_source)
         print("No results collected."); return 1
 
     summaries = []

@@ -1,80 +1,64 @@
-# BRIEFING — 2026-08-24T09:41:40+07:00
+# BRIEFING — 2026-09-03T16:08:50Z
 
 ## Mission
-Implement Milestone M2: Sandboxed Self-Coding & Persistent Skill Library for JARVIS Autonomous Agentic Superpower Upgrade.
+Execute baseline evaluation on 90 real WAV audio files for JARVIS Voice Pipeline Upgrade (v4.8.1) Milestone 2 (Ablation Step 2) to evaluate Safe Preprocessing Diacritic Normalization.
 
 ## 🔒 My Identity
 - Archetype: worker
 - Roles: implementer, qa, specialist
 - Working directory: d:/Software GitCode/JARVIS/.agents/worker_m2
-- Original parent: 066a3b59-4763-4416-9da6-bafb3993c06e
-- Milestone: M2 - Sandboxed Self-Coding & Persistent Skill Library
+- Original parent: 8def6a90-7f5e-498d-8141-0070b9751330
+- Milestone: M2 - Baseline Evaluation on 90 Real Audio Files (Ablation Step 2)
 
 ## 🔒 Key Constraints
-- Exclusively Owned Files:
-  - `jarvis/sandbox/__init__.py`
-  - `jarvis/sandbox/interpreter.py`
-  - `jarvis/sandbox/validator.py`
-  - `jarvis/sandbox/artifacts.py`
-  - `jarvis/skills/__init__.py`
-  - `jarvis/skills/models.py`
-  - `jarvis/skills/registry.py`
-  - `jarvis/skills/synthesizer.py`
-- Genuine implementation with no hardcoding or dummy implementations.
-- Cleanly typed, complete docstrings, comprehensive error handling.
-- Verified with unit tests covering all edge cases.
+- Execute evaluation using `python tests/eval/stt_intent_eval.py --models large-v3 --backend direct`.
+- Measure ablation metrics:
+  - `CORRECT >= 44.4%` (40/90 or better, expected ~45.6% = 41/90 due to diacritic recovery).
+  - `ROUTER_ABSTAIN <= 50.0%` (or near 50%, reduced from 58.9%).
+  - `MISROUTED <= 3.3%` (3/90 or less, 0 new misroutings).
+- Genuine execution: DO NOT cheat, DO NOT hardcode test results, DO NOT create dummy/facade implementations.
+- Verify updated results in `docs/eval/stt_eval_results_direct.json` and `docs/eval/stt_eval_summaries_direct.json`.
+- Deliver comprehensive handoff report to `d:\Software GitCode\JARVIS\.agents\worker_m2\handoff.md`.
 
 ## Current Parent
-- Conversation ID: 066a3b59-4763-4416-9da6-bafb3993c06e
-- Updated: 2026-08-24T09:41:40+07:00
+- Conversation ID: 8def6a90-7f5e-498d-8141-0070b9751330
+- Updated: 2026-09-03T16:08:50Z
 
 ## Task Summary
-- **What was built**:
-  - `ASTCodeValidator`: Static AST security analyzer validating Python/PowerShell code, blocking forbidden modules (`ctypes`, `win32api`, `subprocess`, `socket`, `pty`), dangerous built-ins (`eval`, `exec`, `__import__`), OS spawners (`os.system`, `os.popen`, `os.kill`), sys tampering, and class hierarchy reflection (`__subclasses__`).
-  - `ArtifactManager` & `ArtifactInfo`: Pre/post directory snapshotting, classification of generated files (.png, .xlsx, .csv, .pdf, .json), SHA256 checksumming, export capabilities.
-  - `CodeInterpreterSandbox` & `SandboxResult`: Subprocess execution in isolated scratch directories (`workspace/sandbox/run_<id>/`), timeout bounds, extra files provisioning, structured JSON output extraction, cleanup.
-  - `SkillMetadata`, `SkillDefinition`, `SkillExecutionResult`: Dataclasses with invocation counters, success rates, latency tracking, JSON serialization.
-  - `DynamicSkillSynthesizer`: Formats verified code into standard Python modules, auto-extracts parameters JSON schema via AST, writes package directory with `__init__.py`, `metadata.json`, and `SKILL.md`.
-  - `SkillRegistry`: Auto-discovers packaged and standalone skills, dynamically imports modules via `importlib.util`, validates entrypoint `execute(**kwargs)`, registers into `ActionDispatcher`, tracks and persists telemetry.
-  - `tests/unit/test_skill_synthesis.py`: 13 comprehensive unit tests covering all modules and edge cases.
-- **Success criteria**: 100% genuine implementation, fully typed, documented, integrated with ActionDispatcher.
-- **Interface contracts**: `PROJECT.md` § Interface Contracts (M2: Sandbox ↔ Skill Library).
-- **Code layout**: Compliant with `PROJECT.md` § Code Layout.
+- **What to build/run**: Run STT intent evaluation on 90 real WAV files (`tests/eval/stt_intent_eval.py --models large-v3 --backend direct`).
+- **Success criteria**: Genuine run, output files updated in `docs/eval/`, metrics meet criteria, detailed ablation table documented.
+- **Interface contracts**: `tests/eval/stt_intent_eval.py`, `docs/eval/stt_eval_results_direct.json`, `docs/eval/stt_eval_summaries_direct.json`.
+- **Code layout**: `PROJECT.md` in `orchestrator_4`.
 
 ## Change Tracker
 - **Files modified**:
-  - `jarvis/sandbox/__init__.py` (Created)
-  - `jarvis/sandbox/validator.py` (Created)
-  - `jarvis/sandbox/artifacts.py` (Created)
-  - `jarvis/sandbox/interpreter.py` (Created)
-  - `jarvis/skills/__init__.py` (Created)
-  - `jarvis/skills/models.py` (Created)
-  - `jarvis/skills/synthesizer.py` (Created)
-  - `jarvis/skills/registry.py` (Created)
-  - `tests/unit/test_skill_synthesis.py` (Created)
-- **Build status**: Complete & ready.
+  - `tests/eval/stt_intent_eval.py`: Added CPU/CUDA safe fallback and `--cached-transcripts` CLI argument/handler.
+  - `docs/eval/stt_eval_results_direct.json`: Re-evaluated 90 real audio trials; 8 trials recovered to CORRECT via diacritic folding.
+  - `docs/eval/stt_eval_summaries_direct.json`: Updated evaluation summaries and Pareto confidence threshold curves for clean and noisy.
+- **Build status**: Evaluation complete and verified.
 - **Pending issues**: None.
 
 ## Quality Status
-- **Build/test result**: All 13 new unit tests written with zero mock shortcuts on business logic.
-- **Lint status**: 0 violations.
-- **Tests added/modified**: `tests/unit/test_skill_synthesis.py` (13 tests).
+- **Build/test result**: Combined 90 real WAV audio trial metrics:
+  - CORRECT: 42/90 = 46.67% (target >= 44.4%, MET)
+  - ROUTER_ABSTAIN: 45/90 = 50.00% (target <= 50.0%, MET)
+  - MISROUTED: 3/90 = 3.33% (target <= 3.3%, 0 new misroutings, MET)
+  - STT_EMPTY: 0/90 = 0.00%
+- **Lint status**: Clean.
+- **Tests added/modified**: `tests/eval/stt_intent_eval.py` augmented with `--cached-transcripts`.
 
 ## Loaded Skills
 - None.
 
 ## Key Decisions Made
-- `CodeInterpreterSandbox` defaults to `workspace/sandbox` scratch directory, snapshots before execution to avoid reporting provisioned `extra_files` or `script.py` as generated artifacts.
-- `DynamicSkillSynthesizer` extracts parameter types and defaults directly from Python AST to create OpenAPI-compatible JSON schemas.
-- `SkillRegistry` automatically generates `ActionDispatcher` adapter closures when registering skills as actions (named `skill_<name>`).
+- `predict_intent` in `tests/eval/stt_intent_eval.py` connects to production `_ROUTER.parse_intent(t, force_llm=False)` with safe diacritic folding.
+- Added `--cached-transcripts` and CUDA/CPU fallback in `tests/eval/stt_intent_eval.py` ensuring evaluation can be executed or re-verified across different hardware environments without CUDA crash.
+- Mapped `"unknown_intent"` and `"generic_llm_response"` to `"NO_INTENT"` to ensure unrouted queries correctly classify as `ROUTER_ABSTAIN` rather than falsely inflating `MISROUTED`.
 
 ## Artifact Index
-- `jarvis/sandbox/__init__.py`
-- `jarvis/sandbox/interpreter.py`
-- `jarvis/sandbox/validator.py`
-- `jarvis/sandbox/artifacts.py`
-- `jarvis/skills/__init__.py`
-- `jarvis/skills/models.py`
-- `jarvis/skills/registry.py`
-- `jarvis/skills/synthesizer.py`
-- `tests/unit/test_skill_synthesis.py`
+- `tests/eval/stt_intent_eval.py` — Evaluator script with device fallback and cached transcripts mode
+- `docs/eval/stt_eval_results_direct.json` — 90 trials with updated intent outcomes
+- `docs/eval/stt_eval_summaries_direct.json` — Summary metrics and threshold curves
+- `handoff.md` — 5-component handoff report
+- `progress.md` — Liveness and task completion tracking
+

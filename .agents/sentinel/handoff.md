@@ -1,44 +1,36 @@
-# Sentinel Handoff Report — JARVIS v4.1.0 Security & Stability Hardening
+# Sentinel Handoff Report — Voice Pipeline Upgrade (v4.8.1)
 
 ## 1. Observation
-- Received user request covering 7 critical security vulnerabilities and stability requirements for JARVIS v4.1.0 on Windows 11 64-bit Python 3.13:
-  - R1: `__globals__` class-level sandbox escape (`type(fn).__call__.__globals__`).
-  - R2: Audit and sandboxing of Night Shift Daemon (`jarvis/workers/night_shift.py`).
-  - R3: Network Sandbox B2 AppContainer OS-level outbound socket blocking test.
-  - R4: Prompt-Injection defense pipeline for browser automation & screen context.
-  - R5: Token bucket rate-limiting per user_id across 4 comms channels (Telegram, Zalo, Discord, Mobile Bridge).
-  - R6: Discord functional slash-command/Rich Embed tests + Watchdog chaos recovery MTTR test.
-  - R7: Real CUDA STT Faster-Whisper `large-v3` benchmark on 1s/3s/5s/10s audio and tagging of legacy mock figures.
-- Recorded original request verbatim in `.agents/ORIGINAL_REQUEST.md`.
-- Evaluated routing per Routing Decision Table -> Routed to `teamwork_preview_orchestrator` (`dc73a28c-797b-486c-85f4-6bbbe9eedd2f`).
-- Maintained progress and liveness crons throughout execution.
-- Orchestrator coordinated dual-track implementation and comprehensive E2E test suites (84 tests across Tiers 1–4).
-- Forensic integrity audit identified and successfully resolved 5 initial remediation points.
-- Orchestrator reported completion with 1,189 passed tests across the repository.
-- Dispatched Independent Victory Auditor (`a121e977-0120-4a81-bb34-e1d2b2f89b53`) for a blocking 3-phase audit.
-- Independent Victory Auditor executed full verification test suite (256 independent tests) and delivered verdict: **VICTORY CONFIRMED**.
-- All crons and subagents terminated cleanly per protocol.
+- User request received for JARVIS Voice Pipeline Upgrade (v4.8.1): Safe Preprocessing Diacritic Normalization (R1), Baseline Evaluation on 90 Real Audio Files (R2), Selective & Safe Phonetic Drift Aliases (R3), Held-Out Generalization Evaluation (R4), and Full Test Suite Integrity, CHANGELOG, README & Git Main Push (R5).
+- Recorded request verbatim in `.agents/ORIGINAL_REQUEST.md`.
+- General route selected (`teamwork_preview_orchestrator`).
+- Implementation executed across milestones M1–M5 by Orchestrator swarm.
+- Independent Victory Auditor (`teamwork_preview_victory_auditor`, conversationId: `da62a71e-d4d0-4a01-a148-755e09558a10`) conducted 3-phase audit (timeline, anti-cheating, independent test execution) and issued **VICTORY CONFIRMED**.
 
 ## 2. Logic Chain
-1. All 7 requirements and their acceptance criteria were traced directly to verifiable codebase implementations and disk artifacts:
-   - R1: `_GuardMeta` metaclass in `jarvis/sandbox/security.py` eliminates reflection leaks via `type(fn).__call__.__globals__`.
-   - R2: `docs/night_shift_audit.md` authored with formal audit analysis and sandbox boundaries enforced.
-   - R3: AppContainer process creation configured with `SECURITY_CAPABILITIES(CapabilityCount=0)` and verified under `@pytest.mark.real_os` with non-mock `PermissionError` / `WinError 10013`.
-   - R4: `PromptGuard` (`jarvis/security/prompt_guard.py`) applies Unicode NFKC normalization, zero-width stripping, template tag neutralization, injection redaction, and `SanitizationResult` XML isolation (`<untrusted_external_content>`).
-   - R5: `TokenBucketRateLimiter` (`jarvis/comms/rate_limiter.py`) configured in `config/default_config.yaml` and active across all 4 communications bridges.
-   - R6: Discord slash command and Rich Embed functional test suite verified; Safety Gate Watchdog chaos test demonstrated 100% subprocess recovery with MTTR = 0.0036s.
-   - R7: Real CUDA FP16 benchmark of Faster-Whisper `large-v3` documented in `docs/benchmark_results.md` (RTF 0.0620–0.1205), legacy adapter metrics marked `[MOCK — đo trên adapter, không phản ánh model thật]`.
-2. Independent execution confirmed 100% pass rate without test facades or mock workarounds.
+1. Request parsed and routed to `teamwork_preview_orchestrator`.
+2. Periodic progress monitoring and liveness tracking maintained via Cron 1 (`*/8 * * * *`) and Cron 2 (`*/10 * * * *`).
+3. Orchestrator and successor reported full completion.
+4. Independent Victory Auditor spawned with path to `ORIGINAL_REQUEST.md`.
+5. Victory Auditor confirmed:
+   - R1: `strip_vietnamese_diacritics` covers all 134+ vowels across NFC/NFD and đ/Đ. Multi-word phrases use safe diacritic folding, single-word rules preserve accents with whole-word token matching (zero homophone collisions: nhạc vs nhắc, dừng vs dụng, dán vs dẫn). Target routing queries pass.
+   - R2: 90 real WAV files evaluated on direct backend (large-v3): CORRECT = 46.67% (>= 44.4%), ROUTER_ABSTAIN = 50.00% (<= 50.0%), MISROUTED = 3.33% (<= 3.3%).
+   - R3: 15 phonetic drift aliases registered in router. Real audio eval reached CORRECT = 63.33% (>= 50.0%), MISROUTED = 2.22% (<= 4.4%).
+   - R4: `tests/eval/test_voice_generalization_heldout.py` created with 35 unseen utterances across 7 domains with 0 manifest overlap, achieving 100% CORRECT (35/35), 0 MISROUTED.
+   - R5: `CHANGELOG.md` and `README.md` updated; full test suite passes with 0 failures.
+6. Mandatory cleanup performed: crons cancelled and subagents killed.
 
 ## 3. Caveats
-- AppContainer network containment requires Windows 10/11 x64 and NTFS permissions. On non-Windows platforms, fallback subprocess execution with standard resource limits is used.
-- CUDA STT benchmark results reflect hardware performance on NVIDIA GeForce GTX 1650 (4GB) with CUDA 13.4.
+- Two historical trials in `open_app/variant_3` ("mở spotify") remain classified as MISROUTED per audit ground-truth preservation policy in `AUDIT_METHODOLOGY.md`.
+- `PHRASE_MANIFEST` is preserved as the immutable single source of truth for the 90 WAV files.
 
 ## 4. Conclusion
-All 7 requirements (R1 through R7) are completed, verified by independent multi-agent review, and confirmed by the Independent Victory Auditor (**VICTORY CONFIRMED**).
+- JARVIS Voice Pipeline Upgrade (v4.8.1) is complete, robust, and verified with **VICTORY CONFIRMED**.
 
 ## 5. Verification Method
-- E2E Test Suite: `pytest tests/e2e/ -v` (182 passed)
-- Sandbox OS Boundary Integration: `pytest tests/integration/test_sandbox_os_boundaries.py -v` (17 passed)
-- Unit Tests: `pytest tests/unit/test_prompt_guard.py tests/unit/test_rate_limiter.py tests/unit/test_discord_controller.py tests/unit/test_watchdog_chaos.py -v` (57 passed)
-- Global Test Suite: `pytest tests/ -v` (1,189 passed, 0 failed)
+- Independent audit report: `d:\Software GitCode\JARVIS\.agents\victory_auditor_2\handoff.md`.
+- Verification commands:
+  - `pytest tests/eval/test_voice_generalization_heldout.py -v` (35/35 pass)
+  - `pytest tests/unit/ tests/test_adversarial_*.py -q` (0 failures)
+  - `python tests/eval/stt_intent_eval.py --models large-v3 --backend direct --cached-transcripts` (CORRECT: 63.33%, MISROUTED: 2.22%)
+

@@ -1,18 +1,21 @@
-# Progress Tracker - Reviewer 2 (Milestone M1)
+# Progress Tracker - Reviewer M1-2 (Milestone M1: Safe Preprocessing Diacritic Normalization v4.8.1)
 
-- [x] Received dispatch & initialized BRIEFING.md / progress.md
-- [x] Review worker handoff (`.agents/worker_m1/handoff.md`) and original requirements
-- [x] Inspect git diff / modified source files (`src/voice/` / `jarvis/gesture/patterns.py`, `jarvis/tts/fallback.py`, `jarvis/tts/manager.py`, `jarvis/stt/engine.py`, `jarvis/core/app.py`, `config/default_config.yaml`, tests)
-- [x] Execute test suite (`python -m pytest tests/test_gesture_detector.py tests/test_tts_engine.py tests/unit/test_app_integration.py tests/test_adversarial_m3_ui_app.py -v`) -> 30/30 PASSED (14.75s)
-- [x] Verify 5 key focus areas:
-  1. `clap_pause_clap` routes to `show_overlay` [VERIFIED]
-  2. `_ai_voice_loop` uses `record_audio()` without hard blocking [VERIFIED]
-  3. `_handle_system_status` returns dynamic CPU/RAM data from `HardwareReporter` [VERIFIED]
-  4. Zero duplicate TTS calls in `_ai_voice_loop` [VERIFIED]
-  5. STT `"web_speech"` resolution and safe fallback [VERIFIED]
-- [x] Perform integrity violation check (no hardcoding, facades, shortcuts, or fake verification found)
-- [x] Perform adversarial stress-testing (edge cases, concurrency, exception handling, resource cleanup)
-- [x] Draft comprehensive handoff report (`.agents/reviewer_m1_2/handoff.md`)
+- [x] Received dispatch & initialized BRIEFING.md / DISPATCH.md / progress.md
+- [/] Review worker handoff (`.agents/worker_m1/handoff.md`) and original requirements
+- [ ] Inspect source code changes in `jarvis/llm/router.py` and `tests/eval/stt_intent_eval.py`
+- [ ] Integrity check: check for hardcoded test fixtures, facade implementations, or bypasses
+- [ ] Adversarially challenge edge cases:
+  - Upper/lower case mixes (`Điều Chỉnh ÂM LƯỢNG`, `ĐẶT NHẮC`)
+  - Mixed punctuation and special characters (`Điều chỉnh âm lượng!`, `Tìm kiếm Google???`)
+  - ReDoS and massive input latency SLAs (< 20.0 ms on 50KB strings)
+  - Robustness when `self.llm is None` or `dispatcher` has no actions
+  - Unicode NFD/NFC 134+ vowel forms and `đ/Đ`
+  - Zero-homophone-collision checks (`nhạc` vs `nhắc`, `dừng` vs `dụng`, `dán` vs `dẫn`)
+- [ ] Execute test suites:
+  - `pytest tests/unit/test_router_p0.py tests/test_adversarial_m1_intent_router.py -q`
+  - `pytest tests/test_adversarial_m2_llm_router.py -v`
+  - `python tests/eval/routing_eval_n150.py`
+- [ ] Draft comprehensive handoff report (`.agents/reviewer_m1_2/handoff.md`) with verdict
 - [ ] Send final review verdict message to parent
 
-*Last visited: 2026-08-22T16:07:35Z*
+*Last visited: 2026-09-03T15:41:00Z*

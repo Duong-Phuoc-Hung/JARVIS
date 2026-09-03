@@ -1,0 +1,110 @@
+[
+  {
+    "model": "large-v3",
+    "condition": "clean",
+    "backend": "direct",
+    "n_trials": 45,
+    "n_correct": 30,
+    "n_misrouted": 1,
+    "n_stt_empty": 0,
+    "n_router_abstain": 14,
+    "correct_rate": 0.6666666666666666,
+    "misrouting_rate": 0.022222222222222223,
+    "stt_empty_rate": 0.0,
+    "router_abstain_rate": 0.3111111111111111,
+    "end_to_end_abstention_rate": 0.3111111111111111,
+    "median_latency_ms": 2732.6003000007404,
+    "mean_text_similarity": 0.2351851851851852,
+    "threshold_curve": {
+      "0.3": {
+        "correct": 0.6666666666666666,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.3111111111111111
+      },
+      "0.4": {
+        "correct": 0.6444444444444445,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.3333333333333333
+      },
+      "0.5": {
+        "correct": 0.6444444444444445,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.3333333333333333
+      },
+      "0.6": {
+        "correct": 0.6,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.37777777777777777
+      },
+      "0.7": {
+        "correct": 0.4444444444444444,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.5555555555555556
+      },
+      "0.8": {
+        "correct": 0.08888888888888889,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.9111111111111111
+      },
+      "0.9": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 1.0
+      }
+    }
+  },
+  {
+    "model": "large-v3",
+    "condition": "noisy",
+    "backend": "direct",
+    "n_trials": 45,
+    "n_correct": 27,
+    "n_misrouted": 1,
+    "n_stt_empty": 0,
+    "n_router_abstain": 17,
+    "correct_rate": 0.6,
+    "misrouting_rate": 0.022222222222222223,
+    "stt_empty_rate": 0.0,
+    "router_abstain_rate": 0.37777777777777777,
+    "end_to_end_abstention_rate": 0.37777777777777777,
+    "median_latency_ms": 2565.1768000006996,
+    "mean_text_similarity": 0.30185185185185187,
+    "threshold_curve": {
+      "0.3": {
+        "correct": 0.6,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.37777777777777777
+      },
+      "0.4": {
+        "correct": 0.6,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.37777777777777777
+      },
+      "0.5": {
+        "correct": 0.5333333333333333,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.4444444444444444
+      },
+      "0.6": {
+        "correct": 0.5111111111111111,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.4888888888888889
+      },
+      "0.7": {
+        "correct": 0.35555555555555557,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.6444444444444445
+      },
+      "0.8": {
+        "correct": 0.1111111111111111,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.8888888888888888
+      },
+      "0.9": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 1.0
+      }
+    }
+  }
+]

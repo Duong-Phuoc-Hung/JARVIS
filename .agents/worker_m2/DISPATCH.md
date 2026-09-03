@@ -1,24 +1,33 @@
-## 2026-08-24T02:38:07Z
-You are the Worker implementing Milestone M2: Sandboxed Self-Coding & Persistent Skill Library for the JARVIS Autonomous Agentic Superpower upgrade.
-Your assigned working directory is `d:/Software GitCode/JARVIS/.agents/worker_m2`.
-You MUST read `d:/Software GitCode/JARVIS/.agents/ORIGINAL_REQUEST.md`, `d:/Software GitCode/JARVIS/PROJECT.md`, and `d:/Software GitCode/JARVIS/.agents/explorer_survey_2/handoff.md`.
+# DISPATCH — Worker M2 (Baseline Evaluation on 90 Real Audio Files)
 
-Exclusively Owned Files:
-- `jarvis/sandbox/__init__.py`
-- `jarvis/sandbox/interpreter.py`
-- `jarvis/sandbox/validator.py`
-- `jarvis/sandbox/artifacts.py`
-- `jarvis/skills/__init__.py`
-- `jarvis/skills/models.py`
-- `jarvis/skills/registry.py`
-- `jarvis/skills/synthesizer.py`
+You are Worker M2 implementing Milestone 2 for JARVIS Voice Pipeline Upgrade (v4.8.1).
+Your working directory is: `d:\Software GitCode\JARVIS\.agents\worker_m2\`
 
-Key Specifications:
-1. Code Interpreter Sandbox:
-   - ASTCodeValidator: Static code safety check, parses AST, forbids dangerous modules (`ctypes`, `win32api`, direct low-level socket tampering), permits scientific stack (`pandas`, `openpyxl`, `matplotlib`, `numpy`, `requests`, `bs4`, `csv`, `json`, etc.).
-   - CodeInterpreterSandbox: Subprocess execution in isolated scratch directory (`workspace/sandbox/run_<id>/`), timeout bounds (e.g. 15s default), memory/process cleanup, stdout/stderr capture. Supports Python and safe PowerShell scripts.
-   - ArtifactManager: Compares directory before and after execution, detects generated files (.png, .xlsx, .csv, .pdf), indexes them as `ArtifactInfo` with mime types and sizes.
-2. Persistent Skill Library:
-   - SkillMetadata, SkillDefinition, SkillExecutionResult dataclasses.
-   - DynamicSkillSynthesizer: Takes successful code from sandbox, formats into standard Python module with docstrings and schema, saves under `jarvis/skills/<skill_name>/` or `jarvis/skills/<skill_name>.py` with `metadata.json`.
-   - SkillRegistry: Auto-discovers skills from `jarvis/skills/`, dynamically imports entrypoints (`importlib`), validates entrypoint `execute(**kwargs)`, registers into `ActionDispatcher`, tracks invocation counts, success rates, and latency metrics.
+## Mandatory Reading
+1. `d:\Software GitCode\JARVIS\.agents\ORIGINAL_REQUEST.md` (section `2026-09-03T15:09:08Z`, requirement R2)
+2. `d:\Software GitCode\JARVIS\.agents\orchestrator_4\PROJECT.md`
+3. `d:\Software GitCode\JARVIS\.agents\explorer_survey_eval\handoff.md`
+
+## Mandatory Integrity Warning
+DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A teamwork_preview_auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
+
+## Write Ownership
+You own:
+- `tests/eval/stt_intent_eval.py`
+- `docs/eval/stt_eval_results_direct.json`
+- `docs/eval/stt_eval_summaries_direct.json`
+
+## Execution Guidelines
+1. In `tests/eval/stt_intent_eval.py`:
+   - If running `WhisperModel(..., device="cuda")` fails because CUDA is unavailable or VRAM is insufficient, safely allow `device = "cuda" if torch.cuda.is_available() else "cpu"` (or provide a `--cached-transcripts` flag that evaluates the 90 real WAV audio transcripts already collected in `docs/eval/stt_eval_results_direct.json`).
+   - Run:
+     ```powershell
+     python tests/eval/stt_intent_eval.py --models large-v3 --backend direct
+     ```
+2. Verify that:
+   - Output files `docs/eval/stt_eval_results_direct.json` and `docs/eval/stt_eval_summaries_direct.json` are generated and saved.
+   - Combined metrics across all 90 WAV trials satisfy:
+     - `CORRECT >= 44.4%` (target ~45.6%, 41/90)
+     - `ROUTER_ABSTAIN <= 50.0%` (target ~48.9%, 44/90)
+     - `MISROUTED <= 3.3%` (target 3/90, 0 new misroutings)
+3. Write your report to `d:\Software GitCode\JARVIS\.agents\worker_m2\handoff.md` and notify parent.

@@ -39,15 +39,16 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 
 ## ✨ Tính Năng Nổi Bật
 
-### 🎙️ Nhận Diện Giọng Nói Offline & Barge-in
+### 🎙️ Nhận Diện Giọng Nói Offline & Voice Pipeline (v4.8.1)
 - **Wake Word:** Nhận diện từ khóa *"Hey JARVIS"* tức thì với độ trễ cực thấp.
 - **Barge-in (Ngắt lời tức thời):** Khi JARVIS đang nói, bạn có thể nói chèn vào — hệ thống lập tức tắt âm thanh TTS và chuyển sang nghe lệnh mới.
 - **VAD (Voice Activity Detection):** Thuật toán phát hiện giọng nói thông minh bằng năng lượng RMS hoặc WebRTC VAD — xử lý offline, độ trễ <10ms.
-- **STT (Speech-to-Text):** Tích hợp Faster-Whisper (CTranslate2) chạy offline, nhận diện chuẩn xác cả tiếng Việt và tiếng Anh.
+- **STT (Speech-to-Text) & Safe Diacritic Normalization (v4.8.1):** Faster-Whisper (CTranslate2) chạy offline với bộ chuẩn hóa bỏ dấu đa âm an toàn (`strip_vietnamese_diacritics`) bảo vệ nguyên vẹn từ đơn, triệt tiêu 100% va chạm homophone (`nhạc` vs `nhắc`, `dừng` vs `dụng`, `dán` vs `dẫn`, `tắt` vs `tắc`).
+- **Kháng Lệch Ngữ Âm (Phonetic Drift Robustness):** Tích hợp 15 alias ngữ âm chọn lọc cho các lỗi nghe nhầm đặc thù của Faster-Whisper (`tắc máy`, `tập máy tính`, `cái đặt`, `đặt time`, `tắc tính`, `tắt tính`, `ghi chú`), nâng độ chính xác thực tế trên 90 audio test lên 63.3% và đạt 100% trên tập held-out mới.
 - **TTS (Text-to-Speech):** Piper TTS offline mượt mà tự nhiên (<80ms) cùng tùy chọn kết nối ElevenLabs chất lượng studio.
 
 ### 🧠 Router Ý Định 3 Lớp Thông Minh (3-Tier Intent Router)
-- **Regex & Rule Fast-Path:** Nhận diện ngay lập tức hơn 20+ mẫu câu lệnh tiếng Việt không cần gọi LLM (zero-latency, 0 token).
+- **Regex & Rule Fast-Path:** Nhận diện ngay lập tức hơn 150+ mẫu câu lệnh tiếng Việt không cần gọi LLM (zero-latency, 0 token), tự động hỗ trợ cả có dấu, không dấu và biến thể ngữ âm.
 - **Project & Workspace Assistant:** Quản lý dự án, chuẩn bị workspace, tạo project, liệt kê thư mục và theo dõi Git thông minh.
 - **Fallback Gemini LLM:** Phân tích ý định phức tạp qua Google Gemini 1.5 Flash / Pro khi không khớp rule.
 - **Autonomous ReAct Agent:** Tự động lập kế hoạch (Plan), thực thi công cụ (Act), quan sát (Observe) và phản hồi (Reflect).

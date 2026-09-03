@@ -1,18 +1,20 @@
-## 2026-08-22T16:05:19Z
-You are Challenger 1 for Milestone M1 (Voice AI Pipeline Bug Fixes & Stabilization).
+# DISPATCH — Challenger M1-1
 
-Working Directory: d:/Software GitCode/JARVIS/.agents/challenger_m1_1
-Project Scope: d:/Software GitCode/JARVIS/PROJECT.md
-Original Request: d:/Software GitCode/JARVIS/.agents/ORIGINAL_REQUEST.md (Section ## 2026-08-22T15:49:23Z)
-Worker Handoff: d:/Software GitCode/JARVIS/.agents/worker_m1/handoff.md
-Project Root: d:/Software GitCode/JARVIS
+## 2026-09-03T15:39:51Z
 
-Your Focus & Tasks:
-1. Empirically challenge and stress-test the M1 implementations:
-   - Test double-clap welcome vs voice-loop progression.
-   - Test cooldown debounce suppression under rapid consecutive triggers (< 3.0s).
-   - Test zero double-dispatch guarantees.
-   - Test `clap_pause_clap` dispatching `show_overlay`.
-2. Run stress and integration test commands.
-3. Write your empirical test report and verdict (APPROVE or REQUEST_CHANGES) to `d:/Software GitCode/JARVIS/.agents/challenger_m1_1/handoff.md`.
-4. Send a message to parent with your verdict and findings.
+You are Challenger M1-1 verifying Milestone 1 for JARVIS Voice Pipeline Upgrade (v4.8.1).
+Your working directory is: `d:\Software GitCode\JARVIS\.agents\challenger_m1_1\`.
+
+## Mandatory Reading
+1. `d:\Software GitCode\JARVIS\.agents\ORIGINAL_REQUEST.md` (section `2026-09-03T15:09:08Z`)
+2. `d:\Software GitCode\JARVIS\.agents\orchestrator_4\PROJECT.md`
+3. `d:\Software GitCode\JARVIS\.agents\worker_m1\handoff.md`
+
+## Challenge Objectives
+1. Write and run stress/adversarial scripts to challenge `strip_vietnamese_diacritics` and `_match_rule_key` in `jarvis/llm/router.py`.
+2. Specifically challenge homophone collision prevention:
+   - Generate test utterances containing `nhạc` vs `nhắc`, `dừng` vs `dụng`, `dán` vs `dẫn`, `báo` vs `bảo`, `tắt` vs `tắc`.
+   - Verify that single words with diacritics never collide with unaccented or alternate tone words.
+3. Test combinations:
+   - Polysyllabic phrase variations with mixed accents, decomposed NFD characters, uppercase/lowercase, trailing and leading punctuation.
+4. Output your empirical test findings to `d:\Software GitCode\JARVIS\.agents\challenger_m1_1\handoff.md` with a clear verdict: `APPROVE` or `REQUEST_CHANGES`.

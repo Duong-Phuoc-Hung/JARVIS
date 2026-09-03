@@ -1,13 +1,13 @@
-# BRIEFING — 2026-09-02T07:28:59Z
+# BRIEFING — 2026-09-03T15:09:08Z
 
 ## Mission
-Oversee Sprint 2 (v4.7.0) execution for JARVIS, monitor orchestrator progress/liveness, enforce routing and independent victory auditing.
+Oversee JARVIS Voice Pipeline upgrade (v4.8.1): Safe Preprocessing Diacritic Normalization, 90-audio evaluation, phonetic drift aliases, held-out test set, CHANGELOG/README, and git push.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: d:\Software GitCode\JARVIS\.agents\sentinel
-- Orchestrator: 9506425c-ec6d-40db-a68f-f37c461f99fc
-- Victory Auditor: to be spawned on victory claim
+- Orchestrator: fbb29b53-ddde-40a9-a7ac-6eabcff99512 (successor gen2, predecessor: 8def6a90-7f5e-498d-8141-0070b9751330)
+- Victory Auditor: da62a71e-d4d0-4a01-a148-755e09558a10
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
@@ -16,17 +16,22 @@ Oversee Sprint 2 (v4.7.0) execution for JARVIS, monitor orchestrator progress/li
 - Keep context ultra-light
 
 ## User Context
-- **Last user request**: Implement Sprint 2 P1 items (Accuracy, Acoustic & UX Hardening) according to ROADMAP v4.7.0 (R1-R6)
+- **Last user request**: Voice Pipeline upgrade v4.8.1: Safe Preprocessing Diacritic Normalization (R1), real audio eval on 90 WAV files (R2), selective phonetic drift aliases (R3), held-out generalization test set (R4), full test suite integrity, CHANGELOG, README & git main push (R5).
 - **Pending clarifications**: none
-- **Delivered results**: none
+- **Delivered results**: v4.8.1 Voice Pipeline upgrade complete. Safe Preprocessing Diacritic Normalization, 90-WAV audio evaluation, 15 phonetic drift aliases, held-out test suite (35 cases), CHANGELOG.md, README.md, and test suite verified.
 
 ## Project Status
-- **Phase**: in progress
+- **Phase**: complete
+- **Route**: General (teamwork_preview_orchestrator)
+- **Active Orchestrator Dir**: d:\Software GitCode\JARVIS\.agents\orchestrator_4
 
 ## Victory Audit Status
-- **Triggered**: no
-- **Verdict**: pending
+- **Triggered**: yes
+- **Verdict**: VICTORY CONFIRMED
 - **Retry count**: 0
 
 ## Artifact Index
-- d:\Software GitCode\JARVIS\.agents\ORIGINAL_REQUEST.md — Authoritative record of user request
+- d:\Software GitCode\JARVIS\.agents\ORIGINAL_REQUEST.md — Authoritative record of user requests
+- d:\Software GitCode\JARVIS\.agents\orchestrator_4\ — Orchestrator workspace
+- d:\Software GitCode\JARVIS\.agents\sentinel\BRIEFING.md — Sentinel persistent briefing
+
