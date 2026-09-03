@@ -2,6 +2,48 @@
 
 ---
 
+## 🚀 [5.0.1] - 2026-09-04 — Voice Pipeline Upgrade: Safe Preprocessing Diacritic Normalization, Phonetic Drift Robustness & Anti-Overfitting Verification
+
+> **Summary**: Nâng cấp toàn diện đường ống xử lý giọng nói (Voice Pipeline Upgrade v5.0.1) cho JARVIS trên Windows 11. Giải quyết triệt để vấn đề mất dấu / gõ nhầm âm trong phiên mã âm học của Faster-Whisper mà không gây va chạm homophone (Zero-Homophone-Collision), cải thiện độ chính xác định tuyến ý định trên 90 file audio thật từ 37.8% lên 63.3%, đồng thời vượt qua bài kiểm tra tổng quát hóa Held-Out độc lập đạt 100% độ chính xác.
+
+### 🎙️ 1. Safe Preprocessing Diacritic Normalization (Zero-Homophone-Collision)
+- **Hàm chuẩn hóa `strip_vietnamese_diacritics` (`jarvis/llm/router.py`)**:
+  - Hỗ trợ toàn diện 134+ biến thể nguyên âm có dấu tiếng Việt trên cả 2 định dạng Unicode NFC và NFD.
+  - Chuẩn hóa hoàn hảo `đ/Đ` thành `d/D`, giữ nguyên các dấu câu, ký tự đặc biệt, khoảng trắng và chữ số.
+  - Fast-path ASCII tối ưu: chuỗi thuần ASCII được trả về ngay lập tức (zero-allocation).
+- **Kiến trúc khớp 2 tầng (Two-Class Word Token Matching) trong `_match_rule_key`**:
+  - **Cụm từ đa âm (`len(words) >= 2`)**: Cho phép chuẩn hóa bỏ dấu an toàn kết hợp kiểm tra ranh giới từ nguyên vẹn (word boundary regex). Nhận diện chính xác `"điều chỉnh âm lượng"`, `"tìm kiếm google"`, `"trời hôm nay thế nào"`.
+  - **Từ đơn (`len(words) == 1`)**: Bắt buộc giữ nguyên dấu và kiểm tra token ranh giới từ `(?:\b|^)key(?:\b|$)`. Tuyệt đối không cho phép bỏ dấu chuỗi con, triệt tiêu 100% va chạm ngữ âm giữa các từ nguy hiểm (`nhạc` vs `nhắc`, `dừng` vs `dụng`, `dán` vs `dẫn`, `tắt` vs `tắc`).
+- **Phòng chống ReDoS & Giới hạn SLA (< 20ms)**:
+  - Tích hợp guard `len(clean_lower) <= 2048` bỏ qua quét diacritic phụ trên chuỗi tấn công đối nghịch 50KB, chặn đứng hoàn toàn hiện tượng nghẽn luồng xử lý âm thanh.
+
+### 🎯 2. Selective & Safe Phonetic Drift Aliases (15 Aliases)
+- Bổ sung 15 alias ngữ âm thực tế có độ đặc hiệu ngữ nghĩa cao trong `IntentRouter.rule_engine`, phản ánh chính xác các lỗi phiên mã âm học thực tế của Faster-Whisper mà không gây rủi ro nhầm lẫn sang intent khác:
+  - **`system_power`**: `"tắc máy"`, `"tập máy tính"`, `"sắt đau má"`
+  - **`app_open`**: `"cái đặt"`, `"má kẻ đặt"`, `"open sentence"`, `"open sente"`
+  - **`reminder`**: `"đặt time"`, `"đặc nhắc"`
+  - **`system_volume`**: `"tắc tính"`, `"tắt tính"`
+  - **`memory_save_fact`**: `"ghi chú"`, `"ghi chu"`, `"tạo ghi chú mới"`, `"tao ghi chu moi"`
+- **Đặc biệt**: Alias `"tắt tính"` sửa dứt điểm ca lỗi #84 trong điều kiện nhiễu (noisy `volume_control/variant_3`), chuyển từ `MISROUTED` (sang `system_power`) thành `CORRECT` (`system_volume`), giảm tỷ lệ misrouted toàn hệ thống xuống chỉ còn 2.22%.
+
+### 📊 3. Acoustic Real Audio Benchmark (90 WAV Files — `large-v3`, Direct Backend)
+- Đánh giá độc lập trên 90 bản thu âm micro thật (`tests/eval/audio/clean/` & `tests/eval/audio/noisy/`):
+  - **`CORRECT`**: Tăng mạnh từ **37.8%** (v4.6.0 baseline) lên **46.7%** (M2 Preprocessing Ablation) và đạt **63.33% (57/90)** ở M3 (vượt mục tiêu `>= 50.0%`).
+  - **`MISROUTED`**: Giảm từ **3.33%** xuống **2.22% (2/90)** (đạt mục tiêu `<= 4.4%`, duy nhất ca mở Spotify thuộc open_app taxonomy cũ còn lại).
+  - **`ROUTER_ABSTAIN`**: Giảm sâu từ **58.9%** xuống **34.44% (31/90)**.
+  - **`STT_EMPTY`**: **0.00% (0/90)**.
+- Kết quả và tóm tắt chi tiết được cập nhật minh bạch tại `docs/eval/stt_eval_results_direct.json` và `docs/eval/stt_eval_summaries_direct.json`.
+
+### 🧪 4. Held-Out Generalization Evaluation (Anti-Overfitting)
+- Xây dựng bộ test độc lập `tests/eval/test_voice_generalization_heldout.py` gồm 35 câu lệnh hoàn toàn mới qua 7 phân vùng chức năng (`weather`, `reminder`, `system`, `search`, `volume`, `notes`, `apps`).
+- Xác nhận **0% trùng lặp** với 45 câu lệnh trong `PHRASE_MANIFEST` (`phrase_manifest.py`).
+- Kết quả kiểm định:
+  - Tỷ lệ `CORRECT`: **100% (35/35)** (vượt chuẩn `>= 85%`).
+  - Tỷ lệ `MISROUTED`: **0% (0/35)**.
+  - 100% test cases pass trong Pytest.
+
+---
+
 ## 🚀 [5.0.0] — J.A.R.V.I.S. Terminal Control Center — formally released as `v5.0.0` (PR #37 + PR #38, tagged/published 2026-09-03)
 
 > **Release status (updated 2026-09-03, PR #38 merged and `v5.0.0` tag/release published)**:
@@ -350,48 +392,6 @@ No backend/security production file was touched (`jarvis/healing/`, `jarvis/smar
 `jarvis/core/dispatcher.py`, `jarvis/planner/safety_interceptor.py` all confirmed zero diff)
 -- this pass only removed the private dispatcher module and changed which existing methods
 `jarvis/ui/terminal/` calls, and how.
-
----
-
-## 🚀 [4.8.1] - 2026-09-03 — Voice Pipeline Upgrade: Safe Preprocessing Diacritic Normalization & Phonetic Drift Robustness
-
-> **Summary**: Nâng cấp toàn diện đường ống xử lý giọng nói (Voice Pipeline Upgrade v4.8.1) cho JARVIS trên Windows 11. Giải quyết triệt để vấn đề mất dấu / gõ nhầm âm trong phiên mã âm học của Faster-Whisper mà không gây va chạm homophone (Zero-Homophone-Collision), cải thiện độ chính xác định tuyến ý định trên 90 file audio thật từ 37.8% lên 63.3%, đồng thời vượt qua bài kiểm tra tổng quát hóa Held-Out độc lập đạt 100% độ chính xác.
-
-### 🎙️ 1. Safe Preprocessing Diacritic Normalization (Zero-Homophone-Collision)
-- **Hàm chuẩn hóa `strip_vietnamese_diacritics` (`jarvis/llm/router.py`)**:
-  - Hỗ trợ toàn diện 134+ biến thể nguyên âm có dấu tiếng Việt trên cả 2 định dạng Unicode NFC và NFD.
-  - Chuẩn hóa hoàn hảo `đ/Đ` thành `d/D`, giữ nguyên các dấu câu, ký tự đặc biệt, khoảng trắng và chữ số.
-  - Fast-path ASCII tối ưu: chuỗi thuần ASCII được trả về ngay lập tức (zero-allocation).
-- **Kiến trúc khớp 2 tầng (Two-Class Word Token Matching) trong `_match_rule_key`**:
-  - **Cụm từ đa âm (`len(words) >= 2`)**: Cho phép chuẩn hóa bỏ dấu an toàn kết hợp kiểm tra ranh giới từ nguyên vẹn (word boundary regex). Nhận diện chính xác `"điều chỉnh âm lượng"`, `"tìm kiếm google"`, `"trời hôm nay thế nào"`.
-  - **Từ đơn (`len(words) == 1`)**: Bắt buộc giữ nguyên dấu và kiểm tra token ranh giới từ `(?:\b|^)key(?:\b|$)`. Tuyệt đối không cho phép bỏ dấu chuỗi con, triệt tiêu 100% va chạm ngữ âm giữa các từ nguy hiểm (`nhạc` vs `nhắc`, `dừng` vs `dụng`, `dán` vs `dẫn`, `tắt` vs `tắc`).
-- **Phòng chống ReDoS & Giới hạn SLA (< 20ms)**:
-  - Tích hợp guard `len(clean_lower) <= 2048` bỏ qua quét diacritic phụ trên chuỗi tấn công đối nghịch 50KB, chặn đứng hoàn toàn hiện tượng nghẽn luồng xử lý âm thanh.
-
-### 🎯 2. Selective & Safe Phonetic Drift Aliases (15 Aliases)
-- Bổ sung 15 alias ngữ âm thực tế có độ đặc hiệu ngữ nghĩa cao trong `IntentRouter.rule_engine`, phản ánh chính xác các lỗi phiên mã âm học thực tế của Faster-Whisper mà không gây rủi ro nhầm lẫn sang intent khác:
-  - **`system_power`**: `"tắc máy"`, `"tập máy tính"`, `"sắt đau má"`
-  - **`app_open`**: `"cái đặt"`, `"má kẻ đặt"`, `"open sentence"`, `"open sente"`
-  - **`reminder`**: `"đặt time"`, `"đặc nhắc"`
-  - **`system_volume`**: `"tắc tính"`, `"tắt tính"`
-  - **`memory_save_fact`**: `"ghi chú"`, `"ghi chu"`, `"tạo ghi chú mới"`, `"tao ghi chu moi"`
-- **Đặc biệt**: Alias `"tắt tính"` sửa dứt điểm ca lỗi #84 trong điều kiện nhiễu (noisy `volume_control/variant_3`), chuyển từ `MISROUTED` (sang `system_power`) thành `CORRECT` (`system_volume`), giảm tỷ lệ misrouted toàn hệ thống xuống chỉ còn 2.22%.
-
-### 📊 3. Acoustic Real Audio Benchmark (90 WAV Files — `large-v3`, Direct Backend)
-- Đánh giá độc lập trên 90 bản thu âm micro thật (`tests/eval/audio/clean/` & `tests/eval/audio/noisy/`):
-  - **`CORRECT`**: Tăng mạnh từ **37.8%** (v4.6.0 baseline) lên **46.7%** (M2 Preprocessing Ablation) và đạt **63.33% (57/90)** ở M3 (vượt mục tiêu `>= 50.0%`).
-  - **`MISROUTED`**: Giảm từ **3.33%** xuống **2.22% (2/90)** (đạt mục tiêu `<= 4.4%`, duy nhất ca mở Spotify thuộc open_app taxonomy cũ còn lại).
-  - **`ROUTER_ABSTAIN`**: Giảm sâu từ **58.9%** xuống **34.44% (31/90)**.
-  - **`STT_EMPTY`**: **0.00% (0/90)**.
-- Kết quả và tóm tắt chi tiết được cập nhật minh bạch tại `docs/eval/stt_eval_results_direct.json` và `docs/eval/stt_eval_summaries_direct.json`.
-
-### 🧪 4. Held-Out Generalization Evaluation (Anti-Overfitting)
-- Xây dựng bộ test độc lập `tests/eval/test_voice_generalization_heldout.py` gồm 35 câu lệnh hoàn toàn mới qua 7 phân vùng chức năng (`weather`, `reminder`, `system`, `search`, `volume`, `notes`, `apps`).
-- Xác nhận **0% trùng lặp** với 45 câu lệnh trong `PHRASE_MANIFEST` (`phrase_manifest.py`).
-- Kết quả kiểm định:
-  - Tỷ lệ `CORRECT`: **100% (35/35)** (vượt chuẩn `>= 85%`).
-  - Tỷ lệ `MISROUTED`: **0% (0/35)**.
-  - 100% test cases pass trong Pytest.
 
 ---
 

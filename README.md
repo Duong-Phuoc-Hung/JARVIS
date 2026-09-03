@@ -4,7 +4,7 @@
 
 [![CI Status](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/workflows/ci.yml/badge.svg)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
 [![Tests](https://img.shields.io/badge/tests-passing-00ff88?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
-[![Source Version](https://img.shields.io/badge/source%20version-5.0.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
+[![Source Version](https://img.shields.io/badge/source%20version-5.0.1-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
 [![Releases](https://img.shields.io/badge/releases-GitHub-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?style=flat-square)](https://python.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%2064--bit-0078D4?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS)
@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding), ghi nhớ ngữ nghĩa theo thời gian thực (Semantic RAG Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.0.0** trên `main` — đánh dấu mốc phát triển J.A.R.V.I.S. Terminal Control Center (đã merge vào `main` qua PR #37), mở rộng bề mặt sản phẩm lớn, không có thay đổi phá vỡ tương thích nào với lệnh/cấu hình/API hiện có. **`v5.0.0` đã được gắn tag chính thức và GitHub Release "JARVIS v5.0.0" đã publish vào 2026-09-03** (release workflow chạy thành công, đính kèm file `JARVIS_v5.0.0_windows_x64.zip`) — đây hiện là bản phát hành chính thức mới nhất, kế tiếp `v4.5.1`. **Bản phát hành chính thức (GitHub Release):** luôn xem [trang Releases](https://github.com/Duong-Phuoc-Hung/JARVIS/releases) để biết bản mới nhất thực tế tại thời điểm bạn đọc — tài liệu này ghi lại một mốc kiểm tra tại một thời điểm cụ thể, không phải một con số cập nhật tự động. Lịch sử phát triển trong CHANGELOG đã đến mốc **v5.0.0 — J.A.R.V.I.S. Terminal Control Center** trên `main` (kế thừa mốc v4.7.0 — Sprint 2 Acoustic & UX Hardening, cộng thêm mốc bảo trì sau v4.7.0 sửa lỗi báo cáo thiếu trung thực của self-healing và làm tất định test wake-word Whisper trên CI). Với bản phát hành này, phiên bản mã nguồn/phát triển và bản phát hành chính thức trùng khớp (`5.0.0` = `v5.0.0`) — đây là một sự hội tụ có chủ đích của chủ sở hữu dự án, không phải quy tắc chung; hai khái niệm này vẫn có thể lệch nhau trở lại ở các mốc phát triển tiếp theo.</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.0.1** trên `main` — nâng cấp toàn diện đường ống âm thanh giọng nói (Voice Pipeline Upgrade: Safe Preprocessing Diacritic Normalization, Phonetic Drift Robustness và Anti-Overfitting Held-Out Validation), kế thừa mốc J.A.R.V.I.S. Terminal Control Center v5.0.0. Lịch sử phát triển trong CHANGELOG đã cập nhật mốc **v5.0.1** mới nhất ở đầu tài liệu.</sub>
 
 </div>
 
