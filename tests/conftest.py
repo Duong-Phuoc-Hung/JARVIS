@@ -31,6 +31,14 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "live_network: mark test as executing live unmocked HTTP requests to external APIs (brittle by nature)"
+    )
+
+
 # ============================================================================
 # 1. MOCK AUDIO STREAM & SYNTHESIZER FIXTURE
 # ============================================================================
