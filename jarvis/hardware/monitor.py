@@ -441,6 +441,17 @@ class HardwareMonitor:
                 # E6 escalation: CRITICAL for security-sensitive monitor output
                 if '\ufffd' in (proc.stdout or '') or '\ufffd' in (proc.stderr or ''):
                     logger.critical('[monitor] Output contained non-UTF-8 bytes (U+FFFD). Hardware readings may be inaccurate.')
+                    try:
+                        from jarvis.workers.notification_hub import NotificationHub
+                        hub = NotificationHub.get_instance()
+                        if hub:
+                            hub.send(
+                                title="⚠️ Hardware monitor encoding corruption",
+                                body="[monitor] ThermalZone query contained non-UTF-8 bytes (U+FFFD). Hardware readings may be inaccurate.",
+                                level="critical",
+                            )
+                    except Exception:
+                        pass
 
                 if proc.returncode == 0 and proc.stdout.strip():
                     raw_str = proc.stdout.strip()

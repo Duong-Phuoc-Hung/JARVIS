@@ -326,6 +326,17 @@ class NetworkScanner:
                     "[scanner.nmap] Output contained non-UTF-8 bytes (U+FFFD replacement). "
                     "Security scan results may be incomplete. target=%r", subnet,
                 )
+                try:
+                    from jarvis.workers.notification_hub import NotificationHub
+                    hub = NotificationHub.get_instance()
+                    if hub:
+                        hub.send(
+                            title="⚠️ Security scanner encoding corruption",
+                            body=f"[scanner.nmap] Output contained non-UTF-8 bytes for target {subnet!r}. Scan results may be incomplete.",
+                            level="critical",
+                        )
+                except Exception:
+                    pass
 
             if proc.returncode != 0:
                 # Nmap did not complete successfully (e.g. permissions/raw-socket
@@ -644,6 +655,17 @@ class PacketCapture:
                     "[scanner.tshark] Output contained non-UTF-8 bytes (U+FFFD). "
                     "Packet capture results may be incomplete. interface=%r", interface,
                 )
+                try:
+                    from jarvis.workers.notification_hub import NotificationHub
+                    hub = NotificationHub.get_instance()
+                    if hub:
+                        hub.send(
+                            title="⚠️ Security scanner encoding corruption",
+                            body=f"[scanner.tshark] Packet capture output contained non-UTF-8 bytes for interface {interface!r}.",
+                            level="critical",
+                        )
+                except Exception:
+                    pass
             # Parse protocols from stdout or return structured distribution
             return self._build_capture_result(interface, count, elapsed, str(output_pcap) if output_pcap else None)
 

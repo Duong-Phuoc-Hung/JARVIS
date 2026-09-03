@@ -82,6 +82,28 @@ class NotificationHub:
     Supports: Telegram, Discord, Zalo, Windows Toast, Sound, TTS.
     """
 
+    _instance: NotificationHub | None = None
+
+    @classmethod
+    def get_instance(cls, is_mock: bool = False) -> NotificationHub:
+        """Return the shared NotificationHub singleton instance."""
+        if cls._instance is None:
+            cls._instance = cls(is_mock=is_mock)
+        return cls._instance
+
+    def send(
+        self,
+        title: str = "JARVIS",
+        body: str = "",
+        message: str = "",
+        level: str = "normal",
+        **kwargs: Any,
+    ) -> Notification:
+        """Convenience alias for notify() supporting title/body/level conventions."""
+        msg = body or message
+        prio = Priority.URGENT if level.lower() in ("critical", "urgent") else Priority.NORMAL
+        return self.notify(message=msg, title=title, priority=prio)
+
     def __init__(self, is_mock: bool = False) -> None:
         self.is_mock = is_mock
         self._scheduled: list[ScheduledNotification] = []

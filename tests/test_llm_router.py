@@ -1,4 +1,3 @@
-import os
 """
 tests/test_llm_router.py
 ========================
@@ -12,6 +11,7 @@ Covering:
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 

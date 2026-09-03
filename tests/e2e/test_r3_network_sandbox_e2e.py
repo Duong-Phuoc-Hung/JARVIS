@@ -357,8 +357,8 @@ except (PermissionError, OSError, AttributeError, Exception) as exc:
                  correct permissions for allowed operations).
         Part B — Outbound UDP to port 53 (DNS) is blocked.
         """
-        scratch = tmp_path / "dual_evidence_scratch"
-        scratch.mkdir()
+        scratch = os_test_sandbox.base_scratch_dir / "dual_evidence_scratch"
+        scratch.mkdir(parents=True, exist_ok=True)
         sentinel_path = scratch / "sentinel.txt"
 
         code = f"""
@@ -380,10 +380,10 @@ try:
 except Exception as exc:
     print(f"DNS_UDP_BLOCKED_{{type(exc).__name__}}")
 """
-        result = os_test_sandbox.execute_python(code, timeout_seconds=8.0)
+        result = os_test_sandbox.execute_python(code, timeout_seconds=8.0, custom_scratch_dir=scratch)
 
         # Part A
-        assert result.success is True
+        assert result.success is True, f"Sandbox failed with stdout={result.stdout!r} stderr={result.stderr!r}"
         assert "FILE_IO_OK" in result.stdout, (
             f"File I/O in scratch failed — subprocess may not have started. stdout={result.stdout!r}"
         )
