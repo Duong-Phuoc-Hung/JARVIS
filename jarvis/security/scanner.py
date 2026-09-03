@@ -319,6 +319,14 @@ class NetworkScanner:
             )
             duration = time.time() - start_time
 
+            # Security-sensitive encoding corruption check (E6 escalation):
+            # CP437 garbling in Nmap output could mask real vulnerability findings.
+            if "\ufffd" in (proc.stdout or "") or "\ufffd" in (proc.stderr or ""):
+                log.critical(
+                    "[scanner.nmap] Output contained non-UTF-8 bytes (U+FFFD replacement). "
+                    "Security scan results may be incomplete. target=%r", subnet,
+                )
+
             if proc.returncode != 0:
                 # Nmap did not complete successfully (e.g. permissions/raw-socket
                 # requirements, or the binary genuinely failed). A nonzero exit
@@ -629,6 +637,13 @@ class PacketCapture:
                 timeout=duration + 5.0,
             )
             elapsed = time.time() - start_time
+
+            # Security-sensitive encoding corruption check (E6 escalation)
+            if "\ufffd" in (proc.stdout or "") or "\ufffd" in (proc.stderr or ""):
+                log.critical(
+                    "[scanner.tshark] Output contained non-UTF-8 bytes (U+FFFD). "
+                    "Packet capture results may be incomplete. interface=%r", interface,
+                )
             # Parse protocols from stdout or return structured distribution
             return self._build_capture_result(interface, count, elapsed, str(output_pcap) if output_pcap else None)
 

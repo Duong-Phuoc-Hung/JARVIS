@@ -437,6 +437,10 @@ class HardwareMonitor:
                 _cflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
                 proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=1.5,
                                       creationflags=_cflags)
+
+            # Hardware monitor encoding check (E6 escalation)
+            if '\ufffd' in (proc.stdout or '') or '\ufffd' in (proc.stderr or ''):
+                logger.critical('[monitor] Output contained non-UTF-8 bytes (U+FFFD). Hardware readings may be inaccurate.')
                 if proc.returncode == 0 and proc.stdout.strip():
                     raw_str = proc.stdout.strip()
                     data = json.loads(raw_str)

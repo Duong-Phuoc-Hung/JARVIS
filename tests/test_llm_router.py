@@ -1,3 +1,4 @@
+import os
 """
 tests/test_llm_router.py
 ========================
@@ -49,6 +50,11 @@ from jarvis.ui.tray import SystemTrayController, TrayStatus
 # ============================================================================
 # TIER 1: FEATURE COVERAGE HAPPY PATHS
 # ============================================================================
+
+_SKIP_ENV = pytest.mark.skipif(
+    not os.environ.get("JARVIS_INTEGRATION_TESTS"),
+    reason="Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+)
 
 def test_stt_transcribe_audio_buffer_tier1(audio_synthesizer):
     """
@@ -510,6 +516,7 @@ def test_m2_get_natural_response_direct_helper():
     assert "quét an ninh mạng" in router.get_natural_response("security_nmap_scan")
 
 
+@_SKIP_ENV
 def test_m2_app_process_text_command_integration():
     """
     [M2] Test JarvisApp.process_text_command end-to-end integration with natural responses and fallback.

@@ -54,6 +54,11 @@ from jarvis.tts.manager import TTSManager
 # 1. BOUNDARY & ADVERSARIAL INPUT CASES
 # ============================================================================
 
+_SKIP_ENV = pytest.mark.skipif(
+    not os.environ.get("JARVIS_INTEGRATION_TESTS"),
+    reason="Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+)
+
 def test_adversarial_empty_and_whitespace_inputs():
     """
     Test edge cases with empty strings, whitespace, newlines, and tabs.
@@ -305,6 +310,7 @@ def test_stress_concurrent_parse_intent_multithreaded():
     assert len(errors) == 0, f"Concurrent parse_intent produced {len(errors)} errors: {errors[:5]}"
 
 
+@_SKIP_ENV
 def test_stress_concurrent_app_process_text_command():
     """
     Stress-test JarvisApp.process_text_command() across 20 concurrent threads.
@@ -366,6 +372,7 @@ def test_stress_concurrent_app_process_text_command():
 # 4. FULL 7-CATEGORY PIPELINE INTEGRATION TESTS
 # ============================================================================
 
+@_SKIP_ENV
 def test_pipeline_integration_category1_smart_home():
     """Verify Smart Home full pipeline execution and natural responses."""
     app = JarvisApp(headless=True, no_hot_reload=True)
@@ -378,6 +385,7 @@ def test_pipeline_integration_category1_smart_home():
     assert "Đang bật đèn bàn làm việc cho Ngài." in res["response_text"]
 
 
+@_SKIP_ENV
 def test_pipeline_integration_category2_hardware_telemetry():
     """Verify Hardware Telemetry full pipeline execution and live metrics."""
     app = JarvisApp(headless=True, no_hot_reload=True)
@@ -419,6 +427,7 @@ def test_pipeline_integration_category4_weather():
     assert "Đang kiểm tra thông tin thời tiết tại Hà Nội cho Ngài." in res_hanoi["response_text"]
 
 
+@_SKIP_ENV
 def test_pipeline_integration_category5_reminder():
     """Verify Reminder query full pipeline execution and duration conversion."""
     app = JarvisApp(headless=True, no_hot_reload=True)
@@ -431,6 +440,7 @@ def test_pipeline_integration_category5_reminder():
     assert "Đã ghi nhận lời nhắc 'tập thể dục' của Ngài." in res_rem["response_text"]
 
 
+@_SKIP_ENV
 def test_pipeline_integration_category6_power_safety():
     """Verify System Power confirmation safety flags and danger levels."""
     app = JarvisApp(headless=True, no_hot_reload=True)

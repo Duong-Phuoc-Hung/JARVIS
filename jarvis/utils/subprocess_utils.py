@@ -32,6 +32,7 @@ def run_safe(
     source: str,
     encoding: str = "utf-8",
     timeout=None,
+    security_sensitive: bool = False,
     **kwargs: Any,
 ) -> subprocess.CompletedProcess:
     """
@@ -43,6 +44,10 @@ def run_safe(
         encoding: Encoding for decoding output. Default 'utf-8'.
                   Use 'utf-16-le' for PowerShell 5 / wmic commands.
         timeout: Timeout in seconds for the underlying subprocess call.
+        security_sensitive: If True, garbled-byte detection is escalated from
+            WARNING to CRITICAL and pushed to NotificationHub (if available).
+            Use for security-critical callers (scanner.py, monitor.py) where
+            CP437 corruption could mask real security findings.
         **kwargs: Additional keyword arguments forwarded to the subprocess call.
 
     Returns:
@@ -76,14 +81,32 @@ def run_safe(
     stdout_garbled = _REPLACEMENT in (result.stdout or "")
     stderr_garbled = _REPLACEMENT in (result.stderr or "")
     if stdout_garbled or stderr_garbled:
-        _LOG.warning(
-            "[subprocess:%s] Output contained non-%s bytes (replaced with '?'). "
-            "stdout_garbled=%s stderr_garbled=%s cmd=%r",
-            source,
-            encoding.upper(),
-            stdout_garbled,
-            stderr_garbled,
-            cmd if isinstance(cmd, str) else " ".join(str(x) for x in cmd),
+        cmd_str = cmd if isinstance(cmd, str) else " ".join(str(x) for x in cmd)
+        msg = (
+            "[subprocess:%s] Output contained non-%s bytes (replaced with U+FFFD). "
+            "stdout_garbled=%s stderr_garbled=%s cmd=%r"
         )
+        args = (source, encoding.upper(), stdout_garbled, stderr_garbled, cmd_str)
+
+        if security_sensitive:
+            # Escalate: CRITICAL log + attempt NotificationHub push for
+            # security-critical modules (scanner.py, monitor.py) where
+            # CP437 corruption could silently mask security findings.
+            _LOG.critical(msg, *args)
+            try:
+                from jarvis.workers.notification_hub import NotificationHub
+                hub = NotificationHub.get_instance()
+                if hub:
+                    hub.send(
+                        title="⚠️ Security subprocess encoding corruption",
+                        body=f"[{source}] Output contained garbled bytes — "
+                             f"security scan results may be incomplete. cmd={cmd_str!r}",
+                        level="critical",
+                    )
+            except Exception:
+                pass  # Best-effort: hub may not be running during tests
+        else:
+            _LOG.warning(msg, *args)
 
     return result
+
