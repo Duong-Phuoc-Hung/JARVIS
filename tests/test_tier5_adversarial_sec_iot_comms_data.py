@@ -107,14 +107,14 @@ from jarvis.vision.hands import (
 # DOMAIN 1: jarvis/security ADVERSARIAL STRESS TESTS
 # ============================================================================
 
-def test_security_nmap_cli_command_injection_defense(monkeypatch):
+def test_security_nmap_malicious_input_blocked_at_validation_layer(monkeypatch):
     """
-    [Security / F-23] Attempt command injection in subnet and ports parameters.
-    Verify that arguments are passed safely as lists without shell expansion.
+    [Security / F-23] Confirm malicious injection payloads in subnet are strictly
+    rejected at the input validation layer (fail-closed) WITHOUT spawning a subprocess.
     """
     captured_cmds = []
 
-    def fake_run(cmd, capture_output=True, text=True, timeout=None):
+    def fake_run(cmd, *args, **kwargs):
         captured_cmds.append(cmd)
         return subprocess.CompletedProcess(
             args=cmd,
@@ -132,10 +132,39 @@ def test_security_nmap_cli_command_injection_defense(monkeypatch):
     malicious_subnet = "192.168.1.1; cat /etc/passwd && whoami | dir `calc.exe`"
     report = scanner.scan_subnet(malicious_subnet, ports="80,443")
 
+    # Defense Layer 1: Strictly blocked at validation layer before subprocess execution
+    assert len(captured_cmds) == 0, "Malicious subnet must NOT spawn any subprocess"
+    assert report.status == "TARGET_REJECTED"
+
+
+def test_security_nmap_valid_target_properly_escaped_and_spawned(monkeypatch):
+    """
+    [Security / F-23] Confirm valid targets pass validation and are passed safely as
+    structured list arguments without shell expansion.
+    """
+    captured_cmds = []
+
+    def fake_run(cmd, *args, **kwargs):
+        captured_cmds.append(cmd)
+        return subprocess.CompletedProcess(
+            args=cmd,
+            returncode=0,
+            stdout='<?xml version="1.0"?><nmaprun></nmaprun>',
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(shutil, "which", lambda x: "C:\\Program Files\\Nmap\\nmap.exe")
+
+    scanner = NetworkScanner()
+
+    valid_subnet = "192.168.1.10"
+    report = scanner.scan_subnet(valid_subnet, ports="80,443")
+
     assert len(captured_cmds) == 1
     invoked_cmd = captured_cmds[0]
     assert isinstance(invoked_cmd, list)
-    assert invoked_cmd[-1] == malicious_subnet
+    assert invoked_cmd[-1] == valid_subnet
     assert "-p80,443" in invoked_cmd
     assert report.status == "SUCCESS"
 
@@ -218,7 +247,7 @@ def test_security_tshark_cli_parameters_and_bpf_injection(monkeypatch):
     """
     captured_cmds = []
 
-    def fake_run(cmd, capture_output=True, text=True, timeout=None):
+    def fake_run(cmd, *args, **kwargs):
         captured_cmds.append(cmd)
         return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
 
@@ -388,10 +417,17 @@ def test_biometrics_corrupted_frames_and_lighting_extremes(tmp_path):
     assert recovered_storage.enrolled_faces == {}
 
 
-def test_biometrics_intruder_detection_and_lock_failure_resilience(tmp_path):
+def test_biometrics_intruder_detection_and_lock_failure_resilience(tmp_path, monkeypatch):
     """
     [Vision / F-35] Simulate an intruder face when locking workstation and dispatching alert.
     """
+    import jarvis.vision.biometrics as bio_mod
+    class FakeCV2:
+        @staticmethod
+        def imencode(ext, frame):
+            return True, np.array([255, 216, 255, 224], dtype=np.uint8)
+    monkeypatch.setattr(bio_mod, "cv2", FakeCV2)
+
     store = FaceEmbeddingStorage(storage_path=tmp_path / "faces.json")
     owner_embedding = np.ones(128, dtype=np.float64) * 0.1
     store.add_face("owner", owner_embedding)
@@ -410,6 +446,9 @@ def test_biometrics_intruder_detection_and_lock_failure_resilience(tmp_path):
     class TrackingWin32:
         def __init__(self):
             self.lock_workstation_calls = 0
+        def lock_workstation(self):
+            self.lock_workstation_calls += 1
+            return True
 
     class TrackingTelegram:
         def __init__(self):
@@ -726,7 +765,7 @@ def test_vm_orchestrator_subprocess_failures_and_injection(monkeypatch):
     """
     monkeypatch.setattr(shutil, "which", lambda x: "C:\\Program Files\\VMware\\vmrun.exe")
 
-    def fake_subprocess_run(cmd, capture_output=True, text=True, timeout=None):
+    def fake_subprocess_run(cmd, *args, **kwargs):
         return subprocess.CompletedProcess(
             args=cmd,
             returncode=1,

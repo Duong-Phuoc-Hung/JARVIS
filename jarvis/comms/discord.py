@@ -295,6 +295,14 @@ class DiscordBotController:
             text = f"Lỗi exec '{skill_name}': {exc}"
         return {"status": 200, "text": f"⚙️ {text[:1800]}", "embed": None}
 
+    def summarize_channel(self, channel_name: str, messages: list[str]) -> str:
+        """Summarize activity from a Discord channel."""
+        if not messages:
+            return f"Kênh {channel_name}: không có hoạt động mới."
+        n = len(messages)
+        snippet = "; ".join(str(m) for m in messages[:3])
+        return f"Kênh {channel_name} có {n} tin nhắn mới: {snippet}"
+
     # ------------------------------------------------------------------
     # Sending
     # ------------------------------------------------------------------
