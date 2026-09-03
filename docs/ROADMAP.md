@@ -15,9 +15,12 @@
 > `CLAUDE.md`'s "Durable Terminal Control Center invariant" và `docs/PROJECT_STATE.md`'s
 > checkpoint hiện tại để biết chi tiết đầy đủ. Nhánh này cũng đã nâng `jarvis.__version__` từ
 > `4.7.0` lên **`5.0.0`**, mốc phát triển do chủ sở hữu chỉ định đánh dấu Terminal Control
-> Center — phiên bản này nay đã có trên `main` qua PR #37; **chưa có tag/GitHub Release
-> `v5.0.0`** nào được tạo. Đây là lớp trình bày mỏng, tái sử dụng toàn bộ 9 module sản phẩm
-> hiện có — không phải một CLI diagnostics riêng biệt như mô tả sơ bộ ở mục **P3-21** bên
+> Center — phiên bản này nay đã có trên `main` qua PR #37. **Cập nhật (2026-09-03, PR #38):
+> `v5.0.0` nay đã được gắn tag chính thức và GitHub Release "JARVIS v5.0.0" đã publish**
+> (release workflow #7 thành công, đính kèm `JARVIS_v5.0.0_windows_x64.zip`) — đây hiện là
+> bản phát hành chính thức mới nhất, xem `CLAUDE.md` §0 CURRENT BASELINE. Đây là lớp trình
+> bày mỏng, tái sử dụng toàn bộ 9 module sản phẩm hiện có — không phải một CLI diagnostics
+> riêng biệt như mô tả sơ bộ ở mục **P3-21** bên
 > dưới; P3-21 vẫn giữ nguyên trạng thái như tài liệu gốc mô tả (không được coi là đã hoàn
 > thành bởi công việc này). Các mục backlog khác trong tài liệu này **không** được rà soát
 > lại trong lần cập nhật này — xem lưu ý về độ tin cậy của backlog trong

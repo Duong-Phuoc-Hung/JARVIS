@@ -2,7 +2,21 @@
 
 ---
 
-## 🚀 [5.0.0] — J.A.R.V.I.S. Terminal Control Center — MERGED into `main`, pre-tag release checkpoint (PR #37, 2026-09-03)
+## 🚀 [5.0.0] — J.A.R.V.I.S. Terminal Control Center — formally released as `v5.0.0` (PR #37 + PR #38, tagged/published 2026-09-03)
+
+> **Release status (updated 2026-09-03, PR #38 merged and `v5.0.0` tag/release published)**:
+> `v5.0.0` is now a **formal, published GitHub Release** — annotated tag `v5.0.0` (message
+> `"JARVIS v5.0.0 - Terminal Control Center"`) points to `083171169419447b2bb28734b4c48a667564c9b2`
+> (the `release/v5.0.0-finalize` → `main` merge commit for **PR #38**, a docs-only pre-tag
+> finalization PR that landed on top of PR #37 below). The GitHub Release **"JARVIS v5.0.0"**
+> is published (not draft, not prerelease). Pushing the tag triggered the release workflow
+> (`JARVIS Release — Build & Publish`, run #7), which completed with conclusion **SUCCESS**:
+> tests ran before build, `dist/JARVIS.exe` was built, the release archive was created, and
+> both `JARVIS_v5.0.0_windows_x64.zip` (the primary Windows asset) and `jarvis-main.zip` were
+> uploaded to the Release. **`v4.5.1` is no longer the latest formal release.** The paragraphs
+> immediately below describe the pre-tag state as it stood after PR #37 merged (feature work)
+> — kept as the historical implementation record; the tag/release event itself is new
+> information layered on top, not a rewrite of that record.
 
 > **Semantic note**: this section describes work implemented on branch
 > `feat/terminal-control-center` (feature commit `81c649aba7d3ed34950925eb5cd4e1c85237f1f7`,
@@ -20,14 +34,13 @@
 > the major product-surface expansion this SemVer-major bump marks (a new first-class
 > interactive control surface covering all nine product areas, alongside the existing
 > voice-first core, which is unchanged) — and that version is now on `main` via the PR #37
-> merge. This is still only a **development/runtime version**: **no `v5.0.0` tag exists, no
-> GitHub Release has been created, and the latest formal GitHub Release remains `v4.5.1`**
-> until a real tag/release is cut later, separately, by the repository owner — this
-> `CHANGELOG.md` entry is a pre-tag release checkpoint, not an announcement that the GitHub
-> Release is already published. No breaking change to any existing command, config file, or
-> API is claimed or was found — `jarvis run`, `health`/`health-check`, `install-autostart`,
-> `uninstall-autostart`, `autostart-status`, and `--version` all remain exactly as documented
-> below; only `jarvis menu` is new.
+> merge. **As of PR #38 and the subsequent tag push (see the release-status note above), this
+> is also a formally released version**: the `v5.0.0` tag and GitHub Release exist and are
+> published — this `CHANGELOG.md` entry now documents both the development-milestone work
+> (PR #37) and its formal release (PR #38 + tag). No breaking change to any existing command,
+> config file, or API is claimed or was found — `jarvis run`, `health`/`health-check`,
+> `install-autostart`, `uninstall-autostart`, `autostart-status`, and `--version` all remain
+> exactly as documented below; only `jarvis menu` is new.
 
 ### ✅ Current architecture (read this first — the sections below are a chronological build
 log, including two rejected intermediate designs; this is what the code actually does today)
@@ -342,7 +355,7 @@ No backend/security production file was touched (`jarvis/healing/`, `jarvis/smar
 
 ## 🔧 Post-v4.7.0 Maintenance / Unreleased Maintenance (2026-09-02 → 2026-09-03)
 
-> **Lưu ý ngữ nghĩa**: đây là mốc bảo trì phát triển trên `main` sau v4.7.0 — **không phải** `4.7.1` và không phải một GitHub Release/tag mới. `jarvis.__version__` **giữ nguyên `4.7.0`** trong suốt các mục bên dưới; không có version bump nào xảy ra. Bản phát hành chính thức (GitHub Release) mới nhất vẫn là `v4.5.1`. Xem `CLAUDE.md` "CURRENT BASELINE" và `docs/PROJECT_STATE.md` Checkpoint hiện tại để biết trạng thái đầy đủ. **Lưu ý về SHA**: mọi merge commit ghi trong mục này (`ae6d5d8...`, `399a70c...`, v.v.) là bằng chứng lịch sử cho đúng PR đó tại đúng thời điểm merge — **không phải** tuyên bố "current main" vĩnh viễn, vì mỗi merge tiếp theo (kể cả merge tài liệu) sẽ tự động làm SHA đó trở thành lịch sử. Luôn chạy `git fetch origin --prune` rồi kiểm tra `origin/main` thực tế thay vì tin vào một SHA ghi cứng trong tài liệu.
+> **Lưu ý ngữ nghĩa (mô tả trạng thái lịch sử trong khoảng 2026-09-02 → 2026-09-03, TRƯỚC khi mốc v5.0.0 ở trên được tạo và phát hành chính thức cùng ngày)**: đây là mốc bảo trì phát triển trên `main` sau v4.7.0 — **không phải** `4.7.1` và không phải một GitHub Release/tag mới. `jarvis.__version__` **giữ nguyên `4.7.0`** trong suốt các mục bên dưới; không có version bump nào xảy ra trong phạm vi các mục này. Tại đúng thời điểm các PR bảo trì này merge, bản phát hành chính thức (GitHub Release) mới nhất vẫn là `v4.5.1` — đây là ghi chép lịch sử cho giai đoạn đó, **không phải** trạng thái hiện tại của repo (hiện tại `v5.0.0` đã là bản phát hành chính thức mới nhất, xem mục `[5.0.0]` phía trên). Xem `CLAUDE.md` "CURRENT BASELINE" và `docs/PROJECT_STATE.md` Checkpoint hiện tại để biết trạng thái đầy đủ. **Lưu ý về SHA**: mọi merge commit ghi trong mục này (`ae6d5d8...`, `399a70c...`, v.v.) là bằng chứng lịch sử cho đúng PR đó tại đúng thời điểm merge — **không phải** tuyên bố "current main" vĩnh viễn, vì mỗi merge tiếp theo (kể cả merge tài liệu) sẽ tự động làm SHA đó trở thành lịch sử. Luôn chạy `git fetch origin --prune` rồi kiểm tra `origin/main` thực tế thay vì tin vào một SHA ghi cứng trong tài liệu.
 
 ### 🟢 Central Dispatch Truthfulness — MERGED via PR #34 (2026-09-03)
 

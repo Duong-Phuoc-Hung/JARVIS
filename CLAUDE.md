@@ -21,29 +21,40 @@ specifically marked otherwise.
 > on "current state" for any non-trivial task: run `git fetch origin --prune`, then
 > `git rev-parse origin/main`, and trust that output over anything written here.
 
-- **Documentation state verified through PR #37** (`feat/terminal-control-center` merged into
-  `main`, merge commit `38affda1b848eee5fe90cfac2749824c57c5efe9`, post-merge JARVIS CI
-  **#166 SUCCESS**). This is the **last verified repository checkpoint before this
-  documentation-finalization pass** (branch `release/v5.0.0-finalize`) — not a permanent
-  "current HEAD" pointer. By the time you read this, `main` may already be ahead of it;
-  verify with `git fetch`/`git rev-parse origin/main` as noted above.
+- **Documentation state verified through PR #38** (`release/v5.0.0-finalize` merged into
+  `main`, merge commit `083171169419447b2bb28734b4c48a667564c9b2` — this is also the commit
+  the annotated `v5.0.0` tag points to). This is the **last verified repository checkpoint
+  before this documentation-sync pass** (branch `docs/post-v5.0.0-release-sync`) — not a
+  permanent "current HEAD" pointer. By the time you read this, `main` may already be ahead of
+  it; verify with `git fetch`/`git rev-parse origin/main` as noted above.
 - **Current development runtime:** `5.0.0` (`jarvis.__version__`, `jarvis/__init__.py`) —
   bumped from `4.7.0` on `feat/terminal-control-center` as an explicit, owner-authorized
   development-milestone decision marking the J.A.R.V.I.S. Terminal Control Center, and now
   on `main` via PR #37. Runtime version is itself durable, stable evidence (unlike a commit
   SHA) — verify it directly with `python -c "import jarvis; print(jarvis.__version__)"` if
   in doubt.
-- **Latest formal GitHub Release:** `v4.5.1` (unchanged). **No `v5.0.0` tag or GitHub
-  Release has been created yet** — `jarvis.__version__ == "5.0.0"` on `main` is a prepared
-  development/runtime version pending a real tag/release cut later, separately, by the
-  repository owner. `v4.0.1` is no longer the latest formal release.
-- **Development source/runtime (`5.0.0`) and the latest formal release (`v4.5.1`) are
-  different concepts** — `main` has moved well past `v4.5.1` in CHANGELOG/runtime terms
-  without a new tag/release having been cut yet. Do not describe `5.0.0` as "released" or
-  `v4.5.1` as "the current source version." Immediately after a real `v5.0.0` tag is pushed
-  and the release workflow completes, `v5.0.0` will become the latest formal release —
-  re-verify via `git tag --points-at HEAD` / the GitHub Releases page rather than trusting
-  this file at that point.
+- **Latest formal GitHub Release: `v5.0.0`** — formally tagged and published on
+  **2026-09-03**. The annotated tag `v5.0.0` dereferences to `083171169419447b2bb28734b4c48a667564c9b2`
+  (the PR #38 merge commit), tag message `"JARVIS v5.0.0 - Terminal Control Center"`. The
+  GitHub Release "JARVIS v5.0.0" is published (not draft, not prerelease). The release
+  workflow (`JARVIS Release — Build & Publish`, run #7) completed with conclusion
+  **SUCCESS** — tests ran before build, `dist/JARVIS.exe` built, and the release archive
+  `JARVIS_v5.0.0_windows_x64.zip` (plus `jarvis-main.zip`) was uploaded to the GitHub Release.
+  `v4.5.1` is no longer the latest formal release — it is now historical, the same way `v4.0.1`
+  became historical when `v4.5.1` was published. **This is release/tag evidence for the PR
+  #38 checkpoint, not a claim about what `main` points to right now** — for current `main`,
+  always re-verify with `git fetch origin --prune && git rev-parse origin/main`, and for the
+  actual latest release, always check the
+  [GitHub Releases page](https://github.com/Duong-Phuoc-Hung/JARVIS/releases) rather than
+  trusting a version number recorded in this file.
+- **Development source/runtime (`5.0.0`) and the latest formal release (now also `v5.0.0`)
+  have converged** — same pattern as the earlier `v4.4.0` and `v4.5.1` convergences (see §1A
+  "Version metadata" below): the repository owner deliberately cut the `v5.0.0` tag/release
+  from the exact commit carrying `jarvis.__version__ == "5.0.0"`, so for this specific release
+  the two concepts happen to share one version number. They remain **conceptually distinct**
+  and will drift again the moment `main`'s runtime version advances past `5.0.0` without a
+  matching new tag — do not assume future runtime bumps automatically imply a new formal
+  release, and do not assume a future formal release always mirrors the runtime version.
 - **Completed and merged, as of the PR #37 checkpoint:**
   - **PR #31** (`fix/healing-truthfulness`, merge commit `10d470237b0fe4bc295f02215b4606590d79d17e`) —
     self-healing (`jarvis/healing/terminator.py`) now reports recovery outcomes truthfully.
@@ -73,6 +84,15 @@ specifically marked otherwise.
     the **J.A.R.V.I.S. Terminal Control Center is MERGED into `main`** and `jarvis.__version__`
     is now `5.0.0` on `main`. See the dedicated paragraph and the durable "Terminal Control
     Center" invariant below for the full architecture contract.
+  - **PR #38** (`release/v5.0.0-finalize`, docs-only pre-tag finalization commit `6a29c87`
+    (`docs(release): finalize v5.0.0 pre-tag state`), merge commit
+    `083171169419447b2bb28734b4c48a667564c9b2`) — **documentation-only** pre-tag finalization
+    of PR #37's merged state; no code/test/config/runtime change. The repository owner then
+    tagged this exact merge commit as the annotated tag `v5.0.0` and pushed it, which
+    triggered the release workflow (`JARVIS Release — Build & Publish`, run #7,
+    **SUCCESS**) and produced the published GitHub Release **`JARVIS v5.0.0`**
+    (2026-09-03) with asset `JARVIS_v5.0.0_windows_x64.zip`. **`v5.0.0` is now the latest
+    formal release** — see the bullet above.
 - **`tests/unit/` evidence at the PR #34 checkpoint (`ae6d5d8...`): 1413 passed, 1 skipped,
   50 subtests passed, 0 failed.** (Prior evidence at the PR #32 checkpoint
   (`aaeeb53f8341...`): 1353 passed, 4 skipped, 50 subtests passed, 0 failures — kept here as
@@ -113,8 +133,10 @@ specifically marked otherwise.
   detail and exact validation evidence. `jarvis.__version__` was bumped from `4.7.0` to
   `5.0.0` on the feature branch (commit `adcc98d`, `chore(release): prepare v5.0.0`) as an
   explicit, owner-authorized development-milestone decision, and that version is now on `main`
-  via the PR #37 merge — **this is still only a development/runtime version**: **no `v5.0.0`
-  tag or GitHub Release exists yet**; the latest formal release remains `v4.5.1`. Verify
+  via the PR #37 merge. **This has since become a formally released version too**: the
+  `v5.0.0` tag and GitHub Release were cut from the PR #38 merge commit (see the "Latest
+  formal GitHub Release" bullet above) — do not describe `5.0.0` as merely a
+  development/runtime version pending release; it is both. Verify the runtime value
   directly: `python -c "import jarvis; print(jarvis.__version__)"`.
 - **Central dispatch truthfulness — RESOLVED via PR #34 (checkpoint commit
   `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`).** `jarvis/core/dispatcher.py`'s
@@ -499,7 +521,7 @@ Source-of-truth priority:
 4. `CHANGELOG.md`.
 5. `pyproject.toml`, workflow files, `README.md`, `PROJECT.md`, `.agents/**` — useful for structure/config, but test-count strings in particular are known to drift and should not be trusted as current-state evidence over 1-4 above. (`pyproject.toml`'s version is no longer a separate literal to drift — see "Version metadata" in §1A.)
 
-Some historical docs are stale. `jarvis.__version__`/`pyproject.toml` do not automatically track `CHANGELOG.md`'s development-milestone headings (on `main`, `jarvis.__version__` is now `5.0.0`, and `CHANGELOG.md`'s latest heading and the runtime version were deliberately bumped together as an explicit, owner-authorized development-milestone decision marking the J.A.R.V.I.S. Terminal Control Center — see §0 CURRENT BASELINE and §0's Terminal Control Center bullet) or the latest formal GitHub Release (currently `v4.5.1`, published — no `v5.0.0` tag/release exists yet — see §0) — these are three distinct concepts, not one drifting number; see "Version metadata" in §1A. (Historically, `v4.5.1` was itself a deliberate exception where the package/runtime version and the intended formal-release tag were made to converge by explicit user intent, the same way `v4.4.0` had before it — that release has since actually been tagged and published, which is why it is now the current latest formal release; this convergence pattern does not change the general rule that the three concepts normally drift independently.) Do not silently "bump" any of them as a side effect of an unrelated task; only change version strings when the user gives explicit release/versioning intent.
+Some historical docs are stale. `jarvis.__version__`/`pyproject.toml` do not automatically track `CHANGELOG.md`'s development-milestone headings (on `main`, `jarvis.__version__` is now `5.0.0`, and `CHANGELOG.md`'s latest heading and the runtime version were deliberately bumped together as an explicit, owner-authorized development-milestone decision marking the J.A.R.V.I.S. Terminal Control Center — see §0 CURRENT BASELINE and §0's Terminal Control Center bullet) or the latest formal GitHub Release (currently `v5.0.0`, formally tagged and published 2026-09-03 — see §0) — these are three distinct concepts, not one drifting number; see "Version metadata" in §1A. (`v5.0.0` is itself a deliberate exception where the package/runtime version and the formal-release tag were made to converge by explicit owner intent, the same way `v4.5.1` had before it and `v4.4.0` before that — this convergence pattern does not change the general rule that the three concepts normally drift independently, and they will drift again the next time the runtime version bumps without a matching new tag.) Do not silently "bump" any of them as a side effect of an unrelated task; only change version strings when the user gives explicit release/versioning intent.
 
 ## 3. Git safety rules
 
