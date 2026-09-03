@@ -35,6 +35,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from jarvis import __version__ as JARVIS_VERSION
 from jarvis.llm.client import LLMClient
 from jarvis.llm.router import IntentResult, LLMIntentRouter
 from jarvis.hardware.monitor import DiskSmartMetrics, HardwareMetrics, HardwareMonitor
@@ -500,9 +501,10 @@ class TestSystemTrayControllerRobustness:
         Challenge: Test get_status_text() across 12 combinations of app lifecycle states:
         missing app, missing tts/stt, models loading, models offline, psutil error.
         """
-        # 1. Null app
+        # 1. Null app -- falls back to the canonical jarvis.__version__
+        # (jarvis/ui/tray.py imports it directly; no second hardcoded literal).
         tray1 = SystemTrayController(app=None)
-        assert "Status: v4.7.0" in tray1.get_status_text()
+        assert f"Status: v{JARVIS_VERSION}" in tray1.get_status_text()
 
         # 2. App with TTS Online, STT Ready
         mock_app2 = MagicMock()

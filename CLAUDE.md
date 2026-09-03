@@ -92,7 +92,15 @@ specifically marked otherwise.
   `docs/PROJECT_STATE.md`'s current checkpoint for implementation detail and exact validation
   evidence. Local full-suite evidence at the committed state: **1511 passed, 1 skipped, 50
   subtests passed, 0 failed** (1413 baseline + 98 new `tests/unit/`-directory tests).
-  `jarvis.__version__` unchanged at `4.7.0`.
+  `jarvis.__version__` unchanged at `4.7.0` through the implementation, hardening, and
+  final-architecture-verification passes above — this was true up to that point, not
+  currently: a **subsequent, separate, owner-authorized pass on this same branch bumped
+  `jarvis.__version__` from `4.7.0` to `5.0.0`** (see `jarvis/__init__.py`), marking the
+  Terminal Control Center as the `5.0.0` development milestone. This is a
+  development/runtime version bump on the **feature branch only** — `main` still reports
+  `4.7.0` until this branch is merged, and **no `v5.0.0` tag or GitHub Release exists**; the
+  latest formal release remains `v4.5.1`. Verify directly:
+  `python -c "import jarvis; print(jarvis.__version__)"`.
 - **Central dispatch truthfulness — RESOLVED via PR #34 (checkpoint commit
   `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`).** `jarvis/core/dispatcher.py`'s
   `dispatch_action()`/`dispatch_action_async()` previously wrapped any normally-returning
@@ -477,7 +485,7 @@ Source-of-truth priority:
 4. `CHANGELOG.md`.
 5. `pyproject.toml`, workflow files, `README.md`, `PROJECT.md`, `.agents/**` — useful for structure/config, but test-count strings in particular are known to drift and should not be trusted as current-state evidence over 1-4 above. (`pyproject.toml`'s version is no longer a separate literal to drift — see "Version metadata" in §1A.)
 
-Some historical docs are stale. `jarvis.__version__`/`pyproject.toml` do not automatically track `CHANGELOG.md`'s development-milestone headings (currently `v4.7.0`, plus a "Post-v4.7.0 Maintenance" section that does not bump the runtime version — see §0 CURRENT BASELINE) or the latest formal GitHub Release (currently `v4.5.1`, published — see §0) — these are three distinct concepts, not one drifting number; see "Version metadata" in §1A. (Historically, `v4.5.1` was itself a deliberate exception where the package/runtime version and the intended formal-release tag were made to converge by explicit user intent, the same way `v4.4.0` had before it — that release has since actually been tagged and published, which is why it is now the current latest formal release; this convergence pattern does not change the general rule that the three concepts normally drift independently.) Do not silently "bump" any of them as a side effect of an unrelated task; only change version strings when the user gives explicit release/versioning intent.
+Some historical docs are stale. `jarvis.__version__`/`pyproject.toml` do not automatically track `CHANGELOG.md`'s development-milestone headings (on `main`, still `v4.7.0` plus a "Post-v4.7.0 Maintenance" section that does not bump the runtime version — see §0 CURRENT BASELINE; on the not-yet-merged `feat/terminal-control-center` branch, `CHANGELOG.md`'s latest heading and `jarvis.__version__` were deliberately bumped together to `5.0.0` as an explicit development-milestone decision — see §0's Terminal Control Center bullet) or the latest formal GitHub Release (currently `v4.5.1`, published — see §0) — these are three distinct concepts, not one drifting number; see "Version metadata" in §1A. (Historically, `v4.5.1` was itself a deliberate exception where the package/runtime version and the intended formal-release tag were made to converge by explicit user intent, the same way `v4.4.0` had before it — that release has since actually been tagged and published, which is why it is now the current latest formal release; this convergence pattern does not change the general rule that the three concepts normally drift independently.) Do not silently "bump" any of them as a side effect of an unrelated task; only change version strings when the user gives explicit release/versioning intent.
 
 ## 3. Git safety rules
 

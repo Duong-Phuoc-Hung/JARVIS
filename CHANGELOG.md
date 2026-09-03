@@ -2,18 +2,30 @@
 
 ---
 
-## 🖥️ J.A.R.V.I.S. Terminal Control Center — feature branch `feat/terminal-control-center` (2026-09-03, implemented/committed/pushed; PR pending, not merged)
+## 🚀 [5.0.0] — J.A.R.V.I.S. Terminal Control Center — Development / PR pending (feature branch `feat/terminal-control-center`, 2026-09-03)
 
 > **Semantic note**: this section describes work implemented, committed, and pushed on branch
 > `feat/terminal-control-center` (feature commit
-> `81c649aba7d3ed34950925eb5cd4e1c85237f1f7`, `feat(ui): add terminal control center`),
-> based on `main` @ `80b47a57c70dad39ec9f783d128e610d11e17f79` (merge of PR #36). **A pull
-> request has NOT yet been opened, and the feature is NOT merged into `main`** — `main` itself
-> still lacks the `jarvis menu` command until a PR is opened, reviewed, and merged by the
-> repository owner. Treat the feature commit SHA as branch/checkpoint evidence only, never as
-> a permanent pointer — it is not `main`, and the branch may gain further commits before a PR
-> is opened. `jarvis.__version__` **remains `4.7.0`**, unchanged — this is not a version bump
-> and not a new release.
+> `81c649aba7d3ed34950925eb5cd4e1c85237f1f7`, `feat(ui): add terminal control center`; a
+> subsequent docs-sync commit `e083a6f` followed it), based on `main` @
+> `80b47a57c70dad39ec9f783d128e610d11e17f79` (merge of PR #36). **A pull request has NOT yet
+> been opened, and the feature is NOT merged into `main`** — `main` itself still lacks the
+> `jarvis menu` command and still reports `jarvis.__version__ == "4.7.0"` until a PR is opened,
+> reviewed, and merged by the repository owner. Treat the feature commit SHAs as
+> branch/checkpoint evidence only, never as permanent pointers — they are not `main`, and the
+> branch may gain further commits before a PR is opened.
+>
+> **Version**: `jarvis.__version__` **on this branch** was bumped `4.7.0 → 5.0.0` as an
+> explicit, owner-authorized development-milestone decision — the Terminal Control Center is
+> the major product-surface expansion this SemVer-major bump marks (a new first-class
+> interactive control surface covering all nine product areas, alongside the existing
+> voice-first core, which is unchanged). This is a **development/runtime version bump only**:
+> **no `v5.0.0` tag exists, no GitHub Release has been created, and the latest formal GitHub
+> Release remains `v4.5.1`** until a real tag/release is cut later, separately, by the
+> repository owner. No breaking change to any existing command, config file, or API is claimed
+> or was found — `jarvis run`, `health`/`health-check`, `install-autostart`,
+> `uninstall-autostart`, `autostart-status`, and `--version` all remain exactly as documented
+> below; only `jarvis menu` is new.
 
 ### ✅ Current architecture (read this first — the sections below are a chronological build
 log, including two rejected intermediate designs; this is what the code actually does today)

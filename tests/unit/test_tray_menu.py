@@ -16,6 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from jarvis import __version__ as JARVIS_VERSION
 from jarvis.ui.tray import SystemTrayController, TrayStatus
 
 
@@ -60,7 +61,10 @@ def test_system_tray_dynamic_status_text_graceful_fallbacks():
     tray = SystemTrayController(app=None)
     status_str = tray.get_status_text()
 
-    assert "Status: v4.7.0" in status_str
+    # app=None -> get_status_text() falls back to the canonical jarvis.__version__
+    # (jarvis/ui/tray.py imports it directly; there is no second hardcoded
+    # version literal to drift out of sync).
+    assert f"Status: v{JARVIS_VERSION}" in status_str
     assert "TTS: Ready" in status_str
     assert "STT: Ready" in status_str
     assert "RAM:" in status_str

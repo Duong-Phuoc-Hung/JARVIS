@@ -18,7 +18,7 @@
 > Snapshot: 2026-09-01.
 > Always verify Git state and current code before relying on this snapshot.
 
-## 0. Current Checkpoint — J.A.R.V.I.S. Terminal Control Center, implemented/committed/pushed, PR pending (2026-09-03) — READ THIS FIRST
+## 0. Current Checkpoint — J.A.R.V.I.S. Terminal Control Center, v5.0.0 development milestone, implemented/committed/pushed, PR pending (2026-09-03) — READ THIS FIRST
 
 This section supersedes the checkpoint immediately below it (now demoted to `0-PREV5`, kept
 as historical record — not rewritten; further checkpoints cascade as `0-PREV6`, etc.). As
@@ -36,9 +36,18 @@ always: **do not treat any SHA recorded here as a permanent "current main" point
   `80b47a5...` and has no `jarvis menu` command until a PR is opened, reviewed, and merged.
   Treat `81c649a` as branch/checkpoint evidence only, never as a permanent pointer — the
   branch may advance with further commits before a PR is opened.
-- runtime: `4.7.0` (`jarvis.__version__`, unchanged by this work — not a version bump, not a
-  new release).
-- formal release: `v4.5.1` (unchanged).
+- runtime: **`5.0.0`** (`jarvis.__version__`, `jarvis/__init__.py`) — bumped from `4.7.0` on
+  this branch in a subsequent, separate, owner-authorized pass (2026-09-03), marking the
+  Terminal Control Center as the `5.0.0` development milestone (a major product-surface
+  expansion: a new first-class interactive control surface over all nine product areas,
+  alongside the existing, unchanged voice-first core — no breaking change to any existing
+  command/config/API was made or found). This is a **development/runtime bump on this
+  feature branch only** — `main` still reports `jarvis.__version__ == "4.7.0"` until this
+  branch is merged. Verify directly: `python -c "import jarvis; print(jarvis.__version__)"`.
+- formal release: **`v4.5.1`** (unchanged) — **no `v5.0.0` tag or GitHub Release has been
+  created**; do not describe `5.0.0` as formally released. `v5.0.0` is a prepared
+  development/runtime version pending a real tag/release cut later, separately, by the
+  repository owner.
 
 **J.A.R.V.I.S. Terminal Control Center — implemented, committed, and pushed on
 `feat/terminal-control-center`; PR pending; not merged.** A new hierarchical, interactive
