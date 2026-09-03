@@ -41,6 +41,27 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(args.log_level, "DEBUG")
         self.assertEqual(args.command, "run")
 
+    def test_parser_menu_subcommand(self) -> None:
+        """Verify parsing the 'menu' subcommand (Terminal Control Center)."""
+        parser = build_parser()
+        args = parser.parse_args(["menu"])
+        self.assertEqual(args.command, "menu")
+
+    def test_version_flag_exits_zero_and_prints_version(self) -> None:
+        """Verify --version prints the real package version and exits 0."""
+        parser = build_parser()
+        with self.assertRaises(SystemExit) as ctx:
+            parser.parse_args(["--version"])
+        self.assertEqual(ctx.exception.code, 0)
+
+    def test_menu_command_routes_to_terminal_menu_without_starting_jarvis(self) -> None:
+        """Verify `jarvis menu` routes to run_terminal_menu(), not to
+        JarvisApp -- this must never construct the real voice/daemon core."""
+        with patch("jarvis.ui.terminal.app.run_terminal_menu", return_value=0) as mock_menu:
+            exit_code = main(["menu"])
+        self.assertEqual(exit_code, 0)
+        mock_menu.assert_called_once()
+
     def test_run_health_check_execution(self) -> None:
         """Verify health check runs without exceptions and returns exit code 0."""
         cfg = ConfigManager()

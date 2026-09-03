@@ -18,7 +18,240 @@
 > Snapshot: 2026-09-01.
 > Always verify Git state and current code before relying on this snapshot.
 
-## 0. Current Checkpoint — Documentation State Verified Through PR #35 — READ THIS FIRST
+## 0. Current Checkpoint — J.A.R.V.I.S. Terminal Control Center, v5.0.0 development milestone, implemented/committed/pushed, PR pending (2026-09-03) — READ THIS FIRST
+
+This section supersedes the checkpoint immediately below it (now demoted to `0-PREV5`, kept
+as historical record — not rewritten; further checkpoints cascade as `0-PREV6`, etc.). As
+always: **do not treat any SHA recorded here as a permanent "current main" pointer** — run
+`git fetch origin --prune && git rev-parse origin/main` before trusting it.
+
+**State:**
+- Branch: `feat/terminal-control-center`, based on `main` @
+  `80b47a57c70dad39ec9f783d128e610d11e17f79` (merge of PR #36, `docs/sync-post-pr35-state`,
+  unchanged by this work — `origin/main` has not advanced past it as of this checkpoint).
+  **This branch's changes are implemented, committed, and pushed** — feature commit
+  `81c649aba7d3ed34950925eb5cd4e1c85237f1f7` (`feat(ui): add terminal control center`),
+  confirmed as both `HEAD` and `origin/feat/terminal-control-center`. **A pull request has
+  NOT yet been opened, and the feature is NOT merged into `main`** — `main` itself remains at
+  `80b47a5...` and has no `jarvis menu` command until a PR is opened, reviewed, and merged.
+  Treat `81c649a` as branch/checkpoint evidence only, never as a permanent pointer — the
+  branch may advance with further commits before a PR is opened.
+- runtime: **`5.0.0`** (`jarvis.__version__`, `jarvis/__init__.py`) — bumped from `4.7.0` on
+  this branch in a subsequent, separate, owner-authorized pass (2026-09-03), marking the
+  Terminal Control Center as the `5.0.0` development milestone (a major product-surface
+  expansion: a new first-class interactive control surface over all nine product areas,
+  alongside the existing, unchanged voice-first core — no breaking change to any existing
+  command/config/API was made or found). This is a **development/runtime bump on this
+  feature branch only** — `main` still reports `jarvis.__version__ == "4.7.0"` until this
+  branch is merged. Verify directly: `python -c "import jarvis; print(jarvis.__version__)"`.
+- formal release: **`v4.5.1`** (unchanged) — **no `v5.0.0` tag or GitHub Release has been
+  created**; do not describe `5.0.0` as formally released. `v5.0.0` is a prepared
+  development/runtime version pending a real tag/release cut later, separately, by the
+  repository owner.
+
+**J.A.R.V.I.S. Terminal Control Center — implemented, committed, and pushed on
+`feat/terminal-control-center`; PR pending; not merged.** A new hierarchical, interactive
+Terminal/PowerShell UI (`python -m jarvis menu` / `jarvis menu`), covering all nine product
+areas as a thin presentation/routing layer with no duplicated business logic. Full
+architecture contract, truthfulness findings, and the durable invariant future sessions must
+preserve are recorded in `CLAUDE.md`'s "Durable Terminal Control Center invariant" section
+and `CHANGELOG.md`'s matching entry — not repeated verbatim here.
+
+**New files** (25 code files as of the final architecture verification pass below, across all
+three sessions on this branch):
+- `jarvis/ui/terminal/{app,console,context,logo,models,navigator,report,session,theme}.py`
+  (`authority.py` was added during the hardening pass and then removed during final
+  verification — see below; it does not exist in the current tree)
+- `jarvis/ui/terminal/modules/{hardware,infosec,workflow,data,smart_home,biometrics,gesture,comms,healing}.py`
+- `tests/unit/test_terminal_{navigator,console,session_report,app,modules}.py`
+  (`test_terminal_authority.py` was added, then removed as obsolete along with `authority.py`
+  — see below; 98 net new `tests/unit/` tests across all three sessions)
+- `jarvis/cli.py`: +7 lines (one `menu` subparser, one 2-line lazy-import routing branch) —
+  **no other CLI command's behavior changed**.
+- `tests/test_cli.py`: +21 lines (3 new tests: `menu` subcommand parsing, `--version` exits 0,
+  `menu` routes to `run_terminal_menu()` without constructing `JarvisApp`).
+
+**Pre-commit hardening pass (same day, same branch)** found and attempted to fix a real
+authorization bypass, then a **third, final architecture-verification pass (same day)** found
+that the hardening pass's own fix was itself wrong and corrected it. Recorded here as it
+actually happened, including the false start, since a future session should not repeat it:
+
+1. **Side-effect authorization bypass, found in the hardening pass.** Smart Home control and
+   Self-Healing termination were calling `HomeAssistantClient`/`HealingEngine` methods
+   directly after only the terminal's own Y/N prompt — bypassing real authorization entirely,
+   since no dispatcher action for either operation existed anywhere in the codebase to route
+   through instead.
+2. **First attempted fix (hardening pass), later found to be wrong.** A new module,
+   `jarvis/ui/terminal/authority.py::TerminalAuthority`, constructed a standalone
+   `ActionDispatcher` + `SafetyGateInterceptor` — the real production classes — and registered
+   `smart_home_turn_on`/`turn_off`/`toggle`/`set_temperature`/`os_kill_process` against that
+   *private instance*. This looked "dispatcher-routed" but was in fact a second, disconnected
+   security universe: those five action names exist nowhere in the canonical
+   `jarvis/core/app.py` dispatcher (confirmed by exhaustive grep), so there was nothing
+   authoritative for this private dispatcher to actually be routing into.
+3. **Correction (final verification pass).** `authority.py` and its 12 tests
+   (`tests/unit/test_terminal_authority.py`) were removed entirely. Per-operation replacement,
+   following the rule "reuse an existing authoritative path, else reuse an existing
+   backend-native safety contract, else report the action truthfully unavailable — never
+   invent a new dispatcher":
+   - **Self-Healing** now calls `HealingEngine.heal_hung_process()` **directly**. Safe because
+     that method already checks `is_protected(name, pid)` against
+     `PROTECTED_PROCESS_WHITELIST` **internally**, unconditionally, regardless of caller — a
+     genuine, pre-existing backend-native authoritative contract, not something added for this
+     UI. Verified with a real `HealingEngine`, targeting our own interpreter's PID with the
+     protected name `"python.exe"`: confirmed refusal (`PROTECTED_PROCESS`) with no OS-level
+     termination attempt.
+   - **Smart Home control** (Turn On/Off/Toggle/Set Temperature) has neither a
+     backend-native safety contract (`HomeAssistantClient` is a bare REST wrapper) nor a
+     canonical dispatcher action to reuse. These four actions are now marked unavailable in
+     the menu and report `LIMITED` truthfully — **they no longer call the real
+     `HomeAssistantClient` methods at all**, a real behavior downgrade from both the original
+     (unauthenticated-direct-call) and hardening-pass (private-dispatcher) versions, and the
+     correct choice given no safe authoritative path currently exists.
+4. **A false premise from the hardening pass is also corrected.** That pass believed
+   `HealingEngine.heal_hung_process()` returned a `HealingReport` dataclass (needing a
+   `.to_dict()` conversion before dispatcher registration). Re-reading the actual current
+   source during final verification shows this was **wrong**: the method returns a plain
+   `dict` literal in every branch; `HealingReport` is defined/exported but never instantiated
+   by that method in production code (only by unrelated test files). The `.to_dict()` wrapper
+   this false premise produced was never exercised against the real method — only against a
+   self-constructed test fake matching the same wrong assumption — and has been removed along
+   with the rest of `authority.py`.
+5. **`[A]` visibility rule corrected** (hardening pass, unaffected by the correction above)
+   from `>=1` to `>=2` eligible actions (`MenuScreen.batch_visible()`). Concretely changes
+   real behavior: InfoSec's `[A]` is hidden until a scan target is validated; Data Analysis's
+   `[A]` is hidden until a dataset is selected. `batch_eligible()` (used to actually run `[A]`)
+   is unchanged.
+6. **Package architecture reviewed, kept as-is** (hardening pass) — every `modules/*.py` file
+   classified as clean menu-definition + thin-backend-adapter ("A+B"), no rendering code, no
+   reimplemented business logic. `modules/` directory name and per-file organization kept
+   unchanged.
+
+Zero backend/security production files were touched across any of these passes (`jarvis/
+security/`, `jarvis/comms/`, `jarvis/healing/`, `jarvis/smart_home/`,
+`jarvis/core/dispatcher.py`, `jarvis/planner/safety_interceptor.py`,
+`jarvis/automation/safety_gate.py` all confirmed zero diff throughout).
+
+**Two real, pre-existing truthfulness gaps were discovered during this work and are recorded
+as open findings, not fixed** (out of scope per explicit task instruction) — see
+`docs/TECHNICAL_AUDIT_REPORT.md` §7 for the full citation-backed detail:
+1. `jarvis/security/scanner.py::PacketCapture.capture_packets()` fabricates a fixed
+   70/20/10 TCP/UDP/ICMP protocol-distribution split regardless of whether the underlying
+   `tshark` capture actually succeeded (both its success and exception paths call the same
+   unconditional synthesis helper, `_build_capture_result()`, and both report
+   `status="SUCCESS"`).
+2. `jarvis/comms/telegram.py`'s `send_message()`/`send_photo()` return a synthetic
+   `{"ok": True, ...}` whenever no real HTTP client is wired (always true for a bare
+   `TelegramBotController()`); `jarvis/comms/discord.py`'s `send_message()`/`send_embed()`
+   report `{"success": True, ...}` even when the real underlying HTTP POST raises, and
+   `send_file()` never attempts a network call at all yet still reports success.
+
+The Terminal UI's InfoSec > Packet Capture and Communications Hub > Telegram/Discord > Send
+* screens never call these methods — they always report `LIMITED`/truthfully-explained
+non-evidence instead of fabricated data, per the explicit "don't make an existing
+truthfulness gap worse" instruction. **Fixing the underlying `PacketCapture`/`telegram.py`/
+`discord.py` transport truthfulness is separate, future, unstarted work** — do not assume the
+Terminal UI's workaround also fixed the underlying module; it did not.
+
+**Validation evidence (local, initial implementation pass):**
+```text
+New tests: 86 in tests/unit/ (test_terminal_navigator.py 10, test_terminal_console.py 12,
+  test_terminal_session_report.py 16, test_terminal_app.py 27, test_terminal_modules.py 21)
+  + 3 in tests/test_cli.py = 89 new tests total, all passing.
+tests/unit/ (full suite, local): 1499 passed, 1 skipped, 50 subtests passed, 0 failed.
+  (1413 baseline + 86 new tests/unit/ tests = 1499, exact match -- confirms no regression
+  and no double-counting.)
+ruff check jarvis/ui/terminal jarvis/cli.py <new test files>: clean (2 trivial issues
+  auto-fixed: an unsorted import block, one f-string without a placeholder).
+python -m py_compile: clean for every new/changed file.
+git diff --check: no whitespace errors.
+```
+
+**Validation evidence (local, hardening pass, same day -- superseded in part by the
+correction below, kept for the historical record of what was actually run):**
+```text
+22 new tests added: 12 in tests/unit/test_terminal_authority.py (new file, since removed) +
+  6 in test_terminal_app.py ([A] visibility at 0/1/2/3+ eligible, concrete changing-live-value
+  [R] proof, [R] never invokes a handler) + 4 in test_terminal_modules.py (InfoSec/Data
+  batch_visible() before/after target or dataset selection) -- all passing at the time.
+tests/unit/ (full suite, local, AT THAT TIME): 1521 passed, 1 skipped, 50 subtests passed,
+  0 failed. This count included the 12 authority.py tests later removed -- see the updated
+  count in the final-verification validation block below; 1521 is not the current count.
+tests/test_cli.py + test_dispatch_truthfulness.py + test_action_dispatcher_safety.py +
+  test_app_integration.py (81 tests, dispatcher/safety-gate regression check): all passing.
+ruff check (changed/new files): clean (1 more trivial auto-fixed import-sort issue).
+python -m compileall jarvis: clean (whole package, not just the new files).
+git diff --check: no whitespace errors.
+```
+
+**Validation evidence (local, final architecture-verification pass, same day -- current)**:
+```text
+Removed: jarvis/ui/terminal/authority.py, tests/unit/test_terminal_authority.py (12 tests).
+Changed: jarvis/ui/terminal/modules/healing.py, jarvis/ui/terminal/modules/smart_home.py,
+  tests/unit/test_terminal_modules.py (net 2 tests: one replaced to assert unavailability
+  instead of confirmation-required for Smart Home control; one new test using a REAL
+  HealingEngine + a real protected process name ("python.exe") to prove the backend-native
+  protected-process contract is what's actually relied upon, not a mock).
+python -m compileall jarvis/ui/terminal: clean.
+Targeted regression (179 tests -- not the full suite, per explicit instruction not to
+  over-rerun unless materially justified): tests/unit/test_terminal_{navigator,console,
+  session_report,app,modules}.py + tests/test_cli.py + test_dispatch_truthfulness.py +
+  test_action_dispatcher_safety.py + test_app_integration.py -- 179 passed, 4 subtests
+  passed, 0 failed.
+ruff check jarvis/ui/terminal tests/unit/test_terminal_modules.py: clean.
+git diff --check: no whitespace errors.
+tests/unit/ (full suite, local, run once more for documentation accuracy):
+  1511 passed, 1 skipped, 50 subtests passed, 0 failed.
+  (1413 baseline + 98 net new tests/unit/ tests -- exact match; this is the current,
+  authoritative count -- 1521/1499 above are historical, from earlier states of this branch.)
+```
+**Local environment caveat** (see also the "0-PREV5" checkpoint's own STT/test-environment
+notes below, unaffected by this work): this session's local interpreter is Python 3.14.6;
+CI pins 3.13. `pytest-asyncio`/`pytest-env` are not installed in this local venv
+(`PytestConfigWarning: Unknown config option: asyncio_mode`/`env` at collection time), so this
+full-suite run is not a perfect substitute for actual CI — but it collected and ran the
+complete `tests/unit/` tree with 0 failures, which is still meaningful, real evidence, not a
+fabricated pass. The branch is now pushed (`feat/terminal-control-center`, feature commit
+`81c649aba7d3ed34950925eb5cd4e1c85237f1f7`); whether GitHub Actions CI has actually run
+against that pushed commit, and its result, has not been independently checked in this
+documentation pass — verify on GitHub Actions before treating CI as green for this branch.
+
+**Manual validation performed** (see `CHANGELOG.md`'s matching entry for the exact scenarios):
+`python -m jarvis menu` run for real via both an interactive terminal and a piped-stdin
+subprocess; navigation/breadcrumb/[A]-batch (against real `HardwareMonitor` data)/[S]-save
+(a real file written under `%LOCALAPPDATA%/JARVIS/reports/cli/` and verified to exist)/[J]
+confirm-cancel/InfoSec target validation (one real RFC1918 accept, one real public-IP reject)
+were all exercised against real backends. No destructive action, real Nmap/TShark invocation,
+real message send, real biometric enrollment, camera/microphone access, or process
+termination was performed.
+
+**Additional manual validation, hardening pass (historical -- exercised the since-removed
+`TerminalAuthority` architecture)**: the Smart Home Turn On flow was exercised twice more
+through the real `TerminalApp` at that time -- once with Home Assistant disabled by config
+(correct `OFFLINE` short-circuit, zero network activity), and once with it enabled but
+pointed at `http://127.0.0.1:1` (a safe, local, guaranteed-unreachable port) with a fake
+token, proving the (then-existing) `TerminalAuthority` gate→confirm→execute chain ran against
+the real `ActionDispatcher`/`SafetyGateInterceptor`/`SafetyGate`/`HomeAssistantClient` classes
+end-to-end. This validated that `TerminalAuthority`'s *mechanics* worked correctly -- it did
+not, and could not, validate whether constructing a private dispatcher was architecturally
+sound in the first place; that question was only asked and answered in the final-verification
+pass above, which found it was not, and removed it. **Current behavior**: Smart Home control
+no longer calls `HomeAssistantClient` at all (reports `LIMITED`, see above) -- this historical
+smoke test no longer describes what the code does today, kept here only as a record of what
+was actually run at the time. Self-Healing was verified in the final-verification pass with a
+real `HealingEngine` and a real protected process name (`"python.exe"`, safe -- rejected
+before any OS-level interaction); no real process was ever terminated in any pass, per the
+explicit no-real_os-process-operations constraint.
+
+**No remaining known issue from this task within its stated scope.** The two comms/packet-
+capture truthfulness gaps above are pre-existing and explicitly out of scope; they are not
+"remaining issues from this task," they are follow-up work this task discovered and worked
+around without fixing.
+
+---
+
+## 0-PREV5. Prior Checkpoint — Documentation State Verified Through PR #35 — historical,
+superseded by the `0` checkpoint above
 
 This is the single authoritative "what's true right now" section. **Do not treat any SHA
 recorded in this section, or anywhere in this file, as a permanent "current main" pointer.**

@@ -8,9 +8,10 @@ Executes:
 3. Routing eval tests/eval/routing_eval_n150.py
 4. Package version verification
 """
-import sys
 import os
+import sys
 from pathlib import Path
+
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -50,7 +51,7 @@ def main():
 
     print("\n" + "=" * 70)
     print("INDEPENDENT AUDIT SUMMARY:")
-    print(f"  Version 4.7.0: PASS")
+    print("  Version 4.7.0: PASS")
     print(f"  Unit tests exit code: {ret_unit} ({'PASS' if ret_unit == 0 else 'FAIL'})")
     print(f"  Adversarial tests exit code: {ret_adv} ({'PASS' if ret_adv == 0 else 'FAIL'})")
     print("=" * 70)

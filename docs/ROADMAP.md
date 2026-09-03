@@ -6,6 +6,21 @@
 > **Ngày phát hành**: 2026-09-02  
 > **Trạng thái**: Đã phê duyệt (Approved Baseline)
 
+> **Lưu ý bổ sung (2026-09-03, Terminal UI only — không phải một lần dọn dẹp toàn bộ
+> backlog cũ)**: mục **P1-6/P1-7** bên dưới ("Floating HUD Overlay" / "System Tray") mô tả
+> các giao diện đồ họa hiện có; một giao diện **thứ ba, dạng Terminal/PowerShell tương tác**
+> (`python -m jarvis menu` / `jarvis menu`) đã được triển khai và xác thực cục bộ trên nhánh
+> `feat/terminal-control-center` (chưa merge vào `main`) — xem `CLAUDE.md`'s "Durable Terminal
+> Control Center invariant" và `docs/PROJECT_STATE.md`'s checkpoint hiện tại để biết chi tiết
+> đầy đủ. Nhánh này cũng đã nâng `jarvis.__version__` từ `4.7.0` lên **`5.0.0`** (mốc phát
+> triển do chủ sở hữu chỉ định, đánh dấu Terminal Control Center) — **chỉ trên nhánh này**,
+> chưa có tag/GitHub Release `v5.0.0` nào được tạo; `main` vẫn ở `4.7.0` cho đến khi nhánh
+> được merge. Đây là lớp trình bày mỏng, tái sử dụng toàn bộ 9 module sản phẩm hiện có — không
+> phải một CLI diagnostics riêng biệt như mô tả sơ bộ ở mục **P3-21** bên dưới; P3-21 vẫn
+> giữ nguyên trạng thái như tài liệu gốc mô tả (không được coi là đã hoàn thành bởi công việc
+> này). Các mục backlog khác trong tài liệu này **không** được rà soát lại trong lần cập nhật
+> này — xem lưu ý về độ tin cậy của backlog trong `docs/PROJECT_STATE.md` nếu cần.
+
 ---
 
 ## Mục lục (Table of Contents)
@@ -23,7 +38,7 @@
    - [Sprint 1 (Tuần 1–2 / v4.6.0): P0 Criticals & Zero-Crash Baseline](#sprint-1-tuần-12--v460-p0-criticals--zero-crash-baseline)
    - [Sprint 2 (Tuần 3–6 / v4.7.0): Accuracy, Acoustic & UX Hardening](#sprint-2-tuần-36--v470-accuracy-acoustic--ux-hardening)
    - [Sprint 3 (Tháng 2–3 / v4.8.0): Multimodal Feature Completion](#sprint-3-tháng-23--v480-multimodal-feature-completion)
-   - [Sprint 4 (Tháng 4+ / v5.0.0): Enterprise Polish, Benchmarks & Distribution](#sprint-4-tháng-4--v500-enterprise-polish-benchmarks--distribution)
+   - [Sprint 4 (Tháng 4+ / Post-v5.0.0): Enterprise Polish, Benchmarks & Distribution](#sprint-4-tháng-4--post-v500-enterprise-polish-benchmarks--distribution)
 5. [Ma trận Truy xuất Nguồn gốc & Kiểm thử (Traceability & Verification Matrix)](#ma-trận-truy-xuất-nguồn-gốc--kiểm-thử)
 
 ---
@@ -621,7 +636,7 @@ Lộ trình Tổng thể:
 Sprint 1 (Tuần 1–2 / v4.6.0) ──> Khắc phục dứt điểm P0, Mở rộng Tier-1 & 0 Test Failures
 Sprint 2 (Tuần 3–6 / v4.7.0) ──> Ổn định Âm học, HUD Overlay, Khay Hệ thống & Giảm độ trễ
 Sprint 3 (Tháng 2–3 / v4.8.0) ──> Hoàn thiện Tính năng Đa phương thức (Bộ nhớ, Thị giác, Web, IoT)
-Sprint 4 (Tháng 4+ / v5.0.0)  ──> Đóng gói Bộ cài đặt Windows, Bảng điều khiển Web & CI/CD
+Sprint 4 (Tháng 4+ / Post-v5.0.0)  ──> Đóng gói Bộ cài đặt Windows, Bảng điều khiển Web & CI/CD
 ```
 
 ---
@@ -748,10 +763,18 @@ Sprint 4 (Tháng 4+ / v5.0.0)  ──> Đóng gói Bộ cài đặt Windows, B�
 
 ---
 
-### Sprint 4 (Tháng 4+ / v5.0.0): Enterprise Polish, Benchmarks & Distribution
+### Sprint 4 (Tháng 4+ / Post-v5.0.0): Enterprise Polish, Benchmarks & Distribution
+> **Lưu ý phiên bản (2026-09-03):** chủ sở hữu kho mã đã chỉ định `v5.0.0` cho một mốc phát
+> triển KHÁC — **J.A.R.V.I.S. Terminal Control Center** (nhánh `feat/terminal-control-center`,
+> xem `CLAUDE.md`'s "Durable Terminal Control Center invariant" và `docs/PROJECT_STATE.md`'s
+> checkpoint hiện tại). Phạm vi Sprint 4 bên dưới (Installer/Web Dashboard/Benchmark/CI-CD)
+> **giữ nguyên không đổi** — chỉ có nhãn phiên bản đích được cập nhật thành "Post-v5.0.0,
+> phiên bản chưa xác định" để tránh xung đột với `v5.0.0` đã có chủ. Không tự ý đặt tên
+> `v5.1.0`/`v6.0.0` khi chưa có chỉ định rõ ràng từ chủ sở hữu.
 - **Chủ đề (Theme):** Đóng gói Phân phối Tự động, Đo lường Toàn diện & CI/CD Chuẩn Enterprise
 - **Thời lượng:** Liên tục (Ongoing)
-- **Phiên bản Mục tiêu:** `v5.0.0`
+- **Phiên bản Mục tiêu:** `Post-v5.0.0` — phiên bản chưa xác định (TBD; không phải `v5.0.0`,
+  vốn đã được dùng cho mốc Terminal Control Center)
 - **Danh sách Backlog Items thực thi:**
   - **P3-18:** Bộ cài đặt tự động một chạm `scripts/install.ps1` và bản đóng gói EXE/MSI độc lập.
   - **P3-19:** Bảng điều khiển web tương tác hiển thị dạng sóng âm thanh và telemetry WebSocket.

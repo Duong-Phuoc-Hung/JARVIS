@@ -15,6 +15,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from jarvis import __version__ as _jarvis_version
+
 logger = logging.getLogger("jarvis.ui.tray")
 
 # Check PIL (Pillow) availability
@@ -130,7 +132,7 @@ class SystemTrayController:
 
     def get_status_text(self, item: Any = None) -> str:
         """Returns dynamic status string displaying version, TTS, STT readiness, and RAM usage."""
-        ver = getattr(self.app, "__version__", None) or "4.7.0"
+        ver = getattr(self.app, "__version__", None) or _jarvis_version
         tts_mgr = getattr(self.app, "tts_manager", None) if self.app else None
         if tts_mgr is not None:
             is_avail = tts_mgr.is_available() if callable(getattr(tts_mgr, "is_available", None)) else getattr(tts_mgr, "is_available", True)

@@ -4,7 +4,7 @@
 
 [![CI Status](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/workflows/ci.yml/badge.svg)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
 [![Tests](https://img.shields.io/badge/tests-passing-00ff88?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
-[![Source Version](https://img.shields.io/badge/source%20version-4.7.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
+[![Source Version](https://img.shields.io/badge/source%20version-5.0.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
 [![Latest Release](https://img.shields.io/badge/latest%20release-v4.5.1-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?style=flat-square)](https://python.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%2064--bit-0078D4?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS)
@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding), ghi nhớ ngữ nghĩa theo thời gian thực (Semantic RAG Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 4.7.0** · **Bản phát hành chính thức (GitHub Release) mới nhất: v4.5.1** (bản phát hành chính thức trước đó: v4.0.1) · Lịch sử phát triển trong CHANGELOG đã đến mốc **v4.7.0 — Sprint 2 Acoustic & UX Hardening**, cộng thêm mốc bảo trì sau v4.7.0 (không đổi phiên bản runtime) sửa lỗi báo cáo thiếu trung thực của self-healing và làm tất định test wake-word Whisper trên CI. Phiên bản mã nguồn/phát triển và bản phát hành chính thức là hai khái niệm khác nhau — `main` đã tiến xa hơn `v4.5.1` mà chưa gắn tag/release mới.</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.0.0** (trên nhánh `feat/terminal-control-center`, đánh dấu mốc phát triển J.A.R.V.I.S. Terminal Control Center — mở rộng bề mặt sản phẩm lớn, không có thay đổi phá vỡ tương thích nào với lệnh/cấu hình/API hiện có; `main` vẫn ở `4.7.0` cho đến khi nhánh này được merge, và **chưa có tag/GitHub Release `v5.0.0`** nào được tạo) · **Bản phát hành chính thức (GitHub Release) mới nhất: v4.5.1** (bản phát hành chính thức trước đó: v4.0.1) · Lịch sử phát triển trong CHANGELOG đã đến mốc **v4.7.0 — Sprint 2 Acoustic & UX Hardening** trên `main`, cộng thêm mốc bảo trì sau v4.7.0 (không đổi phiên bản runtime) sửa lỗi báo cáo thiếu trung thực của self-healing và làm tất định test wake-word Whisper trên CI, và (trên nhánh này) mốc `5.0.0` — Terminal Control Center. Phiên bản mã nguồn/phát triển và bản phát hành chính thức là hai khái niệm khác nhau — bản phát hành chính thức chưa theo kịp lịch sử phát triển.</sub>
 
 </div>
 
@@ -185,6 +185,47 @@ Sau khi khởi chạy:
 - Biểu tượng JARVIS xuất hiện ở khay hệ thống (System Tray cạnh đồng hồ).
 - Nói *"Hey JARVIS"* hoặc nhấn phím tắt `Ctrl+Shift+J` để bắt đầu trò chuyện!
 
+### Bước 8: J.A.R.V.I.S. Terminal Control Center (giao diện Terminal tương tác)
+
+Ngoài chế độ voice-first mặc định, JARVIS còn cung cấp một giao diện Terminal/PowerShell
+tương tác dạng menu phân cấp — một lớp trình bày mỏng (thin presentation layer) gọi trực
+tiếp vào các module sản phẩm hiện có, không sao chép logic nghiệp vụ hay bỏ qua bất kỳ cơ chế
+an toàn nào:
+
+```powershell
+python -m jarvis menu
+# hoặc, sau khi cài đặt package:
+jarvis menu
+```
+
+Điều hướng bằng một phím số duy nhất (hỗ trợ cả `msvcrt` một-phím trên Windows Terminal/
+PowerShell lẫn chế độ nhập dòng khi stdin được redirect). Bộ phím toàn cục nhất quán trên mọi
+màn hình:
+
+| Phím | Chức năng |
+|---|---|
+| `[1]`–`[9]` | Chọn module (Hardware, InfoSec, Workflow, Data, Smart Home, Biometrics, Gesture, Communications, Self-Healing) |
+| `[J]` | Khởi chạy JARVIS Voice Core thật (cùng một `JarvisApp` dùng bởi `jarvis run` — không có lõi JARVIS thứ hai) |
+| `[A]` | Chạy tất cả các thao tác **an toàn cho batch** trên màn hình hiện tại — chỉ hiển thị khi có **từ 2 thao tác an toàn trở lên** (không bao giờ gửi tin nhắn, không bao giờ chấm dứt tiến trình, không bao giờ bật/tắt toàn bộ thiết bị) |
+| `[R]` | Làm mới màn hình hiện tại |
+| `[S]` | Lưu kết quả/phiên làm việc vào thư mục báo cáo của JARVIS (`%LOCALAPPDATA%/JARVIS/reports/cli/`) |
+| `[B]` | Quay lại một cấp menu |
+| `[H]` | Trợ giúp cho màn hình hiện tại |
+| `[0]` | Thoát |
+
+**An toàn**: mọi trạng thái hiển thị đều trung thực (không có `READY` giả chỉ vì một class
+import thành công); mọi báo cáo lưu đều được xác minh đã ghi thành công trước khi báo "Đã
+lưu"; các thông tin nhạy cảm (token, mật khẩu, embedding sinh trắc học) luôn được ẩn
+(`<REDACTED>`) trước khi lưu hoặc hiển thị. Xác nhận Y/N trên Terminal chỉ là lớp UX quyết
+định có thử gọi hành động hay không — không bao giờ tự nó là lớp xác thực. Với **chấm dứt
+tiến trình** (Self-Healing), backend `HealingEngine` tự kiểm tra danh sách tiến trình được
+bảo vệ (`PROTECTED_PROCESS_WHITELIST`) trước khi thực thi, bất kể ai gọi. Với **điều khiển
+thiết bị Smart Home**, hiện chưa có cơ chế xác thực đáng tin cậy nào (không có action
+`ActionDispatcher` chính thức, không có hợp đồng an toàn nào trong `HomeAssistantClient`) —
+vì vậy các thao tác Turn On/Off/Toggle/Set Temperature **hiện chưa thực thi thật**, chỉ báo
+cáo trạng thái trung thực rằng chưa có đường xác thực khả dụng, thay vì gọi thẳng API mà
+không có cơ chế bảo vệ nào phía sau. Không bao giờ chạy tự động qua `[A]`.
+
 ---
 
 ## ⚡ Dành Cho Người Dùng Cuối — Quick Start (Standalone ZIP)
@@ -255,7 +296,7 @@ mypy jarvis
 # 1. Đóng gói thành file chạy trực tiếp dist/JARVIS.exe:
 python scripts/build_exe.py
 
-# 2. Đóng gói thành file cài đặt Windows Installer dist/installer/JARVIS_Setup_v4.7.0.exe
+# 2. Đóng gói thành file cài đặt Windows Installer dist/installer/JARVIS_Setup_v5.0.0.exe
 #    (chỉ build local qua Inno Setup — release workflow chính thức trên GitHub Actions
 #    KHÔNG publish file Setup này, chỉ publish JARVIS_v<version>_windows_x64.zip):
 python scripts/build_installer.py
