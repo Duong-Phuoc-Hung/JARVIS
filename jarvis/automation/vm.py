@@ -1,4 +1,4 @@
-﻿"""
+"""
 jarvis/automation/vm.py
 =======================
 Virtual Machine Orchestrator for VMware Workstation (vmrun) and Oracle VirtualBox (VBoxManage).

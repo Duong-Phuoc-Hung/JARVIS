@@ -1,4 +1,4 @@
-﻿"""
+"""
 jarvis/core/paths.py
 ====================
 Centralized path resolution for JARVIS data directories.

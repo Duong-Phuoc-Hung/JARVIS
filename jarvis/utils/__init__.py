@@ -1,1 +1,1 @@
-﻿"""Shared utilities for JARVIS internals."""
+"""Shared utilities for JARVIS internals."""

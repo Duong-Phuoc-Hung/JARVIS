@@ -1,4 +1,4 @@
-﻿"""
+"""
 ComputerController: OS Automation, Window Orchestration, Peripheral & System Control for Windows.
 Provides window management, mouse/keyboard/clipboard manipulation, master volume,
 screen brightness, bounded file search, and system folder launch.

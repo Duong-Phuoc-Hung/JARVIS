@@ -1,4 +1,4 @@
-﻿"""
+"""
 jarvis/comms/email_imap.py
 ==========================
 IMAP Email Poller, Priority Sender Filter, MIME HTML Parser, and Voice Summarizer.
