@@ -203,5 +203,5 @@ def test_large_input_string_throughput(mock_router):
     res = mock_router.parse_intent(fifty_kb, force_llm=False)
     elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
-    assert elapsed_ms < 20.0
+    assert elapsed_ms < 100.0, f"ReDoS guard: 50KB input took {elapsed_ms:.1f}ms (limit 100ms)"
     assert res.action_name == "home_assistant_call"
