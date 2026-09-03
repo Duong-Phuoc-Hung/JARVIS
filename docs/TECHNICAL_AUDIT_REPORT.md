@@ -180,7 +180,9 @@ Xuyên suốt quá trình, các nguyên tắc sau đã được chứng minh là
 > đã liệt kê ở Mục 3.2–3.3 và Mục 5 **không** bị đóng lại ở đây; 7 hạng mục sau được cập nhật hoặc
 > ghi nhận mới, dựa trên bằng chứng nguồn/commit thực tế được đối chiếu trực tiếp trong các phiên
 > làm việc liên quan (hạng mục #6/#7 được phát hiện khi xây dựng J.A.R.V.I.S. Terminal Control
-> Center trên nhánh `feat/terminal-control-center`, chưa merge).
+> Center trên nhánh `feat/terminal-control-center`, nay đã merge vào `main` qua PR #37 — xem
+> `CLAUDE.md` §0 và `docs/PROJECT_STATE.md`'s current checkpoint; bản thân hai phát hiện #6/#7
+> vẫn OPEN, không liên quan đến trạng thái merge của nhánh).
 
 | # | Phát hiện | Trạng thái | Bằng chứng |
 |---|---|:---:|---|
@@ -200,4 +202,4 @@ chưa sửa) ở trên.
 
 ---
 
-*Báo cáo này tổng hợp nội dung từ 13 vòng trao đổi kỹ thuật, bao gồm các commit: `ec32e4d`, `3039bb4`, `dfa2eaf`, `adab40d`, `40adeeb`, `48cef9b`, `296e49c`, `5c31c3f`, `2ee3669`, `dfffc0e`. Mục 7 (2026-09-02, cập nhật 2026-09-03) bổ sung thêm 7 phát hiện mới ngoài phạm vi 13 vòng gốc — hạng mục #3 (central dispatch truthfulness) và hạng mục #4 (`hardware_status_query` alias) đã được merge vào `main` qua **PR #34** (merge commit `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`, post-merge CI #160 SUCCESS); hạng mục #5 ghi nhận việc đồng bộ tài liệu sau đó qua **PR #35** (merge commit `399a70cc471bf35d98e1b976f8c895054d4f7524`, post-merge CI #162 SUCCESS); hạng mục #6/#7 (2026-09-03, nhánh `feat/terminal-control-center`, chưa merge) ghi nhận hai lỗ hổng trung thực thật, tồn tại từ trước, được phát hiện khi xây dựng J.A.R.V.I.S. Terminal Control Center — cả hai vẫn **OPEN**, cố ý không sửa trong phạm vi công việc UI đó. Mọi merge commit ghi ở đây là bằng chứng lịch sử cho đúng PR đó — không phải tuyên bố "`main` hiện tại"; luôn xác minh `origin/main` thực tế trước khi dựa vào bất kỳ SHA nào trong tài liệu.*
+*Báo cáo này tổng hợp nội dung từ 13 vòng trao đổi kỹ thuật, bao gồm các commit: `ec32e4d`, `3039bb4`, `dfa2eaf`, `adab40d`, `40adeeb`, `48cef9b`, `296e49c`, `5c31c3f`, `2ee3669`, `dfffc0e`. Mục 7 (2026-09-02, cập nhật 2026-09-03) bổ sung thêm 7 phát hiện mới ngoài phạm vi 13 vòng gốc — hạng mục #3 (central dispatch truthfulness) và hạng mục #4 (`hardware_status_query` alias) đã được merge vào `main` qua **PR #34** (merge commit `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`, post-merge CI #160 SUCCESS); hạng mục #5 ghi nhận việc đồng bộ tài liệu sau đó qua **PR #35** (merge commit `399a70cc471bf35d98e1b976f8c895054d4f7524`, post-merge CI #162 SUCCESS); hạng mục #6/#7 (2026-09-03, phát hiện trên nhánh `feat/terminal-control-center`, nay đã merge vào `main` qua PR #37) ghi nhận hai lỗ hổng trung thực thật, tồn tại từ trước, được phát hiện khi xây dựng J.A.R.V.I.S. Terminal Control Center — cả hai vẫn **OPEN**, cố ý không sửa trong phạm vi công việc UI đó (trạng thái OPEN không phụ thuộc vào việc nhánh đã merge hay chưa). Mọi merge commit ghi ở đây là bằng chứng lịch sử cho đúng PR đó — không phải tuyên bố "`main` hiện tại"; luôn xác minh `origin/main` thực tế trước khi dựa vào bất kỳ SHA nào trong tài liệu.*

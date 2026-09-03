@@ -21,23 +21,30 @@ specifically marked otherwise.
 > on "current state" for any non-trivial task: run `git fetch origin --prune`, then
 > `git rev-parse origin/main`, and trust that output over anything written here.
 
-- **Documentation state verified through PR #35** (docs-only sync, merge commit
-  `399a70cc471bf35d98e1b976f8c895054d4f7524`, post-merge JARVIS CI **#162 SUCCESS** — all
-  four jobs green: Syntax Check, Unit Tests, Import Validation, Pipeline Summary). This is
-  the **last verified repository checkpoint before this documentation sync** — not a
-  permanent "current HEAD" pointer. By the time you read this, `main` may already be ahead
-  of it; verify with `git fetch`/`git rev-parse origin/main` as noted above.
-- **Current development runtime:** `4.7.0` (`jarvis.__version__`, `jarvis/__init__.py`).
-  Unchanged by any of the work below — this is **not** `4.7.1` and no new tag/release was
-  cut. Runtime version is itself durable, stable evidence (unlike a commit SHA) — verify it
-  directly with `python -c "import jarvis; print(jarvis.__version__)"` if in doubt.
-- **Latest formal GitHub Release:** `v4.5.1` (unchanged; tag confirmed present in the
-  repository at the PR #35 checkpoint). `v4.0.1` is no longer the latest formal release.
-- **Development source/runtime (`4.7.0`) and the latest formal release (`v4.5.1`) are
+- **Documentation state verified through PR #37** (`feat/terminal-control-center` merged into
+  `main`, merge commit `38affda1b848eee5fe90cfac2749824c57c5efe9`, post-merge JARVIS CI
+  **#166 SUCCESS**). This is the **last verified repository checkpoint before this
+  documentation-finalization pass** (branch `release/v5.0.0-finalize`) — not a permanent
+  "current HEAD" pointer. By the time you read this, `main` may already be ahead of it;
+  verify with `git fetch`/`git rev-parse origin/main` as noted above.
+- **Current development runtime:** `5.0.0` (`jarvis.__version__`, `jarvis/__init__.py`) —
+  bumped from `4.7.0` on `feat/terminal-control-center` as an explicit, owner-authorized
+  development-milestone decision marking the J.A.R.V.I.S. Terminal Control Center, and now
+  on `main` via PR #37. Runtime version is itself durable, stable evidence (unlike a commit
+  SHA) — verify it directly with `python -c "import jarvis; print(jarvis.__version__)"` if
+  in doubt.
+- **Latest formal GitHub Release:** `v4.5.1` (unchanged). **No `v5.0.0` tag or GitHub
+  Release has been created yet** — `jarvis.__version__ == "5.0.0"` on `main` is a prepared
+  development/runtime version pending a real tag/release cut later, separately, by the
+  repository owner. `v4.0.1` is no longer the latest formal release.
+- **Development source/runtime (`5.0.0`) and the latest formal release (`v4.5.1`) are
   different concepts** — `main` has moved well past `v4.5.1` in CHANGELOG/runtime terms
-  without a new tag/release having been cut yet. Do not describe `4.7.0` as "released" or
-  `v4.5.1` as "the current source version."
-- **Completed and merged, as of the PR #35 checkpoint:**
+  without a new tag/release having been cut yet. Do not describe `5.0.0` as "released" or
+  `v4.5.1` as "the current source version." Immediately after a real `v5.0.0` tag is pushed
+  and the release workflow completes, `v5.0.0` will become the latest formal release —
+  re-verify via `git tag --points-at HEAD` / the GitHub Releases page rather than trusting
+  this file at that point.
+- **Completed and merged, as of the PR #37 checkpoint:**
   - **PR #31** (`fix/healing-truthfulness`, merge commit `10d470237b0fe4bc295f02215b4606590d79d17e`) —
     self-healing (`jarvis/healing/terminator.py`) now reports recovery outcomes truthfully.
     See the durable "Healing truthfulness" invariant below.
@@ -56,51 +63,59 @@ specifically marked otherwise.
     `a344af1f7b408306d92f781f01a2fc2e5253043d`, merge commit `399a70cc471bf35d98e1b976f8c895054d4f7524`,
     post-merge JARVIS CI #162 SUCCESS) — **documentation-only** finalization of PR #34's
     merged state across all seven docs files; no code/test/config/runtime/version change.
+  - **PR #36** (`docs/sync-post-pr35-state`, merge commit
+    `80b47a57c70dad39ec9f783d128e610d11e17f79`) — **documentation-only** post-PR #35 repository
+    state sync; no code/test/config/runtime/version change.
+  - **PR #37** (`feat/terminal-control-center`, feature commit
+    `81c649aba7d3ed34950925eb5cd4e1c85237f1f7` plus docs-sync commit `e083a6f` and a
+    version-bump commit `adcc98d` (`chore(release): prepare v5.0.0`), merge commit
+    `38affda1b848eee5fe90cfac2749824c57c5efe9`, post-merge JARVIS CI **#166 SUCCESS**) —
+    the **J.A.R.V.I.S. Terminal Control Center is MERGED into `main`** and `jarvis.__version__`
+    is now `5.0.0` on `main`. See the dedicated paragraph and the durable "Terminal Control
+    Center" invariant below for the full architecture contract.
 - **`tests/unit/` evidence at the PR #34 checkpoint (`ae6d5d8...`): 1413 passed, 1 skipped,
   50 subtests passed, 0 failed.** (Prior evidence at the PR #32 checkpoint
   (`aaeeb53f8341...`): 1353 passed, 4 skipped, 50 subtests passed, 0 failures — kept here as
-  historical lineage, not the current count.) PR #35 was docs-only, so this evidence is
-  unchanged by it. Skip counts can vary by environment (which optional dependencies happen
-  to be installed) — this is expected, not a regression signal.
-- **Implemented, committed, and pushed on branch `feat/terminal-control-center`; PR pending;
-  NOT merged into `main`** (based on `main` @ `80b47a57c70dad39ec9f783d128e610d11e17f79`,
-  merge of PR #36; feature commit `81c649aba7d3ed34950925eb5cd4e1c85237f1f7`,
-  `feat(ui): add terminal control center` — this SHA is branch/checkpoint evidence only, not
-  a permanent pointer, and is not on `main`): a new **J.A.R.V.I.S. Terminal Control Center**
+  historical lineage, not the current count.) PR #35/#36 were docs-only, so this evidence was
+  unchanged by them. Local full-suite evidence at the PR #37 feature-branch checkpoint (before
+  merge): **1511 passed, 1 skipped, 50 subtests passed, 0 failed** (1413 baseline + 98 new
+  `tests/unit/`-directory tests) — see the Terminal Control Center paragraph below. Skip
+  counts can vary by environment (which optional dependencies happen to be installed) — this
+  is expected, not a regression signal.
+- **J.A.R.V.I.S. Terminal Control Center — MERGED into `main` via PR #37**
+  (merge commit `38affda1b848eee5fe90cfac2749824c57c5efe9`, post-merge JARVIS CI #166
+  SUCCESS; feature commit `81c649aba7d3ed34950925eb5cd4e1c85237f1f7`,
+  `feat(ui): add terminal control center` — these SHAs are checkpoint evidence for the PR
+  that produced them, not permanent pointers): a new **J.A.R.V.I.S. Terminal Control Center**
   (`jarvis menu` / `python -m jarvis menu`) — a hierarchical interactive Terminal/PowerShell UI
   over the nine existing product areas, implemented as a thin presentation/routing layer
-  (`jarvis/ui/terminal/`) with no duplicated business logic or safety authority. Two
-  pre-commit review passes on the same branch (same day, before the commit above) found and
-  fixed real defects. First pass: `[A]` was offered with only one eligible action (fixed: now
-  requires `>=2`, see `MenuScreen.batch_visible()`); Smart Home/Self-Healing side-effecting
-  actions were calling backend methods directly with only a terminal-side Y/N prompt,
-  bypassing real authorization (attempted fix: a new `jarvis/ui/terminal/authority.py` module
-  constructing a *private*, terminal-only `ActionDispatcher`/`SafetyGateInterceptor` — later
-  found to be wrong, see next). Second pass (final architecture verification): that private
-  dispatcher was itself identified as a second, disconnected security universe — registering
-  action names (`smart_home_turn_on`, `os_kill_process`, etc.) that exist nowhere in the
-  canonical dispatcher, using the real classes but a wholly separate instance/registry —
-  and was removed before the commit above. Self-Healing now calls
-  `HealingEngine.heal_hung_process()` **directly**, relying on its genuine backend-native
-  `is_protected()`/`PROTECTED_PROCESS_WHITELIST` check (always enforced internally, regardless
-  of caller); Smart Home control has no equivalent backend-native contract and no canonical
-  dispatcher action to reuse, so those four actions now truthfully report `LIMITED`/unavailable
-  instead of executing. The second pass also corrected a false premise from the first:
-  `HealingEngine.heal_hung_process()` returns a plain `dict` in current source, not a
-  `HealingReport` dataclass as previously (incorrectly) documented — see the durable "Terminal
-  Control Center" invariant below for the full, corrected architecture contract, and
-  `docs/PROJECT_STATE.md`'s current checkpoint for implementation detail and exact validation
-  evidence. Local full-suite evidence at the committed state: **1511 passed, 1 skipped, 50
-  subtests passed, 0 failed** (1413 baseline + 98 new `tests/unit/`-directory tests).
-  `jarvis.__version__` unchanged at `4.7.0` through the implementation, hardening, and
-  final-architecture-verification passes above — this was true up to that point, not
-  currently: a **subsequent, separate, owner-authorized pass on this same branch bumped
-  `jarvis.__version__` from `4.7.0` to `5.0.0`** (see `jarvis/__init__.py`), marking the
-  Terminal Control Center as the `5.0.0` development milestone. This is a
-  development/runtime version bump on the **feature branch only** — `main` still reports
-  `4.7.0` until this branch is merged, and **no `v5.0.0` tag or GitHub Release exists**; the
-  latest formal release remains `v4.5.1`. Verify directly:
-  `python -c "import jarvis; print(jarvis.__version__)"`.
+  (`jarvis/ui/terminal/`) with no duplicated business logic or safety authority. `main` now
+  has the `jarvis menu` command. Two pre-commit review passes on the feature branch (same day,
+  before the feature commit) found and fixed real defects. First pass: `[A]` was offered with
+  only one eligible action (fixed: now requires `>=2`, see `MenuScreen.batch_visible()`);
+  Smart Home/Self-Healing side-effecting actions were calling backend methods directly with
+  only a terminal-side Y/N prompt, bypassing real authorization (attempted fix: a new
+  `jarvis/ui/terminal/authority.py` module constructing a *private*, terminal-only
+  `ActionDispatcher`/`SafetyGateInterceptor` — later found to be wrong, see next). Second pass
+  (final architecture verification): that private dispatcher was itself identified as a
+  second, disconnected security universe — registering action names (`smart_home_turn_on`,
+  `os_kill_process`, etc.) that exist nowhere in the canonical dispatcher, using the real
+  classes but a wholly separate instance/registry — and was removed before the feature commit.
+  Self-Healing now calls `HealingEngine.heal_hung_process()` **directly**, relying on its
+  genuine backend-native `is_protected()`/`PROTECTED_PROCESS_WHITELIST` check (always enforced
+  internally, regardless of caller); Smart Home control has no equivalent backend-native
+  contract and no canonical dispatcher action to reuse, so those four actions truthfully
+  report `LIMITED`/unavailable instead of executing. The second pass also corrected a false
+  premise from the first: `HealingEngine.heal_hung_process()` returns a plain `dict` in
+  current source, not a `HealingReport` dataclass as previously (incorrectly) documented —
+  see the durable "Terminal Control Center" invariant below for the full, corrected
+  architecture contract, and `docs/PROJECT_STATE.md`'s current checkpoint for implementation
+  detail and exact validation evidence. `jarvis.__version__` was bumped from `4.7.0` to
+  `5.0.0` on the feature branch (commit `adcc98d`, `chore(release): prepare v5.0.0`) as an
+  explicit, owner-authorized development-milestone decision, and that version is now on `main`
+  via the PR #37 merge — **this is still only a development/runtime version**: **no `v5.0.0`
+  tag or GitHub Release exists yet**; the latest formal release remains `v4.5.1`. Verify
+  directly: `python -c "import jarvis; print(jarvis.__version__)"`.
 - **Central dispatch truthfulness — RESOLVED via PR #34 (checkpoint commit
   `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`).** `jarvis/core/dispatcher.py`'s
   `dispatch_action()`/`dispatch_action_async()` previously wrapped any normally-returning
@@ -241,9 +256,8 @@ change), because stale docs elsewhere in the repo actively mislead future sessio
   deliberately left untouched. If a future task ever removes or renames `system_status`,
   update or remove this alias in the same change; do not let them silently diverge.
 
-### Durable Terminal Control Center invariant (`jarvis/ui/terminal/`, branch
-`feat/terminal-control-center`, committed and pushed (`81c649a`), PR pending, NOT yet merged
-as of this writing — see §0 CURRENT BASELINE)
+### Durable Terminal Control Center invariant (`jarvis/ui/terminal/`, MERGED into `main` via
+PR #37, merge commit `38affda1b848eee5fe90cfac2749824c57c5efe9` — see §0 CURRENT BASELINE)
 
 The J.A.R.V.I.S. Terminal Control Center (`python -m jarvis menu` / `jarvis menu`) is a
 **presentation + routing layer only**. These invariants must hold for any future extension of
@@ -386,7 +400,7 @@ Core goals:
 
 Authoritative package metadata:
 - Package: `jarvis-assistant`
-- Package/runtime version: single-sourced from `jarvis.__version__` (a plain string literal in `jarvis/__init__.py`, **currently `"4.7.0"`** as of `main` @ `aaeeb53f834134bb4490147c238e82e863558caa` — see §0 CURRENT BASELINE above for the authoritative current state). `pyproject.toml` declares `dynamic = ["version"]` and resolves it via `[tool.setuptools.dynamic] version = {attr = "jarvis.__version__"}` — there is no second hardcoded version literal in `pyproject.toml`. See "Version metadata" in §1A below for the full classification (package vs. runtime vs. config vs. formal-release vs. CHANGELOG-milestone version). Do not bump this value without explicit release/versioning intent from the user.
+- Package/runtime version: single-sourced from `jarvis.__version__` (a plain string literal in `jarvis/__init__.py` — **see §0 CURRENT BASELINE above for the authoritative current value**; do not trust any version literal recorded here in §1, since this section is not kept in sync with every runtime bump). `pyproject.toml` declares `dynamic = ["version"]` and resolves it via `[tool.setuptools.dynamic] version = {attr = "jarvis.__version__"}` — there is no second hardcoded version literal in `pyproject.toml`. See "Version metadata" in §1A below for the full classification (package vs. runtime vs. config vs. formal-release vs. CHANGELOG-milestone version). Do not bump this value without explicit release/versioning intent from the user.
 - **HISTORICAL v4.5.1 RELEASE-PREP SNAPSHOT (as of 2026-09-02, branch `release/v4.5.1`, before it merged) — not current, kept for record only:** at that point in time, `jarvis.__version__` had just been bumped from `4.4.0` to `4.5.1` as explicit, user-directed release prep for the intended v4.5.1 formal release; the tag/GitHub Release did not exist yet at that moment, and `v4.0.1` was still the latest published release at that moment. **None of that is current anymore**: the `v4.5.1` tag and GitHub Release were subsequently created and published (confirmed present in the repository and confirmed an ancestor of current `main` — see §0), and `main`'s runtime has since advanced to `4.7.0` via v4.6.0/v4.7.0 and the post-v4.7.0 maintenance PRs. Do not read "currently 4.5.1" or "tag/GitHub Release not yet created" anywhere in the historical paragraphs below (§1's "Current baseline note"/"Release-prep note", and similar phrasing in `docs/PROJECT_STATE.md`) as describing anything later than that 2026-09-02 release-prep moment.
 - Declared Python: `>=3.10`
 - Main CI / release Python: `3.13`
@@ -485,7 +499,7 @@ Source-of-truth priority:
 4. `CHANGELOG.md`.
 5. `pyproject.toml`, workflow files, `README.md`, `PROJECT.md`, `.agents/**` — useful for structure/config, but test-count strings in particular are known to drift and should not be trusted as current-state evidence over 1-4 above. (`pyproject.toml`'s version is no longer a separate literal to drift — see "Version metadata" in §1A.)
 
-Some historical docs are stale. `jarvis.__version__`/`pyproject.toml` do not automatically track `CHANGELOG.md`'s development-milestone headings (on `main`, still `v4.7.0` plus a "Post-v4.7.0 Maintenance" section that does not bump the runtime version — see §0 CURRENT BASELINE; on the not-yet-merged `feat/terminal-control-center` branch, `CHANGELOG.md`'s latest heading and `jarvis.__version__` were deliberately bumped together to `5.0.0` as an explicit development-milestone decision — see §0's Terminal Control Center bullet) or the latest formal GitHub Release (currently `v4.5.1`, published — see §0) — these are three distinct concepts, not one drifting number; see "Version metadata" in §1A. (Historically, `v4.5.1` was itself a deliberate exception where the package/runtime version and the intended formal-release tag were made to converge by explicit user intent, the same way `v4.4.0` had before it — that release has since actually been tagged and published, which is why it is now the current latest formal release; this convergence pattern does not change the general rule that the three concepts normally drift independently.) Do not silently "bump" any of them as a side effect of an unrelated task; only change version strings when the user gives explicit release/versioning intent.
+Some historical docs are stale. `jarvis.__version__`/`pyproject.toml` do not automatically track `CHANGELOG.md`'s development-milestone headings (on `main`, `jarvis.__version__` is now `5.0.0`, and `CHANGELOG.md`'s latest heading and the runtime version were deliberately bumped together as an explicit, owner-authorized development-milestone decision marking the J.A.R.V.I.S. Terminal Control Center — see §0 CURRENT BASELINE and §0's Terminal Control Center bullet) or the latest formal GitHub Release (currently `v4.5.1`, published — no `v5.0.0` tag/release exists yet — see §0) — these are three distinct concepts, not one drifting number; see "Version metadata" in §1A. (Historically, `v4.5.1` was itself a deliberate exception where the package/runtime version and the intended formal-release tag were made to converge by explicit user intent, the same way `v4.4.0` had before it — that release has since actually been tagged and published, which is why it is now the current latest formal release; this convergence pattern does not change the general rule that the three concepts normally drift independently.) Do not silently "bump" any of them as a side effect of an unrelated task; only change version strings when the user gives explicit release/versioning intent.
 
 ## 3. Git safety rules
 
@@ -662,8 +676,8 @@ Major areas:
   "Terminal Control Center" invariant above): Self-Healing termination calls
   `HealingEngine.heal_hung_process()` directly, relying on its own backend-native
   protected-process check; Smart Home control has no authoritative path to reuse and reports
-  `LIMITED` rather than executing. Committed and pushed on `feat/terminal-control-center`
-  (`81c649a`); PR pending; not yet merged into `main`.
+  `LIMITED` rather than executing. Merged into `main` via PR #37 (merge commit
+  `38affda1b848eee5fe90cfac2749824c57c5efe9`); `main` now has the `jarvis menu` command.
 - `jarvis/memory/` — SQLite + vector/RAG memory.
 - `jarvis/comms/` — Telegram, Discord, Zalo, mobile bridge.
 - `jarvis/audio/`, `jarvis/stt/`, `jarvis/tts/` — audio, STT, TTS.

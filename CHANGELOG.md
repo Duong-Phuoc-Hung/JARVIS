@@ -2,28 +2,30 @@
 
 ---
 
-## 🚀 [5.0.0] — J.A.R.V.I.S. Terminal Control Center — Development / PR pending (feature branch `feat/terminal-control-center`, 2026-09-03)
+## 🚀 [5.0.0] — J.A.R.V.I.S. Terminal Control Center — MERGED into `main`, pre-tag release checkpoint (PR #37, 2026-09-03)
 
-> **Semantic note**: this section describes work implemented, committed, and pushed on branch
-> `feat/terminal-control-center` (feature commit
-> `81c649aba7d3ed34950925eb5cd4e1c85237f1f7`, `feat(ui): add terminal control center`; a
-> subsequent docs-sync commit `e083a6f` followed it), based on `main` @
-> `80b47a57c70dad39ec9f783d128e610d11e17f79` (merge of PR #36). **A pull request has NOT yet
-> been opened, and the feature is NOT merged into `main`** — `main` itself still lacks the
-> `jarvis menu` command and still reports `jarvis.__version__ == "4.7.0"` until a PR is opened,
-> reviewed, and merged by the repository owner. Treat the feature commit SHAs as
-> branch/checkpoint evidence only, never as permanent pointers — they are not `main`, and the
-> branch may gain further commits before a PR is opened.
+> **Semantic note**: this section describes work implemented on branch
+> `feat/terminal-control-center` (feature commit `81c649aba7d3ed34950925eb5cd4e1c85237f1f7`,
+> `feat(ui): add terminal control center`; followed by docs-sync commit `e083a6f` and
+> version-bump commit `adcc98d`, `chore(release): prepare v5.0.0`), based on `main` @
+> `80b47a57c70dad39ec9f783d128e610d11e17f79` (merge of PR #36), and **merged into `main` via
+> PR #37** (merge commit `38affda1b848eee5fe90cfac2749824c57c5efe9`, post-merge JARVIS CI
+> **#166 SUCCESS**). `main` now has the `jarvis menu` command and `jarvis.__version__ ==
+> "5.0.0"`. Treat the feature/merge commit SHAs as checkpoint evidence for the PR that
+> produced them, never as permanent "current main" pointers — always verify via
+> `git fetch origin --prune && git rev-parse origin/main`.
 >
-> **Version**: `jarvis.__version__` **on this branch** was bumped `4.7.0 → 5.0.0` as an
+> **Version**: `jarvis.__version__` was bumped `4.7.0 → 5.0.0` on the feature branch as an
 > explicit, owner-authorized development-milestone decision — the Terminal Control Center is
 > the major product-surface expansion this SemVer-major bump marks (a new first-class
 > interactive control surface covering all nine product areas, alongside the existing
-> voice-first core, which is unchanged). This is a **development/runtime version bump only**:
-> **no `v5.0.0` tag exists, no GitHub Release has been created, and the latest formal GitHub
-> Release remains `v4.5.1`** until a real tag/release is cut later, separately, by the
-> repository owner. No breaking change to any existing command, config file, or API is claimed
-> or was found — `jarvis run`, `health`/`health-check`, `install-autostart`,
+> voice-first core, which is unchanged) — and that version is now on `main` via the PR #37
+> merge. This is still only a **development/runtime version**: **no `v5.0.0` tag exists, no
+> GitHub Release has been created, and the latest formal GitHub Release remains `v4.5.1`**
+> until a real tag/release is cut later, separately, by the repository owner — this
+> `CHANGELOG.md` entry is a pre-tag release checkpoint, not an announcement that the GitHub
+> Release is already published. No breaking change to any existing command, config file, or
+> API is claimed or was found — `jarvis run`, `health`/`health-check`, `install-autostart`,
 > `uninstall-autostart`, `autostart-status`, and `--version` all remain exactly as documented
 > below; only `jarvis menu` is new.
 
