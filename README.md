@@ -185,6 +185,47 @@ Sau khi khởi chạy:
 - Biểu tượng JARVIS xuất hiện ở khay hệ thống (System Tray cạnh đồng hồ).
 - Nói *"Hey JARVIS"* hoặc nhấn phím tắt `Ctrl+Shift+J` để bắt đầu trò chuyện!
 
+### Bước 8: J.A.R.V.I.S. Terminal Control Center (giao diện Terminal tương tác)
+
+Ngoài chế độ voice-first mặc định, JARVIS còn cung cấp một giao diện Terminal/PowerShell
+tương tác dạng menu phân cấp — một lớp trình bày mỏng (thin presentation layer) gọi trực
+tiếp vào các module sản phẩm hiện có, không sao chép logic nghiệp vụ hay bỏ qua bất kỳ cơ chế
+an toàn nào:
+
+```powershell
+python -m jarvis menu
+# hoặc, sau khi cài đặt package:
+jarvis menu
+```
+
+Điều hướng bằng một phím số duy nhất (hỗ trợ cả `msvcrt` một-phím trên Windows Terminal/
+PowerShell lẫn chế độ nhập dòng khi stdin được redirect). Bộ phím toàn cục nhất quán trên mọi
+màn hình:
+
+| Phím | Chức năng |
+|---|---|
+| `[1]`–`[9]` | Chọn module (Hardware, InfoSec, Workflow, Data, Smart Home, Biometrics, Gesture, Communications, Self-Healing) |
+| `[J]` | Khởi chạy JARVIS Voice Core thật (cùng một `JarvisApp` dùng bởi `jarvis run` — không có lõi JARVIS thứ hai) |
+| `[A]` | Chạy tất cả các thao tác **an toàn cho batch** trên màn hình hiện tại — chỉ hiển thị khi có **từ 2 thao tác an toàn trở lên** (không bao giờ gửi tin nhắn, không bao giờ chấm dứt tiến trình, không bao giờ bật/tắt toàn bộ thiết bị) |
+| `[R]` | Làm mới màn hình hiện tại |
+| `[S]` | Lưu kết quả/phiên làm việc vào thư mục báo cáo của JARVIS (`%LOCALAPPDATA%/JARVIS/reports/cli/`) |
+| `[B]` | Quay lại một cấp menu |
+| `[H]` | Trợ giúp cho màn hình hiện tại |
+| `[0]` | Thoát |
+
+**An toàn**: mọi trạng thái hiển thị đều trung thực (không có `READY` giả chỉ vì một class
+import thành công); mọi báo cáo lưu đều được xác minh đã ghi thành công trước khi báo "Đã
+lưu"; các thông tin nhạy cảm (token, mật khẩu, embedding sinh trắc học) luôn được ẩn
+(`<REDACTED>`) trước khi lưu hoặc hiển thị. Xác nhận Y/N trên Terminal chỉ là lớp UX quyết
+định có thử gọi hành động hay không — không bao giờ tự nó là lớp xác thực. Với **chấm dứt
+tiến trình** (Self-Healing), backend `HealingEngine` tự kiểm tra danh sách tiến trình được
+bảo vệ (`PROTECTED_PROCESS_WHITELIST`) trước khi thực thi, bất kể ai gọi. Với **điều khiển
+thiết bị Smart Home**, hiện chưa có cơ chế xác thực đáng tin cậy nào (không có action
+`ActionDispatcher` chính thức, không có hợp đồng an toàn nào trong `HomeAssistantClient`) —
+vì vậy các thao tác Turn On/Off/Toggle/Set Temperature **hiện chưa thực thi thật**, chỉ báo
+cáo trạng thái trung thực rằng chưa có đường xác thực khả dụng, thay vì gọi thẳng API mà
+không có cơ chế bảo vệ nào phía sau. Không bao giờ chạy tự động qua `[A]`.
+
 ---
 
 ## ⚡ Dành Cho Người Dùng Cuối — Quick Start (Standalone ZIP)

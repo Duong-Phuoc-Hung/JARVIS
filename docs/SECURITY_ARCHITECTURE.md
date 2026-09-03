@@ -126,3 +126,72 @@ persistent memory episode log, and the `action.post_dispatch` event).
   was this dispatch-truthfulness fix itself that correctly surfaced the pre-existing
   `ACTION_NOT_FOUND` this alias resolves (previously masked by the bug this document's §5
   otherwise describes).
+
+## 6. Terminal Control Center — presentation-layer metadata is not a trust boundary
+(`jarvis/ui/terminal/`, branch `feat/terminal-control-center`, not yet merged)
+
+The J.A.R.V.I.S. Terminal Control Center (`jarvis menu`) is a thin presentation/routing layer
+over the existing nine product areas. Its `MenuAction` metadata (`read_only`,
+`safe_for_batch`, `requires_confirmation`, `side_effect_level`) exists solely to decide what
+appears on screen and what `[A]` (batch) may run — **it is explicitly not a second security
+authority**, and its Y/N confirmation prompt (`TerminalApp._confirm()`) is presentation-layer
+UX only: it decides whether to *attempt* a side-effecting call, never whether that call is
+authorized.
+
+**Side-effecting actions never call a backend method behind only the terminal's own Y/N
+prompt, and never route through a private, terminal-only dispatcher either.** An early draft
+of this UI called `HomeAssistantClient.turn_on()`/`.turn_off()`/`.toggle()`/
+`.set_temperature()` and `HealingEngine.heal_hung_process()` directly after only the
+terminal's Y/N prompt — a real authorization bypass. The first attempted fix
+(`jarvis/ui/terminal/authority.py::TerminalAuthority`) constructed a standalone
+`ActionDispatcher` + `SafetyGateInterceptor` using the real production classes — but as a
+*second, disconnected instance* with its own action registry, never shared with or
+synchronized against `jarvis/core/app.py`'s real dispatcher, registering action names
+(`smart_home_turn_on`, `os_kill_process`, etc.) that exist nowhere in the canonical
+dispatcher. A follow-up architecture review correctly identified this as a second security
+universe in its own right — using the real classes does not make a disconnected instance
+authoritative — and it was removed. **Corrected design, decided per operation by whether a
+genuine authoritative path already exists to reuse:**
+- **Self-Healing ("Run Healing Action") calls `HealingEngine.heal_hung_process()` directly**
+  — no dispatcher at all. This is safe because that method already checks
+  `is_protected(name, pid)` against `PROTECTED_PROCESS_WHITELIST` **internally**, before
+  attempting anything, unconditionally regardless of caller (`jarvis/healing/terminator.py`
+  — pre-existing, not added for this UI). This is a genuine backend-native authoritative
+  safety contract, reused as-is. Verified with a real `HealingEngine`, targeting our own
+  interpreter process (PID) with the protected name `"python.exe"` — confirmed refusal
+  (`PROTECTED_PROCESS`) before any OS-level termination attempt.
+- **Smart Home control (Turn On/Off/Toggle/Set Temperature) has no authoritative path to
+  reuse** — `HomeAssistantClient` has no backend-native safety contract (bare REST wrapper,
+  no protected-entity concept), and no canonical dispatcher action exists for it anywhere in
+  this codebase. These four actions are therefore marked unavailable in the menu and report
+  `LIMITED` truthfully; **they no longer call the real `HomeAssistantClient` methods at all.**
+  Re-enabling real execution requires either a canonical dispatcher registration shared with
+  the rest of the app, or a real safety contract added to `HomeAssistantClient` — not a
+  second private dispatcher.
+
+A related false premise from the first attempted fix is also corrected here:
+`HealingEngine.heal_hung_process()` was believed to return a `HealingReport` dataclass
+requiring a `.to_dict()` conversion. Re-reading the actual current source shows this is
+**wrong** — the method returns a plain `dict` literal in every branch; `HealingReport` is
+defined and exported but never instantiated by that method in production code. The
+`.to_dict()` wrapper this false premise produced was never actually exercised against the
+real method (only against a self-constructed test fake matching the same wrong assumption)
+and has been removed along with the rest of `authority.py`.
+
+`SafetyGateInterceptor`, `ActionDispatcher`'s RBAC/privilege checks, and the InfoSec
+scanner's `validate_scan_target()`/`ALLOWED_SCAN_SUPERNETS` allowlist (§ elsewhere in this
+document and in `jarvis/security/scanner.py`) are entirely untouched and unbypassed by this
+UI — the terminal's InfoSec module reuses `validate_scan_target()` directly, so the scan-scope
+allowlist (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16; public/external scanning
+forbidden) is enforced by the exact same code path, not reimplemented.
+
+**Two real transport/evidence-truthfulness gaps were found while building this UI and are
+recorded as open findings (not fixed here — see `docs/TECHNICAL_AUDIT_REPORT.md` §7)**:
+`jarvis/security/scanner.py::PacketCapture.capture_packets()` fabricates a fixed
+protocol-distribution split regardless of whether the real `tshark` capture succeeded, and
+`jarvis/comms/telegram.py`/`jarvis/comms/discord.py`'s `send_*` methods can report success
+without a confirmed real delivery. The terminal UI never calls these methods for its
+Packet Capture / Send Message / Send Photo / Send Embed screens — it always reports `LIMITED`
+with a truthful explanation instead. This is a UI-layer workaround, not a fix to the
+underlying transport/capture code, which remains a security-relevant truthfulness gap
+wherever else those methods are called.

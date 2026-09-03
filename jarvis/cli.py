@@ -109,6 +109,9 @@ def build_parser() -> argparse.ArgumentParser:
     # Command: autostart-status
     subparsers.add_parser("autostart-status", help="Check Windows autostart configuration status.")
 
+    # Command: menu (J.A.R.V.I.S. Terminal Control Center)
+    subparsers.add_parser("menu", help="Open the interactive J.A.R.V.I.S. Terminal Control Center.")
+
     return parser
 
 
@@ -327,6 +330,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         status = get_autostart_status("JARVIS_Assistant")
         _safe_print(f"[*] Windows Autostart Status: {'ENABLED' if bool(status) else 'DISABLED'}")
         return 0
+
+    elif args.command == "menu":
+        from jarvis.ui.terminal.app import run_terminal_menu
+        return run_terminal_menu(config=config)
 
     else:
         # Default or 'run' command

@@ -6,6 +6,18 @@
 > **Ngày phát hành**: 2026-09-02  
 > **Trạng thái**: Đã phê duyệt (Approved Baseline)
 
+> **Lưu ý bổ sung (2026-09-03, Terminal UI only — không phải một lần dọn dẹp toàn bộ
+> backlog cũ)**: mục **P1-6/P1-7** bên dưới ("Floating HUD Overlay" / "System Tray") mô tả
+> các giao diện đồ họa hiện có; một giao diện **thứ ba, dạng Terminal/PowerShell tương tác**
+> (`python -m jarvis menu` / `jarvis menu`) đã được triển khai và xác thực cục bộ trên nhánh
+> `feat/terminal-control-center` (chưa merge vào `main`) — xem `CLAUDE.md`'s "Durable Terminal
+> Control Center invariant" và `docs/PROJECT_STATE.md`'s checkpoint hiện tại để biết chi tiết
+> đầy đủ. Đây là lớp trình bày mỏng, tái sử dụng toàn bộ 9 module sản phẩm hiện có — không
+> phải một CLI diagnostics riêng biệt như mô tả sơ bộ ở mục **P3-21** bên dưới; P3-21 vẫn
+> giữ nguyên trạng thái như tài liệu gốc mô tả (không được coi là đã hoàn thành bởi công việc
+> này). Các mục backlog khác trong tài liệu này **không** được rà soát lại trong lần cập nhật
+> này — xem lưu ý về độ tin cậy của backlog trong `docs/PROJECT_STATE.md` nếu cần.
+
 ---
 
 ## Mục lục (Table of Contents)
