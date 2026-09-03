@@ -542,6 +542,11 @@ class JarvisApp:
             description="Alias for system_status (router emits this intent name for hardware/status voice queries)",
         )
         self.dispatcher.register_action(
+            name="system_power",
+            handler=self._handle_system_power,
+            description="Handles system power actions (shutdown, restart, lock, sleep)",
+        )
+        self.dispatcher.register_action(
             name="toggle_mute",
             handler=self._handle_toggle_mute,
             description="Toggles microphone listening state",
@@ -875,6 +880,19 @@ class JarvisApp:
             "status": "healthy",
             "message": msg,
             "metrics": metrics_dict,
+        }
+
+    def _handle_system_power(self, action: str = "shutdown", **kwargs) -> dict[str, Any]:
+        """Handles power state commands (shutdown, restart, lock, sleep)."""
+        act = str(action).lower().strip()
+        log.info("Handling system_power action: %s", act)
+        msg = f"Lệnh {act} đã được ghi nhận."
+        if self.tts_manager:
+            self.tts_manager.speak(msg, wait=False)
+        return {
+            "status": "acknowledged",
+            "action": act,
+            "message": msg,
         }
 
     def _handle_toggle_mute(self, **kwargs) -> dict[str, Any]:

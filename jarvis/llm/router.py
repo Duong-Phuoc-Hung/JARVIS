@@ -1120,6 +1120,15 @@ class LLMIntentRouter:
             "tat tieng": IntentResult(action_name="system_volume", parameters={"mute": True}, source="rule_fallback", response_text="Đã tắt tiếng máy tính, thưa Ngài."),
             "mute": IntentResult(action_name="system_volume", parameters={"mute": True}, source="rule_fallback", response_text="Đã tắt tiếng máy tính, thưa Ngài."),
             "bật tiếng": IntentResult(action_name="system_volume", parameters={"mute": False}, source="rule_fallback", response_text="Đã bật tiếng máy tính, thưa Ngài."),
+            "bật tắt mic": IntentResult(action_name="toggle_mute", parameters={}, source="rule_fallback", response_text="Đã chuyển đổi trạng thái micro, thưa Ngài."),
+            "bat tat mic": IntentResult(action_name="toggle_mute", parameters={}, source="rule_fallback", response_text="Đã chuyển đổi trạng thái micro, thưa Ngài."),
+            "tắt mic": IntentResult(action_name="toggle_mute", parameters={"muted": True}, source="rule_fallback", response_text="Đã tắt micro, thưa Ngài."),
+            "tat mic": IntentResult(action_name="toggle_mute", parameters={"muted": True}, source="rule_fallback", response_text="Đã tắt micro, thưa Ngài."),
+            "bật mic": IntentResult(action_name="toggle_mute", parameters={"muted": False}, source="rule_fallback", response_text="Đã bật micro, thưa Ngài."),
+            "bat mic": IntentResult(action_name="toggle_mute", parameters={"muted": False}, source="rule_fallback", response_text="Đã bật micro, thưa Ngài."),
+            "mute mic": IntentResult(action_name="toggle_mute", parameters={"muted": True}, source="rule_fallback", response_text="Đã tắt micro, thưa Ngài."),
+            "unmute mic": IntentResult(action_name="toggle_mute", parameters={"muted": False}, source="rule_fallback", response_text="Đã bật micro, thưa Ngài."),
+            "toggle mic": IntentResult(action_name="toggle_mute", parameters={}, source="rule_fallback", response_text="Đã chuyển đổi trạng thái micro, thưa Ngài."),
             "tăng độ sáng": IntentResult(action_name="system_brightness", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng độ sáng màn hình cho Ngài."),
             "giảm độ sáng": IntentResult(action_name="system_brightness", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm độ sáng màn hình cho Ngài."),
             "tang do sang": IntentResult(action_name="system_brightness", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng độ sáng màn hình cho Ngài."),
@@ -1797,7 +1806,7 @@ class LLMIntentRouter:
             return False
         if key not in clean_lower:
             return False
-        if len(key) <= 4 and key.isascii():
+        if len(key) <= 4:
             if clean_lower == key:
                 return True
             pattern = getattr(self, "_short_key_regexes", {}).get(key)
