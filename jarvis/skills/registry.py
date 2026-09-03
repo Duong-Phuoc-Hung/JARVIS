@@ -36,6 +36,8 @@ class SkillRegistry:
         "models.py",
         "registry.py",
         "synthesizer.py",
+        "telemetry.py",
+        "validation.py",
     }
 
     def __init__(
