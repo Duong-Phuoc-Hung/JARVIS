@@ -164,6 +164,8 @@ def build_menu(ctx: TerminalContext) -> MenuScreen:
     return MenuScreen(
         id="smart_home", title="SMART HOME", breadcrumb=["MAIN", "SMART HOME"],
         actions=actions, batch_label="Check All Status",
-        help_intro="[A] only runs read-only status checks. Control actions always require an "
-                   "explicitly named entity and confirmation -- never applied to 'all devices'.",
+        help_intro="[A] runs read-only status checks only. Device-control actions "
+                   "(Turn On/Off/Toggle/Set Temperature) are currently unavailable in the "
+                   "Terminal UI until an authoritative execution path is wired -- see each "
+                   "action's help text.",
     )

@@ -2,14 +2,42 @@
 
 ---
 
-## 🖥️ J.A.R.V.I.S. Terminal Control Center — feature branch `feat/terminal-control-center` (2026-09-03, NOT yet committed/merged)
+## 🖥️ J.A.R.V.I.S. Terminal Control Center — feature branch `feat/terminal-control-center` (2026-09-03, implemented/committed/pushed; PR pending, not merged)
 
-> **Semantic note**: this section describes work implemented and locally validated on branch
-> `feat/terminal-control-center`, based on `main` @ `80b47a57c70dad39ec9f783d128e610d11e17f79`
-> (merge of PR #36). **This branch's changes are NOT committed and NOT merged as of this
-> writing** — `main` itself still lacks the `jarvis menu` command until this branch is
-> reviewed, committed, pushed, and merged by the repository owner. `jarvis.__version__`
-> **remains `4.7.0`**, unchanged — this is not a version bump and not a new release.
+> **Semantic note**: this section describes work implemented, committed, and pushed on branch
+> `feat/terminal-control-center` (feature commit
+> `81c649aba7d3ed34950925eb5cd4e1c85237f1f7`, `feat(ui): add terminal control center`),
+> based on `main` @ `80b47a57c70dad39ec9f783d128e610d11e17f79` (merge of PR #36). **A pull
+> request has NOT yet been opened, and the feature is NOT merged into `main`** — `main` itself
+> still lacks the `jarvis menu` command until a PR is opened, reviewed, and merged by the
+> repository owner. Treat the feature commit SHA as branch/checkpoint evidence only, never as
+> a permanent pointer — it is not `main`, and the branch may gain further commits before a PR
+> is opened. `jarvis.__version__` **remains `4.7.0`**, unchanged — this is not a version bump
+> and not a new release.
+
+### ✅ Current architecture (read this first — the sections below are a chronological build
+log, including two rejected intermediate designs; this is what the code actually does today)
+
+- **No `TerminalAuthority`, no terminal-owned `ActionDispatcher`/`SafetyGateInterceptor`
+  instance exists anywhere in `jarvis/ui/terminal/`.** An intermediate design that added one
+  (`jarvis/ui/terminal/authority.py`) was built, then identified as a second, disconnected
+  security universe and removed — see "❌ SUPERSEDED" below.
+- **Smart Home write controls (Turn On/Off/Toggle/Set Temperature) are `available=False` and
+  report `LIMITED`** — they do not call `HomeAssistantClient` at all, because no authoritative
+  execution path (neither a canonical dispatcher action nor a backend-native safety contract)
+  currently exists for this operation anywhere in the codebase.
+- **Self-Healing ("Run Healing Action") calls `HealingEngine.heal_hung_process()` directly**,
+  relying on that method's own pre-existing, backend-native, always-enforced
+  `is_protected()`/`PROTECTED_PROCESS_WHITELIST` check, plus the terminal's own explicit
+  target-entry + Y/N confirmation as presentation-layer UX in front of it.
+- **`[A]` requires `>=2` currently eligible `safe_for_batch` actions** on a screen
+  (`MenuScreen.batch_visible()`) before it is offered at all — one eligible action alone does
+  not show `[A]`.
+- **`PacketCapture`'s protocol-fabrication gap and Telegram/Discord's send-success-fabrication
+  gap remain open, upstream, unfixed** (`jarvis/security/scanner.py`,
+  `jarvis/comms/telegram.py`/`discord.py`) — the Terminal UI never calls those methods and
+  never presents their output as real evidence; it reports `LIMITED` truthfully instead. Fixing
+  the underlying modules is separate, future, unstarted work.
 
 **What was added**: a hierarchical, interactive Terminal/PowerShell UI (`python -m jarvis
 menu` / `jarvis menu`), branded J.A.R.V.I.S. // INFOSEC EDITION, covering all nine product
@@ -117,12 +145,16 @@ modified. No destructive action, real Nmap/TShark invocation, real message send,
 biometric enrollment, camera/microphone access, or process termination was performed during
 either automated tests or manual validation.
 
-### 🔧 Pre-commit hardening pass (same day, same branch, still NOT committed/merged)
+### 🔧 Pre-commit hardening pass (same day, same branch, prior to the commit above)
 
-A follow-up review found and fixed two real defects in the implementation above before it
-reaches the owner for commit review:
+A follow-up review found and fixed real defects in the implementation above before commit.
+**Items 1 and 2 below are ❌ SUPERSEDED / REJECTED — the design they describe
+(`jarvis/ui/terminal/authority.py`, a private `TerminalAuthority`) was removed in the "Final
+architecture verification pass" section further down, which is the current, correct state.
+Do not read items 1–2 as describing current code.** Items 3–4 remain current/unaffected.
 
-1. **Side-effect authorization bypass, fixed.** Smart Home device control (Turn On/Off/
+1. **❌ SUPERSEDED — Side-effect authorization "fixed" this way, later found to be itself a
+   defect (see the verification pass below).** Smart Home device control (Turn On/Off/
    Toggle/Set Temperature) and Self-Healing process termination (Run Healing Action)
    previously called `HomeAssistantClient`/`HealingEngine` methods directly after only the
    terminal's own Y/N confirmation — bypassing `ActionDispatcher`/`SafetyGateInterceptor`/RBAC
@@ -138,8 +170,9 @@ reaches the owner for commit review:
    (mirroring how a voice "yes" completes `safety_gate_confirm` elsewhere in the app) before
    the real backend method ever runs, and privilege (`PrivilegeLevel.HIGH`/`ADMIN`, matching
    `jarvis/core/models.py`'s own documented tiers) is checked for real.
-2. **Silent-success bug in the fix above, found and fixed in the same pass.**
-   `HealingEngine.heal_hung_process()` returns a `HealingReport` **dataclass**, not a `dict`,
+2. **❌ SUPERSEDED — this whole finding was a false premise, corrected in the verification
+   pass below.** Believed at the time: `HealingEngine.heal_hung_process()` returns a
+   `HealingReport` **dataclass**, not a `dict`,
    despite its docstring saying "compatible with dict access." `ActionDispatcher.
    _normalize_handler_outcome()` only recognizes the established `{"success": bool, ...}`
    contract on an actual `isinstance(raw, dict)` — registering the bound method directly
@@ -151,7 +184,12 @@ reaches the owner for commit review:
    (safe, `127.0.0.1`, refused-connection) `HomeAssistantClient.turn_on()` call during manual
    validation — the dispatcher log showed the real gate→confirm→execute→truthful-failure
    sequence.
-3. **`[A]` visibility rule corrected.** Previously shown whenever `>=1` `safe_for_batch`
+   **[Correction, verification pass below]: `heal_hung_process()` actually returns a plain
+   `dict` in every branch of the real current source — `HealingReport` is exported but never
+   instantiated by that method. The `.to_dict()` wrapper above was never exercised against
+   the real method, only a self-constructed test fake sharing the same wrong assumption; it
+   has been removed along with `authority.py`.**
+3. **`[A]` visibility rule corrected (this item remains current).** Previously shown whenever `>=1` `safe_for_batch`
    action existed on a screen; corrected to require `>=2` (`MenuScreen.batch_visible()`,
    `len(batch_eligible()) >= 2`) — one eligible action alone doesn't warrant a separate "run
    everything" affordance distinct from just selecting that action. Concretely changes real
@@ -159,32 +197,39 @@ reaches the owner for commit review:
    been validated (before that, only "Security Tools Status" is eligible), and Data
    Analysis's `[A]` is hidden until a dataset is selected (before that, only "Visualization"
    is eligible). `batch_eligible()` itself (used to actually *run* `[A]`) is unchanged.
-4. **Package architecture reviewed, kept as-is.** Every `jarvis/ui/terminal/modules/*.py`
-   file was classified: each combines a menu/screen definition with thin backend-adapter
-   handlers (call a real module, map its real return value to `ActionOutcome`) and contains
-   no rendering code (all rendering lives solely in `app.py`) and no reimplemented backend
-   business logic — i.e. clean "A+B", not the mixed "C" shape that would warrant a
-   `screens/`/`adapters/` split. Kept the existing `modules/` directory name and per-file
-   organization rather than mechanically renaming to match an alternative suggested layout.
+4. **Package architecture reviewed, kept as-is (this item remains current).** Every
+   `jarvis/ui/terminal/modules/*.py` file was classified: each combines a menu/screen
+   definition with thin backend-adapter handlers (call a real module, map its real return
+   value to `ActionOutcome`) and contains no rendering code (all rendering lives solely in
+   `app.py`) and no reimplemented backend business logic — i.e. clean "A+B", not the mixed
+   "C" shape that would warrant a `screens/`/`adapters/` split. Kept the existing `modules/`
+   directory name and per-file organization rather than mechanically renaming to match an
+   alternative suggested layout.
 
-**Validation (local, this hardening pass)**:
+**Validation (local, this hardening pass — ❌ the `test_terminal_authority.py` file and the
+gate/confirm/execute manual validation described below no longer exist / no longer describe
+current behavior; see the verification pass below for what replaced them; the `[A]`-rule and
+package-architecture test evidence remains valid)**:
 ```text
 22 new tests: 12 in tests/unit/test_terminal_authority.py (new file — proves real gating,
   confirmation-token round-trip, privilege denial, rejection, and the dataclass-conversion
   fix, using fake backend objects) + 6 in test_terminal_app.py ([A] visibility at 0/1/2/3+
   eligible actions, a concrete changing-live-value [R] refresh proof, [R] never invokes a
   handler) + 4 in test_terminal_modules.py (InfoSec/Data batch_visible() before/after target
-  or dataset selection) -- all passing.
-tests/unit/ (full suite, local): 1521 passed, 1 skipped, 50 subtests passed, 0 failed
-  (1413 original baseline + 108 new tests/unit/ tests across both the initial implementation
-  and this hardening pass -- exact match, confirms no regression, no double count).
+  or dataset selection) -- all passing at the time.
+tests/unit/ (full suite, local, AT THAT TIME): 1521 passed, 1 skipped, 50 subtests passed,
+  0 failed (1413 original baseline + 108 new tests/unit/ tests across both the initial
+  implementation and this hardening pass). This count included the 12 authority.py tests
+  later removed -- 1521 is not the current count; see the verification pass below.
 ruff check (changed/new files): clean (2 more trivial auto-fixable import-sort issues found
   and fixed).
-Manual validation: the full Smart Home Turn On/Off flow was exercised twice through the real
-  TerminalApp -- once with Home Assistant disabled (correct OFFLINE short-circuit, no network
-  touched) and once with it enabled but pointed at an unreachable local port (127.0.0.1),
-  confirming the real gate/confirm/execute/truthful-failure sequence end-to-end, not just
-  against test fakes.
+Manual validation (❌ exercised the since-removed TerminalAuthority architecture): the full
+  Smart Home Turn On/Off flow was exercised twice through the real TerminalApp -- once with
+  Home Assistant disabled (correct OFFLINE short-circuit, no network touched) and once with
+  it enabled but pointed at an unreachable local port (127.0.0.1), confirming the (then
+  existing) gate/confirm/execute/truthful-failure sequence end-to-end. This validated
+  TerminalAuthority's mechanics, not whether a private dispatcher was the right architecture
+  -- that question was only asked in the verification pass below, which found it was not.
 ```
 No backend/security production file was modified in this hardening pass either (`jarvis/
 security/`, `jarvis/comms/`, `jarvis/healing/`, `jarvis/smart_home/`, `jarvis/core/
@@ -193,7 +238,7 @@ all have zero diff) -- `authority.py` only constructs and calls those existing c
 through their own public extension points (`custom_high_risk_actions`, `register_action`,
 `dispatch_action`, `.confirm()`).
 
-### 🔧 Final architecture verification pass (same day, same branch, still NOT committed/merged)
+### ✅ Final architecture verification pass (same day, same branch, prior to the commit above) — CURRENT STATE
 
 A focused review asked one question: does `jarvis/ui/terminal/authority.py` (added in the
 hardening pass above) create a SECOND, independent `ActionDispatcher`/`SafetyGate` security

@@ -62,34 +62,37 @@ specifically marked otherwise.
   historical lineage, not the current count.) PR #35 was docs-only, so this evidence is
   unchanged by it. Skip counts can vary by environment (which optional dependencies happen
   to be installed) — this is expected, not a regression signal.
-- **NOT yet merged, in progress on branch `feat/terminal-control-center`** (based on `main` @
-  `80b47a57c70dad39ec9f783d128e610d11e17f79`, merge of PR #36): a new **J.A.R.V.I.S. Terminal
-  Control Center** (`jarvis menu` / `python -m jarvis menu`) — a hierarchical interactive
-  Terminal/PowerShell UI over the nine existing product areas, implemented as a thin
-  presentation/routing layer (`jarvis/ui/terminal/`) with no duplicated business logic or
-  safety authority. Two subsequent pre-commit hardening passes on the same branch (same day)
-  found and fixed real defects. First pass: `[A]` was offered with only one eligible action
-  (fixed: now requires `>=2`, see `MenuScreen.batch_visible()`); Smart Home/Self-Healing
-  side-effecting actions were calling backend methods directly with only a terminal-side Y/N
-  prompt, bypassing real authorization (attempted fix: a new `jarvis/ui/terminal/
-  authority.py` module constructing a *private*, terminal-only `ActionDispatcher`/
-  `SafetyGateInterceptor`). Second pass (final architecture verification): that private
+- **Implemented, committed, and pushed on branch `feat/terminal-control-center`; PR pending;
+  NOT merged into `main`** (based on `main` @ `80b47a57c70dad39ec9f783d128e610d11e17f79`,
+  merge of PR #36; feature commit `81c649aba7d3ed34950925eb5cd4e1c85237f1f7`,
+  `feat(ui): add terminal control center` — this SHA is branch/checkpoint evidence only, not
+  a permanent pointer, and is not on `main`): a new **J.A.R.V.I.S. Terminal Control Center**
+  (`jarvis menu` / `python -m jarvis menu`) — a hierarchical interactive Terminal/PowerShell UI
+  over the nine existing product areas, implemented as a thin presentation/routing layer
+  (`jarvis/ui/terminal/`) with no duplicated business logic or safety authority. Two
+  pre-commit review passes on the same branch (same day, before the commit above) found and
+  fixed real defects. First pass: `[A]` was offered with only one eligible action (fixed: now
+  requires `>=2`, see `MenuScreen.batch_visible()`); Smart Home/Self-Healing side-effecting
+  actions were calling backend methods directly with only a terminal-side Y/N prompt,
+  bypassing real authorization (attempted fix: a new `jarvis/ui/terminal/authority.py` module
+  constructing a *private*, terminal-only `ActionDispatcher`/`SafetyGateInterceptor` — later
+  found to be wrong, see next). Second pass (final architecture verification): that private
   dispatcher was itself identified as a second, disconnected security universe — registering
   action names (`smart_home_turn_on`, `os_kill_process`, etc.) that exist nowhere in the
   canonical dispatcher, using the real classes but a wholly separate instance/registry —
-  and was removed. Self-Healing now calls `HealingEngine.heal_hung_process()` **directly**,
-  relying on its genuine backend-native `is_protected()`/`PROTECTED_PROCESS_WHITELIST` check
-  (always enforced internally, regardless of caller); Smart Home control has no equivalent
-  backend-native contract and no canonical dispatcher action to reuse, so those four actions
-  now truthfully report `LIMITED`/unavailable instead of executing. The second pass also
-  corrected a false premise from the first: `HealingEngine.heal_hung_process()` returns a
-  plain `dict` in current source, not a `HealingReport` dataclass as previously (incorrectly)
-  documented — see the durable "Terminal Control Center" invariant below for the full,
-  corrected architecture contract, and `docs/PROJECT_STATE.md`'s current checkpoint for
-  implementation detail and exact validation evidence. Local full-suite evidence on this
-  branch (uncommitted, after both hardening passes): **1511 passed, 1 skipped, 50 subtests
-  passed, 0 failed** (1413 baseline + 98 new `tests/unit/`-directory tests). `jarvis.__version__`
-  unchanged at `4.7.0`.
+  and was removed before the commit above. Self-Healing now calls
+  `HealingEngine.heal_hung_process()` **directly**, relying on its genuine backend-native
+  `is_protected()`/`PROTECTED_PROCESS_WHITELIST` check (always enforced internally, regardless
+  of caller); Smart Home control has no equivalent backend-native contract and no canonical
+  dispatcher action to reuse, so those four actions now truthfully report `LIMITED`/unavailable
+  instead of executing. The second pass also corrected a false premise from the first:
+  `HealingEngine.heal_hung_process()` returns a plain `dict` in current source, not a
+  `HealingReport` dataclass as previously (incorrectly) documented — see the durable "Terminal
+  Control Center" invariant below for the full, corrected architecture contract, and
+  `docs/PROJECT_STATE.md`'s current checkpoint for implementation detail and exact validation
+  evidence. Local full-suite evidence at the committed state: **1511 passed, 1 skipped, 50
+  subtests passed, 0 failed** (1413 baseline + 98 new `tests/unit/`-directory tests).
+  `jarvis.__version__` unchanged at `4.7.0`.
 - **Central dispatch truthfulness — RESOLVED via PR #34 (checkpoint commit
   `ae6d5d8ffd98f4629af951e19820bf047f9c05d7`).** `jarvis/core/dispatcher.py`'s
   `dispatch_action()`/`dispatch_action_async()` previously wrapped any normally-returning
@@ -231,7 +234,8 @@ change), because stale docs elsewhere in the repo actively mislead future sessio
   update or remove this alias in the same change; do not let them silently diverge.
 
 ### Durable Terminal Control Center invariant (`jarvis/ui/terminal/`, branch
-`feat/terminal-control-center`, NOT yet merged as of this writing — see §0 CURRENT BASELINE)
+`feat/terminal-control-center`, committed and pushed (`81c649a`), PR pending, NOT yet merged
+as of this writing — see §0 CURRENT BASELINE)
 
 The J.A.R.V.I.S. Terminal Control Center (`python -m jarvis menu` / `jarvis menu`) is a
 **presentation + routing layer only**. These invariants must hold for any future extension of
@@ -650,8 +654,8 @@ Major areas:
   "Terminal Control Center" invariant above): Self-Healing termination calls
   `HealingEngine.heal_hung_process()` directly, relying on its own backend-native
   protected-process check; Smart Home control has no authoritative path to reuse and reports
-  `LIMITED` rather than executing. Not yet merged as of this writing
-  (`feat/terminal-control-center`).
+  `LIMITED` rather than executing. Committed and pushed on `feat/terminal-control-center`
+  (`81c649a`); PR pending; not yet merged into `main`.
 - `jarvis/memory/` — SQLite + vector/RAG memory.
 - `jarvis/comms/` — Telegram, Discord, Zalo, mobile bridge.
 - `jarvis/audio/`, `jarvis/stt/`, `jarvis/tts/` — audio, STT, TTS.

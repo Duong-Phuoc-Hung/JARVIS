@@ -12,7 +12,7 @@ no canonical dispatcher registration for process termination anywhere in
 this codebase to route through, and inventing a private, disconnected
 ActionDispatcher+SafetyGateInterceptor instance solely for this one call
 would itself be a parallel security architecture (audited and rejected --
-see jarvis/ui/terminal/CLAUDE.md's "Durable Terminal Control Center
+see the repository-root CLAUDE.md's "Durable Terminal Control Center
 invariant" and the removed jarvis/ui/terminal/authority.py history).
 Instead this reuses HealingEngine's own backend-native, always-enforced
 authoritative safety contract: `heal_hung_process()` checks

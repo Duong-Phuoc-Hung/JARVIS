@@ -18,7 +18,7 @@
 > Snapshot: 2026-09-01.
 > Always verify Git state and current code before relying on this snapshot.
 
-## 0. Current Checkpoint — J.A.R.V.I.S. Terminal Control Center, uncommitted (2026-09-03) — READ THIS FIRST
+## 0. Current Checkpoint — J.A.R.V.I.S. Terminal Control Center, implemented/committed/pushed, PR pending (2026-09-03) — READ THIS FIRST
 
 This section supersedes the checkpoint immediately below it (now demoted to `0-PREV5`, kept
 as historical record — not rewritten; further checkpoints cascade as `0-PREV6`, etc.). As
@@ -27,20 +27,26 @@ always: **do not treat any SHA recorded here as a permanent "current main" point
 
 **State:**
 - Branch: `feat/terminal-control-center`, based on `main` @
-  `80b47a57c70dad39ec9f783d128e610d11e17f79` (merge of PR #36, `docs/sync-post-pr35-state`).
-  **This branch's changes are implemented and locally validated but NOT committed and NOT
-  merged** — `main` itself is still at `80b47a5...` and has no `jarvis menu` command until
-  this branch is committed, reviewed, pushed, and merged.
+  `80b47a57c70dad39ec9f783d128e610d11e17f79` (merge of PR #36, `docs/sync-post-pr35-state`,
+  unchanged by this work — `origin/main` has not advanced past it as of this checkpoint).
+  **This branch's changes are implemented, committed, and pushed** — feature commit
+  `81c649aba7d3ed34950925eb5cd4e1c85237f1f7` (`feat(ui): add terminal control center`),
+  confirmed as both `HEAD` and `origin/feat/terminal-control-center`. **A pull request has
+  NOT yet been opened, and the feature is NOT merged into `main`** — `main` itself remains at
+  `80b47a5...` and has no `jarvis menu` command until a PR is opened, reviewed, and merged.
+  Treat `81c649a` as branch/checkpoint evidence only, never as a permanent pointer — the
+  branch may advance with further commits before a PR is opened.
 - runtime: `4.7.0` (`jarvis.__version__`, unchanged by this work — not a version bump, not a
   new release).
 - formal release: `v4.5.1` (unchanged).
 
-**J.A.R.V.I.S. Terminal Control Center — IMPLEMENTED AND VALIDATED (uncommitted).** A new
-hierarchical, interactive Terminal/PowerShell UI (`python -m jarvis menu` / `jarvis menu`),
-covering all nine product areas as a thin presentation/routing layer with no duplicated
-business logic. Full architecture contract, truthfulness findings, and the durable invariant
-future sessions must preserve are recorded in `CLAUDE.md`'s "Durable Terminal Control Center
-invariant" section and `CHANGELOG.md`'s matching entry — not repeated verbatim here.
+**J.A.R.V.I.S. Terminal Control Center — implemented, committed, and pushed on
+`feat/terminal-control-center`; PR pending; not merged.** A new hierarchical, interactive
+Terminal/PowerShell UI (`python -m jarvis menu` / `jarvis menu`), covering all nine product
+areas as a thin presentation/routing layer with no duplicated business logic. Full
+architecture contract, truthfulness findings, and the durable invariant future sessions must
+preserve are recorded in `CLAUDE.md`'s "Durable Terminal Control Center invariant" section
+and `CHANGELOG.md`'s matching entry — not repeated verbatim here.
 
 **New files** (25 code files as of the final architecture verification pass below, across all
 three sessions on this branch):
@@ -196,7 +202,10 @@ CI pins 3.13. `pytest-asyncio`/`pytest-env` are not installed in this local venv
 (`PytestConfigWarning: Unknown config option: asyncio_mode`/`env` at collection time), so this
 full-suite run is not a perfect substitute for actual CI — but it collected and ran the
 complete `tests/unit/` tree with 0 failures, which is still meaningful, real evidence, not a
-fabricated pass. CI has not yet been run on this branch (not pushed).
+fabricated pass. The branch is now pushed (`feat/terminal-control-center`, feature commit
+`81c649aba7d3ed34950925eb5cd4e1c85237f1f7`); whether GitHub Actions CI has actually run
+against that pushed commit, and its result, has not been independently checked in this
+documentation pass — verify on GitHub Actions before treating CI as green for this branch.
 
 **Manual validation performed** (see `CHANGELOG.md`'s matching entry for the exact scenarios):
 `python -m jarvis menu` run for real via both an interactive terminal and a piped-stdin
