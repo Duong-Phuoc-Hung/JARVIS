@@ -5,7 +5,7 @@
 [![CI Status](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/workflows/ci.yml/badge.svg)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
 [![Tests](https://img.shields.io/badge/tests-passing-00ff88?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
 [![Source Version](https://img.shields.io/badge/source%20version-5.0.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
-[![Latest Release](https://img.shields.io/badge/latest%20release-v4.5.1-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
+[![Releases](https://img.shields.io/badge/releases-GitHub-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?style=flat-square)](https://python.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%2064--bit-0078D4?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)](LICENSE)
@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding), ghi nhớ ngữ nghĩa theo thời gian thực (Semantic RAG Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.0.0** (trên nhánh `feat/terminal-control-center`, đánh dấu mốc phát triển J.A.R.V.I.S. Terminal Control Center — mở rộng bề mặt sản phẩm lớn, không có thay đổi phá vỡ tương thích nào với lệnh/cấu hình/API hiện có; `main` vẫn ở `4.7.0` cho đến khi nhánh này được merge, và **chưa có tag/GitHub Release `v5.0.0`** nào được tạo) · **Bản phát hành chính thức (GitHub Release) mới nhất: v4.5.1** (bản phát hành chính thức trước đó: v4.0.1) · Lịch sử phát triển trong CHANGELOG đã đến mốc **v4.7.0 — Sprint 2 Acoustic & UX Hardening** trên `main`, cộng thêm mốc bảo trì sau v4.7.0 (không đổi phiên bản runtime) sửa lỗi báo cáo thiếu trung thực của self-healing và làm tất định test wake-word Whisper trên CI, và (trên nhánh này) mốc `5.0.0` — Terminal Control Center. Phiên bản mã nguồn/phát triển và bản phát hành chính thức là hai khái niệm khác nhau — bản phát hành chính thức chưa theo kịp lịch sử phát triển.</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.0.0** trên `main` — đánh dấu mốc phát triển J.A.R.V.I.S. Terminal Control Center (đã merge vào `main` qua PR #37), mở rộng bề mặt sản phẩm lớn, không có thay đổi phá vỡ tương thích nào với lệnh/cấu hình/API hiện có; **chưa có tag/GitHub Release `v5.0.0`** nào được tạo. **Bản phát hành chính thức (GitHub Release):** luôn xem [trang Releases](https://github.com/Duong-Phuoc-Hung/JARVIS/releases) để biết bản mới nhất thực tế — con số đó thay đổi theo thời gian và tài liệu này không theo kịp trực tiếp. *(Mốc kiểm tra trước khi gắn tag, 2026-09-03: bản phát hành chính thức đã publish gần nhất là v4.5.1, trước đó là v4.0.1 — đây là bằng chứng lịch sử tại thời điểm đó, không phải tuyên bố "mới nhất" hiện tại.)* Lịch sử phát triển trong CHANGELOG đã đến mốc **v5.0.0 — J.A.R.V.I.S. Terminal Control Center** trên `main` (kế thừa mốc v4.7.0 — Sprint 2 Acoustic & UX Hardening, cộng thêm mốc bảo trì sau v4.7.0 sửa lỗi báo cáo thiếu trung thực của self-healing và làm tất định test wake-word Whisper trên CI). Phiên bản mã nguồn/phát triển và bản phát hành chính thức là hai khái niệm khác nhau — bản phát hành chính thức chưa theo kịp lịch sử phát triển.</sub>
 
 </div>
 
@@ -233,7 +233,7 @@ không có cơ chế bảo vệ nào phía sau. Không bao giờ chạy tự đ�
 Nếu bạn không muốn cài đặt Python hoặc cấu hình dòng lệnh, bạn có thể sử dụng bản đóng gói độc lập (standalone `.exe` trong file ZIP — đây là artifact thật mà GitHub Actions release workflow phát hành; không có bộ cài đặt Setup Wizard đi kèm release chính thức):
 
 1. **Tải Bản Đóng Gói:**
-   - Truy cập [Releases Page](https://github.com/Duong-Phuoc-Hung/JARVIS/releases) và tải file `JARVIS_v4.5.1_windows_x64.zip`.
+   - Truy cập [Releases Page](https://github.com/Duong-Phuoc-Hung/JARVIS/releases) và tải file ZIP của bản phát hành mới nhất — tên file luôn theo định dạng `JARVIS_v<phiên bản>_windows_x64.zip` (ví dụ `JARVIS_v4.5.1_windows_x64.zip`, bản phát hành chính thức mới nhất tính đến thời điểm viết tài liệu này).
 2. **Giải Nén & Chạy:**
    - Giải nén file ZIP vào thư mục bạn muốn (ví dụ: `C:\Program Files\JARVIS` hoặc bất kỳ thư mục nào).
    - Double-click `JARVIS.exe`, hoặc chạy `JARVIS.exe --tray` để khởi động thẳng vào khay hệ thống.

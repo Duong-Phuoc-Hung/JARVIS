@@ -6,20 +6,22 @@
 > **Ngày phát hành**: 2026-09-02  
 > **Trạng thái**: Đã phê duyệt (Approved Baseline)
 
-> **Lưu ý bổ sung (2026-09-03, Terminal UI only — không phải một lần dọn dẹp toàn bộ
-> backlog cũ)**: mục **P1-6/P1-7** bên dưới ("Floating HUD Overlay" / "System Tray") mô tả
-> các giao diện đồ họa hiện có; một giao diện **thứ ba, dạng Terminal/PowerShell tương tác**
-> (`python -m jarvis menu` / `jarvis menu`) đã được triển khai và xác thực cục bộ trên nhánh
-> `feat/terminal-control-center` (chưa merge vào `main`) — xem `CLAUDE.md`'s "Durable Terminal
-> Control Center invariant" và `docs/PROJECT_STATE.md`'s checkpoint hiện tại để biết chi tiết
-> đầy đủ. Nhánh này cũng đã nâng `jarvis.__version__` từ `4.7.0` lên **`5.0.0`** (mốc phát
-> triển do chủ sở hữu chỉ định, đánh dấu Terminal Control Center) — **chỉ trên nhánh này**,
-> chưa có tag/GitHub Release `v5.0.0` nào được tạo; `main` vẫn ở `4.7.0` cho đến khi nhánh
-> được merge. Đây là lớp trình bày mỏng, tái sử dụng toàn bộ 9 module sản phẩm hiện có — không
-> phải một CLI diagnostics riêng biệt như mô tả sơ bộ ở mục **P3-21** bên dưới; P3-21 vẫn
-> giữ nguyên trạng thái như tài liệu gốc mô tả (không được coi là đã hoàn thành bởi công việc
-> này). Các mục backlog khác trong tài liệu này **không** được rà soát lại trong lần cập nhật
-> này — xem lưu ý về độ tin cậy của backlog trong `docs/PROJECT_STATE.md` nếu cần.
+> **Lưu ý bổ sung (2026-09-03, cập nhật trạng thái merge, Terminal UI only — không phải một
+> lần dọn dẹp toàn bộ backlog cũ)**: mục **P1-6/P1-7** bên dưới ("Floating HUD Overlay" /
+> "System Tray") mô tả các giao diện đồ họa hiện có; một giao diện **thứ ba, dạng
+> Terminal/PowerShell tương tác** (`python -m jarvis menu` / `jarvis menu`) đã được triển
+> khai trên nhánh `feat/terminal-control-center` và **đã merge vào `main` qua PR #37** (merge
+> commit `38affda1b848eee5fe90cfac2749824c57c5efe9`, post-merge JARVIS CI #166 SUCCESS) — xem
+> `CLAUDE.md`'s "Durable Terminal Control Center invariant" và `docs/PROJECT_STATE.md`'s
+> checkpoint hiện tại để biết chi tiết đầy đủ. Nhánh này cũng đã nâng `jarvis.__version__` từ
+> `4.7.0` lên **`5.0.0`**, mốc phát triển do chủ sở hữu chỉ định đánh dấu Terminal Control
+> Center — phiên bản này nay đã có trên `main` qua PR #37; **chưa có tag/GitHub Release
+> `v5.0.0`** nào được tạo. Đây là lớp trình bày mỏng, tái sử dụng toàn bộ 9 module sản phẩm
+> hiện có — không phải một CLI diagnostics riêng biệt như mô tả sơ bộ ở mục **P3-21** bên
+> dưới; P3-21 vẫn giữ nguyên trạng thái như tài liệu gốc mô tả (không được coi là đã hoàn
+> thành bởi công việc này). Các mục backlog khác trong tài liệu này **không** được rà soát
+> lại trong lần cập nhật này — xem lưu ý về độ tin cậy của backlog trong
+> `docs/PROJECT_STATE.md` nếu cần.
 
 ---
 

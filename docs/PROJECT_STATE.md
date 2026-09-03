@@ -18,44 +18,74 @@
 > Snapshot: 2026-09-01.
 > Always verify Git state and current code before relying on this snapshot.
 
-## 0. Current Checkpoint — J.A.R.V.I.S. Terminal Control Center, v5.0.0 development milestone, implemented/committed/pushed, PR pending (2026-09-03) — READ THIS FIRST
+## 0. Current Checkpoint — PR #37 merged: J.A.R.V.I.S. Terminal Control Center is on `main`, runtime `5.0.0`, pre-tag release-finalization pass in progress (2026-09-03) — READ THIS FIRST
 
-This section supersedes the checkpoint immediately below it (now demoted to `0-PREV5`, kept
-as historical record — not rewritten; further checkpoints cascade as `0-PREV6`, etc.). As
+This section supersedes the checkpoint immediately below it (now demoted to `0-PREV6`, kept
+as historical record — not rewritten; further checkpoints cascade as `0-PREV7`, etc.). As
 always: **do not treat any SHA recorded here as a permanent "current main" pointer** — run
 `git fetch origin --prune && git rev-parse origin/main` before trusting it.
 
 **State:**
-- Branch: `feat/terminal-control-center`, based on `main` @
-  `80b47a57c70dad39ec9f783d128e610d11e17f79` (merge of PR #36, `docs/sync-post-pr35-state`,
-  unchanged by this work — `origin/main` has not advanced past it as of this checkpoint).
-  **This branch's changes are implemented, committed, and pushed** — feature commit
-  `81c649aba7d3ed34950925eb5cd4e1c85237f1f7` (`feat(ui): add terminal control center`),
-  confirmed as both `HEAD` and `origin/feat/terminal-control-center`. **A pull request has
-  NOT yet been opened, and the feature is NOT merged into `main`** — `main` itself remains at
-  `80b47a5...` and has no `jarvis menu` command until a PR is opened, reviewed, and merged.
-  Treat `81c649a` as branch/checkpoint evidence only, never as a permanent pointer — the
-  branch may advance with further commits before a PR is opened.
+- `main`/`origin/main`: `38affda1b848eee5fe90cfac2749824c57c5efe9` — merge of **PR #37**
+  (`feat/terminal-control-center` → `main`, "Merge pull request #37 from
+  Huynh-Minh-Hoa/feat/terminal-control-center"). **This PR is MERGED.** `main` now has the
+  `jarvis menu` command. Post-merge **JARVIS CI #166: SUCCESS** (all four jobs green: Syntax
+  Check, Unit Tests, Import Validation, Pipeline Summary). Feature branch itself carried three
+  commits on top of `main` @ `80b47a57c70dad39ec9f783d128e610d11e17f79` (PR #36 merge):
+  `81c649a` (`feat(ui): add terminal control center`), `e083a6f` (`docs(ui): sync terminal
+  pre-PR state`), `adcc98d` (`chore(release): prepare v5.0.0`) — treat `38affda` as
+  checkpoint/historical evidence for PR #37, never as a permanent "current main" pointer; a
+  local branch `release/v5.0.0-finalize` was created from this exact commit to perform a
+  narrow, docs-only pre-tag release-finalization pass (this checkpoint's own update).
 - runtime: **`5.0.0`** (`jarvis.__version__`, `jarvis/__init__.py`) — bumped from `4.7.0` on
-  this branch in a subsequent, separate, owner-authorized pass (2026-09-03), marking the
+  the feature branch (commit `adcc98d`) as an explicit, owner-authorized pass, marking the
   Terminal Control Center as the `5.0.0` development milestone (a major product-surface
   expansion: a new first-class interactive control surface over all nine product areas,
   alongside the existing, unchanged voice-first core — no breaking change to any existing
-  command/config/API was made or found). This is a **development/runtime bump on this
-  feature branch only** — `main` still reports `jarvis.__version__ == "4.7.0"` until this
-  branch is merged. Verify directly: `python -c "import jarvis; print(jarvis.__version__)"`.
+  command/config/API was made or found). **This version is now on `main`** via the PR #37
+  merge. Verify directly: `python -c "import jarvis; print(jarvis.__version__)"`.
 - formal release: **`v4.5.1`** (unchanged) — **no `v5.0.0` tag or GitHub Release has been
-  created**; do not describe `5.0.0` as formally released. `v5.0.0` is a prepared
-  development/runtime version pending a real tag/release cut later, separately, by the
-  repository owner.
+  created yet**; do not describe `5.0.0` as formally released. `v5.0.0` is a prepared
+  development/runtime version on `main`, pending a real tag/release cut later, separately, by
+  the repository owner. Per `.github/workflows/release.yml`, pushing an annotated tag matching
+  `v*.*.*` (e.g. `v5.0.0`) automatically triggers the build-and-publish workflow — the owner
+  does not need to manually create the GitHub Release first. That workflow does **not**
+  currently verify the pushed tag version matches `jarvis.__version__` — a real, pre-existing
+  gap, not something this documentation pass fixed (see `CLAUDE.md`/release workflow audit
+  evidence for detail).
 
-**J.A.R.V.I.S. Terminal Control Center — implemented, committed, and pushed on
-`feat/terminal-control-center`; PR pending; not merged.** A new hierarchical, interactive
-Terminal/PowerShell UI (`python -m jarvis menu` / `jarvis menu`), covering all nine product
-areas as a thin presentation/routing layer with no duplicated business logic. Full
+**J.A.R.V.I.S. Terminal Control Center — MERGED into `main` via PR #37.** A new hierarchical,
+interactive Terminal/PowerShell UI (`python -m jarvis menu` / `jarvis menu`), covering all nine
+product areas as a thin presentation/routing layer with no duplicated business logic. Full
 architecture contract, truthfulness findings, and the durable invariant future sessions must
 preserve are recorded in `CLAUDE.md`'s "Durable Terminal Control Center invariant" section
-and `CHANGELOG.md`'s matching entry — not repeated verbatim here.
+and `CHANGELOG.md`'s matching entry — not repeated verbatim here. All implementation detail,
+validation evidence, and the two rejected intermediate designs (`authority.py`, etc.)
+described in the `0-PREV6` checkpoint below are unaffected by the merge and remain accurate —
+only the merge/PR/branch status and runtime-on-`main` status changed.
+
+**No production code, test, or backend behavior changed in this pre-tag finalization pass** —
+this pass (branch `release/v5.0.0-finalize`) is documentation-only: correcting stale
+"PR pending"/"not merged"/"main still reports 4.7.0" claims left behind across `CLAUDE.md` and
+this file (both written before PR #37 actually merged), reviewing `README.md`/`CHANGELOG.md`/
+`docs/ROADMAP.md` for the same staleness, and auditing (not modifying) the release workflow.
+No commit, push, tag, or GitHub Release was created by this pass.
+
+---
+
+## 0-PREV6. Prior Checkpoint — J.A.R.V.I.S. Terminal Control Center implementation detail,
+originally captured pre-merge (PR pending) on branch `feat/terminal-control-center` — historical
+implementation/validation record, superseded by the `0` checkpoint above for merge/PR/runtime
+status (2026-09-03)
+
+**This section's own "PR pending" / "NOT merged" / "main still reports 4.7.0" language below
+describes a real, earlier point in time (before PR #37 merged) and is kept verbatim as the
+historical record of what was actually implemented and validated on that branch — it does
+**not** describe current state. The `0` checkpoint above is authoritative for current
+merge/PR/runtime status: PR #37 is merged, `main` has `jarvis menu`, and `jarvis.__version__`
+on `main` is `5.0.0`.** All implementation detail, architecture narrative (including the two
+rejected intermediate designs), and validation evidence below remain accurate as a record of
+what was built and tested — only their "not yet merged" framing is now stale.
 
 **New files** (25 code files as of the final architecture verification pass below, across all
 three sessions on this branch):
