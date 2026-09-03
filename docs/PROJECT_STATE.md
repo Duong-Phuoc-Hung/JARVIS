@@ -18,12 +18,72 @@
 > Snapshot: 2026-09-01.
 > Always verify Git state and current code before relying on this snapshot.
 
-## 0. Current Checkpoint — PR #37 merged: J.A.R.V.I.S. Terminal Control Center is on `main`, runtime `5.0.0`, pre-tag release-finalization pass in progress (2026-09-03) — READ THIS FIRST
+## 0. Current Checkpoint — PR #38 merged: `v5.0.0` is a formally tagged and published GitHub Release, release workflow #7 SUCCESS (2026-09-03) — READ THIS FIRST
+
+This section supersedes the checkpoint immediately below it (now demoted to `0-PREV7`, kept
+as historical record — not rewritten; further checkpoints cascade as `0-PREV8`, etc.). As
+always: **do not treat any SHA recorded here as a permanent "current main" pointer** — run
+`git fetch origin --prune && git rev-parse origin/main` before trusting it.
+
+**State:**
+- `main`/`origin/main`: `083171169419447b2bb28734b4c48a667564c9b2` — merge of **PR #38**
+  (`release/v5.0.0-finalize` → `main`, docs-only pre-tag finalization commit `6a29c87`,
+  `docs(release): finalize v5.0.0 pre-tag state`, based on `main` @ PR #37's merge commit
+  `38affda1b848eee5fe90cfac2749824c57c5efe9`). **This PR is MERGED.** Treat this SHA as
+  checkpoint/historical evidence for PR #38, never as a permanent "current main" pointer —
+  a further docs-only sync (this session, branch `docs/post-v5.0.0-release-sync`) is layered
+  on top of this same commit without changing `main` itself (documentation-only pass; no
+  commit/push/merge performed by that session on its own authority).
+- **The `v5.0.0` tag/release event (verified, external to Git history, layered on top of the
+  PR #38 merge commit):**
+  - Annotated tag **`v5.0.0`** exists and dereferences to `083171169419447b2bb28734b4c48a667564c9b2`
+    (the exact PR #38 merge commit above). Tag message: `"JARVIS v5.0.0 - Terminal Control
+    Center"`.
+  - GitHub Release **"JARVIS v5.0.0"** is published: `tag_name: v5.0.0`, `draft: false`,
+    `prerelease: false`, published **2026-09-03**.
+  - Release workflow (`JARVIS Release — Build & Publish`, run **#7**) completed with
+    conclusion **SUCCESS**. Steps that ran: extract version from tag, install dependencies,
+    install Windows deps, run tests before build, build `JARVIS.exe`, create release archive,
+    upload build artifact, upload to GitHub Release.
+  - Release assets: **`JARVIS_v5.0.0_windows_x64.zip`** (primary Windows asset) and
+    `jarvis-main.zip`.
+  - **`v5.0.0` is now the latest formal GitHub Release — `v4.5.1` is no longer current.**
+    This is release/tag evidence for this specific tag/commit, not a claim that `main` will
+    always point here; re-verify with `git fetch`/`git rev-parse origin/main` and the
+    [GitHub Releases page](https://github.com/Duong-Phuoc-Hung/JARVIS/releases) for the
+    actual current state whenever it matters.
+- runtime: **`5.0.0`** (`jarvis.__version__`, `jarvis/__init__.py`) — unchanged by PR #38
+  (documentation-only) and by the tag/release event itself (tagging/publishing a release does
+  not modify source). Same value as recorded in the `0-PREV7` checkpoint below. Verify
+  directly: `python -c "import jarvis; print(jarvis.__version__)"` /
+  `python -m jarvis --version` (expect `jarvis 5.0.0`).
+- **No production code, test, or backend behavior changed by PR #38 or by this session's own
+  documentation-sync pass** — both are documentation-only. PR #38 corrected stale "PR
+  pending"/"not merged" language left over from before PR #37 actually merged (see
+  `0-PREV7` below for what that pass covered). This session's pass corrects the next round of
+  staleness: every active/current claim across `CLAUDE.md`, `README.md`, `CHANGELOG.md`, this
+  file, and `docs/ROADMAP.md` that still said "`v4.5.1` is the latest formal release," "no
+  `v5.0.0` tag/release exists yet," or "5.0.0 is only a development/runtime version" — all of
+  which were true when PR #38 was written but became stale the moment the tag was actually
+  pushed and the release workflow succeeded, per the facts recorded above. No commit, push,
+  tag, or GitHub Release was created by this documentation-sync session itself; the tag/release
+  described above was already independently verified as existing before this pass began.
+
+---
+
+## 0-PREV7. Prior Checkpoint — PR #37 merged: J.A.R.V.I.S. Terminal Control Center is on `main`, runtime `5.0.0`, pre-tag release-finalization pass in progress (2026-09-03) — historical, superseded by the `0` checkpoint above for tag/release status
 
 This section supersedes the checkpoint immediately below it (now demoted to `0-PREV6`, kept
 as historical record — not rewritten; further checkpoints cascade as `0-PREV7`, etc.). As
 always: **do not treat any SHA recorded here as a permanent "current main" pointer** — run
 `git fetch origin --prune && git rev-parse origin/main` before trusting it.
+
+**This section's own "pre-tag release-finalization pass in progress" / "no `v5.0.0` tag or
+GitHub Release has been created yet" language below describes a real, earlier point in time
+(before PR #38 merged and the `v5.0.0` tag/release were actually cut) and is kept verbatim as
+the historical record of that pass — it does not describe current state. The `0` checkpoint
+above is authoritative for current tag/release status: `v5.0.0` is now a formally published
+GitHub Release.**
 
 **State:**
 - `main`/`origin/main`: `38affda1b848eee5fe90cfac2749824c57c5efe9` — merge of **PR #37**
