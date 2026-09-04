@@ -15,6 +15,7 @@ from collections import deque
 from datetime import datetime
 from typing import Any, Union
 
+from jarvis.core.runaway_guard import canonical_app_key, canonical_url_key, launch_dedupe_guard
 from jarvis.platform.windows import WindowsPlatformAPI, platform_win32
 
 
@@ -682,6 +683,23 @@ class ComputerController:
         clean_name = app_name.strip().lower()
         clean_name = re.sub(r"^(?:mở|bật|khởi động|chạy|open|launch|start)\s+", "", clean_name).strip()
 
+        # P0 runaway-hardening: every prior call unconditionally re-launched the
+        # target app -- a repeated/runaway dispatch (e.g. a passive
+        # acoustic-trigger loop, or a garbled STT transcript matching the same
+        # app repeatedly) could spawn it over and over. Report a suppressed
+        # repeat truthfully rather than a fabricated success. Keyed by
+        # canonical APP identity so this shares one budget with
+        # SpotifyPlugin/CursorPlugin for the same real application reached
+        # through their own dedicated action names.
+        if not launch_dedupe_guard.should_allow("app_launch", canonical_app_key(clean_name)):
+            return {
+                "success": False,
+                "app": clean_name,
+                "status": "suppressed",
+                "error": f"Yêu cầu mở '{clean_name}' bị chặn do lặp lại quá nhanh.",
+                "error_code": "LAUNCH_RATE_LIMITED",
+            }
+
         # Check if it's actually a website query
         if clean_name in self.WEBSITE_MAP or any(clean_name.endswith(ext) for ext in (".com", ".vn", ".net", ".org", ".io", ".edu")):
             return self.open_website(clean_name)
@@ -768,6 +786,23 @@ class ComputerController:
             url = f"https://{clean}" if not clean.startswith("http") else clean
         else:
             url = f"https://www.google.com/search?q={clean}"
+
+        # P0 runaway-hardening: every prior call unconditionally re-opened the
+        # target URL -- a repeated/runaway dispatch (e.g. a passive
+        # acoustic-trigger loop, or a garbled STT transcript repeatedly
+        # resolving to the same URL) could open it over and over. Report a
+        # suppressed repeat truthfully rather than a fabricated success.
+        # Keyed by canonical domain so this shares one budget with
+        # ChromeMultiMonitorPlugin.open_url() for the same site reached
+        # through a different code path.
+        if not launch_dedupe_guard.should_allow("web_launch", canonical_url_key(url)):
+            return {
+                "success": False,
+                "url": url,
+                "status": "suppressed",
+                "error": f"Yêu cầu mở '{url}' bị chặn do lặp lại quá nhanh.",
+                "error_code": "LAUNCH_RATE_LIMITED",
+            }
 
         try:
             import webbrowser

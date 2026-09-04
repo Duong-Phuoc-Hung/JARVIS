@@ -35,6 +35,23 @@ audio:
   probe_seconds: 0.5          # Duration for probe scanning
   silent_rms_threshold: 0.001 # Silence cutoff
 
+safety:
+  # P0 runaway-hardening (see CHANGELOG.md/docs/PROJECT_STATE.md for the
+  # incident writeup): centralized circuit breaker bounding how often an
+  # AMBIENT/passive trigger (wake word, acoustic gesture) may initiate a
+  # heavy voice-interaction/action pipeline. Explicit user actions (hotkey,
+  # typed text command) are never subject to this. See
+  # jarvis/core/runaway_guard.py::PassiveTriggerGuard.
+  passive_trigger_guard:
+    max_triggers: 5            # Max passive activations allowed within window_s
+    window_s: 60.0             # Sliding window (seconds) the max_triggers count applies to
+    lockout_s: 120.0           # Temporary suppression duration once the window limit is exceeded
+  # Minimum interval (seconds) the same external app/website launch target may
+  # be re-launched. Applies to the Spotify/Chrome/Cursor plugins and the
+  # canonical ComputerController.open_app()/open_website() path. See
+  # jarvis/core/runaway_guard.py::LaunchDedupeGuard.
+  launch_dedupe_cooldown_s: 5.0
+
 gesture:
   dsp:
     spike_ratio: 7.0          # Multiplier over dynamic noise floor
@@ -48,6 +65,15 @@ gesture:
       enabled: true
       min_gap_s: 0.05
       max_gap_s: 0.35
+      # P0 runaway-hardening: a passive acoustic trigger (a clap pattern) no
+      # longer has default authority to launch heavyweight external
+      # applications -- a false-positive/repeated detection (e.g. from the
+      # music this fanout itself would start playing) could otherwise keep
+      # relaunching Spotify/Chrome/Cursor unbounded. Set this to true to
+      # explicitly opt back into the full external-app fanout below on first
+      # activation; when false (default), first activation instead starts a
+      # safe voice interaction, same as every subsequent double_clap.
+      allow_side_effect_fanout: false
       actions:
         - "spotify"
         - "chrome_claude"
@@ -108,9 +134,20 @@ stt:
   timeout_s: 10.0
   faster_whisper:
     model_size: "large-v3"      # large-v3 = chính xác nhất tiếng Việt (~6% WER vs base ~35% WER)
-    device: "cuda"              # NVIDIA GTX 1650 detected — CUDA nhanh hơn CPU 10-20x
-    compute_type: "int8_float16" # tối ưu cho GPU 4GB VRAM: tiết kiệm VRAM, vẫn nhanh hơn float16
+    # "cuda" is requested here, but is NOT a universal hardware assumption:
+    # FasterWhisperSTT._resolve_device() probes actual CUDA/cublas
+    # availability at runtime and truthfully falls back to "cpu" (with a
+    # CPU-friendly compute_type) when a usable CUDA GPU isn't present -- do
+    # not read this value as a claim about any specific user's GPU.
+    device: "cuda"
+    compute_type: "int8_float16" # int8_float16 = tiết kiệm VRAM trên GPU phổ thông, vẫn nhanh hơn float16
     download_root: ""           # "" = tự động %LOCALAPPDATA%\JARVIS\cache\whisper
+    # P0 runaway-hardening: lazy-load by default (model loads on first real
+    # transcription request) rather than unconditionally preloading a heavy
+    # model in a background thread at every startup AND on every config
+    # hot-reload. Set to true to restore eager preload (lower first-command
+    # latency, higher baseline VRAM/RAM/startup cost).
+    preload: false
   web_speech:
     timeout_s: 5.0
 

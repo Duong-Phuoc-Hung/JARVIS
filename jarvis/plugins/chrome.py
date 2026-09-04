@@ -14,6 +14,7 @@ from typing import Any
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import PluginMetadata
 from jarvis.core.plugin import BasePlugin
+from jarvis.core.runaway_guard import canonical_url_key, launch_dedupe_guard
 
 
 class ChromeMultiMonitorPlugin(BasePlugin):
@@ -101,6 +102,22 @@ class ChromeMultiMonitorPlugin(BasePlugin):
         window_height: int = 900,
         **kwargs,
     ) -> dict[str, Any]:
+        # P0 runaway-hardening: every prior call unconditionally spawned a new
+        # --new-window Chrome process -- a repeated/runaway dispatch (e.g. a
+        # passive acoustic-trigger loop) could spawn dozens of them. Report a
+        # suppressed repeat truthfully rather than a fabricated success.
+        # Keyed by canonical domain (not the exact URL) so this shares one
+        # budget with ComputerController.open_website() for the same site
+        # reached through a different code path.
+        if not launch_dedupe_guard.should_allow("web_launch", canonical_url_key(url)):
+            return {
+                "success": False,
+                "status": "suppressed",
+                "error": f"Yêu cầu mở '{url}' trong Chrome bị chặn do lặp lại quá nhanh.",
+                "error_code": "LAUNCH_RATE_LIMITED",
+                "url": url,
+            }
+
         x_offset = (int(monitor) - 1) * 1920
         y_offset = 0
 

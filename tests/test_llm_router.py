@@ -449,6 +449,36 @@ def test_m2_vietnamese_category6_system_power_safety():
     assert r_lock.danger_level == "LOW"
 
 
+def test_voice_control_truthfulness_toggle_mute_desired_state_parameters():
+    """
+    [fix/voice-control-truthfulness] Locks in the router's existing
+    toggle_mute desired-state parameter contract that
+    JarvisApp._handle_toggle_mute() now relies on being correct: an explicit
+    "tắt mic"/"mute mic" phrase must carry muted=True, an explicit
+    "bật mic"/"unmute mic" phrase must carry muted=False, and a bare
+    "toggle mic" phrase must carry no desired state (empty parameters), so
+    the handler falls back to toggling. This test does not change
+    jarvis/llm/router.py -- it only proves the contract the handler fix
+    depends on has not silently drifted.
+    """
+    router = LLMIntentRouter(LLMClient(provider="mock"))
+
+    for phrase in ("tắt mic", "tat mic", "mute mic"):
+        res = router.parse_intent(phrase)
+        assert res.action_name == "toggle_mute", phrase
+        assert res.parameters.get("muted") is True, phrase
+
+    for phrase in ("bật mic", "bat mic", "unmute mic"):
+        res = router.parse_intent(phrase)
+        assert res.action_name == "toggle_mute", phrase
+        assert res.parameters.get("muted") is False, phrase
+
+    for phrase in ("bật tắt mic", "bat tat mic", "toggle mic"):
+        res = router.parse_intent(phrase)
+        assert res.action_name == "toggle_mute", phrase
+        assert "muted" not in res.parameters, phrase
+
+
 def test_m2_vietnamese_category7_default_fallback():
     """
     [M2] Validate Category 7: Default fallback strictly produces 'Tôi chưa hiểu lệnh này, vui lòng thử cách khác'.
