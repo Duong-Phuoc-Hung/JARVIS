@@ -83,8 +83,8 @@ class TestSafetyGuardConfigTiming(unittest.TestCase):
         launch_dedupe_guard.default_cooldown_s = self._orig_launch_cooldown
 
     def test_custom_safety_config_is_actually_applied_after_initialize(self) -> None:
+        import json
         import tempfile
-        import yaml
 
         custom_cfg = {
             "safety": {
@@ -93,9 +93,9 @@ class TestSafetyGuardConfigTiming(unittest.TestCase):
             }
         }
         with tempfile.TemporaryDirectory() as tmp_dir:
-            cfg_path = os.path.join(tmp_dir, "custom.yaml")
+            cfg_path = os.path.join(tmp_dir, "custom.json")
             with open(cfg_path, "w", encoding="utf-8") as f:
-                yaml.safe_dump(custom_cfg, f)
+                json.dump(custom_cfg, f)
 
             app = JarvisApp(headless=True, no_hot_reload=True, config_path=cfg_path)
             try:
