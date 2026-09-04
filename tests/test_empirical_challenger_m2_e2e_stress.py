@@ -151,6 +151,9 @@ def test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue(tmp_path, monkeypatc
     # Wire up JarvisApp manually with test configuration
     app = JarvisApp(headless=True, no_hot_reload=True)
     app.initialize()
+    # P0 runaway-hardening: fanout is opt-in by default now -- safe to opt in
+    # here since every launch call below is monkeypatched to a fake handler.
+    app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
 
     # Replace TTS manager with test instance
     if app.tts_manager:

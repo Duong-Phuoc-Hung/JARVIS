@@ -15,6 +15,7 @@ from typing import Any
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import PluginMetadata
 from jarvis.core.plugin import BasePlugin
+from jarvis.core.runaway_guard import canonical_app_key, launch_dedupe_guard
 
 
 class CursorPlugin(BasePlugin):
@@ -96,6 +97,24 @@ class CursorPlugin(BasePlugin):
                 pass
 
         # 2. Spawn new process if executable is available
+        # P0 runaway-hardening: spawning a new Cursor process (unlike
+        # focusing an already-open window above, which is cheap/idempotent)
+        # is a genuinely heavyweight operation -- a repeated/runaway dispatch
+        # could previously launch a fresh Cursor instance every single time.
+        # Report a suppressed repeat truthfully rather than a fabricated
+        # success. Keyed by canonical APP identity so this shares one budget
+        # with ComputerController.open_app("cursor"/"cursor ide"/"cursor ai")
+        # -- the same real application reached through a different code path.
+        if not launch_dedupe_guard.should_allow("app_launch", canonical_app_key("cursor")):
+            return {
+                "success": False,
+                "focused": False,
+                "fullscreen": target_fs,
+                "status": "suppressed",
+                "error": "Yêu cầu mở Cursor bị chặn do lặp lại quá nhanh.",
+                "error_code": "LAUNCH_RATE_LIMITED",
+            }
+
         exe = self._get_cursor_exe()
         if exe:
             try:

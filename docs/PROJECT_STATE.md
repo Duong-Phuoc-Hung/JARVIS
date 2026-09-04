@@ -1504,6 +1504,440 @@ Commit this sprint's changes (including the follow-up review fixes) on `feat/ski
 
 ---
 
+## 0-PRE4. Voice Control Truthfulness Fix: `system_power` + `toggle_mute` (in progress, uncommitted)
+
+Snapshot: 2026-09-04. Branch `fix/voice-control-truthfulness`, based on `main` @
+`006fffca8bc2a121e181e4b27cd11e7a6542197b` (verified via `git fetch origin --prune` +
+`git rev-parse HEAD`/`origin/main` immediately before this work started — both matched, tree
+clean). Local working-tree change, **not committed, not pushed, no PR opened, no CI run**.
+`jarvis.__version__` unaffected (`5.0.1`, unchanged) — this SHA is checkpoint evidence for the
+baseline this branch started from, not a claim about current `main`; re-verify with
+`git fetch origin --prune && git rev-parse origin/main` before trusting it later.
+
+### Bugs fixed (both in `jarvis/core/app.py` — the only production file changed)
+
+1. **`_handle_system_power()` pseudo-success.** Previously logged the request, spoke
+   `"Lệnh <action> đã được ghi nhận."`, and returned `{"status": "acknowledged", ...}` — a
+   status `_normalize_handler_outcome()` (`jarvis/core/dispatcher.py`) does not treat as
+   failure, so `shutdown`/`restart`/`sleep`/`hibernate`/`lock` were all reported as dispatcher
+   `success=True` regardless of whether any real OS action occurred (it never did, for any of
+   them). Fixed: sub-action alias normalization + fail-closed for
+   `shutdown`/`restart`/`sleep`/`hibernate` (no trustworthy backend exists anywhere in the
+   repo — confirmed by repo-wide search for `ExitWindowsEx`/`SetSuspendState`/
+   `InitiateSystemShutdown`/`shutdown /s`, zero matches), with `lock` as the sole real,
+   executed action via the pre-existing, truthful
+   `jarvis/platform/windows.py::WindowsPlatformAPI.lock_workstation()` (reused through
+   `self.computer_controller.win32`, mirroring the exact pattern already established in
+   `jarvis/vision/biometrics.py::_attempt_lock_workstation()`).
+2. **`_handle_toggle_mute()` ignored desired state.** The router
+   (`jarvis/llm/router.py`, unmodified) already emitted `parameters={"muted": True}` for
+   "tắt mic", `{"muted": False}` for "bật mic", and `{}` for a bare "toggle mic" — but the
+   handler ignored `muted` entirely and always called `tray_controller._on_toggle_mute()`
+   (blind toggle), so "tắt mic" on an already-muted mic would unmute it (and vice versa).
+   Fixed: `_handle_toggle_mute(muted: bool | None = None, **kwargs)` now honors an explicit
+   `True`/`False` desired state (idempotent) and only toggles when `muted` is omitted/`None`,
+   backed by `jarvis/audio/engine.py::AudioEngine.pause_stream()`/`resume_stream()` (the real
+   mic *input* stream) — confirmed distinct from
+   `jarvis/automation/control.py::ComputerController.mute_volume()`, which controls the
+   separate master *speaker/output* device via `pycaw` and must never be conflated with mic
+   input control.
+
+### Explicitly not touched
+
+`jarvis/planner/safety_interceptor.py::SafetyGateInterceptor` (including
+`SYSTEM_POWER_DESTRUCTIVE_SUBACTIONS`), `jarvis/core/dispatcher.py`'s safety-gate evaluation,
+`jarvis/llm/router.py`, and `jarvis/ui/tray.py::SystemTrayController._on_toggle_mute()` (the
+tray-icon click handler, which keeps its pre-existing blind-toggle behavior — it has no
+desired-state input). No second/private dispatcher was introduced.
+
+### Validation evidence (all backends mocked/faked — no real shutdown, restart, reboot,
+sleep, hibernate, workstation lock, or audio-device mutation performed anywhere in this work)
+
+```text
+tests/unit/test_dispatch_truthfulness.py
+  + TestSystemPowerHandlerTruthfulness (6 tests, new)
+  + TestToggleMuteHandlerTruthfulness (6 tests, new)
+tests/test_llm_router.py
+  + test_voice_control_truthfulness_toggle_mute_desired_state_parameters (1 test, new --
+    locks in the router's existing muted=True/False/{} parameter contract; router.py itself
+    is unmodified)
+
+tests/unit/ (full suite):            1585 collected, 1584 passed, 1 skipped, 0 failed, 0 errors
+tests/unit/test_action_dispatcher_safety.py (unchanged): 15 passed
+tests/test_llm_router.py + tests/test_adversarial_m3_ui_app.py: 33 passed, 1 skipped, 0 failed
+python -m compileall jarvis:                              OK
+python -c "import jarvis; print(jarvis.__version__)":     5.0.1 (unchanged)
+python -m jarvis --version:                                jarvis 5.0.1 (unchanged)
+git diff --check:                                          clean (no whitespace errors)
+```
+
+### Recommended next step
+
+Review the diff (`jarvis/core/app.py`, `tests/unit/test_dispatch_truthfulness.py`,
+`tests/test_llm_router.py`, `CHANGELOG.md`, `CLAUDE.md`, this file), then commit, push, and
+open a PR against `main` if approved. Out of scope for this task (unchanged): `PacketCapture`
+fabricated telemetry, Telegram/Discord fake-success, IMAP, Home Assistant, gesture wiring,
+AppContainer, the release workflow, any version bump, broad documentation drift, benchmark
+restructuring, and unrelated router aliases.
+
+---
+
+## 0-PRE5. P0 Runtime Runaway / Resource-Exhaustion Hardening (in progress, uncommitted,
+continuation of 0-PRE4 on the same branch)
+
+Snapshot: 2026-09-04. Branch `fix/voice-control-truthfulness` (same branch as `0-PRE4` above),
+based on `main` @ `006fffca8bc2a121e181e4b27cd11e7a6542197b` (re-verified via `git fetch
+origin --prune` immediately before this continuation started — HEAD/origin/main both matched,
+tree dirty only with the already-authorized `0-PRE4` work, which was preserved). Local
+working-tree change, **not committed, not pushed, no PR opened, no CI run**.
+`jarvis.__version__` unaffected (`5.0.1`, unchanged).
+
+### Incident and evidence status
+
+Reported: JARVIS drove a real Windows machine to extreme CPU/GPU/RAM load, repeatedly opening
+apps (Settings/Chrome tabs/Spotify/others) until the machine became unusable and required a
+hardware power-button shutdown; a second, independent user reproduced similar behavior.
+**No incident log was available on this machine** (`%LOCALAPPDATA%\JARVIS\logs\` does not
+exist here) — every finding below comes from direct source-code audit, not from reading actual
+incident logs. This is stated explicitly per the task's own instruction not to fabricate a
+root cause from insufficient evidence.
+
+### Confirmed source-code findings (all independently verified by reading the actual code,
+several by direct reproduction with instrumented scripts)
+
+1. `config/default_config.yaml`'s `gesture.patterns.double_clap.actions` defaulted to
+   `["spotify", "chrome_claude", "chrome_binance", "tts_welcome", "cursor"]` with **no opt-in
+   gate** — a passive acoustic trigger (a clap pattern) had default, unauthenticated authority
+   to launch four heavyweight external applications.
+2. `jarvis/plugins/spotify.py::SpotifyPlugin.play_track()` (`os.startfile`),
+   `jarvis/plugins/chrome.py::ChromeMultiMonitorPlugin.open_url()`
+   (`subprocess.Popen([..., "--new-window", ...])`),
+   `jarvis/plugins/cursor.py::CursorPlugin.focus_cursor()`'s process-spawn branch, and
+   `jarvis/automation/control.py::ComputerController.open_app()`/`open_website()` (the
+   canonical app/web launch path — confirmed to be what `"settings"` → `ms-settings:` in
+   `APP_MAP` routes through, directly matching the incident's reported "Settings" symptom) all
+   had **zero rate-limiting/deduplication** — every dispatch unconditionally spawned a new
+   process/window.
+3. `JarvisApp._on_gesture_event()`'s pre-existing cooldown (`_pattern_last_fired` dict +
+   `_action_fanout_cooldown_s=3.0`) was **minimum-interval-only, with no upper bound on total
+   triggers over time** — a sustained acoustic feedback loop (e.g. music the fanout itself just
+   started playing, or TTS bleeding back into the still-active microphone) could retrigger a
+   heavy pipeline indefinitely, once every ~3s, forever.
+4. `jarvis/stt/engine.py::STTEngine._on_config_reloaded()` unconditionally called
+   `_resolve_engine()` (reconstructing a brand-new `FasterWhisperSTT`, including — under the
+   pre-fix default — a fresh background model-preload) on **every** config hot-reload where the
+   `"stt"` section was non-empty, true of every real config, so effectively every reload,
+   **including reloads of settings wholly unrelated to STT**. The discarded engine/model was
+   never cleaned up. Confirmed by direct reproduction
+   (`FasterWhisperSTT.__init__` mocked, reload with an unrelated field change still
+   reconstructed before the fix; 0 reconstructions after).
+5. Default STT config: `model_size: "large-v3"` (heaviest available) + `device: "cuda"` +
+   code-level `preload` default `True` (not even set in the YAML, so implicit) — eager,
+   unconditional heavy-model loading at every startup and every reload (see #4). The
+   `device: "cuda"` comment additionally hardcoded one specific developer's GPU
+   (`"NVIDIA GTX 1650 detected"`) as if it were a universal assumption — a real instance of the
+   exact anti-pattern the task explicitly flagged.
+6. `jarvis/cli.py::_acquire_single_instance_mutex()` — a real, pre-existing, correctly-placed
+   OS-backed Win32 named mutex (`CreateMutexW`), called in `main()` **before** any expensive
+   `JarvisApp` initialization — **already existed and was already correctly positioned**; this
+   is not a P0 architecture gap that needed inventing from scratch. It had zero test coverage
+   before this pass, and failed open (returned `True`, allowing startup) on any unexpected
+   internal exception — a real, if narrow, defense-in-depth gap, now hardened (see below) but
+   deliberately left fail-open by design for genuinely unclassified failures.
+
+### Not independently confirmed (insufficient evidence)
+
+Whether the actual root cause on the affected user machine(s) was (A) multiple simultaneous
+JARVIS processes, (B) a gesture false-positive loop, (C) a wake-word/STT feedback loop, (D)
+repeated config-reload model creation, (E) repeated external-launch dispatch, or a combination.
+Findings #1–#5 above are each independently real, confirmed-by-reading-the-code architecture
+gaps, each individually sufficient to explain the reported symptom class (repeated launches of
+varied apps, sustained extreme CPU/GPU/RAM load) — fixing all of them closes this entire class
+of vulnerability regardless of which combination actually occurred on the reporting user's
+machine.
+
+### Fix summary (new file `jarvis/core/runaway_guard.py`; narrow wiring into the confirmed
+call sites above; see `CHANGELOG.md`'s matching entry and `CLAUDE.md`'s durable
+"runtime-runaway / resource-exhaustion hardening invariant" for full contract detail)
+
+- `PassiveTriggerGuard`: centralized circuit breaker (existing minimum-rearm-interval values
+  preserved: 2.5s wake-word, 3.0s gesture) **plus** a new sliding-window trigger-count lockout
+  (`max_triggers=5`/`window_s=60.0`/`lockout_s=120.0` defaults, configurable via
+  `safety.passive_trigger_guard.*`). Wired into `_on_wake_word_triggered()`/
+  `_on_gesture_event()`, replacing the old `_pattern_last_fired` dict entirely. Never applied
+  to explicit hotkey/text-command paths.
+- `LaunchDedupeGuard`: centralized launch dedupe/rate-limit (5.0s default cooldown, configurable
+  via `safety.launch_dedupe_cooldown_s`, applied to the shared singleton once from
+  `JarvisApp.__init__`). Wired into all four confirmed launch call sites from finding #2.
+  A suppressed repeat returns `{"success": False, "error_code": "LAUNCH_RATE_LIMITED", ...}` —
+  never a fabricated success.
+- `gesture.patterns.double_clap.allow_side_effect_fanout` (new config key, default `false`):
+  the heavy external-app fanout is now opt-in; disabled by default, the first `double_clap`
+  activation performs the same safe voice-activation as every subsequent one. The capability
+  itself is preserved (not deleted) behind the flag.
+- `STTEngine._on_config_reloaded()`: now compares an engine-relevant config snapshot
+  (`provider` + every per-provider sub-config `_resolve_engine()` actually reads) before
+  reconstructing; a no-op-for-STT reload keeps the existing engine untouched.
+- `FasterWhisperSTT.__init__`: `preload` default flipped `True` → `False` (lazy load).
+  `config/default_config.yaml` sets it explicitly and drops the hardcoded-GPU comment.
+  `model_size`/`device` deliberately left unchanged (`large-v3`/`cuda`) to preserve the v5.0.1
+  accuracy-tuning work; `_resolve_device()`'s real CUDA-availability probe/CPU-fallback is
+  unmodified.
+- `jarvis/cli.py`: `_acquire_single_instance_mutex()` hardened (`ctypes` `restype`/`argtypes`
+  correctness, closes the duplicate handle Win32 still returns on `ERROR_ALREADY_EXISTS`); new
+  `_release_single_instance_mutex()` called from `main()`'s `finally` block around
+  `JarvisApp(...).run()`. Deliberately still fails open on a genuinely unexpected exception
+  (documented, intentional tradeoff, locked in by a regression test).
+
+### Pre-existing test-suite hazards discovered and fixed along the way (not P0-caused, but
+found while auditing every call site of the newly-fixed production code)
+
+Several pre-existing tests exercised the real double-clap heavy fanout, or repeatedly dispatched
+`spotify`/`chrome_claude`/`mở cursor` through a real `JarvisApp`, **without mocking
+`os.startfile`/`subprocess.Popen`/`webbrowser.open`** — meaning, before this pass, running them
+on a developer machine with Spotify/Chrome/Cursor installed could have actually launched those
+real applications. Fixed by adding the required mocks (never by weakening assertions):
+`tests/test_empirical_challenger_m1_stabilization.py::test_double_clap_welcome_first_time_then_voice_loop_progression`,
+`tests/test_adversarial_m3_ui_app.py::test_jarvis_app_concurrent_text_commands_stress` (also
+replaced a command that hit an unrelated pre-existing `shell_exec`/weather bug). Additional
+pre-existing tests asserted the *old* unconditional double-clap fanout default and needed an
+explicit `gesture.patterns.double_clap.allow_side_effect_fanout = True` opt-in added (all
+already used safe fake/mocked action handlers, so no real launches were ever at risk in these):
+`tests/test_user_simulation.py` (`test_sim_01`, `test_sim_04`, `test_sim_12`),
+`tests/test_empirical_challenger_m1_stabilization.py::test_zero_double_dispatch_gesture_pipeline`,
+`tests/test_challenger_m1_2_empirical.py::test_gesture_routing_and_cooldown_debounce_enforcement`,
+`tests/test_empirical_challenger_m2_e2e_stress.py::test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue`,
+`tests/unit/test_app_integration.py::test_full_audio_gesture_dispatch_pipeline`. Nine call sites
+across three files that poked the old `_pattern_last_fired` dict directly to clear cooldown
+state were mechanically updated to
+`app._passive_trigger_guard.reset("GESTURE:<pattern>")` (exact same test intent, new mechanism).
+A new `tests/conftest.py` autouse fixture resets the two shared
+`jarvis.core.runaway_guard` singletons (`launch_dedupe_guard`/`passive_trigger_guard`) before
+and after every test in the entire suite, preventing any cross-test state leakage now that
+production code (plugins, `ComputerController`, `JarvisApp`) references shared module-level
+guard instances.
+
+### Confirmed pre-existing, unrelated test failures (root-caused, explicitly left unfixed —
+out of scope for this P0 task)
+
+All confirmed via direct reproduction to occur independent of anything this pass touched:
+- `tests/test_user_simulation.py::test_sim_05/06/07/17` — these tests' own mock passes
+  `record_audio() -> np.zeros(...)` (literally silent, RMS=0), which
+  `STTEngine.transcribe()`'s own pre-existing silence gate (unrelated to gestures) turns into
+  an empty transcript before the mocked `MockSTTEngine.default_transcript` is ever reached.
+- `tests/test_user_simulation.py::test_sim_18_cli_health_check_verification` — asserts the
+  literal substring `"Operating System:"` appears in `run_health_check()`'s output; confirmed
+  by grep that this string does not exist anywhere in `jarvis/cli.py`.
+- `tests/test_challenger_m1_2_empirical.py::test_record_audio_exception_resilience_when_sounddevice_fails`
+  — mocks `sounddevice.rec`, but `JarvisApp.record_audio()`'s real (non-headless) path uses
+  `sounddevice.InputStream(...)`, not `.rec()` — the mock never actually intercepts anything.
+- `tests/test_m3_ux.py::test_structured_interaction_logging` — routes "nhiệt độ hệ thống" to
+  router intent `hardware_telemetry_check`, which has never been registered as a dispatcher
+  action (only `system_status`/`hardware_status_query` are) — a pre-existing, separate router/
+  dispatcher name-registration gap, the same class of issue as the already-documented
+  `hardware_status_query` alias fix, just a different orphaned name.
+- `tests/test_empirical_challenger_m2_e2e_stress.py::test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue`
+  — confirmed via a standalone reproduction script (instrumented, printing
+  `GestureDetector._state`/`_last_trigger_time`/`AudioEngine._feed_virtual_time`) that
+  `clap_pause_clap` is never even published as a `"gesture.detected"` EventBus event — i.e. the
+  raw acoustic detector itself never recognizes the pattern from this specific injected PCM
+  sequence, entirely before any of this pass's code runs. Not a `_passive_trigger_guard`
+  suppression (ruled out directly: the event never reaches the detector's own dispatch step).
+
+### Validation evidence
+
+```text
+jarvis/core/runaway_guard.py (new module: PassiveTriggerGuard, LaunchDedupeGuard)
+tests/unit/test_runaway_guard.py (new, 21 tests, pure logic)
+tests/unit/test_runaway_hardening.py (new, 27 tests, wiring)
+tests/test_cli.py::TestSingleInstanceMutex (new, 7 tests)
+tests/unit/ (full suite): 1633 collected, 1632 passed, 1 skipped, 0 failed
+Broader touched-file sweep (tests/test_user_simulation.py,
+  tests/test_empirical_challenger_m1_stabilization.py, tests/test_challenger_m1_2_empirical.py,
+  tests/test_adversarial_m3_ui_app.py, tests/test_m3_ux.py,
+  tests/test_empirical_challenger_m2_e2e_stress.py, tests/test_cli.py, tests/test_llm_router.py):
+  113 collected, 104 passed, 1 skipped, 8 failed (all 8 confirmed pre-existing/unrelated, see above)
+python -m compileall jarvis tests: OK
+python -c "import jarvis; print(jarvis.__version__)" / python -m jarvis --version: 5.0.1 / "jarvis 5.0.1" (unchanged)
+git diff --check: clean
+```
+No real shutdown/restart/lock, no real Spotify/Chrome/Cursor/Settings launch, no real second
+JARVIS process, no real large-v3 Whisper model load, no real CUDA inference, and no real
+microphone/audio-device mutation occurred anywhere during this validation.
+
+### 0-PRE5 pre-commit review correction (same day, same branch — still uncommitted)
+
+An independent review pass, before any commit, required the following corrections to the
+0-PRE5 work above:
+
+1. **Single-instance mutex flipped fail-open → FAIL-CLOSED.** The original pass left
+   `_acquire_single_instance_mutex()`'s `except Exception: return True` baseline behavior
+   unchanged — an unproven exclusivity check still let JARVIS start. Rejected as unacceptable
+   for a P0 resource-exhaustion safety check. Now only a genuine, sane, non-pre-existing mutex
+   handle returns `True`; a NULL/0 handle, a malformed (non-`int()`-able) handle, or any
+   exception from the Win32 API call chain returns `False` and logs/prints
+   `JARVIS_SINGLE_INSTANCE_CHECK_FAILED`. `ERROR_ALREADY_EXISTS` remains a clean rejection (not
+   an error), with the duplicate handle Win32 still returns closed, not leaked. 4 new/rewritten
+   tests in `tests/test_cli.py::TestSingleInstanceMutex`.
+2. **`LaunchDedupeGuard` keys canonicalized to unify cross-path launches of the SAME real
+   target.** Confirmed gap: `"cursor"` (via `CursorPlugin`) and `"cursor ide"`/`"cursor ai"`
+   (via the fully independent `ComputerController.open_app()` → `APP_MAP` path) previously kept
+   two mutually-unaware rate-limit budgets for the identical application — alternating between
+   the two code paths could bypass the limit entirely. Same gap for `spotify` (plugin vs.
+   `open_app("spotify")`) and same-domain Chrome/website URLs (`chrome_claude`'s
+   `claude.ai/new` vs. `open_website("claude")`'s `claude.ai`). Fixed with two new pure
+   functions in `jarvis/core/runaway_guard.py` — `canonical_app_key()` (explicit alias table)
+   and `canonical_url_key()` (domain-only via `urlparse().netloc`) — used by all 5 launch call
+   sites before calling `should_allow()`, with `action` reduced to a coarse category
+   (`"app_launch"`/`"web_launch"`). New `TestCrossPathLaunchDedupeIsUnified` (4 tests) proves
+   the unification directly; 7 new pure-logic tests cover the canonicalization functions
+   themselves.
+3. **`PassiveTriggerGuard` given an explicit bounded-memory cap** (`_MAX_TRACKED_KEYS = 256`,
+   oldest-half eviction synchronized across its three internal dicts) as defense-in-depth, even
+   though the real key vocabulary (wake-word keywords + gesture pattern names) is small and
+   fixed in practice today. 1 new test confirms the cap holds under 356 distinct keys and the
+   three dicts never drift out of sync.
+4. **Verified (not changed): no double-consumption of the passive-trigger quota per physical
+   detection.** `_on_wake_word_triggered()` (starts a voice interaction) and
+   `_on_wake_word_event()` (telemetry-only, dashboard broadcast) are two separate
+   `WakeWordDetector` callback registrations (`callback=`/`on_wake_word=` in
+   `jarvis/core/app.py`'s subsystem-init section); only the former ever calls
+   `_passive_trigger_guard.try_acquire()`.
+5. **Found, flagged, NOT fixed (confirmed pre-existing, unrelated to gesture/passive-trigger
+   work): the PTT hotkey (`Ctrl+Shift+L`) is currently broken.** `_ptt_voice_cb()`
+   (`jarvis/core/app.py::_register_default_hotkeys()`) calls
+   `self._handle_voice_command(...)`, a method that does not exist anywhere in `JarvisApp` (only
+   `_start_voice_interaction()`/`process_voice_command()` exist). Pressing PTT currently raises
+   `AttributeError` in a background thread and silently does nothing. Confirmed not caused by
+   this branch (not present in its diff). Flagged via a background task suggestion rather than
+   fixed inline, per this task's narrow P0 scope.
+6. **Microphone state: removed an unread-but-still-written shadow copy.** `_handle_toggle_mute()`
+   previously wrote `self._mic_muted = new_muted` unconditionally, even while `tray_controller`
+   existed (in which case that write was never read back — `tray_controller._is_mic_muted` was
+   always consulted instead). Not a functional bug (exactly one variable was ever read at
+   decision time), but a real code-clarity gap the review correctly flagged as looking like a
+   second authority. Now writes to exactly the one variable it just read from, never both.
+7. **8 broader test failures independently reproduced at the exact baseline commit via a
+   temporary `git worktree`** (not `git stash`/`reset`, per instruction): `git worktree add
+   ../jarvis-baseline-check 006fffca8bc2a121e181e4b27cd11e7a6542197b`, ran the exact 8 failing
+   node IDs there, then `git worktree remove --force` immediately after. **All 8 reproduced
+   identically** (same assertion failures, same messages, including the exact same
+   `bus_events` list content for the `clap_pause_clap` case) — conclusive, direct evidence they
+   are pre-existing and not a regression from this branch. See the exact node IDs and failure
+   summaries in the branch's final report (not duplicated here).
+8. **Resolved a prior report inconsistency**: exact file inventory re-verified via
+   `git diff --name-status` (23 modified) + `git ls-files --others --exclude-standard` (3 new)
+   = **26 files total**, matching `git diff --stat`'s file count. Also confirmed exactly **one**
+   definition of `test_voice_control_truthfulness_toggle_mute_desired_state_parameters` exists
+   repo-wide (`tests/test_llm_router.py:452`) — no duplicate.
+
+**Post-review validation**: `tests/unit/`: 1645 collected, 1644 passed, 1 skipped, 0 failed.
+Broader sweep (same 8 files, now including 3 more single-instance-mutex tests): 116 collected,
+107 passed, 1 skipped, 8 failed (the same 8, now worktree-confirmed pre-existing).
+
+### 0-PRE5 second pre-commit review pass (same day, same branch — still uncommitted): 3 blockers
+
+An independent production-diff audit found 3 remaining code blockers, all now fixed:
+
+1. **`safety.*` config applied before `ConfigManager.load()` ran.** `JarvisApp.__init__()` read
+   `safety.passive_trigger_guard.*`/`safety.launch_dedupe_cooldown_s` via `self.config.get(...)`
+   before `self.config.load()` (which only runs in `initialize()`) had populated
+   `ConfigManager._data` — so a real custom config value was always silently ignored in favor
+   of the hardcoded Python default. Fixed: `__init__()` now constructs `PassiveTriggerGuard()`
+   with only its own safe built-in defaults; a new `_apply_safety_guard_config()` applies the
+   REAL loaded value onto the existing guard objects **in place** (never reconstructing them,
+   so live trigger history/active lockout survives), called once right after
+   `self.config.load()` in `initialize()`, and also registered as a config hot-reload callback
+   (`_on_safety_config_reloaded`) so a later config edit takes effect too without ever resetting
+   guard state. 3 new tests in `TestSafetyGuardConfigTiming`.
+2. **Single-instance result made three-state.** `_acquire_single_instance_mutex()` returned
+   `False` for both "already running" and "check itself failed" — indistinguishable to a
+   script/automation caller. Now returns `SingleInstanceResult` (`ACQUIRED`/`ALREADY_RUNNING`/
+   `CHECK_FAILED`); `main()` exits 0 for `ALREADY_RUNNING`, non-zero for `CHECK_FAILED`. Also
+   added `ctypes.set_last_error(0)` immediately before `CreateMutexW()` so a genuinely fresh
+   success can never be misclassified as `ERROR_ALREADY_EXISTS` from a stale last-error value.
+   Updated the Terminal Control Center's `[J]` delegation
+   (`jarvis/ui/terminal/app.py::TerminalApp._default_start_jarvis()`) to branch on all three
+   states explicitly — `CHECK_FAILED` is never reinterpreted as success. 9 updated/new tests in
+   `tests/test_cli.py::TestSingleInstanceMutex` + 3 new tests in `tests/unit/test_terminal_app.py`.
+3. **`FasterWhisperSTT` model construction serialized process-wide.** The per-instance
+   double-checked lock only prevented redundant construction within one instance — an OLD
+   engine's still-in-flight preload thread could construct concurrently with a NEW replacement
+   engine's preload thread (possible when `preload=true` and a config reload genuinely changes
+   engine-relevant settings). Added class-level `FasterWhisperSTT._model_construction_lock`
+   (shared across every instance, acquired strictly after the per-instance lock, so nesting
+   order can never deadlock). 1 new test in
+   `TestFasterWhisperCrossInstanceModelConstructionSerialization` proves max concurrent
+   constructions observed == 1, using a mocked artificially-slow `WhisperModel` on two threads
+   — no real Whisper/CUDA. Does not claim deterministic VRAM release.
+
+**Post-blocker-fix validation**: `tests/unit/`: 1653 collected, 1652 passed, 1 skipped, 0 failed.
+Broader sweep: 118 collected, 109 passed, 1 skipped, 8 failed (same 8 pre-existing, unchanged).
+`git diff --check`: clean. Version unchanged (`5.0.1`).
+
+### 0-PRE5 third pre-commit review pass (fresh Claude Code session, same branch — still
+uncommitted): 1 blocker found and fixed
+
+A third, independent audit (a new session, re-deriving repository context from `CLAUDE.md`/
+`docs/PROJECT_STATE.md`/actual source rather than trusting the two prior passes' claims at face
+value) re-read the `[J]` START JARVIS delegation path end to end and found one remaining
+blocker the first two review passes missed:
+
+1. **`TerminalApp._default_start_jarvis()` (`jarvis/ui/terminal/app.py`) acquired the
+   single-instance mutex but never released it.** The second review pass (above) correctly made
+   `_acquire_single_instance_mutex()` three-state and updated `[J]` to branch on all three
+   states — but neither pass added a matching release call after the delegated `JarvisApp`
+   actually finished running. `jarvis/cli.py::main()` already wrapped its own
+   `JarvisApp(...).run()` in `try/finally` + `_release_single_instance_mutex()` (added in the
+   same second pass) — `[J]`'s copy of this same acquire-then-run pattern was never given the
+   same treatment. Concretely: after starting JARVIS via the Terminal Control Center and then
+   stopping it (Ctrl+C or normal shutdown), the mutex handle stayed held by the *Terminal
+   Control Center's own process* for the rest of its lifetime — a subsequent `[J]` attempt in
+   the same terminal session, or a concurrent `jarvis run` from another window, would incorrectly
+   observe `ALREADY_RUNNING` even though no real `JarvisApp` was still running. This is a false
+   self-lockout, the opposite failure mode from the one the single-instance fix exists to
+   prevent (multiple real concurrent `JarvisApp` instances).
+   **Fix** (`jarvis/ui/terminal/app.py` only — `jarvis/cli.py` unchanged, no second mutex
+   mechanism introduced): wrapped `JarvisApp(config_path=...).run()` in `_default_start_jarvis()`
+   in the identical `try/finally` + `_release_single_instance_mutex()` pattern `main()` already
+   used. The `ALREADY_RUNNING`/`CHECK_FAILED` branches are unchanged — they never acquired
+   anything, so they never call release.
+   **3 new tests** in `tests/unit/test_terminal_app.py`:
+   `test_default_start_jarvis_acquired_releases_mutex_after_run`,
+   `test_default_start_jarvis_releases_mutex_even_if_jarvisapp_run_raises` (proves the release is
+   in a `finally`, not just on the success path),
+   `test_default_start_jarvis_already_running_does_not_release_mutex`, plus the pre-existing
+   `test_default_start_jarvis_acquired_constructs_and_runs_jarvisapp` (unchanged, still passing).
+   **Validation**: `python -m compileall jarvis`: OK. `tests/unit/test_terminal_app.py`: 39
+   passed (36 pre-existing + 3 new). `tests/test_cli.py` + `tests/unit/test_runaway_guard.py` +
+   `tests/unit/test_runaway_hardening.py` + `tests/unit/test_dispatch_truthfulness.py` +
+   `tests/test_llm_router.py`: all passing (1 skip, unchanged). Full `tests/unit/` suite
+   (measured via `--junit-xml`, since this session's capture environment did not reliably
+   surface `pytest -q`'s final stdout summary line — the junit report is authoritative here):
+   **1656 collected, 1655 passed, 1 skipped, 0 failed, 0 errors** (1653 baseline + 3 new tests,
+   exactly as expected — zero regressions). `python -c "import jarvis;
+   print(jarvis.__version__)"` / `python -m jarvis --version`: `5.0.1` (unchanged). `git diff
+   --check`: clean.
+   **Everything else independently re-verified against current source in this same audit and
+   found to already match the prior two passes' claims exactly, with no further discrepancy**:
+   `PassiveTriggerGuard`/`LaunchDedupeGuard` (bounded memory, monotonic time, thread-safety,
+   canonical-key unification across all 5 launch call sites), `_apply_safety_guard_config()`'s
+   `__init__()`-vs-`initialize()` timing split, `FasterWhisperSTT._model_construction_lock`'s
+   nesting order, `_handle_system_power()`/`_handle_toggle_mute()` truthfulness contracts, and
+   `gesture.patterns.double_clap.allow_side_effect_fanout` gating.
+
+### Recommended next step
+
+Review the diff, then commit/push/open a PR against `main` if approved (covers `0-PRE4`,
+`0-PRE5`, and this third review pass, all on the same branch). Out of scope, unchanged: the 5
+confirmed pre-existing test failures listed above; the `_handle_voice_command`/PTT hotkey bug
+(flagged separately, see item 5 above); the exact ground-truth root cause on the reporting
+user's machine (no log evidence available); downgrading the default STT model/device;
+PacketCapture/Telegram/Discord/IMAP/Home Assistant/AppContainer/release-workflow/version-bump
+items already out-of-scope per `0-PRE4`.
+
+---
+
 ## 0A. Phase 1 — Wake Word Reliability Hardening (in progress, uncommitted)
 
 Snapshot: 2026-08-30. Four review rounds in the same overall effort: initial implementation, a dependency/API-surface correction pass, a correctness/determinism correction pass, and — after `main` advanced substantially — a **v4.1.0 sync + further correctness pass** (this one). Local working-tree change, **not committed, not pushed, no PR opened**. This section describes the final, verified state after all four rounds.

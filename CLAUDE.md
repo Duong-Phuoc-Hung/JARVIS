@@ -169,6 +169,32 @@ specifically marked otherwise.
 - Full detail: `CHANGELOG.md`'s "Post-v4.7.0 Maintenance" section (PR #31, PR #32, PR #34,
   PR #35); `docs/PROJECT_STATE.md`'s current checkpoint; `docs/TECHNICAL_AUDIT_REPORT.md`'s
   updated audit-status entries.
+- **In-progress, not yet merged, at the time of this writing: branch
+  `fix/voice-control-truthfulness`** (based on `main` @
+  `006fffca8bc2a121e181e4b27cd11e7a6542197b`) fixes two production truthfulness bugs —
+  `_handle_system_power()` previously reported `shutdown`/`restart`/`sleep`/`hibernate`/`lock`
+  as `"acknowledged"` without any real OS action occurring, and `_handle_toggle_mute()`
+  previously ignored the router's explicit `muted=True`/`False` desired-state parameter and
+  always blind-toggled (so "tắt mic" could unmute an already-muted mic). See the durable
+  "`system_power` / `toggle_mute` truthfulness invariant" below for the full contract, and
+  `CHANGELOG.md`'s "Post-v5.0.1 Maintenance" entry for validation evidence. `jarvis.__version__`
+  is unaffected (`5.0.1`, unchanged) — this is a narrow bug fix, not a release.
+- **Also in-progress on the same branch: a P0 runtime-runaway/resource-exhaustion hardening
+  pass** (new module `jarvis/core/runaway_guard.py`), responding to a real incident (a Windows
+  machine driven to extreme CPU/GPU/RAM load requiring a hardware power-button shutdown,
+  independently reproduced by a second user). Adds a centralized passive-trigger circuit
+  breaker (bounds total wake-word/gesture activations over a sliding window, not just a minimum
+  interval), a centralized external-launch dedupe/rate-limiter (wired into the Spotify/Chrome/
+  Cursor plugins and the canonical `ComputerController.open_app()`/`open_website()` path), makes
+  the gesture double-clap heavy external-app fanout opt-in
+  (`gesture.patterns.double_clap.allow_side_effect_fanout`, default `false`), stops
+  `STTEngine._on_config_reloaded()` from reconstructing a heavy STT engine on config reloads
+  that don't change engine-relevant settings, and makes `FasterWhisperSTT` lazy-load
+  (`preload=False`) by default. See the durable "runtime-runaway / resource-exhaustion
+  hardening invariant" below for the full contract, and `CHANGELOG.md`'s matching entry for the
+  full incident writeup and validation evidence. No incident log was available to confirm the
+  exact root cause on the machine this pass was performed on — all findings are source-code
+  audit findings, stated as such.
 
 ### Permanent project policy: DOCUMENTATION IS PART OF DEFINITION OF DONE
 
@@ -277,6 +303,230 @@ change), because stale docs elsewhere in the repo actively mislead future sessio
   owner-authorized, narrow, app.py-only compatibility fix — `jarvis/llm/router.py` was
   deliberately left untouched. If a future task ever removes or renames `system_status`,
   update or remove this alias in the same change; do not let them silently diverge.
+
+### Durable `system_power` / `toggle_mute` truthfulness invariant (`jarvis/core/app.py`,
+branch `fix/voice-control-truthfulness`, based on `main` @
+`006fffca8bc2a121e181e4b27cd11e7a6542197b` — **NOT YET MERGED as of this writing**; treat as a
+durable rule to preserve once/if this branch merges, not as a claim about current `main`)
+
+- **`_handle_system_power()` must never report `shutdown`/`restart`/`reboot`/`poweroff`/
+  `sleep`/`hibernate` as having occurred unless a real, trustworthy OS backend actually
+  performed it.** A repo-wide search found exactly one truthful power-action backend anywhere
+  in the codebase: `jarvis/platform/windows.py::WindowsPlatformAPI.lock_workstation()` (real
+  Win32 `LockWorkStation()`, real return value). No `shutdown`/`restart`/`sleep`/`hibernate`
+  backend exists — do not invent an ad-hoc `shutdown /s`/PowerShell/`ExitWindowsEx`/
+  `SetSuspendState` path just to make the voice command "work"; that would itself violate this
+  invariant. Until a real, audited backend exists for one of these, the handler must keep
+  fail-closing on it (`error_code="POWER_ACTION_UNSUPPORTED"`) — **even for a genuinely
+  confirmed request** (SafetyGate confirmation satisfies the safety gate; it does not conjure
+  a backend into existence). Sub-action alias normalization
+  (`_POWER_ACTION_ALIASES`/`_UNSUPPORTED_POWER_ACTIONS`, both module-level in
+  `jarvis/core/app.py`) is a separate, internal-only concern from
+  `SafetyGateInterceptor.SYSTEM_POWER_DESTRUCTIVE_SUBACTIONS` (`jarvis/planner/
+  safety_interceptor.py`, unmodified by this fix) — the safety classifier still runs against
+  the raw, unnormalized router payload before this handler is ever reached; do not merge the
+  two tables or make the safety classifier depend on the handler's normalization.
+- **`_handle_toggle_mute(muted: bool | None = None, **kwargs)` must honor an explicit desired
+  state.** `muted=True` must always result in muted, `muted=False` must always result in
+  unmuted — regardless of the mic's current state — and only an omitted/`None` `muted` may
+  toggle. The pre-fix handler ignored the `muted` parameter entirely and always
+  blind-toggled, so "tắt mic" (mute) on an already-muted mic would silently unmute it, and
+  vice versa. The real backend is `jarvis/audio/engine.py::AudioEngine.pause_stream()`/
+  `resume_stream()` (the mic *input* stream feeding wake-word/STT) — **never**
+  `jarvis/automation/control.py::ComputerController.mute_volume()`, which controls the
+  separate master *speaker/output* device via `pycaw`/`AudioUtilities.GetSpeakers()` and must
+  never be conflated with microphone input control. When `tray_controller` exists,
+  `tray_controller._is_mic_muted` remains the single source of truth (read AND written by the
+  handler — pre-commit review correction: the handler previously *also* unconditionally wrote
+  `self._mic_muted` even while `tray_controller` existed, an unread-but-still-written shadow
+  copy that could be mistaken for a second authority even though nothing ever read it back in
+  that mode; it now writes to exactly the one variable it just read from, never both) so a voice
+  command and a tray-icon click can never silently diverge; when no `tray_controller` exists
+  (headless/CLI), `JarvisApp._mic_muted` is the sole tracker. No
+  `audio_engine` or a backend exception must fail closed
+  (`error_code="AUDIO_ENGINE_UNAVAILABLE"`/`"AUDIO_ENGINE_EXCEPTION"`), never silently report
+  success. `jarvis/ui/tray.py::SystemTrayController._on_toggle_mute()` (the tray-icon click
+  handler) is intentionally unmodified and keeps its pre-existing blind-toggle behavior — it
+  has no "desired state" input to honor.
+- Both handlers keep returning the established `{"success": bool, "error"/"error_code", ...}`
+  dispatcher failure/success contract (see the dispatch-truthfulness invariant above) — never
+  a novel pseudo-success status (`"acknowledged"`/`"queued"`/`"accepted"`) for an operation
+  that did not actually happen, which is exactly the shape of Bug A this invariant replaces.
+
+### Durable runtime-runaway / resource-exhaustion hardening invariant
+(`jarvis/core/runaway_guard.py`, branch `fix/voice-control-truthfulness`, based on `main` @
+`006fffca8bc2a121e181e4b27cd11e7a6542197b` — **NOT YET MERGED as of this writing**; a real P0
+incident hardening pass, not a hypothetical)
+
+**Incident context**: JARVIS drove a real Windows machine to extreme CPU/GPU/RAM load,
+repeatedly opening apps (Settings/Chrome/Spotify/others) until a hardware power-button
+shutdown was required; a second independent user reproduced similar behavior. No incident log
+was available on the machine this hardening pass was performed on
+(`%LOCALAPPDATA%\JARVIS\logs\` does not exist there) — every finding below is a source-code
+audit finding, not a log-confirmed root cause; do not describe it as log-verified.
+
+- **A passive/ambient acoustic or wake-word trigger must never have unbounded authority to
+  repeatedly initiate a heavy pipeline.** `jarvis/core/runaway_guard.py::PassiveTriggerGuard`
+  is the single, centralized circuit breaker for this — it combines the pre-existing minimum
+  rearm interval (2.5s wake-word, 3.0s gesture, unchanged) with a sliding-window trigger-count
+  lockout (`max_triggers`/`window_s`/`lockout_s`, configurable via
+  `safety.passive_trigger_guard.*`). `JarvisApp._on_wake_word_triggered()`/`_on_gesture_event()`
+  both call `try_acquire()` with a `WAKE_WORD:*`/`GESTURE:*`-prefixed key **before** doing
+  anything heavy. **Never route an explicit user action (hotkey callback, typed/dispatched text
+  command) through this guard** — it exists specifically to bound triggers with no per-activation
+  human confirmation. A future new passive trigger source (a new gesture pattern, a new ambient
+  sensor) must go through this same guard, not a new ad hoc cooldown variable. Its tracked-key
+  dictionaries are bounded (`_MAX_TRACKED_KEYS = 256`, oldest-half eviction across all three
+  internal dicts together, kept in sync) as defense-in-depth, even though today's key vocabulary
+  is small and fixed in practice. **Verified (by reading the actual registration code,
+  `jarvis/core/app.py`'s subsystem-init section) that the two wake-word callbacks —
+  `_on_wake_word_triggered()` (zero-arg, actually starts a voice interaction) and
+  `_on_wake_word_event()` (two-arg, dashboard telemetry only) — are registered as two distinct
+  `WakeWordDetector` callback parameters (`callback=`/`on_wake_word=`), and only the former ever
+  touches `_passive_trigger_guard`** — a single physical wake-word detection can never consume
+  the guard's quota twice.
+- **`gesture.patterns.double_clap.allow_side_effect_fanout` (default `false`) gates the heavy
+  external-app fanout** (`spotify`/`chrome_claude`/`chrome_binance`/`cursor` — `tts_welcome` has
+  no external side effect and isn't gated). This was previously unconditional default-on
+  authority for a passive acoustic trigger to launch four heavyweight external applications —
+  confirmed capable, on its own, of explaining severe resource exhaustion, independent of any
+  retrigger-loop question. When disabled (default), the first `double_clap` activation performs
+  the same safe voice-activation as every subsequent one. Do not flip this default back to `true`
+  without an owner decision, and do not silently drop the capability — it must stay
+  reachable via explicit opt-in.
+- **External app/website launch actions must be deduplicated/rate-limited at the point they
+  would spawn a new process or window, AND must share ONE authoritative budget per real-world
+  target across every code path that can reach it** (pre-commit review correction — the initial
+  pass keyed by per-plugin action name, which meant e.g. a direct `"cursor"` action dispatch and
+  the generic `"mở cursor ide"` → `ComputerController.open_app()` path kept two mutually-unaware
+  budgets for the identical real application, letting a caller alternating between them bypass
+  the limit entirely). `jarvis/core/runaway_guard.py::LaunchDedupeGuard` (default cooldown 5.0s,
+  configurable via `safety.launch_dedupe_cooldown_s` — applied to the shared singleton once, in
+  `JarvisApp.__init__`, since the plugins/`ComputerController` have no visibility into the global
+  config tree) is wired into `SpotifyPlugin.play_track()`, `ChromeMultiMonitorPlugin.open_url()`
+  (covers `chrome_claude`/`chrome_binance`/`chrome_open`/`open_url`), `CursorPlugin.
+  focus_cursor()`'s process-spawn branch only (its focus-existing-window branch is cheap/
+  idempotent and deliberately ungated), and the canonical `ComputerController.open_app()`/
+  `open_website()` path (this is what "mở cài đặt" → `ms-settings:` and every other generic
+  app/web launch goes through — the incident's reported "Settings" symptom maps directly to this
+  path). **Every one of those 5 call sites passes an already-canonicalized `target` through
+  `canonical_app_key()` (a small, explicit, hand-audited alias table — e.g. `"cursor"`/
+  `"cursor ide"`/`"cursor ai"` all → `"cursor"`) or `canonical_url_key()` (domain-only, via
+  `urlparse().netloc` — so a plugin's own default deep link and a different default resolved
+  elsewhere for "the same site" still collide), never a raw plugin-specific action name or exact
+  URL** — this is what makes the shared guard genuinely authoritative rather than five
+  independent counters that happen to share a class. A suppressed repeat must return a truthful
+  `{"success": False, "error_code": "LAUNCH_RATE_LIMITED", ...}` — **never** a fabricated success,
+  per the existing dispatch-truthfulness invariant above. Any future external-launch call site
+  (a new plugin, a new "open X" action) must be wired through this same shared guard **with a
+  canonical key**, not a new ad hoc timestamp dict, and not a raw un-canonicalized identifier
+  that would silently reopen the cross-path bypass this correction closed.
+- **`STTEngine._on_config_reloaded()` must not reconstruct the primary STT engine on a config
+  reload that doesn't actually change engine-relevant settings.** It previously reconstructed a
+  brand-new `FasterWhisperSTT` (including, by the pre-fix default, a fresh background
+  model-preload) on **every** reload where the `"stt"` config section was non-empty — true of
+  every real config, so effectively every reload, including ones wholly unrelated to STT — with
+  no cleanup of the discarded engine/model. It now compares a snapshot of exactly
+  `provider` + every per-provider sub-config `_resolve_engine()` reads
+  (`_compute_engine_relevant_snapshot()`) and only reconstructs when that snapshot actually
+  changed. Do not widen what triggers reconstruction beyond genuinely engine-relevant fields.
+- **`FasterWhisperSTT` defaults to lazy loading (`preload=False`) unless a caller's config
+  explicitly sets `preload: true`.** `config/default_config.yaml`'s `stt.faster_whisper` section
+  now sets this explicitly. The shipped default model/device
+  (`model_size: "large-v3"`, `device: "cuda"`) is intentionally **unchanged** — do not downgrade
+  it as a "fix" for this incident; that would regress the v5.0.1 STT accuracy-tuning work
+  documented elsewhere in this file, and `_resolve_device()` (unmodified) already provides a
+  real, tested CUDA-availability probe with a genuine CPU fallback. Do not describe any
+  hardcoded GPU model in a comment/config as a universal assumption — the removed
+  `"NVIDIA GTX 1650 detected"` comment was exactly this mistake.
+- **`jarvis/cli.py::_acquire_single_instance_mutex()` (a real, pre-existing, correctly-positioned
+  OS-backed Win32 named mutex, called before any expensive `JarvisApp` initialization) is not a
+  new mechanism** — it already existed and already gated the primary `jarvis run` launch path
+  correctly. **This function is FAIL-CLOSED, not fail-open**, and **returns a three-state
+  `SingleInstanceResult` enum (`ACQUIRED`/`ALREADY_RUNNING`/`CHECK_FAILED`), not a bool**
+  (both corrected during pre-commit review — the original P0 pass first left it fail-open on
+  unexpected exceptions, rejected as unacceptable for a resource-exhaustion safety property;
+  a second review pass then found the fail-closed bool still collapsed two semantically
+  different "don't start" outcomes into one `False`, which a script/automation caller could not
+  tell apart to pick the right exit code). Only a genuinely fresh, non-pre-existing,
+  sane-integer mutex handle returns `ACQUIRED`. `GetLastError() == ERROR_ALREADY_EXISTS` returns
+  `ALREADY_RUNNING` (a real second instance, not an error — the duplicate handle Win32 still
+  hands back is closed, not leaked; `main()` exits 0 for this). Every other outcome — a NULL/0
+  handle, a malformed/non-integer handle, or any exception from `ctypes.WinDLL`/attribute
+  binding/`CreateMutexW` itself — returns `CHECK_FAILED`, logs/prints
+  `JARVIS_SINGLE_INSTANCE_CHECK_FAILED`, and `main()` exits non-zero for it: an inability to
+  *prove* exclusivity must block startup and be distinguishable as a real failure, never
+  silently let startup proceed and never conflated with the benign "already running" case.
+  **Every caller must branch on the specific enum member — never `if not result:`**, since any
+  non-`None` enum member is truthy and such a check would silently treat every outcome as
+  success. There are exactly two callers: `jarvis/cli.py::main()`'s default/`run` branch, and
+  the Terminal Control Center's `[J]` delegation (`jarvis/ui/terminal/app.py::TerminalApp.
+  _default_start_jarvis()`) — both updated in the same pass to branch on all three states
+  explicitly, with `CHECK_FAILED` never reinterpreted as a successful acquisition. Also
+  hardened: explicit `restype`/`argtypes` on `CreateMutexW`/`CloseHandle` (previously ctypes'
+  32-bit-int default); `ctypes.set_last_error(0)` called immediately before `CreateMutexW` so a
+  genuinely fresh, successful creation can never be misclassified as `ERROR_ALREADY_EXISTS` due
+  to a stale last-error value from an unrelated earlier ctypes call; a new
+  `_release_single_instance_mutex()` (called from `main()`'s `finally` block around
+  `JarvisApp(...).run()`) releasing the owned handle exactly once on normal shutdown. **Both
+  callers, not just `main()`, must release what they acquire**: a third, independent pre-commit
+  audit found that `_default_start_jarvis()` acquired the mutex on the `ACQUIRED` branch but
+  never released it after the delegated `JarvisApp` finished running — the handle stayed held by
+  the Terminal Control Center process for the rest of its lifetime, so a later `[J]` attempt in
+  the same session (or a concurrent `jarvis run` from another window) would falsely observe
+  `ALREADY_RUNNING` even though no real `JarvisApp` was still running — a self-lockout directly
+  contrary to the single-instance fix's own purpose. Fixed by wrapping the `JarvisApp(...).run()`
+  call in `_default_start_jarvis()` in the same `try/finally` + `_release_single_instance_mutex()`
+  pattern `main()` already used — `jarvis/cli.py` itself was not changed, and no second mutex
+  mechanism was introduced. Full regression coverage in `tests/test_cli.py::TestSingleInstanceMutex`
+  and `tests/unit/test_terminal_app.py`'s `test_default_start_jarvis_*` tests (including
+  `test_default_start_jarvis_acquired_releases_mutex_after_run`,
+  `test_default_start_jarvis_releases_mutex_even_if_jarvisapp_run_raises`, and
+  `test_default_start_jarvis_already_running_does_not_release_mutex`). Do not reintroduce a
+  fail-open path or a bool return type here, and do not add a third call site that acquires this
+  mutex without an equally-paired release.
+- **`JarvisApp.__init__()` must never read `self.config.get(...)` for a REAL configured value**
+  — `self.config.load()` (which reads `default_config.yaml` + any custom config file) only runs
+  later, in `initialize()`; `ConfigManager._data` is still `{}` throughout `__init__()`, so any
+  `.get(key, default)` call there always silently returns the hardcoded Python `default`,
+  never a real value from either config file (a genuine bug found during pre-commit review: the
+  original P0 pass's `safety.passive_trigger_guard.*`/`safety.launch_dedupe_cooldown_s` reads
+  lived in `__init__()` and were therefore always ignoring real custom config). The fix pattern
+  to follow for any future per-JarvisApp-instance config value: construct with the class's own
+  safe built-in defaults only in `__init__()`, then apply the real loaded value **in
+  `initialize()`, after `self.config.load()`**, by mutating the already-constructed object's
+  attributes in place (`JarvisApp._apply_safety_guard_config()` is the reference
+  implementation) — never by reconstructing the object, which would silently discard any
+  already-accumulated live state (e.g. `PassiveTriggerGuard`'s trigger history/active lockout).
+  Register the same application function as a config hot-reload callback
+  (`self.config.register_reload_callback(...)`) if the value should also be updatable while
+  running. A reload callback receives the reloaded `JarvisConfig`/`ConfigNode`, whose `.get()`
+  is a plain single-level dict lookup — NOT `ConfigManager`'s dot-notation traversal — so read
+  only a single top-level section key (e.g. `.get("safety", {})`) and walk the rest as a plain
+  nested dict, exactly like the pre-existing `STTEngine._on_config_reloaded()` already does for
+  `"stt"`. Regression coverage: `tests/unit/test_runaway_hardening.py::
+  TestSafetyGuardConfigTiming`.
+- **`FasterWhisperSTT` model construction is serialized process-wide, not just per-instance.**
+  The per-instance double-checked locking in `_get_model()` (`self._lock`) only prevents
+  redundant construction *within one instance* — it does nothing to stop an OLD engine's
+  still-in-flight preload thread from constructing its `WhisperModel` at the same time as a
+  NEW engine's preload thread, which is exactly what can happen when `preload=true` and
+  `STTEngine._on_config_reloaded()` genuinely reconstructs the engine (found during pre-commit
+  review: two simultaneous heavyweight model constructions, each potentially touching CUDA, is
+  exactly the kind of doubled GPU/RAM load this hardening pass exists to prevent). Fixed with a
+  class-level (shared across every instance) `FasterWhisperSTT._model_construction_lock`,
+  acquired strictly *after* the per-instance `self._lock` in the one place it's used, so the
+  nesting order can never deadlock. Proven by
+  `tests/unit/test_runaway_hardening.py::TestFasterWhisperCrossInstanceModelConstructionSerialization`
+  (two instances constructing on separate threads with a mocked, artificially-slow
+  `WhisperModel`; asserts max concurrent constructions observed == 1) — entirely mocked, no
+  real Whisper/CUDA. Do not claim this proves deterministic VRAM release; it only proves
+  construction never overlaps.
+- **Validation for all of the above must never perform a real side effect**: no real
+  shutdown/restart/lock, no real Spotify/Chrome/Cursor/Settings launch, no real second JARVIS
+  process, no real large-v3 Whisper model load, no real CUDA inference, no real microphone/audio
+  device mutation. Every test in `tests/unit/test_runaway_guard.py` and
+  `tests/unit/test_runaway_hardening.py` uses fakes/mocks/monotonic-time injection exclusively.
 
 ### Durable Terminal Control Center invariant (`jarvis/ui/terminal/`, MERGED into `main` via
 PR #37, merge commit `38affda1b848eee5fe90cfac2749824c57c5efe9` — see §0 CURRENT BASELINE)

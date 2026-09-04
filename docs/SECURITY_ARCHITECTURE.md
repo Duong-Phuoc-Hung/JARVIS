@@ -195,3 +195,50 @@ Packet Capture / Send Message / Send Photo / Send Embed screens — it always re
 with a truthful explanation instead. This is a UI-layer workaround, not a fix to the
 underlying transport/capture code, which remains a security-relevant truthfulness gap
 wherever else those methods are called.
+
+## 7. Passive-trigger authority and external-launch resource bounds
+(`jarvis/core/runaway_guard.py`, branch `fix/voice-control-truthfulness`, not yet merged —
+P0 hardening pass responding to a real production incident: JARVIS drove a Windows machine to
+extreme CPU/GPU/RAM load via repeated app launches until a hardware power-button shutdown was
+required, independently reproduced by a second user; no incident log was available to confirm
+the exact mechanism, so the findings below are source-code audit findings, stated as such)
+
+This section is a distinct threat class from §§4–6 above: those are about *authorization*
+(can this caller do this?) — this one is about *authority bound over time* (how many times, how
+fast, can an unattended/ambient trigger do this?). Neither `SafetyGateInterceptor` nor RBAC ever
+addressed frequency; a caller/trigger fully authorized for a single activation had no limit on
+how many times it could re-activate.
+
+**Confirmed pre-fix gap**: `gesture.patterns.double_clap.actions` (a passive acoustic trigger —
+no human confirms each individual clap) had default, unauthenticated authority to launch four
+heavyweight external applications (`spotify`, `chrome_claude`, `chrome_binance`, `cursor`), and
+none of `SpotifyPlugin.play_track()`, `ChromeMultiMonitorPlugin.open_url()`,
+`CursorPlugin.focus_cursor()`, or the canonical `ComputerController.open_app()`/`open_website()`
+launch path had any rate limit — a repeated/runaway dispatch (from a false-positive gesture
+loop, an acoustic feedback loop, or simply a bug) could spawn unbounded new processes/windows.
+Separately, `JarvisApp._on_gesture_event()`'s pre-existing cooldown enforced only a *minimum*
+interval between triggers, never an upper bound on total triggers over an extended window.
+
+**Fix — two centralized, reusable guards, not scattered cooldown variables:**
+- `PassiveTriggerGuard`: a sliding-window circuit breaker. Preserves the existing per-trigger
+  minimum-rearm intervals (2.5s wake-word, 3.0s gesture) and adds a trigger-count ceiling over a
+  configurable window (default: 5 triggers / 60s), tripping a temporary lockout (default 120s)
+  once exceeded. Applied only to `WAKE_WORD:*`/`GESTURE:*` keys — an explicit user action
+  (hotkey, typed command) is never routed through it, since those already carry a human
+  confirming each individual activation.
+- `LaunchDedupeGuard`: bounds how often the *same* external launch target may actually spawn a
+  process/window (default 5s cooldown per normalized `action::target` key), independent of what
+  caused the repeated dispatch. A suppressed repeat reports
+  `{"success": False, "error_code": "LAUNCH_RATE_LIMITED", ...}` through the existing
+  dispatch-truthfulness contract (§5) — never a fabricated success.
+- The double-clap heavy fanout itself is now gated behind
+  `gesture.patterns.double_clap.allow_side_effect_fanout` (default `false`) — a passive trigger
+  no longer has default authority to launch external applications at all; the capability is
+  preserved, opt-in only.
+
+**Not addressed by this pass, deliberately**: the STT config-reload/lazy-preload changes in
+this same P0 pass (see `CLAUDE.md`'s durable "runtime-runaway / resource-exhaustion hardening
+invariant" and `CHANGELOG.md`) are a resource-management fix, not an authorization-boundary
+change, and are not repeated here. The exact root cause on the reporting user's machine was not
+independently confirmed (no log evidence); these fixes close the confirmed architecture gaps
+regardless of which combination of causes actually occurred there.

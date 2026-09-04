@@ -550,3 +550,126 @@ def test_dynamic_menu_one_then_many_then_disappearing():
     rc = app3.run()
     assert rc == 0
     assert "Drive C" not in "\n".join(lines3)
+
+
+# ============================================================================
+# [J] START JARVIS delegation: real _default_start_jarvis(), three-state
+# SingleInstanceResult handling (pre-commit review correction)
+# ============================================================================
+
+
+def _make_real_default_start_jarvis_app() -> TerminalApp:
+    """
+    Unlike _make_app() above (which always injects a fake start_jarvis to
+    avoid ever touching the real JarvisApp construction path), these tests
+    specifically target TerminalApp's REAL `_default_start_jarvis()` -- so
+    `start_jarvis` is intentionally left unset (defaults to
+    `self._default_start_jarvis`). `_acquire_single_instance_mutex()` and
+    `JarvisApp` itself are mocked per-test below; no real second process,
+    no real JarvisApp construction, ever happens.
+    """
+    theme = TerminalTheme(color_enabled=False)
+    console = TerminalConsole(theme=theme, key_source=lambda: None, out=lambda s: None)
+    return TerminalApp(config=_cfg(), console=console, theme=theme)
+
+
+def test_default_start_jarvis_already_running_never_constructs_jarvisapp():
+    from unittest.mock import patch
+
+    from jarvis.cli import SingleInstanceResult
+
+    app = _make_real_default_start_jarvis_app()
+    with patch("jarvis.cli._acquire_single_instance_mutex", return_value=SingleInstanceResult.ALREADY_RUNNING), \
+         patch("jarvis.core.app.JarvisApp") as mock_app_cls:
+        result = app.ctx.start_jarvis()
+    assert result is False
+    mock_app_cls.assert_not_called()
+
+
+def test_default_start_jarvis_check_failed_never_constructs_jarvisapp_and_is_not_reinterpreted():
+    """
+    CHECK_FAILED must never be silently treated as a successful acquisition
+    -- this is the exact bug an enum-truthiness mistake (`if not result:`)
+    would reintroduce, since any non-empty enum member is truthy.
+    """
+    from unittest.mock import patch
+
+    from jarvis.cli import SingleInstanceResult
+
+    app = _make_real_default_start_jarvis_app()
+    with patch("jarvis.cli._acquire_single_instance_mutex", return_value=SingleInstanceResult.CHECK_FAILED), \
+         patch("jarvis.core.app.JarvisApp") as mock_app_cls:
+        result = app.ctx.start_jarvis()
+    assert result is False
+    mock_app_cls.assert_not_called()
+
+
+def test_default_start_jarvis_acquired_constructs_and_runs_jarvisapp():
+    from unittest.mock import MagicMock, patch
+
+    from jarvis.cli import SingleInstanceResult
+
+    app = _make_real_default_start_jarvis_app()
+    with patch("jarvis.cli._acquire_single_instance_mutex", return_value=SingleInstanceResult.ACQUIRED), \
+         patch("jarvis.core.app.JarvisApp") as mock_app_cls:
+        mock_app_cls.return_value = MagicMock()
+        result = app.ctx.start_jarvis()
+    assert result is True
+    mock_app_cls.assert_called_once()
+    mock_app_cls.return_value.run.assert_called_once()
+
+
+def test_default_start_jarvis_acquired_releases_mutex_after_run():
+    """
+    Pre-commit audit correction: `_default_start_jarvis()` acquires the
+    single-instance mutex but previously never released it, so the handle
+    stayed held by this process for its entire remaining lifetime -- no
+    other JARVIS instance (including a later `[J]` invocation in a fresh
+    process) could ever acquire it again, even after the delegated
+    JarvisApp had fully shut down. Mirrors jarvis.cli.main()'s own
+    acquire/try-finally/release pattern.
+    """
+    from unittest.mock import MagicMock, patch
+
+    from jarvis.cli import SingleInstanceResult
+
+    app = _make_real_default_start_jarvis_app()
+    with patch("jarvis.cli._acquire_single_instance_mutex", return_value=SingleInstanceResult.ACQUIRED), \
+         patch("jarvis.cli._release_single_instance_mutex") as mock_release, \
+         patch("jarvis.core.app.JarvisApp") as mock_app_cls:
+        mock_app_cls.return_value = MagicMock()
+        result = app.ctx.start_jarvis()
+    assert result is True
+    mock_release.assert_called_once()
+
+
+def test_default_start_jarvis_releases_mutex_even_if_jarvisapp_run_raises():
+    """The release must happen via try/finally, not only on the success path."""
+    from unittest.mock import MagicMock, patch
+
+    from jarvis.cli import SingleInstanceResult
+
+    app = _make_real_default_start_jarvis_app()
+    with patch("jarvis.cli._acquire_single_instance_mutex", return_value=SingleInstanceResult.ACQUIRED), \
+         patch("jarvis.cli._release_single_instance_mutex") as mock_release, \
+         patch("jarvis.core.app.JarvisApp") as mock_app_cls:
+        mock_app_cls.return_value = MagicMock()
+        mock_app_cls.return_value.run.side_effect = RuntimeError("boom")
+        with pytest.raises(RuntimeError):
+            app.ctx.start_jarvis()
+    mock_release.assert_called_once()
+
+
+def test_default_start_jarvis_already_running_does_not_release_mutex():
+    """ALREADY_RUNNING never acquired anything -- releasing here would be
+    releasing a mutex this process never owned."""
+    from unittest.mock import patch
+
+    from jarvis.cli import SingleInstanceResult
+
+    app = _make_real_default_start_jarvis_app()
+    with patch("jarvis.cli._acquire_single_instance_mutex", return_value=SingleInstanceResult.ALREADY_RUNNING), \
+         patch("jarvis.cli._release_single_instance_mutex") as mock_release, \
+         patch("jarvis.core.app.JarvisApp"):
+        app.ctx.start_jarvis()
+    mock_release.assert_not_called()
