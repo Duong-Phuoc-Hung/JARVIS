@@ -2,6 +2,63 @@
 
 ---
 
+## 🔒 Post-v5.0.1 Fabrication Audit — Phase 1 (A1–A7) + Phase 2 B3 (commit `4bf5187`, 2026-09-04)
+
+> **Trạng thái**: đã merge vào `main`, 4 commits (`1808601`, `81b961c`, `95e6ca0`, `4bf5187`). `jarvis.__version__` **không đổi, vẫn `5.0.1`**. Đây là đợt kiểm toán chất lượng nội bộ tập trung vào **fabrication** (hàm trả kết quả thành công giả khi không có bằng chứng thật) — không phải feature release.
+
+**Nguyên tắc áp dụng xuyên suốt**: mọi hàm trả `success/ok/True` chỉ được phép làm vậy sau khi có bằng chứng thật (API 2xx response, psutil data, executable trên PATH, file thật trên disk). Không bao giờ trả `True` như default fallback khi thiếu cấu hình.
+
+### Phase 1 — Fabrication Fixes A1–A7 (commit `1808601`, `81b961c`, `95e6ca0`)
+
+**7 bug fabrication xác nhận bằng runtime-verify (gọi hàm thật với token/input thật):**
+
+| Bug | File | Vấn đề gốc | Fix |
+|-----|------|-----------|-----|
+| **A1** | `security/scanner.py` | `_build_capture_result()` hardcode 70/20/10 TCP/UDP/ICMP bất kể có TShark hay không | `protocols={}`, `status="NO_TSHARK_OUTPUT"`; thêm `_parse_tshark_protocols()` thật (🟡 UNTESTED — TShark chưa cài) |
+| **A2** | `comms/telegram.py` | `send_message()`/`send_photo()` trả `ok=True` khi không có `http_client` | Fail-closed `ok=False, error_code="NOT_CONFIGURED"` |
+| **A3** | `comms/discord.py` | `send_message()`/`send_embed()`/`send_file()` trả `success=True` khi không có token | Fail-closed `NOT_CONFIGURED` / `FILE_SEND_NOT_IMPLEMENTED` |
+| **A4** | `comms/telegram.py` | `/status` command trả chuỗi cố định thay vì data psutil thật | Gọi `psutil.cpu_percent()` + `virtual_memory()` thật |
+| **A5** | `comms/telegram.py` | `/briefing` fallback bịa thông tin thời tiết tốt | Honest `"dispatcher không khả dụng"` |
+| **A6** | `automation/control.py` | `open_app(shell=True)` báo `success=True` kể cả app không tồn tại (shell nuốt lỗi) | `shutil.which()` + `shell=False`; trả `APP_NOT_FOUND` |
+| **A7** | `hardware/reporter.py` | `format_voice_summary({})` crash `AttributeError` khi nhận `dict` thay vì `HardwareMetrics` | Type guard `isinstance(metrics, HardwareMetrics)` |
+
+> **A6** là loại fabrication âm thầm nhất: `subprocess.Popen(shell=True)` không raise exception khi lệnh không tồn tại vì Windows shell tự xử lý "not found" — `success=True` mãi mãi, không crash, không log.
+
+**5 tests cập nhật** (không nới lỏng — chỉ sửa assertion sai thành đúng):
+- `test_security_scanner.py`: 70/20/10 hardcode → parse từ fake TShark stdout
+- `test_discord_controller.py`: assert `success=False` + `NOT_CONFIGURED`
+- `test_runaway_hardening.py`: thêm `patch("shutil.which", ...)` cho A6
+- `test_tier5_adversarial_sec_iot_comms_data.py`: `/status` assertion → `re.search(r"\d+%")` (chặt hơn)
+- `test_adversarial_m3_ui_app.py`: chấp nhận `APP_NOT_FOUND` cạnh `LAUNCH_RATE_LIMITED`
+
+**Runtime verification**: 11/11 `[BUG] → [FIXED]` xác nhận 2 lần. 16 failures pre-existing xác nhận trên baseline `c44c45f`.
+
+---
+
+### Phase 2 — B3: ASTCodeValidator wired vào synthesize_skill() (commit `4bf5187`)
+
+**File**: `jarvis/skills/synthesizer.py`
+
+**Vấn đề gốc**: `DynamicSkillSynthesizer.synthesize_skill()` lưu code xuống disk mà không kiểm tra — code lỗi cú pháp hoặc unsafe (`eval`, forbidden imports) đều được lưu thành công; lỗi chỉ phát sinh khi `execute()` được gọi thực tế.
+
+**Fix**: Wire `ASTCodeValidator.validate_python()` (đã có sẵn trong `jarvis/sandbox/validator.py`) vào `synthesize_skill()`:
+1. Validate raw code trước `format_skill_module()` 
+2. Validate formatted module sau `format_skill_module()`
+3. Raise `ValueError` với thông báo rõ ràng nếu lỗi — không ghi file
+
+**Reuse công cụ có sẵn** — không viết logic validation mới.
+
+**Runtime verification 5/5**:
+- Syntax error → `ValueError: "syntax error"`, không tạo directory
+- `eval()` unsafe → `ValueError: "Forbidden function call eval()"`
+- `raise RuntimeError` (valid Python syntax) → saved (đúng — AST không bắt runtime errors, đây là giới hạn kỹ thuật cố hữu)
+- Good code → `SkillDefinition` trả về, `execute()` hoạt động
+- Disk hygiene → rejected skill không để lại directory
+
+**Cải tiến tương lai**: sandbox dry-run bằng `CodeInterpreterSandbox` sau AST validation để bắt thêm `RuntimeError`.
+
+---
+
 ## 🚨 Post-v5.0.1 Maintenance — P0 Runtime Runaway / Resource-Exhaustion Hardening (branch `fix/voice-control-truthfulness`, dựa trên `main` @ `006fffca8bc2a121e181e4b27cd11e7a6542197b`, 2026-09-04)
 
 > **Trạng thái**: sửa lỗi P0 (production incident hardening), **chưa merge, chưa commit, chưa push** — thực hiện theo chỉ định "MANUAL OPERATOR MODE" của chủ sở hữu kho mã, tiếp nối trên cùng nhánh với fix truthfulness `system_power`/`toggle_mute` bên dưới. `jarvis.__version__` **không đổi, vẫn `5.0.1`**. **Không có bằng chứng log sự cố thực tế nào khả dụng trên máy phát triển này** (`%LOCALAPPDATA%\JARVIS\logs\` không tồn tại) — mọi phát hiện dưới đây đến từ **kiểm toán mã nguồn trực tiếp**, không phải từ đọc log sự cố thật; điều này được nêu rõ để không đánh lừa rằng đã xác minh qua log.

@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding), ghi nhớ ngữ nghĩa theo thời gian thực (Semantic RAG Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.0.1** trên `main` — nâng cấp toàn diện đường ống âm thanh giọng nói (Voice Pipeline Upgrade: Safe Preprocessing Diacritic Normalization, Phonetic Drift Robustness và Anti-Overfitting Held-Out Validation), kế thừa mốc J.A.R.V.I.S. Terminal Control Center v5.0.0. Lịch sử phát triển trong CHANGELOG đã cập nhật mốc **v5.0.1** mới nhất ở đầu tài liệu.</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.0.1** trên `main` — nâng cấp toàn diện đường ống âm thanh giọng nói (Voice Pipeline Upgrade: Safe Preprocessing Diacritic Normalization, Phonetic Drift Robustness và Anti-Overfitting Held-Out Validation), kế thừa mốc J.A.R.V.I.S. Terminal Control Center v5.0.0. Lịch sử phát triển trong CHANGELOG đã cập nhật mốc **v5.0.1** mới nhất ở đầu tài liệu. Đợt kiểm toán nội bộ **Post-v5.0.1 Fabrication Audit** (2026-09-04) đã xác định và vá 8 lỗi fabrication (A1–A7 + B3): các hàm trả kết quả thành công giả khi thiếu cấu hình thật đã được chuyển sang fail-closed theo nguyên tắc *bằng chứng thật trước, thành công sau*.</sub>
 
 </div>
 
