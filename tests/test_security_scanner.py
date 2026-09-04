@@ -13,6 +13,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -99,15 +100,34 @@ def test_security_nmap_subnet_scan_wrapper_tier1(monkeypatch):
 def test_security_tshark_packet_capture_wrapper_tier1(monkeypatch):
     """
     [F-24] Validate TShark wrapper executes capture and extracts packet protocol breakdown.
-    """
-    monkeypatch.setattr(shutil, "which", lambda cmd: "C:\\Program Files\\Wireshark\\tshark.exe")
-    wrapper = TSharkCaptureWrapper()
-    capture = wrapper.capture_packets(interface="eth0", count=100)
 
-    assert capture["packet_count"] == 100
-    assert capture["protocols"]["TCP"] == 70
-    assert capture["protocols"]["UDP"] == 20
+    Updated (2026-09-04): removed assertion for hardcoded 70/20/10 TCP/UDP/ICMP ratios
+    which were fabricated. Now provides realistic tshark frame.protocols stdout so the
+    real parser (_parse_tshark_protocols) can extract truthful counts.
+    """
+    # Simulate tshark -T fields -e frame.protocols output: 7 TCP, 2 UDP, 1 ICMP frames
+    fake_stdout = "\n".join(
+        ["eth:ethertype:ip:tcp"] * 7 +
+        ["eth:ethertype:ip:udp"] * 2 +
+        ["eth:ethertype:ip:icmp"] * 1
+    )
+    fake_proc = MagicMock()
+    fake_proc.stdout = fake_stdout
+    fake_proc.stderr = ""
+    fake_proc.returncode = 0
+
+    monkeypatch.setattr(shutil, "which", lambda cmd: "C:\\Program Files\\Wireshark\\tshark.exe")
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_proc)
+
+    wrapper = TSharkCaptureWrapper()
+    capture = wrapper.capture_packets(interface="eth0", count=10)
+
+    assert capture["packet_count"] == 10
+    assert capture["protocols"].get("TCP", 0) == 7
+    assert capture["protocols"].get("UDP", 0) == 2
+    assert capture["protocols"].get("ICMP", 0) == 1
     assert capture["status"] == "SUCCESS"
+
 
 
 def test_security_risk_report_markdown_and_voice_summary_tier1(tmp_path, monkeypatch):

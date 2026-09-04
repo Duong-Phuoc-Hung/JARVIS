@@ -423,7 +423,10 @@ class TestComputerControllerLaunchDedupe(unittest.TestCase):
         launch_dedupe_guard.reset()
 
     def test_open_app_first_call_allowed(self) -> None:
-        with patch("subprocess.Popen") as mock_popen:
+        # A6 fix (2026-09-04): open_app now checks shutil.which() before Popen.
+        # Patch shutil.which (to simulate app on PATH) and subprocess.Popen.
+        with patch("shutil.which", return_value="/usr/bin/some_random_unmapped_app"), \
+             patch("subprocess.Popen") as mock_popen:
             result = self.controller.open_app("some_random_unmapped_app")
         self.assertTrue(result.get("success"))
         mock_popen.assert_called_once()

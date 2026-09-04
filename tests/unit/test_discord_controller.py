@@ -226,7 +226,10 @@ class TestDiscordSlashCommandsAndRichEmbeds:
             description=description,
             fields=fields,
         )
-        assert result["success"] is True
+        # A3 fix (2026-09-04): send_embed is fail-closed — success=False when no bot_token.
+        # The record is still appended to sent_messages (local queue) for auditability.
+        assert result["success"] is False
+        assert result.get("error_code") == "NOT_CONFIGURED"
         assert len(bot.sent_messages) > 0
         last_msg = bot.sent_messages[-1]
         assert last_msg["channel_id"] == channel_id
@@ -234,6 +237,7 @@ class TestDiscordSlashCommandsAndRichEmbeds:
         assert "embed" in last_msg
         assert last_msg["embed"]["title"] == title
         assert last_msg["embed"]["fields"] == fields
+
 
     def test_rate_limiter_throttles_excess_requests(self):
         """

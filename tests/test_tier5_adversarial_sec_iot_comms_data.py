@@ -683,7 +683,9 @@ def test_telegram_unauthorized_user_and_injection_defense():
     # 2. Whitelisted user valid commands
     status_res = bot.handle_inbound_message(user_id=111222333, text="/status")
     assert status_res["status"] == 200
-    assert "bình thường" in status_res["text"]
+    # A4 fix (2026-09-04): /status now returns real psutil CPU/RAM data instead of
+    # hardcoded "bình thường" string. Assert truthful content: CPU and RAM metrics.
+    assert "CPU" in status_res["text"] or "không xác định" in status_res["text"]
 
     help_res = bot.handle_inbound_message(user_id=111222333, text="/help")
     assert help_res["status"] == 200
