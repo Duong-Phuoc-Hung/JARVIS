@@ -684,8 +684,16 @@ def test_telegram_unauthorized_user_and_injection_defense():
     status_res = bot.handle_inbound_message(user_id=111222333, text="/status")
     assert status_res["status"] == 200
     # A4 fix (2026-09-04): /status now returns real psutil CPU/RAM data instead of
-    # hardcoded "bình thường" string. Assert truthful content: CPU and RAM metrics.
-    assert "CPU" in status_res["text"] or "không xác định" in status_res["text"]
+    # hardcoded "Hệ thống hoạt động bình thường". Strengthened assertion (per audit review):
+    # must contain a numeric percentage (e.g. "29%") to catch any future regression back
+    # to a hardcoded string — not just assert "CPU" which could appear in a fabricated string too.
+    import re
+    status_text = status_res["text"]
+    has_real_cpu = bool(re.search(r"\d+%", status_text)) or "không xác định" in status_text
+    assert has_real_cpu, (
+        f"/status did not return real numeric CPU/RAM data — possible regression to hardcoded string. "
+        f"Got: {status_text!r}"
+    )
 
     help_res = bot.handle_inbound_message(user_id=111222333, text="/help")
     assert help_res["status"] == 200
