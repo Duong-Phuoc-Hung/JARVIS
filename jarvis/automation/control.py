@@ -742,10 +742,17 @@ class ComputerController:
                         subprocess.Popen([expanded], shell=False, creationflags=_cflags)
                     return {"success": True, "app": clean_name, "message": f"Đã mở ứng dụng {clean_name}, thưa Ngài."}
 
+                # A6 fix (2026-09-04): shell=True + `start "" "..."` always exits 0 even
+                # for non-existent executables — must verify via shutil.which first.
+                import shutil as _shutil
+                _resolved_cand = _shutil.which(expanded) or _shutil.which(cand)
+                if not _resolved_cand:
+                    continue  # not on PATH, skip to next candidate
+
                 _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                 subprocess.Popen(
-                    f"start \"\" \"{expanded}\"",
-                    shell=True,
+                    [_resolved_cand],
+                    shell=False,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     creationflags=_cflags,
@@ -754,9 +761,24 @@ class ComputerController:
             except Exception:
                 continue
 
+
+        # Last resort: try spawning via shell (handles apps on PATH not in APP_MAP).
+        # A6 fix (2026-09-04): previously returned success=True unconditionally here
+        # because shell=True never raises CalledProcessError even for unknown names.
+        # Now we check shutil.which() first: only claim success if the executable
+        # exists on PATH. If not found, return fail-closed success=False.
+        import shutil
+        resolved = shutil.which(clean_name) or shutil.which(f"{clean_name}.exe")
+        if not resolved:
+            return {
+                "success": False,
+                "app": clean_name,
+                "error_code": "APP_NOT_FOUND",
+                "message": f"Không tìm thấy ứng dụng '{clean_name}' trên hệ thống.",
+            }
         try:
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            subprocess.Popen(clean_name, shell=True, creationflags=_cflags)
+            subprocess.Popen(resolved, shell=False, creationflags=_cflags)
             return {"success": True, "app": clean_name, "message": f"Đã khởi chạy {clean_name}, thưa Ngài."}
         except Exception as exc:
             return {"success": False, "app": clean_name, "error": str(exc), "message": f"Không thể mở {clean_name}: {exc}"}

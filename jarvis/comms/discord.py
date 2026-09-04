@@ -323,9 +323,18 @@ class DiscordBotController:
                     method="POST",
                 )
                 urllib.request.urlopen(req, timeout=10)
+                return {"success": True, "data": record}
             except Exception as exc:
                 log.warning("Discord send_message API error: %s", exc)
-        return {"success": True, "data": record}
+                return {"success": False, "error": str(exc), "data": record}
+        # Fail-closed: no bot_token or http_client — do NOT fabricate successful delivery.
+        # Previously returned success=True here regardless — that was fabrication (2026-09-04).
+        return {
+            "success": False,
+            "error_code": "NOT_CONFIGURED",
+            "description": "No bot_token configured. Message was NOT sent to Discord.",
+            "data": record,
+        }
 
     def send_file(
         self,
@@ -336,8 +345,26 @@ class DiscordBotController:
     ) -> dict[str, Any]:
         record = {"channel_id": channel_id, "filename": filename, "size": len(file_bytes), "timestamp": time.time()}
         self.sent_messages.append(record)
-        log.info("Discord send_file: %s (%dKB) to channel %d", filename, len(file_bytes) // 1024, channel_id)
-        return {"success": True, "data": record}
+        # Fail-closed: file upload via multipart API not yet implemented.
+        # Previously returned success=True regardless — that was fabrication (2026-09-04).
+        # When bot_token is present, log a warning that file upload is not implemented.
+        if self._http and self.bot_token:
+            log.warning(
+                "Discord send_file: file upload API (multipart/form-data) is not yet "
+                "implemented. File '%s' was NOT sent to channel %d.", filename, channel_id
+            )
+            return {
+                "success": False,
+                "error_code": "FILE_SEND_NOT_IMPLEMENTED",
+                "description": f"File '{filename}' was NOT uploaded — Discord multipart file upload is not yet implemented.",
+                "data": record,
+            }
+        return {
+            "success": False,
+            "error_code": "NOT_CONFIGURED",
+            "description": f"No bot_token configured. File '{filename}' was NOT sent to Discord.",
+            "data": record,
+        }
 
     def send_embed(
         self,
@@ -371,9 +398,18 @@ class DiscordBotController:
                     method="POST",
                 )
                 urllib.request.urlopen(req, timeout=10)
+                return {"success": True, "data": record}
             except Exception as exc:
                 log.warning("Discord send_embed API error: %s", exc)
-        return {"success": True, "data": record}
+                return {"success": False, "error": str(exc), "data": record}
+        # Fail-closed: no bot_token or http_client — do NOT fabricate successful delivery.
+        # Previously returned success=True here regardless — that was fabrication (2026-09-04).
+        return {
+            "success": False,
+            "error_code": "NOT_CONFIGURED",
+            "description": "No bot_token configured. Embed was NOT sent to Discord.",
+            "data": record,
+        }
 
     def _capture_screenshot(self) -> bytes | None:
         try:

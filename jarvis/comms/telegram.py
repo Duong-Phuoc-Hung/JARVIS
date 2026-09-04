@@ -124,7 +124,27 @@ class TelegramBotController:
 
         # Command Routing
         if lower_clean == "/status":
-            return {"status": 200, "text": "Hệ thống hoạt động bình thường. Tất cả cảm biến OK."}
+            # A4 fix (2026-09-04): previously returned a hardcoded "hoạt động bình thường"
+            # string regardless of actual system state — that was fabrication.
+            # Now returns real CPU/RAM metrics from psutil, or an honest
+            # "không xác định" when psutil is unavailable (fail-closed).
+            try:
+                import psutil
+                cpu = psutil.cpu_percent(interval=0.2)
+                ram = psutil.virtual_memory()
+                status_text = (
+                    f"📊 Trạng thái hệ thống:\n"
+                    f"• CPU: {cpu:.0f}%\n"
+                    f"• RAM: {ram.percent:.0f}% ({ram.used // 1024 // 1024:,} MB / {ram.total // 1024 // 1024:,} MB)\n"
+                    f"• Bot: đang hoạt động"
+                )
+            except Exception:
+                # psutil unavailable — fail-closed, do NOT fabricate "OK"
+                status_text = (
+                    "📊 Trạng thái hệ thống: không xác định "
+                    "(psutil không khả dụng — không thể đo CPU/RAM)."
+                )
+            return {"status": 200, "text": status_text}
 
         elif lower_clean == "/briefing":
             if self.dispatcher and hasattr(self.dispatcher, "dispatch_action"):
@@ -134,7 +154,14 @@ class TelegramBotController:
                     return {"status": 200, "text": msg}
                 except Exception:
                     pass
-            return {"status": 200, "text": "📅 Báo cáo tổng hợp: Hệ thống hoạt động tốt, thời tiết ổn định."}
+            # A5 fix (2026-09-04): previously returned hardcoded "thời tiết ổn định"
+            # when dispatcher was unavailable — that was fabrication.
+            # Now returns an honest error message instead.
+            return {
+                "status": 503,
+                "text": "📅 Không thể lấy briefing: dispatcher không khả dụng hoặc kỹ năng briefing chưa được tải.",
+            }
+
 
         elif lower_clean == "/skills":
             if self.dispatcher and hasattr(self.dispatcher, "list_actions"):
@@ -238,11 +265,20 @@ class TelegramBotController:
         text: str,
         mock_http: Any | None = None,
     ) -> dict[str, Any]:
-        """Sends text message to specified chat ID."""
+        """Sends text message to specified chat ID.
+
+        Returns ok=False with error_code=NOT_CONFIGURED when no HTTP client is
+        available (fail-closed). Previously returned ok=True fabricating delivery.
+        """
         client = mock_http or self.http_client
         if client and hasattr(client, "handle_telegram_send_message"):
             return client.handle_telegram_send_message(chat_id, text)
-        return {"ok": True, "result": {"chat_id": chat_id, "text": text}}
+        # Fail-closed: no client configured — do NOT fabricate successful delivery.
+        return {
+            "ok": False,
+            "error_code": "NOT_CONFIGURED",
+            "description": "No HTTP client configured. Message was NOT sent to Telegram.",
+        }
 
     def send_photo(
         self,
@@ -251,11 +287,20 @@ class TelegramBotController:
         caption: str = "",
         mock_http: Any | None = None,
     ) -> dict[str, Any]:
-        """Dispatches photo (e.g. intruder alert snapshot) to whitelisted chat."""
+        """Dispatches photo (e.g. intruder alert snapshot) to whitelisted chat.
+
+        Returns ok=False with error_code=NOT_CONFIGURED when no HTTP client is
+        available (fail-closed). Previously returned ok=True fabricating delivery.
+        """
         client = mock_http or self.http_client
         if client and hasattr(client, "handle_telegram_send_photo"):
             return client.handle_telegram_send_photo(chat_id, photo_bytes, caption)
-        return {"ok": True, "result": {"chat_id": chat_id, "caption": caption, "photo_size": len(photo_bytes)}}
+        # Fail-closed: no client configured — do NOT fabricate successful delivery.
+        return {
+            "ok": False,
+            "error_code": "NOT_CONFIGURED",
+            "description": "No HTTP client configured. Photo was NOT sent to Telegram.",
+        }
 
     def poll_once(self, mock_http: Any | None = None) -> list[dict[str, Any]]:
         """Processes pending updates from queue or HTTP API."""

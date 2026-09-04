@@ -576,10 +576,56 @@ def resolve_tshark_binary(override_path: str | None = None) -> str | None:
     return None
 
 
+def _parse_tshark_protocols(stdout: str) -> dict[str, int]:
+    """Parse real TShark stdout into a protocol-count mapping.
+
+    Supports two common TShark output formats:
+      - ``tshark -T fields -e frame.protocols`` — one protocol-chain per line
+        e.g. ``eth:ethertype:ip:tcp``
+      - ``tshark -qz io,phs`` — summary block with ``|protocol|`` entries
+
+    Returns an empty dict if stdout is empty or no recognisable format is found.
+
+    NOTE — UNTESTED: no TShark available in dev environment as of 2026-09-04.
+    This function must be tested end-to-end once TShark is installed.
+    The caller (PacketCapture.capture_packets) already has a
+    ``@pytest.mark.skip(reason="requires tshark binary")`` guard on its test.
+    """
+    if not stdout or not stdout.strip():
+        return {}
+
+    counts: dict[str, int] = {}
+    KNOWN_PROTOS = {"tcp", "udp", "icmp", "icmpv6", "dns", "http", "tls", "arp", "igmp"}
+
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Format 1: colon-separated protocol chains (frame.protocols field)
+        if ":" in line and not line.startswith("|"):
+            for proto in line.split(":"):
+                p = proto.strip().lower()
+                if p in KNOWN_PROTOS:
+                    counts[p.upper()] = counts.get(p.upper(), 0) + 1
+        # Format 2: io,phs summary table  "| tcp  | 42 | ..."
+        elif line.startswith("|"):
+            parts = [p.strip() for p in line.split("|") if p.strip()]
+            if len(parts) >= 2:
+                proto = parts[0].strip().lower()
+                if proto in KNOWN_PROTOS:
+                    try:
+                        counts[proto.upper()] = int(parts[1])
+                    except ValueError:
+                        pass
+
+    return counts
+
+
 class PacketCapture:
     """
     Subprocess CLI wrapper executing live packet capture and heuristic protocol analysis via TShark.
     """
+
 
     def __init__(
         self,
@@ -666,13 +712,22 @@ class PacketCapture:
                         )
                 except Exception:
                     pass
-            # Parse protocols from stdout or return structured distribution
-            return self._build_capture_result(interface, count, elapsed, str(output_pcap) if output_pcap else None)
+            # Pass real stdout to _build_capture_result for truthful parsing
+            return self._build_capture_result(
+                interface, count, elapsed,
+                pcap_path=str(output_pcap) if output_pcap else None,
+                raw_stdout=proc.stdout or "",
+            )
 
         except Exception as e:
-            log.debug("TShark capture execution note: %s. Using structured packet distribution.", e)
+            log.debug("TShark capture execution note: %s.", e)
             elapsed = time.time() - start_time
-            return self._build_capture_result(interface, count, elapsed or duration, str(output_pcap) if output_pcap else None)
+            # No stdout available — return truthful empty result, not fabricated data
+            return self._build_capture_result(
+                interface, count, elapsed or duration,
+                pcap_path=str(output_pcap) if output_pcap else None,
+                raw_stdout=None,
+            )
 
     def _build_capture_result(
         self,
@@ -680,21 +735,40 @@ class PacketCapture:
         count: int,
         duration: float,
         pcap_path: str | None = None,
+        raw_stdout: str | None = None,
     ) -> PacketCaptureResult:
-        """Constructs packet protocol metrics matching test expectations."""
-        tcp_count = int(count * 0.70)
-        udp_count = int(count * 0.20)
-        icmp_count = count - tcp_count - udp_count
+        """Build a PacketCaptureResult from real TShark output, or report unavailability.
+
+        Previously this method fabricated fixed 70/20/10 TCP/UDP/ICMP ratios regardless
+        of actual capture results. That fabrication has been removed (2026-09-04).
+
+        Args:
+            raw_stdout: The actual text output from the tshark subprocess.
+                        If None or empty, no protocol data is available and
+                        status is set to NO_TSHARK_OUTPUT rather than faking numbers.
+        """
+        if raw_stdout:
+            # UNTESTED: no TShark available in dev environment as of 2026-09-04.
+            # This branch parses real tshark output once TShark is installed.
+            # Covered by tests/unit/test_runaway_guard.py marked
+            # @pytest.mark.skip(reason="requires tshark binary").
+            protocols = _parse_tshark_protocols(raw_stdout)
+            status = "SUCCESS" if protocols else "NO_PROTOCOLS_PARSED"
+        else:
+            # Truthful: capture ran but produced no parseable output, or TShark
+            # subprocess raised an exception. Do NOT fabricate protocol counts.
+            protocols = {}
+            status = "NO_TSHARK_OUTPUT"
 
         return PacketCaptureResult(
             interface=interface,
             packet_count=count,
             duration_s=duration,
-            protocols={"TCP": tcp_count, "UDP": udp_count, "ICMP": icmp_count},
+            protocols=protocols,
             anomalies_detected=0,
             anomalies=[],
             pcap_path=pcap_path,
-            status="SUCCESS",
+            status=status,
         )
 
 

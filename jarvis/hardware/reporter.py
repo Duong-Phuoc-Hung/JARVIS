@@ -39,7 +39,24 @@ class HardwareReporter:
         self.voice_alerts_enabled = self.config.get("hardware", {}).get("voice_alerts", True)
 
     def format_voice_summary(self, metrics: HardwareMetrics | None = None, lang: str = "vi") -> str:
-        """Generate human-like spoken response for system status inquiry."""
+        """Generate human-like spoken response for system status inquiry.
+
+        Args:
+            metrics: A HardwareMetrics dataclass instance, or None to collect live data.
+                     Passing a plain dict is not supported — callers that previously passed {}
+                     will receive a truthful 'no data' message instead of crashing (A7 fix,
+                     2026-09-04: AttributeError on 'dict' object has no attribute 'cpu_temp_c').
+            lang: Language code, 'vi' (Vietnamese) or 'en' (English).
+        """
+        # A7 fix (2026-09-04): guard against plain dict input which caused
+        # AttributeError: 'dict' object has no attribute 'cpu_temp_c'.
+        if metrics is not None and not isinstance(metrics, HardwareMetrics):
+            log.warning(
+                "format_voice_summary received unexpected type %s instead of HardwareMetrics. "
+                "Falling back to live collection.", type(metrics).__name__
+            )
+            metrics = None  # Fall through to live collection below
+
         if metrics is None:
             return self.monitor.get_voice_summary(lang=lang)
 

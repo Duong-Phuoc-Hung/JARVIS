@@ -616,14 +616,21 @@ def test_jarvis_app_concurrent_text_commands_stress():
                 if res.get("success") is True:
                     successes.append(res)
                 else:
-                    # error_code may be nested differently depending on which
-                    # handler wraps the launch-dedupe result (e.g. app_open's
-                    # own wrapper doesn't forward error_code at its top level)
-                    # -- searching the full stringified result is robust to that.
-                    assert "LAUNCH_RATE_LIMITED" in str(res), (
-                        f"Unexpected non-rate-limit failure for {cmd!r}: {res}"
+                    # Two valid non-fabricated failure modes after the A6 fix:
+                    # 1. LAUNCH_RATE_LIMITED — runaway guard suppressed a repeated launch
+                    # 2. APP_NOT_FOUND — app genuinely not installed on this machine
+                    #    (e.g. 'cursor' may not be on PATH in CI/test environments).
+                    # Both are truthful fail-closed responses, not fabricated successes.
+                    # Search the full stringified result for robustness against nesting.
+                    valid_failure = (
+                        "LAUNCH_RATE_LIMITED" in str(res)
+                        or "APP_NOT_FOUND" in str(res)
+                    )
+                    assert valid_failure, (
+                        f"Unexpected non-rate-limit/not-found failure for {cmd!r}: {res}"
                     )
                     rate_limited.append(res)
+
         except Exception as exc:
             exceptions.append(exc)
 
