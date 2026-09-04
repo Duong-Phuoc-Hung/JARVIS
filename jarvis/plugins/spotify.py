@@ -11,6 +11,7 @@ from typing import Any
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import PluginMetadata
 from jarvis.core.plugin import BasePlugin
+from jarvis.core.runaway_guard import canonical_app_key, launch_dedupe_guard
 
 
 class SpotifyPlugin(BasePlugin):
@@ -53,6 +54,23 @@ class SpotifyPlugin(BasePlugin):
         target = (song_uri or self.default_song_uri).strip()
         if not target:
             return {"status": "skipped", "reason": "empty_uri"}
+
+        # P0 runaway-hardening: every prior call unconditionally re-launched
+        # Spotify with no rate limit -- a repeated/runaway dispatch (e.g. a
+        # passive acoustic-trigger loop) could spawn it over and over. Report
+        # a suppressed repeat truthfully rather than silently no-op'ing or
+        # claiming a fresh success. Keyed by canonical APP identity (not the
+        # exact song URI) so this shares one budget with
+        # ComputerController.open_app("spotify") -- the same real
+        # application reached through a different code path.
+        if not launch_dedupe_guard.should_allow("app_launch", canonical_app_key("spotify")):
+            return {
+                "success": False,
+                "status": "suppressed",
+                "error": "Yêu cầu mở Spotify bị chặn do lặp lại quá nhanh.",
+                "error_code": "LAUNCH_RATE_LIMITED",
+                "uri": target,
+            }
 
         try:
             if hasattr(os, "startfile"):

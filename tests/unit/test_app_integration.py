@@ -20,6 +20,9 @@ def test_full_audio_gesture_dispatch_pipeline(mock_audio_stream, tmp_path, monke
     """
     app = JarvisApp(headless=True, no_hot_reload=True)
     app.initialize()
+    # P0 runaway-hardening: fanout is opt-in by default now -- safe to opt in
+    # here since every one of its actions is re-registered as a fake handler.
+    app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
 
     # Track executed actions
     executed = []

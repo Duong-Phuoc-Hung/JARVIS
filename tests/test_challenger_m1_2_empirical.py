@@ -408,6 +408,10 @@ def test_gesture_routing_and_cooldown_debounce_enforcement():
     """
     app = JarvisApp(headless=True, no_hot_reload=True)
     app.initialize()
+    # P0 runaway-hardening: the fanout is opt-in by default now (see
+    # gesture.patterns.double_clap.allow_side_effect_fanout) -- safe to opt
+    # in here since every action below is re-registered as a fake handler.
+    app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
 
     dispatched_actions: List[str] = []
     app.dispatcher.register_action("spotify", lambda **kw: dispatched_actions.append("spotify") or {"status": "ok"})
@@ -430,7 +434,7 @@ def test_gesture_routing_and_cooldown_debounce_enforcement():
 
     # 3. Clap-Pause-Clap -> show_overlay
     # Wait out or reset cooldown timer for clap_pause_clap
-    app._pattern_last_fired["clap_pause_clap"] = 0.0
+    app._passive_trigger_guard.reset("GESTURE:clap_pause_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
     app._on_gesture_event("clap_pause_clap", confidence=0.90)
     time.sleep(0.05)
     assert "show_overlay" in dispatched_actions

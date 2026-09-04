@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import unittest
+from typing import Any
 
 from jarvis.core.app import JarvisApp
 from jarvis.core.dispatcher import ActionDispatcher, EventBus, _normalize_handler_outcome
@@ -472,6 +473,185 @@ class TestProcessTextCommandTruthfulness(unittest.TestCase):
         self.assertEqual(res["result"]["error_code"], "CONFIRMATION_REQUIRED")
         self.assertEqual(self.logged[-1]["status"], "failed")
         self.assertFalse(called, "Gated high-risk handler must not execute without confirmation")
+
+
+# ============================================================================
+# 5b. system_power / toggle_mute handler truthfulness
+#     (branch fix/voice-control-truthfulness)
+# ============================================================================
+
+
+class _FakeLockWin32:
+    """
+    Minimal injectable win32-platform double exposing only lock_workstation(),
+    used to prove _handle_system_power()'s "lock" path is truthful without
+    ever locking a real workstation.
+    """
+
+    def __init__(self, result: bool = True, raise_exc: Exception | None = None) -> None:
+        self.result = result
+        self.raise_exc = raise_exc
+        self.calls = 0
+
+    def lock_workstation(self) -> bool:
+        self.calls += 1
+        if self.raise_exc is not None:
+            raise self.raise_exc
+        return self.result
+
+
+class _FakeTray:
+    """Minimal tray_controller double exposing only what _handle_toggle_mute() reads/writes."""
+
+    def __init__(self, muted: bool = False) -> None:
+        self._is_mic_muted = muted
+        self.status_updates: list[Any] = []
+
+    def update_status(self, status: Any) -> None:
+        self.status_updates.append(status)
+
+    def stop(self) -> None:
+        """No-op: satisfies JarvisApp.stop()'s tray_controller.stop() call."""
+
+
+class TestSystemPowerHandlerTruthfulness(unittest.TestCase):
+    """
+    jarvis/core/app.py::_handle_system_power() must never report a
+    shutdown/restart/sleep/hibernate as having occurred -- no authoritative
+    backend for any of those sub-actions exists anywhere in this repository
+    (verified by repo-wide search; only WindowsPlatformAPI.lock_workstation()
+    is a real, truthful backend, reused here via
+    self.computer_controller.win32). No test in this class ever performs a
+    real shutdown/restart/reboot/sleep/hibernate/lock -- lock_workstation()
+    is always an injected fake.
+    """
+
+    def setUp(self) -> None:
+        self.app = _make_app()
+
+    def tearDown(self) -> None:
+        self.app.stop()
+
+    def test_destructive_actions_blocked_without_confirmation(self) -> None:
+        fake_win32 = _FakeLockWin32()
+        self.app.computer_controller.win32 = fake_win32
+        for sub_action in ("shutdown", "restart", "sleep", "hibernate"):
+            with self.subTest(sub_action=sub_action):
+                result = self.app.dispatcher.dispatch_action(
+                    "system_power", payload={"action": sub_action}
+                )
+                self.assertFalse(result.success)
+                self.assertEqual(result.error_code, "CONFIRMATION_REQUIRED")
+        self.assertEqual(fake_win32.calls, 0, "No power backend may be touched before confirmation")
+
+    def test_unsupported_power_action_fails_even_after_confirmation(self) -> None:
+        """
+        A genuinely CONFIRMED shutdown/restart/sleep/hibernate must still
+        fail closed -- confirmation only satisfies the safety gate, it does
+        not conjure a backend that does not exist.
+        """
+        for sub_action in ("shutdown", "restart", "sleep", "hibernate"):
+            with self.subTest(sub_action=sub_action):
+                payload = {"action": sub_action}
+                gated = self.app.dispatcher.dispatch_action("system_power", payload=payload)
+                self.assertEqual(gated.error_code, "CONFIRMATION_REQUIRED")
+                token = gated.data["confirmation_token"]
+                self.assertTrue(self.app.dispatcher.safety_interceptor.confirm(token))
+
+                result = self.app.dispatcher.dispatch_action(
+                    "system_power", payload=payload, confirmation_token=token
+                )
+                self.assertFalse(result.success)
+                self.assertEqual(result.error_code, "POWER_ACTION_UNSUPPORTED")
+
+    def test_unknown_power_action_is_rejected(self) -> None:
+        result = self.app.dispatcher.dispatch_action("system_power", payload={"action": "teleport"})
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_code, "UNKNOWN_POWER_ACTION")
+
+    def test_lock_is_not_gated_and_reports_real_backend_success(self) -> None:
+        fake_win32 = _FakeLockWin32(result=True)
+        self.app.computer_controller.win32 = fake_win32
+        result = self.app.dispatcher.dispatch_action("system_power", payload={"action": "lock"})
+        self.assertTrue(result.success)
+        self.assertEqual(fake_win32.calls, 1)
+
+    def test_lock_backend_false_is_reported_as_failure(self) -> None:
+        fake_win32 = _FakeLockWin32(result=False)
+        self.app.computer_controller.win32 = fake_win32
+        result = self.app.dispatcher.dispatch_action("system_power", payload={"action": "lock"})
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_code, "LOCK_WORKSTATION_FAILED")
+
+    def test_lock_backend_exception_is_reported_as_failure_not_success(self) -> None:
+        fake_win32 = _FakeLockWin32(raise_exc=RuntimeError("boom"))
+        self.app.computer_controller.win32 = fake_win32
+        result = self.app.dispatcher.dispatch_action("system_power", payload={"action": "lock"})
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_code, "LOCK_WORKSTATION_FAILED")
+
+
+class TestToggleMuteHandlerTruthfulness(unittest.TestCase):
+    """
+    jarvis/core/app.py::_handle_toggle_mute() must respect an explicit
+    desired mic state instead of blindly toggling -- "tắt mic" (muted=True)
+    must never unmute an already-muted mic, and "bật mic" (muted=False) must
+    never mute an already-unmuted mic (the real bug this branch fixes). No
+    test in this class touches a real audio device --
+    AudioEngine.pause_stream()/resume_stream() only flip an in-process
+    threading.Event.
+    """
+
+    def setUp(self) -> None:
+        self.app = _make_app()
+
+    def tearDown(self) -> None:
+        self.app.stop()
+
+    def test_explicit_muted_true_does_not_invert_already_muted_state(self) -> None:
+        self.app._mic_muted = True
+        result = self.app.dispatcher.dispatch_action("toggle_mute", payload={"muted": True})
+        self.assertTrue(result.success)
+        self.assertTrue(result.data["muted"])
+        self.assertTrue(self.app._mic_muted)
+
+    def test_explicit_muted_false_does_not_invert_already_unmuted_state(self) -> None:
+        self.app._mic_muted = False
+        result = self.app.dispatcher.dispatch_action("toggle_mute", payload={"muted": False})
+        self.assertTrue(result.success)
+        self.assertFalse(result.data["muted"])
+        self.assertFalse(self.app._mic_muted)
+
+    def test_toggle_with_no_desired_state_flips_current_state(self) -> None:
+        self.app._mic_muted = False
+        first = self.app.dispatcher.dispatch_action("toggle_mute", payload={})
+        self.assertTrue(first.success)
+        self.assertTrue(first.data["muted"])
+        second = self.app.dispatcher.dispatch_action("toggle_mute", payload={})
+        self.assertTrue(second.success)
+        self.assertFalse(second.data["muted"])
+
+    def test_explicit_desired_state_backend_failure_is_not_reported_as_success(self) -> None:
+        def _raise() -> None:
+            raise RuntimeError("no audio device")
+
+        self.app.audio_engine.pause_stream = _raise
+        result = self.app.dispatcher.dispatch_action("toggle_mute", payload={"muted": True})
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_code, "AUDIO_ENGINE_EXCEPTION")
+
+    def test_toggle_mute_syncs_tray_controller_state_when_present(self) -> None:
+        tray = _FakeTray(muted=False)
+        self.app.tray_controller = tray
+        result = self.app.dispatcher.dispatch_action("toggle_mute", payload={"muted": True})
+        self.assertTrue(result.success)
+        self.assertTrue(tray._is_mic_muted)
+
+    def test_toggle_mute_reports_failure_when_audio_engine_unavailable(self) -> None:
+        self.app.audio_engine = None
+        result = self.app.dispatcher.dispatch_action("toggle_mute", payload={"muted": True})
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_code, "AUDIO_ENGINE_UNAVAILABLE")
 
 
 # ============================================================================

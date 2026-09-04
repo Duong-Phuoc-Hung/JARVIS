@@ -58,6 +58,12 @@ def test_double_clap_welcome_first_time_then_voice_loop_progression():
     """
     app = JarvisApp(headless=True, no_hot_reload=True)
     app.initialize()
+    # P0 runaway-hardening: the heavy external-app fanout (spotify/chrome/
+    # cursor) is opt-in by default now (see
+    # gesture.patterns.double_clap.allow_side_effect_fanout) -- this test
+    # explicitly opts in since it's testing the fanout mechanism itself, and
+    # mocks every real external-launch call below so nothing real ever opens.
+    app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
 
     executed_actions: List[str] = []
     app.event_bus.subscribe("action.post_dispatch", lambda **ev: executed_actions.append(ev.get("action_name", "")))
@@ -67,10 +73,11 @@ def test_double_clap_welcome_first_time_then_voice_loop_progression():
 
     # --- FIRST TRIGGER (t=0.0s) ---
     assert app.welcome_executed is False
-    app._on_gesture_event("double_clap", confidence=1.0)
+    with patch("os.startfile", create=True), patch("subprocess.Popen"), patch("webbrowser.open"):
+        app._on_gesture_event("double_clap", confidence=1.0)
 
-    # Allow welcome background thread to dispatch actions
-    time.sleep(0.3)
+        # Allow welcome background thread to dispatch actions
+        time.sleep(0.3)
 
     assert app.welcome_executed is True
     assert "spotify" in executed_actions
@@ -82,7 +89,7 @@ def test_double_clap_welcome_first_time_then_voice_loop_progression():
 
     # Fast-forward monotonic clock past 3.0s cooldown
     with patch("time.monotonic", side_effect=[100.0, 100.0, 100.0, 100.0]):
-        app._pattern_last_fired["double_clap"] = 0.0  # Reset to 0.0, now is 100.0 (elapsed = 100s > 3s)
+        app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
 
         # Track spoken utterances
         spoken_phrases: List[str] = []
@@ -152,9 +159,13 @@ def test_cooldown_debounce_suppression_and_info_logging(caplog):
     # Check suppression logs
     suppressed_logs = [r for r in caplog.records if "suppressed" in r.message.lower() and r.levelname == "INFO"]
     assert len(suppressed_logs) == 3, f"Expected 3 suppressed logs at INFO level, got {len(suppressed_logs)}"
-    assert "cooldown 2.5s remaining" in suppressed_logs[0].message
-    assert "cooldown 1.0s remaining" in suppressed_logs[1].message
-    assert "cooldown 0.1s remaining" in suppressed_logs[2].message
+    # P0 runaway-hardening: exact suppression-log wording changed (now emitted
+    # by the shared PassiveTriggerGuard, see jarvis/core/runaway_guard.py) --
+    # "cooldown Xs remaining" became "retry_after=Xs" -- but the same
+    # remaining-time information is still present.
+    assert "retry_after=2.5s" in suppressed_logs[0].message
+    assert "retry_after=1.0s" in suppressed_logs[1].message
+    assert "retry_after=0.1s" in suppressed_logs[2].message
 
     app.stop()
 
@@ -170,6 +181,9 @@ def test_zero_double_dispatch_gesture_pipeline(mock_audio_stream):
     """
     app = JarvisApp(headless=True, no_hot_reload=True)
     app.initialize()
+    # P0 runaway-hardening: fanout is opt-in by default now -- safe to opt in
+    # here since every one of its actions is re-registered as a fake handler.
+    app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
 
     # Ensure gesture detector does not hold duplicate dispatcher
     assert app.gesture_detector.dispatcher is None, "GestureDetector.dispatcher must be None to prevent double-dispatch"

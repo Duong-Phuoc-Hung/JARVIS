@@ -51,6 +51,7 @@ from jarvis.core.dispatcher import ActionDispatcher, EventBus
 from jarvis.core.logger import log_interaction as _global_log_interaction
 from jarvis.core.models import RequesterContext
 from jarvis.core.plugin import PluginRegistry
+from jarvis.core.runaway_guard import PassiveTriggerGuard, launch_dedupe_guard
 from jarvis.gesture.detector import GestureDetector
 from jarvis.hardware.monitor import HardwareMetrics
 from jarvis.hardware.reporter import HardwareReporter
@@ -98,6 +99,38 @@ from jarvis.security.secrets import get_secret  # noqa: E402
 from jarvis.core.paths import get_data_dir as get_jarvis_data_dir
 
 
+# Deterministic system_power sub-action alias normalization. Keys are matched
+# case-insensitively/trimmed against the incoming "action"/"power_action"
+# parameter; values are the canonical action _handle_system_power() acts on.
+# This is purely an internal normalization table -- it does NOT affect
+# SafetyGateInterceptor.SYSTEM_POWER_DESTRUCTIVE_SUBACTIONS (jarvis/planner/
+# safety_interceptor.py), which independently classifies high-risk sub-actions
+# from the raw, unnormalized router payload before this handler ever runs.
+_POWER_ACTION_ALIASES: dict[str, str] = {
+    "shutdown": "shutdown",
+    "power_off": "shutdown",
+    "poweroff": "shutdown",
+    "power off": "shutdown",
+    "turn_off": "shutdown",
+    "restart": "restart",
+    "reboot": "restart",
+    "sleep": "sleep",
+    "suspend": "sleep",
+    "hibernate": "hibernate",
+    "lock": "lock",
+    "lock_screen": "lock",
+    "lock screen": "lock",
+}
+
+# Canonical power actions with no trustworthy, authoritative backend anywhere
+# in this repository today (verified by repo-wide search -- only
+# WindowsPlatformAPI.lock_workstation() exists and is truthful). Reporting
+# these as executed would violate the dispatch-truthfulness invariant, so
+# _handle_system_power() fails closed for all of them rather than inventing
+# an ad-hoc `shutdown /s`/PowerShell path just to look functional.
+_UNSUPPORTED_POWER_ACTIONS: frozenset[str] = frozenset({"shutdown", "restart", "sleep", "hibernate"})
+
+
 class JarvisApp:
     """Central daemon coordinating JARVIS runtime lifecycle."""
 
@@ -126,6 +159,11 @@ class JarvisApp:
         self.gesture_detector: GestureDetector | None = None
         self.wake_word_detector: WakeWordDetector | None = None
         self.stt_engine: STTEngine | None = None
+        # Truthful mic-mute state tracker, used when no tray_controller exists
+        # (headless/CLI mode) -- see _handle_toggle_mute(). When tray_controller
+        # is present, tray_controller._is_mic_muted is the single source of truth
+        # instead, so voice commands and the tray icon can never silently diverge.
+        self._mic_muted: bool = False
 
         # 3. AI, Memory & Reasoning Subsystems
         self.llm_client: LLMClient | None = None
@@ -174,10 +212,28 @@ class JarvisApp:
 
         self._initialized: bool = False
         self.welcome_executed = False
-        self._pattern_last_fired: dict[str, float] = {}
         self._action_fanout_cooldown_s: float = 3.0
         self._is_voice_interacting: bool = False
         self._voice_lock = threading.Lock()
+        # P0 runaway-hardening: centralized circuit breaker bounding how often
+        # an AMBIENT/passive trigger (wake word, acoustic gesture) may initiate
+        # a heavy pipeline -- see jarvis/core/runaway_guard.py. Replaces the
+        # previous ad hoc `_pattern_last_fired` dict, which only enforced a
+        # minimum interval and had no upper bound on total triggers over time
+        # (so a sustained acoustic feedback loop could retrigger indefinitely).
+        # Never route explicit user actions (hotkey, typed text command)
+        # through this guard -- only WAKE_WORD:*/GESTURE:* trigger keys.
+        #
+        # Pre-commit review correction: __init__() runs BEFORE
+        # self.config.load() (which only happens in initialize()) --
+        # self.config._data is still {} here, so reading
+        # "safety.passive_trigger_guard.*"/"safety.launch_dedupe_cooldown_s"
+        # at this point would silently always fall back to the hardcoded
+        # Python default, ignoring any real default_config.yaml/custom-config
+        # value. Construct with the class's own safe built-in defaults only;
+        # the REAL configured values are applied in initialize(), after the
+        # config is actually loaded -- see _apply_safety_guard_config().
+        self._passive_trigger_guard = PassiveTriggerGuard()
 
     def log_interaction(
         self,
@@ -207,6 +263,19 @@ class JarvisApp:
 
         log.info("Initializing JARVIS Core Subsystems...")
         self.config.load()
+
+        # P0 runaway-hardening, pre-commit review correction: apply the REAL
+        # loaded safety.passive_trigger_guard.*/safety.launch_dedupe_cooldown_s
+        # values now that self.config.load() has actually run (see the
+        # constructor comment above -- reading them any earlier, in
+        # __init__(), always saw the pre-load empty config and silently used
+        # the hardcoded fallback default instead of a real custom value).
+        # Also register for hot-reload so a later edit to these settings
+        # takes effect too, without ever reconstructing the guard objects
+        # (which would silently discard any in-flight trigger history/active
+        # lockout) -- see _apply_safety_guard_config().
+        self._apply_safety_guard_config()
+        self.config.register_reload_callback(self._on_safety_config_reloaded)
 
         # 1. Config Hot Reload Watcher
         if not self.no_hot_reload:
@@ -883,24 +952,136 @@ class JarvisApp:
         }
 
     def _handle_system_power(self, action: str = "shutdown", **kwargs) -> dict[str, Any]:
-        """Handles power state commands (shutdown, restart, lock, sleep)."""
-        act = str(action).lower().strip()
-        log.info("Handling system_power action: %s", act)
-        msg = f"Lệnh {act} đã được ghi nhận."
+        """
+        Handles power state commands (shutdown, restart, lock, sleep, hibernate).
+
+        Truthfulness contract: this handler only ever reports success when a
+        real, trustworthy backend actually performed the requested action.
+        - "lock" reuses the existing, truthful WindowsPlatformAPI.lock_workstation()
+          (via self.computer_controller.win32, falling back to a direct import),
+          which returns the real Win32 LockWorkStation() result.
+        - shutdown/restart/sleep/hibernate have NO authoritative backend anywhere
+          in this repository today -- reported as an explicit, truthful failure
+          rather than a fabricated "acknowledged"/"queued" pseudo-success. Note
+          that SafetyGateInterceptor already requires a confirmed token before
+          this handler runs at all for these sub-actions (see
+          jarvis/planner/safety_interceptor.py); that confirmation gate is
+          unaffected and unrelated to backend availability.
+        - An unrecognized sub-action is rejected truthfully, never silently
+          defaulted to "shutdown".
+        """
+        raw_act = str(action or "").strip().lower()
+        canonical = _POWER_ACTION_ALIASES.get(raw_act)
+
+        if canonical is None:
+            log.warning("Rejected unknown system_power sub-action: %r", raw_act)
+            msg = f"Hành động hệ thống '{raw_act}' không được hỗ trợ, thưa Ngài."
+            return {"success": False, "error": msg, "error_code": "UNKNOWN_POWER_ACTION", "action": raw_act}
+
+        log.info("Handling system_power action: %s (canonical=%s)", raw_act, canonical)
+
+        if canonical in _UNSUPPORTED_POWER_ACTIONS:
+            msg = (
+                f"Chức năng '{canonical}' hiện chưa được hỗ trợ một cách đáng tin cậy trên "
+                f"hệ thống này, thưa Ngài."
+            )
+            log.warning("system_power action '%s' has no authoritative backend; failing closed.", canonical)
+            return {
+                "success": False,
+                "error": msg,
+                "error_code": "POWER_ACTION_UNSUPPORTED",
+                "action": canonical,
+            }
+
+        # canonical == "lock" is the only supported action past this point.
+        locked = self._attempt_lock_workstation()
+        if not locked:
+            msg = "Không thể khóa màn hình, thưa Ngài."
+            return {"success": False, "error": msg, "error_code": "LOCK_WORKSTATION_FAILED", "action": canonical}
+
+        msg = "Đã khóa màn hình máy tính, thưa Ngài."
         if self.tts_manager:
             self.tts_manager.speak(msg, wait=False)
-        return {
-            "status": "acknowledged",
-            "action": act,
-            "message": msg,
-        }
+        return {"success": True, "action": canonical, "message": msg}
 
-    def _handle_toggle_mute(self, **kwargs) -> dict[str, Any]:
-        """Toggles microphone mute state."""
+    def _attempt_lock_workstation(self) -> bool:
+        """
+        Attempts a real workstation lock exactly once. Trusts only a confirmed
+        callable result as evidence of success -- never converts an exception
+        or an unavailable backend into a fabricated True. Mirrors the same
+        truthful pattern already established in
+        jarvis/vision/biometrics.py::_attempt_lock_workstation().
+        """
+        win32_platform = getattr(self.computer_controller, "win32", None) if self.computer_controller else None
+        if win32_platform is not None:
+            lock_fn = getattr(win32_platform, "lock_workstation", None)
+            if not callable(lock_fn):
+                log.warning("computer_controller.win32 has no callable lock_workstation(); failing closed.")
+                return False
+            try:
+                return bool(lock_fn())
+            except Exception as exc:
+                log.error("computer_controller.win32.lock_workstation() raised: %s", exc)
+                return False
+
+        try:
+            from jarvis.platform.windows import lock_workstation
+            return bool(lock_workstation())
+        except Exception as exc:
+            log.error("Failed to invoke lock_workstation: %s", exc)
+            return False
+
+    def _handle_toggle_mute(self, muted: bool | None = None, **kwargs) -> dict[str, Any]:
+        """
+        Sets the microphone input listening state (wake-word/STT audio capture).
+
+        `muted=True`/`muted=False` request an explicit desired state and are
+        idempotent (re-requesting the current state is not an error). Omitted/
+        None `muted` toggles the current state, preserving the previous
+        behavior for callers that don't supply a desired state.
+
+        Backed by AudioEngine.pause_stream()/resume_stream() -- the real mic
+        input stream feeding wake-word/STT -- NOT
+        ComputerController.mute_volume(), which controls the separate master
+        speaker/output device and must never be conflated with microphone
+        input control.
+        """
+        if not self.audio_engine:
+            msg = "Không thể điều khiển micro: audio engine không khả dụng, thưa Ngài."
+            return {"success": False, "error": msg, "error_code": "AUDIO_ENGINE_UNAVAILABLE"}
+
+        current_muted = self.tray_controller._is_mic_muted if self.tray_controller else self._mic_muted
+        new_muted = (not current_muted) if muted is None else bool(muted)
+
+        try:
+            if new_muted:
+                self.audio_engine.pause_stream()
+            else:
+                self.audio_engine.resume_stream()
+        except Exception as exc:
+            log.error("Failed to set microphone mute state: %s", exc)
+            msg = f"Không thể thay đổi trạng thái micro, thưa Ngài: {exc}"
+            return {"success": False, "error": msg, "error_code": "AUDIO_ENGINE_EXCEPTION"}
+
+        # Pre-commit review correction: write to EXACTLY the same variable
+        # `current_muted` was just read from -- never both -- so there is
+        # never a second, unread-but-still-written shadow copy that could
+        # be mistaken for a second source of truth. `tray_controller.
+        # _is_mic_muted` is authoritative whenever a tray_controller exists
+        # (shared with the tray-icon click handler, jarvis/ui/tray.py::
+        # SystemTrayController._on_toggle_mute()); `self._mic_muted` is the
+        # authoritative fallback only in headless/CLI mode, where no
+        # tray_controller exists at all.
         if self.tray_controller:
-            self.tray_controller._on_toggle_mute()
-            return {"muted": self.tray_controller._is_mic_muted}
-        return {"muted": False}
+            self.tray_controller._is_mic_muted = new_muted
+            self.tray_controller.update_status(TrayStatus.MUTED if new_muted else TrayStatus.ACTIVE)
+        else:
+            self._mic_muted = new_muted
+
+        msg = "Đã tắt micro, thưa Ngài." if new_muted else "Đã bật micro, thưa Ngài."
+        if self.tts_manager:
+            self.tts_manager.speak(msg, wait=False)
+        return {"success": True, "muted": new_muted, "message": msg}
 
     def _handle_show_overlay(self, **kwargs) -> dict[str, Any]:
         """Shows the JARVIS chat overlay window."""
@@ -1616,12 +1797,69 @@ class JarvisApp:
 
         threading.Thread(target=_voice_loop, daemon=True, name="JARVIS-VoiceInteraction").start()
 
+    def _apply_safety_guard_config(self, cfg: Any = None) -> None:
+        """
+        Applies safety.passive_trigger_guard.*/safety.launch_dedupe_cooldown_s
+        onto the EXISTING `_passive_trigger_guard`/`launch_dedupe_guard`
+        objects IN PLACE -- only their config-derived attributes are
+        reassigned, never the objects themselves -- so any live trigger
+        history / active lockout already recorded is always preserved
+        across a call to this method, including a later config hot-reload.
+
+        `cfg` defaults to `self.config` (the real, already-loaded
+        ConfigManager) for the initial call from initialize(). When called
+        as a config hot-reload callback, `cfg` is instead the reloaded
+        `JarvisConfig`/`ConfigNode`, whose `.get()` is a plain flat dict
+        lookup (NOT ConfigManager's dot-notation traversal) -- so this
+        method deliberately fetches only the single top-level "safety"
+        section via `.get("safety", {})` (identical, correct behavior on
+        either kind of source) and then walks the rest as a plain nested
+        dict, rather than relying on any dot-notation key support.
+        """
+        source = cfg if cfg is not None else self.config
+        safety_cfg = source.get("safety", {}) if hasattr(source, "get") else {}
+        if not isinstance(safety_cfg, dict):
+            safety_cfg = {}
+        ptg_cfg = safety_cfg.get("passive_trigger_guard", {})
+        if not isinstance(ptg_cfg, dict):
+            ptg_cfg = {}
+
+        self._passive_trigger_guard.max_triggers = int(
+            ptg_cfg.get("max_triggers", self._passive_trigger_guard.max_triggers)
+        )
+        self._passive_trigger_guard.window_s = float(
+            ptg_cfg.get("window_s", self._passive_trigger_guard.window_s)
+        )
+        self._passive_trigger_guard.lockout_s = float(
+            ptg_cfg.get("lockout_s", self._passive_trigger_guard.lockout_s)
+        )
+        # Applied to the shared, process-wide LaunchDedupeGuard singleton
+        # (jarvis/core/runaway_guard.py) used by the external-launch plugins
+        # (spotify/chrome/cursor) and ComputerController.open_app()/
+        # open_website() -- those call sites have no visibility into the
+        # global config tree themselves.
+        launch_dedupe_guard.default_cooldown_s = float(
+            safety_cfg.get("launch_dedupe_cooldown_s", launch_dedupe_guard.default_cooldown_s)
+        )
+
+    def _on_safety_config_reloaded(self, new_cfg: Any) -> None:
+        """Config hot-reload callback: re-applies safety guard limits without ever resetting guard state."""
+        self._apply_safety_guard_config(new_cfg)
+
     def _on_wake_word_triggered(self) -> None:
         """Callback invoked when wake word detector detects 'Hey JARVIS'."""
+        trigger_key = "WAKE_WORD:hey_jarvis"
+        decision = self._passive_trigger_guard.try_acquire(trigger_key, min_rearm_interval_s=2.5)
+        if not decision.allowed:
+            log.warning(
+                "Wake word trigger suppressed (%s, retry_after=%.1fs) — passive-trigger circuit breaker.",
+                decision.reason, decision.retry_after_s,
+            )
+            return
         log.info("Wake word triggered ('Hey JARVIS')")
         self._start_voice_interaction(
             greeting_phrase="Vâng thưa Ngài",
-            trigger_name="WAKE_WORD:hey_jarvis",
+            trigger_name=trigger_key,
         )
 
     def _on_wake_word_event(self, keyword: str, confidence: float) -> None:
@@ -1636,16 +1874,17 @@ class JarvisApp:
 
     def _on_gesture_event(self, pattern_name: str, confidence: float = 1.0) -> None:
         """Routes acoustic gesture patterns to actions."""
-        now = time.monotonic()
-        last = self._pattern_last_fired.get(pattern_name, 0.0)
-        elapsed = now - last
-
-        cooldown = self._action_fanout_cooldown_s
-        if elapsed < cooldown:
-            log.info("Gesture [%s] suppressed — cooldown %.1fs remaining.", pattern_name, cooldown - elapsed)
+        trigger_key = f"GESTURE:{pattern_name}"
+        decision = self._passive_trigger_guard.try_acquire(
+            trigger_key, min_rearm_interval_s=self._action_fanout_cooldown_s
+        )
+        if not decision.allowed:
+            log.info(
+                "Gesture [%s] suppressed (%s, retry_after=%.1fs) — passive-trigger circuit breaker.",
+                pattern_name, decision.reason, decision.retry_after_s,
+            )
             return
 
-        self._pattern_last_fired[pattern_name] = now
         log.info("Gesture detected: [%s] (conf=%.2f)", pattern_name, confidence)
 
         if self.dashboard_server:
@@ -1656,28 +1895,58 @@ class JarvisApp:
             })
 
         if pattern_name == "double_clap":
+            # P0 runaway-hardening: the heavy external-app fanout (spotify/
+            # chrome_claude/chrome_binance/cursor) is opt-in, not a default-on
+            # capability of a passive acoustic trigger. A false-positive/
+            # repeated double_clap (e.g. from music the fanout itself just
+            # started playing) must never gain default authority to keep
+            # launching heavyweight external applications. Set
+            # gesture.patterns.double_clap.allow_side_effect_fanout: true to
+            # restore the original full fanout behavior.
+            allow_fanout = bool(
+                self.config.get("gesture.patterns.double_clap.allow_side_effect_fanout", False)
+            )
+
             if not self.welcome_executed:
                 self.welcome_executed = True
-                log.info("First activation — running welcome sequence.")
-                self.log_interaction(
-                    trigger="GESTURE:double_clap",
-                    input_text="double_clap",
-                    action="welcome_sequence",
-                    response="Khởi chạy chuỗi hành động chào mừng và ứng dụng làm việc",
-                    status="success",
-                )
+                if allow_fanout:
+                    log.info("First activation — running welcome sequence (external app fanout enabled).")
+                    self.log_interaction(
+                        trigger="GESTURE:double_clap",
+                        input_text="double_clap",
+                        action="welcome_sequence",
+                        response="Khởi chạy chuỗi hành động chào mừng và ứng dụng làm việc",
+                        status="success",
+                    )
 
-                def _welcome():
-                    configured_actions = self.config.get("gesture.patterns.double_clap.actions", [
-                        "spotify", "chrome_claude", "chrome_binance", "tts_welcome", "cursor"
-                    ])
-                    for act in configured_actions:
-                        try:
-                            self.dispatcher.dispatch_action(act, requester=RequesterContext.system())
-                        except Exception as e:
-                            log.warning("Action [%s] failed during welcome sequence: %s", act, e)
+                    def _welcome():
+                        configured_actions = self.config.get("gesture.patterns.double_clap.actions", [
+                            "spotify", "chrome_claude", "chrome_binance", "tts_welcome", "cursor"
+                        ])
+                        for act in configured_actions:
+                            try:
+                                self.dispatcher.dispatch_action(act, requester=RequesterContext.system())
+                            except Exception as e:
+                                log.warning("Action [%s] failed during welcome sequence: %s", act, e)
 
-                threading.Thread(target=_welcome, daemon=True, name="Welcome-Sequence").start()
+                    threading.Thread(target=_welcome, daemon=True, name="Welcome-Sequence").start()
+                else:
+                    log.info(
+                        "First activation — external app/browser fanout is disabled by default "
+                        "(gesture.patterns.double_clap.allow_side_effect_fanout=false); starting a "
+                        "safe voice activation instead."
+                    )
+                    self.log_interaction(
+                        trigger="GESTURE:double_clap",
+                        input_text="double_clap",
+                        action="voice_activation",
+                        response="Kích hoạt trợ lý bằng giọng nói (fanout ứng dụng bên ngoài đang tắt theo mặc định).",
+                        status="success",
+                    )
+                    self._start_voice_interaction(
+                        greeting_phrase="Vâng thưa Ngài, tôi đang lắng nghe.",
+                        trigger_name="GESTURE:double_clap",
+                    )
             else:
                 log.info("Subsequent double clap — starting voice interaction.")
                 self._start_voice_interaction(

@@ -150,15 +150,43 @@ class TerminalApp:
         than once per process (see module docstring). Returns True only if
         JarvisApp actually ran (and has since shut down) -- the caller uses
         this, not a side-effect flag, to decide whether to exit the
-        terminal menu afterward."""
-        from jarvis.cli import _acquire_single_instance_mutex
+        terminal menu afterward.
+
+        Pre-commit review correction: `_acquire_single_instance_mutex()`
+        returns a three-state `SingleInstanceResult`, not a bool -- this
+        must branch on it explicitly rather than truth-testing the enum
+        member directly (which would always be truthy and silently start
+        JarvisApp regardless of outcome). ALREADY_RUNNING and CHECK_FAILED
+        are reported with distinct, truthful messages; neither ever starts
+        JarvisApp -- CHECK_FAILED is never reinterpreted as a successful
+        acquisition.
+
+        Pre-commit audit correction: a successful ACQUIRED result must be
+        released exactly once when the delegated JarvisApp session ends --
+        mirroring jarvis/cli.py::main()'s own acquire/try-finally/release
+        pattern around JarvisApp(...).run(). Without this, the mutex handle
+        acquired here stayed held by this process for the rest of its
+        lifetime, so no other JARVIS instance (including a future `[J]`
+        invocation in a fresh process) could ever acquire it again, even
+        after the delegated JarvisApp had fully shut down."""
+        from jarvis.cli import SingleInstanceResult, _acquire_single_instance_mutex, _release_single_instance_mutex
         from jarvis.core.app import JarvisApp
 
-        if not _acquire_single_instance_mutex():
+        result = _acquire_single_instance_mutex()
+        if result == SingleInstanceResult.ALREADY_RUNNING:
             self.console.print(self.theme.warn("[!] JARVIS is already running elsewhere. Not starting a second instance."))
             return False
-        app = JarvisApp(config_path=self.ctx.config.config_path if hasattr(self.ctx.config, "config_path") else None)
-        app.run()
+        if result == SingleInstanceResult.CHECK_FAILED:
+            self.console.print(self.theme.warn(
+                "[!] Could not verify no other JARVIS instance is running (single-instance check failed). "
+                "Refusing to start for safety."
+            ))
+            return False
+        try:
+            app = JarvisApp(config_path=self.ctx.config.config_path if hasattr(self.ctx.config, "config_path") else None)
+            app.run()
+        finally:
+            _release_single_instance_mutex()
         return True
 
     # -- rendering --------------------------------------------------------

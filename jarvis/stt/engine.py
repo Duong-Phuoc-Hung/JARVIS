@@ -10,6 +10,7 @@ Provides:
 """
 from __future__ import annotations
 
+import copy
 import io
 import logging
 import os
@@ -455,6 +456,21 @@ OpenAIWhisperAPI = OpenAIWhisperSTT
 class FasterWhisperSTT(BaseSTTEngine):
     """Local offline speech transcriber using faster-whisper (CTranslate2)."""
 
+    # P0 runaway-hardening, pre-commit review correction: process-wide
+    # (class-level, shared across EVERY FasterWhisperSTT instance) lock
+    # serializing actual WhisperModel(...) construction. The per-instance
+    # `self._lock` double-checked locking in _get_model() below only
+    # prevents concurrent construction WITHIN one instance -- it does
+    # nothing to stop an OLD instance's still-in-flight preload thread from
+    # constructing its model concurrently with a NEW instance's preload
+    # thread, which is exactly what can happen when preload=True and
+    # STTEngine._on_config_reloaded() constructs a genuinely-changed
+    # replacement engine: the old engine's preload thread may still be
+    # running when the new one starts its own. Two simultaneous heavyweight
+    # model constructions (each potentially touching CUDA) is exactly the
+    # kind of doubled GPU/RAM load this hardening pass exists to prevent.
+    _model_construction_lock: threading.Lock = threading.Lock()
+
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
         self.model_size = self.config.get("model_size", "base")
@@ -482,7 +498,14 @@ class FasterWhisperSTT(BaseSTTEngine):
                 self.compute_type = "int8"
 
         self._preload_thread: threading.Thread | None = None
-        if self.config.get("preload", True) and FASTER_WHISPER_AVAILABLE:
+        # P0 runaway-hardening: lazy-load by default -- the model now loads on
+        # first real transcribe() call instead of unconditionally spawning a
+        # background preload thread (and allocating GPU/RAM for a
+        # large-v3-class model) at every construction, including every
+        # STTEngine._on_config_reloaded() reconstruction. Callers that want
+        # the old eager-preload behavior (lower first-command latency) can
+        # still opt in explicitly via config["preload"] = True.
+        if self.config.get("preload", False) and FASTER_WHISPER_AVAILABLE:
             self._preload_thread = threading.Thread(
                 target=self._get_model,
                 name="FasterWhisper-Preload",
@@ -536,17 +559,25 @@ class FasterWhisperSTT(BaseSTTEngine):
         if self._model is None:
             with self._lock:
                 if self._model is None and FASTER_WHISPER_AVAILABLE:
-                    try:
-                        os.makedirs(self.download_root, exist_ok=True)
-                        self._model = WhisperModel(
-                            self.model_size,
-                            device=self.device,
-                            compute_type=self.compute_type,
-                            download_root=self.download_root,
-                        )
-                        log.info("FasterWhisperSTT model preloaded successfully.")
-                    except Exception as e:
-                        log.warning("FasterWhisperSTT model load error: %s", e)
+                    # Process-wide serialization: no two FasterWhisperSTT
+                    # instances (e.g. an old, still-preloading engine and a
+                    # freshly-reconstructed replacement) may construct a
+                    # heavyweight WhisperModel at the same time. Acquired
+                    # strictly AFTER `self._lock` above, in that fixed order
+                    # everywhere it is used, so this can never deadlock
+                    # against another thread of the same instance.
+                    with FasterWhisperSTT._model_construction_lock:
+                        try:
+                            os.makedirs(self.download_root, exist_ok=True)
+                            self._model = WhisperModel(
+                                self.model_size,
+                                device=self.device,
+                                compute_type=self.compute_type,
+                                download_root=self.download_root,
+                            )
+                            log.info("FasterWhisperSTT model preloaded successfully.")
+                        except Exception as e:
+                            log.warning("FasterWhisperSTT model load error: %s", e)
         return self._model
 
     def transcribe(
@@ -843,9 +874,32 @@ class STTEngine:
             if (sys.platform == "win32" and not isinstance(self.primary_engine, WindowsSpeechSTT))
             else MockSTTEngine(self.config)
         )
+        # P0 runaway-hardening: snapshot of exactly the config subset that
+        # determines what _resolve_engine() constructs, so a later config
+        # hot-reload can detect a genuine no-op (nothing STT-engine-relevant
+        # actually changed) and skip reconstructing a heavy engine -- see
+        # _on_config_reloaded().
+        self._engine_relevant_snapshot = self._compute_engine_relevant_snapshot(self.config, self.provider_name)
 
         if self.config_manager and hasattr(self.config_manager, "register_reload_callback"):
             self.config_manager.register_reload_callback(self._on_config_reloaded)
+
+    @staticmethod
+    def _compute_engine_relevant_snapshot(stt_cfg: dict[str, Any], provider_name: str) -> tuple[Any, ...]:
+        """
+        Captures exactly the config subset that determines what
+        _resolve_engine() constructs (provider name plus every per-provider
+        sub-config dict any branch of _resolve_engine() reads), independent
+        of unrelated STT fields (e.g. vad_threshold) that don't require
+        reconstructing the underlying engine.
+        """
+        provider = str(provider_name or "").lower()
+        return (
+            provider,
+            copy.deepcopy(stt_cfg.get("whisper_api", {})),
+            copy.deepcopy(stt_cfg.get("faster_whisper", {})),
+            copy.deepcopy(stt_cfg.get("windows_sapi", stt_cfg.get("web_speech", {}))),
+        )
 
     def _resolve_engine(self, name: str) -> BaseSTTEngine:
         name_lower = name.lower() if isinstance(name, str) else "mock"
@@ -871,6 +925,20 @@ class STTEngine:
         return MockSTTEngine(self.config)
 
     def _on_config_reloaded(self, new_cfg: Any) -> None:
+        """
+        P0 runaway-hardening: config hot-reload fires on ANY change to the
+        config file, and the "stt" section is present (non-empty) in every
+        default/real config -- so this callback previously reconstructed a
+        brand-new primary STT engine (a new FasterWhisperSTT, including a
+        fresh preload thread/heavy model load by default) on EVERY reload,
+        even one entirely unrelated to STT (e.g. a gesture/TTS setting
+        change). The old engine/model was simply discarded with no cleanup.
+        Now the engine is reconstructed only when the config subset that
+        actually determines engine construction
+        (provider + per-provider sub-config) genuinely changed; unrelated
+        reloads still update the cheap fields (vad_threshold) but leave the
+        existing engine (and its already-loaded/loading model) in place.
+        """
         with self._lock:
             stt_cfg = new_cfg.get("stt", {}) if hasattr(new_cfg, "get") else {}
             if stt_cfg:
@@ -878,7 +946,16 @@ class STTEngine:
                 self.provider_name = stt_cfg.get("provider", self.provider_name)
                 self.vad_threshold = float(stt_cfg.get("vad_threshold", self.vad_threshold))
                 self.vad.vad_threshold = self.vad_threshold
-                self.primary_engine = self._resolve_engine(self.provider_name)
+
+                new_snapshot = self._compute_engine_relevant_snapshot(stt_cfg, self.provider_name)
+                if new_snapshot != self._engine_relevant_snapshot:
+                    self.primary_engine = self._resolve_engine(self.provider_name)
+                    self._engine_relevant_snapshot = new_snapshot
+                else:
+                    log.debug(
+                        "STT config reloaded but engine-relevant settings unchanged -- "
+                        "keeping existing primary_engine (no new model load)."
+                    )
 
     def is_speech_present(self, audio_buffer: np.ndarray | None, threshold: float | None = None) -> bool:
         """Fast RMS check to verify speech presence."""

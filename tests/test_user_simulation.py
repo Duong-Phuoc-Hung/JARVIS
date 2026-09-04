@@ -120,6 +120,10 @@ def test_sim_01_audio_engine_double_clap_injection(sim_app, mock_audio_stream):
     verifies DSP transient detection, GestureDetector state disambiguation,
     and JarvisApp._on_gesture_event routing to welcome sequence.
     """
+    # P0 runaway-hardening: fanout is opt-in by default now -- safe to opt in
+    # here since every one of its actions is re-registered as a fake handler.
+    sim_app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
+
     executed_actions: List[str] = []
     for act in ["spotify", "chrome_claude", "chrome_binance", "tts_welcome", "cursor"]:
         sim_app.dispatcher.register_action(
@@ -199,6 +203,10 @@ def test_sim_04_first_double_clap_welcome_sequence_once(sim_app):
     [Test 4] Verify first double clap runs welcome sequence exactly 1 time,
     flips welcome_executed flag, and logs structured interaction.
     """
+    # P0 runaway-hardening: fanout is opt-in by default now -- safe to opt in
+    # here since every one of its actions is re-registered as a fake handler.
+    sim_app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
+
     executed: List[str] = []
     for act in ["spotify", "chrome_claude", "chrome_binance", "tts_welcome", "cursor"]:
         sim_app.dispatcher.register_action(
@@ -231,7 +239,7 @@ def test_sim_05_second_double_clap_triggers_ai_voice_loop(sim_app, monkeypatch):
     Overlay -> LISTENING -> STT transcribe -> Overlay -> THINKING -> LLM Intent -> Dispatch -> TTS speak -> Overlay -> RESPONSE.
     """
     sim_app.welcome_executed = True
-    sim_app._pattern_last_fired["double_clap"] = time.monotonic() - 5.0  # Cooldown cleared
+    sim_app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
 
     # Mock STT to return a specific command
     sim_app.stt_engine.primary_engine = MockSTTEngine(default_transcript="bật đèn phòng khách")
@@ -273,7 +281,7 @@ def test_sim_06_voice_loop_smart_keyword_home_assistant(sim_app, monkeypatch):
     dispatches home_assistant_call with proper entity and parameters.
     """
     sim_app.welcome_executed = True
-    sim_app._pattern_last_fired["double_clap"] = time.monotonic() - 5.0
+    sim_app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
 
     sim_app.stt_engine.primary_engine = MockSTTEngine(default_transcript="bật đèn phòng khách")
     monkeypatch.setattr(sim_app, "record_audio", lambda **kw: np.zeros(1600, dtype=np.float32))
@@ -303,7 +311,7 @@ def test_sim_07_voice_loop_smart_keyword_hardware_telemetry(sim_app, monkeypatch
     dispatches system_status / hardware_telemetry_check and speaks CPU/RAM.
     """
     sim_app.welcome_executed = True
-    sim_app._pattern_last_fired["double_clap"] = time.monotonic() - 5.0
+    sim_app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
 
     sim_app.stt_engine.primary_engine = MockSTTEngine(default_transcript="nhiệt độ hệ thống")
     monkeypatch.setattr(sim_app, "record_audio", lambda **kw: np.zeros(1600, dtype=np.float32))
@@ -338,7 +346,7 @@ def test_sim_08_voice_loop_silence_handling(sim_app, monkeypatch):
     without crash, logs STATUS: failed.
     """
     sim_app.welcome_executed = True
-    sim_app._pattern_last_fired["double_clap"] = time.monotonic() - 5.0
+    sim_app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
 
     sim_app.stt_engine.primary_engine = MockSTTEngine(default_transcript="")
     monkeypatch.setattr(sim_app, "record_audio", lambda **kw: np.zeros(1600, dtype=np.float32))
@@ -363,7 +371,7 @@ def test_sim_09_voice_loop_exception_resilience(sim_app, monkeypatch):
     no unhandled crash.
     """
     sim_app.welcome_executed = True
-    sim_app._pattern_last_fired["double_clap"] = time.monotonic() - 5.0
+    sim_app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
 
     def _failing_transcribe(*args, **kwargs):
         raise RuntimeError("Audio hardware stream disconnected")
@@ -443,6 +451,9 @@ def test_sim_12_zero_double_dispatch_verification(sim_app):
     sim_app.dispatcher.register_action("overlay_act", lambda **kw: call_counts.__setitem__("overlay_act", call_counts["overlay_act"] + 1) or {})
 
     sim_app.config.set("gesture.patterns.double_clap.actions", ["welcome_act"])
+    # P0 runaway-hardening: fanout is opt-in by default now -- safe here
+    # since double_clap.actions was just overridden to a fake, safe action.
+    sim_app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
     sim_app.config.set("gesture.patterns.triple_clap.actions", ["status_act"])
     sim_app.config.set("gesture.patterns.clap_pause_clap.actions", ["overlay_act"])
 
@@ -492,7 +503,7 @@ def test_sim_13_3s_debounce_cooldown_enforcement(sim_app, caplog):
         assert any("suppressed" in rec.message for rec in caplog.records)
 
         # Advance pattern last fired timestamp past 3.0s
-        sim_app._pattern_last_fired["custom_pat"] = time.monotonic() - 3.5
+        sim_app._passive_trigger_guard.reset("GESTURE:custom_pat")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
 
         # Trigger 3: After cooldown expired
         sim_app._on_gesture_event("custom_pat")
@@ -710,7 +721,7 @@ def test_sim_17_e2e_full_session_simulation_and_performance(sim_app, monkeypatch
     assert sim_app.welcome_executed is True
 
     # 3. Second double clap (Voice AI Loop)
-    sim_app._pattern_last_fired["double_clap"] = time.monotonic() - 5.0
+    sim_app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
     sim_app.stt_engine.primary_engine = MockSTTEngine(default_transcript="nhiệt độ hệ thống")
     monkeypatch.setattr(sim_app, "record_audio", lambda **kw: np.zeros(1600, dtype=np.float32))
 
@@ -718,12 +729,12 @@ def test_sim_17_e2e_full_session_simulation_and_performance(sim_app, monkeypatch
     assert _wait_for_condition(lambda: sim_app.overlay.state == OverlayState.RESPONSE, timeout=3.0)
 
     # 4. Triple clap
-    sim_app._pattern_last_fired["triple_clap"] = time.monotonic() - 5.0
+    sim_app._passive_trigger_guard.reset("GESTURE:triple_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
     sim_app._on_gesture_event("triple_clap")
     time.sleep(0.05)
 
     # 5. Clap-pause-clap
-    sim_app._pattern_last_fired["clap_pause_clap"] = time.monotonic() - 5.0
+    sim_app._passive_trigger_guard.reset("GESTURE:clap_pause_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
     sim_app._on_gesture_event("clap_pause_clap")
     time.sleep(0.05)
     assert sim_app.overlay.state == OverlayState.LISTENING

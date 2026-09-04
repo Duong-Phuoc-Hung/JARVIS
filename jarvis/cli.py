@@ -5,6 +5,7 @@ Provides run, health-check, autostart installation, and diagnostics.
 from __future__ import annotations
 
 import argparse
+import enum
 import os
 import sys
 from collections.abc import Sequence
@@ -19,29 +20,155 @@ log = get_logger("jarvis.cli")
 
 
 _SINGLE_INSTANCE_MUTEX: Any = None
+_SINGLE_INSTANCE_MUTEX_NAME = "Local\\JARVIS_Assistant_SingleInstance_Mutex"
+_ERROR_ALREADY_EXISTS = 183
 
 
-def _acquire_single_instance_mutex() -> bool:
-    """Acquires a named Win32 mutex to prevent multiple instances from running concurrently."""
+class SingleInstanceResult(enum.Enum):
+    """
+    Outcome of _acquire_single_instance_mutex(). Pre-commit review
+    correction: a plain bool collapsed two semantically different
+    "don't start JarvisApp" outcomes into the same False value --
+    "another real instance is already running" (an expected, benign
+    condition; exit 0 is fine) and "the check itself failed, exclusivity
+    is unproven" (a genuine failure that a script/automation caller must
+    be able to tell apart and treat as an error, e.g. via a non-zero exit
+    code). Callers must branch on this three-way result, not a bool.
+    """
+    ACQUIRED = "acquired"
+    ALREADY_RUNNING = "already_running"
+    CHECK_FAILED = "check_failed"
+
+
+def _acquire_single_instance_mutex() -> SingleInstanceResult:
+    """
+    Acquires a named Win32 mutex to prevent multiple instances from running
+    concurrently. Called before any expensive JarvisApp initialization
+    (STT/audio/GPU allocation, dashboard/tray/hotkeys, gesture/wake-word
+    listeners) so a second launch fails fast and cleanly, never doubling up
+    resource usage.
+
+    P0 runaway-hardening pass, pre-commit review correction: this check is
+    FAIL-CLOSED, not fail-open, AND returns a three-state
+    `SingleInstanceResult` rather than a bool so callers can distinguish a
+    benign "already running" rejection from a genuine check failure.
+    Exactly one path returns ACQUIRED (a genuinely new, owned mutex); every
+    other path returns ALREADY_RUNNING or CHECK_FAILED and startup must not
+    proceed either way:
+
+      - CreateMutexW succeeds with a fresh (non-pre-existing) handle
+        -> ACQUIRED, `_SINGLE_INSTANCE_MUTEX` is now owned by this process.
+      - GetLastError() == ERROR_ALREADY_EXISTS -> ALREADY_RUNNING; a real
+        second instance, rejected cleanly (not an error condition), the
+        duplicate handle Win32 still hands back is closed to avoid leaking it.
+      - CreateMutexW returns a NULL/0 handle for any other reason,
+        `ctypes.WinDLL`/attribute-binding raises, or the call itself
+        raises -> CHECK_FAILED; exclusivity cannot be proven -> BLOCK
+        startup, logged as `JARVIS_SINGLE_INSTANCE_CHECK_FAILED` (never
+        silently continue).
+      - A returned handle that isn't a sane integer (a malformed/invalid
+        handle) is treated the same as CHECK_FAILED.
+
+    Also fixed in the same pass: `CreateMutexW`/`CloseHandle`'s `restype`/
+    `argtypes` (previously left as ctypes' 32-bit-int default, only
+    coincidentally correct for typical small handle values -- HANDLE is
+    pointer-sized on 64-bit Windows), and `ctypes.set_last_error(0)` is
+    called immediately before `CreateMutexW` so a genuinely fresh, successful
+    creation can never be misclassified as ERROR_ALREADY_EXISTS due to a
+    stale last-error value left over from an unrelated earlier ctypes call.
+    """
     global _SINGLE_INSTANCE_MUTEX
     if sys.platform != "win32":
-        return True
+        return SingleInstanceResult.ACQUIRED
+
     try:
         import ctypes
         kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        ERROR_ALREADY_EXISTS = 183
-        mutex_name = "Local\\JARVIS_Assistant_SingleInstance_Mutex"
-        mutex = kernel32.CreateMutexW(None, False, mutex_name)
+        kernel32.CreateMutexW.restype = ctypes.c_void_p
+        kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p]
+        kernel32.CloseHandle.restype = ctypes.c_int
+        kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+        ctypes.set_last_error(0)
+        mutex = kernel32.CreateMutexW(None, False, _SINGLE_INSTANCE_MUTEX_NAME)
         last_error = ctypes.get_last_error()
-        if last_error == ERROR_ALREADY_EXISTS:
-            log.warning("Another instance of JARVIS Assistant is already running. Exiting cleanly.")
-            _safe_print("[!] JARVIS đã đang chạy ở khay hệ thống hoặc chạy ngầm. Không thể mở thêm phiên bản thứ hai.")
-            return False
-        _SINGLE_INSTANCE_MUTEX = mutex
-        return True
     except Exception as e:
-        log.debug("Failed checking single instance mutex: %s", e)
-        return True
+        log.error("JARVIS_SINGLE_INSTANCE_CHECK_FAILED: Win32 mutex API call raised: %s", e)
+        _safe_print(
+            "[X] JARVIS_SINGLE_INSTANCE_CHECK_FAILED: không thể xác nhận không có phiên bản "
+            "JARVIS nào khác đang chạy (lỗi Win32 API). Từ chối khởi động để đảm bảo an toàn."
+        )
+        return SingleInstanceResult.CHECK_FAILED
+
+    if not mutex:
+        # NULL/0 handle: CreateMutexW failed for a reason other than (or in
+        # addition to) ERROR_ALREADY_EXISTS -- exclusivity cannot be proven.
+        log.error(
+            "JARVIS_SINGLE_INSTANCE_CHECK_FAILED: CreateMutexW returned a NULL handle "
+            "(GetLastError=%s). Cannot prove single-instance exclusivity.", last_error,
+        )
+        _safe_print(
+            "[X] JARVIS_SINGLE_INSTANCE_CHECK_FAILED: không thể xác nhận không có phiên bản "
+            "JARVIS nào khác đang chạy (handle NULL). Từ chối khởi động để đảm bảo an toàn."
+        )
+        return SingleInstanceResult.CHECK_FAILED
+
+    if last_error == _ERROR_ALREADY_EXISTS:
+        log.warning("Another instance of JARVIS Assistant is already running. Exiting cleanly.")
+        _safe_print("[!] JARVIS đã đang chạy ở khay hệ thống hoặc chạy ngầm. Không thể mở thêm phiên bản thứ hai.")
+        try:
+            kernel32.CloseHandle(mutex)
+        except Exception as e:
+            log.debug("Failed closing duplicate mutex handle: %s", e)
+        return SingleInstanceResult.ALREADY_RUNNING
+
+    # Sanity-check the handle before trusting it as ours to hold -- a
+    # malformed/invalid handle value must not be treated as a proven
+    # exclusive acquisition.
+    try:
+        handle_value = int(mutex)
+    except (TypeError, ValueError):
+        log.error("JARVIS_SINGLE_INSTANCE_CHECK_FAILED: CreateMutexW returned a malformed handle: %r", mutex)
+        _safe_print(
+            "[X] JARVIS_SINGLE_INSTANCE_CHECK_FAILED: handle mutex không hợp lệ. "
+            "Từ chối khởi động để đảm bảo an toàn."
+        )
+        try:
+            kernel32.CloseHandle(mutex)
+        except Exception:
+            pass
+        return SingleInstanceResult.CHECK_FAILED
+    if handle_value == 0:
+        log.error("JARVIS_SINGLE_INSTANCE_CHECK_FAILED: CreateMutexW returned handle value 0.")
+        _safe_print(
+            "[X] JARVIS_SINGLE_INSTANCE_CHECK_FAILED: handle mutex bằng 0. "
+            "Từ chối khởi động để đảm bảo an toàn."
+        )
+        return SingleInstanceResult.CHECK_FAILED
+
+    _SINGLE_INSTANCE_MUTEX = mutex
+    return SingleInstanceResult.ACQUIRED
+
+
+def _release_single_instance_mutex() -> None:
+    """
+    Releases the single-instance mutex handle acquired by
+    _acquire_single_instance_mutex(), if any was acquired. Best-effort: a
+    process exit also implicitly releases any held mutex handle, so failure
+    here is logged, not fatal.
+    """
+    global _SINGLE_INSTANCE_MUTEX
+    if _SINGLE_INSTANCE_MUTEX is None:
+        return
+    try:
+        import ctypes
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CloseHandle.restype = ctypes.c_int
+        kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+        kernel32.CloseHandle(_SINGLE_INSTANCE_MUTEX)
+    except Exception as e:
+        log.debug("Failed releasing single instance mutex: %s", e)
+    finally:
+        _SINGLE_INSTANCE_MUTEX = None
 
 
 def _safe_print(text: str) -> None:
@@ -337,12 +464,24 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     else:
         # Default or 'run' command
-        if not _acquire_single_instance_mutex():
+        # Pre-commit review correction: distinguish the three possible
+        # outcomes -- a script/automation caller relying on the process exit
+        # code must be able to tell "another real instance is already
+        # running" (benign, exit 0) apart from "the check itself failed,
+        # exclusivity is unproven" (a real failure, non-zero exit). Neither
+        # outcome starts JarvisApp.
+        single_instance_result = _acquire_single_instance_mutex()
+        if single_instance_result == SingleInstanceResult.ALREADY_RUNNING:
             return 0
-        from jarvis.core.app import JarvisApp
-        app = JarvisApp(
-            config_path=args.config,
-            headless=getattr(args, "headless", False),
-            no_hot_reload=getattr(args, "no_hot_reload", False),
-        )
-        return app.run()
+        if single_instance_result == SingleInstanceResult.CHECK_FAILED:
+            return 1
+        try:
+            from jarvis.core.app import JarvisApp
+            app = JarvisApp(
+                config_path=args.config,
+                headless=getattr(args, "headless", False),
+                no_hot_reload=getattr(args, "no_hot_reload", False),
+            )
+            return app.run()
+        finally:
+            _release_single_instance_mutex()

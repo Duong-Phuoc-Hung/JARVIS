@@ -39,6 +39,26 @@ def pytest_configure(config):
     )
 
 
+@pytest.fixture(autouse=True)
+def _reset_runaway_guards():
+    """
+    P0 runaway-hardening (branch fix/voice-control-truthfulness):
+    jarvis.core.runaway_guard exposes shared, process-wide singleton guards
+    (passive_trigger_guard, launch_dedupe_guard) consumed by production code
+    (JarvisApp, the Spotify/Chrome/Cursor plugins, ComputerController). Left
+    unreset, one test's simulated passive triggers or app/website launches
+    could suppress or bias an unrelated later test's assertions purely due
+    to test execution order. Reset both before AND after every test in the
+    suite so this shared state can never leak across tests.
+    """
+    from jarvis.core.runaway_guard import launch_dedupe_guard, passive_trigger_guard
+    launch_dedupe_guard.reset()
+    passive_trigger_guard.reset()
+    yield
+    launch_dedupe_guard.reset()
+    passive_trigger_guard.reset()
+
+
 # ============================================================================
 # 1. MOCK AUDIO STREAM & SYNTHESIZER FIXTURE
 # ============================================================================
