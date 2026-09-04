@@ -14,8 +14,12 @@ from pathlib import Path
 from typing import Any
 
 from jarvis.skills.models import SkillDefinition, SkillMetadata
+from jarvis.sandbox.validator import ASTCodeValidator
 
 logger = logging.getLogger("jarvis.skills.synthesizer")
+
+# Shared validator instance — stateless, safe to reuse
+_ast_validator = ASTCodeValidator()
 
 
 class DynamicSkillSynthesizer:
@@ -263,6 +267,22 @@ logger = logging.getLogger("jarvis.skills.{name}")
         desc = description or f"Auto-synthesized skill {clean_name}"
         skill_tags = tags or ["synthesized", "autonomous"]
 
+        # B3 fix (2026-09-04): Validate raw code BEFORE formatting and saving to disk.
+        # Without this, broken or dangerous code was silently written to a .py file
+        # and only discovered (via RuntimeError or worse) at actual execute() call time.
+        # Uses the existing ASTCodeValidator already present in jarvis/sandbox/validator.py.
+        raw_validation = _ast_validator.validate_python(code)
+        if not raw_validation.syntax_valid:
+            raise ValueError(
+                f"Skill '{clean_name}' rejected: syntax error in provided code — "
+                f"{raw_validation.error_message}. Fix the code before synthesizing."
+            )
+        if not raw_validation.is_safe:
+            raise ValueError(
+                f"Skill '{clean_name}' rejected: unsafe constructs detected — "
+                f"{raw_validation.error_message}. Remove forbidden operations before synthesizing."
+            )
+
         formatted_code = self.format_skill_module(
             name=clean_name,
             code=code,
@@ -270,6 +290,15 @@ logger = logging.getLogger("jarvis.skills.{name}")
             parameters_schema=schema,
             entrypoint_function=entrypoint_function,
         )
+
+        # Also validate the final formatted module (format_skill_module wraps code in boilerplate
+        # that may alter the AST context — validate the whole output, not just the raw snippet).
+        fmt_validation = _ast_validator.validate_python(formatted_code)
+        if not fmt_validation.syntax_valid or not fmt_validation.is_safe:
+            raise ValueError(
+                f"Skill '{clean_name}' rejected: formatted module failed validation — "
+                f"{fmt_validation.error_message}."
+            )
 
         # Build or update metadata
         if metadata is not None:
