@@ -13,6 +13,7 @@
 | Router eval (#40) đóng (57.8% audio, 100% held-out) | Rà soát Terminal Control Center (1.6) | Telegram/ElevenLabs token thật để test nhánh "có cấu hình" |
 | Cài `pytest-asyncio`, `playwright` + chromium | Rate-limiting 4 kênh comms (#1) | |
 | Nâng cấp #3: Migrate `.env` → Credential Manager | | |
+| Nâng cấp #4: TieredSTTEngine (Local Whisper + Cloud + VAD) | | |
 | Vá fail-closed Mobile Bridge & Scanner Packet Count | | |
 | AUDIT_FRAMEWORK.md đã lưu repo | | |
 | README/CHANGELOG xác nhận trung thực | | |
@@ -111,7 +112,7 @@ SAU KHI CÓ THÔNG TIN TỪ NGƯỜI DÙNG (B1/B2/C1):
   [ ] Nâng P2-16, P2-17 lên Tier cao hơn
 
 SAU KHI ROUTER EVAL XONG (#40 đóng):
-  [ ] Nâng cấp trung hạn #4 (TieredSTTEngine)
+  [x] Nâng cấp trung hạn #4 (TieredSTTEngine) — ĐÃ HOÀN THÀNH (11/11 tests, VAD silence gating, SNR gating, multi-tier fallback)
   [ ] #5 (WER biên) nếu cần thêm độ chính xác
 
 DÀI HẠN:

@@ -2,6 +2,33 @@
 
 ---
 
+## 🎙️ Post-v5.0.1 Fabrication Audit — Phase 5: TieredSTTEngine (TDD) Multi-Tier Speech Coordinator (2026-09-05)
+
+> **Trạng thái**: Triển khai theo chuẩn mực TDD 5 lát cắt (Red → Green → Refactor). `jarvis.__version__` giữ nguyên `5.0.1`.
+
+### 1. TDD Feature: Phân Tầng Nhận Diện Giọng Nói `TieredSTTEngine` (`jarvis/stt/engine.py`)
+- **Hợp đồng kết quả bất biến `TranscriptionResult`**:
+  - `dataclass(frozen=True)` chứa `text`, `confidence`, `engine_used`, `latency_ms`, `snr_db`, `is_silent`.
+- **Ước tính chất lượng âm thanh `estimate_snr_db()`**:
+  - Đánh giá Signal-to-Noise Ratio trực tiếp từ 1D audio buffer `float32`.
+  - Giới hạn noise floor thông minh tránh việc tính sai 0 dB trên sóng âm đơn tần công suất cao (pure sine waves).
+- **VAD Silence Gating không tốn tài nguyên (Zero-Inference)**:
+  - Tự động kiểm tra RMS (`vad_silence_threshold_rms`, mặc định `0.002`) và tích hợp VAD segmenter.
+  - Âm thanh im lặng hoặc rỗng được trả về ngay lập tức (< 1ms) với `is_silent=True`, `engine_used="vad_silence"` mà không kích hoạt CPU/GPU model inference hay API cloud.
+- **Chiến lược định tuyến thông minh (Multi-Tier Decision Matrix)**:
+  - **Tier 1 (Local Whisper)**: Ưu tiên xử lý offline qua `faster-whisper` khi SNR tốt (> 10dB) và độ tin cậy cao.
+  - **Tier 2 (Cloud Speech)**: Tự động leo thang lên OpenAI Whisper API khi môi trường ồn (SNR < 10dB) hoặc local Whisper trả về chuỗi rỗng / độ tin cậy thấp.
+  - **Tier 3 (Emergency Fallback)**: Tự động bắt mọi biệt lệ (CUDA OOM, timeout mạng) chuyển sang Windows SAPI / Mock STT đảm bảo không bao giờ crash.
+- **Thực thi Latency Deadline**:
+  - Khi tham số `deadline_ms` được chỉ định (vd: 200ms) và nhỏ hơn độ trễ ước tính của Cloud, hệ thống tự động bỏ qua Cloud để chuyển sang tầng fallback tốc độ cao nhằm đáp ứng thời gian thực.
+- **Tương thích ngược 100% với Master `STTEngine`**:
+  - `STTEngine(provider="tiered")` tự động khởi tạo và kết nối `TieredSTTEngine`.
+  - Mặc định phương thức `transcribe()` vẫn trả về `str` tương thích tuyệt đối với toàn bộ codebase hiện có; hỗ trợ tham số `return_result=True` khi caller cần toàn bộ metadata của `TranscriptionResult`.
+- **Unit Tests (TDD)**:
+  - Thêm mới `tests/unit/test_tiered_stt.py` với 11 bài test bao phủ đầy đủ 5 vertical slices (100% Green).
+
+---
+
 ## 🔒 Post-v5.0.1 Fabrication Audit — Phase 4: Secrets Migration (TDD) & Fail-Closed Hardening (2026-09-05)
 
 > **Trạng thái**: Triển khai theo chuẩn mực TDD (Red → Green → Refactor). `jarvis.__version__` giữ nguyên `5.0.1`.

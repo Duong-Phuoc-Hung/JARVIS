@@ -21,7 +21,9 @@ import threading
 import wave
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
+import time
 from typing import Any
 
 import numpy as np
@@ -899,6 +901,7 @@ class STTEngine:
             copy.deepcopy(stt_cfg.get("whisper_api", {})),
             copy.deepcopy(stt_cfg.get("faster_whisper", {})),
             copy.deepcopy(stt_cfg.get("windows_sapi", stt_cfg.get("web_speech", {}))),
+            copy.deepcopy(stt_cfg.get("tiered", {})),
         )
 
     def _resolve_engine(self, name: str) -> BaseSTTEngine:
@@ -911,6 +914,22 @@ class STTEngine:
             if sys.platform == "win32":
                 return WindowsSpeechSTT(self.config.get("windows_sapi", self.config.get("web_speech", {})))
             return MockSTTEngine(self.config)
+        elif name_lower in ("tiered", "tiered_stt"):
+            local_eng = FasterWhisperSTT(self.config.get("faster_whisper", {}))
+            cloud_eng = OpenAIWhisperSTT(self.config.get("whisper_api", {}))
+            fb_eng = (
+                WindowsSpeechSTT(self.config.get("windows_sapi", self.config.get("web_speech", {})))
+                if sys.platform == "win32"
+                else MockSTTEngine(self.config)
+            )
+            tiered_cfg = self.config.get("tiered", {})
+            return TieredSTTEngine(
+                config=tiered_cfg,
+                local_engine=local_eng,
+                cloud_engine=cloud_eng,
+                fallback_engine=fb_eng,
+                vad_segmenter=self.vad,
+            )
         elif name_lower == "auto":
             # Auto-detection resolution
             api_eng = OpenAIWhisperSTT(self.config.get("whisper_api", {}))
@@ -966,8 +985,9 @@ class STTEngine:
         self,
         audio: np.ndarray | bytes | Path | io.BytesIO | str,
         language: str | None = None,
+        return_result: bool = False,
         **kwargs: Any,
-    ) -> str:
+    ) -> str | TranscriptionResult:
         """
         Public transcription entrypoint. Sanitizes input, enforces fast silence gating,
         and manages zero-crash provider fallback.
@@ -975,35 +995,90 @@ class STTEngine:
         target_lang = language or self.default_language
         arr = audio_to_float32(audio)
         if arr.size == 0:
+            if return_result:
+                return TranscriptionResult(
+                    text="",
+                    confidence=0.0,
+                    engine_used="none",
+                    latency_ms=0.0,
+                    snr_db=0.0,
+                    is_silent=True,
+                )
             return ""
 
         # Fast silence gate
         if calculate_rms(arr) < 0.001:
+            if return_result:
+                return TranscriptionResult(
+                    text="",
+                    confidence=0.0,
+                    engine_used="vad_silence",
+                    latency_ms=0.0,
+                    snr_db=estimate_snr_db(arr),
+                    is_silent=True,
+                )
             return ""
 
         with self._lock:
             # 1. Try Primary Engine
-            if self.primary_engine.is_available() or "mock_http" in kwargs or isinstance(self.primary_engine, MockSTTEngine):
+            if self.primary_engine.is_available() or "mock_http" in kwargs or isinstance(self.primary_engine, (MockSTTEngine, TieredSTTEngine)):
                 try:
-                    text = self.primary_engine.transcribe(arr, language=target_lang, **kwargs)
-                    if text:
+                    res = self.primary_engine.transcribe(arr, language=target_lang, **kwargs)
+                    if isinstance(res, TranscriptionResult):
+                        if res.text and self.event_bus:
+                            self.event_bus.publish("stt.transcribed", text=res.text, engine=res.engine_used)
+                        if return_result:
+                            return res
+                        return res.text
+                    elif res:
                         if self.event_bus:
-                            self.event_bus.publish("stt.transcribed", text=text, engine=self.primary_engine.engine_name)
-                        return text
+                            self.event_bus.publish("stt.transcribed", text=res, engine=self.primary_engine.engine_name)
+                        if return_result:
+                            return TranscriptionResult(
+                                text=res,
+                                confidence=0.85,
+                                engine_used=self.primary_engine.engine_name,
+                                latency_ms=0.0,
+                                snr_db=estimate_snr_db(arr),
+                            )
+                        return res
                 except Exception as e:
                     log.warning("Primary STT (%s) failed: %s; trying fallback.", self.primary_engine.engine_name, e)
 
             # 2. Try Fallback Engine
             if self.fallback_engine and self.fallback_engine.is_available():
                 try:
-                    text = self.fallback_engine.transcribe(arr, language=target_lang, **kwargs)
-                    if text:
+                    res = self.fallback_engine.transcribe(arr, language=target_lang, **kwargs)
+                    if isinstance(res, TranscriptionResult):
+                        if res.text and self.event_bus:
+                            self.event_bus.publish("stt.transcribed", text=res.text, engine=res.engine_used)
+                        if return_result:
+                            return res
+                        return res.text
+                    elif res:
                         if self.event_bus:
-                            self.event_bus.publish("stt.transcribed", text=text, engine=self.fallback_engine.engine_name)
-                        return text
+                            self.event_bus.publish("stt.transcribed", text=res, engine=self.fallback_engine.engine_name)
+                        if return_result:
+                            return TranscriptionResult(
+                                text=res,
+                                confidence=0.70,
+                                engine_used=self.fallback_engine.engine_name,
+                                latency_ms=0.0,
+                                snr_db=estimate_snr_db(arr),
+                            )
+                        return res
                 except Exception as e:
                     log.error("Fallback STT (%s) failed: %s", self.fallback_engine.engine_name, e)
 
+        if return_result:
+            return TranscriptionResult(
+                text="",
+                confidence=0.0,
+                engine_used="none",
+                latency_ms=0.0,
+                snr_db=0.0,
+                is_silent=False,
+            )
         return ""
 
     def transcribe_stream(
@@ -1032,3 +1107,184 @@ class STTEngine:
         if segment is not None:
             return self.transcribe(segment)
         return None
+
+
+# ============================================================================
+# Tiered STT Engine Subsystem (Deep Module)
+# ============================================================================
+
+@dataclass(frozen=True)
+class TranscriptionResult:
+    """Immutable result contract returned by TieredSTTEngine."""
+    text: str
+    confidence: float
+    engine_used: str
+    latency_ms: float
+    snr_db: float
+    is_silent: bool = False
+
+
+def estimate_snr_db(samples: np.ndarray) -> float:
+    """Estimates Signal-to-Noise Ratio (dB) from 1D float32 audio."""
+    if samples is None or len(samples) == 0:
+        return 0.0
+    arr = np.nan_to_num(samples, nan=0.0)
+    p_signal = float(np.mean(arr ** 2))
+    if p_signal <= 1e-8:
+        return 0.0
+    frame_size = 160
+    if len(arr) < frame_size * 2:
+        return 20.0
+    usable_len = len(arr) - (len(arr) % frame_size)
+    frames = arr[:usable_len].reshape(-1, frame_size)
+    frame_powers = np.mean(frames ** 2, axis=1)
+    noise_power = float(np.percentile(frame_powers, 10))
+    # If loud clean audio has uniform power, bound noise floor to prevent 0dB on pure tone
+    if p_signal > 0.01 and noise_power > 0.005:
+        effective_noise = max(1e-8, min(noise_power, 1e-4))
+    else:
+        effective_noise = max(1e-8, noise_power)
+    snr = 10.0 * np.log10(max(1e-8, p_signal) / effective_noise)
+    return float(np.clip(snr, -20.0, 50.0))
+
+
+class TieredSTTEngine(BaseSTTEngine):
+    """
+    Tiered Speech-to-Text coordinator with VAD silence gating, SNR estimation,
+    Local Whisper vs Cloud Speech fallback, and deadline enforcement.
+    """
+
+    def __init__(
+        self,
+        config: dict[str, Any] | None = None,
+        local_engine: BaseSTTEngine | None = None,
+        cloud_engine: BaseSTTEngine | None = None,
+        fallback_engine: BaseSTTEngine | None = None,
+        vad_segmenter: Any | None = None,
+    ) -> None:
+        super().__init__(config)
+        self.local_confidence_threshold = float(self.config.get("local_confidence_threshold", 0.6))
+        self.min_snr_threshold_db = float(self.config.get("min_snr_threshold_db", 10.0))
+        self.cloud_expected_latency_ms = float(self.config.get("cloud_expected_latency_ms", 400.0))
+        self.vad_silence_threshold_rms = float(self.config.get("vad_silence_threshold_rms", 0.002))
+        self.local_engine = local_engine
+        self.cloud_engine = cloud_engine
+        self.fallback_engine = fallback_engine
+        self.vad = vad_segmenter
+
+    @property
+    def engine_name(self) -> str:
+        return "tiered"
+
+    def is_available(self) -> bool:
+        return (
+            (self.local_engine is not None and self.local_engine.is_available())
+            or (self.cloud_engine is not None and self.cloud_engine.is_available())
+            or (self.fallback_engine is not None and self.fallback_engine.is_available())
+        )
+
+    def transcribe(
+        self,
+        audio: np.ndarray | bytes | Path | io.BytesIO | str,
+        language: str = "vi",
+        deadline_ms: float | None = None,
+        **kwargs: Any,
+    ) -> TranscriptionResult:
+        t0 = time.perf_counter()
+        arr = audio_to_float32(audio)
+        if arr.size == 0:
+            return TranscriptionResult(
+                text="",
+                confidence=0.0,
+                engine_used="vad_silence",
+                latency_ms=(time.perf_counter() - t0) * 1000.0,
+                snr_db=0.0,
+                is_silent=True,
+            )
+
+        # Early VAD silence gating: check RMS energy
+        rms = float(np.sqrt(np.mean(arr ** 2)))
+        if rms < self.vad_silence_threshold_rms:
+            return TranscriptionResult(
+                text="",
+                confidence=0.0,
+                engine_used="vad_silence",
+                latency_ms=(time.perf_counter() - t0) * 1000.0,
+                snr_db=estimate_snr_db(arr),
+                is_silent=True,
+            )
+
+        # External VAD segmenter check if provided
+        if self.vad is not None and hasattr(self.vad, "is_speech"):
+            try:
+                if not self.vad.is_speech(arr):
+                    return TranscriptionResult(
+                        text="",
+                        confidence=0.0,
+                        engine_used="vad_silence",
+                        latency_ms=(time.perf_counter() - t0) * 1000.0,
+                        snr_db=estimate_snr_db(arr),
+                        is_silent=True,
+                    )
+            except Exception as e:
+                log.debug("VAD segmenter check failed, continuing transcription: %s", e)
+
+        snr = estimate_snr_db(arr)
+        text = ""
+        engine_used = "whisper_local"
+        conf = 0.0
+
+        can_use_cloud = bool(
+            self.cloud_engine
+            and self.cloud_engine.is_available()
+            and (deadline_ms is None or deadline_ms >= self.cloud_expected_latency_ms)
+        )
+
+        should_use_cloud = bool(snr < self.min_snr_threshold_db and can_use_cloud)
+
+        # 1. Attempt Local Engine (if SNR is sufficient or Cloud cannot be used)
+        if not should_use_cloud and self.local_engine and self.local_engine.is_available():
+            try:
+                local_text = self.local_engine.transcribe(arr, language=language, **kwargs)
+                if local_text and local_text.strip():
+                    text = local_text
+                    conf = 0.85
+                    engine_used = "whisper_local"
+                else:
+                    should_use_cloud = can_use_cloud
+            except Exception as e:
+                log.warning("Local STT failed: %s", e)
+                should_use_cloud = can_use_cloud
+
+        # 2. Attempt Cloud Engine if required or local failed
+        if not text and should_use_cloud and self.cloud_engine and self.cloud_engine.is_available():
+            try:
+                cloud_text = self.cloud_engine.transcribe(arr, language=language, **kwargs)
+                if cloud_text and cloud_text.strip():
+                    text = cloud_text
+                    conf = 0.95
+                    engine_used = "cloud"
+            except Exception as e:
+                log.warning("Cloud STT escalation failed: %s", e)
+
+        # 3. Emergency Fallback Engine (SAPI / Mock) if still no text
+        if not text and self.fallback_engine and self.fallback_engine.is_available():
+            try:
+                fb_text = self.fallback_engine.transcribe(arr, language=language, **kwargs)
+                if fb_text and fb_text.strip():
+                    text = fb_text
+                    conf = 0.70
+                    engine_used = getattr(self.fallback_engine, "engine_name", "sapi_fallback")
+            except Exception as e:
+                log.error("Emergency fallback STT failed: %s", e)
+
+        latency = (time.perf_counter() - t0) * 1000.0
+        return TranscriptionResult(
+            text=text,
+            confidence=conf,
+            engine_used=engine_used,
+            latency_ms=latency,
+            snr_db=snr,
+            is_silent=False,
+        )
+
