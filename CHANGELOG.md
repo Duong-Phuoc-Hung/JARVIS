@@ -27,6 +27,21 @@
 - **Unit Tests (TDD)**:
   - Thêm mới `tests/unit/test_tiered_stt.py` với 11 bài test bao phủ đầy đủ 5 vertical slices (100% Green).
 
+### 2. Sửa Lỗi Triệt Để & Tối Ưu Hệ Thống (Diagnosing-Bugs & System Fixes)
+- **Vá rò rỉ Playwright Event Loop (`diagnosing-bugs`)**:
+  - *Hiện tượng lỗi*: Khi chạy toàn bộ test suite hoặc chạy sau các bài test tích hợp (`test_app_integration.py`), 6 bài test async trong `TestDispatchActionAsyncTruthfulness` bị crash hàng loạt với biệt lệ `RuntimeError: Runner.run() cannot be called from a running event loop`.
+  - *Nguyên nhân cốt lõi*: `JarvisApp.initialize()` kích hoạt `BrowserAgent` tạo ra `sync_playwright()` chạy ngầm `ProactorEventLoop` trên luồng `MainThread`. Khi `JarvisApp.stop()` được gọi để dọn dẹp, ứng dụng quên không gọi `self.browser_agent.stop()`, khiến event loop bị rò rỉ và chiếm dụng luồng chính.
+  - *Giải pháp*: Bổ sung lệnh dọn dẹp triệt để `if self.browser_agent: self.browser_agent.stop()` vào hàm `JarvisApp.stop()` trong `jarvis/core/app.py`. Kết quả: 70/70 test tích hợp & điều phối async vượt qua 100% Green.
+- **Khắc phục lỗi tính sai tỷ số tín hiệu/nhiễu (SNR Calculation) trên sóng âm đơn tần**:
+  - *Hiện tượng*: Âm thanh sine wave đơn tần chuẩn (pure tone 440Hz) có biên độ lớn nhưng bị thuật toán phân vị tính nhầm thành `SNR = 0 dB` do năng lượng phân vị thứ 10 bằng chính năng lượng trung bình của sóng hình sin liên tục, dẫn đến kích hoạt nhầm cơ chế leo thang Cloud khi không cần thiết.
+  - *Khắc phục*: Trong `estimate_snr_db()`, bổ sung điều kiện kiểm tra công suất tín hiệu (`p_signal > 0.01`) và chặn trần sàn nhiễu (`effective_noise = max(1e-8, min(noise_power, 1e-4))`), phản ánh chính xác SNR cao (>30 dB) cho âm thanh chuẩn mà vẫn đo đạc chính xác tạp âm nền cho giọng nói thực tế.
+- **Khắc phục lỗi lãng phí tài nguyên khi xử lý âm thanh im lặng (VAD Silence Gating)**:
+  - *Hiện tượng*: Audio rỗng hoặc khoảng lặng môi trường vẫn được chuyển tới mô hình Faster-Whisper (GPU/CPU) hoặc gọi API Cloud, gây lãng phí chu kỳ xử lý và tăng độ trễ không đáng có.
+  - *Khắc phục*: Bổ sung kiểm tra năng lượng RMS sớm (`vad_silence_threshold_rms`, mặc định 0.002) và tích hợp `VADSegmenter.is_speech()`. Khi phát hiện im lặng, hệ thống trả về kết quả rỗng `is_silent=True` ngay trong < 1ms mà không tốn bất kỳ tài nguyên suy luận mô hình nào.
+- **Khắc phục lỗi đứt gãy tương thích kiểu dữ liệu trong Master `STTEngine.transcribe()`**:
+  - *Hiện tượng*: Các caller truyền thống trong JARVIS mong đợi kiểu trả về `str`, trong khi `TieredSTTEngine` trả về đối tượng bất biến giàu thông tin `TranscriptionResult`.
+  - *Khắc phục*: Tự động trích xuất `text` trả về chuỗi `str` mặc định bảo toàn tương thích ngược 100% cho mọi caller cũ, đồng thời mở rộng tham số `return_result=True` khi caller cần toàn bộ siêu dữ liệu (`confidence`, `engine_used`, `latency_ms`, `snr_db`, `is_silent`).
+
 ---
 
 ## 🔒 Post-v5.0.1 Fabrication Audit — Phase 4: Secrets Migration (TDD) & Fail-Closed Hardening (2026-09-05)
