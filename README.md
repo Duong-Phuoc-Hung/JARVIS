@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)](LICENSE)
 
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
-JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding), ghi nhớ ngữ nghĩa theo thời gian thực (Semantic RAG Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
+JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
 <sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.0.1** trên `main` — nâng cấp toàn diện đường ống âm thanh giọng nói (Voice Pipeline Upgrade: Safe Preprocessing Diacritic Normalization, Phonetic Drift Robustness và Anti-Overfitting Held-Out Validation), kế thừa mốc J.A.R.V.I.S. Terminal Control Center v5.0.0. Lịch sử phát triển trong CHANGELOG đã cập nhật mốc **v5.0.1** mới nhất ở đầu tài liệu. Đợt kiểm toán nội bộ **Post-v5.0.1 Fabrication Audit** (2026-09-04) đã xác định và vá 8 lỗi fabrication (A1–A7 + B3): các hàm trả kết quả thành công giả khi thiếu cấu hình thật đã được chuyển sang fail-closed theo nguyên tắc *bằng chứng thật trước, thành công sau*.</sub>
 
@@ -54,11 +54,11 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 - **Autonomous ReAct Agent:** Tự động lập kế hoạch (Plan), thực thi công cụ (Act), quan sát (Observe) và phản hồi (Reflect).
 
 ### 🧬 Tự Sinh Kỹ Năng Mới (Self-Coding Skills)
-- Nói *"JARVIS, tạo kỹ năng theo dõi giá vàng"* → JARVIS tự thiết kế interface, viết code Python, kiểm tra cú pháp (`py_compile`), chạy smoke test và đăng ký trực tiếp vào hệ thống trong <15 giây.
+- Nói *"JARVIS, tạo kỹ năng theo dõi giá vàng"* → JARVIS tự thiết kế interface, viết code Python, kiểm tra cú pháp an toàn tĩnh (AST Validator), chạy thử nghiệm cô lập trong CodeInterpreterSandbox (Job Object & Low Integrity) và đăng ký trực tiếp vào hệ thống trong <15 giây.
 
-### 🔍 Bộ Nhớ Ngữ Nghĩa (Semantic Memory & RAG)
-- Tự động lưu trữ nhật ký hội thoại, ghi chú và tài liệu vào SQLite vector store (TF-IDF BM25 & Cosine Similarity) hoàn toàn offline.
-- Tìm kiếm ký ức theo ngữ nghĩa: *"Hôm qua tôi nói gì về kế hoạch dự án?"*
+### 🔍 Bộ Nhớ Từ Vựng & Tìm Kiếm Tài Liệu (Lexical Search Memory)
+- Tự động lưu trữ nhật ký hội thoại, ghi chú và tài liệu vào SQLite lexical store (TF-IDF BM25 & Cosine Similarity) hoàn toàn offline.
+- Tìm kiếm từ khóa và ngữ cảnh: *"Hôm qua tôi nói gì về kế hoạch dự án?"*
 
 ### 🌐 Tự Động Hóa Trình Duyệt & Hệ Thống
 - Điều khiển Chrome trực tiếp qua giao thức Playwright CDP (Chrome DevTools Protocol).
@@ -423,7 +423,7 @@ JARVIS được tích hợp sẵn 18+ kỹ năng mạnh mẽ, tự động kích
 | 9 | 👁️ **Phân Tích Màn Hình**| `screen_context`| *"Giải thích lỗi trên màn hình"* (`Ctrl+Shift+Space`) | Chụp ảnh màn hình và phân tích với Gemini Vision AI |
 | 10| ⏺️ **Ghi & Phát Macro** | `macro_recorder`| *"Ghi lại macro gửi email"* | Tự động hóa chuỗi thao tác bàn phím/chuột lặp lại |
 | 11| 🔊 **Sound Board** | `sound_board` | *"Phát âm thanh hoàn thành"* | Phát âm thanh phản hồi trạng thái vui nhộn |
-| 12| 🔍 **Tìm Ký Ức RAG** | `rag_search` | *"Tuần trước tôi nói gì về dự án X?"* | Tìm kiếm thông tin trong bộ nhớ ngữ nghĩa dài hạn |
+| 12| 🔍 **Tìm Ký Ức / Tài Liệu** | `rag_search` | *"Tuần trước tôi nói gì về dự án X?"* | Tìm kiếm từ khóa và ngữ cảnh (TF-IDF & Lexical Search) |
 | 13| 🧬 **Tự Viết Kỹ Năng** | `skill_synthesizer`| *"Tạo kỹ năng theo dõi giá vàng"* | Tự động viết code Python và nạp kỹ năng mới trong <15s |
 | 14| 🌙 **Night Planner** | `night_planner` | *"Tối nay phân tích các file log"* | Thực hiện tác vụ nặng ban đêm và báo cáo lúc sáng |
 | 15| 🏠 **Nhà Thông Minh** | `smart_home_discovery`| *"Quét thiết bị nhà thông minh"* | Quét mDNS và điều khiển Home Assistant / Tasmota |
