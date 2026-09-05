@@ -2,6 +2,44 @@
 
 ---
 
+## 🔒 Post-v5.0.1 Fabrication Audit — Phase 3: Router Eval (#40), Sandbox Dry-Run & Mobile Bridge Hardening (2026-09-05)
+
+> **Trạng thái**: đã merge vào `main`, các commits (`fd7d11c`, `20047ec`, `164b752`). `jarvis.__version__` **không đổi, vẫn `5.0.1`**. Hoàn thành nghiệm thu đóng dứt điểm Router Eval (#40) loại trừ overfit, bổ sung tầng kiểm thử sandbox dry-run cho `synthesize_skill()`, vá 2 lỗi Silent Fallback trong `mobile_bridge.py`, và chỉnh sửa trung thực tài liệu kỹ thuật.
+
+### 1. Router Taxonomy Eval (#40) — Đóng dứt điểm & Chứng minh không Overfitting
+- **Đánh giá 90 file audio thật (`tests/eval/audio/{clean,noisy}`)**:
+  - `clean`: tăng từ 28.9% (13/45) lên **57.8%** (26/45)
+  - `noisy`: tăng từ 31.1% (14/45) lên **57.8%** (26/45)
+  - Tổng thể: độ chính xác tăng từ **30.0%** (27/90) lên **57.8%** (52/90) — tăng +27.8% tuyệt đối, gần gấp đôi baseline.
+  - Tỷ lệ `MISROUTED` (rủi ro an toàn) chỉ 6.7%, `ROUTER_ABSTAIN` (từ chối nhận diện an toàn khi không chắc) 35.6%, `STT_EMPTY` 0.0%.
+- **Đánh giá tập held-out độc lập mới (`test_voice_generalization_heldout.py`)**:
+  - 35 câu chưa từng có trong `PHRASE_MANIFEST` trên 7 domain độc lập (weather, reminder, system, search, volume, notes, apps).
+  - Kết quả: **38/38 tests passed (100.0% CORRECT, 0 MISROUTED)**.
+- **Kết luận**: Cả hai tập đều tăng vượt trội, chứng minh giải quyết dứt điểm không bị overfit. Issue #40 chính thức đóng hoàn toàn.
+
+### 2. Cải tiến B3 — Sandbox Dry-Run cho `DynamicSkillSynthesizer` (commit `20047ec`)
+- **Khắc phục giới hạn Halting Problem**: Sau 2 vòng AST validation tĩnh, tự động thực thi thử `execute()` trong môi trường cô lập `CodeInterpreterSandbox` (Windows Job Object & Low Integrity Token) với mock parameters trích xuất từ JSON schema.
+- **Fail-closed**: Nếu code crash tại runtime (`ZeroDivisionError`, `ImportError`, unhandled `RuntimeError`), ném `ValueError` và từ chối ghi bất kỳ file nào vào ổ đĩa. Hỗ trợ cờ opt-out `dry_run=False`.
+- **Hoisting `from __future__`**: Cập nhật `inject_security_preamble()` trong `jarvis/sandbox/security.py` tự động đưa các câu lệnh `from __future__ import ...` lên dòng đầu tiên trước sandbox preamble để tuân thủ đúng ngữ pháp Python.
+- **Unit tests**: Bổ sung 3 unit tests mới trong `tests/unit/test_skill_synthesis.py` (26/26 tests passed).
+
+### 3. Vá lỗi Silent Fallback trong Mobile Bridge (commit `fd7d11c`)
+- **Phát hiện qua scan mở rộng**: `send_clipboard_to_mobile()` và `send_screenshot_to_mobile()` trong `jarvis/comms/mobile_bridge.py` nuốt exception khi gửi Telegram thất bại và vẫn trả về `{"success": True}`.
+- **Đã sửa**: Chuyển sang fail-closed: trả về `success=False` kèm mã lỗi rõ ràng `TELEGRAM_SEND_FAILED` khi gọi API thất bại, hoặc `NOT_CONFIGURED` khi chưa cấu hình Telegram client / chat_id.
+- **Runtime verification**: 4/4 kịch bản xác nhận thành công thực tế (no-telegram, send-fail, send-ok, screenshot).
+
+### 4. Minh bạch tài liệu (commit `164b752`)
+- Cập nhật `README.md`: Đổi tên "Semantic RAG Memory" thành "Lexical / TF-IDF Search Memory" để phản ánh trung thực bản chất thuật toán TF-IDF BM25 & Cosine Similarity trong SQLite.
+- Cập nhật kỹ năng số 12: `Tìm Ký Ức / Tài Liệu (TF-IDF & Lexical Search)`.
+- Cập nhật mô tả Self-Coding Skills: phản ánh trung thực cơ chế AST Validator + Sandbox Dry-Run thay vì `py_compile`.
+
+### 5. Cài đặt thư viện & Trạng thái Full Test Suite
+- Cài đặt `pytest-asyncio 1.4.0` (giải quyết dứt điểm 3/3 pre-existing async tests).
+- Cài đặt `playwright` và binary Chromium (winldd v1007).
+- Toàn bộ suite 2,712 tests: thu thập hoàn tất, `test_dispatch_truthfulness.py` đạt 69/69 passed (100%), không có bất kỳ regression mới nào.
+
+---
+
 ## 🔒 Post-v5.0.1 Fabrication Audit — Phase 1 (A1–A7) + Phase 2 B3 (commit `4bf5187`, 2026-09-04)
 
 > **Trạng thái**: đã merge vào `main`, 4 commits (`1808601`, `81b961c`, `95e6ca0`, `4bf5187`). `jarvis.__version__` **không đổi, vẫn `5.0.1`**. Đây là đợt kiểm toán chất lượng nội bộ tập trung vào **fabrication** (hàm trả kết quả thành công giả khi không có bằng chứng thật) — không phải feature release.
