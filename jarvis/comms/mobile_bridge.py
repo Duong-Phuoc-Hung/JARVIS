@@ -121,13 +121,29 @@ class MobileFileBridge:
             return {"success": False, "error": "Clipboard trống hoặc không đọc được."}
 
         preview = text[:200] + ("..." if len(text) > 200 else "")
-        log.info("Clipboard sent to mobile (%d chars)", len(text))
 
         if self.telegram and telegram_chat_id:
             try:
                 self.telegram.send_message(telegram_chat_id, f"📋 Clipboard:\n{text}")
+                log.info("Clipboard sent to mobile via Telegram (%d chars)", len(text))
             except Exception as exc:
                 log.warning("Telegram send failed: %s", exc)
+                return {
+                    "success": False,
+                    "error_code": "TELEGRAM_SEND_FAILED",
+                    "error": str(exc),
+                    "text": preview,
+                    "length": len(text),
+                }
+        else:
+            log.info("Clipboard read (%d chars) — no Telegram configured, not sent to mobile.", len(text))
+            return {
+                "success": False,
+                "error_code": "NOT_CONFIGURED",
+                "description": "Clipboard read but NOT sent — no Telegram client or chat_id configured.",
+                "text": preview,
+                "length": len(text),
+            }
 
         self._log_transfer("clipboard_send", "clipboard", "telegram", len(text))
         return {"success": True, "text": preview, "length": len(text)}
@@ -136,7 +152,7 @@ class MobileFileBridge:
         self,
         telegram_chat_id: int | None = None,
     ) -> dict[str, Any]:
-        """Capture screenshot and send to Telegram as image."""
+        """Capture screenshot, save locally, and send to Telegram as image."""
         png_bytes = self._capture_screenshot()
         if not png_bytes:
             return {"success": False, "error": "Không thể chụp màn hình."}
@@ -149,8 +165,24 @@ class MobileFileBridge:
         if self.telegram and telegram_chat_id:
             try:
                 self.telegram.send_photo(telegram_chat_id, png_bytes, caption=f"📸 Screenshot {ts}")
+                log.info("Screenshot sent to mobile via Telegram (%dKB)", size_kb)
             except Exception as exc:
                 log.warning("Telegram photo send failed: %s", exc)
+                return {
+                    "success": False,
+                    "error_code": "TELEGRAM_SEND_FAILED",
+                    "error": str(exc),
+                    "saved_path": str(temp_path),
+                    "size_kb": size_kb,
+                }
+        else:
+            return {
+                "success": False,
+                "error_code": "NOT_CONFIGURED",
+                "description": "Screenshot saved locally but NOT sent — no Telegram client or chat_id configured.",
+                "saved_path": str(temp_path),
+                "size_kb": size_kb,
+            }
 
         self._log_transfer("screenshot_send", "screen", "telegram", size_kb)
         return {"success": True, "saved_path": str(temp_path), "size_kb": size_kb}
