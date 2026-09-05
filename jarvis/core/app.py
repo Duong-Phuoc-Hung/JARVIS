@@ -2340,6 +2340,12 @@ class JarvisApp:
             except Exception as e:
                 log.debug("Error stopping subagent manager: %s", e)
 
+        if self.browser_agent:
+            try:
+                self.browser_agent.stop()
+            except Exception as e:
+                log.debug("Error stopping browser agent: %s", e)
+
         if self.proactive_engine:
             self.proactive_engine.stop()
         if self.overlay:

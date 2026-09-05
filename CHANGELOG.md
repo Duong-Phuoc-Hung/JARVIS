@@ -2,6 +2,33 @@
 
 ---
 
+## 🔒 Post-v5.0.1 Fabrication Audit — Phase 4: Secrets Migration (TDD) & Fail-Closed Hardening (2026-09-05)
+
+> **Trạng thái**: Triển khai theo chuẩn mực TDD (Red → Green → Refactor). `jarvis.__version__` giữ nguyên `5.0.1`.
+
+### 1. TDD Feature: Di Chuyển `.env` sang Windows Credential Manager (`SecretsManager`)
+- **`jarvis.security.secrets.migrate_from_dotenv()`**:
+  - Hỗ trợ đọc file `.env`, nhận diện danh sách `KNOWN_SECRETS` (`GEMINI_API_KEY`, `OPENAI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `ZALO_API_KEY`, `EMAIL_PASSWORD`, `WEATHER_API_KEY`).
+  - Lưu an toàn vào Windows Credential Manager thông qua `keyring`.
+  - Cờ `--dry-run`: Xem trước các secret sẽ được chuyển đổi mà không lưu hay thay đổi file.
+  - Cờ `--purge`: Tự động thay thế giá trị plaintext của secret trong file `.env` bằng chú thích `# <KEY>=<migrated to Windows Credential Manager>`, bảo toàn nguyên vẹn các cài đặt phi bảo mật và chú thích khác.
+- **Wire `ConfigManager` nạp secret từ Windows Credential Manager**:
+  - Bổ sung `TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `ZALO_API_KEY` vào `LEGACY_ENV_MAPPING`.
+  - Trong `ConfigManager._apply_env_overrides()`, tự động gọi `get_secret(key, fallback_env=True)`, cho phép ứng dụng đọc API keys an toàn từ Credential Manager ngay cả khi file `.env` không chứa key plaintext.
+- **CLI Subcommand**:
+  - Bổ sung lệnh `python -m jarvis.cli migrate-secrets [--env-file PATH] [--dry-run] [--purge]` và `python -m jarvis.security.secrets migrate-dotenv`.
+- **Unit Tests (TDD)**:
+  - Thêm mới `tests/unit/test_secrets.py` với 8 tests bao phủ 4 lát cắt (Slice 1-4: parsing, execution, purge, config wiring, CLI).
+
+### 2. Sửa lỗi Kiểm toán & Chuẩn hóa Code (Code Review Findings)
+- **Vá triệt để Fail-Closed ở `mobile_bridge.py`**: Kiểm tra kết quả trả về `res.get("ok", True)` từ `telegram.send_message` / `send_photo`, ngăn chặn việc trả về `{"success": True}` ảo khi Telegram chưa được cấu hình HTTP client hoặc gửi thất bại.
+- **Trung thực hóa số liệu đếm gói tin trong `scanner.py`**: Trong `_build_capture_result()`, khi trạng thái là `NO_TSHARK_OUTPUT`, gán `packet_count = 0` thay vì trả về số lượng gói tin yêu cầu ảo.
+- **Hỗ trợ Native TShark Output trong `scanner.py`**: Bổ sung regex nhận diện bảng phân cấp thống kê chuẩn của `tshark -qz io,phs` (`<proto> frames:<count> bytes:<bytes>`).
+- **Khắc phục Code Smell trong `synthesizer.py`**: Thay thế chuỗi `if-elif` bằng `_TYPE_MOCK_MAP` và sử dụng `inspect.signature` trong sandbox dry-run, loại bỏ `except TypeError:` che mắt lỗi logic của người dùng.
+- **Vá rò rỉ Event Loop từ Playwright (`diagnosing-bugs`)**: Bổ sung `self.browser_agent.stop()` vào `JarvisApp.stop()`, giải phóng kết nối Playwright và ngăn chặn rò rỉ `ProactorEventLoop` làm crash các test async (`IsolatedAsyncioTestCase`).
+
+---
+
 ## 🔒 Post-v5.0.1 Fabrication Audit — Phase 3: Router Eval (#40), Sandbox Dry-Run & Mobile Bridge Hardening (2026-09-05)
 
 > **Trạng thái**: đã merge vào `main`, các commits (`fd7d11c`, `20047ec`, `164b752`). `jarvis.__version__` **không đổi, vẫn `5.0.1`**. Hoàn thành nghiệm thu đóng dứt điểm Router Eval (#40) loại trừ overfit, bổ sung tầng kiểm thử sandbox dry-run cho `synthesize_skill()`, vá 2 lỗi Silent Fallback trong `mobile_bridge.py`, và chỉnh sửa trung thực tài liệu kỹ thuật.

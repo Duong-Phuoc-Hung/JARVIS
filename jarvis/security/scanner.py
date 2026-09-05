@@ -12,6 +12,7 @@ from __future__ import annotations
 import ipaddress
 import logging
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -601,8 +602,19 @@ def _parse_tshark_protocols(stdout: str) -> dict[str, int]:
         line = line.strip()
         if not line:
             continue
+        # Format 3: Native TShark -qz io,phs hierarchy statistics: "<proto>  frames:<count> bytes:<bytes>"
+        m = re.match(r"^\s*([a-zA-Z0-9_\-]+)\s+frames:(\d+)", line)
+        if m:
+            proto = m.group(1).lower()
+            if proto in KNOWN_PROTOS:
+                try:
+                    counts[proto.upper()] = int(m.group(2))
+                except ValueError:
+                    pass
+            continue
+
         # Format 1: colon-separated protocol chains (frame.protocols field)
-        if ":" in line and not line.startswith("|"):
+        if ":" in line and not line.startswith("|") and "frames:" not in line:
             for proto in line.split(":"):
                 p = proto.strip().lower()
                 if p in KNOWN_PROTOS:
@@ -754,15 +766,17 @@ class PacketCapture:
             # @pytest.mark.skip(reason="requires tshark binary").
             protocols = _parse_tshark_protocols(raw_stdout)
             status = "SUCCESS" if protocols else "NO_PROTOCOLS_PARSED"
+            packet_count = sum(protocols.values()) if protocols else count
         else:
             # Truthful: capture ran but produced no parseable output, or TShark
-            # subprocess raised an exception. Do NOT fabricate protocol counts.
+            # subprocess raised an exception. Do NOT fabricate protocol counts or echo requested count.
             protocols = {}
             status = "NO_TSHARK_OUTPUT"
+            packet_count = 0
 
         return PacketCaptureResult(
             interface=interface,
-            packet_count=count,
+            packet_count=packet_count,
             duration_s=duration,
             protocols=protocols,
             anomalies_detected=0,

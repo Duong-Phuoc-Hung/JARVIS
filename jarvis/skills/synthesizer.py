@@ -21,6 +21,21 @@ logger = logging.getLogger("jarvis.skills.synthesizer")
 # Shared validator instance — stateless, safe to reuse
 _ast_validator = ASTCodeValidator()
 
+# Default mock values for parameter types during sandbox dry-run
+_TYPE_MOCK_MAP: dict[str, Any] = {
+    "integer": 1,
+    "int": 1,
+    "number": 1.0,
+    "float": 1.0,
+    "boolean": True,
+    "bool": True,
+    "array": [],
+    "list": [],
+    "object": {},
+    "dict": {},
+    "string": "test",
+}
+
 
 class DynamicSkillSynthesizer:
     """
@@ -425,29 +440,24 @@ logger = logging.getLogger("jarvis.skills.{name}")
                     mock_dict[p_name] = p_prop["default"]
                 else:
                     p_type = p_prop.get("type", "string")
-                    if p_type in ("integer", "int"):
-                        mock_dict[p_name] = 1
-                    elif p_type in ("number", "float"):
-                        mock_dict[p_name] = 1.0
-                    elif p_type in ("boolean", "bool"):
-                        mock_dict[p_name] = True
-                    elif p_type in ("array", "list"):
-                        mock_dict[p_name] = []
-                    elif p_type in ("object", "dict"):
-                        mock_dict[p_name] = {}
-                    else:
-                        mock_dict[p_name] = "test"
+                    mock_dict[p_name] = _TYPE_MOCK_MAP.get(p_type, "test")
 
         harness_template = """
 {code}
 
 if __name__ == "__main__":
+    import inspect
     import json
     _mock_kwargs = json.loads({mock_json!r})
-    try:
-        {entrypoint}(**_mock_kwargs)
-    except TypeError:
-        {entrypoint}()
+    _sig = inspect.signature({entrypoint})
+    _call_kwargs = {{}}
+    for _p_name, _param in _sig.parameters.items():
+        if _param.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY):
+            if _p_name in _mock_kwargs:
+                _call_kwargs[_p_name] = _mock_kwargs[_p_name]
+            elif _param.default is inspect.Parameter.empty:
+                _call_kwargs[_p_name] = "test"
+    {entrypoint}(**_call_kwargs)
 """
         harness = harness_template.format(
             code=formatted_code,

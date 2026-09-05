@@ -449,6 +449,41 @@ def execute() -> dict:
         self.assertEqual(skill_def.metadata.name, "opt_out")
         self.assertTrue(Path(skill_def.file_path).exists())
 
+    def test_skill_dry_run_rejects_internal_type_error(self):
+        """Internal TypeError within skill logic must not be masked by parameter binding."""
+        code = """
+def execute(text: str) -> str:
+    x = 1 + 'bad'
+    return text
+"""
+        with self.assertRaises(ValueError) as ctx:
+            self.synthesizer.synthesize_skill(
+                name="internal_type_error",
+                code=code,
+                dry_run=True,
+            )
+        err_msg = str(ctx.exception)
+        self.assertIn("sandbox dry-run execution failed", err_msg)
+        self.assertIn("unsupported operand type", err_msg)
+        # Verify no skill folder was written
+        skill_dir = Path(self.temp_dir.name) / "internal_type_error"
+        self.assertFalse(skill_dir.exists())
+
+    def test_skill_dry_run_handles_parametrized_skill(self):
+        """Skills with various parameter types succeed through sandbox dry-run."""
+        code = """
+def execute(count: int, flag: bool = True, tag: str = "default") -> dict:
+    return {"total": count * 2, "flag": flag, "tag": tag}
+"""
+        skill_def = self.synthesizer.synthesize_skill(
+            name="param_test",
+            code=code,
+            dry_run=True,
+        )
+        self.assertEqual(skill_def.metadata.name, "param_test")
+        self.assertTrue(Path(skill_def.file_path).exists())
+
+
 
 class TestSkillRegistryAndDispatcherIntegration(unittest.TestCase):
     """Test SkillRegistry loading, invocation, dispatcher integration, and telemetry."""

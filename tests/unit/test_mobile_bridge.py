@@ -114,3 +114,64 @@ class TestValidation:
         small = MobileFileBridge(save_directory=str(tmp_path), max_file_size_mb=1)
         error = small._validate_file("big.txt", 2 * 1024 * 1024)
         assert error is not None
+
+
+class TestSendClipboardFailClosed:
+    """Fail-closed tests for clipboard sending: must not report success if delivery failed."""
+
+    def test_send_clipboard_fails_when_telegram_returns_not_configured(self):
+        fake_telegram = MagicMock()
+        fake_telegram.send_message.return_value = {
+            "ok": False,
+            "error_code": "NOT_CONFIGURED",
+            "description": "No HTTP client configured.",
+        }
+        bridge = MobileFileBridge(telegram_controller=fake_telegram)
+        bridge._get_clipboard_text = lambda: "Clipboard content"
+
+        result = bridge.send_clipboard_to_mobile(telegram_chat_id=12345)
+        assert result["success"] is False
+        assert result["error_code"] == "NOT_CONFIGURED"
+
+    def test_send_clipboard_succeeds_when_telegram_delivers(self):
+        fake_telegram = MagicMock()
+        fake_telegram.send_message.return_value = {"ok": True, "message_id": 999}
+        bridge = MobileFileBridge(telegram_controller=fake_telegram)
+        bridge._get_clipboard_text = lambda: "Clipboard content"
+
+        result = bridge.send_clipboard_to_mobile(telegram_chat_id=12345)
+        assert result["success"] is True
+
+
+class TestSendScreenshotFailClosed:
+    """Fail-closed tests for screenshot sending: must not report success if delivery failed."""
+
+    def test_send_screenshot_fails_when_telegram_returns_not_configured(self, tmp_path):
+        fake_telegram = MagicMock()
+        fake_telegram.send_photo.return_value = {
+            "ok": False,
+            "error_code": "NOT_CONFIGURED",
+            "description": "No HTTP client configured.",
+        }
+        bridge = MobileFileBridge(
+            save_directory=str(tmp_path),
+            telegram_controller=fake_telegram,
+        )
+        bridge._capture_screenshot = lambda: b"\x89PNG\r\n\x1a\n" + b"\x00" * 50
+
+        result = bridge.send_screenshot_to_mobile(telegram_chat_id=12345)
+        assert result["success"] is False
+        assert result["error_code"] == "NOT_CONFIGURED"
+
+    def test_send_screenshot_succeeds_when_telegram_delivers(self, tmp_path):
+        fake_telegram = MagicMock()
+        fake_telegram.send_photo.return_value = {"ok": True, "message_id": 1000}
+        bridge = MobileFileBridge(
+            save_directory=str(tmp_path),
+            telegram_controller=fake_telegram,
+        )
+        bridge._capture_screenshot = lambda: b"\x89PNG\r\n\x1a\n" + b"\x00" * 50
+
+        result = bridge.send_screenshot_to_mobile(telegram_chat_id=12345)
+        assert result["success"] is True
+

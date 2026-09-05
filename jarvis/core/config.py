@@ -66,6 +66,9 @@ LEGACY_ENV_MAPPING: dict[str, tuple[str, type]] = {
     "OPENAI_API_KEY": ("llm.api_key", str),
     "OPENWEATHER_API_KEY": ("web.weather_api_key", str),
     "WEATHER_API_KEY": ("web.weather_api_key", str),
+    "TELEGRAM_BOT_TOKEN": ("comms.telegram.bot_token", str),
+    "DISCORD_BOT_TOKEN": ("comms.discord.bot_token", str),
+    "ZALO_API_KEY": ("comms.zalo.access_token", str),
     "JARVIS_MEMORY_DB": ("memory.db_path", str),
     "PORCUPINE_ACCESS_KEY": ("audio.wake_word.porcupine_access_key", str),
     "JARVIS_VOSK_MODEL": ("audio.wake_word.vosk_model_path", str),
@@ -674,11 +677,21 @@ class ConfigManager:
             raise ValueError(f"Config syntax error in {path}: {e}") from e
 
     def _apply_env_overrides(self, target: dict[str, Any]) -> None:
-        """Map OS environment variables into target dict."""
+        """Map OS environment variables and SecretsManager secrets into target dict."""
+        try:
+            from jarvis.security.secrets import get_secret
+        except ImportError:
+            get_secret = None
+
         for env_key, (dot_key, expected_type) in LEGACY_ENV_MAPPING.items():
-            val = os.environ.get(env_key)
-            if val is not None and val.strip() != "":
-                val_str = val.strip()
+            val = None
+            if get_secret is not None:
+                val = get_secret(env_key, fallback_env=True)
+            if val is None:
+                val = os.environ.get(env_key)
+
+            if val is not None and str(val).strip() != "":
+                val_str = str(val).strip()
                 try:
                     if expected_type is bool:
                         typed_val: Any = _parse_bool(val_str)

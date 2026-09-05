@@ -124,7 +124,16 @@ class MobileFileBridge:
 
         if self.telegram and telegram_chat_id:
             try:
-                self.telegram.send_message(telegram_chat_id, f"📋 Clipboard:\n{text}")
+                res = self.telegram.send_message(telegram_chat_id, f"📋 Clipboard:\n{text}")
+                if isinstance(res, dict) and not res.get("ok", True):
+                    log.warning("Telegram send returned failure: %s", res)
+                    return {
+                        "success": False,
+                        "error_code": res.get("error_code", "TELEGRAM_SEND_FAILED"),
+                        "error": res.get("description", "Telegram send failed"),
+                        "text": preview,
+                        "length": len(text),
+                    }
                 log.info("Clipboard sent to mobile via Telegram (%d chars)", len(text))
             except Exception as exc:
                 log.warning("Telegram send failed: %s", exc)
@@ -164,7 +173,16 @@ class MobileFileBridge:
 
         if self.telegram and telegram_chat_id:
             try:
-                self.telegram.send_photo(telegram_chat_id, png_bytes, caption=f"📸 Screenshot {ts}")
+                res = self.telegram.send_photo(telegram_chat_id, png_bytes, caption=f"📸 Screenshot {ts}")
+                if isinstance(res, dict) and not res.get("ok", True):
+                    log.warning("Telegram photo send returned failure: %s", res)
+                    return {
+                        "success": False,
+                        "error_code": res.get("error_code", "TELEGRAM_SEND_FAILED"),
+                        "error": res.get("description", "Telegram photo send failed"),
+                        "saved_path": str(temp_path),
+                        "size_kb": size_kb,
+                    }
                 log.info("Screenshot sent to mobile via Telegram (%dKB)", size_kb)
             except Exception as exc:
                 log.warning("Telegram photo send failed: %s", exc)

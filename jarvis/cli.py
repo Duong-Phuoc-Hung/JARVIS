@@ -239,6 +239,28 @@ def build_parser() -> argparse.ArgumentParser:
     # Command: menu (J.A.R.V.I.S. Terminal Control Center)
     subparsers.add_parser("menu", help="Open the interactive J.A.R.V.I.S. Terminal Control Center.")
 
+    # Command: migrate-secrets
+    mig_cmd = subparsers.add_parser(
+        "migrate-secrets",
+        help="Migrate plaintext .env secrets to Windows Credential Manager.",
+    )
+    mig_cmd.add_argument(
+        "--env-file",
+        type=str,
+        default=".env",
+        help="Path to .env file to migrate (default: .env).",
+    )
+    mig_cmd.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Simulate migration without storing secrets or modifying .env.",
+    )
+    mig_cmd.add_argument(
+        "--purge",
+        action="store_true",
+        help="Comment out plaintext secrets in .env upon successful migration.",
+    )
+
     return parser
 
 
@@ -461,6 +483,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.command == "menu":
         from jarvis.ui.terminal.app import run_terminal_menu
         return run_terminal_menu(config=config)
+
+    elif args.command == "migrate-secrets":
+        from jarvis.security.secrets import migrate_from_dotenv
+        _safe_print("[*] Migrating secrets from .env to Windows Credential Manager...")
+        try:
+            results = migrate_from_dotenv(
+                dotenv_path=args.env_file,
+                dry_run=args.dry_run,
+                purge_secrets=args.purge,
+            )
+            for key, status in results.items():
+                _safe_print(f"    - {key}: {status}")
+            _safe_print("[+] Secrets migration completed.")
+            return 0
+        except Exception as exc:
+            _safe_print(f"[-] Migration error: {exc}")
+            return 1
 
     else:
         # Default or 'run' command

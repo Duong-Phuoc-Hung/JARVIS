@@ -24,6 +24,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from pathlib import Path
 
 log = logging.getLogger("jarvis.security.secrets")
 
@@ -137,6 +138,78 @@ def migrate_from_env(dry_run: bool = False) -> dict[str, str]:
     return results
 
 
+def _parse_dotenv_lines(content: str) -> list[tuple[str, str, str]]:
+    """
+    Parses dotenv content into list of (raw_line, key, value).
+    Preserves comments and empty lines as (raw_line, "", "").
+    """
+    items = []
+    for line in content.splitlines():
+        trimmed = line.strip()
+        if not trimmed or trimmed.startswith("#") or "=" not in line:
+            items.append((line, "", ""))
+            continue
+        k, v = line.split("=", 1)
+        k_clean = k.strip()
+        v_clean = v.strip().strip("'\"")
+        items.append((line, k_clean, v_clean))
+    return items
+
+
+def migrate_from_dotenv(
+    dotenv_path: str | Path = ".env",
+    dry_run: bool = False,
+    purge_secrets: bool = False,
+) -> dict[str, str]:
+    """
+    Reads secrets from a .env file and migrates them to Windows Credential Manager.
+
+    Args:
+        dotenv_path: Path to the .env file.
+        dry_run: If True, do not write to keyring or modify the file.
+        purge_secrets: If True and migration succeeds, purge plaintext secrets from .env.
+
+    Returns:
+        dict[str, str] mapping secret names to status.
+    """
+    path = Path(dotenv_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Dotenv file not found: {path}")
+
+    content = path.read_text(encoding="utf-8")
+    parsed_lines = _parse_dotenv_lines(content)
+
+    results: dict[str, str] = {}
+    migrated_keys: set[str] = set()
+
+    for _, key, val in parsed_lines:
+        if not key or key not in KNOWN_SECRETS or not val:
+            continue
+
+        if dry_run:
+            results[key] = f"would_migrate (len={len(val)})"
+            continue
+
+        ok = set_secret(key, val)
+        if ok:
+            results[key] = "migrated"
+            migrated_keys.add(key)
+        else:
+            results[key] = "failed"
+
+    if purge_secrets and not dry_run and migrated_keys:
+        new_lines = []
+        for raw_line, key, _ in parsed_lines:
+            if key in migrated_keys:
+                new_lines.append(f"# {key}=<migrated to Windows Credential Manager>")
+            else:
+                new_lines.append(raw_line)
+        trailing_newline = "\n" if content.endswith("\n") else ""
+        path.write_text("\n".join(new_lines) + trailing_newline, encoding="utf-8")
+
+    return results
+
+
 # ── CLI entry point ───────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -148,6 +221,11 @@ if __name__ == "__main__":
 
     sub.add_parser("migrate", help="Migrate secrets from env vars to Credential Manager")
     sub.add_parser("migrate-dry", help="Dry-run: show what would be migrated")
+
+    mig_dotenv = sub.add_parser("migrate-dotenv", help="Migrate secrets from a .env file to Credential Manager")
+    mig_dotenv.add_argument("--path", default=".env", help="Path to .env file (default: .env)")
+    mig_dotenv.add_argument("--dry-run", action="store_true", help="Preview migration without storing")
+    mig_dotenv.add_argument("--purge", action="store_true", help="Comment out plaintext secrets in .env upon success")
 
     set_p = sub.add_parser("set", help="Store a secret")
     set_p.add_argument("name"); set_p.add_argument("value")
@@ -165,6 +243,9 @@ if __name__ == "__main__":
         for k, v in results.items(): print(f"  {k}: {v}")
     elif args.cmd == "migrate-dry":
         results = migrate_from_env(dry_run=True)
+        for k, v in results.items(): print(f"  {k}: {v}")
+    elif args.cmd == "migrate-dotenv":
+        results = migrate_from_dotenv(dotenv_path=args.path, dry_run=args.dry_run, purge_secrets=args.purge)
         for k, v in results.items(): print(f"  {k}: {v}")
     elif args.cmd == "set":
         ok = set_secret(args.name, args.value)

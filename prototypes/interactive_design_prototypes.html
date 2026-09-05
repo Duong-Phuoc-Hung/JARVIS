@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>J.A.R.V.I.S. Interactive Design Prototypes</title>
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #131b2e;
+      --bg-card: #1c2640;
+      --border-color: #2a3b5c;
+      --accent-cyan: #00e5ff;
+      --accent-green: #00e676;
+      --accent-amber: #ffb300;
+      --accent-red: #ff3d00;
+      --text-main: #f0f4f8;
+      --text-muted: #8a99ad;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: "Fira Code", Consolas, Monaco, "Courier New", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      padding-bottom: 90px;
+    }
+
+    header {
+      background: linear-gradient(180deg, #162238 0%, var(--bg-primary) 100%);
+      border-bottom: 1px solid var(--border-color);
+      padding: 24px 32px;
+    }
+    .badge-prototype {
+      display: inline-block;
+      background: rgba(0, 229, 255, 0.15);
+      color: var(--accent-cyan);
+      border: 1px solid var(--accent-cyan);
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+    h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+    p.subtitle { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+
+    /* Main Navigation Tabs */
+    .module-nav {
+      display: flex;
+      gap: 12px;
+      padding: 16px 32px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+    }
+    .module-tab-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .module-tab-btn:hover { color: var(--text-main); border-color: var(--text-muted); }
+    .module-tab-btn.active {
+      background: rgba(0, 229, 255, 0.12);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    .proto-section { display: none; }
+    .proto-section.active { display: block; }
+
+    /* Card Panels */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 24px;
+    }
+    .card h2 { font-size: 18px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .question-box {
+      background: rgba(255, 179, 0, 0.08);
+      border-left: 4px solid var(--accent-amber);
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      font-size: 13px;
+      margin-bottom: 24px;
+      color: #ffd54f;
+    }
+
+    /* State Visualizer */
+    .state-panel {
+      background: #0f1624;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+    .state-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #1c2640;
+    }
+    .state-row:last-child { border-bottom: none; }
+    .state-label { color: var(--text-muted); }
+    .state-val { font-weight: 600; }
+    .tag {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .tag-idle { background: rgba(0, 230, 118, 0.15); color: var(--accent-green); }
+    .tag-burst { background: rgba(0, 229, 255, 0.15); color: var(--accent-cyan); }
+    .tag-throttle { background: rgba(255, 179, 0, 0.15); color: var(--accent-amber); }
+    .tag-cooldown { background: rgba(255, 61, 0, 0.2); color: var(--accent-red); }
+
+    /* Button groups */
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover {
+      background: #253354;
+      border-color: #3b527e;
+    }
+    .btn-primary { background: #007799; border-color: var(--accent-cyan); color: #fff; }
+    .btn-primary:hover { background: #0099bb; }
+    .btn-alert { background: #881b00; border-color: var(--accent-red); color: #fff; }
+    .btn-alert:hover { background: #b32400; }
+
+    /* Log Output */
+    .event-log {
+      background: #080c14;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      height: 180px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      margin-top: 16px;
+    }
+    .log-item { margin-bottom: 6px; }
+    .log-item.success { color: var(--accent-green); }
+    .log-item.warning { color: var(--accent-amber); }
+    .log-item.error { color: var(--accent-red); }
+    .log-item.info { color: var(--accent-cyan); }
+
+    /* Walkthrough tabs */
+    .walkthrough-box {
+      margin-top: 24px;
+      background: #111827;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .walkthrough-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+    .wt-tab {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .wt-tab.active { background: rgba(0, 229, 255, 0.15); color: var(--accent-cyan); }
+    .wt-step-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .wt-step-btn {
+      text-align: left;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .wt-step-btn:hover { border-color: var(--accent-cyan); }
+    .wt-step-btn.done { border-color: var(--accent-green); color: var(--accent-green); opacity: 0.7; }
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Floating UI switcher bottom bar */
+    .ui-bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(16, 24, 40, 0.95);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 999;
+    }
+    .variant-selector {
+      display: flex;
+      gap: 8px;
+    }
+    .variant-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .variant-btn.active {
+      background: var(--accent-cyan);
+      color: #000;
+      border-color: var(--accent-cyan);
+      font-weight: 700;
+    }
+
+    /* Section 3 UI Variants */
+    .ui-mockup-viewport {
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: #060911;
+      padding: 30px;
+      min-height: 480px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Variant A: Holographic HUD */
+    .hud-variant-a {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      gap: 20px;
+      color: var(--accent-cyan);
+    }
+    .holo-panel {
+      background: rgba(0, 229, 255, 0.03);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      border-radius: 8px;
+      padding: 18px;
+      box-shadow: inset 0 0 15px rgba(0, 229, 255, 0.05);
+      position: relative;
+    }
+    .holo-panel::before {
+      content: "";
+      position: absolute;
+      top: -1px; left: 10px; width: 30px; height: 2px;
+      background: var(--accent-cyan);
+    }
+    .radar-circle {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 2px dashed rgba(0, 229, 255, 0.4);
+      margin: 16px auto;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: spin 8s linear infinite;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .radar-sweep {
+      position: absolute;
+      width: 50%;
+      height: 2px;
+      background: var(--accent-cyan);
+      left: 50%;
+      transform-origin: 0% 50%;
+    }
+
+    /* Variant B: Tactical Clean Dark */
+    .hud-variant-b {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      color: #e2e8f0;
+    }
+    .tactical-stat {
+      background: #111827;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 16px;
+    }
+    .tactical-val { font-size: 24px; font-weight: 800; color: var(--accent-green); margin: 6px 0; }
+
+    /* Variant C: Dynamic Island HUD */
+    .hud-variant-c {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 380px;
+    }
+    .floating-island {
+      background: #111827;
+      border: 1px solid #374151;
+      border-radius: 30px;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      transition: all 0.3s;
+    }
+    .waveform-bar {
+      display: inline-block;
+      width: 4px;
+      background: var(--accent-cyan);
+      border-radius: 2px;
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse { 0% { height: 6px; } 100% { height: 26px; } }
+
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="badge-prototype">Throwaway Prototype — JARVIS Core Design Decisions</div>
+    <h1>J.A.R.V.I.S. Multi-Feature Interactive Prototype</h1>
+    <p class="subtitle">Khảo sát và kiểm chứng 3 quyết định thiết kế cốt lõi: Rate-Limiting FSM, TieredSTTEngine, và Giao diện HUD Control Center.</p>
+  </header>
+
+  <!-- Top Module Navigation Tabs -->
+  <nav class="module-nav">
+    <button class="module-tab-btn active" onclick="switchSection('rate-limit')">
+      <span>⏱️</span> 1. Comms Rate-Limiting & Cooldown FSM
+    </button>
+    <button class="module-tab-btn" onclick="switchSection('tiered-stt')">
+      <span>🎙️</span> 2. TieredSTTEngine Decision Boundary
+    </button>
+    <button class="module-tab-btn" onclick="switchSection('hud-ui')">
+      <span>🖥️</span> 3. HUD Dashboard & Control Center UI
+    </button>
+  </nav>
+
+  <main class="container">
+
+    <!-- ================================================================= -->
+    <!-- SECTION 1: RATE-LIMITING FSM PROTOTYPE                            -->
+    <!-- ================================================================= -->
+    <section id="rate-limit" class="proto-section active">
+      <div class="question-box">
+        <strong>Câu hỏi thiết kế cần trả lời:</strong> Khi người dùng hoặc bot gửi dồn dập tin nhắn qua Telegram/Zalo/Discord/Mobile, làm thế nào để Token Bucket vừa ngăn nghẽn (DDoS/Spam), vừa đảm bảo các tin nhắn khẩn cấp (Security Intruder Alert) luôn được vượt quyền ưu tiên (Priority Bypass) mà không làm sập kênh?
+      </div>
+
+      <div class="grid-2">
+        <!-- Controls & State -->
+        <div class="card">
+          <h2><span>📊</span> Trạng Thái FSM Kênh Hiện Tại</h2>
+          
+          <div class="state-panel" id="rl-state-display">
+            <div class="state-row">
+              <span class="state-label">Kênh đang chọn:</span>
+              <span class="state-val" id="rl-channel-name">TELEGRAM</span>
+            </div>
+            <div class="state-row">
+              <span class="state-label">FSM State:</span>
+              <span class="state-val"><span class="tag tag-idle" id="rl-fsm-tag">IDLE</span></span>
+            </div>
+            <div class="state-row">
+              <span class="state-label">Tokens khả dụng:</span>
+              <span class="state-val" id="rl-tokens-val">5 / 5</span>
+            </div>
+            <div class="state-row">
+              <span class="state-label">Burst Count (liên tiếp):</span>
+              <span class="state-val" id="rl-burst-val">0 / 3</span>
+            </div>
+            <div class="state-row">
+              <span class="state-label">Thời gian Cooldown còn:</span>
+              <span class="state-val" id="rl-cooldown-val">0s</span>
+            </div>
+          </div>
+
+          <h2 style="margin-top: 20px;"><span>🎮</span> Thử Nghiệm Tự Do (Free-Play)</h2>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="rlSendNormal()">📨 Gửi Tin Nhắn Thường (-1 token)</button>
+            <button class="btn btn-alert" onclick="rlSendAlert()">🚨 Báo Động Khẩn Cấp (Priority Bypass)</button>
+            <button class="btn" onclick="rlSpamBurst()">💥 Spam 4 tin liên tục (Kích hoạt Throttling)</button>
+            <button class="btn" onclick="rlTick()">⏳ Thời Gian Trôi +1s (Hồi phục 1 token)</button>
+            <button class="btn" onclick="rlReset()">🔄 Reset Kênh</button>
+          </div>
+
+          <div class="btn-group" style="margin-top: 14px;">
+            <span style="font-size: 13px; color: var(--text-muted); align-self: center;">Đổi Kênh:</span>
+            <button class="btn" onclick="rlSelectChannel('Telegram')">Telegram</button>
+            <button class="btn" onclick="rlSelectChannel('Discord')">Discord</button>
+            <button class="btn" onclick="rlSelectChannel('Zalo')">Zalo</button>
+            <button class="btn" onclick="rlSelectChannel('Mobile Bridge')">Mobile Bridge</button>
+          </div>
+        </div>
+
+        <!-- Log & Guided Walkthroughs -->
+        <div class="card">
+          <h2><span>📜</span> Nhật Ký Sự Kiện Real-time</h2>
+          <div class="event-log" id="rl-log-box">
+            <div class="log-item info">[HỆ THỐNG] Token Bucket FSM đã sẵn sàng (Dung lượng 5 tokens, Burst 3, Refill 1 token/giây).</div>
+          </div>
+
+          <div class="walkthrough-box">
+            <h3 style="font-size: 14px; margin-bottom: 8px;">🎯 Kịch Bản Kiểm Chứng Tình Huống Hóc Búa:</h3>
+            <div class="walkthrough-tabs">
+              <button class="wt-tab active" onclick="rlLoadWalkthrough(1)">Kịch bản 1: Spam sập kênh</button>
+              <button class="wt-tab" onclick="rlLoadWalkthrough(2)">Kịch bản 2: Cảnh báo khẩn cấp vượt rào</button>
+            </div>
+            <p id="wt-desc" style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+              Bấm từng bước để xem hệ thống phát hiện hành vi spam, chuyển từ IDLE -> BURSTING -> THROTTLED -> COOLDOWN khóa kênh 10s.
+            </p>
+            <div class="wt-step-list" id="wt-steps-container">
+              <!-- Steps rendered dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SECTION 2: TIERED STT ENGINE PROTOTYPE                            -->
+    <!-- ================================================================= -->
+    <section id="tiered-stt" class="proto-section">
+      <div class="question-box">
+        <strong>Câu hỏi thiết kế cần trả lời:</strong> Khi giọng nói người dùng có tạp âm hoặc khẩu lệnh mơ hồ, ranh giới phân định (Decision Boundary) nào giữa <strong>Tier 1: Fast Engine (80ms)</strong> và <strong>Tier 2: Accurate Engine (800ms)</strong> để tối ưu độ trễ mà không bao giờ bị misroute sang lệnh nguy hiểm?
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h2><span>🎙️</span> Mô Phỏng Nhận Diện Giọng Nói</h2>
+          
+          <div style="margin: 16px 0;">
+            <label style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 6px;">
+              Độ tin cậy của Fast STT (Confidence Score): <span id="stt-conf-val" style="color: var(--accent-cyan); font-weight: 700;">0.85</span>
+            </label>
+            <input type="range" min="0" max="1" step="0.05" value="0.85" id="stt-conf-slider" style="width: 100%;" oninput="sttUpdateSlider()">
+          </div>
+
+          <div style="margin: 16px 0;">
+            <label style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 6px;">
+              Độ ồn môi trường (SNR - Signal-to-Noise Ratio): <span id="stt-snr-val" style="color: var(--accent-green); font-weight: 700;">18 dB (Yên tĩnh)</span>
+            </label>
+            <input type="range" min="0" max="30" step="1" value="18" id="stt-snr-slider" style="width: 100%;" oninput="sttUpdateSlider()">
+          </div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="sttSimulate('Bật đèn phòng khách', 0.94, 22)">🗣️ Câu rõ ràng: "Bật đèn phòng khách"</button>
+            <button class="btn" onclick="sttSimulate('Mở... [tiếng gió]... file', 0.62, 8)">🌪️ Tạp âm cao: "Mở... [tiếng gió]... file"</button>
+            <button class="btn btn-alert" onclick="sttSimulate('[Tiếng chó sủa]', 0.28, 3)">🐕 Tiếng ồn vô nghĩa: "[Tiếng chó sủa]"</button>
+          </div>
+
+          <div class="state-panel" style="margin-top: 20px;">
+            <div class="state-row">
+              <span class="state-label">Tầng xử lý (Tier):</span>
+              <span class="state-val" id="stt-tier-result">CHƯA CHẠY</span>
+            </div>
+            <div class="state-row">
+              <span class="state-label">Độ trễ ước tính (Latency):</span>
+              <span class="state-val" id="stt-latency-val">-- ms</span>
+            </div>
+            <div class="state-row">
+              <span class="state-label">Quyết định Intent Router:</span>
+              <span class="state-val" id="stt-intent-val">--</span>
+            </div>
+            <div class="state-row">
+              <span class="state-label">Rủi ro Misroute:</span>
+              <span class="state-val" id="stt-risk-val">0.0%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2><span>📈</span> Biểu Đồ Vùng Quyết Định (Decision Matrix)</h2>
+          <div style="background: #0d131f; border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; text-align: center;">
+            <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Ma trận phân luồng STT theo Confidence & SNR:</div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px;">
+              <div style="background: rgba(0, 230, 118, 0.1); border: 1px solid var(--accent-green); padding: 14px; border-radius: 6px;">
+                <div style="font-weight: 700; color: var(--accent-green); font-size: 14px;">TIER 1 (FAST)</div>
+                <div style="margin-top: 4px;">Conf &ge; 0.80 &amp; SNR &ge; 12 dB</div>
+                <div style="color: var(--text-muted); font-size: 11px; margin-top: 4px;">Độ trễ: ~80ms | Chi phí: $0</div>
+              </div>
+
+              <div style="background: rgba(0, 229, 255, 0.1); border: 1px solid var(--accent-cyan); padding: 14px; border-radius: 6px;">
+                <div style="font-weight: 700; color: var(--accent-cyan); font-size: 14px;">TIER 2 (ACCURATE)</div>
+                <div style="margin-top: 4px;">0.50 &le; Conf &lt; 0.80 Hoặc SNR &lt; 12 dB</div>
+                <div style="color: var(--text-muted); font-size: 11px; margin-top: 4px;">Độ trễ: ~750ms | Whisper Large</div>
+              </div>
+            </div>
+
+            <div style="background: rgba(255, 61, 0, 0.1); border: 1px solid var(--accent-red); padding: 12px; border-radius: 6px; margin-top: 12px; font-size: 12px;">
+              <div style="font-weight: 700; color: var(--accent-red);">SAFE ABSTAIN (FAIL-CLOSED)</div>
+              <div>Conf &lt; 0.50 &rarr; Từ chối nhận diện để chống kích hoạt sai lệnh hệ thống</div>
+            </div>
+          </div>
+
+          <div class="event-log" id="stt-log-box" style="height: 140px; margin-top: 16px;">
+            <div class="log-item info">[TIERED-STT] Sẵn sàng kiểm chứng độ trễ và ranh giới an toàn.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SECTION 3: HUD / CONTROL CENTER UI PROTOTYPE                      -->
+    <!-- ================================================================= -->
+    <section id="hud-ui" class="proto-section">
+      <div class="question-box">
+        <strong>Câu hỏi thiết kế giao diện:</strong> Giao diện hiển thị trạng thái hệ thống (System HUD) nên đi theo hướng nào: <em>Holographic Cyberpunk</em> (phong cách Iron Man), <em>Tactical Clean Dark</em> (phong cách chuyên nghiệp quản trị hệ thống), hay <em>Dynamic Island Floating Widget</em> (tối giản, thu nhỏ)?
+      </div>
+
+      <div class="ui-mockup-viewport" id="hud-viewport">
+        <!-- Variant A: Holographic HUD -->
+        <div id="variant-a-view" class="hud-variant-a">
+          <div class="holo-panel">
+            <div style="font-size: 12px; letter-spacing: 1px; color: var(--accent-cyan); font-weight: 700;">SYSTEM RADAR</div>
+            <div class="radar-circle">
+              <div class="radar-sweep"></div>
+              <span style="font-size: 10px; font-family: var(--font-mono); color: var(--accent-cyan);">ACTIVE SCAN</span>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); text-align: center;">17 Core Subsystems Operational</div>
+          </div>
+
+          <div class="holo-panel" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div style="font-size: 14px; font-weight: 700; letter-spacing: 2px;">J.A.R.V.I.S. NEURAL CORE v5.0.1</div>
+            <div style="display: flex; gap: 4px; align-items: center; margin: 24px 0;">
+              <div class="waveform-bar" style="animation-delay: 0.1s;"></div>
+              <div class="waveform-bar" style="animation-delay: 0.3s;"></div>
+              <div class="waveform-bar" style="animation-delay: 0.5s;"></div>
+              <div class="waveform-bar" style="animation-delay: 0.2s;"></div>
+              <div class="waveform-bar" style="animation-delay: 0.4s;"></div>
+              <div class="waveform-bar" style="animation-delay: 0.6s;"></div>
+              <div class="waveform-bar" style="animation-delay: 0.2s;"></div>
+            </div>
+            <div style="font-size: 12px; font-family: var(--font-mono); color: var(--accent-cyan);">WAKE WORD LISTENING: "HEY JARVIS"</div>
+          </div>
+
+          <div class="holo-panel">
+            <div style="font-size: 12px; letter-spacing: 1px; color: var(--accent-cyan); font-weight: 700;">SECURITY METRICS</div>
+            <div style="margin-top: 14px; font-size: 12px; font-family: var(--font-mono);">
+              <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+                <span>FAIL-CLOSED GATE:</span> <span style="color: var(--accent-green);">ARMED</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+                <span>SECRETS STORE:</span> <span style="color: var(--accent-cyan);">KEYRING</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+                <span>SANDBOX DRY-RUN:</span> <span style="color: var(--accent-green);">VERIFIED</span>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span>ROUTER CONFIDENCE:</span> <span style="color: var(--accent-green);">100% PASS</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Variant B: Tactical Clean Dark -->
+        <div id="variant-b-view" class="hud-variant-b" style="display: none;">
+          <div class="tactical-stat">
+            <div style="font-size: 12px; color: var(--text-muted);">CPU &amp; MEMORY LOAD</div>
+            <div class="tactical-val">1.2% / 3.4 GB</div>
+            <div style="font-size: 11px; color: var(--accent-green);">16 Cores | Healthy</div>
+          </div>
+          <div class="tactical-stat">
+            <div style="font-size: 12px; color: var(--text-muted);">ACTIVE COMMS CHANNELS</div>
+            <div class="tactical-val">4 / 4 ONLINE</div>
+            <div style="font-size: 11px; color: var(--accent-cyan);">Token Bucket Rate-Limited</div>
+          </div>
+          <div class="tactical-stat">
+            <div style="font-size: 12px; color: var(--text-muted);">ROUTER ACCURACY (HELD-OUT)</div>
+            <div class="tactical-val">100.0%</div>
+            <div style="font-size: 11px; color: var(--accent-green);">38/38 Held-Out Tests Passed</div>
+          </div>
+          <div class="tactical-stat">
+            <div style="font-size: 12px; color: var(--text-muted);">SECURITY HARBOR</div>
+            <div class="tactical-val">TIER-1 AUDITED</div>
+            <div style="font-size: 11px; color: var(--accent-cyan);">Credential Manager Wired</div>
+          </div>
+        </div>
+
+        <!-- Variant C: Dynamic Island HUD -->
+        <div id="variant-c-view" class="hud-variant-c" style="display: none;">
+          <div class="floating-island">
+            <div style="width: 10px; height: 10px; border-radius: 50%; background: var(--accent-green);"></div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff;">JARVIS ACTIVE</div>
+            <div style="display: flex; gap: 3px; align-items: center;">
+              <div class="waveform-bar" style="animation-delay: 0.1s; height: 14px;"></div>
+              <div class="waveform-bar" style="animation-delay: 0.3s; height: 18px;"></div>
+              <div class="waveform-bar" style="animation-delay: 0.2s; height: 10px;"></div>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">80ms | Idle</div>
+          </div>
+          <div style="margin-top: 16px; font-size: 12px; color: var(--text-muted);">
+            Thanh điều khiển thu nhỏ ở khay hệ thống, tự động mở rộng khi phát hiện giọng nói hoặc có cảnh báo.
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Floating UI Switcher Bar -->
+  <aside class="ui-bottom-bar">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">CHUYỂN GIAO DIỆN UI (Mục 3):</span>
+      <div class="variant-selector">
+        <button class="variant-btn active" id="vbtn-a" onclick="setUIVariant('a')">A: Holographic HUD</button>
+        <button class="variant-btn" id="vbtn-b" onclick="setUIVariant('b')">B: Tactical Pro</button>
+        <button class="variant-btn" id="vbtn-c" onclick="setUIVariant('c')">C: Dynamic Island</button>
+      </div>
+    </div>
+    <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">
+      Artifact: <a href="#" style="color: var(--accent-cyan); text-decoration: none;">jarvis_feature_prototypes.html</a>
+    </div>
+  </aside>
+
+  <!-- Pure Logic Modules (Independent & Liftable into Codebase) -->
+  <script>
+    /* ===================================================================
+       PURE LOGIC MODULE 1: TOKEN BUCKET & COOLDOWN RATE LIMITER
+       (Liftable directly into jarvis/comms/rate_limiter.py)
+       =================================================================== */
+    class TokenBucketRateLimiterModel {
+      constructor({ maxTokens = 5, refillRate = 1.0, burstLimit = 3, cooldownSeconds = 10 } = {}) {
+        this.maxTokens = maxTokens;
+        this.tokens = maxTokens;
+        this.refillRate = refillRate;
+        this.burstLimit = burstLimit;
+        this.burstCount = 0;
+        this.cooldownSeconds = cooldownSeconds;
+        this.cooldownRemaining = 0;
+        this.state = "IDLE"; // IDLE | BURSTING | THROTTLED | COOLDOWN
+      }
+
+      send({ isPriorityAlert = false } = {}) {
+        // Priority bypass: Security Alerts are NEVER dropped, even during cooldown
+        if (isPriorityAlert) {
+          return {
+            allowed: true,
+            bypass: true,
+            reason: "PRIORITY_SECURITY_ALERT_ALLOWED",
+            state: this.state
+          };
+        }
+
+        // Check if under cooldown lock
+        if (this.cooldownRemaining > 0) {
+          return {
+            allowed: false,
+            bypass: false,
+            reason: `CHANNEL_LOCKED_IN_COOLDOWN (${this.cooldownRemaining}s remaining)`,
+            state: this.state
+          };
+        }
+
+        // Check tokens
+        if (this.tokens >= 1) {
+          this.tokens -= 1;
+          this.burstCount += 1;
+
+          if (this.burstCount >= this.burstLimit) {
+            this.state = "THROTTLED";
+          } else {
+            this.state = "BURSTING";
+          }
+
+          return {
+            allowed: true,
+            bypass: false,
+            reason: "TOKEN_CONSUMED_OK",
+            state: this.state
+          };
+        } else {
+          // Exhausted tokens -> Trigger Cooldown Lock
+          this.state = "COOLDOWN";
+          this.cooldownRemaining = this.cooldownSeconds;
+          return {
+            allowed: false,
+            bypass: false,
+            reason: "BURST_LIMIT_EXCEEDED_ENTERING_COOLDOWN",
+            state: this.state
+          };
+        }
+      }
+
+      tickSecond() {
+        if (this.cooldownRemaining > 0) {
+          this.cooldownRemaining -= 1;
+          if (this.cooldownRemaining === 0) {
+            this.state = "IDLE";
+            this.tokens = 2; // initial tokens after cooldown
+            this.burstCount = 0;
+          }
+        } else {
+          if (this.tokens < this.maxTokens) {
+            this.tokens = Math.min(this.maxTokens, this.tokens + this.refillRate);
+          }
+          if (this.burstCount > 0) {
+            this.burstCount = Math.max(0, this.burstCount - 1);
+          }
+          if (this.tokens >= this.maxTokens && this.burstCount === 0) {
+            this.state = "IDLE";
+          }
+        }
+      }
+    }
+
+    /* ===================================================================
+       PURE LOGIC MODULE 2: TIERED STT DECISION ENGINE
+       (Liftable directly into jarvis/stt/engine.py)
+       =================================================================== */
+    class TieredSTTDecisionEngine {
+      static evaluate({ confidence, snrDb, textLength = 10 }) {
+        // Fail-closed rule: Low confidence is dangerous -> Safe Abstain
+        if (confidence < 0.50 || snrDb < 5) {
+          return {
+            decision: "ABSTAIN",
+            tier: "NONE",
+            estimatedLatencyMs: 40,
+            riskScore: 0.0,
+            reason: "CONFIDENCE_TOO_LOW_PREVENTING_MISROUTE"
+          };
+        }
+
+        // Fast Tier 1 threshold: High confidence AND clear audio SNR
+        if (confidence >= 0.80 && snrDb >= 12) {
+          return {
+            decision: "DISPATCH_FAST",
+            tier: "TIER_1_LOCAL_WHISPER",
+            estimatedLatencyMs: 78,
+            riskScore: 0.02,
+            reason: "HIGH_CONFIDENCE_FAST_ROUTING"
+          };
+        }
+
+        // Borderline cases: Fallback to Tier 2 (Accurate Large-v3)
+        return {
+          decision: "FALLBACK_TIER2",
+          tier: "TIER_2_LARGE_V3",
+          estimatedLatencyMs: 760,
+          riskScore: 0.01,
+          reason: "MODERATE_CONFIDENCE_ESCALATED_FOR_ACCURACY"
+        };
+      }
+    }
+
+    /* ===================================================================
+       PROTOTYPE UI BINDINGS & EVENT HANDLERS
+       =================================================================== */
+    const rlChannels = {
+      "Telegram": new TokenBucketRateLimiterModel(),
+      "Discord": new TokenBucketRateLimiterModel(),
+      "Zalo": new TokenBucketRateLimiterModel(),
+      "Mobile Bridge": new TokenBucketRateLimiterModel()
+    };
+    let currentRLChannel = "Telegram";
+
+    function switchSection(secId) {
+      document.querySelectorAll(".proto-section").forEach(s => s.classList.remove("active"));
+      document.querySelectorAll(".module-tab-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById(secId).classList.add("active");
+      event.currentTarget.classList.add("active");
+    }
+
+    function rlSelectChannel(name) {
+      currentRLChannel = name;
+      updateRLView();
+      logRL(`[KÊNH] Đã chuyển sang quản trị kênh: ${name}`, "info");
+    }
+
+    function updateRLView() {
+      const model = rlChannels[currentRLChannel];
+      document.getElementById("rl-channel-name").textContent = currentRLChannel.toUpperCase();
+      document.getElementById("rl-tokens-val").textContent = `${model.tokens.toFixed(1)} / ${model.maxTokens}`;
+      document.getElementById("rl-burst-val").textContent = `${model.burstCount} / ${model.burstLimit}`;
+      document.getElementById("rl-cooldown-val").textContent = `${model.cooldownRemaining}s`;
+
+      const tag = document.getElementById("rl-fsm-tag");
+      tag.className = "tag";
+      tag.textContent = model.state;
+      if (model.state === "IDLE") tag.classList.add("tag-idle");
+      else if (model.state === "BURSTING") tag.classList.add("tag-burst");
+      else if (model.state === "THROTTLED") tag.classList.add("tag-throttle");
+      else if (model.state === "COOLDOWN") tag.classList.add("tag-cooldown");
+    }
+
+    function logRL(msg, type = "info") {
+      const box = document.getElementById("rl-log-box");
+      const d = document.createElement("div");
+      d.className = `log-item ${type}`;
+      d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      box.appendChild(d);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function rlSendNormal() {
+      const model = rlChannels[currentRLChannel];
+      const res = model.send({ isPriorityAlert: false });
+      updateRLView();
+      if (res.allowed) {
+        logRL(`Gửi tin nhắn thường thành công. State=${res.state}, Reason=${res.reason}`, "success");
+      } else {
+        logRL(`Gửi tin nhắn BỊ TỪ CHỐI (Throttled/Cooldown). Reason=${res.reason}`, "error");
+      }
+    }
+
+    function rlSendAlert() {
+      const model = rlChannels[currentRLChannel];
+      const res = model.send({ isPriorityAlert: true });
+      updateRLView();
+      logRL(`🚨 BÁO ĐỘNG KHẨN CẤP: Vượt rào thành công! (Priority Alert Bypass Active). State=${res.state}`, "warning");
+    }
+
+    function rlSpamBurst() {
+      logRL(`[SIMULATION] Kích hoạt burst spam 4 tin liên tiếp...`, "warning");
+      for (let i = 1; i <= 4; i++) {
+        rlSendNormal();
+      }
+    }
+
+    function rlTick() {
+      for (let ch in rlChannels) {
+        rlChannels[ch].tickSecond();
+      }
+      updateRLView();
+      logRL(`Thời gian trôi +1s (Refill 1 token/giây)`, "info");
+    }
+
+    function rlReset() {
+      rlChannels[currentRLChannel] = new TokenBucketRateLimiterModel();
+      updateRLView();
+      logRL(`Kênh ${currentRLChannel} đã được reset về IDLE.`, "info");
+    }
+
+    /* Guided Walkthrough Scenarios */
+    const wtScenarios = {
+      1: {
+        desc: "Kịch bản: Bấm từng bước để xem hành vi khi dồn dập gửi tin nhắn: 3 tin đầu đi qua -> Tin thứ 4 cạn token -> Hệ thống kích hoạt COOLDOWN khóa kênh 10s.",
+        steps: [
+          { text: "1. Gửi tin nhắn đầu tiên (IDLE -> BURSTING)", action: () => rlSendNormal() },
+          { text: "2. Gửi tin nhắn thứ hai (Tiêu thụ tiếp)", action: () => rlSendNormal() },
+          { text: "3. Gửi tin nhắn thứ ba (Đạt ngưỡng Burst Limit)", action: () => rlSendNormal() },
+          { text: "4. Gửi tin thứ tư khi cạn token (Kích hoạt COOLDOWN khóa kênh)", action: () => rlSendNormal() },
+          { text: "5. Thử gửi tiếp khi đang bị khóa (Bị từ chối Fail-Closed)", action: () => rlSendNormal() }
+        ]
+      },
+      2: {
+        desc: "Kịch bản: Kênh đang bị khóa Cooldown do spam, nhưng có kẻ đột nhập và hệ thống cần gửi Security Intruder Alert -> Chứng minh Priority Bypass hoạt động.",
+        steps: [
+          { text: "1. Reset và spam cạn sạch token để kích hoạt COOLDOWN", action: () => { rlReset(); rlSpamBurst(); } },
+          { text: "2. Xác nhận kênh đang ở trạng thái COOLDOWN (Bấm gửi thường bị từ chối)", action: () => rlSendNormal() },
+          { text: "3. Gửi BÁO ĐỘNG KHẨN CẤP (Phát hiện đột nhập) -> Vượt rào gửi thành công ngay lập tức", action: () => rlSendAlert() }
+        ]
+      }
+    };
+
+    function rlLoadWalkthrough(id) {
+      document.querySelectorAll(".wt-tab").forEach((t, idx) => {
+        t.classList.toggle("active", idx === id - 1);
+      });
+      const sc = wtScenarios[id];
+      document.getElementById("wt-desc").textContent = sc.desc;
+      const c = document.getElementById("wt-steps-container");
+      c.innerHTML = "";
+      sc.steps.forEach((st, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "wt-step-btn";
+        btn.innerHTML = `<span class="step-num">${idx + 1}</span> <span>${st.text}</span>`;
+        btn.onclick = () => {
+          st.action();
+          btn.classList.add("done");
+        };
+        c.appendChild(btn);
+      });
+    }
+
+    /* Section 2 STT Handlers */
+    function sttUpdateSlider() {
+      const conf = parseFloat(document.getElementById("stt-conf-slider").value);
+      const snr = parseInt(document.getElementById("stt-snr-slider").value);
+      document.getElementById("stt-conf-val").textContent = conf.toFixed(2);
+      document.getElementById("stt-snr-val").textContent = `${snr} dB (${snr >= 15 ? 'Yên tĩnh' : snr >= 8 ? 'Tạp âm vừa' : 'Nhiễu nặng'})`;
+    }
+
+    function sttSimulate(text, conf, snr) {
+      document.getElementById("stt-conf-slider").value = conf;
+      document.getElementById("stt-snr-slider").value = snr;
+      sttUpdateSlider();
+
+      const res = TieredSTTDecisionEngine.evaluate({ confidence: conf, snrDb: snr });
+
+      document.getElementById("stt-tier-result").textContent = res.tier;
+      document.getElementById("stt-latency-val").textContent = `${res.estimatedLatencyMs} ms`;
+      document.getElementById("stt-intent-val").textContent = res.decision;
+      document.getElementById("stt-risk-val").textContent = `${(res.riskScore * 100).toFixed(1)}%`;
+
+      const box = document.getElementById("stt-log-box");
+      const d = document.createElement("div");
+      d.className = `log-item ${res.decision === 'ABSTAIN' ? 'error' : res.decision === 'FALLBACK_TIER2' ? 'warning' : 'success'}`;
+      d.textContent = `[${new Date().toLocaleTimeString()}] '${text}' -> Decision: ${res.decision} (${res.tier}, ~${res.estimatedLatencyMs}ms)`;
+      box.appendChild(d);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    /* Section 3 UI Variant Switcher */
+    function setUIVariant(v) {
+      document.querySelectorAll(".variant-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById(`vbtn-${v}`).classList.add("active");
+
+      document.getElementById("variant-a-view").style.display = (v === 'a') ? 'grid' : 'none';
+      document.getElementById("variant-b-view").style.display = (v === 'b') ? 'grid' : 'none';
+      document.getElementById("variant-c-view").style.display = (v === 'c') ? 'flex' : 'none';
+    }
+
+    // Initialize initial state
+    updateRLView();
+    rlLoadWalkthrough(1);
+  </script>
+</body>
+</html>

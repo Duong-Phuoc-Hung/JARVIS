@@ -273,6 +273,13 @@ class TestSingleInstanceMutex(unittest.TestCase):
             result = self.cli_module._acquire_single_instance_mutex()
         self.assertEqual(result, self.SingleInstanceResult.ACQUIRED)
 
+    def test_cli_migrate_secrets_command(self) -> None:
+        with patch("jarvis.security.secrets.migrate_from_dotenv", return_value={"GEMINI_API_KEY": "migrated"}) as mock_mig, \
+             patch("sys.stdout", new_callable=io.StringIO):
+            exit_code = self.cli_module.main(["migrate-secrets", "--dry-run", "--purge"])
+            self.assertEqual(exit_code, 0)
+            mock_mig.assert_called_once_with(dotenv_path=".env", dry_run=True, purge_secrets=True)
+
 
 if __name__ == "__main__":
     unittest.main()

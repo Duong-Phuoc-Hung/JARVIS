@@ -525,3 +525,43 @@ def test_scan_subnet_malformed_xml_is_truthful_error_not_fabricated(monkeypatch)
     assert report.total_hosts == 0
     assert report.hosts == []
     assert not any(h.hostname in ("router.lan", "desktop.lan") for h in report.hosts)
+
+
+def test_tshark_capture_no_output_reports_zero_packet_count():
+    """When TShark capture produces no output or fails, packet_count must be 0, not echo requested count."""
+    wrapper = PacketCapture()
+    res = wrapper._build_capture_result(
+        interface="eth0",
+        count=100,
+        duration=5.0,
+        pcap_path=None,
+        raw_stdout=None,
+    )
+    assert res.status == "NO_TSHARK_OUTPUT"
+    assert res.packet_count == 0
+    assert res.protocols == {}
+
+
+def test_tshark_io_phs_native_hierarchy_parsing():
+    """_parse_tshark_protocols must correctly parse real native tshark -qz io,phs hierarchy output."""
+    from jarvis.security.scanner import _parse_tshark_protocols
+
+    sample_output = """
+===================================================================
+Protocol Hierarchy Statistics
+Filter: 
+
+eth                                      frames:100 bytes:7400
+  ip                                     frames:95 bytes:7100
+    tcp                                  frames:70 bytes:5400
+      http                               frames:20 bytes:2000
+    udp                                  frames:25 bytes:1700
+      dns                                frames:15 bytes:900
+===================================================================
+"""
+    counts = _parse_tshark_protocols(sample_output)
+    assert counts.get("TCP") == 70
+    assert counts.get("UDP") == 25
+    assert counts.get("HTTP") == 20
+    assert counts.get("DNS") == 15
+

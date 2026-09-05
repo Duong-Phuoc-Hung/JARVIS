@@ -1,4 +1,4 @@
-﻿# KẾ HOẠCH TỔNG THỂ — VÁ LỖI, KIỂM TRA TÍNH NĂNG & NÂNG CẤP JARVIS
+# KẾ HOẠCH TỔNG THỂ — VÁ LỖI, KIỂM TRA TÍNH NĂNG & NÂNG CẤP JARVIS
 ### Tổng hợp hành động cụ thể, dùng cùng `docs/AUDIT_FRAMEWORK.md`
 
 ---
@@ -7,10 +7,15 @@
 
 | Đã xong | Đang treo — không bị chặn | Đang treo — bị chặn |
 |---|---|---|
-| A1-A7 fabrication fixes (fail-closed) | **Router eval (#40)** — ưu tiên #1 | B1: cần HA server thật |
-| B3: ASTCodeValidator wired vào synthesizer | Full test suite run mới nhất | C1: cần Discord bot token thật |
-| AUDIT_FRAMEWORK.md đã lưu repo | Cài `pytest-asyncio`, `TShark`, `playwright` | B2: cần quyết định thiết kế |
-| README/CHANGELOG xác nhận trung thực | Sandbox dry-run cho synthesizer | Telegram/ElevenLabs token thật để test nhánh "có cấu hình" |
+| A1-A7 fabrication fixes (fail-closed) | Full test suite run mới nhất | B1: cần HA server thật |
+| B3: ASTCodeValidator wired vào synthesizer | Cài `TShark` (Wireshark CLI) | C1: cần Discord bot token thật |
+| Sandbox dry-run gate cho synthesizer | Mở port CDP 9222 cho browser tests | B2: cần quyết định thiết kế |
+| Router eval (#40) đóng (57.8% audio, 100% held-out) | Rà soát Terminal Control Center (1.6) | Telegram/ElevenLabs token thật để test nhánh "có cấu hình" |
+| Cài `pytest-asyncio`, `playwright` + chromium | Rate-limiting 4 kênh comms (#1) | |
+| Nâng cấp #3: Migrate `.env` → Credential Manager | | |
+| Vá fail-closed Mobile Bridge & Scanner Packet Count | | |
+| AUDIT_FRAMEWORK.md đã lưu repo | | |
+| README/CHANGELOG xác nhận trung thực | | |
 
 ---
 
