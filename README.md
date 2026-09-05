@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.0.1** trên `main` — nâng cấp toàn diện đường ống âm thanh giọng nói (Voice Pipeline Upgrade: Safe Preprocessing Diacritic Normalization, Phonetic Drift Robustness và Anti-Overfitting Held-Out Validation), kế thừa mốc J.A.R.V.I.S. Terminal Control Center v5.0.0. Lịch sử phát triển trong CHANGELOG đã cập nhật mốc **v5.0.1** mới nhất ở đầu tài liệu. Đợt kiểm toán chất lượng nội bộ **Post-v5.0.1 Fabrication Audit** (2026-09-04 & 2026-09-05) đã xác định và khắc phục triệt để các lỗi fabrication (A1–A7, B3 AST Validation & Sandbox Dry-Run, Mobile Bridge Silent Fallback): các hàm trả kết quả thành công giả khi thiếu cấu hình thật đã được chuyển sang fail-closed theo nguyên tắc *bằng chứng thật trước, thành công sau*. Đồng thời nghiệm thu đóng dứt điểm Router Eval (#40) với độ chính xác đạt 100% trên tập held-out độc lập và tăng từ 30.0% lên 57.8% trên 90 audio test thật (loại trừ overfit).</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.0.1** trên `main` — nâng cấp toàn diện đường ống âm thanh giọng nói (Voice Pipeline Upgrade: Safe Preprocessing Diacritic Normalization, Phonetic Drift Robustness và Anti-Overfitting Held-Out Validation), kế thừa mốc J.A.R.V.I.S. Terminal Control Center v5.0.0. Đợt kiểm toán chất lượng nội bộ và nâng cấp chuẩn TDD (Phase 1–5, hoàn tất 2026-09-05) đã khắc phục triệt để các lỗi fabrication (A1–A7, B3 AST Validation & Sandbox Dry-Run, Mobile Bridge Silent Fallback), đóng dứt điểm Router Eval (#40) đạt 100% held-out, di chuyển an toàn `.env` sang Windows Credential Manager (`SecretsManager`), và triển khai phân tầng nhận diện giọng nói đa cấp `TieredSTTEngine` (VAD silence bypass, SNR gating, multi-tier fallback) đạt 100% test green.</sub>
 
 </div>
 
@@ -27,7 +27,7 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 4. [⚡ Dành Cho Người Dùng Cuối — Quick Start (Standalone ZIP)](#-dành-cho-người-dùng-cuối--quick-start-standalone-zip)
 5. [🛠️ Dành Cho Nhà Phát Triển (Developer Setup)](#%EF%B8%8F-dành-cho-nhà-phát-triển-developer-setup)
 6. [🔧 Các Lỗi Thường Gặp & Cách Khắc Phục (Common Errors & Fixes)](#-các-lỗi-thường-gặp--cách-khắc-phục-common-errors--fixes)
-7. [⚙️ Cấu Hình `.env`](#%EF%B8%8F-cấu-hình-env)
+7. [⚙️ Cấu Hình `.env` & Bảo Mật Secrets](#%EF%B8%8F-cấu-hình-env--bảo-mật-secrets)
 8. [🧰 Danh Sách Kỹ Năng Chi Tiết (18+ Skills)](#-danh-sách-kỹ-năng-chi-tiết-18-skills)
 9. [⌨️ Phím Tắt Toàn Hệ Thống](#%EF%B8%8F-phím-tắt-toàn-hệ-thống)
 10. [📱 Điều Khiển Qua Điện Thoại (Telegram / Zalo / Discord)](#-điều-khiển-qua-điện-thoại)
@@ -39,12 +39,13 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 
 ## ✨ Tính Năng Nổi Bật
 
-### 🎙️ Nhận Diện Giọng Nói Offline & Voice Pipeline (v4.8.1)
+### 🎙️ Nhận Diện Giọng Nói Offline & Voice Pipeline (v5.0.1)
 - **Wake Word:** Nhận diện từ khóa *"Hey JARVIS"* tức thì với độ trễ cực thấp.
 - **Barge-in (Ngắt lời tức thời):** Khi JARVIS đang nói, bạn có thể nói chèn vào — hệ thống lập tức tắt âm thanh TTS và chuyển sang nghe lệnh mới.
 - **VAD (Voice Activity Detection):** Thuật toán phát hiện giọng nói thông minh bằng năng lượng RMS hoặc WebRTC VAD — xử lý offline, độ trễ <10ms.
-- **STT (Speech-to-Text) & Safe Diacritic Normalization (v4.8.1):** Faster-Whisper (CTranslate2) chạy offline với bộ chuẩn hóa bỏ dấu đa âm an toàn (`strip_vietnamese_diacritics`) bảo vệ nguyên vẹn từ đơn, triệt tiêu 100% va chạm homophone (`nhạc` vs `nhắc`, `dừng` vs `dụng`, `dán` vs `dẫn`, `tắt` vs `tắc`).
+- **STT (Speech-to-Text) & Safe Diacritic Normalization:** Faster-Whisper (CTranslate2) chạy offline với bộ chuẩn hóa bỏ dấu đa âm an toàn (`strip_vietnamese_diacritics`) bảo vệ nguyên vẹn từ đơn, triệt tiêu 100% va chạm homophone (`nhạc` vs `nhắc`, `dừng` vs `dụng`, `dán` vs `dẫn`, `tắt` vs `tắc`).
 - **Kháng Lệch Ngữ Âm (Phonetic Drift Robustness):** Tích hợp 15 alias ngữ âm chọn lọc cho các lỗi nghe nhầm đặc thù của Faster-Whisper (`tắc máy`, `tập máy tính`, `cái đặt`, `đặt time`, `tắc tính`, `tắt tính`, `ghi chú`), nâng độ chính xác thực tế trên 90 audio test lên 63.3% và đạt 100% trên tập held-out mới.
+- **Tiered STT Coordinator (v5.0.1 Phase 5):** Tự động điều phối phân tầng nhận diện đa cấp giữa Faster-Whisper Local (Tier 1), OpenAI Whisper Cloud (Tier 2) và Windows SAPI (Tier 3) dựa trên ước tính chất lượng tín hiệu SNR (>10dB) và thời hạn deadline; tích hợp VAD silence bypass (<1ms, 0 GPU inference).
 - **TTS (Text-to-Speech):** Piper TTS offline mượt mà tự nhiên (<80ms) cùng tùy chọn kết nối ElevenLabs chất lượng studio.
 
 ### 🧠 Router Ý Định 3 Lớp Thông Minh (3-Tier Intent Router)
@@ -403,6 +404,19 @@ Bảng mô tả các biến môi trường hỗ trợ trong `.env`:
 | `TELEGRAM_CHAT_ID` | Không | — | Chat ID người dùng nhận thông báo Telegram |
 | `DISCORD_BOT_TOKEN` | Không | — | Token ứng dụng Discord Bot |
 | `ZALO_ACCESS_TOKEN` | Không | — | Access token Zalo Official Account |
+
+### 🔒 Bảo Mật: Di Chuyển `.env` Sang Windows Credential Manager (`SecretsManager`)
+
+Để bảo vệ các API Keys không bị lưu dưới dạng văn bản thô (plaintext) trên ổ đĩa, JARVIS hỗ trợ công cụ di chuyển tự động sang Windows Credential Manager:
+
+```powershell
+# 1. Xem trước các khóa sẽ được di chuyển an toàn (Dry Run - không thay đổi file):
+python -m jarvis.cli migrate-secrets --dry-run
+
+# 2. Thực hiện di chuyển và tự động xóa giá trị plaintext khỏi file .env (Purge):
+python -m jarvis.cli migrate-secrets --purge
+```
+Sau khi thực hiện, hệ thống `ConfigManager` sẽ tự động truy xuất API Keys trực tiếp từ Windows Credential Manager an toàn mà không cần lưu khóa thô trong `.env`.
 
 ---
 
