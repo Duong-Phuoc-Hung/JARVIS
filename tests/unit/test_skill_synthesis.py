@@ -400,6 +400,55 @@ def execute(input_text: str) -> dict:
         skill_md = Path(skill_def.file_path).parent / "SKILL.md"
         self.assertTrue(skill_md.exists())
 
+    def test_skill_dry_run_rejects_runtime_division_by_zero(self):
+        """Dry-run must catch ZeroDivisionError that passes static AST validation."""
+        code = """
+def execute() -> dict:
+    return {"val": 1 / 0}
+"""
+        with self.assertRaises(ValueError) as ctx:
+            self.synthesizer.synthesize_skill(
+                name="div_zero",
+                code=code,
+                dry_run=True,
+            )
+        self.assertIn("sandbox dry-run execution failed", str(ctx.exception))
+        self.assertIn("ZeroDivisionError", str(ctx.exception))
+        # Verify no file written to disk
+        skill_dir = Path(self.temp_dir.name) / "div_zero"
+        self.assertFalse(skill_dir.exists())
+
+    def test_skill_dry_run_rejects_runtime_unhandled_exception(self):
+        """Dry-run must catch unhandled RuntimeErrors that pass static AST validation."""
+        code = """
+def execute() -> dict:
+    raise RuntimeError("simulated unexpected runtime crash")
+"""
+        with self.assertRaises(ValueError) as ctx:
+            self.synthesizer.synthesize_skill(
+                name="runtime_crash",
+                code=code,
+                dry_run=True,
+            )
+        self.assertIn("sandbox dry-run execution failed", str(ctx.exception))
+        self.assertIn("RuntimeError", str(ctx.exception))
+        skill_dir = Path(self.temp_dir.name) / "runtime_crash"
+        self.assertFalse(skill_dir.exists())
+
+    def test_skill_dry_run_can_be_disabled_explicitly(self):
+        """Callers can opt out of sandbox dry-run by passing dry_run=False."""
+        code = """
+def execute() -> dict:
+    return {"val": 42}
+"""
+        skill_def = self.synthesizer.synthesize_skill(
+            name="opt_out",
+            code=code,
+            dry_run=False,
+        )
+        self.assertEqual(skill_def.metadata.name, "opt_out")
+        self.assertTrue(Path(skill_def.file_path).exists())
+
 
 class TestSkillRegistryAndDispatcherIntegration(unittest.TestCase):
     """Test SkillRegistry loading, invocation, dispatcher integration, and telemetry."""

@@ -15,7 +15,6 @@ from typing import Any
 
 from jarvis.skills.models import SkillDefinition, SkillMetadata
 from jarvis.sandbox.validator import ASTCodeValidator
-from jarvis.sandbox.interpreter import CodeInterpreterSandbox
 
 logger = logging.getLogger("jarvis.skills.synthesizer")
 
@@ -221,6 +220,8 @@ logger = logging.getLogger("jarvis.skills.{name}")
         metadata: "SkillMetadata | None" = None,
         requirements: list[str] | None = None,
         overwrite: bool = False,
+        dry_run: bool = True,
+        sandbox: Any | None = None,
     ) -> SkillDefinition:
         """
         Synthesize, format, and package source code into a permanent SkillDefinition and save to disk.
@@ -237,6 +238,8 @@ logger = logging.getLogger("jarvis.skills.{name}")
                       are extracted from it.
             requirements: Optional list of pip requirements (stored in metadata.json).
             overwrite: If True, overwrite existing skill with same name.
+            dry_run: If True, executes the formatted code in an isolated sandbox before saving.
+            sandbox: Optional CodeInterpreterSandbox instance override for dry-run.
             
         Returns:
             Packaged SkillDefinition instance.
@@ -301,34 +304,23 @@ logger = logging.getLogger("jarvis.skills.{name}")
                 f"{fmt_validation.error_message}."
             )
 
-        # B3-ext (sandbox dry-run, 2026-09-05): Execute raw user code in an isolated
-        # subprocess sandbox to catch module-level RuntimeErrors that AST cannot detect.
-        # Examples caught here (not by AST): ZeroDivisionError at module scope,
-        # ImportError for missing packages, NameError on undefined names at module level.
-        # NOTE: We run raw `code` (not formatted_code) because format_skill_module() adds
-        # boilerplate that may not be valid as a standalone script (e.g. __future__ imports
-        # positioned after other statements). User logic is what needs runtime pre-checking.
-        # NOTE: Errors inside function bodies are NOT caught (Halting Problem — documented
-        # in B3 scope). This dry-run only validates that the module loads without crashing.
-        # Timeout: 10s — enough for module-level code, won't block on user I/O.
-        try:
-            _sandbox = CodeInterpreterSandbox(default_timeout=10.0, cleanup_on_exit=True)
-            _dry_run = _sandbox.execute_python(code, timeout_seconds=10.0)
-            if not _dry_run.success and _dry_run.error:
-                raise ValueError(
-                    f"Skill '{clean_name}' rejected: module-level runtime error during "
-                    f"sandbox dry-run — {_dry_run.error}. Fix the code before synthesizing."
-                )
-        except ValueError:
-            raise  # re-raise our own ValueError
-        except Exception as sandbox_exc:
-            # Sandbox infrastructure failure (e.g. subprocess spawn error) — log but
-            # do NOT block synthesis: sandbox dry-run is defense-in-depth, not a gate.
-            logger.warning(
-                "Sandbox dry-run for skill '%s' failed to run (infrastructure error: %s) — "
-                "proceeding without runtime pre-check. AST validation still applies.",
-                clean_name, sandbox_exc,
+        # Step 3: Sandbox Dry-Run (Post-B3 Hardening / Roadmap 1.2)
+        # Executes the formatted code in an isolated CodeInterpreterSandbox with mock inputs
+        # to catch runtime crashes (ImportError, ZeroDivisionError, unhandled exceptions)
+        # that AST static analysis cannot detect (Halting Problem boundary).
+        if dry_run:
+            dry_run_res = self._dry_run_skill_in_sandbox(
+                formatted_code=formatted_code,
+                entrypoint_function=entrypoint_function,
+                parameters_schema=schema,
+                sandbox=sandbox,
             )
+            if not dry_run_res.success:
+                err_detail = dry_run_res.error or dry_run_res.stderr or f"Exit code {dry_run_res.exit_code}"
+                raise ValueError(
+                    f"Skill '{clean_name}' rejected: sandbox dry-run execution failed — "
+                    f"{err_detail.strip()}"
+                )
 
         # Build or update metadata
         if metadata is not None:
@@ -410,3 +402,57 @@ logger = logging.getLogger("jarvis.skills.{name}")
         skill_md.write_text(md_content, encoding="utf-8")
 
         return module_file
+
+    def _dry_run_skill_in_sandbox(
+        self,
+        formatted_code: str,
+        entrypoint_function: str = "execute",
+        parameters_schema: dict[str, Any] | None = None,
+        sandbox: Any | None = None,
+        timeout_seconds: float = 5.0,
+    ) -> Any:
+        """
+        Execute the formatted skill module inside CodeInterpreterSandbox with mock arguments.
+        Catches RuntimeErrors (ZeroDivisionError, unhandled exceptions, import errors)
+        that AST static analysis cannot detect (Halting Problem boundary).
+        """
+        from jarvis.sandbox.interpreter import CodeInterpreterSandbox
+
+        mock_dict: dict[str, Any] = {}
+        if parameters_schema and "properties" in parameters_schema:
+            for p_name, p_prop in parameters_schema["properties"].items():
+                if "default" in p_prop:
+                    mock_dict[p_name] = p_prop["default"]
+                else:
+                    p_type = p_prop.get("type", "string")
+                    if p_type in ("integer", "int"):
+                        mock_dict[p_name] = 1
+                    elif p_type in ("number", "float"):
+                        mock_dict[p_name] = 1.0
+                    elif p_type in ("boolean", "bool"):
+                        mock_dict[p_name] = True
+                    elif p_type in ("array", "list"):
+                        mock_dict[p_name] = []
+                    elif p_type in ("object", "dict"):
+                        mock_dict[p_name] = {}
+                    else:
+                        mock_dict[p_name] = "test"
+
+        harness_template = """
+{code}
+
+if __name__ == "__main__":
+    import json
+    _mock_kwargs = json.loads({mock_json!r})
+    try:
+        {entrypoint}(**_mock_kwargs)
+    except TypeError:
+        {entrypoint}()
+"""
+        harness = harness_template.format(
+            code=formatted_code,
+            mock_json=json.dumps(mock_dict),
+            entrypoint=entrypoint_function,
+        )
+        sb = sandbox or CodeInterpreterSandbox(default_timeout=timeout_seconds, cleanup_on_exit=True)
+        return sb.execute_python(harness, timeout_seconds=timeout_seconds)

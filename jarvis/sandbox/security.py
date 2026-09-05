@@ -1435,4 +1435,16 @@ sys.stdout.flush()
 
 def inject_security_preamble(code: str) -> str:
     """Inject zero-trust network denial, directory allowlisting, and output caps into user code."""
+    future_imports: list[str] = []
+    other_lines: list[str] = []
+    for line in code.splitlines(keepends=True):
+        if line.strip().startswith("from __future__ import "):
+            future_imports.append(line)
+        else:
+            other_lines.append(line)
+
+    if future_imports:
+        futures_block = "".join(future_imports)
+        clean_code = "".join(other_lines)
+        return f"{futures_block}\n{SANDBOX_BOOTSTRAP_PREAMBLE}\n{clean_code}"
     return f"{SANDBOX_BOOTSTRAP_PREAMBLE}\n{code}"
