@@ -15,6 +15,7 @@ from typing import Any
 
 from jarvis.skills.models import SkillDefinition, SkillMetadata
 from jarvis.sandbox.validator import ASTCodeValidator
+from jarvis.sandbox.interpreter import CodeInterpreterSandbox
 
 logger = logging.getLogger("jarvis.skills.synthesizer")
 
@@ -298,6 +299,35 @@ logger = logging.getLogger("jarvis.skills.{name}")
             raise ValueError(
                 f"Skill '{clean_name}' rejected: formatted module failed validation — "
                 f"{fmt_validation.error_message}."
+            )
+
+        # B3-ext (sandbox dry-run, 2026-09-05): Execute raw user code in an isolated
+        # subprocess sandbox to catch module-level RuntimeErrors that AST cannot detect.
+        # Examples caught here (not by AST): ZeroDivisionError at module scope,
+        # ImportError for missing packages, NameError on undefined names at module level.
+        # NOTE: We run raw `code` (not formatted_code) because format_skill_module() adds
+        # boilerplate that may not be valid as a standalone script (e.g. __future__ imports
+        # positioned after other statements). User logic is what needs runtime pre-checking.
+        # NOTE: Errors inside function bodies are NOT caught (Halting Problem — documented
+        # in B3 scope). This dry-run only validates that the module loads without crashing.
+        # Timeout: 10s — enough for module-level code, won't block on user I/O.
+        try:
+            _sandbox = CodeInterpreterSandbox(default_timeout=10.0, cleanup_on_exit=True)
+            _dry_run = _sandbox.execute_python(code, timeout_seconds=10.0)
+            if not _dry_run.success and _dry_run.error:
+                raise ValueError(
+                    f"Skill '{clean_name}' rejected: module-level runtime error during "
+                    f"sandbox dry-run — {_dry_run.error}. Fix the code before synthesizing."
+                )
+        except ValueError:
+            raise  # re-raise our own ValueError
+        except Exception as sandbox_exc:
+            # Sandbox infrastructure failure (e.g. subprocess spawn error) — log but
+            # do NOT block synthesis: sandbox dry-run is defense-in-depth, not a gate.
+            logger.warning(
+                "Sandbox dry-run for skill '%s' failed to run (infrastructure error: %s) — "
+                "proceeding without runtime pre-check. AST validation still applies.",
+                clean_name, sandbox_exc,
             )
 
         # Build or update metadata
