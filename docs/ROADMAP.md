@@ -105,7 +105,7 @@ TUẦN NÀY (không cần chờ ai):
   [ ] 1.3 Full test suite lần cuối
   [ ] 1.4 Cài pytest-asyncio, TShark, playwright
   [ ] 1.5 Mở CDP port 9222, chạy lại 2 test browser
-  [ ] 1.6 Mở rộng grep fabrication cho Terminal Control Center
+  [x] 1.6 Mở rộng grep fabrication & Kiểm toán toàn diện 7 phân hệ — ĐÃ HOÀN THÀNH (FULL_FEATURE_AUDIT_REPORT.md & test_audit_adversarial_probes.py)
   [x] Nâng cấp ngắn hạn #1 (rate-limit), #2 (đổi tên Vector Store) — ĐÃ HOÀN THÀNH
   [x] Nâng cấp ngắn hạn #3 (migrate secrets) — ĐÃ HOÀN THÀNH
 

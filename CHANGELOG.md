@@ -2,6 +2,34 @@
 
 ---
 
+## 🔍 Post-v5.0.1 Fabrication Audit — Phase 7: Comprehensive 7-Subsystem Independent Audit & Adversarial Probes (2026-09-06)
+
+> **Trạng thái**: Hoàn tất kiểm toán độc lập toàn diện 7 phân hệ qua hệ thống multi-agent (`teamwork_preview`). Chứng nhận **VICTORY CONFIRMED** bởi Victory Auditor. `jarvis.__version__` giữ nguyên `5.0.1`.
+
+### 1. Báo Cáo Kiểm Toán Tổng Thể 4 Trục Kỹ Thuật (`docs/FULL_FEATURE_AUDIT_REPORT.md`)
+- **Phạm vi bao phủ**: 100% (28/28 thành phần chức năng) thuộc 7 phân hệ cốt lõi: Voice Pipeline, Memory System, Security & InfoSec, Communications Hub, Browser & OS Control, Terminal Control Center, Self-Coding Engine.
+- **Thống kê ma trận 4 trục độc lập** (tuân thủ nghiêm ngặt `docs/AUDIT_FRAMEWORK.md` và `AGENTS.md`):
+  - **Trục 1 — Bằng chứng (Evidence Tier)**: 13 🟢 T1 (46.4%), 12 🟡 T2 (42.9%), 3 🔴 T3 (10.7%).
+  - **Trục 2 — Tính trung thực (Truthfulness)**: 20 ✅ Fail-Closed (71.4%), 4 ⚠️ Silent Fallback (14.3%), 2 🔴 Active Fabrication (7.1%), 2 👻 Ghost Process (7.1%).
+  - **Trục 3 — Loại ranh giới bảo mật (Boundary Type)**: 4 🔒 Hard Boundary (Windows Job Object, MIC Low Integrity, Windows Atomic Persistence, SQLite WAL) và 20 🛡️ Risk-Reduction Heuristics.
+  - **Trục 4 — Tình trạng bị chặn (Blocked-by)**: 18 ❌ Không bị chặn (64.3%), 8 ⏳ Bị chặn bởi Token/Hạ tầng thật (28.6%), 2 ⏳ Bị chặn bởi Quyết định thiết kế (7.1%).
+
+### 2. Phát Hiện & Lập Bảng Đỏ 8 Khuyết Tật Trọng Yếu (High-Priority Defects D1–D8)
+- Đưa trực tiếp lên mục 1.3 đầu báo cáo kiểm toán (tuân thủ Cạm bẫy #14):
+  - **D1 (Zalo Silent Fallback)**: `jarvis/comms/zalo.py:297-299` trả về `success=True` giả mạo khi thiếu access token.
+  - **D2 (Zalo Active Fabrication)**: `jarvis/comms/zalo.py:226, 260` hardcode dữ liệu thời tiết (32°C/34°C) và chuỗi status ảo.
+  - **D3 (Discord Ghost Process)**: `jarvis/comms/discord.py:452` vòng lặp `_poll_loop` chạy thread vô tận chỉ `sleep(2.0)`, 0 gọi API.
+  - **D4 (CDP Browser Ghost Interactions)**: `jarvis/browser/driver.py:482` `click()` và `type_text()` trả về `self._is_running` rỗng không gửi lệnh CDP.
+  - **D5 (Volume Control Silent Fallback)**: `jarvis/automation/control.py:363` swallow ngoại lệ khi không có thiết bị loa, báo âm lượng thành công ảo.
+  - **D6 (Telegram /exec Silent Fallback)**: `jarvis/comms/telegram.py:181` trả về status 200 "Đã thực thi lệnh" khi `dispatcher is None`.
+  - **D7 (PacketCapture Fallback Count Bug)**: `jarvis/security/scanner.py:769` gán `packet_count` bằng số gói yêu cầu khi output TShark không parse được.
+  - **D8 (AudioEngine Device Fabrication)**: `jarvis/audio/engine.py:304` tự tạo "Headless Mock Audio Device" khi thiếu `sounddevice`.
+
+### 3. Bộ Kiểm Thử Đối Kháng Thực Nghiệm (`tests/test_audit_adversarial_probes.py`)
+- Xây dựng 16 bài test đối kháng thực thi trực tiếp trên mã nguồn production (không dùng mock trung gian), kiểm chứng 100% tính chính xác của các khuyết tật D1–D8 trên môi trường Windows (16/16 tests PASSED trong 0.86s).
+
+---
+
 ## 🛡️ Post-v5.0.1 Fabrication Audit — Phase 6: P2-12 Memory Tier 1 Concurrency & Comms Rate Limiting (2026-09-06)
 
 > **Trạng thái**: Triển khai theo chuẩn mực TDD (Red → Green → Refactor). `jarvis.__version__` giữ nguyên `5.0.1`.
