@@ -74,6 +74,7 @@ class SemanticVectorStore:
         self._documents: dict[str, DocumentVector] = {}
         self._idf: dict[str, float] = {}
         self._lock = threading.Lock()
+        self._save_lock = threading.Lock()
         self._faiss_index: Any | None = None
         self._faiss_id_map: list[str] = []
         self._load()
@@ -147,7 +148,8 @@ class SemanticVectorStore:
         return True
 
     def get_document(self, doc_id: str) -> DocumentVector | None:
-        return self._documents.get(doc_id)
+        with self._lock:
+            return self._documents.get(doc_id)
 
     def clear(self) -> None:
         with self._lock:
@@ -157,21 +159,25 @@ class SemanticVectorStore:
             self.save()
 
     def size(self) -> int:
-        return len(self._documents)
+        with self._lock:
+            return len(self._documents)
 
     def categories(self) -> list[str]:
-        return list({d.category for d in self._documents.values()})
+        with self._lock:
+            return list({d.category for d in self._documents.values()})
 
     # ------------------------------------------------------------------
     # Persistence
     # ------------------------------------------------------------------
 
     def save(self) -> None:
+        if not self.config.persist_path:
+            return
         path = Path(self.config.persist_path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            data = {
-                "documents": {
+        with self._save_lock:
+            with self._lock:
+                docs_snapshot = {
                     doc_id: {
                         "doc_id": d.doc_id,
                         "content": d.content,
@@ -182,10 +188,28 @@ class SemanticVectorStore:
                     }
                     for doc_id, d in self._documents.items()
                 }
-            }
-            path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-        except Exception as exc:
-            log.warning("Vector store save error: %s", exc)
+            data = {"documents": docs_snapshot}
+            json_str = json.dumps(data, ensure_ascii=False)
+            tmp_path = path.with_suffix(f".tmp.{threading.get_ident()}.{time.time_ns()}")
+            try:
+                tmp_path.write_text(json_str, encoding="utf-8")
+                # Retry on Windows transient file lock or Access Denied
+                for attempt in range(5):
+                    try:
+                        tmp_path.replace(path)
+                        break
+                    except OSError:
+                        if attempt == 4:
+                            raise
+                        time.sleep(0.02 * (attempt + 1))
+            except Exception as exc:
+                log.warning("Vector store save error: %s", exc)
+            finally:
+                if tmp_path.exists():
+                    try:
+                        tmp_path.unlink()
+                    except OSError:
+                        pass
 
     def _load(self) -> None:
         path = Path(self.config.persist_path)

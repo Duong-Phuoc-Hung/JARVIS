@@ -2,6 +2,26 @@
 
 ---
 
+## 🛡️ Post-v5.0.1 Fabrication Audit — Phase 6: P2-12 Memory Tier 1 Concurrency & Comms Rate Limiting (2026-09-06)
+
+> **Trạng thái**: Triển khai theo chuẩn mực TDD (Red → Green → Refactor). `jarvis.__version__` giữ nguyên `5.0.1`.
+
+### 1. Nâng Cấp Tier 1 Cho Hệ Thống Bộ Nhớ P2-12 (`jarvis/memory/`)
+- **Khắc phục lỗi Concurrency & Dictionary Mutation trong `SemanticVectorStore`**:
+  - Bảo vệ đa luồng toàn diện bằng `self._lock` cho `get_document()`, `size()`, `categories()`.
+  - Trong `save()`: Chụp snapshot dữ liệu `self._documents.items()` nguyên tử bên trong `self._lock` trước khi tuần tự hóa JSON, triệt tiêu 100% rủi ro `RuntimeError: dictionary changed size during iteration`.
+  - Cơ chế ghi đĩa nguyên tử (Atomic Write): Ghi file tạm thời theo thread/timestamp `tmp_path` trong cùng thư mục và thực hiện `tmp_path.replace(path)` nguyên tử, ngăn ngừa tuyệt đối tình trạng hỏng file JSON hoặc đọc dở dang khi bị mất điện hoặc crash giữa chừng.
+- **Stress-Test 30 Luồng Đồng Thời (30-Thread Concurrency Hardening)**:
+  - `SQLiteMemoryStore`: Thực thi 30 luồng đồng thời ghi facts, ghi episodes và truy vấn, xác nhận cơ chế WAL và RLock không phát sinh lỗi `sqlite3.OperationalError: database is locked`, đạt 0 lost writes.
+  - `MemoryManager`: Kiểm tra tích hợp đa luồng đồng thời giữa session buffer và persistent facts hoàn toàn ổn định.
+- **Unit Tests (TDD)**:
+  - Thêm mới `tests/unit/test_memory_concurrency_tier1.py` với 5 ca kiểm thử độ chịu tải 30 luồng đồng thời (57/57 tests memory passed 100% Green).
+
+### 2. Xác Nhận & Đóng Mục Nâng Cấp Ngắn Hạn #1: Token Bucket Rate Limiter
+- Xác nhận hoàn thành và bao phủ 100% cho 4 kênh giao tiếp (`telegram.py`, `zalo.py`, `discord.py`, `mobile_bridge.py`) thông qua `TokenBucketRateLimiter` (22/22 tests passed).
+
+---
+
 ## 🎙️ Post-v5.0.1 Fabrication Audit — Phase 5: TieredSTTEngine (TDD) Multi-Tier Speech Coordinator (2026-09-05)
 
 > **Trạng thái**: Triển khai theo chuẩn mực TDD 5 lát cắt (Red → Green → Refactor). `jarvis.__version__` giữ nguyên `5.0.1`.

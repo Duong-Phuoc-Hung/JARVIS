@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.0.1** trên `main` — nâng cấp toàn diện đường ống âm thanh giọng nói (Voice Pipeline Upgrade: Safe Preprocessing Diacritic Normalization, Phonetic Drift Robustness và Anti-Overfitting Held-Out Validation), kế thừa mốc J.A.R.V.I.S. Terminal Control Center v5.0.0. Đợt kiểm toán chất lượng nội bộ và nâng cấp chuẩn TDD (Phase 1–5, hoàn tất 2026-09-05) đã khắc phục triệt để các lỗi fabrication (A1–A7, B3 AST Validation & Sandbox Dry-Run, Mobile Bridge Silent Fallback), đóng dứt điểm Router Eval (#40) đạt 100% held-out, di chuyển an toàn `.env` sang Windows Credential Manager (`SecretsManager`), và triển khai phân tầng nhận diện giọng nói đa cấp `TieredSTTEngine` (VAD silence bypass, SNR gating, multi-tier fallback) đạt 100% test green.</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.0.1** trên `main` — nâng cấp toàn diện đường ống âm thanh giọng nói, bảo mật và lưu trữ. Đợt kiểm toán chất lượng nội bộ và nâng cấp chuẩn TDD (Phase 1–6, 2026-09-06) đã khắc phục triệt để các lỗi fabrication (A1–A7, B3 AST Validation & Sandbox Dry-Run, Mobile Bridge Silent Fallback), đóng dứt điểm Router Eval (#40) đạt 100% held-out, di chuyển an toàn `.env` sang Windows Credential Manager (`SecretsManager`), triển khai phân tầng nhận diện giọng nói `TieredSTTEngine`, tích hợp Token Bucket Rate Limiting cho 4 kênh comms, và nâng cấp hệ thống bộ nhớ P2-12 lên Tier 1 chịu tải 30 luồng đồng thời không mất dữ liệu (100% test green).</sub>
 
 </div>
 
@@ -57,8 +57,9 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 ### 🧬 Tự Sinh Kỹ Năng Mới (Self-Coding Skills)
 - Nói *"JARVIS, tạo kỹ năng theo dõi giá vàng"* → JARVIS tự thiết kế interface, viết code Python, kiểm tra cú pháp an toàn tĩnh (AST Validator), chạy thử nghiệm cô lập trong CodeInterpreterSandbox (Job Object & Low Integrity) và đăng ký trực tiếp vào hệ thống trong <15 giây.
 
-### 🔍 Bộ Nhớ Từ Vựng & Tìm Kiếm Tài Liệu (Lexical Search Memory)
+### 🔍 Bộ Nhớ Từ Vựng & Tìm Kiếm Tài Liệu (Lexical Search Memory - Tier 1 Hardened)
 - Tự động lưu trữ nhật ký hội thoại, ghi chú và tài liệu vào SQLite lexical store (TF-IDF BM25 & Cosine Similarity) hoàn toàn offline.
+- **An toàn đa luồng & Ghi đĩa nguyên tử (Phase 6):** Kiểm thử chịu tải 30 luồng đồng thời (30-thread stress test), khóa `RLock` toàn diện, và cơ chế ghi đĩa nguyên tử (Atomic Replace) ngăn chặn triệt để tình trạng hỏng dữ liệu hoặc xung đột đọc/ghi khi nhiều tác vụ chạy ngầm.
 - Tìm kiếm từ khóa và ngữ cảnh: *"Hôm qua tôi nói gì về kế hoạch dự án?"*
 
 ### 🌐 Tự Động Hóa Trình Duyệt & Hệ Thống

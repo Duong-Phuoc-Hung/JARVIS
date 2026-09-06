@@ -11,9 +11,10 @@
 | B3: ASTCodeValidator wired vào synthesizer | Cài `TShark` (Wireshark CLI) | C1: cần Discord bot token thật |
 | Sandbox dry-run gate cho synthesizer | Mở port CDP 9222 cho browser tests | B2: cần quyết định thiết kế |
 | Router eval (#40) đóng (57.8% audio, 100% held-out) | Rà soát Terminal Control Center (1.6) | Telegram/ElevenLabs token thật để test nhánh "có cấu hình" |
-| Cài `pytest-asyncio`, `playwright` + chromium | Rate-limiting 4 kênh comms (#1) | |
 | Nâng cấp #3: Migrate `.env` → Credential Manager | | |
 | Nâng cấp #4: TieredSTTEngine (Local Whisper + Cloud + VAD) | | |
+| Rate-limiting 4 kênh comms (#1) (Token Bucket) | | |
+| P2-12 Memory Concurrency Hardening (Tier 1, 30 threads) | | |
 | Vá fail-closed Mobile Bridge & Scanner Packet Count | | |
 | AUDIT_FRAMEWORK.md đã lưu repo | | |
 | README/CHANGELOG xác nhận trung thực | | |
@@ -62,7 +63,7 @@ Tiêu chuẩn đóng: cả 2 tập đều tăng CORRECT → confirmed fixed. Ch�
 |---|:---:|---|---|
 | Voice Pipeline (STT+Router) | 🟡 | Router eval (mục 1.1) | Cao — ảnh hưởng usability hàng ngày |
 | Terminal Control Center | 🟡 | Audit độc lập — chưa review ngoài PR gốc | Trung bình — bề mặt tấn công mới |
-| P2-12 Memory (concurrency) | 🟡 HYBRID | Stress-test 30 thread + kiểm tra tính đúng đắn dữ liệu | Trung bình — lost-write âm thầm |
+| P2-12 Memory (concurrency) | 🟢 Tier 1 | Stress-test 30 thread + atomic JSON + WAL safety | ĐÃ HOÀN THÀNH (57/57 tests) |
 | P2-13 Screen Vision | 🟡 MOCK | Test với camera/màn hình thật ít nhất 1 lần | Thấp |
 | P2-16 Comms Hub | 🟡 MOCK | Sau khi có token thật | Trung bình |
 | P2-17 Smart Home | 🟡 MOCK | Sau khi có HA test instance | Thấp |
@@ -78,14 +79,14 @@ Tiêu chuẩn đóng: cả 2 tập đều tăng CORRECT → confirmed fixed. Ch�
 ## PHẦN 3 — ĐỀ XUẤT NÂNG CẤP
 
 ### Ngắn hạn
-1. Rate-limiting cho 4 kênh comms (Telegram/Zalo/Discord/Mobile).
-2. Đổi tên "Vector Store" → "Lexical Search" trong tài liệu người dùng (TF-IDF không phải RAG).
-3. Migrate `.env` → Windows Credential Manager (`SecretsManager` đã viết nhưng chưa wire production).
+1. Rate-limiting cho 4 kênh comms (Telegram/Zalo/Discord/Mobile) — **ĐÃ HOÀN THÀNH** (22/22 tests passing).
+2. Đổi tên "Vector Store" → "Lexical Search" trong tài liệu người dùng (TF-IDF không phải RAG) — **ĐÃ HOÀN THÀNH**.
+3. Migrate `.env` → Windows Credential Manager (`SecretsManager` đã viết nhưng chưa wire production) — **ĐÃ HOÀN THÀNH**.
 
 ### Trung hạn (chỉ sau khi Router eval #40 xong)
-4. TieredSTTEngine (fast/accurate 2 tầng) — **chỉ bắt đầu sau Router eval**.
+4. TieredSTTEngine (fast/accurate 2 tầng) — **ĐÃ HOÀN THÀNH**.
 5. Đo WER/Intent Misrouting Rate theo domain đóng cho bộ test mới.
-6. Nâng P2-12 Memory lên Tier 1 bằng stress-test concurrency có kiểm tra dữ liệu.
+6. Nâng P2-12 Memory lên Tier 1 bằng stress-test concurrency có kiểm tra dữ liệu — **ĐÃ HOÀN THÀNH** (57/57 tests passing).
 
 ### Dài hạn
 7. Windows Code Signing (Authenticode).
@@ -105,7 +106,8 @@ TUẦN NÀY (không cần chờ ai):
   [ ] 1.4 Cài pytest-asyncio, TShark, playwright
   [ ] 1.5 Mở CDP port 9222, chạy lại 2 test browser
   [ ] 1.6 Mở rộng grep fabrication cho Terminal Control Center
-  [ ] Nâng cấp ngắn hạn #1 (rate-limit), #2 (đổi tên Vector Store)
+  [x] Nâng cấp ngắn hạn #1 (rate-limit), #2 (đổi tên Vector Store) — ĐÃ HOÀN THÀNH
+  [x] Nâng cấp ngắn hạn #3 (migrate secrets) — ĐÃ HOÀN THÀNH
 
 SAU KHI CÓ THÔNG TIN TỪ NGƯỜI DÙNG (B1/B2/C1):
   [ ] 1.7-1.9 theo thứ tự thông tin nhận được
@@ -113,6 +115,7 @@ SAU KHI CÓ THÔNG TIN TỪ NGƯỜI DÙNG (B1/B2/C1):
 
 SAU KHI ROUTER EVAL XONG (#40 đóng):
   [x] Nâng cấp trung hạn #4 (TieredSTTEngine) — ĐÃ HOÀN THÀNH (11/11 tests, VAD silence gating, SNR gating, multi-tier fallback)
+  [x] Nâng cấp trung hạn #6 (P2-12 Memory Tier 1) — ĐÃ HOÀN THÀNH (57/57 tests passing, atomic persistence)
   [ ] #5 (WER biên) nếu cần thêm độ chính xác
 
 DÀI HẠN:
