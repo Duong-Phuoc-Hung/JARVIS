@@ -176,9 +176,9 @@ class TelegramBotController:
                 try:
                     self.dispatcher.dispatch_action("skill_note_taker", content=note_content, action="add", requester="telegram:" + str(user_id))
                     return {"status": 200, "text": f"📝 Đã lưu ghi chú: \"{note_content}\""}
-                except Exception:
-                    pass
-            return {"status": 200, "text": f"📝 Đã lưu ghi chú: \"{note_content}\""}
+                except Exception as exc:
+                    return {"status": 500, "text": f"Lỗi lưu ghi chú: {exc}"}
+            return {"status": 503, "text": "❌ Lỗi: ActionDispatcher chưa được cấu hình. Ghi chú không được lưu."}
 
         elif lower_clean.startswith("/calc "):
             calc_expr = clean[6:].strip()
@@ -187,9 +187,9 @@ class TelegramBotController:
                     res = self.dispatcher.dispatch_action("skill_calculator", expression=calc_expr, requester="telegram:" + str(user_id))
                     msg = getattr(res, "data", {}).get("text", f"Kết quả: {getattr(res, 'data', '')}") if hasattr(res, "data") else f"Kết quả: {calc_expr}"
                     return {"status": 200, "text": msg}
-                except Exception:
-                    pass
-            return {"status": 200, "text": f"🔢 Đã tính toán: {calc_expr}"}
+                except Exception as exc:
+                    return {"status": 500, "text": f"Lỗi tính toán: {exc}"}
+            return {"status": 503, "text": "❌ Lỗi: ActionDispatcher chưa được cấu hình. Phép tính không được thực hiện."}
 
         elif lower_clean == "/lock":
             if self.win32:
@@ -217,7 +217,7 @@ class TelegramBotController:
                     return {"status": 200, "text": msg}
                 except Exception as exc:
                     return {"status": 500, "text": f"Lỗi thực thi lệnh: {exc}"}
-            return {"status": 200, "text": f"Đã thực thi lệnh: {cmd}"}
+            return {"status": 503, "text": "❌ Lỗi: ActionDispatcher chưa được cấu hình. Lệnh không được thực thi."}
 
         elif lower_clean == "/healing":
             if self.dispatcher and hasattr(self.dispatcher, "dispatch_action"):
@@ -226,7 +226,8 @@ class TelegramBotController:
                     return {"status": 200, "text": "Đã kích hoạt giao thức tự phục hồi hệ thống."}
                 except Exception as exc:
                     log.debug("Healing dispatch error: %s", exc)
-            return {"status": 200, "text": "Đã kiểm tra trạng thái tiến trình hệ thống."}
+                    return {"status": 500, "text": f"Lỗi kích hoạt tự phục hồi: {exc}"}
+            return {"status": 503, "text": "❌ Lỗi: ActionDispatcher chưa được cấu hình. Không thể kích hoạt tự phục hồi."}
 
         elif lower_clean == "/help":
             return {

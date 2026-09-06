@@ -480,7 +480,10 @@ class CDPBrowserDriver(BaseBrowserDriver):
             return False
 
     def click(self, selector: str, timeout_ms: int = 5000) -> bool:
-        return self._is_running
+        if not self._is_running:
+            return False
+        logger.warning("CDP click failed: DOM element interaction requires active Playwright or CDP WebSocket session")
+        return False
 
     def type_text(
         self,
@@ -489,10 +492,16 @@ class CDPBrowserDriver(BaseBrowserDriver):
         delay_ms: int = 50,
         clear: bool = False,
     ) -> bool:
-        return self._is_running
+        if not self._is_running:
+            return False
+        logger.warning("CDP type_text failed: DOM element interaction requires active Playwright or CDP WebSocket session")
+        return False
 
     def select_option(self, selector: str, value: str) -> bool:
-        return self._is_running
+        if not self._is_running:
+            return False
+        logger.warning("CDP select_option failed: DOM element interaction requires active Playwright or CDP WebSocket session")
+        return False
 
     def wait_for_selector(
         self,
@@ -500,7 +509,10 @@ class CDPBrowserDriver(BaseBrowserDriver):
         state: str = "visible",
         timeout_ms: int = 10000,
     ) -> bool:
-        return self._is_running
+        if not self._is_running:
+            return False
+        logger.warning("CDP wait_for_selector failed: DOM element interaction requires active Playwright or CDP WebSocket session")
+        return False
 
     def evaluate_script(self, script: str, *args: Any) -> Any:
         return None

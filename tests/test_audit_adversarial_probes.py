@@ -51,17 +51,14 @@ class TestProbe1ZaloSilentFallback:
     AUDIT_FRAMEWORK.md Pitfall #15: Silent Fallback returns success=True as default.
     AGENTS.md: Fail-closed is strictly required.
 
-    Production Location: jarvis/comms/zalo.py:297-299:
-        if self.is_mock or not self.config.access_token:
-            log.info("Mock send to %s: %s", user_id, text[:60])
-            return ZaloSendResult(success=True, message_id="mock_msg_id")
+    Production Location: jarvis/comms/zalo.py:
+        Remediated: returns ZaloSendResult(success=False, error="NOT_CONFIGURED").
     """
 
     def test_zalo_send_message_empty_token_returns_silent_fallback_success(self):
         """
         Empirically verify that when is_mock=False but access_token is empty,
-        production ZaloBotController silently falls back to returning success=True
-        with a fabricated message_id='mock_msg_id'.
+        production ZaloBotController fails closed: returns success=False with error='NOT_CONFIGURED'.
         """
         config = ZaloConfig(access_token="", oa_id="test_app", webhook_secret="test_sec")
         controller = ZaloBotController(config=config, is_mock=False)
@@ -69,19 +66,10 @@ class TestProbe1ZaloSilentFallback:
         # Execute send with missing token
         result = controller.send_message(user_id="zalo_user_001", text="Adversarial probe ping")
 
-        # ASSERT CURRENT BEHAVIOR: Returns success=True with mock_msg_id (SILENT FALLBACK)
-        assert result.success is True, (
-            "Observation: ZaloBotController.send_message() returns success=True when access_token is empty. "
-            "This confirms Silent Fallback defect."
-        )
-        assert result.message_id == "mock_msg_id", (
-            f"Expected 'mock_msg_id', got {result.message_id}"
-        )
-        assert not result.error
-
-        # Document the fail-closed contract violation:
-        # Under fail-closed (AUDIT_FRAMEWORK.md), an unauthenticated send must return success=False
-        # with error_code="NOT_CONFIGURED" or "MISSING_TOKEN".
+        # ASSERT REMEDIATED FAIL-CLOSED CONTRACT:
+        assert result.success is False, "Zalo send must fail-closed when access_token is empty"
+        assert result.error == "NOT_CONFIGURED"
+        assert result.message_id == ""
 
 
 # ==============================================================================
@@ -106,53 +94,25 @@ class TestProbe2DiscordGhostProcess:
     def test_discord_poll_loop_static_inspection(self):
         """
         Statically inspect DiscordBotController._poll_loop implementation
-        to verify that it executes no Discord API or network calls.
+        to verify that the ghost process infinite sleep loop was eliminated.
         """
         source = inspect.getsource(DiscordBotController._poll_loop)
 
-        # Verify it contains sleep loop
-        assert "time.sleep(2.0)" in source, "Expected 2.0s sleep in _poll_loop"
-
-        # Verify absence of network/API dispatch calls in loop body
-        forbidden_calls = ["urlopen", "requests.", "http", "socket", "gateway", "post", "fetch"]
-        for call in forbidden_calls:
-            assert call not in source.lower(), f"Unexpected network call '{call}' found in _poll_loop"
+        # Verify ghost sleep loop is eliminated and thread exits immediately
+        assert "time.sleep(2.0)" not in source, "Ghost sleep loop must be eliminated"
+        assert "self._running = False" in source
 
     def test_discord_poll_loop_runtime_ghost_execution(self):
         """
-        Run DiscordBotController polling thread briefly to verify that
-        it spawns a live thread but executes zero API calls.
+        Run DiscordBotController polling to verify that it refuses
+        to spawn a ghost polling thread when gateway is absent.
         """
         controller = DiscordBotController(bot_token="test_discord_token_xyz")
 
-        _real_sleep = time.sleep
-        sleep_calls = []
-
-        def _mock_sleep(s):
-            sleep_calls.append(s)
-            _real_sleep(0.005)
-
-        with patch("urllib.request.urlopen") as mock_urlopen, \
-             patch("time.sleep", side_effect=_mock_sleep):
-
-            controller.start_polling()
-            assert controller._running is True
-            assert controller._poll_thread is not None
-            assert controller._poll_thread.is_alive()
-
-            # Wait briefly for thread to iterate
-            _real_sleep(0.05)
-
-            # Stop polling
-            controller.stop_polling()
-            assert controller._running is False
-
-            # Assert zero network requests were executed by the thread
-            assert mock_urlopen.call_count == 0, (
-                f"Expected 0 HTTP calls from Discord _poll_loop, but got {mock_urlopen.call_count}"
-            )
-            # Assert that the loop only called sleep
-            assert len(sleep_calls) >= 1, "Expected sleep calls from poll loop"
+        controller.start_polling()
+        # Verify controller refuses to run ghost polling
+        assert controller._running is False
+        assert controller._poll_thread is None
 
 
 # ==============================================================================
@@ -181,35 +141,33 @@ class TestProbe3TelegramDispatcherSilentFallback:
 
     def test_telegram_exec_silent_fallback_without_dispatcher(self, unconfigured_controller):
         """
-        Empirically verify /exec returns 200 'Đã thực thi lệnh: ...' even though dispatcher is None.
+        Verify /exec returns 503 fail-closed when dispatcher is None.
         """
         command = "/exec shutdown /r /t 0"
         res = unconfigured_controller.handle_inbound_message(user_id=1001, text=command)
 
-        assert res["status"] == 200, "Observation: Returns HTTP 200 despite missing dispatcher"
-        assert "Đã thực thi lệnh: shutdown /r /t 0" in res["text"], (
-            f"Expected execution claim in text, got: {res['text']}"
-        )
+        assert res["status"] == 503
+        assert "ActionDispatcher chưa được cấu hình" in res["text"]
 
     def test_telegram_note_silent_fallback_without_dispatcher(self, unconfigured_controller):
         """
-        Empirically verify /note returns 200 'Đã lưu ghi chú: ...' even though dispatcher is None.
+        Verify /note returns 503 fail-closed when dispatcher is None.
         """
         command = "/note Báo cáo tài chính quý 3"
         res = unconfigured_controller.handle_inbound_message(user_id=1001, text=command)
 
-        assert res["status"] == 200, "Observation: Returns HTTP 200 despite missing dispatcher"
-        assert 'Đã lưu ghi chú: "Báo cáo tài chính quý 3"' in res["text"]
+        assert res["status"] == 503
+        assert "ActionDispatcher chưa được cấu hình" in res["text"]
 
     def test_telegram_calc_silent_fallback_without_dispatcher(self, unconfigured_controller):
         """
-        Empirically verify /calc returns 200 'Đã tính toán: ...' even though dispatcher is None.
+        Verify /calc returns 503 fail-closed when dispatcher is None.
         """
         command = "/calc 25 * 4"
         res = unconfigured_controller.handle_inbound_message(user_id=1001, text=command)
 
-        assert res["status"] == 200, "Observation: Returns HTTP 200 despite missing dispatcher"
-        assert "Đã tính toán: 25 * 4" in res["text"]
+        assert res["status"] == 503
+        assert "ActionDispatcher chưa được cấu hình" in res["text"]
 
 
 # ==============================================================================
@@ -235,8 +193,8 @@ class TestProbe4OSVolumeControlSilentFallback:
 
     def test_set_volume_swallows_endpoint_failure_and_caches_volume(self):
         """
-        Verify that ComputerController.set_volume() caches the volume level
-        and swallows exceptions when AudioUtilities.GetSpeakers() raises an error.
+        Verify that ComputerController.set_volume() fails closed (returns None)
+        and preserves internal volume state when AudioUtilities.GetSpeakers() raises an error.
         """
         controller = ComputerController()
         controller._current_volume = 20
@@ -255,13 +213,9 @@ class TestProbe4OSVolumeControlSilentFallback:
             # Request setting volume to 75
             returned_volume = controller.set_volume(75)
 
-            # Assert that the function swallowed the exception and returned 75
-            assert returned_volume == 75, (
-                f"Expected cached volume 75, got {returned_volume}"
-            )
-            assert controller._current_volume == 75, (
-                f"Expected _current_volume 75, got {controller._current_volume}"
-            )
+            # Assert that the function failed closed, returning None and preserving _current_volume
+            assert returned_volume is None
+            assert controller._current_volume == 20
 
 
 # ==============================================================================
@@ -291,9 +245,8 @@ class TestProbe5PacketCaptureFallbackBug:
 
     def test_packet_capture_line_769_defaults_packet_count_to_requested_count(self):
         """
-        Empirically verify the line 769 defect:
-        When raw_stdout is non-empty but unparseable, protocols is empty,
-        yet packet_count evaluates to `count` (the requested packet count) instead of 0.
+        Verify that when raw_stdout is unparseable error output,
+        packet_count truthfully evaluates to 0, not requested_count.
         """
         capture = PacketCapture()
         requested_count = 250
@@ -311,11 +264,8 @@ class TestProbe5PacketCaptureFallbackBug:
         assert result.status == "NO_PROTOCOLS_PARSED"
         assert result.protocols == {}
 
-        # DEFECT CONFIRMATION: packet_count defaulted to requested 250 instead of 0
-        assert result.packet_count == requested_count, (
-            f"Line 769 defect confirmed: packet_count is {result.packet_count}, "
-            f"matching requested count {requested_count} instead of truthful 0"
-        )
+        # Remediated: packet_count truthfully evaluates to 0
+        assert result.packet_count == 0
 
     def test_packet_capture_empty_stdout_truthfully_returns_zero_count(self):
         """

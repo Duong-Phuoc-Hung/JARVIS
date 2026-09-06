@@ -6,6 +6,7 @@ screen brightness, bounded file search, and system folder launch.
 from __future__ import annotations
 
 import ctypes
+import logging
 import os
 import re
 import subprocess
@@ -17,6 +18,8 @@ from typing import Any, Union
 
 from jarvis.core.runaway_guard import canonical_app_key, canonical_url_key, launch_dedupe_guard
 from jarvis.platform.windows import WindowsPlatformAPI, platform_win32
+
+logger = logging.getLogger(__name__)
 
 
 class ComputerController:
@@ -339,20 +342,40 @@ class ComputerController:
         return self.send_hotkey("ctrl", "v")
 
     # -----------------------------------------------------------------------
+    @staticmethod
+    def _get_audio_endpoint(speakers: Any) -> Any:
+        if speakers is None:
+            return None
+        if hasattr(speakers, "EndpointVolume"):
+            return speakers.EndpointVolume
+        if hasattr(speakers, "Activate"):
+            from comtypes import CLSCTX_ALL  # type: ignore
+            from pycaw.pycaw import AudioUtilities  # type: ignore
+            return speakers.Activate(
+                AudioUtilities.IAudioEndpointVolume._iid_,
+                CLSCTX_ALL,
+                None,
+            )
+        if hasattr(speakers, "_dev") and hasattr(speakers._dev, "Activate"):
+            from comtypes import CLSCTX_ALL  # type: ignore
+            from pycaw.pycaw import AudioUtilities  # type: ignore
+            return speakers._dev.Activate(
+                AudioUtilities.IAudioEndpointVolume._iid_,
+                CLSCTX_ALL,
+                None,
+            )
+        return None
+
+    # -----------------------------------------------------------------------
     # Master Volume Adjustment
     # -----------------------------------------------------------------------
     def get_volume(self) -> int:
         """Returns master volume level (0-100%)."""
         try:
-            from comtypes import CLSCTX_ALL  # type: ignore
             from pycaw.pycaw import AudioUtilities  # type: ignore
             speakers = AudioUtilities.GetSpeakers()
-            if speakers:
-                endpoint = speakers.Activate(
-                    AudioUtilities.IAudioEndpointVolume._iid_,
-                    CLSCTX_ALL,
-                    None,
-                )
+            endpoint = self._get_audio_endpoint(speakers)
+            if endpoint:
                 vol = endpoint.GetMasterVolumeLevelScalar()
                 self._current_volume = int(round(vol * 100))
                 return self._current_volume
@@ -360,31 +383,29 @@ class ComputerController:
             pass
         return self._current_volume
 
-    def set_volume(self, level_percent: int) -> int:
+    def set_volume(self, level_percent: int) -> int | None:
         """Sets master volume to an exact percentage (0-100%)."""
         level = max(0, min(100, int(level_percent)))
-        self._current_volume = level
         try:
-            from comtypes import CLSCTX_ALL  # type: ignore
             from pycaw.pycaw import AudioUtilities  # type: ignore
             speakers = AudioUtilities.GetSpeakers()
-            if speakers:
-                endpoint = speakers.Activate(
-                    AudioUtilities.IAudioEndpointVolume._iid_,
-                    CLSCTX_ALL,
-                    None,
-                )
+            endpoint = self._get_audio_endpoint(speakers)
+            if endpoint:
                 endpoint.SetMasterVolumeLevelScalar(level / 100.0, None)
+                self._current_volume = level
                 return self._current_volume
-        except Exception:
-            pass
-        return self._current_volume
+            else:
+                logger.warning("No audio speaker endpoint found on this host")
+                return None
+        except Exception as exc:
+            logger.warning("Failed to set master volume via pycaw: %s", exc)
+            return None
 
-    def change_volume(self, delta_percent: int) -> int:
+    def change_volume(self, delta_percent: int) -> int | None:
         """Adjusts master volume by delta (+10%, -10%)."""
         delta = int(delta_percent)
         new_level = max(0, min(100, self.get_volume() + delta))
-        self.set_volume(new_level)
+        res = self.set_volume(new_level)
 
         # Dispatch keystrokes for hardware feedback
         steps = max(1, abs(delta) // 2)
@@ -392,7 +413,7 @@ class ComputerController:
         for _ in range(steps):
             self.win32.send_hotkey(key)
 
-        return self._current_volume
+        return res
 
     def mute_volume(self, mute: bool | None = None) -> bool:
         """Toggles or sets master audio mute state."""

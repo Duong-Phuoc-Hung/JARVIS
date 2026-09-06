@@ -435,27 +435,22 @@ class DiscordBotController:
     # ------------------------------------------------------------------
 
     def start_polling(self) -> None:
-        """Start background polling loop (mock mode if no token)."""
+        """Start background polling loop."""
         if not self.bot_token:
             log.info("Discord polling skipped (no bot_token configured)")
             return
-        self._running = True
-        self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True, name="discord-poll")
-        self._poll_thread.start()
-        log.info("Discord polling started")
+        # Fail-closed / truthful: Discord gateway WebSocket client is not implemented in this build
+        log.warning("Discord background polling is not supported in this build. Outbound webhooks/REST only.")
+        self._running = False
 
     def stop_polling(self) -> None:
         self._running = False
-        if self._poll_thread:
-            self._poll_thread.join(timeout=3.0)
+        if self._poll_thread and self._poll_thread.is_alive():
+            self._poll_thread.join(timeout=1.0)
 
     def _poll_loop(self) -> None:
-        while self._running:
-            try:
-                time.sleep(2.0)  # Poll every 2 seconds
-            except Exception as exc:
-                log.error("Discord poll error: %s", exc)
-                time.sleep(5.0)
+        log.warning("Discord _poll_loop invoked but no gateway client is available.")
+        self._running = False
 
 
 # Backward compatibility

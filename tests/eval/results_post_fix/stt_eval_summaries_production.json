@@ -1,0 +1,38 @@
+[
+  {
+    "model": "large-v3",
+    "condition": "clean",
+    "backend": "production",
+    "n_trials": 45,
+    "n_correct": 26,
+    "n_misrouted": 3,
+    "n_stt_empty": 0,
+    "n_router_abstain": 16,
+    "correct_rate": 0.5777777777777777,
+    "misrouting_rate": 0.06666666666666667,
+    "stt_empty_rate": 0.0,
+    "router_abstain_rate": 0.35555555555555557,
+    "end_to_end_abstention_rate": 0.35555555555555557,
+    "median_latency_ms": 20347.885000000133,
+    "mean_text_similarity": 0.15555555555555556,
+    "threshold_curve": {}
+  },
+  {
+    "model": "large-v3",
+    "condition": "noisy",
+    "backend": "production",
+    "n_trials": 45,
+    "n_correct": 26,
+    "n_misrouted": 3,
+    "n_stt_empty": 0,
+    "n_router_abstain": 16,
+    "correct_rate": 0.5777777777777777,
+    "misrouting_rate": 0.06666666666666667,
+    "stt_empty_rate": 0.0,
+    "router_abstain_rate": 0.35555555555555557,
+    "end_to_end_abstention_rate": 0.35555555555555557,
+    "median_latency_ms": 20083.081899999797,
+    "mean_text_similarity": 0.3462962962962963,
+    "threshold_curve": {}
+  }
+]

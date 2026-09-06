@@ -30,7 +30,8 @@ def test_comms_telegram_authorized_user_command_tier1(mock_win32_platform):
     # 1. /status command
     status_reply = bot.handle_inbound_message(user_id=12345, text="/status")
     assert status_reply["status"] == 200
-    assert "Hệ thống hoạt động bình thường" in status_reply["text"]
+    assert "Trạng thái hệ thống" in status_reply["text"]
+    assert "CPU" in status_reply["text"]
 
     # 2. /lock command
     lock_reply = bot.handle_inbound_message(user_id=12345, text="/lock")

@@ -2,6 +2,36 @@
 
 ---
 
+## 🛠️ Post-v5.0.1 Fabrication Audit — Phase 8: Strict Seam-First TDD Remediation of 8 High-Priority Audit Defects (D1–D8) (2026-09-07)
+
+> **Trạng thái**: Hoàn tất khắc phục triệt để và kiểm chứng 100% fail-closed cho toàn bộ 8 khuyết tật trọng yếu D1–D8 phát hiện tại kiểm toán Phase 7 theo đúng tiêu chuẩn `AGENTS.md` và `docs/AUDIT_FRAMEWORK.md`. `jarvis.__version__` giữ nguyên `5.0.1`.
+
+### 1. Chi Tiết Khắc Phục Kỹ Thuật Từng Khuyết Tật (D1–D8)
+- **D1 & D2: Zalo OA Controller (`jarvis/comms/zalo.py`)**:
+  - `send_message()`: Khi `is_mock=False` nhưng thiếu `access_token`, trả về `ZaloSendResult(success=False, error="NOT_CONFIGURED")` fail-closed thay vì trả về `success=True` giả mạo (`mock_msg_id`).
+  - `_cmd_weather()`: Triệt tiêu 100% active fabrication (số liệu thời tiết ảo 32°C/34°C); trả về thông báo trung thực dịch vụ thời tiết chưa cấu hình.
+  - `_cmd_status()`: Loại bỏ chuỗi trạng thái tĩnh; tích hợp đo đạc tài nguyên CPU/RAM thực tế qua `psutil`.
+- **D3: Discord Bot Controller (`jarvis/comms/discord.py`)**:
+  - `start_polling()` & `_poll_loop()`: Xóa bỏ hoàn toàn tiến trình ma (Ghost Process) vòng lặp vô tận chỉ gọi `time.sleep(2.0)`; từ chối khởi chạy luồng rỗng khi chưa có client gateway, ghi log cảnh báo và đặt `_running = False`.
+- **D4: Browser CDP Driver (`jarvis/browser/driver.py`)**:
+  - `click()`, `type_text()`, `select_option()`, `wait_for_selector()`: Loại bỏ hành vi `return self._is_running` khi không có CDP session; trả về `False` fail-closed kèm log cảnh báo rõ ràng.
+- **D5: Windows OS Volume Control (`jarvis/automation/control.py`)**:
+  - Tích hợp hàm trợ năng `_get_audio_endpoint()` hỗ trợ đồng thời cả giao diện `pycaw.AudioDevice.EndpointVolume` hiện đại và `IAudioEndpointVolume.Activate` truyền thống trên Windows.
+  - `set_volume()`: Trả về mức âm lượng thực tế khi thành công, hoặc `None` fail-closed khi không tìm thấy endpoint loa hoặc gặp lỗi COM/hardware; bảo toàn trạng thái nội bộ `self._current_volume` không bị làm sai lệch.
+- **D6: Telegram Bot Controller (`jarvis/comms/telegram.py`)**:
+  - `/exec`, `/note`, `/calc`, `/healing`: Khi `dispatcher` chưa được cấu hình (`self.dispatcher is None`), trả về HTTP 503 Service Unavailable với thông báo lỗi trung thực và từ chối hành động, thay vì trả về HTTP 200 giả mạo đã thực thi.
+- **D7: Network Scanner PacketCapture (`jarvis/security/scanner.py`)**:
+  - Sửa lỗi dòng 769: Khi `raw_stdout` bị lỗi không thể phân tích giao thức (`protocols` rỗng), `packet_count` được gán chính xác bằng `0` thay vì gán ngầm định bằng số gói yêu cầu `count`.
+- **D8: Audio Engine Device Probe (`jarvis/audio/engine.py`)**:
+  - `probe_devices()`: Khi thiếu thư viện `sounddevice` hoặc driver âm thanh phần cứng, trả về danh sách rỗng `[]` trung thực thay vì tự bịa ra "Headless Mock Audio Device".
+
+### 2. Chỉ Số Kiểm Thử & Kiểm Chứng Thực Tế (TDD Verification)
+- **Suite kiểm thử chuyên biệt Phase 8 (`tests/unit/test_phase8_defect_remediations.py`)**: 14/14 tests PASSED (100% Green trong 0.71s).
+- **Suite kiểm thử đối kháng cập nhật (`tests/test_audit_adversarial_probes.py`)**: Cập nhật toàn bộ assertions để kiểm chứng hợp đồng fail-closed: 16/16 tests PASSED (100% Green trong 0.67s).
+- **Kiểm thử hồi quy liên phân hệ (Regression Test Suites)**: 138/138 tests PASSED (0 failures trong 5.10s) trên `test_computer_control.py`, `test_comms_hub.py`, `test_rate_limiter.py`, `test_stt_engine.py`, `test_browser_agent.py`, `test_browser_control.py`, `test_security_scanner.py`.
+
+---
+
 ## 🔍 Post-v5.0.1 Fabrication Audit — Phase 7: Comprehensive 7-Subsystem Independent Audit & Adversarial Probes (2026-09-06)
 
 > **Trạng thái**: Hoàn tất kiểm toán độc lập toàn diện 7 phân hệ qua hệ thống multi-agent (`teamwork_preview`). Chứng nhận **VICTORY CONFIRMED** bởi Victory Auditor. `jarvis.__version__` giữ nguyên `5.0.1`.

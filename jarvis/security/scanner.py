@@ -766,7 +766,7 @@ class PacketCapture:
             # @pytest.mark.skip(reason="requires tshark binary").
             protocols = _parse_tshark_protocols(raw_stdout)
             status = "SUCCESS" if protocols else "NO_PROTOCOLS_PARSED"
-            packet_count = sum(protocols.values()) if protocols else count
+            packet_count = sum(protocols.values()) if protocols else 0
         else:
             # Truthful: capture ran but produced no parseable output, or TShark
             # subprocess raised an exception. Do NOT fabricate protocol counts or echo requested count.

@@ -223,12 +223,22 @@ class ZaloBotController:
         )
 
     def _cmd_status(self) -> str:
-        return (
-            "✅ *JARVIS Online*\n"
-            f"🕐 {time.strftime('%H:%M:%S %d/%m/%Y')}\n"
-            "🧠 Memory: OK | 🔊 TTS: OK | 🎙️ STT: OK\n"
-            "📡 Zalo Bot: Connected"
-        )
+        try:
+            import psutil
+            cpu = psutil.cpu_percent(interval=None)
+            ram = psutil.virtual_memory().percent
+            return (
+                f"✅ *JARVIS Online*\n"
+                f"🕐 {time.strftime('%H:%M:%S %d/%m/%Y')}\n"
+                f"💻 CPU: {cpu:.1f}% | RAM: {ram:.1f}%\n"
+                f"📡 Zalo Bot: Active (Port {self.config.webhook_port})"
+            )
+        except Exception:
+            return (
+                f"✅ *JARVIS Online*\n"
+                f"🕐 {time.strftime('%H:%M:%S %d/%m/%Y')}\n"
+                f"📡 Zalo Bot: Active"
+            )
 
     def _cmd_briefing(self) -> str:
         try:
@@ -257,7 +267,7 @@ class ZaloBotController:
             return f"⚠️ Lỗi tính toán: {exc}"
 
     def _cmd_weather(self) -> str:
-        return "🌤️ Hà Nội: 32°C, ít mây\n☀️ TP.HCM: 34°C, nắng\n\n*(Tích hợp API thời tiết thực trong v3.2.1)*"
+        return "🌤️ Dịch vụ thời tiết chưa được cấu hình hoặc chưa khả dụng."
 
     def _cmd_screenshot(self) -> str:
         try:
@@ -294,9 +304,13 @@ class ZaloBotController:
         entry = {"user_id": user_id, "text": text, "timestamp": time.time()}
         self.sent_messages.append(entry)
 
-        if self.is_mock or not self.config.access_token:
+        if self.is_mock:
             log.info("Mock send to %s: %s", user_id, text[:60])
             return ZaloSendResult(success=True, message_id="mock_msg_id")
+
+        if not self.config.access_token:
+            log.warning("Zalo send rejected: access_token not configured")
+            return ZaloSendResult(success=False, error="NOT_CONFIGURED")
 
         try:
             payload = json.dumps({

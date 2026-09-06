@@ -15,7 +15,8 @@
 | Nâng cấp #4: TieredSTTEngine (Local Whisper + Cloud + VAD) | | |
 | Rate-limiting 4 kênh comms (#1) (Token Bucket) | | |
 | P2-12 Memory Concurrency Hardening (Tier 1, 30 threads) | | |
-| Vá fail-closed Mobile Bridge & Scanner Packet Count | | |
+| Phase 7: Full 7-Subsystem Independent Audit (28 components) | | |
+| Phase 8: Remediation 8 High-Priority Defects D1–D8 (TDD fail-closed) | | |
 | AUDIT_FRAMEWORK.md đã lưu repo | | |
 | README/CHANGELOG xác nhận trung thực | | |
 

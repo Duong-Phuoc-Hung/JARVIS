@@ -302,17 +302,8 @@ class AudioEngine:
     def probe_devices(self) -> list[AudioDeviceInfo]:
         """Enumerate and return all available input audio endpoints."""
         if not SOUNDDEVICE_AVAILABLE:
-            return [
-                AudioDeviceInfo(
-                    index=0,
-                    name="Headless Mock Audio Device",
-                    hostapi=0,
-                    max_input_channels=1,
-                    max_output_channels=0,
-                    default_samplerate=44100.0,
-                    is_default_input=True,
-                )
-            ]
+            logger.warning("sounddevice is not available on this system; probe_devices returning empty list.")
+            return []
         try:
             devs = sd.query_devices()
             default_in = sd.default.device[0] if hasattr(sd, "default") else None
