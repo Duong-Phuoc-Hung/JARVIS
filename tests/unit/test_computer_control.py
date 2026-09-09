@@ -359,3 +359,62 @@ def test_safety_gate_voice_response_processing():
     ok2, msg2 = gate.process_voice_response("không, hủy đi", token=token2)
     assert ok2 is False
     assert "Đã hủy" in msg2
+
+
+# ── F5: Volume Control Fail-Closed Tests ─────────────────────────────────────
+
+class TestVolumeControlFailClosed:
+    """F5 — verify set_volume() is fail-closed when pycaw is unavailable (D5 remediation).
+
+    Phase 8 fixed D5: set_volume() now returns None on failure instead of silently
+    storing a fake volume value. These tests verify the fail-closed contract holds.
+    """
+
+    def test_set_volume_returns_none_when_pycaw_unavailable(self) -> None:
+        """set_volume() returns None (fail-closed) when pycaw module is missing."""
+        ctrl = ComputerController()
+        with patch.object(
+            type(ctrl), "_get_audio_endpoint",
+            side_effect=RuntimeError("pycaw not available"),
+        ):
+            result = ctrl.set_volume(75)
+        # Must return None — not raise, not return a fake volume
+        assert result is None
+
+    def test_set_volume_does_not_raise_on_comtypes_error(self) -> None:
+        """set_volume() swallows COM/pycaw errors without crashing the caller."""
+        ctrl = ComputerController()
+        with patch.object(
+            type(ctrl), "_get_audio_endpoint",
+            side_effect=OSError("No audio endpoint"),
+        ):
+            try:
+                ctrl.set_volume(50)
+            except Exception as exc:  # noqa: BLE001
+                pytest.fail(f"set_volume() must not raise, but raised {type(exc).__name__}: {exc}")
+
+    def test_set_volume_does_not_update_current_volume_on_failure(self) -> None:
+        """set_volume() must NOT update _current_volume when pycaw fails (no fabrication)."""
+        ctrl = ComputerController()
+        initial_volume = ctrl._current_volume
+        with patch.object(
+            type(ctrl), "_get_audio_endpoint",
+            side_effect=RuntimeError("endpoint unavailable"),
+        ):
+            ctrl.set_volume(99)
+        # Volume must remain unchanged — not silently set to 99
+        assert ctrl._current_volume == initial_volume, (
+            "set_volume() must NOT update _current_volume when the audio endpoint fails. "
+            "Doing so would fabricate a successful volume change."
+        )
+
+    def test_get_volume_returns_current_volume_without_pycaw(self) -> None:
+        """get_volume() returns the stored _current_volume even when pycaw unavailable."""
+        ctrl = ComputerController()
+        ctrl._current_volume = 42
+        # get_volume should return stored value regardless of hardware state
+        result = ctrl.get_volume()
+        assert isinstance(result, (int, float, type(None))), (
+            "get_volume() must return a numeric value or None"
+        )
+

@@ -17,8 +17,13 @@
 | P2-12 Memory Concurrency Hardening (Tier 1, 30 threads) | | |
 | Phase 7: Full 7-Subsystem Independent Audit (28 components) | | |
 | Phase 8: Remediation 8 High-Priority Defects D1–D8 (TDD fail-closed) | | |
+| Phase 9: IMAP real imaplib client (fail-closed NOT_CONFIGURED) | | |
+| Phase 9: TTS Priority 4 fail-closed (return False, không return True) | | |
+| Phase 9: Volume control fail-closed tests (F5) — 4 tests | | |
+| Phase 9: IMAP unit tests — 20 tests (F2+F4) | | |
 | AUDIT_FRAMEWORK.md đã lưu repo | | |
 | README/CHANGELOG xác nhận trung thực | | |
+
 
 ---
 

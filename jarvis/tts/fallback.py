@@ -125,9 +125,14 @@ class SAPI5FallbackTTS(BaseTTSEngine):
         except Exception:
             pass
 
-        # Priority 4: Mock logger for CI/Headless
-        log.info("[SAPI5 Mock TTS Spoke]: %s", text)
-        return True
+        # Priority 4: All TTS backends unavailable — fail-closed.
+        # Do NOT return True here; that would fabricate a successful speech event.
+        log.warning(
+            "[SAPI5 NOT_CONFIGURED] All TTS backends failed (SAPI5, PowerShell, pyttsx3). "
+            "Text NOT spoken: %.80r",
+            text,
+        )
+        return False
 
     def synthesize_to_bytes(self, text: str, voice_id: str | None = None, **kwargs) -> bytes:
         """Returns mock PCM byte buffer for testing offline pipeline."""

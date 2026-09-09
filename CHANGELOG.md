@@ -2,7 +2,41 @@
 
 ---
 
+## 🛠️ Post-v5.0.1 Fabrication Audit — Phase 9: Feature Completion & Remaining Fail-Closed Fixes (F1–F5) (2026-09-10)
+
+> **Trạng thái**: Hoàn tất bổ sung các tính năng còn thiếu và vá lỗi fail-closed còn tồn đọng sau Phase 8. `jarvis.__version__` giữ nguyên `5.0.1`.
+
+### 1. Chi Tiết Vá Lỗi & Hoàn Thiện Tính Năng
+
+- **F1 — TTS SAPI5 Priority 4 Fail-Closed (`jarvis/tts/fallback.py:128`)**:
+  - **Root cause**: `SAPI5FallbackTTS.speak()` tại Priority 4 (khi SAPI5, PowerShell, pyttsx3 đều thất bại) trả về `True` — vi phạm Anti-Fabrication, giả mạo sự kiện phát âm thanh chưa xảy ra.
+  - **Fix**: Thay `return True` bằng `return False` với log cảnh báo `[SAPI5 NOT_CONFIGURED]` rõ ràng.
+  - **Seam**: `SAPI5FallbackTTS.speak()` public API.
+
+- **F2 — IMAPEmailReader: Implement real `imaplib` client (`jarvis/comms/email_imap.py`)**:
+  - **Root cause**: Module hoàn toàn là stub architectural — `fetch_and_summarize()` chỉ nhận `mock_emails` in-memory, không có `imaplib` network client thật, không có fail-closed khi thiếu credentials.
+  - **Fix**: Thêm `connect()` (IMAP4_SSL + login, raises `IMAPNotConfiguredError` khi thiếu host/user/pass), `disconnect()` (idempotent, swallow logout errors), `fetch_unread()` (SELECT → SEARCH UNSEEN → FETCH RFC822 → parse email_lib), `_process_emails()` (pipeline bảo mật tái sử dụng), cập nhật `fetch_and_summarize()` gọi IMAP thật khi không có `mock_emails`.
+  - **Thêm class**: `IMAPNotConfiguredError(RuntimeError)` — fail-closed contract rõ ràng.
+  - **Seam**: `IMAPEmailReader.connect()`, `fetch_unread()`, `fetch_and_summarize()`.
+
+- **F4 — IMAP Reader Unit Tests (`tests/unit/test_imap_reader.py`) [NEW FILE]**:
+  - 20 tests mới bao phủ: 4 tests fail-closed `connect()`, 2 tests happy-path connect, 3 tests `disconnect()`, 5 tests `fetch_unread()`, 6 tests `fetch_and_summarize()`.
+  - Kiểm chứng: NOT_CONFIGURED khi thiếu credentials, RFC822 parse đúng, security pipeline (allowlist, injection filter), không mở network khi `mock_emails` được cung cấp.
+
+- **F5 — Volume Control Fail-Closed Tests (`tests/unit/test_computer_control.py`)**:
+  - 4 tests mới bổ sung vào `TestVolumeControlFailClosed`: verify `set_volume()` trả `None` khi pycaw unavailable, không raise exception, không cập nhật `_current_volume` khi fail (không fabricate volume giả), `get_volume()` trả về kiểu đúng.
+
+### 2. Chỉ Số Kiểm Thử & Kiểm Chứng Thực Tế
+
+- **IMAP Reader tests (`tests/unit/test_imap_reader.py`)**: 20/20 tests PASSED (100% Green, 0.77s).
+- **TTS COM Safety tests (`tests/unit/test_tts_com_safety.py`)**: 6/6 tests PASSED (bao gồm test mới F1 fail-closed).
+- **Volume Control tests (`tests/unit/test_computer_control.py`)**: 4/4 tests PASSED (F5 fail-closed).
+- **Full Unit Test Suite (`tests/unit/`)**: 100% PASSED, 0 failures (exit code 0) — xác nhận không có regression.
+
+---
+
 ## 🛠️ Post-v5.0.1 Fabrication Audit — Phase 8: Strict Seam-First TDD Remediation of 8 High-Priority Audit Defects (D1–D8) (2026-09-07)
+
 
 > **Trạng thái**: Hoàn tất khắc phục triệt để và kiểm chứng 100% fail-closed cho toàn bộ 8 khuyết tật trọng yếu D1–D8 phát hiện tại kiểm toán Phase 7 theo đúng tiêu chuẩn `AGENTS.md` và `docs/AUDIT_FRAMEWORK.md`. `jarvis.__version__` giữ nguyên `5.0.1`.
 

@@ -79,21 +79,41 @@ class TestTTSCOMSafety:
         tts.stop()
 
     def test_sapi5_fallback_com_uninitialize_in_finally_block(self) -> None:
-        """SAPI5FallbackTTS.speak() must always call CoUninitialize in finally block even when Dispatch fails."""
+        """SAPI5FallbackTTS.speak() calls CoUninitialize in finally block even when Dispatch fails.
+        When COM fails and PowerShell also fails, Priority 4 (fail-closed) returns False."""
         mock_pythoncom = MagicMock()
         mock_win32com = MagicMock()
         mock_win32com.client.Dispatch.side_effect = RuntimeError("Simulated COM Dispatch failure")
 
         with patch.dict(sys.modules, {"pythoncom": mock_pythoncom, "win32com": mock_win32com, "win32com.client": mock_win32com.client}):
             engine = SAPI5FallbackTTS(config={"voice_name": "TestVoice"})
-            # Calling speak with win32 platform mock
-            with patch("sys.platform", "win32"):
-                result = engine.speak("Xin chào", wait=True)
+            with patch("sys.platform", "win32"), \
+                 patch("subprocess.run", side_effect=OSError("PS not available")), \
+                 patch("subprocess.Popen", side_effect=OSError("PS not available")):
+                # pyttsx3 also unavailable
+                with patch.dict(sys.modules, {"pyttsx3": None}):
+                    result = engine.speak("Xin chào", wait=True)
 
-            # Even though win32com dispatch failed, it should fall back to PowerShell/pyttsx3/mock and return True
-            assert result is True
-            # And CoUninitialize must have been called in finally block
+            # All backends failed → Priority 4 fail-closed → must return False
+            assert result is False
+            # CoUninitialize must have been called in finally block (fail-closed COM cleanup)
             mock_pythoncom.CoUninitialize.assert_called()
+
+    def test_all_tts_backends_fail_returns_false_not_configured(self) -> None:
+        """F1 fail-closed: when SAPI5, PowerShell, and pyttsx3 all fail, speak() MUST return False.
+        Verifies Anti-Fabrication rule: Priority 4 must NOT silently pretend speech occurred."""
+        engine = SAPI5FallbackTTS()
+        with patch("sys.platform", "win32"), \
+             patch("subprocess.run", side_effect=OSError("no powershell")), \
+             patch("subprocess.Popen", side_effect=OSError("no powershell")):
+            with patch.dict(sys.modules, {"win32com": None, "win32com.client": None, "pythoncom": None, "pyttsx3": None}):
+                result = engine.speak("Hello", wait=False)
+
+        # MUST be False — not True, not None — fail-closed contract
+        assert result is False, (
+            "Priority 4 MUST return False when all TTS backends are unavailable. "
+            "Returning True fabricates a speech event that never occurred."
+        )
 
     def test_sapi5_fallback_successful_com_flow(self) -> None:
         """SAPI5FallbackTTS.speak() completes win32com path and uninitializes COM cleanly."""
