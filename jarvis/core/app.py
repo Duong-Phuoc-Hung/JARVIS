@@ -76,6 +76,7 @@ from jarvis.skills.registry import SkillRegistry
 from jarvis.skills.synthesizer import DynamicSkillSynthesizer
 
 # Subsystems
+from jarvis.smart_home.home_assistant import HomeAssistantClient
 from jarvis.stt.engine import STTEngine
 from jarvis.tts.manager import TTSManager
 from jarvis.ui.dashboard import DashboardServer
@@ -549,7 +550,18 @@ class JarvisApp:
             self.hotkey_manager = GlobalHotkeyManager(is_mock=self.headless)
             self._register_default_hotkeys()
 
-        # 25. Signal Handlers
+        # 25. Smart Home / Home Assistant Integration (D-10 / F-26)
+        ha_cfg = self.config.get("smart_home.home_assistant", {})
+        if not isinstance(ha_cfg, dict):
+            ha_cfg = {}
+        ha_token = ha_cfg.get("token") or get_secret("HASS_TOKEN")
+        self.ha_client = HomeAssistantClient(
+            base_url=ha_cfg.get("url", "http://homeassistant.local:8123"),
+            access_token=ha_token,
+            entity_aliases=ha_cfg.get("entities"),
+        )
+
+        # 26. Signal Handlers
         if threading.current_thread() is threading.main_thread():
             try:
                 signal.signal(signal.SIGINT, self._handle_signal)
@@ -885,7 +897,82 @@ class JarvisApp:
             description="Performs visual verification check on screen state",
         )
 
+        # 7. Smart Home / Home Assistant actions (D-10 / F-26)
+        self.dispatcher.register_action(
+            name="home_assistant_call",
+            handler=self._handle_home_assistant_call,
+            description="Authoritative write/read service call to Home Assistant with security gating",
+        )
+        self.dispatcher.register_action(
+            name="smart_home_turn_on",
+            handler=self._handle_smart_home_turn_on,
+            description="Turns on a smart home entity (light/switch/climate) via Home Assistant",
+        )
+        self.dispatcher.register_action(
+            name="smart_home_turn_off",
+            handler=self._handle_smart_home_turn_off,
+            description="Turns off a smart home entity via Home Assistant",
+        )
+        self.dispatcher.register_action(
+            name="smart_home_set_temp",
+            handler=self._handle_smart_home_set_temp,
+            description="Sets temperature for smart thermostat/AC via Home Assistant",
+        )
+        self.dispatcher.register_action(
+            name="smart_home_get_state",
+            handler=self._handle_smart_home_get_state,
+            description="Reads state and attributes of a smart home entity via Home Assistant",
+        )
+
     # ── Action Handlers ──────────────────────────────────────────────────────
+
+    def _handle_home_assistant_call(self, **kwargs) -> dict[str, Any]:
+        """Dispatches an authoritative service call to Home Assistant."""
+        if not getattr(self, "ha_client", None):
+            return {"success": False, "error": "NOT_CONFIGURED: Home Assistant client unavailable"}
+        domain = kwargs.get("domain", "light")
+        service = kwargs.get("service", "turn_on")
+        entity_id = kwargs.get("entity_id") or kwargs.get("entity")
+        service_data = dict(kwargs.get("service_data", {}))
+        if entity_id and "entity_id" not in service_data:
+            service_data["entity_id"] = entity_id
+        for k in ("brightness", "temperature"):
+            if k in kwargs and k not in service_data:
+                service_data[k] = kwargs[k]
+        return self.ha_client.call_service(domain, service, service_data)
+
+    def _handle_smart_home_turn_on(self, **kwargs) -> dict[str, Any]:
+        """Turns on an authorized smart home entity."""
+        if not getattr(self, "ha_client", None):
+            return {"success": False, "error": "NOT_CONFIGURED: Home Assistant client unavailable"}
+        entity = kwargs.get("entity") or kwargs.get("entity_id", "light.living_room")
+        brightness = kwargs.get("brightness")
+        return self.ha_client.turn_on(entity, brightness=brightness)
+
+    def _handle_smart_home_turn_off(self, **kwargs) -> dict[str, Any]:
+        """Turns off an authorized smart home entity."""
+        if not getattr(self, "ha_client", None):
+            return {"success": False, "error": "NOT_CONFIGURED: Home Assistant client unavailable"}
+        entity = kwargs.get("entity") or kwargs.get("entity_id", "light.living_room")
+        return self.ha_client.turn_off(entity)
+
+    def _handle_smart_home_set_temp(self, **kwargs) -> dict[str, Any]:
+        """Sets temperature for an authorized thermostat/climate entity."""
+        if not getattr(self, "ha_client", None):
+            return {"success": False, "error": "NOT_CONFIGURED: Home Assistant client unavailable"}
+        entity = kwargs.get("entity") or kwargs.get("entity_id", "climate.ac_unit")
+        temp = float(kwargs.get("temperature", 24.0))
+        return self.ha_client.set_temperature(entity, temp)
+
+    def _handle_smart_home_get_state(self, **kwargs) -> dict[str, Any]:
+        """Queries the current state of an authorized entity."""
+        if not getattr(self, "ha_client", None):
+            return {"success": False, "error": "NOT_CONFIGURED: Home Assistant client unavailable"}
+        entity = kwargs.get("entity") or kwargs.get("entity_id", "")
+        state = self.ha_client.get_state(entity)
+        if state is None:
+            return {"success": False, "error": f"Entity '{entity}' not found or unreachable"}
+        return {"success": True, "state": state}
 
     def _handle_tts_welcome(self, **kwargs) -> dict[str, Any]:
         """Dispatches welcome speech via TTSManager."""

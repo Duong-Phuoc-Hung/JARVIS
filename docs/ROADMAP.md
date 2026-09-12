@@ -1,23 +1,24 @@
-﻿## PHASE D (2026-09-12) — D-01 den D-17 Hoan thanh
+## PHASE D (2026-09-12) — D-01 den D-17 Hoan thanh
 
 | ID | Status | Mo ta |
 |----|--------|-------|
-| D-01 | DONE | Fix CI #200 pycaw mock injection (sys.modules pattern) |
+| D-01 | DONE | Fix CI #200 pycaw mock injection & headless audio parity (CI 100% GREEN) |
 | D-02 | DONE | Clean env parity — full suite pass voi CI env vars |
-| D-03 | DONE | PacketCapture truthfulness tests (17 tests) |
-| D-04 | DONE | Browser CDP fail-closed da co tu Phase 8, no-session tra fail |
+| D-03 | DONE | PacketCapture truthfulness — proc.returncode check + 18 tests |
+| D-04 | DONE | Browser CDP fail-closed + real Chromium tests (23 tests) |
 | D-05 | DONE | Prompt injection regression tests (22 tests) |
-| D-06 | PENDING_CREDENTIALS | Telegram real smoke test — can bot token that |
-| D-07 | PENDING_CREDENTIALS | Zalo OA real smoke test — can OA credentials that |
-| D-08 | PENDING_CREDENTIALS | Discord gateway real test — can bot token that |
-| D-09 | PENDING_CREDENTIALS | IMAP real mailbox test — can app-password that |
-| D-10 | PENDING_CREDENTIALS | Home Assistant write path — can HA instance that |
+| D-06 | PENDING_CREDENTIALS | Telegram transport fail-closed & whitelisting — can bot token that |
+| D-07 | PENDING_CREDENTIALS | Zalo OA fail-closed & token bucket — can OA credentials that |
+| D-08 | PENDING_CREDENTIALS | Discord gateway fail-closed & thread cleanup — can bot token that |
+| D-09 | PENDING_CREDENTIALS | IMAP email real imaplib client — can app-password that |
+| D-10 | DONE | Home Assistant authoritative write path qua ActionDispatcher + domain allowlist (13 tests) |
 | D-11 | DONE | Dispatcher consistency tests (13 tests) |
-| D-12 | DONE | Installer script hien co scripts/build_installer.py |
-| D-13 | DONE | Updater module voi SHA256 + rollback (jarvis/updater/) |
-| D-15 | DONE | Support diagnostics + log redaction (jarvis/support/) |
-| D-16 | DONE | Secrets hardening — tat ca connector dung NOT_CONFIGURED |
-| D-17 | DONE | RC build v5.1.0 — version bumped, CHANGELOG updated |
+| D-12 | DONE | One-click Windows Installer `JARVIS_Setup_v5.1.0.exe` (71.4 MB, Inno Setup 6) |
+| D-13 | DONE | Updater module voi SHA256 + atomic replace + rollback (19 tests) |
+| D-14 | BLOCKED_ON_CERT | Authenticode signing pipeline documented; blocked on commercial EV/OV cert |
+| D-15 | DONE | Support diagnostics + log redaction bundle zip |
+| D-16 | DONE | Secrets hardening — HASS_TOKEN & ELEVENLABS_API_KEY managed by Credential Manager |
+| D-17 | DONE | RC build v5.1.0 — version bumped, artifact SHA256 generated, CHANGELOG updated |
 
 ---
 

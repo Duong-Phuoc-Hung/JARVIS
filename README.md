@@ -1,19 +1,19 @@
-﻿# ðŸ¤– JARVIS â€” Trá»£ LÃ½ AI CÃ¡ NhÃ¢n Tá»± Trá»‹ Cho Windows
+# ðŸ¤– JARVIS â€” Trá»£ LÃ½ AI CÃ¡ NhÃ¢n Tá»± Trá»‹ Cho Windows
 
 <div align="center">
 
 [![CI Status](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/workflows/ci.yml/badge.svg)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
 [![Tests](https://img.shields.io/badge/tests-passing-00ff88?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
-[![Source Version](https://img.shields.io/badge/source%20version-5.0.1-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
+[![Source Version](https://img.shields.io/badge/source%20version-5.1.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
 [![Releases](https://img.shields.io/badge/releases-GitHub-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?style=flat-square)](https://python.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%2064--bit-0078D4?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)](LICENSE)
 
-**JARVIS** lÃ  há»‡ thá»‘ng trá»£ lÃ½ AI cÃ¡ nhÃ¢n tá»± trá»‹ (Autonomous AI Desktop Assistant) cháº¡y ná»n trÃªn Windows 11/10 64-bit, láº¥y cáº£m há»©ng tá»« trá»£ lÃ½ JARVIS cá»§a Tony Stark trong Iron Man. 
-JARVIS cÃ³ kháº£ nÄƒng nháº­n diá»‡n giá»ng nÃ³i offline tiáº¿ng Viá»‡t & tiáº¿ng Anh, tá»± Ä‘á»™ng phÃ¢n luá»“ng Ã½ Ä‘á»‹nh thÃ´ng minh, tá»± Ä‘á»™ng viáº¿t mÃ£ má»Ÿ rá»™ng ká»¹ nÄƒng (Self-Coding vá»›i Sandbox Dry-Run), ghi nhá»› nháº­t kÃ½ vÃ  tÃ¬m kiáº¿m tá»« vá»±ng thá»i gian thá»±c (Lexical / TF-IDF Search Memory), Ä‘iá»u khiá»ƒn toÃ n diá»‡n há»‡ thá»‘ng Windows, tá»± Ä‘á»™ng hÃ³a trÃ¬nh duyá»‡t qua Playwright CDP vÃ  káº¿t ná»‘i Ä‘iá»u khiá»ƒn tá»« xa qua Telegram, Zalo OA vÃ  Discord.
+**JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
+JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**PhiÃªn báº£n mÃ£ nguá»“n / phÃ¡t triá»ƒn (source/runtime, `jarvis.__version__`): 5.0.1** trÃªn `main` â€” nÃ¢ng cáº¥p toÃ n diá»‡n Ä‘Æ°á»ng á»‘ng Ã¢m thanh giá»ng nÃ³i, báº£o máº­t vÃ  lÆ°u trá»¯. Äá»£t kiá»ƒm toÃ¡n toÃ n diá»‡n 7 phÃ¢n há»‡ vÃ  kháº¯c phá»¥c chuáº©n Seam-First TDD (Phase 7 & Phase 8, 2026-09-07) Ä‘Ã£ giáº£i quyáº¿t triá»‡t Ä‘á»ƒ 8 khuyáº¿t táº­t trá»ng yáº¿u Báº£ng Äá» (D1â€“D8): thiáº¿t láº­p há»£p Ä‘á»“ng Fail-Closed tuyá»‡t Ä‘á»‘i cho Zalo OA, Discord Polling, Telegram Command Dispatcher, CDP Browser Driver, Windows Audio Master Volume, Network Scanner PacketCapture vÃ  Audio Engine Device Probe. Phase 9 (2026-09-10) bá»• sung: IMAPEmailReader vá»›i `imaplib` tháº­t (fail-closed NOT_CONFIGURED khi thiáº¿u credentials), vÃ¡ TTS SAPI5 Priority 4 giáº£ máº¡o thÃ nh cÃ´ng (return False), 20 IMAP unit tests + 4 volume fail-closed tests má»›i (tá»•ng suite 100% green, 0 failures).</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.1.0** trên `main` — hoàn thiện toàn bộ các nhiệm vụ D-01 đến D-17 của phân hệ Core / Backend / Integrations / Release: GitHub Actions CI xanh 100%, PacketCapture truthfulness với TShark thật, Playwright CDP fail-closed, chống web prompt injection, kiểm soát Home Assistant authoritative write path có allowlist an toàn, Auto-Updater với rollback SHA-256, gói chẩn đoán log redaction và bộ cài đặt Windows Installer một chạm `JARVIS_Setup_v5.1.0.exe`.</sub>
 
 
 </div>

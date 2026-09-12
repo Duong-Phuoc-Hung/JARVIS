@@ -9,25 +9,50 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import urllib.error
 import urllib.request
 from typing import Any
+
+from jarvis.security.secrets import get_secret
 
 log = logging.getLogger("jarvis.smart_home.ha")
 
 
 class HomeAssistantClient:
-    """Home Assistant REST API Client with robust offline error handling and alias mapping."""
+    """Home Assistant REST API Client with robust offline error handling, alias mapping, and authoritative security gating."""
+
+    ALLOWED_DOMAINS: frozenset[str] = frozenset({
+        "light",
+        "switch",
+        "climate",
+        "media_player",
+        "fan",
+        "sensor",
+    })
+
+    DISALLOWED_PREFIXES: tuple[str, ...] = (
+        "lock.",
+        "alarm_control_panel.",
+        "camera.",
+        "siren.",
+        "valve.",
+        "vacuum.",
+    )
 
     def __init__(
         self,
         base_url: str = "http://homeassistant.local:8123",
-        access_token: str = "token_xyz",
+        access_token: str | None = None,
         entity_aliases: dict[str, str] | None = None,
         timeout: float = 5.0,
     ):
         self.base_url = base_url.rstrip("/")
-        self.token = access_token
+        if access_token is not None:
+            self.token = access_token
+        else:
+            token = get_secret("HASS_TOKEN") or os.environ.get("HASS_TOKEN")
+            self.token = token if token else "token_xyz"
         self.timeout = timeout
         self.entity_aliases: dict[str, str] = entity_aliases or {
             "living_room_light": "light.living_room",
@@ -41,16 +66,55 @@ class HomeAssistantClient:
             "điều hòa": "climate.ac_unit",
         }
 
+    @property
+    def is_configured(self) -> bool:
+        """Returns True if a real (non-placeholder) token is configured."""
+        return bool(self.token and self.token != "token_xyz")
+
     def resolve_entity(self, alias_or_id: str) -> str:
         """Resolves natural language or config alias to valid HA entity_id."""
         clean = alias_or_id.lower().strip()
         return self.entity_aliases.get(clean, alias_or_id)
 
+    def validate_entity_allowed(self, entity_id: str) -> tuple[bool, str]:
+        """
+        Validates entity against authoritative security policies:
+        - Must contain at least one dot separating domain and entity name
+        - Entity must NOT start with any DISALLOWED_PREFIXES (e.g. lock.*, alarm.*)
+        - Domain must belong to ALLOWED_DOMAINS
+        - Entity must not contain shell/injection meta-characters
+        """
+        resolved = self.resolve_entity(entity_id).strip().lower()
+        if not resolved or "." not in resolved:
+            return False, f"Invalid entity ID format: '{entity_id}'"
+
+        if any(resolved.startswith(p) for p in self.DISALLOWED_PREFIXES):
+            return False, f"SECURITY_REFUSAL: entity '{resolved}' belongs to restricted security domain"
+
+        domain = resolved.split(".", 1)[0]
+        if domain not in self.ALLOWED_DOMAINS:
+            return False, f"SECURITY_REFUSAL: domain '{domain}' is not in authoritative allowlist"
+
+        # Check for invalid injection characters
+        if any(c in resolved for c in (";", "&", "|", "`", "$", "<", ">", "\n", "\r", " ")):
+            return False, f"SECURITY_REFUSAL: invalid characters in entity ID: '{resolved}'"
+
+        return True, ""
+
     def get_state(self, entity_id: str, mock_http: Any | None = None) -> dict[str, Any] | None:
         """Fetches current state and attributes for an entity."""
         resolved = self.resolve_entity(entity_id)
+        is_allowed, err = self.validate_entity_allowed(resolved)
+        if not is_allowed:
+            log.warning("Home Assistant entity '%s' rejected: %s", resolved, err)
+            return None
+
         if mock_http is not None:
             return mock_http.handle_ha_get_state(resolved)
+
+        if not self.token:
+            log.warning("Home Assistant not configured: missing access token")
+            return None
 
         url = f"{self.base_url}/api/states/{resolved}"
         headers = {
@@ -75,16 +139,27 @@ class HomeAssistantClient:
         service_data: dict[str, Any],
         mock_http: Any | None = None,
     ) -> dict[str, Any]:
-        """Calls a Home Assistant domain service (e.g. light/turn_on, climate/set_temperature)."""
+        """Calls a Home Assistant domain service with authoritative security gating."""
+        domain_clean = domain.strip().lower()
+        if domain_clean not in self.ALLOWED_DOMAINS:
+            return {"success": False, "error": f"SECURITY_REFUSAL: domain '{domain}' is not in authoritative allowlist"}
+
         resolved_data = dict(service_data)
         if "entity_id" in resolved_data:
-            resolved_data["entity_id"] = self.resolve_entity(resolved_data["entity_id"])
+            resolved_entity = self.resolve_entity(resolved_data["entity_id"])
+            resolved_data["entity_id"] = resolved_entity
+            is_allowed, err = self.validate_entity_allowed(resolved_entity)
+            if not is_allowed:
+                return {"success": False, "error": err}
 
         if mock_http is not None:
-            res = mock_http.handle_ha_call_service(domain, service, resolved_data)
+            res = mock_http.handle_ha_call_service(domain_clean, service, resolved_data)
             return {"success": True, "result": res}
 
-        url = f"{self.base_url}/api/services/{domain}/{service}"
+        if not self.token:
+            return {"success": False, "error": "NOT_CONFIGURED: Home Assistant token missing"}
+
+        url = f"{self.base_url}/api/services/{domain_clean}/{service}"
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
