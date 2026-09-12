@@ -106,25 +106,44 @@ class TestCDPBrowserDriverFailClosed:
 # 5. D5: ComputerController set_volume Fail-Closed on Endpoint Failure
 # ==============================================================================
 class TestVolumeControlFailClosed:
+    """Tests use sys.modules injection so pycaw does NOT need to be installed in CI."""
+
+    @staticmethod
+    def _inject_pycaw_mock(monkeypatch, get_speakers_return=None, get_speakers_side_effect=None):
+        """Inject a mock pycaw.pycaw into sys.modules so control.py's lazy import resolves."""
+        import sys
+        mock_audio_utilities = MagicMock()
+        if get_speakers_side_effect is not None:
+            mock_audio_utilities.GetSpeakers.side_effect = get_speakers_side_effect
+        else:
+            mock_audio_utilities.GetSpeakers.return_value = get_speakers_return
+        mock_pycaw_pycaw = MagicMock(AudioUtilities=mock_audio_utilities)
+        mock_pycaw = MagicMock(pycaw=mock_pycaw_pycaw)
+        monkeypatch.setitem(sys.modules, "pycaw", mock_pycaw)
+        monkeypatch.setitem(sys.modules, "pycaw.pycaw", mock_pycaw_pycaw)
+        return mock_audio_utilities
+
     def test_set_volume_fails_closed_when_speakers_missing(self, monkeypatch):
+        """D5: set_volume() returns None when audio endpoint returns None (no speakers)."""
         ctrl = ComputerController()
         ctrl._current_volume = 40
 
-        # Simulate missing speakers in pycaw
-        with patch("pycaw.pycaw.AudioUtilities.GetSpeakers", return_value=None):
-            result = ctrl.set_volume(70)
-            assert result is None
-            # Current volume must not be falsely updated
-            assert ctrl._current_volume == 40
+        self._inject_pycaw_mock(monkeypatch, get_speakers_return=None)
+        result = ctrl.set_volume(70)
+        assert result is None
+        # Current volume must not be falsely updated
+        assert ctrl._current_volume == 40
 
-    def test_set_volume_fails_closed_when_pycaw_raises_exception(self):
+    def test_set_volume_fails_closed_when_pycaw_raises_exception(self, monkeypatch):
+        """D5: set_volume() returns None when audio endpoint raises (hardware error)."""
         ctrl = ComputerController()
         ctrl._current_volume = 40
 
-        with patch("pycaw.pycaw.AudioUtilities.GetSpeakers", side_effect=RuntimeError("Audio hardware disconnected")):
-            result = ctrl.set_volume(80)
-            assert result is None
-            assert ctrl._current_volume == 40
+        self._inject_pycaw_mock(monkeypatch,
+                                get_speakers_side_effect=RuntimeError("Audio hardware disconnected"))
+        result = ctrl.set_volume(80)
+        assert result is None
+        assert ctrl._current_volume == 40
 
 
 # ==============================================================================
