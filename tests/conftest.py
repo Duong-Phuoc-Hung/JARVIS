@@ -59,6 +59,52 @@ def _reset_runaway_guards():
     passive_trigger_guard.reset()
 
 
+class _VirtualEndpointVolume:
+    def __init__(self, initial_scalar: float = 0.5):
+        self._scalar = initial_scalar
+
+    def GetMasterVolumeLevelScalar(self) -> float:
+        return self._scalar
+
+    def SetMasterVolumeLevelScalar(self, level: float, ctx: Any = None) -> None:
+        self._scalar = float(level)
+
+
+@pytest.fixture(autouse=True)
+def _mock_headless_audio_endpoint(monkeypatch):
+    """
+    On headless CI environments (where pycaw is not installed or physical audio
+    devices are not available), inject a mock pycaw into sys.modules with a
+    stateful virtual endpoint volume so that volume getters/setters behave
+    deterministically across all unit and integration tests.
+    """
+    needs_mock = False
+    try:
+        from pycaw.pycaw import AudioUtilities
+        sp = AudioUtilities.GetSpeakers()
+        if sp is None:
+            needs_mock = True
+    except Exception:
+        needs_mock = True
+
+    # If running in explicit headless/CI test environment, prefer virtual endpoint
+    # to avoid interference from host system volume or missing soundcards
+    if os.environ.get("JARVIS_MOCK_AUDIO") == "1" or os.environ.get("JARVIS_HEADLESS") == "1":
+        needs_mock = True
+
+    if needs_mock:
+        virtual_ep = _VirtualEndpointVolume()
+        mock_speaker = MagicMock()
+        mock_speaker.EndpointVolume = virtual_ep
+        mock_speaker.Activate.return_value = virtual_ep
+        mock_audio_utilities = MagicMock()
+        mock_audio_utilities.GetSpeakers.return_value = mock_speaker
+        mock_pycaw_pycaw = MagicMock(AudioUtilities=mock_audio_utilities)
+        mock_pycaw = MagicMock(pycaw=mock_pycaw_pycaw)
+        monkeypatch.setitem(sys.modules, "pycaw", mock_pycaw)
+        monkeypatch.setitem(sys.modules, "pycaw.pycaw", mock_pycaw_pycaw)
+
+
 # ============================================================================
 # 1. MOCK AUDIO STREAM & SYNTHESIZER FIXTURE
 # ============================================================================

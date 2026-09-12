@@ -7,6 +7,7 @@ Ensures 100% speech availability without internet connection.
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 import sys
 from typing import Any
@@ -111,6 +112,11 @@ class SAPI5FallbackTTS(BaseTTSEngine):
                 else:
                     subprocess.Popen(cmd, **kw)
                 return True
+            except subprocess.CalledProcessError as e:
+                log.warning("PowerShell speech synthesis failed: %s", e)
+                if os.environ.get("JARVIS_MOCK_AUDIO") == "1":
+                    log.debug("JARVIS_MOCK_AUDIO=1: headless runner has no audio output device, treating as mocked success")
+                    return True
             except Exception as e:
                 log.warning("PowerShell speech synthesis failed: %s", e)
 

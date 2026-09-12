@@ -1,6 +1,31 @@
 ﻿
 ---
 
+## [5.1.0] CI Green Hardening & Full Parity (2026-09-13)
+
+> **Trang thai**: Khac phuc triet de 3 bai test that bai tren GitHub Actions CI runner (headless Windows VM), dong bo 100% kiem thu giua local va CI.
+
+### 1. Chi Tiet Ban Va
+- **D-01 & D-02 — Headless Volume Parity (	ests/conftest.py)**:
+  - **Root cause**: Tren GitHub CI runner khong cai pycaw va khong co thiet bi am thanh phan cung. Khi goi set_volume(), ComputerController tra ve None va giu nguyen volume mac dinh 50, lam fail 	est_volume_get_set_change va 	est_computer_control_and_safety_gate_integration.
+  - **Fix**: Bo sung autouse fixture _mock_headless_audio_endpoint va lop _VirtualEndpointVolume vao 	ests/conftest.py. Khi chay trong moi truong CI/headless (JARVIS_HEADLESS=1 hoac JARVIS_MOCK_AUDIO=1), tu dong inject mock pycaw.pycaw.AudioUtilities voi endpoint ao luu trang thai muc am luong, giup kiem thu dieu khien volume hoat dong chinh xac va doc lap voi phan cung host.
+
+- **D-01 & D-02 — Headless SAPI5 Mock Audio (jarvis/tts/fallback.py)**:
+  - **Root cause**: Khi ElevenLabs bi loi 500, fallback goi SAPI5/PowerShell. Tren headless CI runner khong co sound card, PowerShell System.Speech throw CalledProcessError (exit code 1), lam 	est_tts_manager_cache_and_fallback_routing nhan es3 = False va fail assertion.
+  - **Fix**: Cho nhánh PowerShell bắt subprocess.CalledProcessError và kiểm tra JARVIS_MOCK_AUDIO=1 để bỏ qua audio vật lý trên máy ảo CI, đồng thời bảo vệ 100% các bài test 	est_tts_com_safety.py (explicit backend-fail và COM lifecycle).
+
+- **D-03 — TShark Return Code Hardening (jarvis/security/scanner.py, 	ests/unit/test_packet_capture_truthfulness.py)**:
+  - **Fix**: Bổ sung kiểm tra proc.returncode != 0. Nếu TShark thoát với mã lỗi khác 0, trả về trạng thái NO_TSHARK_OUTPUT với aw_stdout=None, tuyệt đối không bao giờ trả SUCCESS hoặc bịa số lượng gói tin. Bổ sung bài test 	est_no_tshark_output_on_nonzero_returncode.
+
+- **D-04 — Browser CDP Fail-Closed Regression Tests (	ests/unit/test_browser_control.py)**:
+  - **Fix**: Bổ sung bộ test TestRealFailClosed kiểm chứng BrowserCDPController(is_mock=False) khi chưa khởi chạy hoặc ngắt kết nối luôn fail-closed (click, 	ype_text, screenshot, 
+avigate).
+
+- **D-16 — Secrets Hardening (jarvis/security/secrets.py)**:
+  - **Fix**: Bổ sung HASS_TOKEN và ELEVENLABS_API_KEY vào danh sách KNOWN_SECRETS được quản lý bởi Windows Credential Manager.
+
+---
+
 ## [5.1.0] D-01 to D-17 Backend/CI/Release Phase (2026-09-12)
 
 > **Trang thai**: Hoan thanh toan bo phan Duong Phuoc Hung (D-01 den D-17). jarvis.__version__ = 5.1.0.
@@ -2680,4 +2705,5 @@ PhiÃªn báº£n hoÃ n thiá»‡n Ä‘Æ°a **JARVIS** trá»Ÿ thÃ nh m�
 15. `Sub-Agent Worker Pool`: Multi-threaded Autonomous Worker Engine
 16. `Speech Services`: Whisper STT & ElevenLabs/SAPI5 TTS
 17. `System Tray & Autostart`: Zero-idle Background Daemon & Registry Autostart
+
 

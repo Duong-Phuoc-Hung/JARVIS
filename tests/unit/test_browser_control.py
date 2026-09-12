@@ -6,6 +6,7 @@ Unit tests for Browser CDP Controller (mock mode — no real browser).
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -103,3 +104,27 @@ class TestTabManagement:
 
     def test_close_tab_returns_true_mock(self, browser):
         assert browser.close_tab() is True
+
+
+class TestRealFailClosed:
+    """D-04: Real (non-mock) BrowserCDPController without a running session must fail closed."""
+
+    def test_unlaunched_real_controller_clicks_fail_closed(self):
+        ctrl = BrowserCDPController(is_mock=False)
+        assert ctrl.click("#btn") is False
+
+    def test_unlaunched_real_controller_type_fails_closed(self):
+        ctrl = BrowserCDPController(is_mock=False)
+        assert ctrl.type_text("#input", "hello") is False
+
+    def test_unlaunched_real_controller_screenshot_fails_closed(self):
+        ctrl = BrowserCDPController(is_mock=False)
+        assert ctrl.screenshot("test.png") == ""
+
+    def test_unlaunched_real_controller_navigate_fails_closed(self):
+        ctrl = BrowserCDPController(is_mock=False)
+        with patch.object(ctrl, "_ensure_launched", return_value=False):
+            page = ctrl.navigate("http://127.0.0.1:65432/nonexistent")
+            assert page.title == "Error"
+            assert "không khởi động được" in page.content_md
+

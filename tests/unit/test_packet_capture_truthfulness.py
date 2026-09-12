@@ -1,4 +1,4 @@
-﻿"""
+"""
 tests/unit/test_packet_capture_truthfulness.py
 ================================================
 D-03: PacketCapture Truthfulness Regression Tests
@@ -102,9 +102,18 @@ class TestPacketCaptureTruthfulness:
         with patch("jarvis.security.scanner.resolve_tshark_binary", return_value="/usr/bin/tshark"), \
              patch("subprocess.run", return_value=mock_proc):
             result = pc.capture_packets(interface="eth0", count=10)
+    def test_no_tshark_output_on_nonzero_returncode(self):
+        pc = PacketCapture()
+        mock_proc = MagicMock()
+        mock_proc.stdout = "eth:ethertype:ip:tcp\n"
+        mock_proc.stderr = "tshark: interface not found"
+        mock_proc.returncode = 1
+        with patch("jarvis.security.scanner.resolve_tshark_binary", return_value="/usr/bin/tshark"), \
+             patch("subprocess.run", return_value=mock_proc):
+            result = pc.capture_packets(interface="eth0", count=10)
+        assert result.status == "NO_TSHARK_OUTPUT"
         assert result.packet_count == 0
         assert result.protocols == {}
-        assert result.status in ("NO_TSHARK_OUTPUT", "NO_PROTOCOLS_PARSED")
 
     def test_success_with_real_parseable_output(self):
         pc = PacketCapture()

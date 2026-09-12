@@ -724,6 +724,18 @@ class PacketCapture:
                         )
                 except Exception:
                     pass
+
+            if proc.returncode != 0:
+                log.warning(
+                    "TShark capture exited with non-zero code %d (stderr: %s)",
+                    proc.returncode, (proc.stderr or "").strip()[:200]
+                )
+                return self._build_capture_result(
+                    interface, count, elapsed,
+                    pcap_path=str(output_pcap) if output_pcap else None,
+                    raw_stdout=None,
+                )
+
             # Pass real stdout to _build_capture_result for truthful parsing
             return self._build_capture_result(
                 interface, count, elapsed,
