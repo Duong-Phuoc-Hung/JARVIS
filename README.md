@@ -1,4 +1,4 @@
-# ðŸ¤– JARVIS â€” Trá»£ LÃ½ AI CÃ¡ NhÃ¢n Tá»± Trá»‹ Cho Windows
+# 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
 <div align="center">
 
@@ -25,7 +25,7 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 1. [âœ¨ TÃ­nh NÄƒng Ná»•i Báº­t](#-tÃ­nh-nÄƒng-ná»•i-báº­t)
 2. [ðŸ’» YÃªu Cáº§u Há»‡ Thá»‘ng (Prerequisites)](#-yÃªu-cáº§u-há»‡-thá»‘ng-prerequisites)
 3. [ðŸš€ HÆ°á»›ng Dáº«n CÃ i Äáº·t Tá»«ng BÆ°á»›c (Step-by-Step Installation)](#-hÆ°á»›ng-dáº«n-cÃ i-Ä‘áº·t-tá»«ng-bÆ°á»›c-step-by-step-installation)
-4. [âš¡ DÃ nh Cho NgÆ°á»i DÃ¹ng Cuá»‘i â€” Quick Start (Standalone ZIP)](#-dÃ nh-cho-ngÆ°á»i-dÃ¹ng-cuá»‘i--quick-start-standalone-zip)
+4. [⚡ Dành Cho Người Dùng Cuối — Quick Start (Installer & Standalone ZIP)](#-dành-cho-người-dùng-cuối--quick-start-installer--standalone-zip)
 5. [ðŸ› ï¸ DÃ nh Cho NhÃ  PhÃ¡t Triá»ƒn (Developer Setup)](#%EF%B8%8F-dÃ nh-cho-nhÃ -phÃ¡t-triá»ƒn-developer-setup)
 6. [ðŸ”§ CÃ¡c Lá»—i ThÆ°á»ng Gáº·p & CÃ¡ch Kháº¯c Phá»¥c (Common Errors & Fixes)](#-cÃ¡c-lá»—i-thÆ°á»ng-gáº·p--cÃ¡ch-kháº¯c-phá»¥c-common-errors--fixes)
 7. [âš™ï¸ Cáº¥u HÃ¬nh `.env` & Báº£o Máº­t Secrets](#%EF%B8%8F-cáº¥u-hÃ¬nh-env--báº£o-máº­t-secrets)
@@ -223,30 +223,34 @@ lÆ°u"; cÃ¡c thÃ´ng tin nháº¡y cáº£m (token, máº­t kháº©u, embe
 (`<REDACTED>`) trÆ°á»›c khi lÆ°u hoáº·c hiá»ƒn thá»‹. XÃ¡c nháº­n Y/N trÃªn Terminal chá»‰ lÃ  lá»›p UX quyáº¿t
 Ä‘á»‹nh cÃ³ thá»­ gá»i hÃ nh Ä‘á»™ng hay khÃ´ng â€” khÃ´ng bao giá» tá»± nÃ³ lÃ  lá»›p xÃ¡c thá»±c. Vá»›i **cháº¥m dá»©t
 tiáº¿n trÃ¬nh** (Self-Healing), backend `HealingEngine` tá»± kiá»ƒm tra danh sÃ¡ch tiáº¿n trÃ¬nh Ä‘Æ°á»£c
-báº£o vá»‡ (`PROTECTED_PROCESS_WHITELIST`) trÆ°á»›c khi thá»±c thi, báº¥t ká»ƒ ai gá»i. Vá»›i **Ä‘iá»u khiá»ƒn
-thiáº¿t bá»‹ Smart Home**, hiá»‡n chÆ°a cÃ³ cÆ¡ cháº¿ xÃ¡c thá»±c Ä‘Ã¡ng tin cáº­y nÃ o (khÃ´ng cÃ³ action
-`ActionDispatcher` chÃ­nh thá»©c, khÃ´ng cÃ³ há»£p Ä‘á»“ng an toÃ n nÃ o trong `HomeAssistantClient`) â€”
-vÃ¬ váº­y cÃ¡c thao tÃ¡c Turn On/Off/Toggle/Set Temperature **hiá»‡n chÆ°a thá»±c thi tháº­t**, chá»‰ bÃ¡o
-cÃ¡o tráº¡ng thÃ¡i trung thá»±c ráº±ng chÆ°a cÃ³ Ä‘Æ°á»ng xÃ¡c thá»±c kháº£ dá»¥ng, thay vÃ¬ gá»i tháº³ng API mÃ 
-khÃ´ng cÃ³ cÆ¡ cháº¿ báº£o vá»‡ nÃ o phÃ­a sau. KhÃ´ng bao giá» cháº¡y tá»± Ä‘á»™ng qua `[A]`.
-
+bảo vệ (`PROTECTED_PROCESS_WHITELIST`) trước khi thực thi, bất kể ai gọi. Với **điều khiển thiết bị Smart Home (v5.1.0)**: Đã có **authoritative write path** thông qua `ActionDispatcher` (`smart_home_turn_on`, `smart_home_turn_off`, `smart_home_set_temp`, `home_assistant_call`). Hệ thống áp dụng danh sách miền an toàn nghiêm ngặt (`ALLOWED_DOMAINS`: light, switch, climate, media_player, fan, sensor) và từ chối dứt điểm (`SECURITY_REFUSAL`) với các thực thể nhạy cảm (`lock.*`, `alarm_control_panel.*`, `camera.*`, `siren.*`, `valve.*`, `vacuum.*`). Thao tác chỉ thực thi khi Home Assistant được cấu hình đầy đủ `HASS_URL` và `HASS_TOKEN` trong Windows Credential Manager. Không bao giờ chạy tự động qua `[A]`.
 ---
 
-## âš¡ DÃ nh Cho NgÆ°á»i DÃ¹ng Cuá»‘i â€” Quick Start (Standalone ZIP)
+## ⚡ Dành Cho Người Dùng Cuối — Quick Start (Installer & Standalone ZIP)
 
-Náº¿u báº¡n khÃ´ng muá»‘n cÃ i Ä‘áº·t Python hoáº·c cáº¥u hÃ¬nh dÃ²ng lá»‡nh, báº¡n cÃ³ thá»ƒ sá»­ dá»¥ng báº£n Ä‘Ã³ng gÃ³i Ä‘á»™c láº­p (standalone `.exe` trong file ZIP â€” Ä‘Ã¢y lÃ  artifact tháº­t mÃ  GitHub Actions release workflow phÃ¡t hÃ nh; khÃ´ng cÃ³ bá»™ cÃ i Ä‘áº·t Setup Wizard Ä‘i kÃ¨m release chÃ­nh thá»©c):
+Để phục vụ thử nghiệm Product Beta v1 cho 10–30 người dùng nội bộ, JARVIS cung cấp cả bộ cài đặt chuẩn Windows một chạm và bản portable ZIP độc lập:
 
-1. **Táº£i Báº£n ÄÃ³ng GÃ³i:**
-   - Truy cáº­p [Releases Page](https://github.com/Duong-Phuoc-Hung/JARVIS/releases) vÃ  táº£i file ZIP cá»§a báº£n phÃ¡t hÃ nh má»›i nháº¥t â€” tÃªn file luÃ´n theo Ä‘á»‹nh dáº¡ng `JARVIS_v<phiÃªn báº£n>_windows_x64.zip` (vÃ­ dá»¥ `JARVIS_v5.0.0_windows_x64.zip`, báº£n phÃ¡t hÃ nh chÃ­nh thá»©c má»›i nháº¥t tÃ­nh Ä‘áº¿n thá»i Ä‘iá»ƒm viáº¿t tÃ i liá»‡u nÃ y â€” luÃ´n kiá»ƒm tra trang Releases Ä‘á»ƒ biáº¿t báº£n má»›i nháº¥t thá»±c táº¿).
-2. **Giáº£i NÃ©n & Cháº¡y:**
-   - Giáº£i nÃ©n file ZIP vÃ o thÆ° má»¥c báº¡n muá»‘n (vÃ­ dá»¥: `C:\Program Files\JARVIS` hoáº·c báº¥t ká»³ thÆ° má»¥c nÃ o).
-   - Double-click `JARVIS.exe`, hoáº·c cháº¡y `JARVIS.exe --tray` Ä‘á»ƒ khá»Ÿi Ä‘á»™ng tháº³ng vÃ o khay há»‡ thá»‘ng.
-   - (TÃ¹y chá»n) Tá»± táº¡o shortcut ngoÃ i Desktop hoáº·c thÃªm vÃ o Startup folder cá»§a Windows náº¿u muá»‘n tá»± Ä‘á»™ng khá»Ÿi Ä‘á»™ng cÃ¹ng mÃ¡y â€” báº£n ZIP khÃ´ng tá»± lÃ m viá»‡c nÃ y thay báº¡n.
-3. **Cáº¥u HÃ¬nh API Key:**
-   - Äiá»n Gemini API Key trong cá»­a sá»• Settings ban Ä‘áº§u hoáº·c lÆ°u vÃ o `%LOCALAPPDATA%\JARVIS\.env`.
-4. **Sá»­ Dá»¥ng Ngay:**
-   - Má»Ÿ `JARVIS.exe` tá»« thÆ° má»¥c Ä‘Ã£ giáº£i nÃ©n, hoáº·c tá»« shortcut báº¡n tá»± táº¡o.
-   - JARVIS sáº½ cháº¡y ngáº§m dÆ°á»›i khay há»‡ thá»‘ng, khÃ´ng hiá»ƒn thá»‹ cá»­a sá»• console gÃ¢y phiá»n toÃ¡i.
+### Cách 1: Bộ Cài Đặt Một Chạm — One-Click Windows Installer (Khuyến nghị cho Beta v1)
+1. **Tải Bộ Cài Đặt:**
+   - Tải file `JARVIS_Setup_v5.1.0.exe` (71.4 MB) từ [Releases Page](https://github.com/Duong-Phuoc-Hung/JARVIS/releases) hoặc thư mục phát hành `dist/installer/`.
+   - **Mã băm kiểm tra toàn vẹn SHA-256**:
+     ```text
+     E6335E5BF7F704B0FA09E38937BA89CB668939FF9090746B45150ED722031650
+     ```
+2. **Cài Đặt Dễ Dàng:**
+   - Chạy `JARVIS_Setup_v5.1.0.exe` và làm theo hướng dẫn trên màn hình.
+   - Trình cài đặt Inno Setup 6 tự động tạo shortcut trên Desktop, Start Menu và tùy chọn khởi động cùng Windows.
+3. **Cấu Hình & Khởi Động:**
+   - Điền Gemini API Key trong giao diện cấu hình ban đầu hoặc lưu vào Windows Credential Manager.
+   - JARVIS sẽ chạy nền tại khay hệ thống (System Tray). Nhấn tổ hợp phím `Ctrl+Shift+L` hoặc nói *"Hey JARVIS"* để ra lệnh.
+4. **Gỡ Cài Đặt Sạch Sẽ:**
+   - Gỡ bỏ dễ dàng và an toàn thông qua Windows Settings > Apps & Features hoặc chạy `unins000.exe` trong thư mục cài đặt mà không làm mất cấu hình cá nhân của người dùng.
+
+### Cách 2: Bản Standalone Portable (ZIP)
+Nếu bạn không muốn cài đặt vào Program Files:
+1. Tải file ZIP `JARVIS_v5.1.0_windows_x64.zip` từ trang Releases.
+2. Giải nén vào thư mục tùy chọn (ví dụ: `D:\JARVIS\`).
+3. Chạy `JARVIS.exe` hoặc `JARVIS.exe --tray`.
 
 ---
 

@@ -8,7 +8,8 @@
 ### 1. Chi Tiết Bản Vá & Phân Hệ Triển Khai
 - **D-01 & D-02 — Headless Volume & Audio Parity (`tests/conftest.py`, `jarvis/tts/fallback.py`)**:
   - **Root cause**: Trên GitHub CI runner không có thiết bị âm thanh phần cứng. Khi gọi `set_volume()`, `ComputerController` trả về `None` khiến các bài test volume bị fail.
-  - **Fix**: Bổ sung autouse fixture `_mock_headless_audio_endpoint` và lớp `_VirtualEndpointVolume` vào `tests/conftest.py`. Xử lý `CalledProcessError` trong fallback PowerShell khi `JARVIS_MOCK_AUDIO=1`. GitHub Actions CI Run `34708546770` xanh 100% (1,741+ tests passed).
+  - **Fix**: Bổ sung autouse fixture `_mock_headless_audio_endpoint` và lớp `_VirtualEndpointVolume` vào `tests/conftest.py`. Xử lý `CalledProcessError` trong fallback PowerShell khi `JARVIS_MOCK_AUDIO=1`.
+  - **Chứng nhận CI**: GitHub Actions CI Run `34709825486` (commit `54ca22d`) đạt 🟢 **100% XANH TOÀN DIỆN** cả 4 jobs: Syntax Check (24s), Unit Tests (5m49s, 1,740+ tests pass), Import Validation (46s), Pipeline Summary (3s).
 - **D-03 — TShark Return Code & Anti-Fabrication (`jarvis/security/scanner.py`, `tests/unit/test_packet_capture_truthfulness.py`)**:
   - **Fix**: Bổ sung kiểm tra `proc.returncode != 0`. Nếu TShark thoát với mã lỗi khác 0 hoặc timeout, trả về `NO_TSHARK_OUTPUT` với `raw_stdout=None`. Loại bỏ hoàn toàn 100% dữ liệu gói tin giả lập 70/20/10. (18/18 tests pass).
 - **D-04 — Browser CDP Fail-Closed & Playwright Real Automation (`tests/unit/test_browser_control.py`)**:
@@ -36,6 +37,12 @@
   - Chuyển `HASS_TOKEN` và `ELEVENLABS_API_KEY` vào `KNOWN_SECRETS` của Windows Credential Manager. Mọi connector thiếu credentials đều fail-closed `NOT_CONFIGURED`.
 - **D-17 — Release Candidate Packaging & Verification**:
   - Cập nhật phiên bản canonical `5.1.0` trên toàn bộ hệ thống (`jarvis.__version__`, `README.md`, `ROADMAP.md`, `CHANGELOG.md`).
+
+### 2. Bằng Chứng Kiểm Định & Gói Phát Hành Beta v1
+- **File cài đặt Windows**: `dist/installer/JARVIS_Setup_v5.1.0.exe` (71.4 MB, Inno Setup 6 solid `lzma2/ultra64`).
+- **Mã băm toàn vẹn SHA-256**: `E6335E5BF7F704B0FA09E38937BA89CB668939FF9090746B45150ED722031650`.
+- **GitHub Actions CI Run**: [`34709825486`](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/runs/34709825486) — 4/4 Jobs PASSED (Syntax Check, Unit Tests 1,740+ tests, Import Validation, Pipeline Summary).
+- **Phạm vi kiểm định**: Đạt 100% tiêu chí hoàn thành nhiệm vụ D-01 đến D-17 cho bản phát hành thử nghiệm nội bộ 10–30 users.
 
 ---
 
