@@ -118,7 +118,8 @@ class ZaloBotController:
         import base64
         if self.is_mock:
             return True
-        if not self.config.webhook_secret:
+        secret = (self.config.webhook_secret or "").strip()
+        if not secret:
             log.error("Zalo webhook rejection: webhook_secret is not configured.")
             return False
         if not signature:
@@ -127,7 +128,7 @@ class ZaloBotController:
         clean_sig = signature.strip()
         try:
             raw_hmac = hmac.new(
-                self.config.webhook_secret.encode("utf-8"),
+                secret.encode("utf-8"),
                 payload,
                 hashlib.sha256,
             )
@@ -148,6 +149,10 @@ class ZaloBotController:
     # ------------------------------------------------------------------
     # Message Handling
     # ------------------------------------------------------------------
+
+    def handle_inbound_message(self, user_id: str, text: str, user_name: str = "User") -> dict[str, Any]:
+        """Convenience method for processing inbound webhook messages with standard user info."""
+        return self.handle_message(user_id=user_id, user_name=user_name, text=text)
 
     def handle_message(self, user_id: str, user_name: str, text: str) -> dict[str, Any]:
         """Process incoming Zalo message with redacted security audit logging and rate limiting."""
@@ -308,7 +313,8 @@ class ZaloBotController:
             log.info("Mock send to %s: %s", user_id, text[:60])
             return ZaloSendResult(success=True, message_id="mock_msg_id")
 
-        if not self.config.access_token:
+        token = (self.config.access_token or "").strip()
+        if not token:
             log.warning("Zalo send rejected: access_token not configured")
             return ZaloSendResult(success=False, error="NOT_CONFIGURED")
 
@@ -322,7 +328,7 @@ class ZaloBotController:
                 data=payload,
                 headers={
                     "Content-Type": "application/json",
-                    "access_token": self.config.access_token,
+                    "access_token": token,
                 },
             )
             with urlopen(req, timeout=10) as resp:
@@ -343,7 +349,12 @@ class ZaloBotController:
         self.sent_messages.append({"user_id": user_id, "image": image_path, "caption": caption})
         if self.is_mock:
             return ZaloSendResult(success=True, message_id="mock_img_id")
-        return ZaloSendResult(success=True, message_id="img_not_implemented")
+        token = (self.config.access_token or "").strip()
+        if not token:
+            log.warning("Zalo send_image rejected: access_token not configured")
+            return ZaloSendResult(success=False, error="NOT_CONFIGURED")
+        log.warning("Zalo send_image rejected: image upload API is not implemented")
+        return ZaloSendResult(success=False, error="IMAGE_SEND_NOT_IMPLEMENTED")
 
     def broadcast(self, text: str, user_ids: list[str] | None = None) -> list[ZaloSendResult]:
         """Send message to all whitelisted users or provided list."""

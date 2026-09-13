@@ -189,9 +189,44 @@ def avg_logprob_to_confidence(avg_lp: float) -> float:
     return max(0.0, min(1.0, math.exp(max(avg_lp, -10.0))))
 
 
-def _text_similarity_for_wav(wav_path: Path, transcript: str) -> float | None:
+def _resolve_expected_phrase(wav_path: Path, manifest_name: str | None = None) -> str | None:
+    stem = wav_path.stem
+    idx = None
+    if stem.startswith("variant_") and stem[len("variant_"):].isdigit():
+        idx = int(stem[len("variant_"):])
+    intent = wav_path.parent.name
+
+    is_independent = (
+        manifest_name in ("independent", "tests/eval/independent_test_manifest.py")
+        or (manifest_name is not None and "independent" in manifest_name.lower())
+        or ("audio_independent" in str(wav_path).replace("\\", "/"))
+    )
+    if is_independent and idx is not None:
+        try:
+            from tests.eval.independent_test_manifest import INDEPENDENT_MANIFEST
+            if intent in INDEPENDENT_MANIFEST and 0 <= idx < len(INDEPENDENT_MANIFEST[intent]):
+                return INDEPENDENT_MANIFEST[intent][idx]
+        except Exception:
+            pass
+
+    phrase = resolve_phrase_for_wav(wav_path)
+    if phrase is not None:
+        return phrase
+
+    if idx is not None:
+        try:
+            from tests.eval.independent_test_manifest import INDEPENDENT_MANIFEST
+            if intent in INDEPENDENT_MANIFEST and 0 <= idx < len(INDEPENDENT_MANIFEST[intent]):
+                return INDEPENDENT_MANIFEST[intent][idx]
+        except Exception:
+            pass
+
+    return None
+
+
+def _text_similarity_for_wav(wav_path: Path, transcript: str, manifest_name: str | None = None) -> float | None:
     """Auxiliary only (Phase 3) — None if the wav doesn't resolve to a manifest phrase."""
-    expected_phrase = resolve_phrase_for_wav(wav_path)
+    expected_phrase = _resolve_expected_phrase(wav_path, manifest_name)
     if expected_phrase is None:
         return None
     return token_similarity(expected_phrase, transcript)
@@ -227,7 +262,8 @@ def _transcribe_production(engine: Any, wav_path: Path, language: str) -> tuple[
 
 
 def run_single_model(model_name: str, audio_root: Path, conditions: list[str],
-                     language: str, out_path: Path, backend: str) -> None:
+                     language: str, out_path: Path, backend: str,
+                     manifest_name: str | None = None) -> None:
     """
     Inner worker — called in a fresh subprocess so VRAM is fully released
     between models. Writes results as JSON to out_path.
@@ -240,8 +276,8 @@ def run_single_model(model_name: str, audio_root: Path, conditions: list[str],
 
     device = "cuda"
     try:
-        import torch
-        if not torch.cuda.is_available():
+        import ctranslate2
+        if ctranslate2.get_cuda_device_count() == 0:
             device = "cpu"
     except Exception:
         device = "cpu"
@@ -308,7 +344,7 @@ def run_single_model(model_name: str, audio_root: Path, conditions: list[str],
 
                 pred_action = predict_intent(transcript)
                 outcome: Outcome = classify_outcome(transcript, pred_action, intent_gt, EXPECTED_ACTIONS)
-                sim = _text_similarity_for_wav(wav_path, transcript)
+                sim = _text_similarity_for_wav(wav_path, transcript, manifest_name)
 
                 icon = {"CORRECT": "✓", "MISROUTED": "✗",
                         "STT_EMPTY": "○", "ROUTER_ABSTAIN": "○"}[outcome]
@@ -407,10 +443,14 @@ def main():
                      help="Override output summaries filename (see --out-results-name).")
     ap.add_argument("--cached-transcripts", action="store_true",
                      help="Evaluate routing accuracy using cached transcripts from previous runs without re-running STT audio inference.")
+    ap.add_argument("--manifest", default=None,
+                     help="Path or identifier for test phrase manifest (e.g. 'independent' or 'tests/eval/independent_test_manifest.py'). "
+                          "If unset and audio-dir contains 'audio_independent', defaults to independent manifest.")
     # Internal flag: run as subprocess worker for one model
     ap.add_argument("--_worker-model", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--_worker-out", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--_worker-backend", default=None, help=argparse.SUPPRESS)
+    ap.add_argument("--_worker-manifest", default=None, help=argparse.SUPPRESS)
     args = ap.parse_args()
 
     audio_root = ROOT / args.audio_dir
@@ -434,7 +474,7 @@ def main():
             wav_path = Path(r.get("audio_file", ""))
             pred_action = predict_intent(transcript)
             outcome: Outcome = classify_outcome(transcript, pred_action, intent_gt, EXPECTED_ACTIONS)
-            sim = _text_similarity_for_wav(wav_path, transcript) if wav_path.exists() else r.get("text_similarity")
+            sim = _text_similarity_for_wav(wav_path, transcript, args.manifest) if wav_path.exists() else r.get("text_similarity")
             r_copy = dict(r)
             r_copy["predicted_intent"] = pred_action
             r_copy["outcome"] = outcome
@@ -473,6 +513,7 @@ def main():
             language=args.language,
             out_path=Path(args._worker_out),
             backend=args._worker_backend or args.backend,
+            manifest_name=args._worker_manifest or args.manifest,
         )
         return 0
 
@@ -480,8 +521,7 @@ def main():
     if not audio_root.exists():
         print(f"Audio directory not found: {audio_root}")
         print("\nExpected structure:")
-        print("  tests/eval/audio/{clean,noisy}/{intent_name}/variant_N.wav")
-        print("\nRecord with: python tests/eval/record_test_set.py")
+        print(f"  {args.audio_dir}/{{clean,noisy}}/{{intent_name}}/variant_N.wav")
         return 1
 
     all_results = []
@@ -497,6 +537,8 @@ def main():
                "--audio-dir", args.audio_dir,
                "--out-dir", args.out_dir,
                "--conditions"] + args.conditions + ["--language", args.language]
+        if args.manifest:
+            cmd.extend(["--_worker-manifest", args.manifest])
         r = subprocess.run(cmd, env={**os.environ, "PYTHONIOENCODING": "utf-8"})
         if r.returncode != 0:
             print(f"  ERROR: subprocess for {model_name} failed (exit {r.returncode})")

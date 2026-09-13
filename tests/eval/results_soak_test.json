@@ -1,0 +1,113 @@
+{
+  "summary": {
+    "duration_s": 10.0,
+    "samples_count": 10,
+    "avg_cpu_percent": 10.3,
+    "initial_working_set_mb": 52.58,
+    "final_working_set_mb": 52.82,
+    "peak_working_set_mb": 52.82,
+    "working_set_slope_mb_per_hr": 48.29,
+    "initial_handles": 178,
+    "final_handles": 178,
+    "peak_handles": 178,
+    "handle_slope_per_hr": 0.0,
+    "peak_threads": 15,
+    "passed": true,
+    "status_notes": [
+      "PASS: Memory slope 48.29 MB/hr within healthy bound",
+      "PASS: Handle slope 0.00/hr within healthy bound"
+    ]
+  },
+  "data_points": [
+    {
+      "timestamp": 1789297346.280571,
+      "elapsed_s": 0.0,
+      "cpu_percent": 98.3,
+      "working_set_mb": 52.58,
+      "private_bytes_mb": 392.16,
+      "handle_count": 178,
+      "thread_count": 15
+    },
+    {
+      "timestamp": 1789297347.2851052,
+      "elapsed_s": 1.35,
+      "cpu_percent": 1.6,
+      "working_set_mb": 52.82,
+      "private_bytes_mb": 392.58,
+      "handle_count": 178,
+      "thread_count": 15
+    },
+    {
+      "timestamp": 1789297348.2889073,
+      "elapsed_s": 2.36,
+      "cpu_percent": 0.0,
+      "working_set_mb": 52.82,
+      "private_bytes_mb": 392.58,
+      "handle_count": 178,
+      "thread_count": 15
+    },
+    {
+      "timestamp": 1789297349.292654,
+      "elapsed_s": 3.36,
+      "cpu_percent": 0.0,
+      "working_set_mb": 52.82,
+      "private_bytes_mb": 392.58,
+      "handle_count": 178,
+      "thread_count": 15
+    },
+    {
+      "timestamp": 1789297350.2968411,
+      "elapsed_s": 4.37,
+      "cpu_percent": 0.0,
+      "working_set_mb": 52.82,
+      "private_bytes_mb": 392.58,
+      "handle_count": 178,
+      "thread_count": 15
+    },
+    {
+      "timestamp": 1789297351.3008394,
+      "elapsed_s": 5.37,
+      "cpu_percent": 1.6,
+      "working_set_mb": 52.82,
+      "private_bytes_mb": 392.58,
+      "handle_count": 178,
+      "thread_count": 15
+    },
+    {
+      "timestamp": 1789297352.3053164,
+      "elapsed_s": 6.37,
+      "cpu_percent": 0.0,
+      "working_set_mb": 52.82,
+      "private_bytes_mb": 392.58,
+      "handle_count": 178,
+      "thread_count": 15
+    },
+    {
+      "timestamp": 1789297353.3101923,
+      "elapsed_s": 7.38,
+      "cpu_percent": 0.0,
+      "working_set_mb": 52.82,
+      "private_bytes_mb": 392.58,
+      "handle_count": 178,
+      "thread_count": 15
+    },
+    {
+      "timestamp": 1789297354.3143432,
+      "elapsed_s": 8.38,
+      "cpu_percent": 1.6,
+      "working_set_mb": 52.82,
+      "private_bytes_mb": 392.58,
+      "handle_count": 178,
+      "thread_count": 15
+    },
+    {
+      "timestamp": 1789297355.3197956,
+      "elapsed_s": 9.39,
+      "cpu_percent": 0.0,
+      "working_set_mb": 52.82,
+      "private_bytes_mb": 392.58,
+      "handle_count": 178,
+      "thread_count": 15
+    }
+  ]
+}

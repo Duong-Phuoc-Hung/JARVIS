@@ -95,6 +95,14 @@ class TestSendMessage:
         bot.send_message("user_001", "Test 2")
         assert len(bot.sent_messages) == 2
 
+    def test_mock_send_image_returns_success(self, bot):
+        result = bot.send_image("user_001", "path/to/img.png", caption="Test caption")
+        assert isinstance(result, ZaloSendResult)
+        assert result.success is True
+        assert result.message_id == "mock_img_id"
+        assert len(bot.sent_messages) == 1
+        assert bot.sent_messages[0]["image"] == "path/to/img.png"
+
     def test_broadcast_sends_to_all(self, bot_whitelist):
         results = bot_whitelist.broadcast("Thông báo chung")
         assert len(results) == 2
@@ -131,6 +139,17 @@ class TestFailClosed:
             f"Expected 'NOT_CONFIGURED' in error, got: {result.error!r}"
         )
 
+    def test_send_image_not_configured_when_token_empty(self, bot_unconfigured):
+        """send_image() must return NOT_CONFIGURED error when access_token is empty."""
+        result = bot_unconfigured.send_image("user_123", "path/to/image.jpg")
+        assert isinstance(result, ZaloSendResult), "Expected ZaloSendResult dataclass"
+        assert result.success is False, (
+            "FABRICATION: send_image returned success=True without access_token"
+        )
+        assert "NOT_CONFIGURED" in result.error, (
+            f"Expected 'NOT_CONFIGURED' in error, got: {result.error!r}"
+        )
+
     def test_send_message_no_fabricated_success_on_network_error(self):
         """send_message() must fail-closed on network error, never return success=True."""
         from unittest.mock import patch
@@ -155,4 +174,45 @@ class TestFailClosed:
         assert results == [], (
             f"Expected empty list when no users configured, got: {results}"
         )
+
+    def test_send_message_not_configured_when_token_whitespace(self):
+        """send_message() must return NOT_CONFIGURED error when access_token is whitespace."""
+        bot = ZaloBotController(config=ZaloConfig(access_token="   \t\n  "), is_mock=False)
+        result = bot.send_message("user_123", "Hello JARVIS")
+        assert isinstance(result, ZaloSendResult), "Expected ZaloSendResult dataclass"
+        assert result.success is False, (
+            "FABRICATION: send_message returned success=True on whitespace token"
+        )
+        assert result.error == "NOT_CONFIGURED", (
+            f"Expected error='NOT_CONFIGURED', got: {result.error!r}"
+        )
+
+    def test_send_image_not_configured_when_token_whitespace(self):
+        """send_image() must return NOT_CONFIGURED error when access_token is whitespace."""
+        bot = ZaloBotController(config=ZaloConfig(access_token="   \t\n  "), is_mock=False)
+        result = bot.send_image("user_123", "path/to/image.jpg")
+        assert isinstance(result, ZaloSendResult), "Expected ZaloSendResult dataclass"
+        assert result.success is False, (
+            "FABRICATION: send_image returned success=True on whitespace token"
+        )
+        assert result.error == "NOT_CONFIGURED", (
+            f"Expected error='NOT_CONFIGURED', got: {result.error!r}"
+        )
+
+    def test_send_image_not_implemented_when_token_provided(self):
+        """send_image() must fail-closed with IMAGE_SEND_NOT_IMPLEMENTED when token is configured (no ghost success)."""
+        bot = ZaloBotController(config=ZaloConfig(access_token="valid_test_token_123"), is_mock=False)
+        result = bot.send_image("user_123", "path/to/image.jpg", caption="Test image")
+        assert isinstance(result, ZaloSendResult), "Expected ZaloSendResult dataclass"
+        assert result.success is False, (
+            "FABRICATION/GHOST SUCCESS: send_image returned success=True without upload implementation"
+        )
+        assert result.error == "IMAGE_SEND_NOT_IMPLEMENTED", (
+            f"Expected error='IMAGE_SEND_NOT_IMPLEMENTED', got: {result.error!r}"
+        )
+
+    def test_webhook_secret_whitespace_fails_closed(self):
+        """verify_webhook_signature must fail-closed when webhook_secret is only whitespace."""
+        bot = ZaloBotController(config=ZaloConfig(webhook_secret="   \t\n "), is_mock=False)
+        assert bot.verify_webhook_signature(b"payload", "any_signature") is False
 

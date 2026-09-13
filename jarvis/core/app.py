@@ -1734,8 +1734,8 @@ class JarvisApp:
         """
         # H-01 fix: Whisper requires 16kHz input. Record at 16000 Hz directly to
         # avoid the silent 44100→16000 resample mismatch that caused ROUTER_ABSTAIN.
-        # (audio_to_float32 does NOT resample np.ndarray input — it returns as-is.)
-        sr = int(sample_rate or self.config.get("audio.sample_rate", 16000))
+        # Decouple STT capture sample rate (default 16000) from system playback audio.sample_rate (44100).
+        sr = int(sample_rate or self.config.get("stt.sample_rate", 16000))
         max_dur = float(duration_s or self.config.get("stt.timeout_s", 4.0))
 
         if self.headless:
@@ -1806,7 +1806,8 @@ class JarvisApp:
         self,
         greeting_phrase: str = "Vâng thưa Ngài, tôi đang lắng nghe.",
         trigger_name: str = "VOICE",
-    ) -> None:
+        sync: bool = False,
+    ) -> threading.Thread | None:
         """
         Executes asynchronous Voice Interaction Loop without blocking UI.
         Enforces single-flight execution and acoustic echo suppression.
@@ -1921,7 +1922,13 @@ class JarvisApp:
                 with self._voice_lock:
                     self._is_voice_interacting = False
 
-        threading.Thread(target=_voice_loop, daemon=True, name="JARVIS-VoiceInteraction").start()
+        if sync:
+            _voice_loop()
+            return None
+
+        thread = threading.Thread(target=_voice_loop, daemon=True, name="JARVIS-VoiceInteraction")
+        thread.start()
+        return thread
 
     def _apply_safety_guard_config(self, cfg: Any = None) -> None:
         """

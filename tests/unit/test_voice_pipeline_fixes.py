@@ -23,7 +23,7 @@ def mock_app():
          patch("jarvis.core.app.EventBus"):
         app = JarvisApp.__new__(JarvisApp)
         app.config = {
-            "audio.sample_rate": 16000,
+            "audio.sample_rate": 44100,
             "stt.timeout_s": 0.3,
         }
         app.headless = False
@@ -45,7 +45,7 @@ def mock_app():
 
 
 def test_h01_record_audio_default_16khz(mock_app):
-    """H-01: record_audio defaults to 16000 Hz if not overridden."""
+    """H-01: record_audio defaults to 16000 Hz even when audio.sample_rate is 44100."""
     with patch("sounddevice.InputStream") as mock_stream:
         mock_instance = MagicMock()
         mock_instance.read.return_value = (np.zeros((100, 1), dtype=np.float32), False)
@@ -56,6 +56,37 @@ def test_h01_record_audio_default_16khz(mock_app):
         mock_stream.assert_called_once()
         _, kwargs = mock_stream.call_args
         assert kwargs.get("samplerate") == 16000
+
+
+def test_h01_record_audio_sample_rate_precedence(mock_app):
+    """H-01: Explicit stt.sample_rate or sample_rate parameter takes precedence."""
+    mock_app.config["audio.sample_rate"] = 44100
+    mock_app.config["stt.sample_rate"] = 8000
+    with patch("sounddevice.InputStream") as mock_stream:
+        mock_instance = MagicMock()
+        mock_instance.read.return_value = (np.zeros((100, 1), dtype=np.float32), False)
+        mock_stream.return_value.__enter__.return_value = mock_instance
+
+        mock_app.record_audio(duration_s=0.3)
+        _, kwargs = mock_stream.call_args
+        assert kwargs.get("samplerate") == 8000
+
+    with patch("sounddevice.InputStream") as mock_stream:
+        mock_instance = MagicMock()
+        mock_instance.read.return_value = (np.zeros((100, 1), dtype=np.float32), False)
+        mock_stream.return_value.__enter__.return_value = mock_instance
+
+        mock_app.record_audio(duration_s=0.3, sample_rate=22050)
+        _, kwargs = mock_stream.call_args
+        assert kwargs.get("samplerate") == 22050
+
+
+def test_h01_record_audio_headless_16khz_buffer_length(mock_app):
+    """H-01: Headless record_audio produces 1600 samples for duration_s=1.0 at 16kHz."""
+    mock_app.headless = True
+    mock_app.config["audio.sample_rate"] = 44100
+    arr = mock_app.record_audio(duration_s=1.0)
+    assert len(arr) == 1600
 
 
 def test_h02_record_audio_uses_audio_engine_device(mock_app):

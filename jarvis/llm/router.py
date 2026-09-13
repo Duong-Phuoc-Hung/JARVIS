@@ -442,12 +442,6 @@ class LLMIntentRouter:
                 source="rule_fallback",
                 response_text="Nhiệt độ CPU hiện tại là 45 độ C, hiệu năng ổn định, thưa Ngài.",
             ),
-            "nhiệt độ": IntentResult(
-                action_name="hardware_telemetry_check",
-                parameters={"component": "cpu"},
-                source="rule_fallback",
-                response_text="Nhiệt độ CPU hiện tại là 45 độ C, hiệu năng ổn định, thưa Ngài.",
-            ),
             "kiểm tra cpu": IntentResult(
                 action_name="hardware_telemetry_check",
                 parameters={"component": "cpu"},
@@ -473,12 +467,6 @@ class LLMIntentRouter:
                 response_text="Bộ nhớ RAM đang sử dụng ở mức bình thường, tài nguyên dồi dào, thưa Ngài.",
             ),
             "bộ nhớ ram": IntentResult(
-                action_name="hardware_telemetry_check",
-                parameters={"component": "ram"},
-                source="rule_fallback",
-                response_text="Bộ nhớ RAM đang sử dụng ở mức bình thường, tài nguyên dồi dào, thưa Ngài.",
-            ),
-            "bộ nhớ": IntentResult(
                 action_name="hardware_telemetry_check",
                 parameters={"component": "ram"},
                 source="rule_fallback",
@@ -659,12 +647,6 @@ class LLMIntentRouter:
                 response_text="Tình trạng hệ thống: Mọi dịch vụ đang hoạt động tối ưu, CPU và RAM ở mức an toàn, thưa Ngài.",
             ),
             "kiểm tra hệ thống": IntentResult(
-                action_name="hardware_status_query",
-                parameters={},
-                source="rule_fallback",
-                response_text="Tình trạng hệ thống: Mọi dịch vụ đang hoạt động tối ưu, CPU và RAM ở mức an toàn, thưa Ngài.",
-            ),
-            "hệ thống": IntentResult(
                 action_name="hardware_status_query",
                 parameters={},
                 source="rule_fallback",
@@ -1275,7 +1257,6 @@ class LLMIntentRouter:
 
             # Memory and facts
             "nhớ rằng": IntentResult(action_name="memory_save_fact", parameters={}, source="rule_fallback", response_text="Đã ghi nhớ thông tin này, thưa Ngài."),
-            "lưu lại": IntentResult(action_name="memory_save_fact", parameters={}, source="rule_fallback", response_text="Đã lưu thông tin này, thưa Ngài."),
             "tôi tên là": IntentResult(action_name="memory_save_fact", parameters={}, source="rule_fallback", response_text="Đã ghi nhớ tên của Ngài."),
 
             # Screen capture
@@ -1470,6 +1451,139 @@ class LLMIntentRouter:
 
         # Advanced Parametric Regex Rules (Run before static substring fallback)
         self._regex_rules: list[tuple[re.Pattern, Callable[[re.Match], IntentResult]]] = [
+            # 0. Natural Vietnamese Voice Pipeline Patterns (Tuned for Beta v1 Coverage)
+            # Exact hardware query: "nhiệt độ" (single command)
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:nhiệt\s*độ|nhiet\s*do)$", re.IGNORECASE),
+                lambda m: self._make_hw_intent("cpu"),
+            ),
+            # Exact system health query: "hệ thống" (single command)
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:hệ\s*thống|he\s*thong)$", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="hardware_status_query",
+                    parameters={},
+                    source="rule_fallback",
+                    response_text="Tình trạng hệ thống: Mọi dịch vụ đang hoạt động tối ưu, CPU và RAM ở mức an toàn, thưa Ngài.",
+                ),
+            ),
+            # Timer & Alarm
+            (
+                re.compile(
+                    r"(?:đặt\s*báo\s*giờ|hẹn\s*(?:giờ|cho\s*tôi(?:\s*đúng)?)|đếm\s*ngược|cài\s*đặt\s*chuông\s*báo|báo\s*thức\s*(?:cho\s*tôi)?|đặt\s*đồng\s*hồ\s*đếm\s*ngược|cài\s*giờ\s*đếm\s*ngược)\s+(?:sau\s+)?(.+?)(?:phút|tiếng|giờ)",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(action_name="reminder", parameters={"action": "timer"}, source="rule_fallback", response_text="Đã đặt hẹn giờ cho Ngài."),
+            ),
+            # Reminder & Scheduling
+            (
+                re.compile(
+                    r"(?:đặt|tạo)\s+(?:lời\s*nhắc|lịch\s*nhắc|nhắc\s*nhở)(?:\s+(.+))?",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(action_name="reminder", parameters={"message": m.group(1).strip() if m.group(1) else ""}, source="rule_fallback", response_text="Đã ghi nhận lời nhắc cho Ngài."),
+            ),
+            # Open App expanded
+            (
+                re.compile(
+                    r"^(?:jarvis[,\s]*)?(?:cho\s*tôi\s*vào|cho\s*(?:mình\s*)?(?:vào|chạy)|khởi\s*chạy|mở|bật|chạy|khởi\s*động|vào)\s+"
+                    r"(?:ứng\s*dụng\s+)?(?:phần\s*mềm\s+)?(?:trình\s*duyệt|bảng\s*tính|công\s*cụ|app|chương\s*trình)?\s*"
+                    r"(?:vẽ|gõ\s*code|gõ\s*văn\s*bản|code|máy\s*tính\s*cầm\s*tay|nghe\s*nhạc)?\s*"
+                    r"(cốc\s*cốc|chrome|google\s*chrome|firefox|edge|notepad|calculator|máy\s*tính|word|excel|powerpoint|vscode|vs\s*code|visual\s*studio\s*code|cursor|terminal|powershell|cmd|paint|discord|telegram|zalo|spotify)"
+                    r"(?:\s+(?:giúp\s*tôi|hộ\s*tôi|giúp\s*mình|lên|đi|nhé|nha|trên\s*máy|để\s*chat|để\s*dùng))?$",
+                    re.IGNORECASE,
+                ),
+                lambda m: self._make_app_intent(m.group(1)),
+            ),
+            # Music Play expanded
+            (
+                re.compile(
+                    r"(?:phát|mở|nghe)\s+(?:danh\s*sách\s+)?(?:một\s+)?(?:bài\s*hát|nhạc|bài|giai\s*điệu|playlist)(?:\s+(.+))?",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(action_name="spotify", parameters={"query": m.group(1).strip() if m.group(1) else ""}, source="rule_fallback", response_text="Đang phát nhạc trên Spotify cho Ngài."),
+            ),
+            # Screen backlight / screen off
+            (
+                re.compile(
+                    r"(?:tắt|ngắt|khóa)\s*(?:đèn\s*nền\s*màn\s*hình|hiển\s*thị\s*màn\s*hình|giao\s*diện\s*màn\s*hình|màn\s*hình(?:\s*làm\s*việc|\s*pc|\s*máy\s*tính)?)|"
+                    r"(?:cho\s+)?màn\s*hình\s*(?:pc|máy\s*tính)?\s*(?:chuyển\s*sang\s*chế\s*độ\s*tối|nghỉ\s*ngơi|nghỉ(?:\s*một\s*lúc)?)",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(action_name="system_power", parameters={"action": "screen_off"}, source="rule_fallback", response_text="Đang tắt màn hình cho Ngài."),
+            ),
+            # Weather queries expanded
+            (
+                re.compile(
+                    r"(?:nhiệt\s*độ|thời\s*tiết)\s+(?:ở|tại|khu\s*vực)?\s*(hà\s*nội|sài\s*gòn|đà\s*nẵng|hồ\s*chí\s*minh|huế|hải\s*phòng|cần\s*thơ|ngoài\s*trời)(?:\s+(?:hiện\s*tại|lúc\s*này|hôm\s*nay|ngày\s*mai|thế\s*nào|là\s*bao\s*nhiêu))?|"
+                    r"(?:xem\s+(?:giúp|giùm|cho)\s*tôi\s+)?thời\s*tiết\s+(?:ở|tại)\s*(.+)|"
+                    r"(?:ngoài\s*trời\s+có\s+đang\s+(?:nắng|mưa)|chiều\s*nay\s+có\s+mưa|ra\s*đường\s+có\s+cần\s+mang\s+ô|dự\s*báo\s+mưa\s*bão)",
+                    re.IGNORECASE,
+                ),
+                lambda m: self._make_weather_intent(m.group(1) or m.group(2) or "current"),
+            ),
+            # Volume control expanded
+            (
+                re.compile(
+                    r"(?:cho\s+)?(?:loa|âm\s*thanh|âm\s*lượng|tiếng)\s+(?:to\s*lên|nhỏ\s*lại|bé\s*lại|phát\s*to|hết\s*cỡ|vừa\s*đủ\s*nghe|hạ\s*xuống)|"
+                    r"(?:vặn|chỉnh|hạ|tăng\s*(?:thêm)?|giảm\s*(?:bớt)?|bật\s*(?:lại)?|tắt)\s+(?:bớt\s+)?(?:loa|âm\s*thanh|âm\s*lượng|tiếng)(?:\s+(?:lên|xuống|về|mức|lại))?(?:\s+(?:\d+|năm\s*mươi|ba\s*mươi|thấp\s*nhất|cao\s*nhất))?|"
+                    r"(?:tắt\s*hẳn|tắt\s*hết|tắt)\s+(?:âm\s*thanh|tiếng|loa)(?:\s+ngoài)?|"
+                    r"(?:vặn\s*nhỏ|bật\s*lại\s*tiếng|tăng\s*thêm\s*âm\s*lượng)",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(action_name="system_volume", parameters={"action": "adjust"}, source="rule_fallback", response_text="Đang điều chỉnh âm lượng cho Ngài."),
+            ),
+            # Stop / Cancel expanded
+            (
+                re.compile(
+                    r"(?:thôi\s+)?(?:không\s+(?:cần\s+)?làm|hủy\s+(?:bỏ\s+)?(?:thao\s*tác|yêu\s*cầu|lệnh)|ngừng\s+(?:hành\s*động|tác\s*vụ|hoạt\s*động)|bỏ\s*qua\s*(?:lệnh|tác\s*vụ))|"
+                    r"^(?:thôi\s+bỏ\s+qua|hủy\s+lệnh|ngừng\s+ngay|dừng\s+ngay|thôi\s+không\s+làm)|"
+                    r"^(?:thôi|thoi|dừng|dung|stop|hủy|huy)(?:[,\s]+(?:thôi|thoi|dừng|dung|stop|hủy|huy|ơi))*[!\.\?]?$",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(action_name="system_power", parameters={"action": "stop"}, source="rule_fallback", response_text="Đã dừng tác vụ cho Ngài."),
+            ),
+            # Screenshot expanded
+            (
+                re.compile(
+                    r"(?:hãy\s+)?(?:chụp|lưu|bắt|ghi)\s*(?:lại\s+)?(?:toàn\s*bộ\s+|nhanh\s+|bức\s+)?(?:ảnh|hình\s*ảnh|khoảnh\s*khắc)?\s*(?:trên\s+)?(?:màn\s*hình|desktop|giao\s*diện|cửa\s*sổ|vùng\s*hiển\s*thị)|"
+                    r"^(?:jarvis[,\s]*)?(?:screen\s*shot|chụp\s*mang\s*hình)$",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(action_name="screen_capture", parameters={}, source="rule_fallback", response_text="Đang chụp ảnh màn hình cho Ngài."),
+            ),
+            # Note Taking expanded
+            (
+                re.compile(
+                    r"(?:ghi\s*lại\s+nội\s*dung\s+tóm\s*tắt|tạo\s+(?:một\s+)?(?:bản\s+|trang\s+)?(?:ghi\s*chú|ghi\s*chép)|viết\s+(?:nhanh\s+)?dòng\s*ghi\s*chú|thêm\s+(?:một\s+)?ghi\s*chép|viết\s*lại\s+(?:những\s+điểm|thông\s*tin)|lưu\s*ý\s*tưởng|ghi\s*chép\s*lại)",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(action_name="skill_note_taker", parameters={"action": "add"}, source="rule_fallback", response_text="Đang lưu ghi chú cho Ngài."),
+            ),
+            # Settings open expanded
+            (
+                re.compile(
+                    r"(?:mở|bật|vào|cho\s*tôi\s*(?:xem|vào))\s+(?:bảng\s*điều\s*khiển|cửa\s*sổ\s*thiết\s*lập|phần\s*cấu\s*hình|bảng\s*thiết\s*lập|cửa\s*sổ\s*tinh\s*chỉnh|bảng\s*cấu\s*hình|mục\s*thiết\s*lập|trang\s*cài\s*đặt|trang\s*cấu\s*hình)",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(action_name="app_open", parameters={"app_name": "settings"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
+            ),
+            # System Shutdown & Restart expanded
+            (
+                re.compile(
+                    r"(?:cho\s+máy\s*tính\s+(?:ngừng\s*hoạt\s*động|nghỉ\s*ngơi)|đóng\s*nguồn\s*hệ\s*thống|tắt\s*toàn\s*bộ\s*hệ\s*thống|đóng\s*máy\s*lại)",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(action_name="system_power", parameters={"action": "shutdown"}, source="rule_fallback", response_text="Đang tắt hệ thống cho Ngài."),
+            ),
+            (
+                re.compile(
+                    r"(?:bật\s*lại\s*máy\s*tính|reset\s*lại\s*máy\s*tính|cho\s*máy\s*chạy\s*lại\s*hệ\s*thống|restart\s*lại\s*hệ\s*thống)",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(action_name="system_power", parameters={"action": "restart"}, source="rule_fallback", response_text="Đang khởi động lại hệ thống cho Ngài."),
+            ),
+
             # 1. Smart Home Light Controls (with parameter variations)
             (
                 re.compile(r"(?:bật|mở|turn\s*on)\s+(?:đèn|light)(?:\s+(phòng\s*khách|phòng\s*ngủ|bàn|living\s*room|bedroom|desk))?", re.IGNORECASE),
@@ -1528,7 +1642,7 @@ class LLMIntentRouter:
             ),
             # 2. Hardware / Telemetry / Diagnostics
             (
-                re.compile(r"(?:kiểm\s*tra|kiem\s*tra|check|query|xem|báo\s*cáo|bao\s*cao)?\s*(?:(?:(cpu|gpu|ram|ổ\s*cứng|o\s*cung|disk|bộ\s*nhớ|bo\s*nho|pin|battery)\s+(?:nhiệt\s*độ|nhiet\s*do|temp|temperature|mức\s*sử\s*dụng|mấy\s*phần\s*trăm|tốc\s*độ|còn\s*bao\s*nhiêu|còn\s*lại\s*bao\s*nhiêu|tình\s*trạng|tinh\s*trang|dung\s*lượng))|(?:(?:nhiệt\s*độ|nhiet\s*do|temp|temperature|mức\s*sử\s*dụng|mấy\s*phần\s*trăm|tốc\s*độ|còn\s*bao\s*nhiêu|còn\s*lại\s*bao\s*nhiêu|dung\s*lượng)\s+(cpu|gpu|ram|ổ\s*cứng|o\s*cung|disk|bộ\s*nhớ|bo\s*nho|pin|battery|máy|laptop|pc|thiết\s*bị))|(?:nhiệt\s*độ|nhiet\s*do|temp|temperature))", re.IGNORECASE),
+                re.compile(r"(?:kiểm\s*tra|kiem\s*tra|check|query|xem|báo\s*cáo|bao\s*cao)?\s*(?:(?:(cpu|gpu|ram|ổ\s*cứng|o\s*cung|disk|bộ\s*nhớ|bo\s*nho|pin|battery)\s+(?:nhiệt\s*độ|nhiet\s*do|temp|temperature|mức\s*sử\s*dụng|mấy\s*phần\s*trăm|tốc\s*độ|còn\s*bao\s*nhiêu|còn\s*lại\s*bao\s*nhiêu|tình\s*trạng|tinh\s*trang|dung\s*lượng))|(?:(?:nhiệt\s*độ|nhiet\s*do|temp|temperature|mức\s*sử\s*dụng|mấy\s*phần\s*trăm|tốc\s*độ|còn\s*bao\s*nhiêu|còn\s*lại\s*bao\s*nhiêu|dung\s*lượng)\s+(cpu|gpu|ram|ổ\s*cứng|o\s*cung|disk|bộ\s*nhớ|bo\s*nho|pin|battery|máy|laptop|pc|thiết\s*bị)))", re.IGNORECASE),
                 lambda m: self._make_hw_intent((m.group(1) or m.group(2) or "cpu").lower()),
             ),
             (
@@ -1845,7 +1959,7 @@ class LLMIntentRouter:
                 ),
             ),
             (
-                re.compile(r"^(?:jarvis[,\s]*)?(?:đọc|doc|xem|tin|news|báo|bao)\s*(?:tức|tuc|báo|bao|mới\s*nhất|moi\s*nhat|hôm\s*nay|hom\s*nay|today|headlines|latest)?(?:\s+(.+))?$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:đọc|doc|xem)?\s*(?:tin\s*tức|tin\s*tuc|bản\s*tin|tin\s*mới|điểm\s*tin|thời\s*sự|tin\s*nóng|headlines|latest\s*news)(?:\s+(.+))?$", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="news_headlines",
                     parameters={"topic": "general"},
@@ -2011,6 +2125,8 @@ class LLMIntentRouter:
                 return False
             if clean_lower == key:
                 return True
+            if key == "tắt" and "tóm tắt" in clean_lower:
+                return False
             pattern = self._rule_key_regexes.get(key)
             if pattern is None:
                 pattern = re.compile(r"(?:\b|^)" + re.escape(key) + r"(?:\b|$)", re.IGNORECASE)

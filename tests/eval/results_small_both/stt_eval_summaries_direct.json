@@ -1,0 +1,110 @@
+[
+  {
+    "model": "small",
+    "condition": "clean",
+    "backend": "direct",
+    "n_trials": 45,
+    "n_correct": 18,
+    "n_misrouted": 1,
+    "n_stt_empty": 0,
+    "n_router_abstain": 26,
+    "correct_rate": 0.4,
+    "misrouting_rate": 0.022222222222222223,
+    "stt_empty_rate": 0.0,
+    "router_abstain_rate": 0.5777777777777777,
+    "end_to_end_abstention_rate": 0.5777777777777777,
+    "median_latency_ms": 3503.4930000000486,
+    "mean_text_similarity": 0.08148148148148149,
+    "threshold_curve": {
+      "0.3": {
+        "correct": 0.4,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.5777777777777777
+      },
+      "0.4": {
+        "correct": 0.4,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.5777777777777777
+      },
+      "0.5": {
+        "correct": 0.3111111111111111,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.6888888888888889
+      },
+      "0.6": {
+        "correct": 0.2,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.8
+      },
+      "0.7": {
+        "correct": 0.08888888888888889,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.9111111111111111
+      },
+      "0.8": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 1.0
+      },
+      "0.9": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 1.0
+      }
+    }
+  },
+  {
+    "model": "small",
+    "condition": "noisy",
+    "backend": "direct",
+    "n_trials": 45,
+    "n_correct": 15,
+    "n_misrouted": 1,
+    "n_stt_empty": 1,
+    "n_router_abstain": 28,
+    "correct_rate": 0.3333333333333333,
+    "misrouting_rate": 0.022222222222222223,
+    "stt_empty_rate": 0.022222222222222223,
+    "router_abstain_rate": 0.6222222222222222,
+    "end_to_end_abstention_rate": 0.6444444444444445,
+    "median_latency_ms": 3561.919400000079,
+    "mean_text_similarity": 0.12592592592592594,
+    "threshold_curve": {
+      "0.3": {
+        "correct": 0.3333333333333333,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.6444444444444445
+      },
+      "0.4": {
+        "correct": 0.28888888888888886,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.6888888888888889
+      },
+      "0.5": {
+        "correct": 0.2222222222222222,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.7777777777777778
+      },
+      "0.6": {
+        "correct": 0.1111111111111111,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.8888888888888888
+      },
+      "0.7": {
+        "correct": 0.044444444444444446,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.9555555555555556
+      },
+      "0.8": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 1.0
+      },
+      "0.9": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 1.0
+      }
+    }
+  }
+]

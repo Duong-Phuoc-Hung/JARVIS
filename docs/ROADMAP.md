@@ -22,6 +22,26 @@
 
 ---
 
+## PHASE H (2026-09-13) — Voice Pipeline & Beta v1 Hardening (H-01 den H-13)
+
+| ID | Status | Mo ta |
+|----|--------|-------|
+| H-01 | DONE | Fix resample mismatch: `record_audio()` chuyen default 16000 Hz, khong bi audio slow 2.75x tren Whisper |
+| H-02 | DONE | Dong bo input device giua AudioEngine va `record_audio()` qua `_active_device_index` |
+| H-03 | DONE | Chong self-audio contamination: 150ms settling delay sau TTS greeting + lockout loop khi TTS dang phat |
+| H-04 | DONE | Fix crash hotkey Ctrl+Shift+L PTT: thay `_handle_voice_command` bang `_start_voice_interaction` |
+| H-05 | DONE | STT & Router multi-condition benchmark (Small vs Large-v3, Clean vs Noisy) + Router 99.5% tren 210 cau doc lap |
+| H-06 | PENDING | Wake-word false positive reduction (can 30-60 phut ambient idle audio recording) |
+| H-07 | DONE | Chuan hoa lenh mo app/web: launch dedupe stress test (3 lenh x 20 lan = 60 lan goi; 3 allowed, 57 suppressed) |
+| H-08 | DONE | Volume & brightness fail-closed tren hardware None: tra `success: False`, khong ghost success |
+| H-09 | DONE | Runaway soak test & leak detection framework: `tests/eval/soak_test_runner.py` (0 handle leak, 15 threads on dinh) |
+| H-10 | BLOCKED | Compatibility matrix 10 thiet bi: can 10 cau hinh mic/loa vat ly khac nhau |
+| H-11 | PENDING | First-run setup wizard: wizard interactive cho user moi |
+| H-12 | PENDING | Tach locale layer: ASEAN localization preparation |
+| H-13 | BLOCKED | Beta acceptance test 50 ca live: can thiet bi live voi nguoi dung that |
+
+---
+
 # Káº¾ HOáº CH Tá»”NG THá»‚ â€” VÃ Lá»–I, KIá»‚M TRA TÃNH NÄ‚NG & NÃ‚NG Cáº¤P JARVIS
 ### Tá»•ng há»£p hÃ nh Ä‘á»™ng cá»¥ thá»ƒ, dÃ¹ng cÃ¹ng `docs/AUDIT_FRAMEWORK.md`
 

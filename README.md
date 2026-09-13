@@ -4,7 +4,7 @@
 
 [![CI Status](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/workflows/ci.yml/badge.svg)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
 [![Tests](https://img.shields.io/badge/tests-passing-00ff88?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
-[![Source Version](https://img.shields.io/badge/source%20version-5.1.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
+[![Source Version](https://img.shields.io/badge/source%20version-5.1.3-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
 [![Releases](https://img.shields.io/badge/releases-GitHub-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?style=flat-square)](https://python.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%2064--bit-0078D4?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS)
@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.1.0** trên `main` — hoàn thiện toàn bộ các nhiệm vụ D-01 đến D-17 của phân hệ Core / Backend / Integrations / Release: GitHub Actions CI xanh 100%, PacketCapture truthfulness với TShark thật, Playwright CDP fail-closed, chống web prompt injection, kiểm soát Home Assistant authoritative write path có allowlist an toàn, Auto-Updater với rollback SHA-256, gói chẩn đoán log redaction và bộ cài đặt Windows Installer một chạm `JARVIS_Setup_v5.1.0.exe`.</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.1.3** trên `main` — hoàn thiện toàn bộ các nhiệm vụ D-01 đến D-17 của phân hệ Core / Backend / Integrations / Release và gói Voice Pipeline Hardening (H-01 đến H-04, H-07, H-08, H-09): 16kHz direct capture, đồng bộ micro device, 150ms settling delay, hotkey PTT Ctrl+Shift+L, Intent Router 99.5% accuracy trên 210 câu độc lập, Large-v3 STT benchmark 60.0% clean / 55.6% noisy, bộ test chấp nhận 28/28 E2E tests xanh 100%, và khung soak test phát hiện rò rỉ bộ nhớ/handles.</sub>
 
 
 </div>

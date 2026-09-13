@@ -1,0 +1,100 @@
+{
+  "total": 210,
+  "correct": 209,
+  "correct_pct": 99.52380952380952,
+  "misrouted": 1,
+  "misrouted_pct": 0.4761904761904762,
+  "abstain": 0,
+  "abstain_pct": 0.0,
+  "breakdown": {
+    "open_app": {
+      "correct": 14,
+      "misrouted": 1,
+      "abstain": 0,
+      "samples": [
+        [
+          "bật phần mềm nghe nhạc Spotify lên đi",
+          "MISROUTED->spotify"
+        ]
+      ]
+    },
+    "system_shutdown": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    },
+    "system_restart": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    },
+    "volume_control": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    },
+    "weather_query": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    },
+    "timer_set": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    },
+    "reminder_set": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    },
+    "screenshot": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    },
+    "stop": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    },
+    "search": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    },
+    "music_play": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    },
+    "screen_off": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    },
+    "note_take": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    },
+    "settings_open": {
+      "correct": 15,
+      "misrouted": 0,
+      "abstain": 0,
+      "samples": []
+    }
+  }
+}

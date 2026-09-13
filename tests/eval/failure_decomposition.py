@@ -62,7 +62,7 @@ EXPECTED_ACTIONS: dict[str, set[str]] = {
     "search":          {"web_open", "shell_exec"},
     "music_play":      {"spotify"},
     "screen_off":      {"system_power", "system_brightness"},
-    "note_take":       {"memory_save_fact"},
+    "note_take":       {"memory_save_fact", "skill_note_taker"},
     "settings_open":   {"app_open", "web_open"},
 }
 
