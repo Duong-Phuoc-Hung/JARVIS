@@ -583,7 +583,13 @@ class JarvisApp:
                 self.overlay.toggle()
 
         def _ptt_voice_cb():
-            threading.Thread(target=self._handle_voice_command, kwargs={"trigger_name": "HOTKEY_PTT"}, daemon=True).start()
+            # H-04 fix: _handle_voice_command did not exist → delegate to _start_voice_interaction.
+            # PTT hotkey uses shorter greeting to minimize delay before recording starts.
+            threading.Thread(
+                target=self._start_voice_interaction,
+                kwargs={"trigger_name": "HOTKEY_PTT", "greeting_phrase": "Vâng, tôi nghe."},
+                daemon=True,
+            ).start()
 
         def _toggle_wake_word_cb():
             if self.wake_word_detector:
@@ -1718,7 +1724,10 @@ class JarvisApp:
         """
         Captures an audio buffer from the microphone with fast energy-based silence cutoff.
         """
-        sr = int(sample_rate or self.config.get("audio.sample_rate", 44100))
+        # H-01 fix: Whisper requires 16kHz input. Record at 16000 Hz directly to
+        # avoid the silent 44100→16000 resample mismatch that caused ROUTER_ABSTAIN.
+        # (audio_to_float32 does NOT resample np.ndarray input — it returns as-is.)
+        sr = int(sample_rate or self.config.get("audio.sample_rate", 16000))
         max_dur = float(duration_s or self.config.get("stt.timeout_s", 4.0))
 
         if self.headless:
