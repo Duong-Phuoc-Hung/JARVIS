@@ -31,7 +31,7 @@
 | H-03 | DONE | Chống self-audio contamination: 150ms settling delay sau TTS greeting + lockout loop khi TTS đang phát |
 | H-04 | DONE | Fix crash hotkey Ctrl+Shift+L PTT: thay `_handle_voice_command` bằng `_start_voice_interaction` |
 | H-05 | DONE | STT & Router benchmark độc lập hoàn tất 100% (Small: N=420 clean+noisy; Large-v3: N=420 clean+noisy; Clean 87.1% / 2.79s, Noisy 84.8% / 2.79s, 0% empty, 178+2+0+30=210) |
-| H-06 | RUNNING_IDLE_SOAK | Runner `tests/eval/wake_word_idle_runner.py` đã sửa 3 lỗi import/API; daemon đang chạy 60 phút (bắt đầu 23:21 ICT 2026-09-13); kết quả ghi vào `docs/eval/wake_word_idle_results.json` |
+| H-06 | DONE | Idle soak 60 phút thật (3600.1s, Realtek built-in, 16kHz): **0 false triggers, 0.00 FP/hr** — vượt ngưỡng < 1 FP/hr. JSON: `docs/eval/wake_word_idle_results.json` |
 | H-07 | DONE | Chuẩn hóa lệnh mở app/web: launch dedupe stress test (3 lệnh × 20 lần = 60 lần gọi; 3 allowed, 57 suppressed) |
 | H-08 | DONE | Volume & brightness fail-closed trên hardware None: trả `success: False`, không ghost success |
 | H-09 | DONE | Runaway soak test & leak detection framework: `tests/eval/soak_test_runner.py` (+0.00 handles/hr, 15 threads ổn định) |

@@ -1,0 +1,12 @@
+{
+  "status": "COMPLETED",
+  "duration_seconds": 3600.1,
+  "duration_minutes": 60.0,
+  "target_duration_seconds": 3600.0,
+  "sample_rate": 16000,
+  "device_index": null,
+  "sensitivity_threshold": 0.5,
+  "total_false_triggers": 0,
+  "false_positive_rate_per_hour": 0.0,
+  "events": []
+}

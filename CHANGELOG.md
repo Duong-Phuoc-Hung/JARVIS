@@ -1,4 +1,34 @@
 
+## [5.1.5] H-06 Wake-Word Idle Soak — DONE (2026-09-14)
+
+> **Mục tiêu**: Đóng H-06 với bằng chứng Tier 1 thực tế: chạy 60 phút nghe thật trên mic Realtek built-in, đếm false triggers, xác nhận FP/hr < 1.
+
+### Kết quả Tier 1 thực tế (đọc từ `docs/eval/wake_word_idle_results.json`)
+
+| Chỉ số | Giá trị | Ngưỡng yêu cầu | Kết quả |
+|---|---|---|---|
+| `status` | `COMPLETED` | — | ✅ |
+| `duration_seconds` | `3600.1` | ≥ 3600s | ✅ |
+| `duration_minutes` | `60.0` | ≥ 60 phút | ✅ |
+| `total_false_triggers` | **`0`** | — | ✅ |
+| `false_positive_rate_per_hour` | **`0.00 FP/hr`** | < 1 FP/hr | ✅ **PASS** |
+| `device_index` | `None` (Realtek built-in) | Mic thật | ✅ |
+| `sample_rate` | `16000 Hz` | 16 kHz | ✅ |
+| `sensitivity_threshold` | `0.5` | — | ✅ |
+
+**Kết luận**: Trong 60 phút nghe liên tục không gián đoạn, hệ thống không kích hoạt sai một lần nào. **H-06: DONE**.
+
+### Các lỗi đã sửa trong `tests/eval/wake_word_idle_runner.py` (trong phiên này)
+1. Import sai: `jarvis.stt.wake_word` → `jarvis.audio.wake_word`
+2. Kwarg sai: `WakeWordDetector(threshold=...)` → `WakeWordDetector(vad_threshold=...)`
+3. Method sai: `detector.process_chunk(...)` → `detector.process_audio_block(...)`
+
+### Files thay đổi
+- `docs/eval/wake_word_idle_results.json` — raw JSON output (status, fp_per_hour=0.00)
+- `docs/ROADMAP.md` — H-06: RUNNING_IDLE_SOAK → **DONE**
+
+---
+
 ## [5.1.4] H-06 Idle Soak Launch & H-10 Hardware Scan (2026-09-13)
 
 > **Mục tiêu**: Tự động hoàn thành các phần còn thiếu có thể thực hiện bằng phần mềm: (1) sửa 3 lỗi trong `wake_word_idle_runner.py` và khởi động daemon H-06 idle soak 60 phút; (2) quét tự động 11 thiết bị âm thanh được phát hiện và ghi nhận 2/10 Tier 1 PASS cho H-10.
