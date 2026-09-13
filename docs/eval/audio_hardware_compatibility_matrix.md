@@ -1,0 +1,37 @@
+# Ma Trận Tương Thích Phần Cứng Thiết Bị Âm Thanh (Audio Hardware Compatibility Matrix)
+**Dự Án**: JARVIS Voice Assistant — Beta v1  
+**Mục Tiêu**: Kiểm tra tính tương thích của hệ thống âm thanh (Capture & Playback) trên 10 cấu hình micro & máy khác nhau  
+**Tài Liệu Tham Chiếu Gốc**: Backlog H-10 (`ORIGINAL_REQUEST.md` & `ROADMAP.md`)  
+**Trạng Thái Nghiệm Thu Hiện Tại**: 🔴 **CHƯA ĐÓNG / BLOCKED_ON_HARDWARE**  
+
+---
+
+> [!CAUTION]
+> **QUY TẮC PHÂN LOẠI BẰNG CHỨNG (TIER 1 VS TIER 2)**:
+> - **Tier 2 (Synthetic / Mock)**: Bài test tự động `tests/unit/test_audio_engine.py` (kiểm tra chuyển đổi device index khi mock danh sách thiết bị) là **Tier 2**. Bài test này chứng minh logic code không crash, **KHÔNG CHỨNG MINH TÍNH TƯƠNG THÍCH PHẦN CỨNG THẬT**.
+> - **Tier 1 (Real Hardware Evidence)**: Cần cắm trực tiếp 10 thiết bị vật lý vào hệ điều hành Windows thật, thu âm và kiểm tra tín hiệu. Trong môi trường phát triển hiện tại, chỉ có 1 microphone vật lý tích hợp (Built-in Audio) hoạt động.
+> - **Kết luận**: H-10 giữ nguyên trạng thái `BLOCKED_ON_HARDWARE` cho đến khi thu thập đủ kết quả kiểm thử trên 10 phần cứng vật lý độc lập.
+
+---
+
+## 1. Bảng Đánh Giá 10 Cấu Hình Thiết Bị Phần Cứng Mục Tiêu
+
+| STT | Cấu Hình Thiết Bị Mục Tiêu | Loại Kết Nối | Sample Rate Chuẩn | Endpoint Driver | Trạng Thái Kiểm Thử Vật Lý | Bằng Chứng Thực Tế Hiện Có |
+|:---:|:---|:---|:---:|:---|:---:|:---|
+| 1 | **Laptop Built-in Microphone** | Internal Bus | 48,000 Hz | Realtek High Definition Audio | 🟢 **ĐÃ ĐO THẬT (TIER 1)** | Thiết bị mặc định trên máy thử nghiệm hiện tại. Đã kiểm chứng thu âm 16kHz trực tiếp tại `H-01`. |
+| 2 | **USB Headset Microphone** | USB 2.0/3.0 | 44,100 Hz / 48,000 Hz | USB Audio Class 1.0/2.0 (e.g., Logitech H390) | 🔴 **CHƯA CÓ PHẦN CỨNG** | Chưa cắm thiết bị vật lý. Chỉ mới kiểm thử qua mock list. |
+| 3 | **USB Condenser Microphone** | USB Type-C | 48,000 Hz / 96,000 Hz | High-Def Audio (e.g., Blue Yeti, Rode NT-USB) | 🔴 **CHƯA CÓ PHẦN CỨNG** | Chưa cắm thiết bị vật lý. |
+| 4 | **Bluetooth TWS Earbuds (HFP/HSP)** | Bluetooth 5.0+ | 16,000 Hz (mSBC) / 8,000 Hz (CVSD)| Hands-Free AG Audio (e.g., AirPods, Galaxy Buds) | 🔴 **CHƯA CÓ PHẦN CỨNG** | Cần kiểm tra độ trễ tráo đổi profile A2DP sang HFP. |
+| 5 | **Bluetooth Over-Ear Headphone** | Bluetooth 5.2 | 16,000 Hz | Hands-Free Telephony (e.g., Sony WH-1000XM4/XM5) | 🔴 **CHƯA CÓ PHẦN CỨNG** | Chưa cắm/kết nối thiết bị vật lý. |
+| 6 | **USB Professional Audio Interface** | USB Type-C | 48,000 Hz / 192,000 Hz | ASIO / WASAPI Exclusive (e.g., Focusrite Scarlett) | 🔴 **CHƯA CÓ PHẦN CỨNG** | Cần kiểm thử buffer underrun và multi-channel routing. |
+| 7 | **Webcam Integrated Microphone** | USB 2.0 | 16,000 Hz / 32,000 Hz | USB Video/Audio Device (e.g., Logitech C920/C922) | 🔴 **CHƯA CÓ PHẦN CỨNG** | Chưa cắm webcam rời. |
+| 8 | **Virtual Audio Cable / Cable Output** | Virtual Software | 44,100 Hz / 48,000 Hz | VB-Audio Virtual Cable / VoiceMeeter | 🔴 **CHƯA CÀI PHẦN MỀM** | Cần kiểm tra tương thích ảo hóa âm thanh. |
+| 9 | **Generic USB PnP Dongle / Sound Card** | USB 2.0 | 44,100 Hz | Generic C-Media USB Audio | 🔴 **CHƯA CÓ PHẦN CỨNG** | Chưa có adapter USB âm thanh giá rẻ để test noise floor. |
+| 10 | **Multi-channel Array Microphone** | Internal Bus | 48,000 Hz (Beamforming) | Intel Smart Sound Technology (SST) Array | 🔴 **CHƯA CÓ PHẦN CỨNG** | Cần kiểm tra phân tách kênh stereo thành mono 1-channel. |
+
+---
+
+## 2. Kết Luận Kiểm Toán
+- **Số lượng cấu hình đạt chuẩn Tier 1 (Kiểm chứng phần cứng thật)**: `1 / 10`
+- **Số lượng cấu hình đang chờ phần cứng (Blocked on Hardware)**: `9 / 10`
+- **Hành động kỹ thuật bắt buộc**: Giữ nguyên trạng thái `BLOCKED_ON_HARDWARE` cho H-10. Không được tự ý đánh dấu "DONE" bằng unit test mock.

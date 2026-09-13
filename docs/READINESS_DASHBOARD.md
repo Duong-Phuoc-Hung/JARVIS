@@ -14,13 +14,14 @@ JARVIS Beta v1 provides an autonomous, privacy-conscious AI desktop assistant ta
 
 This document serves as the authoritative, empirical release readiness register. In strict compliance with the **Anti-Fabrication Principle** (`AGENTS.md`), every subsystem and task is classified by its verified state:
 - **Core & Backend Subsystems (Phase D)**: **12/17 tasks `DONE`** (100% test-verified in real runtime), **4/17 tasks `PENDING_CREDENTIALS`** (fail-closed verified), and **1/17 task `BLOCKED_ON_CERT`** (Windows Authenticode code-signing certificate).
-- **Voice Pipeline Subsystems (Phase H)**: **13/13 tasks `DONE`** (100% verified across unit seams, end-to-end acceptance tests, and independent acoustic evaluations).
-- **End-to-End Test Suite**: **100% pass rate (79/79 passing tests)** across all primary verification suites:
-  * E2E Acceptance Test Suite (`tests/e2e/test_beta_v1_acceptance.py`): **28/28 PASS**
+- **Voice Pipeline Subsystems (Phase H)**: **8/13 tasks `DONE`** (H-01, H-02, H-03, H-04, H-07, H-08, H-09, H-12), **1/13 task `PARTIAL`** (H-05: N=420 Small clean/noisy + N=210 Large-v3 clean CUDA), and **4/13 tasks `CHƯA ĐÓNG / BLOCKED`** (H-06: `PENDING_IDLE_SOAK`, H-10: `BLOCKED_ON_HARDWARE`, H-11: `PENDING_FIRST_RUN`, H-13: `PENDING_HUMAN_EXECUTION`).
+- **End-to-End Test Suite**: **100% pass rate (81/81 passing tests)** across all primary verification suites:
+  * E2E Acceptance Test Suite (`tests/e2e/test_beta_v1_acceptance.py`): **28/28 PASS** (Tier 2 automated suite)
   * Voice Pipeline Regression Suite (`tests/unit/test_voice_pipeline_fixes.py`): **8/8 PASS**
   * Zalo Bot Controller Seam Suite (`tests/unit/test_zalo_bot.py`): **25/25 PASS**
   * Comms Hub Fail-Closed Adversarial Suite (`tests/test_adversarial_beta_m1_comms_failclosed.py`): **18/18 PASS**
-- **Independent Acoustic Benchmark (N=420)**: Zero silent transcription failures (**0.0% STT_EMPTY**), bounded misrouting (**3.3% MISROUTED**), median inference latency **~710ms** on CTranslate2 CUDA, and Intent Router accuracy **99.5%** on independent Vietnamese utterances.
+  * Setup Wizard Suite (`tests/unit/test_setup_wizard.py`): **2/2 PASS**
+- **Independent Acoustic Benchmark (N=420)**: Zero silent transcription failures (**0.0% STT_EMPTY**), bounded misrouting (**3.3% MISROUTED** for Small, **1.4%** for Large-v3), median inference latency **~710ms** on CTranslate2 CUDA (`small`) and **~2,785ms** (`large-v3`), and Intent Router accuracy **99.5%** on independent Vietnamese utterances.
 - **Windows Installer Artifact**: Compiled standalone setup executable `dist/installer/JARVIS_Setup_v5.1.0.exe` (71.4 MB) verified with SHA-256 checksum `E6335E5BF7F704B0FA09E38937BA89CB668939FF9090746B45150ED722031650`.
 
 ---
@@ -57,15 +58,15 @@ This document serves as the authoritative, empirical release readiness register.
 | **H-02** | `jarvis/core/app.py` | Synchronize input device with `AudioEngine._active_device_index` | `tests/unit/test_voice_pipeline_fixes.py::test_h02_*` | `DONE` |
 | **H-03** | `jarvis/core/app.py` | Acoustic settling delay (150ms) & active TTS playback lockout | `tests/unit/test_voice_pipeline_fixes.py::test_h03_*` | `DONE` |
 | **H-04** | `jarvis/core/app.py` | Global `Ctrl+Shift+L` PTT hotkey dispatching without crash | `tests/unit/test_voice_pipeline_fixes.py::test_h04_*` | `DONE` |
-| **H-05** | `tests/eval/` | Multi-condition empirical benchmark (Small vs Large-v3, Clean/Noisy)| `docs/eval/stt_eval_independent_summary.md` (N=420) | `DONE` |
-| **H-06** | `jarvis/audio/wake_word.py` | Wake-word false positive reduction via VAD energy threshold | `tests/unit/test_acoustic_hardening.py` (5 tests) | `DONE` |
+| **H-05** | `tests/eval/` | Multi-condition empirical benchmark (Small vs Large-v3, Clean/Noisy)| `docs/eval/stt_eval_independent_summary.md` (Small N=420 clean+noisy; Large-v3 N=210 clean) | `PARTIAL` |
+| **H-06** | `jarvis/audio/wake_word.py` | Wake-word false positive reduction via VAD energy threshold | `tests/eval/wake_word_idle_runner.py` runner created; requires live mic soak session | `PENDING_IDLE_SOAK` |
 | **H-07** | `jarvis/automation/control.py`| Process launch deduplication & runaway guard under stress | `tests/unit/test_app_web_dedupe_stress.py` (3 tests) | `DONE` |
 | **H-08** | `jarvis/core/app.py` | System volume and brightness fail-closed returning `success=False` | `tests/unit/test_voice_pipeline_fixes.py::test_h08_*` | `DONE` |
 | **H-09** | `tests/eval/` | Soak test harness & leak detection (+0.00 handles/hr, 15 threads) | `tests/eval/results_soak_test.json`, `soak_test_runner.py`| `DONE` |
-| **H-10** | `jarvis/audio/engine.py` | Audio device compatibility layer & fallback matrix | `tests/e2e/test_beta_v1_acceptance.py::test_tier2_*` | `DONE` |
-| **H-11** | `jarvis/core/config.py` | First-run setup initialization & configuration integrity | `tests/e2e/test_beta_v1_acceptance.py::test_tier1_*` | `DONE` |
+| **H-10** | `jarvis/audio/engine.py` | Audio device compatibility layer & fallback matrix | `docs/eval/audio_hardware_compatibility_matrix.md` (1/10 laptop mic tested, 9/10 need physical hardware) | `BLOCKED_ON_HARDWARE` |
+| **H-11** | `jarvis/ui/setup_wizard.py`| First-run setup onboarding wizard & configuration integrity | `jarvis/ui/setup_wizard.py`, `tests/unit/test_setup_wizard.py` (2 tests PASS) | `PENDING_FIRST_RUN` |
 | **H-12** | `jarvis/llm/router.py` | Safe diacritic normalization & multi-word diacritic folding | `tests/unit/test_diacritic_normalization.py` | `DONE` |
-| **H-13** | `tests/e2e/` | E2E Acceptance Test Suite across Tiers 1–4 (28 tests) | `tests/e2e/test_beta_v1_acceptance.py` (28/28 PASS) | `DONE` |
+| **H-13** | `docs/eval/`, `tests/e2e/` | Human live acceptance testing (50 cases) & automated E2E test suite | `docs/eval/beta_voice_50_live_acceptance_protocol.md` (50 cases); `tests/e2e/test_beta_v1_acceptance.py` (28/28 Tier 2 tests) | `PENDING_HUMAN_EXECUTION` |
 
 ---
 
@@ -109,7 +110,8 @@ In accordance with Sprint Beta v1 requirements (**R3 / H-05 / A1–A4**):
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | **Whisper small** | `clean` | 210 | **128 (61.0%)** | **7 (3.3%)** | **0 (0.0%)** | **75 (35.7%)** | **710.8 ms** | ~768 ms | 83.7% |
 | **Whisper small** | `noisy` | 210 | **113 (53.8%)** | **7 (3.3%)** | **0 (0.0%)** | **90 (42.9%)** | **706.2 ms** | ~764 ms | 80.2% |
-| **Combined** | `all` | **420** | **241 (57.4%)** | **14 (3.3%)** | **0 (0.0%)** | **165 (39.3%)** | **708.5 ms** | ~766 ms | **82.0%** |
+| **Whisper large-v3** | `clean` | 210 | **183 (87.1%)** | **3 (1.4%)** | **0 (0.0%)** | **24 (11.4%)** | **2,785.2 ms** | ~2,924 ms | **93.6%** |
+| **Combined (small)**| `all` | **420** | **241 (57.4%)** | **14 (3.3%)** | **0 (0.0%)** | **165 (39.3%)** | **708.5 ms** | ~766 ms | **82.0%** |
 
 ### 4.3 Key Empirical Findings
 1. **Zero Silent Dropouts**: Across all 420 trials, `STT_EMPTY` was exactly **0.0% (0/420)**. The audio pipeline never dropped speech frames silently.
@@ -176,6 +178,9 @@ In accordance with `AGENTS.md` and `docs/AUDIT_FRAMEWORK.md`, third-party servic
 ## 7. Quality Assurance Sign-Off
 
 - **Fail-Closed Integrity**: Confirmed across 100% of external integrations.
-- **Empirical Accuracy**: Confirmed across 420 independent audio trials and 210 intent routing sentences.
-- **Regression Safety**: 79/79 seam and acceptance tests verified green on Windows 11.
-- **Status**: **JARVIS Beta v1 is READY FOR RELEASE** under the documented credential and certificate constraints.
+- **Empirical Accuracy**: Confirmed across 420 independent audio trials (Whisper Small) + 210 clean trials (Whisper Large-v3) and 210 oracle intent routing sentences.
+- **Regression Safety**: 81/81 seam, wizard, and acceptance tests verified green on Windows 11.
+- **Status**: **JARVIS Beta v1 Engineering Hardening is COMPLETE**. Release candidate is conditioned on:
+  1. Live human acceptance testing across 50 real spoken cases (`docs/eval/beta_voice_50_live_acceptance_protocol.md` — H-13).
+  2. Physical hardware verification on 9 external audio configurations (`docs/eval/audio_hardware_compatibility_matrix.md` — H-10).
+  3. External user credentials (D-06..D-09) and commercial Authenticode certificate (D-14).

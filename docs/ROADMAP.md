@@ -22,7 +22,7 @@
 
 ---
 
-## PHASE H (2026-09-13) — Voice Pipeline & Beta v1 Hardening (H-01 đến H-13 Hoàn thành)
+## PHASE H (2026-09-13) — Voice Pipeline & Beta v1 Hardening (Trạng thái trung thực: 8 DONE, 1 PARTIAL, 4 CHƯA ĐÓNG/BLOCKED)
 
 | ID | Status | Mô tả |
 |----|--------|-------|
@@ -30,15 +30,15 @@
 | H-02 | DONE | Đồng bộ input device giữa AudioEngine và `record_audio()` qua `_active_device_index` |
 | H-03 | DONE | Chống self-audio contamination: 150ms settling delay sau TTS greeting + lockout loop khi TTS đang phát |
 | H-04 | DONE | Fix crash hotkey Ctrl+Shift+L PTT: thay `_handle_voice_command` bằng `_start_voice_interaction` |
-| H-05 | DONE | STT & Router multi-condition benchmark (Small vs Large-v3, Clean vs Noisy, N=420) + Router 99.5% trên 210 câu độc lập |
-| H-06 | DONE | Wake-word false positive reduction: VAD energy-based gating loại bỏ silence/noise frames trước khi trigger |
+| H-05 | PARTIAL | STT & Router benchmark độc lập (Small: N=420 clean+noisy; Large-v3: N=210 clean 87.1% Correct / 2.78s p50; còn thiếu Large-v3 noisy) |
+| H-06 | PENDING_IDLE_SOAK | Đã viết runner `tests/eval/wake_word_idle_runner.py` & VAD gating; chưa chạy soak test mic thật 15-60 phút |
 | H-07 | DONE | Chuẩn hóa lệnh mở app/web: launch dedupe stress test (3 lệnh × 20 lần = 60 lần gọi; 3 allowed, 57 suppressed) |
 | H-08 | DONE | Volume & brightness fail-closed trên hardware None: trả `success: False`, không ghost success |
 | H-09 | DONE | Runaway soak test & leak detection framework: `tests/eval/soak_test_runner.py` (+0.00 handles/hr, 15 threads ổn định) |
-| H-10 | DONE | Audio device compatibility layer & fallback matrix cho các cấu hình Windows audio endpoints |
-| H-11 | DONE | First-run setup initialization & configuration integrity verification |
+| H-10 | BLOCKED_ON_HARDWARE | Đã lập ma trận `docs/eval/audio_hardware_compatibility_matrix.md`; chỉ có 1 mic laptop thật, cần 9 thiết bị phần cứng thật |
+| H-11 | PENDING_FIRST_RUN | Đã tạo onboarding wizard 5 bước `jarvis/ui/setup_wizard.py` (2 unit tests pass); chưa chạy interactive lần đầu với người dùng |
 | H-12 | DONE | Chuẩn hóa tách lớp locale & diacritic folding đa âm bảo vệ nguyên vẹn từ đơn (`strip_vietnamese_diacritics`) |
-| H-13 | DONE | Bộ kiểm thử chấp nhận E2E Beta v1 hoàn thiện 4 tầng: 28/28 tests xanh 100% (`tests/e2e/test_beta_v1_acceptance.py`) |
+| H-13 | PENDING_HUMAN_EXECUTION | Đã lập protocol 50 ca `docs/eval/beta_voice_50_live_acceptance_protocol.md` & 28 unit tests Tier 2 pass; cần tester người thật nói 50 câu live |
 
 ---
 
@@ -151,15 +151,19 @@
 ## PHẦN 4 — TRÌNH TỰ THỰC THI & CHỮ KÝ PHÁT HÀNH
 
 ```
-BETA v1 VERIFIED (2026-09-13):
-  [x] 1.1 Router eval (N=420 independent audio trials, Clean/Noisy, Small vs Large-v3) — COMPLETE
+BETA v1 ENGINEERING HARDENING STATUS (2026-09-13):
+  [x] 1.1 Independent Router eval (N=420 Small clean/noisy + N=210 Large-v3 clean CUDA) — EMPIRICAL COMPLETE
   [x] 1.2 Voice pipeline fixes (16kHz capture, mic sync, settling, hotkey PTT, fail-closed) — COMPLETE
   [x] 1.3 Comms fail-closed audit (Telegram, Zalo, Discord, IMAP fail-closed verified) — COMPLETE
   [x] 1.4 Soak test harness & leak detection (+0.00 handles/hr, 15 threads stable) — COMPLETE
-  [x] 1.5 E2E Acceptance Test Suite (28/28 passed in ~2.04s) — COMPLETE
+  [x] 1.5 E2E Acceptance Test Suite Tier 2 (28/28 passed in ~2.04s) — COMPLETE
   [x] 1.6 Seam Regression Suites (79/79 passed in ~4.83s) — COMPLETE
   [x] 1.7 One-click Windows Installer JARVIS_Setup_v5.1.0.exe (SHA-256 verified) — COMPLETE
-  [x] 1.8 Documentation Synchronization (READINESS_DASHBOARD, CHANGELOG, task.md, README, ROADMAP) — COMPLETE
+  [x] 1.8 Setup Wizard & Audio Matrix & 50-Case Protocol prepared — COMPLETE
+  [ ] 1.9 Human Live Voice Acceptance (H-13: 50 cases) — PENDING_HUMAN_EXECUTION
+  [ ] 1.10 Physical Audio Hardware Matrix (H-10: 9/10 endpoints) — BLOCKED_ON_HARDWARE
+  [ ] 1.11 Idle Soak Test Microphone Stream (H-06: 15-60min) — PENDING_IDLE_SOAK
+  [ ] 1.12 Third-Party Live Credentials (D-06..D-09) & EV/OV Cert (D-14) — PENDING_CREDENTIALS / BLOCKED_ON_CERT
 ```
 
 ---

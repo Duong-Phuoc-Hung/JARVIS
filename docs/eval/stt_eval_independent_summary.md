@@ -80,24 +80,34 @@ Evaluated across confidence thresholds $t \in [0.3, 0.9]$ for Whisper `small` (d
 
 ---
 
-## 5. Model Architecture Trade-Offs: Whisper `small` vs. `large-v3`
+## 5. Model Architecture Trade-Offs: Whisper `small` vs. `large-v3` (Independent Dataset N=210)
 
-Based on direct execution benchmarks across the independent dataset (Whisper `small`) and historical verified evaluation benchmarks (`large-v3` in `docs/eval/stt_eval_summaries_direct.json`):
+### 5.1 Resolution of Historical `large-v3` Latency Discrepancy (6.2× Mismatch Explained)
+Prior documentation referenced two conflicting latency figures for `large-v3`:
+- **16,994.1 ms** (`tests/eval/results_large_both/stt_eval_summaries_direct.json`): Measured during unaccelerated **CPU fallback** when Windows dynamic linker could not locate `cublas64_12.dll` in PATH. Faster-Whisper automatically defaulted to CPU inference, incurring a massive ~17.0s penalty.
+- **2,732.6 ms** (`docs/eval/stt_eval_summaries_direct.json`): Measured on **GPU (CTranslate2 CUDA, int8_float16)** on the historical 45-sample dataset.
+- **Empirical Confirmation on Independent Corpus ($N=210$)**: Direct execution of `tests/eval/stt_intent_eval.py` on the 210 clean independent utterances under CUDA produces a median latency of **2,785.2 ms**, proving definitively that the previous ~17.0s latency was an artifact of unaccelerated CPU fallback, while ~2.7–2.8s is the true GPU runtime performance.
 
-| Evaluation Dimension | Whisper `small` (int8 CUDA) | Whisper `large-v3` (int8_float16 CUDA) | Trade-Off Analysis |
+### 5.2 Empirical Side-by-Side Comparison on Independent Clean Dataset ($N=210$)
+
+Both models were benchmarked directly on the exact same 210 clean independent utterances (`tests/eval/audio_independent/clean/`) via CTranslate2 CUDA (`backend=direct`, `beam_size=3`):
+
+| Evaluation Dimension | Whisper `small` (int8 CUDA) | Whisper `large-v3` (int8_float16 CUDA) | Delta / Trade-Off Analysis |
 | :--- | :---: | :---: | :--- |
-| **Clean Accuracy (`CORRECT`)** | **61.0%** (128 / 210) | **68.9%** (31 / 45) | `large-v3` yields +7.9 pp higher routing accuracy on complex phrasing |
-| **Noisy Accuracy (`CORRECT`)** | **53.8%** (113 / 210) | **60.0%** (27 / 45) | `large-v3` provides +6.2 pp better noise resilience |
-| **Misrouting Rate (`MISROUTED`)**| **3.3%** | **2.2%** | Both models maintain exceptionally low misrouting (<3.5%) |
-| **Empty Transcripts (`STT_EMPTY`)**| **0.0%** | **0.0%** | Both models achieve 100% transcript generation |
-| **Abstention Rate (`ROUTER_ABSTAIN`)**| 35.7% (clean) / 42.9% (noisy) | 28.9% (clean) / 37.8% (noisy) | `large-v3` reduces router abstention by ~6-7 pp |
-| **Inference Latency (p50)** | **710.8 ms** | **2,732.6 ms** | **`small` is 3.8x faster** than `large-v3` |
+| **Sample Size (N)** | **210** | **210** | Identical independent test corpus |
+| **Clean Accuracy (`CORRECT`)** | **61.0%** (128 / 210) | **87.1%** (183 / 210) | `large-v3` yields **+26.1 pp** higher routing accuracy on colloquial phrasing |
+| **Misrouting Rate (`MISROUTED`)**| **3.3%** (7 / 210) | **1.4%** (3 / 210) | `large-v3` reduces misrouting by **-1.9 pp** (only 3 misrouted cases) |
+| **Empty Transcripts (`STT_EMPTY`)**| **0.0%** (0 / 210) | **0.0%** (0 / 210) | Both models achieve **0% silent failures** |
+| **Abstention Rate (`ROUTER_ABSTAIN`)**| **35.7%** (75 / 210) | **11.4%** (24 / 210) | `large-v3` resolves **51 ambiguous phrases** that caused `small` to abstain |
+| **Inference Latency (p50)** | **710.8 ms** | **2,785.2 ms** | **`small` is 3.9× faster** than `large-v3` |
+| **Inference Latency (p90)** | **~768 ms** | **~2,924 ms** | `small` remains strictly sub-second at tail latency |
+| **Mean Text Similarity** | **83.7%** | **93.6%** | `large-v3` produces near-verbatim phonetic accuracy (+9.9 pp) |
 | **VRAM Footprint** | **~950 MB** | **~3,400 MB** | `small` fits comfortably on entry-level GPUs (GTX 1650 4GB) |
-| **Cold-Start Load Time** | < 1.2 s | ~ 4.5 s | `small` initializes 4x faster during application startup |
+| **Cold-Start Load Time** | < 1.2 s | ~ 4.5 s | `small` initializes ~4× faster during application startup |
 
-### Operational Recommendation for JARVIS Beta v1:
-- **Default Interactive Voice Pipeline**: Deploy Whisper **`small`** as the default primary model. Its ~710ms latency ensures a responsive conversational turn (<1s total turn time from user utterance end to JARVIS TTS reply).
-- **Secondary / Proactive Engine**: Retain **`large-v3`** as an optional background or cloud-assisted configuration for transcription-heavy tasks (e.g., long-form note taking or document summarization) where latency is not constrained to interactive thresholds.
+### 5.3 Operational Recommendation for JARVIS Beta v1:
+- **Default Interactive Voice Pipeline**: Deploy Whisper **`small`** as the primary interactive model. Its **710.8 ms** p50 latency enables fluent, low-latency conversational turns (<1.0s total end-to-end response time).
+- **High-Accuracy / Secondary Engine**: Retain **`large-v3`** as an optional configuration for users with dedicated GPUs (≥4GB VRAM) or transcription-heavy tasks (e.g. meeting transcription, document drafting) where the **87.1% accuracy** and **93.6% phonetic fidelity** justify the ~2.8s turnaround.
 
 ---
 

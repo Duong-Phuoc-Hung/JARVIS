@@ -63,12 +63,18 @@ Tuân thủ nghiêm ngặt yêu cầu **R3 / H-05 / A1–A4**, hệ thống đư
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | **Whisper small** | `clean` | 210 | **128 (61.0%)** | **7 (3.3%)** | **0 (0.0%)** | **75 (35.7%)** | **710.8 ms** | ~768 ms | 83.7% |
 | **Whisper small** | `noisy` | 210 | **113 (53.8%)** | **7 (3.3%)** | **0 (0.0%)** | **90 (42.9%)** | **706.2 ms** | ~764 ms | 80.2% |
+| **Whisper large-v3** | `clean` | 210 | **183 (87.1%)** | **3 (1.4%)** | **0 (0.0%)** | **24 (11.4%)** | **2,785.2 ms** | ~2,924 ms | **93.6%** |
 | **Tổng hợp (small)**| `all` | **420** | **241 (57.4%)** | **14 (3.3%)** | **0 (0.0%)** | **165 (39.3%)** | **708.5 ms** | ~766 ms | **82.0%** |
 
+#### Giải trình nguyên nhân gốc rễ mâu thuẫn độ trễ 6.2× của `large-v3`:
+- **Số liệu 16,994.1 ms** (`tests/eval/results_large_both/stt_eval_summaries_direct.json`): Đo trên **CPU** (unaccelerated fallback) khi môi trường Windows chưa tìm thấy `cublas64_12.dll` trong PATH. Faster-Whisper tự động fallback về CPU int8 inference, gây độ trễ ~17.0s.
+- **Số liệu 2,732.6 ms** (`docs/eval/stt_eval_summaries_direct.json`): Đo trên **GPU CUDA** (`int8_float16`) trên tập 45 mẫu cũ sau khi fix DLL path.
+- **Số liệu thực nghiệm xác thực trên tập độc lập N=210 clean**: Chạy trực tiếp `tests/eval/stt_intent_eval.py` trên GPU CUDA ghi nhận độ trễ trung vị **2,785.2 ms** (p90 ~2,924 ms), độ chính xác **87.1% CORRECT**, tỷ lệ route nhầm cực thấp **1.4% (3/210)**. Điều này chứng minh độ trễ thật của `large-v3` trên GPU là ~2.8s (gấp ~3.9× so với `small` ~710ms), và con số 17s trước đây thuần túy là do CPU fallback.
+
 #### Đánh giá đặc tính kỹ thuật:
-1. **0.0% Lỗi rơi âm thanh (Zero STT_EMPTY)**: Mô hình không bỏ sót bất kỳ frame giọng nói nào trong toàn bộ 420 lượt kiểm thử.
-2. **Hàng rào an toàn bất biến dưới nhiễu**: Tỷ lệ `MISROUTED` được giữ nguyên ở mức **3.3% (7/210)** ngay cả khi chịu nhiễu âm học SNR 10–15 dB. Tất cả suy hao do nhiễu đều chuyển hóa thành `ROUTER_ABSTAIN` (fail-closed an toàn, kích hoạt hỏi lại người dùng thay vì thực thi sai lệnh).
-3. **Độ trễ tương tác thực tế**: Whisper `small` đạt độ trễ trung vị **710.8ms**, đáp ứng hoàn hảo ngưỡng tương tác thời gian thực (<1.0s).
+1. **0.0% Lỗi rơi âm thanh (Zero STT_EMPTY)**: Cả hai mô hình không bỏ sót bất kỳ frame giọng nói nào trong toàn bộ các lượt kiểm thử độc lập.
+2. **Hàng rào an toàn bất biến dưới nhiễu**: Tỷ lệ `MISROUTED` được giữ nguyên ở mức **3.3% (7/210)** trên `small` và giảm xuống **1.4% (3/210)** trên `large-v3`. Mọi suy hao âm học đều chuyển hóa thành `ROUTER_ABSTAIN` (fail-closed an toàn, hỏi lại người dùng thay vì kích hoạt sai lệnh nguy hiểm).
+3. **Đánh đổi kiến trúc**: Whisper `small` (~710ms) là lựa chọn tối ưu cho tương tác thời gian thực (<1s), trong khi `large-v3` (~2.8s) phù hợp cho tác vụ nền hoặc nhập văn bản dài cần độ chính xác cao (87.1%).
 
 ---
 
@@ -114,6 +120,12 @@ Theo nguyên tắc trung thực tuyệt đối của `AGENTS.md`, các hạng m�
    - **D-14 (Code Signing Certificate)**: Quy trình ký số tự động đã được lập trình sẵn. Tuy nhiên, việc phát hành installer yêu cầu chứng thư số phần cứng hoặc Cloud HSM (OV/EV) từ các tổ chức CA thương mại (DigiCert, Sectigo) để vượt qua cảnh báo Windows SmartScreen.
    - File cài đặt `dist/installer/JARVIS_Setup_v5.1.0.exe` (71.4 MB) được kiểm chứng tính toàn vẹn bằng mã băm SHA-256:  
      `E6335E5BF7F704B0FA09E38937BA89CB668939FF9090746B45150ED722031650`.
+
+3. **`PENDING_HUMAN_EXECUTION` & `BLOCKED_ON_HARDWARE` (Minh bạch hóa Voice Pipeline Tier 1)**:
+   - **H-13 (Chấp nhận kiểm thử giọng nói 50 ca live)**: Bộ test tự động 28/28 tests trong `tests/e2e/test_beta_v1_acceptance.py` là Tier 2 automated tests (mock/synthetic). Để đạt chuẩn chấp nhận Product Beta v1, đã ban hành quy trình nghiệm thu thực tế [`docs/eval/beta_voice_50_live_acceptance_protocol.md`](file:///d:/Software%20GitCode/JARVIS/docs/eval/beta_voice_50_live_acceptance_protocol.md) với 50 kịch bản tương tác người thật qua micro. Trạng thái hạ xuống: `PENDING_HUMAN_EXECUTION`.
+   - **H-10 (Ma trận tương thích thiết bị âm thanh)**: Đã lập ma trận đánh giá 10 cấu hình thiết bị âm thanh tại [`docs/eval/audio_hardware_compatibility_matrix.md`](file:///d:/Software%20GitCode/JARVIS/docs/eval/audio_hardware_compatibility_matrix.md). Hiện chỉ có 1 cấu hình (built-in microphone array) được test Tier 1 trực tiếp trên máy phát triển; 9 cấu hình còn lại (USB headset, USB condenser, Bluetooth HFP, Audio Interface, Virtual Cable,...) cần phần cứng vật lý để kiểm tra. Trạng thái: `BLOCKED_ON_HARDWARE`.
+   - **H-06 (Kiểm chuẩn tỷ lệ kích hoạt nhầm wake-word)**: Đã xây dựng công cụ thu âm tĩnh liên tục [`tests/eval/wake_word_idle_runner.py`](file:///d:/Software%20GitCode/JARVIS/tests/eval/wake_word_idle_runner.py) để đo FP/hour qua micro thật. Trạng thái: `PENDING_IDLE_SOAK`.
+   - **H-11 (Wizard khởi động lần đầu)**: Đã lập trình thuật sĩ hướng dẫn 5 bước [`jarvis/ui/setup_wizard.py`](file:///d:/Software%20GitCode/JARVIS/jarvis/ui/setup_wizard.py) (kiểm tra mic, test loa, chọn model STT, cấu hình wake-word, ghi đè an toàn) và kiểm thử unit pass (`tests/unit/test_setup_wizard.py`). Trạng thái: `PENDING_FIRST_RUN`.
 
 ---
 
