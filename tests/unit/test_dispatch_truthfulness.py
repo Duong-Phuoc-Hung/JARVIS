@@ -259,72 +259,94 @@ class TestDispatchActionSyncTruthfulness(unittest.TestCase):
 # ============================================================================
 
 
-class TestDispatchActionAsyncTruthfulness(unittest.IsolatedAsyncioTestCase):
+class TestDispatchActionAsyncTruthfulness(unittest.TestCase):
     def setUp(self) -> None:
         self.dispatcher = _make_dispatcher()
 
-    async def test_returned_action_result_failure_stays_failed(self) -> None:
-        async def handler(**kw):
-            return ActionResult(action_name="a", success=False, error="async nope")
+    def _run(self, coro):
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is not None and loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                return pool.submit(asyncio.run, coro).result()
+        return asyncio.run(coro)
 
-        self.dispatcher.register_action("a", handler)
-        res = await self.dispatcher.dispatch_action_async("a")
-        self.assertFalse(res.success)
-        self.assertEqual(res.error, "async nope")
+    def test_returned_action_result_failure_stays_failed(self) -> None:
+        async def _test():
+            async def handler(**kw):
+                return ActionResult(action_name="a", success=False, error="async nope")
 
-    async def test_structured_failure_stays_failed(self) -> None:
-        async def handler(**kw):
-            return {"status": "error", "message": "async boom"}
+            self.dispatcher.register_action("a", handler)
+            res = await self.dispatcher.dispatch_action_async("a")
+            self.assertFalse(res.success)
+            self.assertEqual(res.error, "async nope")
+        self._run(_test())
 
-        self.dispatcher.register_action("a", handler)
-        res = await self.dispatcher.dispatch_action_async("a")
-        self.assertFalse(res.success)
-        self.assertEqual(res.error, "async boom")
+    def test_structured_failure_stays_failed(self) -> None:
+        async def _test():
+            async def handler(**kw):
+                return {"status": "error", "message": "async boom"}
 
-    async def test_successful_structured_payload(self) -> None:
-        async def handler(**kw):
-            return {"success": True, "data": 1}
+            self.dispatcher.register_action("a", handler)
+            res = await self.dispatcher.dispatch_action_async("a")
+            self.assertFalse(res.success)
+            self.assertEqual(res.error, "async boom")
+        self._run(_test())
 
-        self.dispatcher.register_action("a", handler)
-        res = await self.dispatcher.dispatch_action_async("a")
-        self.assertTrue(res.success)
+    def test_successful_structured_payload(self) -> None:
+        async def _test():
+            async def handler(**kw):
+                return {"success": True, "data": 1}
 
-    async def test_generic_falsy_payload_not_misclassified(self) -> None:
-        async def handler(**kw):
-            return 0
+            self.dispatcher.register_action("a", handler)
+            res = await self.dispatcher.dispatch_action_async("a")
+            self.assertTrue(res.success)
+        self._run(_test())
 
-        self.dispatcher.register_action("a", handler)
-        res = await self.dispatcher.dispatch_action_async("a")
-        self.assertTrue(res.success)
-        self.assertEqual(res.data, 0)
+    def test_generic_falsy_payload_not_misclassified(self) -> None:
+        async def _test():
+            async def handler(**kw):
+                return 0
 
-    async def test_sync_and_async_semantics_aligned(self) -> None:
+            self.dispatcher.register_action("a", handler)
+            res = await self.dispatcher.dispatch_action_async("a")
+            self.assertTrue(res.success)
+            self.assertEqual(res.data, 0)
+        self._run(_test())
+
+    def test_sync_and_async_semantics_aligned(self) -> None:
         """Same raw payload shape normalizes identically through both dispatch paths."""
+        async def _test():
+            def sync_handler(**kw):
+                return {"status": "failed", "error": "x"}
 
-        def sync_handler(**kw):
-            return {"status": "failed", "error": "x"}
+            async def async_handler(**kw):
+                return {"status": "failed", "error": "x"}
 
-        async def async_handler(**kw):
-            return {"status": "failed", "error": "x"}
+            self.dispatcher.register_action("sync_a", sync_handler)
+            self.dispatcher.register_action("async_a", async_handler)
 
-        self.dispatcher.register_action("sync_a", sync_handler)
-        self.dispatcher.register_action("async_a", async_handler)
+            sync_res = self.dispatcher.dispatch_action("sync_a")
+            async_res = await self.dispatcher.dispatch_action_async("async_a")
 
-        sync_res = self.dispatcher.dispatch_action("sync_a")
-        async_res = await self.dispatcher.dispatch_action_async("async_a")
+            self.assertEqual(sync_res.success, async_res.success)
+            self.assertEqual(sync_res.error, async_res.error)
+        self._run(_test())
 
-        self.assertEqual(sync_res.success, async_res.success)
-        self.assertEqual(sync_res.error, async_res.error)
+    def test_existing_timeout_behavior_preserved(self) -> None:
+        async def _test():
+            async def handler(**kw):
+                await asyncio.sleep(10)
+                return {"success": True}
 
-    async def test_existing_timeout_behavior_preserved(self) -> None:
-        async def handler(**kw):
-            await asyncio.sleep(10)
-            return {"success": True}
-
-        self.dispatcher.register_action("slow", handler)
-        res = await self.dispatcher.dispatch_action_async("slow", timeout=0.05)
-        self.assertFalse(res.success)
-        self.assertEqual(res.error_code, "TIMEOUT")
+            self.dispatcher.register_action("slow", handler)
+            res = await self.dispatcher.dispatch_action_async("slow", timeout=0.05)
+            self.assertFalse(res.success)
+            self.assertEqual(res.error_code, "TIMEOUT")
+        self._run(_test())
 
 
 # ============================================================================
