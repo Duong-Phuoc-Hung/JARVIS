@@ -22,6 +22,11 @@
 - **Fix**: Trả về `{"status": "failed", "success": False, "volume": None, "error": "VOLUME_SET_FAILED"}` khi `vol is None` (tương tự cho độ sáng).
 - **Bằng chứng**: `test_h08_volume_fail_closed_on_none` và `test_h08_brightness_fail_closed_on_none` PASS.
 
+### H-07: Chuẩn hóa lệnh mở ứng dụng & website (`jarvis/automation/control.py`, `jarvis/core/runaway_guard.py`)
+- **Mục tiêu**: Kiểm chứng và bảo đảm cơ chế chống process runaway/fanout khi nhận chuỗi lệnh trùng lặp liên tục qua micro hoặc trigger lặp.
+- **Thực nghiệm**: Viết bộ test kiểm tra độ tải `tests/unit/test_app_web_dedupe_stress.py` chạy 3 lệnh khác nhau (`open_app("spotify")`, `open_app("chrome")`, `open_website("https://claude.ai")`) × 20 lần gọi dồn dập (tổng cộng 60 lần gọi liên tiếp).
+- **Kết quả**: Đúng 3 lần khởi chạy tiến trình duy nhất được phép thực thi; 57 lần còn lại bị chặn đứng chính xác với mã lỗi `LAUNCH_RATE_LIMITED` và `status: suppressed`. (3/3 tests PASS).
+
 ---
 
 ## [5.1.1] H-04 & H-01 Critical Voice Pipeline Fixes (2026-09-13)
