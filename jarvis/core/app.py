@@ -1295,26 +1295,34 @@ class JarvisApp:
         return {"status": "failed", "message": "Computer controller unavailable"}
 
     def _handle_system_volume(self, delta: int | None = None, level: int | None = None, **kwargs) -> dict[str, Any]:
-        """Adjusts or sets master audio volume."""
+        """Adjusts or sets master audio volume (fail-closed if endpoint unavailable)."""
         if self.computer_controller:
             if level is not None:
                 vol = self.computer_controller.set_volume(level)
-                return {"status": "success", "volume": vol, "message": f"Đã đặt âm lượng hệ thống thành {vol}%, thưa Ngài."}
+                if vol is None:
+                    return {"status": "failed", "success": False, "volume": None, "error": "VOLUME_SET_FAILED", "message": "Không thể đặt âm lượng phần cứng, thưa Ngài."}
+                return {"status": "success", "success": True, "volume": vol, "message": f"Đã đặt âm lượng hệ thống thành {vol}%, thưa Ngài."}
             delta_val = delta if delta is not None else 10
             vol = self.computer_controller.change_volume(delta_val)
-            return {"status": "success", "volume": vol, "message": f"Đã điều chỉnh âm lượng lên {vol}%, thưa Ngài."}
-        return {"status": "failed", "message": "Computer controller unavailable"}
+            if vol is None:
+                return {"status": "failed", "success": False, "volume": None, "error": "VOLUME_CHANGE_FAILED", "message": "Không thể điều chỉnh âm lượng phần cứng, thưa Ngài."}
+            return {"status": "success", "success": True, "volume": vol, "message": f"Đã điều chỉnh âm lượng lên {vol}%, thưa Ngài."}
+        return {"status": "failed", "success": False, "message": "Computer controller unavailable"}
 
     def _handle_system_brightness(self, delta: int | None = None, level: int | None = None, **kwargs) -> dict[str, Any]:
-        """Adjusts or sets screen brightness."""
+        """Adjusts or sets screen brightness (fail-closed if monitor unavailable)."""
         if self.computer_controller:
             if level is not None:
                 b = self.computer_controller.set_brightness(level)
-                return {"status": "success", "brightness": b, "message": f"Đã đặt độ sáng màn hình thành {b}%, thưa Ngài."}
+                if b is None:
+                    return {"status": "failed", "success": False, "brightness": None, "error": "BRIGHTNESS_SET_FAILED", "message": "Không thể đặt độ sáng màn hình, thưa Ngài."}
+                return {"status": "success", "success": True, "brightness": b, "message": f"Đã đặt độ sáng màn hình thành {b}%, thưa Ngài."}
             delta_val = delta if delta is not None else 10
             b = self.computer_controller.change_brightness(delta_val)
-            return {"status": "success", "brightness": b, "message": f"Đã điều chỉnh độ sáng màn hình thành {b}%, thưa Ngài."}
-        return {"status": "failed", "message": "Computer controller unavailable"}
+            if b is None:
+                return {"status": "failed", "success": False, "brightness": None, "error": "BRIGHTNESS_CHANGE_FAILED", "message": "Không thể điều chỉnh độ sáng màn hình, thưa Ngài."}
+            return {"status": "success", "success": True, "brightness": b, "message": f"Đã điều chỉnh độ sáng màn hình thành {b}%, thưa Ngài."}
+        return {"status": "failed", "success": False, "message": "Computer controller unavailable"}
 
     def _handle_file_search(self, filename: str | None = None, pattern: str | None = None, directory: str | None = None, root_dir: str | None = None, **kwargs) -> dict[str, Any]:
         """Searches local files."""
@@ -1733,6 +1741,26 @@ class JarvisApp:
         if self.headless:
             return np.zeros(int(sr * min(max_dur, 0.1)), dtype=np.float32)
 
+        # H-02 fix: Synchronize recording device with AudioEngine's selected active device
+        # so wake-word detector and command capture always listen on the exact same microphone.
+        target_device = None
+        if self.audio_engine and getattr(self.audio_engine, "_active_device_index", None) is not None:
+            target_device = self.audio_engine._active_device_index
+        if target_device is None:
+            cfg_dev = self.config.get("audio.input_device")
+            if cfg_dev is not None:
+                try:
+                    target_device = int(cfg_dev)
+                except (ValueError, TypeError):
+                    target_device = None
+
+        # H-03 fix: Acoustic Echo Guard — if TTS is still actively playing through speakers,
+        # wait briefly for it to complete to prevent capturing self-audio into STT.
+        if self.tts_manager and getattr(self.tts_manager, "is_playing", False):
+            t_wait_start = time.monotonic()
+            while getattr(self.tts_manager, "is_playing", False) and (time.monotonic() - t_wait_start) < 1.0:
+                time.sleep(0.05)
+
         try:
             import sounddevice as _sd
             chunk_size = int(sr * 0.15)  # 150ms chunks
@@ -1742,8 +1770,8 @@ class JarvisApp:
             has_speech_started = False
             energy_threshold = 0.015
 
-            log.info("Capturing voice command (max %.1fs, chunk_size=%d)...", max_dur, chunk_size)
-            with _sd.InputStream(samplerate=sr, channels=1, dtype="float32", blocksize=chunk_size) as stream:
+            log.info("Capturing voice command (device=%s, sr=%d, max %.1fs)...", target_device, sr, max_dur)
+            with _sd.InputStream(samplerate=sr, channels=1, dtype="float32", blocksize=chunk_size, device=target_device) as stream:
                 for _ in range(max_chunks):
                     chunk, overflowed = stream.read(chunk_size)
                     chunk_flat = chunk.flatten()
@@ -1768,7 +1796,7 @@ class JarvisApp:
             try:
                 import sounddevice as _sd
                 dur = min(max_dur, 3.0)
-                audio_data = _sd.rec(int(dur * sr), samplerate=sr, channels=1, dtype="float32")
+                audio_data = _sd.rec(int(dur * sr), samplerate=sr, channels=1, dtype="float32", device=target_device)
                 _sd.wait()
                 return audio_data.flatten()
             except Exception:
@@ -1799,6 +1827,8 @@ class JarvisApp:
                 if self.tts_manager and greeting_phrase:
                     # Wait for greeting to finish so the microphone doesn't capture speaker output
                     self.tts_manager.speak(greeting_phrase, wait=True)
+                    # H-03: Acoustic settling delay — allow 150ms for speaker reverberation to decay
+                    time.sleep(0.15)
 
                 if self.tray_controller:
                     self.tray_controller.update_status(TrayStatus.LISTENING)

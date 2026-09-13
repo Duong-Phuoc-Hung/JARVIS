@@ -1,6 +1,29 @@
 
 ---
 
+## [5.1.2] H-02, H-03 & H-08 Voice Pipeline & Hardware Hardening (2026-09-13)
+
+> **Mục tiêu**: Hoàn thiện đồng bộ thiết bị âm thanh micro, chặn tạp âm tự nói (acoustic settling) và chống ghost success khi điều khiển âm lượng/độ sáng.
+
+### H-02: Đồng bộ thiết bị micro giữa AudioEngine và `record_audio()` (`jarvis/core/app.py`)
+- **Root cause**: `AudioEngine` (wake-word detector) lắng nghe trên `self._active_device_index` (hoặc `audio.input_device`), nhưng `record_audio()` mở `_sd.InputStream` mà không chỉ định `device` → mở micro mặc định của Windows. Trên máy có nhiều micro (built-in và USB headset), wake-word kích hoạt trên USB mic nhưng STT ghi âm từ built-in mic (hoặc ngược lại) dẫn tới ghi âm rỗng hoặc sai thiết bị.
+- **Fix**: Truyền `device=target_device` (lấy từ `self.audio_engine._active_device_index` hoặc cấu hình) vào `_sd.InputStream` và fallback `_sd.rec`.
+- **Bằng chứng**: `test_h02_record_audio_uses_audio_engine_device` trong `tests/unit/test_voice_pipeline_fixes.py` PASS.
+
+### H-03: Chống self-audio contamination (TTS ↔ STT) (`jarvis/core/app.py`)
+- **Root cause**: Khi chào câu dẫn ("Vâng thưa Ngài..."), âm thanh phát ra loa và dội âm phòng (acoustic reverberation). Nếu micro mở ngay lập tức, 150ms đầu tiên của luồng ghi âm sẽ bắt dính phần đuôi của giọng nói JARVIS, gây nhiễu STT.
+- **Fix**:
+  1. Thêm khoảng trễ acoustic settling 150ms (`time.sleep(0.15)`) sau `tts_manager.speak(..., wait=True)` trước khi mở micro.
+  2. Bổ sung vòng lặp chờ trong `record_audio()` nếu `tts_manager.is_playing` đang hoạt động, ngăn ghi âm chồng lên lời thoại của hệ thống.
+- **Bằng chứng**: `test_h03_record_audio_waits_for_active_tts` trong `tests/unit/test_voice_pipeline_fixes.py` PASS.
+
+### H-08: Fail-Closed cho điều khiển âm lượng & độ sáng (`jarvis/core/app.py`)
+- **Root cause**: Khi `computer_controller.set_volume()` hoặc `set_brightness()` trả về `None` (môi trường headless hoặc lỗi phần cứng COM/pycaw), hàm `_handle_system_volume` vẫn trả về `status: success` với `volume: None%`, vi phạm nguyên tắc chống ghost success.
+- **Fix**: Trả về `{"status": "failed", "success": False, "volume": None, "error": "VOLUME_SET_FAILED"}` khi `vol is None` (tương tự cho độ sáng).
+- **Bằng chứng**: `test_h08_volume_fail_closed_on_none` và `test_h08_brightness_fail_closed_on_none` PASS.
+
+---
+
 ## [5.1.1] H-04 & H-01 Critical Voice Pipeline Fixes (2026-09-13)
 
 > **Mục tiêu**: Sửa 2 lỗi nghiêm trọng trong voice pipeline phát hiện qua audit.
