@@ -1,7 +1,25 @@
 
 ---
 
+## [5.1.1] H-04 & H-01 Critical Voice Pipeline Fixes (2026-09-13)
+
+> **Mục tiêu**: Sửa 2 lỗi nghiêm trọng trong voice pipeline phát hiện qua audit.
+
+### H-04: Fix Ctrl+Shift+L Crash — AttributeError `_handle_voice_command` (commit `637fc76`)
+- **Root cause**: `_ptt_voice_cb()` gọi `self._handle_voice_command(trigger_name="HOTKEY_PTT")` nhưng method này **không tồn tại** → crash `AttributeError` ngay khi nhấn Ctrl+Shift+L.
+- **Fix**: Thay bằng `self._start_voice_interaction(trigger_name="HOTKEY_PTT", greeting_phrase="Vâng, tôi nghe.")` — cùng code path với wake-word trigger.
+- **Bằng chứng**: `tests/unit/test_hotkeys.py` 8/8 PASS.
+
+### H-01: Fix 44100 Hz → Whisper 16 kHz Mismatch (commit `637fc76`)
+- **Root cause**: `record_audio()` default `sample_rate=44100`. Nhưng `audio_to_float32(np.ndarray)` tại `jarvis/stt/engine.py:166-176` trả về array nguyên vẹn **không resample** khi nhận `np.ndarray`. Whisper nhận 44100 Hz khi cần 16000 Hz → audio chậm 2.75× → transcription garbled → ROUTER_ABSTAIN.
+- **Liên quan**: Một phần nguyên nhân ROUTER_ABSTAIN 60% trong eval P0-A (file WAV có header nên được resample đúng, nhưng microphone live bị ảnh hưởng).
+- **Fix**: Default `record_audio()` từ `44100` → `16000` Hz. Config `audio.sample_rate` vẫn override nếu đặt tường minh.
+- **Bằng chứng**: 15/15 tests PASS.
+
+---
+
 ## [5.1.0-post] Audit Resolution & Beta v1 Test Hardening (2026-09-13)
+
 
 > **Mục tiêu**: Giải quyết 5 vấn đề kiểm chứng từ báo cáo audit #60, sửa hoàn chỉnh lỗi encoding README.md, bổ sung test NOT_CONFIGURED cho Zalo/Discord, và chạy lại STT eval thực tế để thay thế tuyên bố không có bằng chứng.
 
