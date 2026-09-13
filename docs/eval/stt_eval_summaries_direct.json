@@ -4,37 +4,37 @@
     "condition": "clean",
     "backend": "direct",
     "n_trials": 45,
-    "n_correct": 30,
+    "n_correct": 31,
     "n_misrouted": 1,
     "n_stt_empty": 0,
-    "n_router_abstain": 14,
-    "correct_rate": 0.6666666666666666,
+    "n_router_abstain": 13,
+    "correct_rate": 0.6888888888888889,
     "misrouting_rate": 0.022222222222222223,
     "stt_empty_rate": 0.0,
-    "router_abstain_rate": 0.3111111111111111,
-    "end_to_end_abstention_rate": 0.3111111111111111,
+    "router_abstain_rate": 0.28888888888888886,
+    "end_to_end_abstention_rate": 0.28888888888888886,
     "median_latency_ms": 2732.6003000007404,
     "mean_text_similarity": 0.2351851851851852,
     "threshold_curve": {
       "0.3": {
+        "correct": 0.6888888888888889,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.28888888888888886
+      },
+      "0.4": {
         "correct": 0.6666666666666666,
         "misrouting": 0.022222222222222223,
         "end_to_end_abstention": 0.3111111111111111
       },
-      "0.4": {
-        "correct": 0.6444444444444445,
-        "misrouting": 0.022222222222222223,
-        "end_to_end_abstention": 0.3333333333333333
-      },
       "0.5": {
-        "correct": 0.6444444444444445,
+        "correct": 0.6666666666666666,
         "misrouting": 0.022222222222222223,
-        "end_to_end_abstention": 0.3333333333333333
+        "end_to_end_abstention": 0.3111111111111111
       },
       "0.6": {
-        "correct": 0.6,
+        "correct": 0.6222222222222222,
         "misrouting": 0.022222222222222223,
-        "end_to_end_abstention": 0.37777777777777777
+        "end_to_end_abstention": 0.35555555555555557
       },
       "0.7": {
         "correct": 0.4444444444444444,
