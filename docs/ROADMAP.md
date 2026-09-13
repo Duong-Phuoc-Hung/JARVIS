@@ -22,7 +22,7 @@
 
 ---
 
-## PHASE H (2026-09-13) — Voice Pipeline & Beta v1 Hardening (Trạng thái trung thực: 8 DONE, 1 PARTIAL, 4 CHƯA ĐÓNG/BLOCKED)
+## PHASE H (2026-09-13) — Voice Pipeline & Beta v1 Hardening (Trạng thái trung thực: 9 DONE, 4 CHƯA ĐÓNG/BLOCKED)
 
 | ID | Status | Mô tả |
 |----|--------|-------|
@@ -30,7 +30,7 @@
 | H-02 | DONE | Đồng bộ input device giữa AudioEngine và `record_audio()` qua `_active_device_index` |
 | H-03 | DONE | Chống self-audio contamination: 150ms settling delay sau TTS greeting + lockout loop khi TTS đang phát |
 | H-04 | DONE | Fix crash hotkey Ctrl+Shift+L PTT: thay `_handle_voice_command` bằng `_start_voice_interaction` |
-| H-05 | PARTIAL | STT & Router benchmark độc lập (Small: N=420 clean+noisy; Large-v3: N=210 clean 87.1% Correct / 2.78s p50; còn thiếu Large-v3 noisy) |
+| H-05 | DONE | STT & Router benchmark độc lập hoàn tất 100% (Small: N=420 clean+noisy; Large-v3: N=420 clean+noisy; Clean 87.1% / 2.79s, Noisy 84.8% / 2.79s, 0% empty, 178+2+0+30=210) |
 | H-06 | PENDING_IDLE_SOAK | Đã viết runner `tests/eval/wake_word_idle_runner.py` & VAD gating; chưa chạy soak test mic thật 15-60 phút |
 | H-07 | DONE | Chuẩn hóa lệnh mở app/web: launch dedupe stress test (3 lệnh × 20 lần = 60 lần gọi; 3 allowed, 57 suppressed) |
 | H-08 | DONE | Volume & brightness fail-closed trên hardware None: trả `success: False`, không ghost success |
@@ -54,7 +54,7 @@
 | A1-A7 fabrication fixes (fail-closed) | Full test suite run định kỳ | B1: cần Home Assistant server thật |
 | B3: ASTCodeValidator wired vào synthesizer | Cài `TShark` (Wireshark CLI cho pcap thật) | C1: cần Discord bot token thật |
 | Sandbox dry-run gate cho synthesizer | Mở port CDP 9222 cho browser live tests | B2: cần quyết định thiết kế phần cứng |
-| Router eval N=420 đóng (57.4% audio small, 100% held-out, 99.5% oracle text) | Rà soát Terminal Control Center (1.6) | Telegram / Zalo token thật để test nhánh online |
+| Router & STT eval N=840 hoàn tất (Small N=420, Large-v3 N=420 clean+noisy, 100% held-out, 99.5% oracle text) | Rà soát Terminal Control Center (1.6) | Telegram / Zalo token thật để test nhánh online |
 | Nâng cấp #3: Migrate `.env` → Credential Manager | | D-14: cần chứng thư Authenticode OV/EV thương mại |
 | Nâng cấp #4: TieredSTTEngine (Local Whisper + Cloud + VAD) | | |
 | Rate-limiting 4 kênh comms (Token Bucket) | | |
@@ -152,7 +152,7 @@
 
 ```
 BETA v1 ENGINEERING HARDENING STATUS (2026-09-13):
-  [x] 1.1 Independent Router eval (N=420 Small clean/noisy + N=210 Large-v3 clean CUDA) — EMPIRICAL COMPLETE
+  [x] 1.1 Independent Router eval (N=420 Small clean/noisy + N=420 Large-v3 clean/noisy CUDA) — EMPIRICAL COMPLETE
   [x] 1.2 Voice pipeline fixes (16kHz capture, mic sync, settling, hotkey PTT, fail-closed) — COMPLETE
   [x] 1.3 Comms fail-closed audit (Telegram, Zalo, Discord, IMAP fail-closed verified) — COMPLETE
   [x] 1.4 Soak test harness & leak detection (+0.00 handles/hr, 15 threads stable) — COMPLETE
