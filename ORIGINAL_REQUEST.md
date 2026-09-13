@@ -302,3 +302,85 @@ Deliver a production-ready, verified Product Beta v1 of JARVIS on Windows with g
 - [ ] No claim of "100% achieved" without concrete sample size (N), passing test names, and raw execution logs.
 - [ ] H-05 evaluation script executed on both clean and noisy sets with at least 2 models.
 - [ ] All test results and evidence committed to git repository and synchronized in `CHANGELOG.md` and `task.md`.
+
+## 2026-09-13T15:18:38Z
+
+Hoàn thành phần còn thiếu của JARVIS Beta v1 trên repository tại `d:\Software GitCode\JARVIS` (commit cơ sở `a349520`). Cụ thể: chạy benchmark STT `large-v3` điều kiện `noisy` (N=210 âm thanh thật) để đóng H-05, cập nhật toàn bộ tài liệu phản ánh kết quả thực tế, xác nhận test suite vẫn 81/81 PASS, rồi commit và push lên `origin/main`.
+
+Working directory: d:\Software GitCode\JARVIS
+Integrity mode: development
+
+## Context
+
+Đây là dự án AI assistant JARVIS. Phiên làm việc trước đã hoàn thành:
+- 81/81 automated tests PASS
+- large-v3 clean benchmark: N=210, CORRECT=183 (87.1%), MISROUTED=3, ROUTER_ABSTAIN=24, latency p50=2785.2ms
+- small model: N=420 (clean+noisy), CORRECT_total=241/420 (57.4%)
+
+Còn thiếu: large-v3 **noisy** benchmark (N=210 âm thanh nhiễu) — đây là phần duy nhất có thể hoàn thành bằng phần mềm mà không cần phần cứng/người thật/credentials ngoài.
+
+## Requirements
+
+### R1. Chạy large-v3 noisy benchmark đến hoàn thành
+
+Thực thi lệnh sau và chờ đến khi hoàn thành (ước tính ~2 giờ GPU):
+
+```
+.venv\Scripts\python.exe tests/eval/stt_intent_eval.py --audio-dir tests/eval/audio_independent --manifest tests/eval/independent_test_manifest.py --models large-v3 --conditions noisy --backend direct --out-dir docs/eval/independent_benchmark_large_noisy
+```
+
+Kết quả phải tạo ra ít nhất hai file:
+- `docs/eval/independent_benchmark_large_noisy/stt_eval_summaries_direct.json`
+- `docs/eval/independent_benchmark_large_noisy/stt_eval_results_direct.json`
+
+Kết quả phải có `n_trials = 210`. Kiểm tra số học bắt buộc: `n_correct + n_misrouted + n_stt_empty + n_router_abstain = 210`.
+
+### R2. Cập nhật 5 file tài liệu phản ánh kết quả thực tế
+
+Sau khi có số liệu từ R1, cập nhật toàn bộ các file sau với số liệu đọc trực tiếp từ JSON output (không fabricate, không ước tính):
+
+1. **`docs/eval/stt_eval_independent_summary.md`** — Thêm bảng large-v3 noisy (4-way breakdown, latency p50, kiểm tra số học)
+2. **`docs/READINESS_DASHBOARD.md`** — Cập nhật H-05 từ `PARTIAL` sang `DONE` nếu kết quả hợp lệ; thêm dòng large-v3 noisy vào bảng benchmark
+3. **`docs/ROADMAP.md`** — Cập nhật trạng thái H-05
+4. **`CHANGELOG.md`** — Thêm entry ghi lại kết quả large-v3 noisy với số liệu cụ thể
+5. **`README.md`** — Cập nhật dòng mô tả phiên bản nếu H-05 được đóng
+
+**Quy tắc bắt buộc (từ AGENTS.md):**
+- Mọi số liệu phải đọc từ JSON thực tế trên đĩa (không sinh ngầm định)
+- Không được tuyên bố "H-05 DONE" nếu `n_trials ≠ 210` hoặc số học không khớp
+- Nếu benchmark thất bại hoặc output không hợp lệ, ghi trạng thái `FAILED` và lý do cụ thể
+
+### R3. Xác nhận test suite và git push
+
+Chạy:
+```
+python -m pytest tests/e2e/test_beta_v1_acceptance.py tests/unit/test_voice_pipeline_fixes.py tests/unit/test_zalo_bot.py tests/test_adversarial_beta_m1_comms_failclosed.py tests/unit/test_setup_wizard.py -v --tb=short
+```
+
+Phải đạt **81/81 PASS** (hoặc cao hơn). Nếu có test fail, dừng và báo cáo lỗi — không push nếu test fail.
+
+Sau khi test pass:
+```
+git add docs/eval/stt_eval_independent_summary.md docs/eval/independent_benchmark_large_noisy/ docs/READINESS_DASHBOARD.md docs/ROADMAP.md CHANGELOG.md README.md
+git commit -m "feat(eval): complete H-05 large-v3 noisy benchmark N=210, update all docs"
+git push origin main
+```
+
+## Acceptance Criteria
+
+### Benchmark output
+- [ ] `stt_eval_summaries_direct.json` tồn tại trong `docs/eval/independent_benchmark_large_noisy/`
+- [ ] `n_trials = 210` trong JSON output
+- [ ] Số học khớp: `n_correct + n_misrouted + n_stt_empty + n_router_abstain = 210`
+- [ ] `median_latency_ms` có giá trị thực (không phải 0 hoặc None)
+
+### Documentation
+- [ ] `stt_eval_independent_summary.md` có bảng large-v3 noisy với số liệu từ JSON thực tế
+- [ ] `READINESS_DASHBOARD.md` phản ánh trạng thái H-05 chính xác (DONE hoặc FAILED với lý do)
+- [ ] Không có số liệu nào trong tài liệu mâu thuẫn với JSON output
+
+### Test và Git
+- [ ] Test suite: ≥ 81 passed, 0 failed
+- [ ] Commit tồn tại trên `origin/main` sau push
+- [ ] `git status` sạch sau push
+

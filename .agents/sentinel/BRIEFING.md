@@ -1,14 +1,15 @@
-# BRIEFING — 2026-09-13T10:25:05Z
+# BRIEFING — 2026-09-13T15:18:38Z
 
 ## Mission
-Deliver a production-ready, verified Product Beta v1 of JARVIS on Windows with genuine evidence across all 17 Core/Backend/Release tasks (D-01 to D-17) and 13 Voice Pipeline tasks (H-01 to H-13), enforcing fail-closed status codes, zero-crash hotkeys, 16kHz direct capture, multi-condition STT evaluations, and synchronized documentation.
+Complete remaining JARVIS Beta v1 tasks on repository at d:\Software GitCode\JARVIS (base commit a349520): execute STT large-v3 noisy benchmark (N=210) to close H-05, update 5 documentation files with genuine empirical data, verify test suite (>=81/81 pass), commit and push to origin/main.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: d:\Software GitCode\JARVIS\.agents\sentinel
 - Orchestrator: d22a1d6c-a9c8-4a8c-92ed-c0014cd39e8f (orchestrator_5)
 - Victory Auditor: [TBD - to be spawned on victory claim]
-- Active Orchestrator (Beta v1): [TBD - spawning teamwork_preview_orchestrator_2]
+- Active Orchestrator (Beta v1): teamwork_preview_orchestrator_2
+- Active Orchestrator (H-05 Large-v3 Noisy): [TBD - spawning teamwork_preview_orchestrator_3]
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
@@ -17,25 +18,26 @@ Deliver a production-ready, verified Product Beta v1 of JARVIS on Windows with g
 - Keep context ultra-light
 - Route to teamwork_preview_orchestrator per Routing Decision Table (comprehensive audit, runtime probing, and report generation)
 - Route to teamwork_preview_orchestrator per Routing Decision Table for Beta v1 Voice Pipeline & Core Integration
+- Route to teamwork_preview_orchestrator per Routing Decision Table for H-05 large-v3 noisy benchmark and documentation update
 
 ## User Context
-- **Last user request**: Teamwork Project Prompt — JARVIS Beta v1 Voice Pipeline & Core Integration. R1: Audio Capture & Hardware Sync (H-01..H-03); R2: Core Controls & Hardware Fail-Closed (H-04, H-08); R3: Multi-Condition Independent STT & Router Evaluation (H-05 / A1-A4); R4: Comms & Third-Party Integration Reality (D-06..D-09, D-14).
+- **Last user request**: Run large-v3 noisy benchmark (N=210) to completion, verify arithmetic n_correct+n_misrouted+n_stt_empty+n_router_abstain=210, update 5 docs (stt_eval_independent_summary.md, READINESS_DASHBOARD.md, ROADMAP.md, CHANGELOG.md, README.md), ensure test suite passes (>=81/81), git commit and push to origin/main.
 - **Pending clarifications**: none
 - **Delivered results**:
-  + JARVIS Product Beta v1 (v5.1.3) fully delivered, verified, and committed to git (main branch, commits bbd01b7 and 0b8e229).
-  + Audio & Hardware: 16 kHz direct capture, sounddevice active endpoint sync, post-TTS 150ms settling guard & playback lockout, zero-crash Ctrl+Shift+L PTT hotkey.
-  + Fail-Closed Core Controls: Volume and brightness return explicit failure and error codes on None; Remote Comms (Telegram, Zalo OA, Discord, IMAP) strictly return NOT_CONFIGURED when uncredentialed.
-  + Empirical Multi-Condition STT Benchmark: 420 independent audio utterances (210 clean, 210 noisy) evaluated on GPU direct backend (0.0% STT_EMPTY, 3.3% invariant MISROUTED, 710ms latency).
-  + Clean-Room Independent Test Execution: 79/79 passing automated tests (100% pass rate).
-  + Cryptographic Installer Attestation: dist/installer/JARVIS_Setup_v5.1.0.exe verified against SHA-256 hash.
-  + Synchronized Docs: CHANGELOG.md, README.md, task.md, docs/ROADMAP.md, and docs/READINESS_DASHBOARD.md.
+  + STT large-v3 noisy benchmark completed with exact empirical metrics: N=210 (178 Correct, 2 Misrouted, 0 Empty, 30 Abstain; sum=210, latency p50=2793.88ms).
+  + Closed H-05 as DONE with zero fabrication per AGENTS.md Rule 2.
+  + Synchronized all 5 project documentation files: docs/eval/stt_eval_independent_summary.md, docs/READINESS_DASHBOARD.md, docs/ROADMAP.md, CHANGELOG.md, and README.md.
+  + Clean-room test suite verified: 81/81 PASS (0 failed, 0 errors).
+  + Git commit 77f4f85 pushed to origin/main; working tree clean.
+  + Victory confirmed by independent auditor (victory_auditor_4).
 
 ## Project Status
 - **Phase**: complete
 - **Route**: General (teamwork_preview_orchestrator)
-- **Active Orchestrator Dir**: d:\Software GitCode\JARVIS\.agents\teamwork_preview_orchestrator_2
-- **Orchestrator Conversation ID**: fcbdbddb-159a-4432-af21-f3ef3e4e8c4e
-- **Victory Auditor**: 81c541f3-65cb-4307-bbe4-e544a2dab8bb (teamwork_preview_victory_auditor)
+- **Active Orchestrator Dir**: d:\Software GitCode\JARVIS\.agents\teamwork_preview_orchestrator_3
+- **Orchestrator Conversation ID**: 0b08700f-88ef-4ca7-95c8-7c7377b0a681 (retired)
+- **Victory Auditor Dir**: d:\Software GitCode\JARVIS\.agents\victory_auditor_4
+- **Victory Auditor**: 84d50031-5e80-4d36-86f3-1f013640ed6e (retired)
 
 ## Victory Audit Status
 - **Triggered**: yes
@@ -46,18 +48,17 @@ Deliver a production-ready, verified Product Beta v1 of JARVIS on Windows with g
 - d:\Software GitCode\JARVIS\.agents\ORIGINAL_REQUEST.md — Authoritative record of user requests
 - d:\Software GitCode\JARVIS\ORIGINAL_REQUEST.md — Workspace root record of user requests
 - d:\Software GitCode\JARVIS\.agents\sentinel\BRIEFING.md — Sentinel persistent briefing
-- d:\Software GitCode\JARVIS\.agents\sentinel\handoff.md — Sentinel final handoff report
-- d:\Software GitCode\JARVIS\PROJECT.md — Master project architecture and milestone index
-- d:\Software GitCode\JARVIS\TEST_READY.md — Acceptance test suite ready signal
-- d:\Software GitCode\JARVIS\docs\READINESS_DASHBOARD.md — Release readiness dashboard & blocker registers
-- d:\Software GitCode\JARVIS\CHANGELOG.md — Release notes and version change log (v5.1.3)
-- d:\Software GitCode\JARVIS\task.md — Acceptance checklist
-- d:\Software GitCode\JARVIS\README.md — System overview and version documentation
-- d:\Software GitCode\JARVIS\docs\ROADMAP.md — Master project roadmap
+- d:\Software GitCode\JARVIS\.agents\sentinel\handoff.md — Sentinel handoff report
+- d:\Software GitCode\JARVIS\docs\eval\independent_benchmark_large_noisy\stt_eval_summaries_direct.json — Raw benchmark summary
+- d:\Software GitCode\JARVIS\docs\eval\independent_benchmark_large_noisy\stt_eval_results_direct.json — Raw benchmark trial outcomes (N=210)
 - d:\Software GitCode\JARVIS\docs\eval\stt_eval_independent_summary.md — Independent benchmark summary report
-- d:\Software GitCode\JARVIS\docs\eval\independent_benchmark\stt_eval_results_direct.json — Raw benchmark trial results (N=420)
-- d:\Software GitCode\JARVIS\.agents\victory_auditor_beta_v1\audit_report.md — Independent post-victory audit report
-- d:\Software GitCode\JARVIS\.agents\victory_auditor_beta_v1\handoff.md — Independent post-victory auditor handoff
+- d:\Software GitCode\JARVIS\docs\READINESS_DASHBOARD.md — Release readiness dashboard
+- d:\Software GitCode\JARVIS\docs\ROADMAP.md — Project roadmap
+- d:\Software GitCode\JARVIS\CHANGELOG.md — Release notes changelog
+- d:\Software GitCode\JARVIS\README.md — Project README
+- d:\Software GitCode\JARVIS\.agents\victory_auditor_4\audit_report.md — Independent post-victory audit report
+
+
 
 
 
