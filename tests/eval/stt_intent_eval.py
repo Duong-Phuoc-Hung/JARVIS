@@ -68,11 +68,15 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 if sys.platform == "win32":
-    for _sp in site.getsitepackages():
+    _sp_dirs = list(site.getsitepackages())
+    _venv_sp = ROOT / ".venv" / "Lib" / "site-packages"
+    if _venv_sp.is_dir() and str(_venv_sp) not in _sp_dirs:
+        _sp_dirs.append(str(_venv_sp))
+    for _sp in _sp_dirs:
         _nr = os.path.join(_sp, "nvidia")
         if not os.path.isdir(_nr): continue
         for _p in os.listdir(_nr):
-            _bd = os.path.join(_nr, _p, "bin")
+            _bd = os.path.abspath(os.path.join(_nr, _p, "bin"))
             if os.path.isdir(_bd):
                 if hasattr(os, "add_dll_directory"): os.add_dll_directory(_bd)
                 if _bd not in os.environ.get("PATH", ""):

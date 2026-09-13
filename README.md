@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.1.3** trên `main` — hoàn thiện toàn bộ các nhiệm vụ D-01 đến D-17 của phân hệ Core / Backend / Integrations / Release và gói Voice Pipeline Hardening (H-01 đến H-04, H-07, H-08, H-09): 16kHz direct capture, đồng bộ micro device, 150ms settling delay, hotkey PTT Ctrl+Shift+L, Intent Router 99.5% accuracy trên 210 câu độc lập, Large-v3 STT benchmark 60.0% clean / 55.6% noisy, bộ test chấp nhận 28/28 E2E tests xanh 100%, và khung soak test phát hiện rò rỉ bộ nhớ/handles.</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.1.3** trên `main` — hoàn thiện toàn bộ các nhiệm vụ D-01 đến D-17 của phân hệ Core / Backend / Integrations / Release và gói Voice Pipeline Hardening (H-01 đến H-13): 16kHz direct capture, đồng bộ micro device, 150ms settling delay, hotkey PTT Ctrl+Shift+L, Intent Router 99.5% accuracy trên 210 câu độc lập, Whisper empirical benchmark N=420 (Clean 61.0% / Noisy 53.8%, 0.0% STT_EMPTY, 3.3% MISROUTED), bộ test chấp nhận 28/28 E2E tests xanh 100%, 79/79 test seams xác thực, và khung soak test phát hiện rò rỉ bộ nhớ/handles.</sub>
 
 
 </div>
@@ -40,7 +40,7 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 
 ## ✨ Tính Năng Nổi Bật
 
-### 🎙️ Nhận Diện Giọng Nói Offline & Voice Pipeline (v5.1.0)
+### 🎙️ Nhận Diện Giọng Nói Offline & Voice Pipeline (v5.1.3 Beta v1)
 - **Wake Word:** Nhận diện từ khóa *"Hey JARVIS"* tức thì với độ trễ cực thấp.
 - **Barge-in (Ngắt lời tức thời):** Khi JARVIS đang nói, bạn có thể nói chèn vào — hệ thống lập tức tắt âm thanh TTS và chuyển sang nghe lệnh mới.
 - **VAD (Voice Activity Detection):** Thuật toán phát hiện giọng nói thông minh bằng năng lượng RMS hoặc WebRTC VAD — xử lý offline, độ trễ <10ms.
@@ -278,17 +278,26 @@ pip install -e ".[all]"
 
 ### Chạy bộ kiểm thử (Running Test Suites)
 
-JARVIS bao gồm hơn 630+ bài kiểm thử tự động toàn diện:
+JARVIS bao gồm hơn 630+ bài kiểm thử tự động toàn diện cùng các bộ kiểm chuẩn chuyên biệt cho Product Beta v1:
 
 ```powershell
-# Chạy toàn bộ test suites:
+# 1. Chạy bộ kiểm thử chấp nhận E2E Beta v1 (28 tests qua 4 tầng kiểm thử):
+pytest tests/e2e/test_beta_v1_acceptance.py -v
+
+# 2. Chạy bộ hồi quy Voice Pipeline Seams (8 tests):
+pytest tests/unit/test_voice_pipeline_fixes.py -v
+
+# 3. Chạy bộ kiểm thử Zalo Controller Seams (25 tests):
+pytest tests/unit/test_zalo_bot.py -v
+
+# 4. Chạy bộ kiểm thử đối kháng Fail-Closed Comms Hub (18 tests):
+pytest tests/test_adversarial_beta_m1_comms_failclosed.py -v
+
+# 5. Chạy toàn bộ test suites kết hợp (hơn 630+ tests):
 pytest tests/
 
-# Chạy kiểm thử kèm báo cáo độ bao phủ mã nguồn (Coverage Report):
+# 6. Chạy kiểm thử kèm báo cáo độ bao phủ mã nguồn (Coverage Report):
 pytest tests/ --cov=jarvis --cov-report=term-missing
-
-# Chạy kiểm thử riêng cho bộ nhận diện Intent Router:
-pytest tests/test_router_project_intents.py -v
 ```
 
 ### Kiểm tra cú pháp, Linting & Type Checking
@@ -310,7 +319,7 @@ mypy jarvis
 # 1. Đóng gói thành file chạy trực tiếp dist/JARVIS.exe:
 python scripts/build_exe.py
 
-# 2. Đóng gói thành file cài đặt Windows Installer dist/installer/JARVIS_Setup_v5.0.0.exe
+# 2. Đóng gói thành file cài đặt Windows Installer dist/installer/JARVIS_Setup_v5.1.0.exe
 #    (chỉ build local qua Inno Setup — release workflow chính thức trên GitHub Actions
 #    KHÔNG publish file Setup này, chỉ publish JARVIS_v<version>_windows_x64.zip):
 python scripts/build_installer.py

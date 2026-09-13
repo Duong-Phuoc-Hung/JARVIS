@@ -1,0 +1,110 @@
+[
+  {
+    "model": "small",
+    "condition": "clean",
+    "backend": "direct",
+    "n_trials": 210,
+    "n_correct": 128,
+    "n_misrouted": 7,
+    "n_stt_empty": 0,
+    "n_router_abstain": 75,
+    "correct_rate": 0.6095238095238096,
+    "misrouting_rate": 0.03333333333333333,
+    "stt_empty_rate": 0.0,
+    "router_abstain_rate": 0.35714285714285715,
+    "end_to_end_abstention_rate": 0.35714285714285715,
+    "median_latency_ms": 710.788950000051,
+    "mean_text_similarity": 0.8373216862502577,
+    "threshold_curve": {
+      "0.3": {
+        "correct": 0.6095238095238096,
+        "misrouting": 0.03333333333333333,
+        "end_to_end_abstention": 0.35714285714285715
+      },
+      "0.4": {
+        "correct": 0.6095238095238096,
+        "misrouting": 0.03333333333333333,
+        "end_to_end_abstention": 0.35714285714285715
+      },
+      "0.5": {
+        "correct": 0.6095238095238096,
+        "misrouting": 0.03333333333333333,
+        "end_to_end_abstention": 0.35714285714285715
+      },
+      "0.6": {
+        "correct": 0.6095238095238096,
+        "misrouting": 0.03333333333333333,
+        "end_to_end_abstention": 0.35714285714285715
+      },
+      "0.7": {
+        "correct": 0.5047619047619047,
+        "misrouting": 0.02857142857142857,
+        "end_to_end_abstention": 0.4666666666666667
+      },
+      "0.8": {
+        "correct": 0.14761904761904762,
+        "misrouting": 0.009523809523809525,
+        "end_to_end_abstention": 0.8428571428571429
+      },
+      "0.9": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 1.0
+      }
+    }
+  },
+  {
+    "model": "small",
+    "condition": "noisy",
+    "backend": "direct",
+    "n_trials": 210,
+    "n_correct": 113,
+    "n_misrouted": 7,
+    "n_stt_empty": 0,
+    "n_router_abstain": 90,
+    "correct_rate": 0.5380952380952381,
+    "misrouting_rate": 0.03333333333333333,
+    "stt_empty_rate": 0.0,
+    "router_abstain_rate": 0.42857142857142855,
+    "end_to_end_abstention_rate": 0.42857142857142855,
+    "median_latency_ms": 706.1612499999228,
+    "mean_text_similarity": 0.8015374836803408,
+    "threshold_curve": {
+      "0.3": {
+        "correct": 0.5380952380952381,
+        "misrouting": 0.03333333333333333,
+        "end_to_end_abstention": 0.42857142857142855
+      },
+      "0.4": {
+        "correct": 0.5380952380952381,
+        "misrouting": 0.03333333333333333,
+        "end_to_end_abstention": 0.42857142857142855
+      },
+      "0.5": {
+        "correct": 0.5333333333333333,
+        "misrouting": 0.03333333333333333,
+        "end_to_end_abstention": 0.43333333333333335
+      },
+      "0.6": {
+        "correct": 0.5333333333333333,
+        "misrouting": 0.02857142857142857,
+        "end_to_end_abstention": 0.4380952380952381
+      },
+      "0.7": {
+        "correct": 0.3761904761904762,
+        "misrouting": 0.023809523809523808,
+        "end_to_end_abstention": 0.6
+      },
+      "0.8": {
+        "correct": 0.08095238095238096,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.919047619047619
+      },
+      "0.9": {
+        "correct": 0.004761904761904762,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.9952380952380953
+      }
+    }
+  }
+]

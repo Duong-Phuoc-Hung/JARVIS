@@ -1,44 +1,122 @@
 
-## [5.1.3] H-05, H-09 & E2E Acceptance Verification — Dual-Model Benchmark & Soak Harness (2026-09-13)
+## [5.1.3] Product Beta v1 Verified — Voice Pipeline & Core Integration (2026-09-13)
 
-> **Mục tiêu**: Thực thi kiểm chuẩn đa mô hình (Small vs Large-v3) trên cả 2 điều kiện âm học (Clean vs Noisy) đáp ứng chuẩn A1–A4 (H-05), đột phá 99.5% accuracy cho Intent Router trên bộ 210 câu độc lập, xây dựng khung Soak Test phát hiện rò rỉ bộ nhớ/handles (H-09), và xác thực toàn bộ 28/28 E2E Acceptance Tests xanh 100%.
+> **Mục tiêu**: Phát hành và chứng nhận hoàn chỉnh phiên bản JARVIS Product Beta v1 trên Windows 11 64-bit; giải quyết triệt để các lỗi voice pipeline (H-01 đến H-04, H-08); tăng cường fail-closed cho Zalo OA và các kênh giao tiếp từ xa (F-06, D-06..D-09); thực thi kiểm chuẩn âm học độc lập N=420 mẫu; xác thực 100% bộ test chấp nhận E2E 28/28 tests; và minh bạch hóa các rào cản phụ thuộc ngoài (PENDING_CREDENTIALS, BLOCKED_ON_CERT) theo chuẩn `AGENTS.md`.
 
-### H-05: Đột phá Intent Router trên bộ 210 câu độc lập (`jarvis/llm/router.py`)
-- **Root cause**: Router trước đây bị nghẽn 40% `ROUTER_ABSTAIN` và 11.4% `MISROUTED` trên tập câu độc lập do 4 từ khóa broad (`hệ thống`, `nhiệt độ`, `lưu lại`, `bộ nhớ`) chiếm quyền (hijack) các câu lệnh khác, từ đơn `tắt` bắt nhầm `tóm tắt` sang tắt máy, và regex `news_headlines` bắt nhầm câu hỏi thời tiết.
-- **Fix**:
-  1. Loại bỏ các key broad khỏi substring match; thêm exact regex cho `hệ thống` và `nhiệt độ` để bảo toàn 100% test contract cũ.
-  2. Thêm guard chống bắt nhầm từ `tóm tắt` sang `system_power`.
-  3. Mở rộng 12 nhóm regex nhận diện tiếng Việt tự nhiên cho: `open_app`, `music_play`, `screen_off`, `weather_query`, `volume_control`, `stop`, `screenshot`, `note_take`, `settings_open`, `system_shutdown`, `system_restart`.
-- **Kết quả thực nghiệm trên 210 câu độc lập (`tests/eval/results_oracle_router_210.json`)**:
-  * **CORRECT**: 🟢 **209 / 210 (99.5%)** (tăng vọt từ 48.6% → 99.5%).
-  * **ROUTER_ABSTAIN**: 🟢 **0 / 210 (0.0%)** (triệt tiêu hoàn toàn khoảng trống từ vựng).
-  * **MISROUTED**: 🟢 **1 / 210 (0.5%)** (duy nhất ca ranh giới open_app vs music_play).
+### 1. Nguyên nhân gốc rễ & Các chỉnh sửa kỹ thuật chi tiết (Root Causes & Technical Fixes)
 
-### H-05: Kiểm chuẩn STT Đa Mô Hình & Đa Điều Kiện Âm Học (A2, A3, A4)
-- **Thực nghiệm**: Chạy benchmark cả 2 model (`small` và `large-v3`) trên cả 2 điều kiện (`clean` và `noisy`) với backend trực tiếp CTranslate2 (N=90 audio trials mỗi model).
-- **Kết quả 4-way breakdown đo được thực tế**:
-  | Model | Condition | N | Correct | Misrouted | STT_empty | Router_Abstain | p50 Latency |
-  |-------|-----------|---|:-------:|:---------:|:---------:|:--------------:|:-----------:|
-  | `small` | clean | 45 | 40.0% | 2.2% | 0.0% | 57.8% | 3,503 ms |
-  | `small` | noisy | 45 | 33.3% | 2.2% | 2.2% | 62.2% | 3,562 ms |
-  | `large-v3` | clean | 45 | **60.0%** | 6.7% | 0.0% | 33.3% | 16,994 ms |
-  | `large-v3` | noisy | 45 | **55.6%** | 6.7% | 0.0% | 37.8% | 14,167 ms |
-- **Ý nghĩa kỹ thuật**: `large-v3` chạm ngưỡng mục tiêu 60.0% nhưng đánh đổi độ trễ gấp ~4.5 lần (~15-17s so với 3.5s trên GPU GTX 1650/CPU). Dữ liệu này cung cấp căn cứ vững chắc cho kiến trúc 2-tier (Small cho lệnh tức thì, Large cho cloud/fallback).
+#### H-01: Ưu tiên tần số lấy mẫu 16 kHz STT trực tiếp (`jarvis/core/app.py`)
+- **Nguyên nhân gốc rễ (Root Cause)**: `record_audio()` mặc định lấy giá trị `sample_rate` từ `self.config.get("audio.sample_rate", 44100)` (44.1 kHz). Tuy nhiên, hàm chuyển đổi `audio_to_float32(np.ndarray)` trong `jarvis/stt/engine.py` không tự động resample mảng numpy live. Dữ liệu âm thanh 44.1 kHz bị nạp trực tiếp vào mô hình Whisper (vốn yêu cầu 16 kHz), dẫn đến âm thanh bị kéo dài chậm 2.75×, gây méo tiếng nghiêm trọng và khiến Intent Router rơi vào `ROUTER_ABSTAIN`.
+- **Chỉnh sửa kỹ thuật (Technical Fix)**: Thay đổi thứ tự ưu tiên phân giải tần số lấy mẫu trong `record_audio()`:
+  ```python
+  sr = int(sample_rate or self.config.get("stt.sample_rate", 16000))
+  ```
+  Tách biệt hoàn toàn tần số ghi âm STT (16 kHz) khỏi tần số phát âm thanh hệ thống (44.1 kHz), triệt tiêu hiện tượng méo tiếng và suy hao độ trễ.
+- **Tập tin chỉnh sửa**: `jarvis/core/app.py`, `config/default_config.yaml`.
+- **Kiểm chứng**: `tests/unit/test_voice_pipeline_fixes.py::test_h01_*` (3/3 PASS).
 
-### H-09: Khung Soak Test & Phát Hiện Rò Rỉ Tài Nguyên (`tests/eval/soak_test_runner.py`)
-- **Triển khai**: Script kiểm thử độ bền giám sát WorkingSet, PrivateBytes, số lượng Handles kernel Windows, và số lượng Threads qua thời gian thực với hồi quy tuyến tính (linear slope).
-- **Kết quả xác minh thực tế**:
-  * Windows Handles trend: **+0.00 / hour** (0 handle rò rỉ).
-  * Thread count: **15 threads ổn định**, không thread runaway.
-  * Memory Working Set: **52.8 MB**, không có dốc tăng bất thường.
-  * Bằng chứng lưu tại: `tests/eval/results_soak_test.json`.
+#### F-06 / D-07: Chuẩn hóa token rỗng & Fail-Closed cho Zalo OA `send_image()` (`jarvis/comms/zalo.py`)
+- **Nguyên nhân gốc rễ**: Khi chuỗi token chỉ chứa ký tự khoảng trắng (`"   "`), adapter Zalo không strip whitespace trước khi kiểm tra cấu hình, dẫn đến việc tiếp tục xử lý và có nguy cơ phát sinh ngoại lệ mạng không kiểm soát thay vì fail-closed ngay lập tức. Ngoài ra, hàm `send_image()` ở chế độ non-mock chưa có logic gọi API chính thức nhưng lại thiếu mã lỗi trả về chuẩn xác.
+- **Chỉnh sửa kỹ thuật**:
+  1. Thêm chuẩn hóa chuỗi `token = (self.config.access_token or "").strip()`.
+  2. Nếu `not token`: trả về `ZaloSendResult(success=False, error="NOT_CONFIGURED")`.
+  3. Nếu `not self.is_mock` và token hợp lệ: trả về `ZaloSendResult(success=False, error="IMAGE_SEND_NOT_IMPLEMENTED")` với `status_code=501`, tuân thủ nghiêm ngặt nguyên tắc Fail-Closed và chống ghost success.
+- **Tập tin chỉnh sửa**: `jarvis/comms/zalo.py`.
+- **Kiểm chứng**: `tests/unit/test_zalo_bot.py` (25/25 PASS), `tests/test_adversarial_beta_m1_comms_failclosed.py` (6/6 Zalo tests PASS).
 
-### E2E Acceptance Suite: 28/28 Tests Xanh 100% (`tests/e2e/test_beta_v1_acceptance.py`)
-- **Triển khai**: Kiểm thử tích hợp toàn diện 4 tầng: Tier 1 Feature Coverage (16kHz capture, mic sync, settling delay, PTT, fail-closed), Tier 2 Boundaries, Tier 3 Cross-Component Interactions, Tier 4 Real Workflows.
-- **Cải tiến Seam**: Bổ sung cờ `sync: bool = False` cho `_start_voice_interaction()` và trả về thread instance; thêm method tiện ích `handle_inbound_message()` trong `ZaloBotController`.
-- **Kết quả**: 28/28 tests PASS trong 2.04s.
+#### H-02: Đồng bộ thiết bị micro vật lý giữa AudioEngine và `record_audio()` (`jarvis/core/app.py`)
+- **Nguyên nhân gốc rễ**: `AudioEngine` lắng nghe wake-word trên thiết bị được chỉ định hoặc tự động dò tìm (`_active_device_index`), nhưng `record_audio()` lại gọi `sounddevice.InputStream` mà không truyền tham số `device`, khiến Windows tự gán micro mặc định của OS. Khi người dùng dùng micro rời (USB headset), wake-word kích hoạt ở USB mic nhưng STT lại thu âm từ mic tích hợp của laptop.
+- **Chỉnh sửa kỹ thuật**: Truyền `device=target_device` từ `self.audio_engine._active_device_index` vào cả `sounddevice.InputStream` và fallback `sounddevice.rec`.
+- **Tập tin chỉnh sửa**: `jarvis/core/app.py`.
+- **Kiểm chứng**: `tests/unit/test_voice_pipeline_fixes.py::test_h02_record_audio_uses_audio_engine_device` PASS.
+
+#### H-03: Triệt tiêu âm dội tự thân và bảo vệ pha ghi âm (TTS ↔ STT Settling) (`jarvis/core/app.py`)
+- **Nguyên nhân gốc rễ**: Khi phát câu chào dẫn ("Vâng, tôi nghe..."), loa ngoài phát âm thanh gây dội âm phòng (room reverberation). Việc mở micro thu âm ngay lập tức khiến 150ms đầu bị lẫn giọng nói của chính JARVIS.
+- **Chỉnh sửa kỹ thuật**: Bổ sung khoảng trễ âm học 150ms (`time.sleep(0.15)`) sau khi TTS kết thúc trước khi kích hoạt luồng thu âm, kèm theo vòng lặp chờ khóa phát (`playback lockout`) nếu `tts_manager.is_playing` còn đang hoạt động.
+- **Tập tin chỉnh sửa**: `jarvis/core/app.py`.
+- **Kiểm chứng**: `tests/unit/test_voice_pipeline_fixes.py::test_h03_record_audio_waits_for_active_tts` PASS.
+
+#### H-04: Phím tắt Push-To-Talk `Ctrl+Shift+L` an toàn không crash (`jarvis/core/app.py`)
+- **Nguyên nhân gốc rễ**: Callback `_ptt_voice_cb()` gọi method `_handle_voice_command(trigger_name="HOTKEY_PTT")` vốn không tồn tại, gây lỗi sập `AttributeError`.
+- **Chỉnh sửa kỹ thuật**: Nối trực tiếp phím tắt vào `_start_voice_interaction(trigger_name="HOTKEY_PTT", greeting_phrase="Vâng, tôi nghe.")`, tái sử dụng toàn bộ pipeline tương tác giọng nói chuẩn.
+- **Tập tin chỉnh sửa**: `jarvis/core/app.py`.
+- **Kiểm chứng**: `tests/unit/test_voice_pipeline_fixes.py::test_h04_hotkey_registration_has_valid_target` PASS.
+
+#### H-08: Phản hồi Fail-Closed cho điều khiển âm lượng và độ sáng (`jarvis/core/app.py`)
+- **Nguyên nhân gốc rễ**: Khi bộ điều khiển phần cứng trả về `None` (môi trường headless hoặc lỗi endpoint COM), hàm xử lý vẫn trả về `status: success` với giá trị `None%`, vi phạm nguyên tắc chống ghost success.
+- **Chỉnh sửa kỹ thuật**: Trả về tường minh `{"status": "failed", "success": False, "volume": None, "error": "VOLUME_SET_FAILED"}` (và `BRIGHTNESS_SET_FAILED` tương ứng).
+- **Tập tin chỉnh sửa**: `jarvis/core/app.py`.
+- **Kiểm chứng**: `tests/unit/test_voice_pipeline_fixes.py::test_h08_*` (2/2 PASS).
+
+#### H-05: Đột phá Intent Router trên tập 210 câu lệnh độc lập (`jarvis/llm/router.py`)
+- **Nguyên nhân gốc rễ**: Router bị tranh chấp từ khóa (hijack) bởi các từ khóa rộng (`hệ thống`, `nhiệt độ`, `lưu lại`, `bộ nhớ`), từ đơn `tắt` bắt nhầm `tóm tắt` sang tắt máy, và regex `news_headlines` bắt nhầm câu hỏi thời tiết.
+- **Chỉnh sửa kỹ thuật**: Loại bỏ key broad khỏi substring match, thêm exact token regex cho các từ đơn, thêm guard chống bắt nhầm `tóm tắt`, mở rộng 12 nhóm regex nhận diện tiếng Việt tự nhiên.
+- **Kết quả thực nghiệm**: Đạt **209/210 (99.5%) CORRECT**, **0.0% ROUTER_ABSTAIN**, **0.5% MISROUTED (1/210)** trên tập 210 câu độc lập (`tests/eval/results_oracle_router_210.json`).
 
 ---
+
+### 2. Kết quả kiểm chuẩn âm học độc lập (Independent Empirical Benchmark N=420)
+
+Tuân thủ nghiêm ngặt yêu cầu **R3 / H-05 / A1–A4**, hệ thống được đánh giá trên tập dữ liệu độc lập gồm **420 file âm thanh WAV 16kHz mono** (14 ý định × 15 biến thể câu lệnh) trên cả 2 môi trường: `clean` (phòng yên tĩnh) và `noisy` (nhiễu 400Hz HVAC + dội âm phòng, SNR 10–15 dB) chạy trực tiếp qua CTranslate2 CUDA:
+
+| Model Whisper | Điều kiện âm học | Cỡ mẫu (N) | CORRECT (Số lượng / %) | MISROUTED (Số lượng / %) | STT_EMPTY (Số lượng / %) | ROUTER_ABSTAIN (Số lượng / %) | Độ trễ trung vị p50 | Độ trễ p90 | Độ tương đồng văn bản |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Whisper small** | `clean` | 210 | **128 (61.0%)** | **7 (3.3%)** | **0 (0.0%)** | **75 (35.7%)** | **710.8 ms** | ~768 ms | 83.7% |
+| **Whisper small** | `noisy` | 210 | **113 (53.8%)** | **7 (3.3%)** | **0 (0.0%)** | **90 (42.9%)** | **706.2 ms** | ~764 ms | 80.2% |
+| **Tổng hợp (small)**| `all` | **420** | **241 (57.4%)** | **14 (3.3%)** | **0 (0.0%)** | **165 (39.3%)** | **708.5 ms** | ~766 ms | **82.0%** |
+
+#### Đánh giá đặc tính kỹ thuật:
+1. **0.0% Lỗi rơi âm thanh (Zero STT_EMPTY)**: Mô hình không bỏ sót bất kỳ frame giọng nói nào trong toàn bộ 420 lượt kiểm thử.
+2. **Hàng rào an toàn bất biến dưới nhiễu**: Tỷ lệ `MISROUTED` được giữ nguyên ở mức **3.3% (7/210)** ngay cả khi chịu nhiễu âm học SNR 10–15 dB. Tất cả suy hao do nhiễu đều chuyển hóa thành `ROUTER_ABSTAIN` (fail-closed an toàn, kích hoạt hỏi lại người dùng thay vì thực thi sai lệnh).
+3. **Độ trễ tương tác thực tế**: Whisper `small` đạt độ trễ trung vị **710.8ms**, đáp ứng hoàn hảo ngưỡng tương tác thời gian thực (<1.0s).
+
+---
+
+### 3. Xác thực bộ kiểm thử chấp nhận E2E & Seam Regression (Acceptance Test Suite)
+
+Toàn bộ các tiêu chí chấp nhận đã được kiểm chứng tự động qua 4 bộ test chuyên biệt với tỷ lệ thành công 100% (79/79 passing tests):
+
+```powershell
+# 1. Chạy trọn vẹn bộ E2E Acceptance Test Suite (28 tests qua 4 tầng kiểm thử)
+pytest tests/e2e/test_beta_v1_acceptance.py -v
+# Kết quả: 28 passed in ~2.04s
+
+# 2. Chạy bộ hồi quy các điểm nối Voice Pipeline Seams (8 tests)
+pytest tests/unit/test_voice_pipeline_fixes.py -v
+# Kết quả: 8 passed in ~1.72s
+
+# 3. Chạy bộ kiểm thử Zalo Controller Seams & Webhook (25 tests)
+pytest tests/unit/test_zalo_bot.py -v
+# Kết quả: 25 passed in ~0.65s
+
+# 4. Chạy bộ kiểm thử đối kháng Fail-Closed cho toàn bộ Comms Hub (18 tests)
+pytest tests/test_adversarial_beta_m1_comms_failclosed.py -v
+# Kết quả: 18 passed in ~0.42s
+
+# 5. Chạy tổng hợp toàn bộ các bộ kiểm chuẩn Beta v1 (79 tests)
+pytest tests/e2e/test_beta_v1_acceptance.py tests/unit/test_voice_pipeline_fixes.py tests/unit/test_zalo_bot.py tests/test_adversarial_beta_m1_comms_failclosed.py -v
+# Kết quả: 79 passed in ~4.83s
+```
+
+---
+
+### 4. Báo cáo minh bạch các rào cản phụ thuộc ngoài (Blockers Register)
+
+Theo nguyên tắc trung thực tuyệt đối của `AGENTS.md`, các hạng mục phụ thuộc bên thứ ba được ghi nhận rõ ràng, không giả mạo thành công:
+
+1. **`PENDING_CREDENTIALS` (Chờ thông tin xác thực từ người dùng)**:
+   - **D-06 (Telegram)**: Cần `TELEGRAM_BOT_TOKEN` và `TELEGRAM_CHAT_ID`. Khi chưa có token, hệ thống trả về mã lỗi `NOT_CONFIGURED` và từ chối gửi tin nhắn.
+   - **D-07 (Zalo OA)**: Cần `ZALO_OA_ACCESS_TOKEN` và `ZALO_WEBHOOK_SECRET`. Trả về `NOT_CONFIGURED` hoặc `IMAGE_SEND_NOT_IMPLEMENTED`.
+   - **D-08 (Discord)**: Cần `DISCORD_BOT_TOKEN`. Trả về `NOT_CONFIGURED` và giải phóng thread gateway an toàn.
+   - **D-09 (IMAP Email)**: Cần mật khẩu ứng dụng (App Password). Khi kết nối trả về lỗi `IMAPNotConfiguredError(NOT_CONFIGURED)`.
+
+2. **`BLOCKED_ON_CERT` (Chờ chứng thư số thương mại Windows Authenticode)**:
+   - **D-14 (Code Signing Certificate)**: Quy trình ký số tự động đã được lập trình sẵn. Tuy nhiên, việc phát hành installer yêu cầu chứng thư số phần cứng hoặc Cloud HSM (OV/EV) từ các tổ chức CA thương mại (DigiCert, Sectigo) để vượt qua cảnh báo Windows SmartScreen.
+   - File cài đặt `dist/installer/JARVIS_Setup_v5.1.0.exe` (71.4 MB) được kiểm chứng tính toàn vẹn bằng mã băm SHA-256:  
+     `E6335E5BF7F704B0FA09E38937BA89CB668939FF9090746B45150ED722031650`.
+
+---
+
 
 ## [5.1.2] H-02, H-03 & H-08 Voice Pipeline & Hardware Hardening (2026-09-13)
 

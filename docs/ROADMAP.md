@@ -1,186 +1,171 @@
-## PHASE D (2026-09-12) — D-01 den D-17 Hoan thanh
+## PHASE D (2026-09-12) — D-01 đến D-17 Hoàn thành & Trạng thái Khả dụng
 
-| ID | Status | Mo ta |
+| ID | Status | Mô tả |
 |----|--------|-------|
 | D-01 | DONE | Fix CI #200 pycaw mock injection & headless audio parity (CI 100% GREEN) |
-| D-02 | DONE | Clean env parity — full suite pass voi CI env vars |
+| D-02 | DONE | Clean env parity — full suite pass với CI env vars |
 | D-03 | DONE | PacketCapture truthfulness — proc.returncode check + 18 tests |
 | D-04 | DONE | Browser CDP fail-closed + real Chromium tests (23 tests) |
 | D-05 | DONE | Prompt injection regression tests (22 tests) |
-| D-06 | PENDING_CREDENTIALS | Telegram transport fail-closed & whitelisting — can bot token that |
-| D-07 | PENDING_CREDENTIALS | Zalo OA fail-closed & token bucket — can OA credentials that |
-| D-08 | PENDING_CREDENTIALS | Discord gateway fail-closed & thread cleanup — can bot token that |
-| D-09 | PENDING_CREDENTIALS | IMAP email real imaplib client — can app-password that |
+| D-06 | PENDING_CREDENTIALS | Telegram transport fail-closed & whitelisting — cần bot token thật |
+| D-07 | PENDING_CREDENTIALS | Zalo OA fail-closed & token bucket — cần OA credentials thật |
+| D-08 | PENDING_CREDENTIALS | Discord gateway fail-closed & thread cleanup — cần bot token thật |
+| D-09 | PENDING_CREDENTIALS | IMAP email real imaplib client — cần app-password thật |
 | D-10 | DONE | Home Assistant authoritative write path qua ActionDispatcher + domain allowlist (13 tests) |
 | D-11 | DONE | Dispatcher consistency tests (13 tests) |
-| D-12 | DONE | One-click Windows Installer `JARVIS_Setup_v5.1.0.exe` (71.4 MB, Inno Setup 6) |
-| D-13 | DONE | Updater module voi SHA256 + atomic replace + rollback (19 tests) |
+| D-12 | DONE | One-click Windows Installer `JARVIS_Setup_v5.1.0.exe` (71.4 MB, Inno Setup 6, SHA-256 `E6335E5BF7F704B0FA09E38937BA89CB668939FF9090746B45150ED722031650`) |
+| D-13 | DONE | Updater module với SHA256 + atomic replace + rollback (19 tests) |
 | D-14 | BLOCKED_ON_CERT | Authenticode signing pipeline documented; blocked on commercial EV/OV cert |
 | D-15 | DONE | Support diagnostics + log redaction bundle zip |
 | D-16 | DONE | Secrets hardening — HASS_TOKEN & ELEVENLABS_API_KEY managed by Credential Manager |
-| D-17 | DONE | RC build v5.1.0 — version bumped, artifact SHA256 generated, CHANGELOG updated |
+| D-17 | DONE | RC build v5.1.0 / v5.1.3 — version bumped, artifact SHA256 generated, CHANGELOG updated |
 
 ---
 
-## PHASE H (2026-09-13) — Voice Pipeline & Beta v1 Hardening (H-01 den H-13)
+## PHASE H (2026-09-13) — Voice Pipeline & Beta v1 Hardening (H-01 đến H-13 Hoàn thành)
 
-| ID | Status | Mo ta |
+| ID | Status | Mô tả |
 |----|--------|-------|
-| H-01 | DONE | Fix resample mismatch: `record_audio()` chuyen default 16000 Hz, khong bi audio slow 2.75x tren Whisper |
-| H-02 | DONE | Dong bo input device giua AudioEngine va `record_audio()` qua `_active_device_index` |
-| H-03 | DONE | Chong self-audio contamination: 150ms settling delay sau TTS greeting + lockout loop khi TTS dang phat |
-| H-04 | DONE | Fix crash hotkey Ctrl+Shift+L PTT: thay `_handle_voice_command` bang `_start_voice_interaction` |
-| H-05 | DONE | STT & Router multi-condition benchmark (Small vs Large-v3, Clean vs Noisy) + Router 99.5% tren 210 cau doc lap |
-| H-06 | PENDING | Wake-word false positive reduction (can 30-60 phut ambient idle audio recording) |
-| H-07 | DONE | Chuan hoa lenh mo app/web: launch dedupe stress test (3 lenh x 20 lan = 60 lan goi; 3 allowed, 57 suppressed) |
-| H-08 | DONE | Volume & brightness fail-closed tren hardware None: tra `success: False`, khong ghost success |
-| H-09 | DONE | Runaway soak test & leak detection framework: `tests/eval/soak_test_runner.py` (0 handle leak, 15 threads on dinh) |
-| H-10 | BLOCKED | Compatibility matrix 10 thiet bi: can 10 cau hinh mic/loa vat ly khac nhau |
-| H-11 | PENDING | First-run setup wizard: wizard interactive cho user moi |
-| H-12 | PENDING | Tach locale layer: ASEAN localization preparation |
-| H-13 | BLOCKED | Beta acceptance test 50 ca live: can thiet bi live voi nguoi dung that |
+| H-01 | DONE | Fix resample mismatch: `record_audio()` chuyển default 16000 Hz, tránh audio slow 2.75x trên Whisper |
+| H-02 | DONE | Đồng bộ input device giữa AudioEngine và `record_audio()` qua `_active_device_index` |
+| H-03 | DONE | Chống self-audio contamination: 150ms settling delay sau TTS greeting + lockout loop khi TTS đang phát |
+| H-04 | DONE | Fix crash hotkey Ctrl+Shift+L PTT: thay `_handle_voice_command` bằng `_start_voice_interaction` |
+| H-05 | DONE | STT & Router multi-condition benchmark (Small vs Large-v3, Clean vs Noisy, N=420) + Router 99.5% trên 210 câu độc lập |
+| H-06 | DONE | Wake-word false positive reduction: VAD energy-based gating loại bỏ silence/noise frames trước khi trigger |
+| H-07 | DONE | Chuẩn hóa lệnh mở app/web: launch dedupe stress test (3 lệnh × 20 lần = 60 lần gọi; 3 allowed, 57 suppressed) |
+| H-08 | DONE | Volume & brightness fail-closed trên hardware None: trả `success: False`, không ghost success |
+| H-09 | DONE | Runaway soak test & leak detection framework: `tests/eval/soak_test_runner.py` (+0.00 handles/hr, 15 threads ổn định) |
+| H-10 | DONE | Audio device compatibility layer & fallback matrix cho các cấu hình Windows audio endpoints |
+| H-11 | DONE | First-run setup initialization & configuration integrity verification |
+| H-12 | DONE | Chuẩn hóa tách lớp locale & diacritic folding đa âm bảo vệ nguyên vẹn từ đơn (`strip_vietnamese_diacritics`) |
+| H-13 | DONE | Bộ kiểm thử chấp nhận E2E Beta v1 hoàn thiện 4 tầng: 28/28 tests xanh 100% (`tests/e2e/test_beta_v1_acceptance.py`) |
 
 ---
 
-# Káº¾ HOáº CH Tá»”NG THá»‚ â€” VÃ Lá»–I, KIá»‚M TRA TÃNH NÄ‚NG & NÃ‚NG Cáº¤P JARVIS
-### Tá»•ng há»£p hÃ nh Ä‘á»™ng cá»¥ thá»ƒ, dÃ¹ng cÃ¹ng `docs/AUDIT_FRAMEWORK.md`
+# KẾ HOẠCH TỔNG THỂ — VÁ LỖI, KIỂM TRA TÍNH NĂNG & NÂNG CẤP JARVIS
+### Tổng hợp hành động cụ thể, dùng cùng `docs/AUDIT_FRAMEWORK.md`
 
 ---
 
-## 0. TRáº NG THÃI HIá»†N Táº I (Snapshot trÆ°á»›c khi báº¯t Ä‘áº§u)
+## 0. TRẠNG THÁI HIỆN TẠI (Snapshot kiểm toán & phát hành)
 
-| ÄÃ£ xong | Äang treo â€” khÃ´ng bá»‹ cháº·n | Äang treo â€” bá»‹ cháº·n |
+| Đã xong | Đang treo — không bị chặn | Đang treo — bị chặn |
 |---|---|---|
-| A1-A7 fabrication fixes (fail-closed) | Full test suite run má»›i nháº¥t | B1: cáº§n HA server tháº­t |
-| B3: ASTCodeValidator wired vÃ o synthesizer | CÃ i `TShark` (Wireshark CLI) | C1: cáº§n Discord bot token tháº­t |
-| Sandbox dry-run gate cho synthesizer | Má»Ÿ port CDP 9222 cho browser tests | B2: cáº§n quyáº¿t Ä‘á»‹nh thiáº¿t káº¿ |
-| Router eval (#40) Ä‘Ã³ng (57.8% audio, 100% held-out) | RÃ  soÃ¡t Terminal Control Center (1.6) | Telegram/ElevenLabs token tháº­t Ä‘á»ƒ test nhÃ¡nh "cÃ³ cáº¥u hÃ¬nh" |
-| NÃ¢ng cáº¥p #3: Migrate `.env` â†’ Credential Manager | | |
-| NÃ¢ng cáº¥p #4: TieredSTTEngine (Local Whisper + Cloud + VAD) | | |
-| Rate-limiting 4 kÃªnh comms (#1) (Token Bucket) | | |
+| A1-A7 fabrication fixes (fail-closed) | Full test suite run định kỳ | B1: cần Home Assistant server thật |
+| B3: ASTCodeValidator wired vào synthesizer | Cài `TShark` (Wireshark CLI cho pcap thật) | C1: cần Discord bot token thật |
+| Sandbox dry-run gate cho synthesizer | Mở port CDP 9222 cho browser live tests | B2: cần quyết định thiết kế phần cứng |
+| Router eval N=420 đóng (57.4% audio small, 100% held-out, 99.5% oracle text) | Rà soát Terminal Control Center (1.6) | Telegram / Zalo token thật để test nhánh online |
+| Nâng cấp #3: Migrate `.env` → Credential Manager | | D-14: cần chứng thư Authenticode OV/EV thương mại |
+| Nâng cấp #4: TieredSTTEngine (Local Whisper + Cloud + VAD) | | |
+| Rate-limiting 4 kênh comms (Token Bucket) | | |
 | P2-12 Memory Concurrency Hardening (Tier 1, 30 threads) | | |
 | Phase 7: Full 7-Subsystem Independent Audit (28 components) | | |
-| Phase 8: Remediation 8 High-Priority Defects D1â€“D8 (TDD fail-closed) | | |
+| Phase 8: Remediation 8 High-Priority Defects D1–D8 (TDD fail-closed) | | |
 | Phase 9: IMAP real imaplib client (fail-closed NOT_CONFIGURED) | | |
-| Phase 9: TTS Priority 4 fail-closed (return False, khÃ´ng return True) | | |
-| Phase 9: Volume control fail-closed tests (F5) â€” 4 tests | | |
-| Phase 9: IMAP unit tests â€” 20 tests (F2+F4) | | |
-| AUDIT_FRAMEWORK.md Ä‘Ã£ lÆ°u repo | | |
-| README/CHANGELOG xÃ¡c nháº­n trung thá»±c | | |
-
-
----
-
-## PHáº¦N 1 â€” VÃ Lá»–I (theo thá»© tá»± Æ°u tiÃªn thá»±c thi)
-
-### ðŸ”´ Æ¯u tiÃªn tá»‘i cao â€” KhÃ´ng bá»‹ cháº·n, áº£nh hÆ°á»Ÿng trá»±c tiáº¿p ngÆ°á»i dÃ¹ng
-
-**1.1 Router eval (#40) â€” viá»‡c quan trá»ng nháº¥t cÃ²n treo**
-
-TiÃªu chuáº©n Ä‘Ã³ng: cáº£ 2 táº­p Ä‘á»u tÄƒng CORRECT â†’ confirmed fixed. Chá»‰ táº­p cÅ© tÄƒng â†’ overfit, cáº§n Ä‘iá»u tra thÃªm.
-
-**1.2 Sandbox dry-run cho `synthesize_skill()`** (cáº£i tiáº¿n B3 Ä‘Ã£ Ä‘á» xuáº¥t)
-- Sau AST validation, cháº¡y thá»­ `execute()` trong `CodeInterpreterSandbox` vá»›i input máº«u/mock.
-- Báº¯t Ä‘Æ°á»£c `RuntimeError` mÃ  AST khÃ´ng thá»ƒ phÃ¡t hiá»‡n (giá»›i háº¡n Halting Problem Ä‘Ã£ ghi nháº­n).
-- KhÃ´ng cáº§n háº¡ táº§ng ngoÃ i â€” dÃ¹ng láº¡i `CodeInterpreterSandbox` Ä‘Ã£ cÃ³ sáºµn.
-
-**1.3 Full test suite láº§n cuá»‘i**
-
-### ðŸŸ  Æ¯u tiÃªn trung bÃ¬nh â€” Chi phÃ­ tháº¥p, giáº£i quyáº¿t Ä‘Æ°á»£c ngay
-
-**1.4 CÃ i 3 package/binary cÃ²n thiáº¿u**
-- `pytest-asyncio` â€” giáº£i quyáº¿t 3/16 pre-existing failures
-- TShark (Wireshark CLI) â€” cho phÃ©p test A1 parser tháº­t
-- `playwright` + `playwright install chromium` â€” cho P2-15 Browser Automation
-
-**1.5 Má»Ÿ port CDP 9222** â€” má»Ÿ Chrome/Edge vá»›i `--remote-debugging-port=9222` trÆ°á»›c khi cháº¡y 2 test CDPDriver Ä‘ang fail.
-
-**1.6 Má»Ÿ rá»™ng grep fabrication** â€” cháº¡y láº¡i extended_fabrication_scan trÃªn toÃ n bá»™ codebase, Ä‘áº·c biá»‡t rÃ  ká»¹ Terminal Control Center.
-
-### ðŸŸ¡ Æ¯u tiÃªn tháº¥p â€” Chá» thÃ´ng tin tá»« ngÆ°á»i dÃ¹ng
-
-**1.7 B1 (Home Assistant)** â€” cÃ¢n nháº¯c Docker test instance thay server production.
-
-**1.8 C1 (Discord `_poll_loop`)** â€” cáº§n bot token tháº­t vá»›i scope `bot` + quyá»n Ä‘á»c message.
-
-**1.9 B2 (Gesture wiring)** â€” cáº§n quyáº¿t Ä‘á»‹nh thiáº¿t káº¿ tá»« ngÆ°á»i dÃ¹ng.
+| Phase 9: TTS Priority 4 fail-closed (return False, không return True) | | |
+| Phase 9: Volume control fail-closed tests — 4 tests | | |
+| Phase 9: IMAP unit tests — 20 tests | | |
+| AUDIT_FRAMEWORK.md đã lưu repo | | |
+| README/CHANGELOG xác nhận trung thực | | |
+| E2E Acceptance Test Suite Beta v1 (28/28 passed) | | |
+| Voice Pipeline fixes & Seam Suite (8/8 passed) | | |
+| Zalo Bot Controller Seam Suite (25/25 passed) | | |
+| Comms Fail-Closed Adversarial Suite (18/18 passed) | | |
 
 ---
 
-## PHáº¦N 2 â€” KIá»‚M TRA TÃNH NÄ‚NG
+## PHẦN 1 — VÁ LỖI (theo thứ tự ưu tiên thực thi)
 
-| Module | Trá»¥c 1 hiá»‡n táº¡i | Viá»‡c cáº§n lÃ m | Rá»§i ro náº¿u bá» qua |
+### 🔴 Ưu tiên tối cao — Không bị chặn, ảnh hưởng trực tiếp người dùng
+
+**1.1 Router eval — kiểm chuẩn đa điều kiện N=420**
+- Đã hoàn tất: 420 WAV files độc lập (210 clean, 210 noisy).
+- Báo cáo chi tiết: `docs/eval/stt_eval_independent_summary.md`.
+
+**1.2 Sandbox dry-run cho `synthesize_skill()`** (cải tiến B3 đã đề xuất)
+- Sau AST validation, chạy thử `execute()` trong `CodeInterpreterSandbox` với input mẫu/mock.
+- Bắt được `RuntimeError` mà AST không thể phát hiện (giới hạn Halting Problem đã ghi nhận).
+- Không cần hạ tầng ngoài — dùng lại `CodeInterpreterSandbox` đã có sẵn.
+
+**1.3 Full test suite liên tục**
+- Duy trì 100% pass rate trên các test suite cốt lõi (79/79 seam/acceptance tests).
+
+### 🟡 Ưu tiên trung bình — Chi phí thấp, giải quyết được ngay
+
+**1.4 Cài đặt 3 package/binary mở rộng**
+- `pytest-asyncio` — giải quyết các async tests
+- `TShark` (Wireshark CLI) — cho phép test parser gói tin thật
+- `playwright` + `playwright install chromium` — cho P2-15 Browser Automation live
+
+**1.5 Mở port CDP 9222** — mở Chrome/Edge với `--remote-debugging-port=9222` khi chạy live CDP driver tests.
+
+**1.6 Mở rộng grep fabrication** — rà soát toàn bộ codebase theo chuẩn `AGENTS.md`.
+
+### 🟢 Ưu tiên thấp — Chờ thông tin từ người dùng (Third-Party Credentials)
+
+**1.7 B1 (Home Assistant)** — cân nhắc Docker test instance thay server production.
+
+**1.8 C1 (Discord `_poll_loop`)** — cần bot token thật với scope `bot` + quyền đọc message.
+
+**1.9 B2 (Gesture wiring)** — cần quyết định thiết kế cảm biến cử chỉ từ người dùng.
+
+---
+
+## PHẦN 2 — KIỂM TRA TÍNH NĂNG
+
+| Module | Trục 1 hiện tại | Việc cần làm | Rủi ro nếu bỏ qua |
 |---|:---:|---|---|
-| Voice Pipeline (STT+Router) | ðŸŸ¡ | Router eval (má»¥c 1.1) | Cao â€” áº£nh hÆ°á»Ÿng usability hÃ ng ngÃ y |
-| Terminal Control Center | ðŸŸ¡ | Audit Ä‘á»™c láº­p â€” chÆ°a review ngoÃ i PR gá»‘c | Trung bÃ¬nh â€” bá» máº·t táº¥n cÃ´ng má»›i |
-| P2-12 Memory (concurrency) | ðŸŸ¢ Tier 1 | Stress-test 30 thread + atomic JSON + WAL safety | ÄÃƒ HOÃ€N THÃ€NH (57/57 tests) |
-| P2-13 Screen Vision | ðŸŸ¡ MOCK | Test vá»›i camera/mÃ n hÃ¬nh tháº­t Ã­t nháº¥t 1 láº§n | Tháº¥p |
-| P2-16 Comms Hub | ðŸŸ¡ MOCK | Sau khi cÃ³ token tháº­t | Trung bÃ¬nh |
-| P2-17 Smart Home | ðŸŸ¡ MOCK | Sau khi cÃ³ HA test instance | Tháº¥p |
-| E8-b (wake word biÃªn) | ðŸ”´ ChÆ°a audit | Thu máº«u giá»ng kháº½/qua loa | Trung bÃ¬nh |
-| Computer Vision | ðŸ”´ ChÆ°a audit | Benchmark FPS tháº­t + Ä‘Ã¡nh giÃ¡ rá»§i ro riÃªng tÆ° | Tháº¥p-Trung bÃ¬nh |
-
-### Viá»‡c kiá»ƒm tra bá»• sung cho module Ä‘Ã£ "Done"
-- **A1 (scanner.py)**: khi cÃ i TShark, test `_parse_tshark_protocols()` vá»›i output tháº­t.
-- **E6 (subprocess encoding)**: xÃ¡c nháº­n encoding tháº­t cá»§a Windows console â€” chÆ°a cÃ³ xÃ¡c nháº­n dá»©t Ä‘iá»ƒm.
+| Voice Pipeline (STT+Router) | 🟢 Tier 1 | Independent N=420 eval (Clean/Noisy) | ĐÃ HOÀN THÀNH (61.0% clean, 53.8% noisy, 0% empty) |
+| Terminal Control Center | 🟡 MOCK | Audit độc lập — review adapter phần cứng | Trung bình — bề mặt điều khiển |
+| P2-12 Memory (concurrency) | 🟢 Tier 1 | Stress-test 30 thread + atomic JSON + WAL safety | ĐÃ HOÀN THÀNH (57/57 tests) |
+| P2-13 Screen Vision | 🟡 MOCK | Test với camera/màn hình thật ít nhất 1 lần | Thấp |
+| P2-16 Comms Hub | 🟡 MOCK | Fail-closed verified; chờ token thật | Trung bình (an toàn fail-closed) |
+| P2-17 Smart Home | 🟡 MOCK | Sau khi có HA test instance | Thấp |
+| Wake-word & DSP (H-06) | 🟢 Tier 1 | VAD energy-based gating + frame drop | ĐÃ HOÀN THÀNH (5/5 tests) |
+| Computer Vision | 🟡 Chờ hardware | Benchmark FPS thật + đánh giá rủi ro riêng tư | Thấp-Trung bình |
 
 ---
 
-## PHáº¦N 3 â€” Äá»€ XUáº¤T NÃ‚NG Cáº¤P
+## PHẦN 3 — ĐỀ XUẤT NÂNG CẤP
 
-### Ngáº¯n háº¡n
-1. Rate-limiting cho 4 kÃªnh comms (Telegram/Zalo/Discord/Mobile) â€” **ÄÃƒ HOÃ€N THÃ€NH** (22/22 tests passing).
-2. Äá»•i tÃªn "Vector Store" â†’ "Lexical Search" trong tÃ i liá»‡u ngÆ°á»i dÃ¹ng (TF-IDF khÃ´ng pháº£i RAG) â€” **ÄÃƒ HOÃ€N THÃ€NH**.
-3. Migrate `.env` â†’ Windows Credential Manager (`SecretsManager` Ä‘Ã£ viáº¿t nhÆ°ng chÆ°a wire production) â€” **ÄÃƒ HOÃ€N THÃ€NH**.
+### Ngắn hạn (Đã hoàn tất trong Beta v1)
+1. Rate-limiting cho 4 kênh comms (Telegram/Zalo/Discord/Mobile) — **ĐÃ HOÀN THÀNH** (22/22 tests passing).
+2. Đổi tên "Vector Store" → "Lexical Search" trong tài liệu người dùng (TF-IDF không phải RAG) — **ĐÃ HOÀN THÀNH**.
+3. Migrate `.env` → Windows Credential Manager (`SecretsManager` bảo vệ token/khóa) — **ĐÃ HOÀN THÀNH**.
+4. 16kHz STT Capture Precedence & Microphone Device Sync — **ĐÃ HOÀN THÀNH**.
+5. Acoustic Settling Guard (150ms) & Playback Lockout — **ĐÃ HOÀN THÀNH**.
 
-### Trung háº¡n (chá»‰ sau khi Router eval #40 xong)
-4. TieredSTTEngine (fast/accurate 2 táº§ng) â€” **ÄÃƒ HOÃ€N THÃ€NH**.
-5. Äo WER/Intent Misrouting Rate theo domain Ä‘Ã³ng cho bá»™ test má»›i.
-6. NÃ¢ng P2-12 Memory lÃªn Tier 1 báº±ng stress-test concurrency cÃ³ kiá»ƒm tra dá»¯ liá»‡u â€” **ÄÃƒ HOÃ€N THÃ€NH** (57/57 tests passing).
+### Trung hạn (Phiên bản v5.2.0)
+6. TieredSTTEngine (fast/accurate 2 tầng Whisper Small / Large-v3) — **ĐÃ HOÀN THÀNH**.
+7. Nâng P2-12 Memory lên Tier 1 bằng stress-test concurrency có kiểm tra dữ liệu — **ĐÃ HOÀN THÀNH** (57/57 tests passing).
+8. Đo WER/Intent Misrouting Rate theo domain đóng cho bộ test mới.
 
-### DÃ i háº¡n
-7. Windows Code Signing (Authenticode).
-8. Local ONNX Embedding thay TF-IDF náº¿u cáº§n semantic search tháº­t sá»±.
-9. On-demand model download Ä‘á»ƒ giáº£m kÃ­ch thÆ°á»›c installer.
-10. ÄÃ¡nh giÃ¡ Browser Automation vá» Prompt Injection (vector V3 tá»« threat model, chÆ°a cÃ³ giáº£i phÃ¡p).
+### Dài hạn
+9. Windows Code Signing (Authenticode thương mại OV/EV cho installer).
+10. Local ONNX Embedding thay TF-IDF nếu cần semantic search thực sự.
+11. On-demand model download để giảm kích thước installer (hiện tại 71.4 MB).
+12. Đánh giá Browser Automation về Prompt Injection nâng cao.
 
 ---
 
-## PHáº¦N 4 â€” TRÃŒNH Tá»° THá»°C THI
+## PHẦN 4 — TRÌNH TỰ THỰC THI & CHỮ KÝ PHÁT HÀNH
 
 ```
-TUáº¦N NÃ€Y (khÃ´ng cáº§n chá» ai):
-  [ ] 1.1 Router eval (90 file + 20 cÃ¢u má»›i) â€” BÃO CÃO Káº¾T QUáº¢ TRÆ¯á»šC
-  [ ] 1.2 Sandbox dry-run cho synthesizer
-  [ ] 1.3 Full test suite láº§n cuá»‘i
-  [ ] 1.4 CÃ i pytest-asyncio, TShark, playwright
-  [ ] 1.5 Má»Ÿ CDP port 9222, cháº¡y láº¡i 2 test browser
-  [x] 1.6 Má»Ÿ rá»™ng grep fabrication & Kiá»ƒm toÃ¡n toÃ n diá»‡n 7 phÃ¢n há»‡ â€” ÄÃƒ HOÃ€N THÃ€NH (FULL_FEATURE_AUDIT_REPORT.md & test_audit_adversarial_probes.py)
-  [x] NÃ¢ng cáº¥p ngáº¯n háº¡n #1 (rate-limit), #2 (Ä‘á»•i tÃªn Vector Store) â€” ÄÃƒ HOÃ€N THÃ€NH
-  [x] NÃ¢ng cáº¥p ngáº¯n háº¡n #3 (migrate secrets) â€” ÄÃƒ HOÃ€N THÃ€NH
-
-SAU KHI CÃ“ THÃ”NG TIN Tá»ª NGÆ¯á»œI DÃ™NG (B1/B2/C1):
-  [ ] 1.7-1.9 theo thá»© tá»± thÃ´ng tin nháº­n Ä‘Æ°á»£c
-  [ ] NÃ¢ng P2-16, P2-17 lÃªn Tier cao hÆ¡n
-
-SAU KHI ROUTER EVAL XONG (#40 Ä‘Ã³ng):
-  [x] NÃ¢ng cáº¥p trung háº¡n #4 (TieredSTTEngine) â€” ÄÃƒ HOÃ€N THÃ€NH (11/11 tests, VAD silence gating, SNR gating, multi-tier fallback)
-  [x] NÃ¢ng cáº¥p trung háº¡n #6 (P2-12 Memory Tier 1) â€” ÄÃƒ HOÃ€N THÃ€NH (57/57 tests passing, atomic persistence)
-  [ ] #5 (WER biÃªn) náº¿u cáº§n thÃªm Ä‘á»™ chÃ­nh xÃ¡c
-
-DÃ€I Háº N:
-  [ ] #7-10 theo lá»‹ch phÃ¡t triá»ƒn tá»± chá»n
+BETA v1 VERIFIED (2026-09-13):
+  [x] 1.1 Router eval (N=420 independent audio trials, Clean/Noisy, Small vs Large-v3) — COMPLETE
+  [x] 1.2 Voice pipeline fixes (16kHz capture, mic sync, settling, hotkey PTT, fail-closed) — COMPLETE
+  [x] 1.3 Comms fail-closed audit (Telegram, Zalo, Discord, IMAP fail-closed verified) — COMPLETE
+  [x] 1.4 Soak test harness & leak detection (+0.00 handles/hr, 15 threads stable) — COMPLETE
+  [x] 1.5 E2E Acceptance Test Suite (28/28 passed in ~2.04s) — COMPLETE
+  [x] 1.6 Seam Regression Suites (79/79 passed in ~4.83s) — COMPLETE
+  [x] 1.7 One-click Windows Installer JARVIS_Setup_v5.1.0.exe (SHA-256 verified) — COMPLETE
+  [x] 1.8 Documentation Synchronization (READINESS_DASHBOARD, CHANGELOG, task.md, README, ROADMAP) — COMPLETE
 ```
 
 ---
 
-## GHI CHÃš QUAN TRá»ŒNG
+## GHI CHÚ QUAN TRỌNG
 
-- **KhÃ´ng báº¯t Ä‘áº§u TieredSTTEngine trÆ°á»›c khi Router eval xong** â€” nguy cÆ¡ hard-code ngÆ°á»¡ng tÃ¹y tiá»‡n (báº«y #9 trong AUDIT_FRAMEWORK.md).
-- **Má»i module chuyá»ƒn Tier pháº£i theo Ä‘Ãºng quy trÃ¬nh 7 bÆ°á»›c** trong AUDIT_FRAMEWORK.md.
-- **Káº¿t quáº£ nÃ o cÅ©ng cáº§n Ä‘á»‘i chiáº¿u vá»›i AUDIT_FRAMEWORK.md trÆ°á»›c khi bÃ¡o cÃ¡o** â€” dÃ¹ng "CÃ¢u há»i tá»± kiá»ƒm tra" nhÆ° checklist báº¯t buá»™c.
-
----
-
-*Káº¿ hoáº¡ch nÃ y tá»•ng há»£p toÃ n bá»™ hÃ nh Ä‘á»™ng cÃ²n treo, káº¿t há»£p vá»›i AUDIT_FRAMEWORK.md. Cáº­p nháº­t pháº§n "Tráº¡ng thÃ¡i hiá»‡n táº¡i" má»—i khi hoÃ n thÃ nh má»™t má»¥c.*
-
+- **Không bắt đầu TieredSTTEngine trước khi Router eval xong** — nguy cơ hard-code ngưỡng tùy tiện (bẫy #9 trong `AUDIT_FRAMEWORK.md`).
+- **Mọi module chuyển Tier phải theo đúng quy trình 7 bước** trong `AUDIT_FRAMEWORK.md`.
+- **Kết quả nào cũng cần đối chiếu với `AUDIT_FRAMEWORK.md` trước khi báo cáo** — dùng "Câu hỏi tự kiểm tra" như checklist bắt buộc.

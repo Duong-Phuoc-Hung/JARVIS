@@ -1,7 +1,7 @@
 # JARVIS Testing Infrastructure & Architecture Guide
 
 ## 1. Overview
-The JARVIS test infrastructure provides deterministic, isolated, and hardware-independent quality verification for the entire AI voice assistant subsystem. All unit and integration suites run in headless environments (CI/CD, local development, Windows/Linux/macOS) with zero cloud dependencies and zero live audio device requirements.
+The JARVIS testing infrastructure provides deterministic, isolated, and hardware-independent verification across all subsystems of the JARVIS AI Assistant on Windows 11. Designed to enforce strict **Fail-Closed semantics**, **Zero Fabrication**, and **Anti-Ghost Success** policies, the test harness guarantees that all audio capture, hardware control, and communications features execute against real seams without silent fallbacks.
 
 ---
 
@@ -11,81 +11,120 @@ The JARVIS test infrastructure provides deterministic, isolated, and hardware-in
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        JARVIS Quality Gates                            │
 ├────────────────────────────────────────────────────────────────────────┤
-│ Tier 1: Unit Tests (tests/unit/)                                       │
-│   - Pure logic isolation, deterministic DSP, mock STA COM, fast (<0.1s) │
+│ Tier 1: Feature Coverage (tests/unit/, tests/e2e/)                     │
+│   - Primary behavioral verification (happy paths) for every feature.   │
+│   - Direct seam assertions for 16kHz capture, device sync, hotkeys.    │
 ├────────────────────────────────────────────────────────────────────────┤
-│ Tier 2: Integration Tests (tests/integration/, tests/test_*.py)        │
-│   - Multi-module wiring (Audio <-> TTS <-> STT <-> Router <-> UI)      │
+│ Tier 2: Boundary & Corner Cases (tests/e2e/)                           │
+│   - Extreme parameters, None inputs, hardware disconnection.           │
+│   - Rate limit bounds, unauthorized user attempts, playback timeouts.  │
 ├────────────────────────────────────────────────────────────────────────┤
-│ Tier 3: Adversarial & Stress Harness (tests/test_adversarial_*.py)     │
-│   - Buffer overflows, malformed payloads, regex DoS, race conditions   │
+│ Tier 3: Cross-Component Interactions (tests/e2e/)                      │
+│   - Multi-module wiring: Hotkey -> AudioEngine -> STT -> ActionRouter. │
+│   - Comms multi-channel fail-closed audit across 4 independent adapters│
 ├────────────────────────────────────────────────────────────────────────┤
-│ Tier 4: E2E Workflows (tests/e2e/)                                     │
-│   - Full voice turnaround, task execution, tool calling pipelines      │
+│ Tier 4: Real-World Application Workflows (tests/e2e/)                  │
+│   - End-to-end user scenarios: PTT voice turnaround, hardware recovery │
+│   - Alert distribution with unconfigured credential protection.        │
 ├────────────────────────────────────────────────────────────────────────┤
-│ Tier 5: Intent Benchmark Evaluation (tests/eval/routing_eval_n150.py)  │
-│   - 150-utterance Vietnamese intent classification accuracy eval       │
+│ Tier 5: Intent & Acoustic Evaluation (tests/eval/)                     │
+│   - Multi-condition (clean/noisy) evaluation on >=200 utterances.      │
+│   - 4-way outcome classification: CORRECT, MISROUTED, STT_EMPTY,       │
+│     ROUTER_ABSTAIN across small and large-v3 models.                   │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Mock & Deterministic Synthesis Infrastructure
+## 3. Feature Inventory to Test Tier Mapping
 
-### 3.1 Acoustic DSP & Signal Generation
-- **Mathematical Formant Synthesizer (`jarvis.audio.wake_word.generate_wake_word_signal`)**:
-  Synthesizes realistic dual-syllable acoustic waveforms matching the phonetic formant envelope of *"Hey JARVIS"* (S1: 150/620/1240 Hz Hann envelope, S2: 4800 Hz fricative noise burst).
-- **Audio Synthesizer Fixture (`tests/conftest.py:AudioSynthesizer`)**:
-  Generates precise Gaussian white noise, single/double/triple claps, impulse transients, and digital silence buffers at 16kHz and 44.1kHz.
-
-### 3.2 Windows COM Apartment Concurrency Safety
-- **COM Apartment Interception (`pythoncom`, `win32com.client`)**:
-  Simulates Windows Single-Threaded Apartment (STA) lifecycle on daemon background threads. Mocks `pythoncom.CoInitialize()` and `pythoncom.CoUninitialize()`, intercepting `pywintypes.com_error (-2147221008)` to verify fault recovery and PowerShell fallback.
-
-### 3.3 Neural Speech-to-Text (Faster-Whisper)
-- **CTranslate2 WhisperModel Mocking**:
-  Enables validation of eager background preloading threads, `vad_filter=True` parameter propagation, silence trimming, and transcription latency budgets ($\le 1.5\text{s}$) without requiring gigabyte model downloads.
-
-### 3.4 Hardware Telemetry & Win32 Platform
-- **Hardware Telemetry Provider (`jarvis.hardware.monitor.HardwareMetrics`)**:
-  Injects synthetic CPU load, CPU temperature, RAM usage, GPU load, VRAM, and S.M.A.R.T. disk statuses to test natural language speech generation.
-
-### 3.5 System Tray & UI Headless Mode
-- **Pystray & Tkinter Headless Degradation**:
-  Provides dynamic RGBA icon generation and thread isolation verification without opening OS desktop windows.
+| Feature ID | Feature Name | Primary Scope | Test Tier | Primary Test File |
+|---|---|---|:---:|---|
+| **F-01** | 16kHz STT Capture Precedence | `jarvis/core/app.py` | Tier 1, Tier 2 | `tests/e2e/test_beta_v1_acceptance.py`<br>`tests/unit/test_voice_pipeline_fixes.py` |
+| **F-02** | Microphone Device Sync | `jarvis/audio/engine.py`<br>`jarvis/core/app.py` | Tier 1, Tier 3 | `tests/e2e/test_beta_v1_acceptance.py`<br>`tests/unit/test_voice_pipeline_fixes.py` |
+| **F-03** | Acoustic Settling & Echo Lockout | `jarvis/core/app.py`<br>`jarvis/tts/manager.py` | Tier 1, Tier 4 | `tests/e2e/test_beta_v1_acceptance.py`<br>`tests/unit/test_acoustic_hardening.py` |
+| **F-04** | Zero-Crash Hotkeys (PTT) | `jarvis/core/app.py` | Tier 1, Tier 3 | `tests/e2e/test_beta_v1_acceptance.py`<br>`tests/unit/test_voice_pipeline_fixes.py` |
+| **F-05** | Hardware Controls Fail-Closed | `jarvis/core/app.py`<br>`jarvis/automation/control.py` | Tier 1, Tier 2 | `tests/e2e/test_beta_v1_acceptance.py`<br>`tests/unit/test_voice_pipeline_fixes.py` |
+| **F-06** | Zalo OA Fail-Closed Fix | `jarvis/comms/zalo.py` | Tier 1, Tier 2 | `tests/e2e/test_beta_v1_acceptance.py` |
+| **F-07** | Comms `NOT_CONFIGURED` Audit | `jarvis/comms/` (Telegram, Discord, Zalo, IMAP) | Tier 1, Tier 3 | `tests/e2e/test_beta_v1_acceptance.py` |
+| **F-08** | STT Evaluator CUDA Fix | `tests/eval/stt_intent_eval.py` | Tier 5 | `tests/eval/stt_intent_eval.py` |
+| **F-09** | Independent Audio Dataset | `tests/eval/audio_independent/` | Tier 5 | `tests/eval/independent_test_manifest.py` |
+| **F-10** | Multi-Model Benchmark | `tests/eval/` (small vs large-v3) | Tier 5 | `tests/eval/stt_intent_eval.py` |
+| **F-11** | 4-Way Outcome Reporting | `tests/eval/stt_intent_eval.py` | Tier 5 | `tests/eval/stt_intent_eval.py` |
+| **F-12** | Release Readiness Dashboard | `docs/READINESS_DASHBOARD.md` | Doc Audit | Documentation Inspection |
+| **F-13** | Documentation Synchronization | `CHANGELOG.md`, `README.md`, `docs/ROADMAP.md` | Doc Audit | Documentation Inspection |
+| **F-14** | E2E & Full Regression | Entire codebase | Tier 4, Tier 5 | Full Pytest Suite |
+| **F-15** | Forensic Integrity Audit | Security & Evidence Boundaries | Adversarial | Challenger & Forensic Suites |
 
 ---
 
-## 4. Sprint 2 (v4.7.0) Test Suite Inventory
+## 4. Test Architecture & Seam Verification
 
-| Test File | Target Requirement | Scope | Test Count |
-|---|---|---|:---:|
-| `tests/unit/test_acoustic_hardening.py` | R1 (P1-8 DSP Acoustic Hardening) | VAD silent frame discard, speech pass-through, 2.5s post-TTS mic suppression, ring buffer clearing, SFM bounds [0.03, 0.65], ZCR threshold $\ge 0.10$, clap rejection | 9 |
-| `tests/unit/test_tts_com_safety.py` | R2 (P1-9 SAPI5 COM Safety) | `pythoncom` STA lifecycle, 10 consecutive TTS calls in daemon thread, SAPI5 fallback error handling, finally block cleanup | 5 |
-| `tests/unit/test_stt_preload.py` | R3 (P1-10 Faster-Whisper Preload) | Background eager model preload, `vad_filter=True`, latency budget $\le 1.5\text{s}$, concurrent transcribe thread safety | 5 |
-| `tests/unit/test_tray_menu.py` | R4 (P1-7 System Tray & Status) | Tray menu items $\ge 4$, "Status" item telemetry (version 4.7.0, TTS, STT, RAM%), safe `Path` import in `_on_view_logs` | 5 |
-| `tests/unit/test_router_hardware.py` | R5 (P1-11 Hardware Voice & Routing) | 5 hardware queries routing (CPU, RAM, temp, pin, speed), unaccented variants, Vietnamese voice summary formatting | 13 |
+### 4.1 Audio Subsystem Seams
+- **16kHz Capture Precedence**: `JarvisApp.record_audio()` evaluates:
+  ```python
+  sr = int(sample_rate or self.config.get("stt.sample_rate", 16000))
+  ```
+  This guarantees that even when `audio.sample_rate` is set to 44100 Hz (system playback rate), STT capture occurs directly at 16000 Hz, avoiding resampler distortions and latency.
+- **Device Index Synchronization**: `record_audio()` inspects `self.audio_engine._active_device_index`. If set, it explicitly passes `device=target_device` to both `sounddevice.InputStream` and fallback `sounddevice.rec`.
+- **Acoustic Settling Delay & Lockout**: When voice interaction begins, `_start_voice_interaction()` calls `tts_manager.speak(greeting_phrase, wait=True)` followed by `time.sleep(0.15)` (150ms settling guard). In addition, `record_audio()` polls `tts_manager.is_playing` with a 1.0s timeout to prevent self-voice audio contamination.
+
+### 4.2 Hardware Controls Fail-Closed Seams
+- `JarvisApp._handle_system_volume()` and `_handle_system_brightness()` verify the return value from `ComputerController`.
+- If the hardware endpoint returns `None` (e.g. headless environment, COM failure, or missing driver), the handlers return:
+  ```python
+  {"status": "failed", "success": False, "error": "VOLUME_SET_FAILED" | "BRIGHTNESS_SET_FAILED", ...}
+  ```
+  Ghost successes (`{"ok": True}` or `volume: None%`) are strictly disallowed.
+
+### 4.3 Comms Security & Fail-Closed Seams
+- **Telegram (`jarvis.comms.telegram.TelegramBotController`)**:
+  `send_message` and `send_photo` check for active HTTP client. When unconfigured, they return:
+  ```python
+  {"ok": False, "error_code": "NOT_CONFIGURED", "description": "..."}
+  ```
+- **Zalo OA (`jarvis.comms.zalo.ZaloBotController`)**:
+  `send_message` and `send_image` check `if not self.config.access_token:`. When unconfigured, they return:
+  ```python
+  ZaloSendResult(success=False, error="NOT_CONFIGURED")
+  ```
+- **Discord (`jarvis.comms.discord.DiscordBotController`)**:
+  `send_message` checks `if self._http and self.bot_token:`. When unconfigured, it returns:
+  ```python
+  {"success": False, "error_code": "NOT_CONFIGURED", ...}
+  ```
+- **Email IMAP (`jarvis.comms.email_imap.IMAPEmailReader`)**:
+  `connect()` checks `if not self.host or not self.username or not self.password:`. When unconfigured, it raises:
+  ```python
+  IMAPNotConfiguredError("... Status: NOT_CONFIGURED")
+  ```
 
 ---
 
 ## 5. Execution Commands
 
-### Run All Sprint 2 Unit Tests
+### Run Beta v1 E2E Acceptance Suite
 ```powershell
-pytest tests/unit/test_acoustic_hardening.py tests/unit/test_tts_com_safety.py tests/unit/test_stt_preload.py tests/unit/test_tray_menu.py tests/unit/test_router_hardware.py -v
+pytest tests/e2e/test_beta_v1_acceptance.py -v
 ```
 
-### Run Full Unit Test Suite
+### Run Voice Pipeline Unit Fixes
+```powershell
+pytest tests/unit/test_voice_pipeline_fixes.py -v
+```
+
+### Run All Unit Tests
 ```powershell
 pytest tests/unit/ -q
 ```
 
-### Run Intent Routing Benchmark (N=150)
+### Run All E2E Integration Tests
 ```powershell
-python tests/eval/routing_eval_n150.py
+pytest tests/e2e/ -q
 ```
 
-### Run Complete Regression & Adversarial Suite
+### Run STT Benchmark Evaluation (Dual-Condition, Independent Corpus)
 ```powershell
-pytest tests/unit/ tests/test_adversarial_*.py -q
+python tests/eval/stt_intent_eval.py --models small --backend direct --dataset independent --condition clean
+python tests/eval/stt_intent_eval.py --models small --backend direct --dataset independent --condition noisy
 ```

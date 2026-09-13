@@ -427,3 +427,50 @@ Mỗi chức năng phải được phân loại và lập hồ sơ minh bạch:
 - [ ] Báo cáo tuân thủ nguyên tắc trung thực tuyệt đối theo `AGENTS.md` và `docs/AUDIT_FRAMEWORK.md`.
 
 
+## 2026-09-13T10:25:05Z
+
+# Teamwork Project Prompt — JARVIS Beta v1 Voice Pipeline & Core Integration
+
+Working directory: d:\Software GitCode\JARVIS
+Integrity mode: development
+
+## Objective
+Deliver a production-ready, verified Product Beta v1 of JARVIS on Windows with genuine evidence across all 17 Core/Backend/Release tasks (D-01 to D-17) and 13 Voice Pipeline tasks (H-01 to H-13). Prevent all fabrication, enforce fail-closed status codes, eliminate silent fallbacks, and validate voice recognition across multi-condition datasets.
+
+---
+
+## Requirements
+
+### R1. Audio Capture & Hardware Synchronization (H-01, H-02, H-03)
+- **16 kHz Direct Capture**: The audio recording subsystem must capture directly at 16000 Hz for Whisper STT models, eliminating 44.1kHz/48kHz linear interpolation distortions and transcription latency.
+- **Microphone Device Synchronization**: Synchronize `record_audio()` with the active device index probed and selected by `AudioEngine`, ensuring wake-word detection and speech recording operate on the exact same physical input endpoint.
+- **Acoustic Echo & Self-Contamination Suppression**: Enforce a post-TTS settling guard (~150ms) and active playback lockout to prevent the microphone from capturing synthesized Tony Stark/JARVIS voice responses.
+
+### R2. Core Controls & Hardware Fail-Closed Semantics (H-04, H-08)
+- **Zero-Crash Hotkeys**: Ensure global shortcut handlers (`Ctrl+Shift+L` PTT) dispatch directly to valid voice interaction routines without `AttributeError`.
+- **Honest Hardware Status**: Master volume and display brightness controls must return explicit `status: failed`, `success: False`, and specific error codes (`VOLUME_SET_FAILED`, `BRIGHTNESS_SET_FAILED`) when endpoints return `None`, never converting hardware failures into ghost successes.
+
+### R3. Multi-Condition Independent STT & Router Evaluation (H-05 / A1–A4)
+- **Dataset Independence (A1)**: Prepare an independent test evaluation set of ≥200 audio utterances completely distinct from the historical 90-file evaluation set in `tests/eval/audio/`.
+- **Dual Acoustic Conditions (A2)**: Execute evaluations across both `clean` and `noisy` acoustic environments.
+- **Multi-Model Comparison (A3)**: Benchmark both `small` and `large-v3` models under direct execution to determine operational tradeoffs.
+- **4-Way Outcome Reporting (A4)**: Provide transparent breakdown of `CORRECT`, `MISROUTED`, `STT_EMPTY`, and `ROUTER_ABSTAIN`.
+
+### R4. Comms & Third-Party Integration Reality (D-06, D-07, D-08, D-09, D-14)
+- Enforce explicit `NOT_CONFIGURED` status codes for Telegram, Zalo, Discord, and IMAP when credentials are missing.
+- Document credentials requirement (`PENDING_CREDENTIALS`) and code signing certificate blocker (`BLOCKED_ON_CERT`) in release notes and readiness dashboard.
+
+---
+
+## Acceptance Criteria
+
+### Audio & Pipeline Verification
+- [ ] `pytest tests/unit/test_voice_pipeline_fixes.py -v` passes 100% (6/6).
+- [ ] `record_audio()` requests 16000 Hz and passes `device=target_device` to sounddevice.
+- [ ] `_handle_system_volume()` and `_handle_system_brightness()` return `success=False` when controller returns `None`.
+- [ ] `Ctrl+Shift+L` hotkey initiates `_start_voice_interaction` with `"HOTKEY_PTT"`.
+
+### Evaluation & Audit Truthfulness
+- [ ] No claim of "100% achieved" without concrete sample size (N), passing test names, and raw execution logs.
+- [ ] H-05 evaluation script executed on both clean and noisy sets with at least 2 models.
+- [ ] All test results and evidence committed to git repository and synchronized in `CHANGELOG.md` and `task.md`.
