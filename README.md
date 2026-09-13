@@ -20,140 +20,140 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 
 ---
 
-## ðŸ“‹ Má»¥c Lá»¥c
+## 📋 Mục Lục
 
-1. [âœ¨ TÃ­nh NÄƒng Ná»•i Báº­t](#-tÃ­nh-nÄƒng-ná»•i-báº­t)
-2. [ðŸ’» YÃªu Cáº§u Há»‡ Thá»‘ng (Prerequisites)](#-yÃªu-cáº§u-há»‡-thá»‘ng-prerequisites)
-3. [ðŸš€ HÆ°á»›ng Dáº«n CÃ i Äáº·t Tá»«ng BÆ°á»›c (Step-by-Step Installation)](#-hÆ°á»›ng-dáº«n-cÃ i-Ä‘áº·t-tá»«ng-bÆ°á»›c-step-by-step-installation)
-4. [⚡ Dành Cho Người Dùng Cuối — Quick Start (Installer & Standalone ZIP)](#-dành-cho-người-dùng-cuối--quick-start-installer--standalone-zip)
-5. [ðŸ› ï¸ DÃ nh Cho NhÃ  PhÃ¡t Triá»ƒn (Developer Setup)](#%EF%B8%8F-dÃ nh-cho-nhÃ -phÃ¡t-triá»ƒn-developer-setup)
-6. [ðŸ”§ CÃ¡c Lá»—i ThÆ°á»ng Gáº·p & CÃ¡ch Kháº¯c Phá»¥c (Common Errors & Fixes)](#-cÃ¡c-lá»—i-thÆ°á»ng-gáº·p--cÃ¡ch-kháº¯c-phá»¥c-common-errors--fixes)
-7. [âš™ï¸ Cáº¥u HÃ¬nh `.env` & Báº£o Máº­t Secrets](#%EF%B8%8F-cáº¥u-hÃ¬nh-env--báº£o-máº­t-secrets)
-8. [ðŸ§° Danh SÃ¡ch Ká»¹ NÄƒng Chi Tiáº¿t (18+ Skills)](#-danh-sÃ¡ch-ká»¹-nÄƒng-chi-tiáº¿t-18-skills)
-9. [âŒ¨ï¸ PhÃ­m Táº¯t ToÃ n Há»‡ Thá»‘ng](#%EF%B8%8F-phÃ­m-táº¯t-toÃ n-há»‡-thá»‘ng)
-10. [ðŸ“± Äiá»u Khiá»ƒn Qua Äiá»‡n Thoáº¡i (Telegram / Zalo / Discord)](#-Ä‘iá»u-khiá»ƒn-qua-Ä‘iá»‡n-thoáº¡i)
-11. [ðŸ—ï¸ Kiáº¿n TrÃºc Giá»ng NÃ³i & Tá»± Trá»‹ (Architecture)](#%EF%B8%8F-kiáº¿n-trÃºc-giá»ng-nÃ³i--tá»±-trá»‹-architecture)
-12. [ðŸ”’ MÃ´ HÃ¬nh Báº£o Máº­t (Security Model)](#-mÃ´-hÃ¬nh-báº£o-máº­t-security-model)
-13. [ðŸ“„ Giáº¥y PhÃ©p & TÃ¡c Giáº£](#-giáº¥y-phÃ©p--tÃ¡c-giáº£)
-
----
-
-## âœ¨ TÃ­nh NÄƒng Ná»•i Báº­t
-
-### ðŸŽ™ï¸ Nháº­n Diá»‡n Giá»ng NÃ³i Offline & Voice Pipeline (v5.1.0)
-- **Wake Word:** Nháº­n diá»‡n tá»« khÃ³a *"Hey JARVIS"* tá»©c thÃ¬ vá»›i Ä‘á»™ trá»… cá»±c tháº¥p.
-- **Barge-in (Ngáº¯t lá»i tá»©c thá»i):** Khi JARVIS Ä‘ang nÃ³i, báº¡n cÃ³ thá»ƒ nÃ³i chÃ¨n vÃ o â€” há»‡ thá»‘ng láº­p tá»©c táº¯t Ã¢m thanh TTS vÃ  chuyá»ƒn sang nghe lá»‡nh má»›i.
-- **VAD (Voice Activity Detection):** Thuáº­t toÃ¡n phÃ¡t hiá»‡n giá»ng nÃ³i thÃ´ng minh báº±ng nÄƒng lÆ°á»£ng RMS hoáº·c WebRTC VAD â€” xá»­ lÃ½ offline, Ä‘á»™ trá»… <10ms.
-- **STT (Speech-to-Text) & Safe Diacritic Normalization:** Faster-Whisper (CTranslate2) cháº¡y offline vá»›i bá»™ chuáº©n hÃ³a bá» dáº¥u Ä‘a Ã¢m an toÃ n (`strip_vietnamese_diacritics`) báº£o vá»‡ nguyÃªn váº¹n tá»« Ä‘Æ¡n, triá»‡t tiÃªu 100% va cháº¡m homophone (`nháº¡c` vs `nháº¯c`, `dá»«ng` vs `dá»¥ng`, `dÃ¡n` vs `dáº«n`, `táº¯t` vs `táº¯c`).
-- **KhÃ¡ng Lá»‡ch Ngá»¯ Ã‚m (Phonetic Drift Robustness):** TÃ­ch há»£p 15 alias ngá»¯ Ã¢m chá»n lá»c cho cÃ¡c lá»—i nghe nháº§m Ä‘áº·c thÃ¹ cá»§a Faster-Whisper (`táº¯c mÃ¡y`, `táº­p mÃ¡y tÃ­nh`, `cÃ¡i Ä‘áº·t`, `Ä‘áº·t time`, `táº¯c tÃ­nh`, `táº¯t tÃ­nh`, `ghi chÃº`), nÃ¢ng Ä‘á»™ chÃ­nh xÃ¡c thá»±c táº¿ trÃªn 90 audio test lÃªn 63.3% vÃ  Ä‘áº¡t 100% trÃªn táº­p held-out má»›i.
-- **Tiered STT Coordinator (v5.1.0 Phase 5):** Tá»± Ä‘á»™ng Ä‘iá»u phá»‘i phÃ¢n táº§ng nháº­n diá»‡n Ä‘a cáº¥p giá»¯a Faster-Whisper Local (Tier 1), OpenAI Whisper Cloud (Tier 2) vÃ  Windows SAPI (Tier 3) dá»±a trÃªn Æ°á»›c tÃ­nh cháº¥t lÆ°á»£ng tÃ­n hiá»‡u SNR (>10dB) vÃ  thá»i háº¡n deadline; tÃ­ch há»£p VAD silence bypass (<1ms, 0 GPU inference).
-- **TTS (Text-to-Speech):** Piper TTS offline mÆ°á»£t mÃ  tá»± nhiÃªn (<80ms) cÃ¹ng tÃ¹y chá»n káº¿t ná»‘i ElevenLabs cháº¥t lÆ°á»£ng studio.
-
-### ðŸ§  Router Ã Äá»‹nh 3 Lá»›p ThÃ´ng Minh (3-Tier Intent Router)
-- **Regex & Rule Fast-Path:** Nháº­n diá»‡n ngay láº­p tá»©c hÆ¡n 150+ máº«u cÃ¢u lá»‡nh tiáº¿ng Viá»‡t khÃ´ng cáº§n gá»i LLM (zero-latency, 0 token), tá»± Ä‘á»™ng há»— trá»£ cáº£ cÃ³ dáº¥u, khÃ´ng dáº¥u vÃ  biáº¿n thá»ƒ ngá»¯ Ã¢m.
-- **Project & Workspace Assistant:** Quáº£n lÃ½ dá»± Ã¡n, chuáº©n bá»‹ workspace, táº¡o project, liá»‡t kÃª thÆ° má»¥c vÃ  theo dÃµi Git thÃ´ng minh.
-- **Fallback Gemini LLM:** PhÃ¢n tÃ­ch Ã½ Ä‘á»‹nh phá»©c táº¡p qua Google Gemini 1.5 Flash / Pro khi khÃ´ng khá»›p rule.
-- **Autonomous ReAct Agent:** Tá»± Ä‘á»™ng láº­p káº¿ hoáº¡ch (Plan), thá»±c thi cÃ´ng cá»¥ (Act), quan sÃ¡t (Observe) vÃ  pháº£n há»“i (Reflect).
-
-### ðŸ§¬ Tá»± Sinh Ká»¹ NÄƒng Má»›i (Self-Coding Skills)
-- NÃ³i *"JARVIS, táº¡o ká»¹ nÄƒng theo dÃµi giÃ¡ vÃ ng"* â†’ JARVIS tá»± thiáº¿t káº¿ interface, viáº¿t code Python, kiá»ƒm tra cÃº phÃ¡p an toÃ n tÄ©nh (AST Validator), cháº¡y thá»­ nghiá»‡m cÃ´ láº­p trong CodeInterpreterSandbox (Job Object & Low Integrity) vÃ  Ä‘Äƒng kÃ½ trá»±c tiáº¿p vÃ o há»‡ thá»‘ng trong <15 giÃ¢y.
-
-### ðŸ” Bá»™ Nhá»› Tá»« Vá»±ng & TÃ¬m Kiáº¿m TÃ i Liá»‡u (Lexical Search Memory - Tier 1 Hardened)
-- Tá»± Ä‘á»™ng lÆ°u trá»¯ nháº­t kÃ½ há»™i thoáº¡i, ghi chÃº vÃ  tÃ i liá»‡u vÃ o SQLite lexical store (TF-IDF BM25 & Cosine Similarity) hoÃ n toÃ n offline.
-- **An toÃ n Ä‘a luá»“ng & Ghi Ä‘Ä©a nguyÃªn tá»­ (Phase 6):** Kiá»ƒm thá»­ chá»‹u táº£i 30 luá»“ng Ä‘á»“ng thá»i (30-thread stress test), khÃ³a `RLock` toÃ n diá»‡n, vÃ  cÆ¡ cháº¿ ghi Ä‘Ä©a nguyÃªn tá»­ (Atomic Replace) ngÄƒn cháº·n triá»‡t Ä‘á»ƒ tÃ¬nh tráº¡ng há»ng dá»¯ liá»‡u hoáº·c xung Ä‘á»™t Ä‘á»c/ghi khi nhiá»u tÃ¡c vá»¥ cháº¡y ngáº§m.
-- TÃ¬m kiáº¿m tá»« khÃ³a vÃ  ngá»¯ cáº£nh: *"HÃ´m qua tÃ´i nÃ³i gÃ¬ vá» káº¿ hoáº¡ch dá»± Ã¡n?"*
-
-### ðŸŒ Tá»± Äá»™ng HÃ³a TrÃ¬nh Duyá»‡t & Há»‡ Thá»‘ng
-- Äiá»u khiá»ƒn Chrome trá»±c tiáº¿p qua giao thá»©c Playwright CDP (Chrome DevTools Protocol).
-- PhÃ¢n tÃ­ch ngá»¯ cáº£nh mÃ n hÃ¬nh tá»©c thá»i qua Gemini Vision AI (`Ctrl+Shift+Space`).
-- Tá»± Ä‘á»™ng hÃ³a macro chuá»™t/bÃ n phÃ­m, Ä‘iá»u khiá»ƒn Ã¢m lÆ°á»£ng, mÃ n hÃ¬nh, quáº£n lÃ½ file vÃ  á»©ng dá»¥ng Windows.
+1. [✨ Tính Năng Nổi Bật](#-tính-năng-nổi-bật)
+2. [💻 Yêu Cầu Hệ Thống (Prerequisites)](#-yêu-cầu-hệ-thống-prerequisites)
+3. [🚀 Hướng Dẫn Cài Đặt Từng Bước (Step-by-Step Installation)](#-hướng-dẫn-cài-đặt-từng-bước-step-by-step-installation)
+4. [⚡ Dành Cho Người Dùng Cuối — Quick Start (Standalone ZIP)](#-dành-cho-người-dùng-cuối--quick-start-standalone-zip)
+5. [🛠️ Dành Cho Nhà Phát Triển (Developer Setup)](#%EF%B8%8F-dành-cho-nhà-phát-triển-developer-setup)
+6. [🔧 Các Lỗi Thường Gặp & Cách Khắc Phục (Common Errors & Fixes)](#-các-lỗi-thường-gặp--cách-khắc-phục-common-errors--fixes)
+7. [⚙️ Cấu Hình `.env` & Bảo Mật Secrets](#%EF%B8%8F-cấu-hình-env--bảo-mật-secrets)
+8. [🧰 Danh Sách Kỹ Năng Chi Tiết (18+ Skills)](#-danh-sách-kỹ-năng-chi-tiết-18-skills)
+9. [⌨️ Phím Tắt Toàn Hệ Thống](#%EF%B8%8F-phím-tắt-toàn-hệ-thống)
+10. [📱 Điều Khiển Qua Điện Thoại (Telegram / Zalo / Discord)](#-điều-khiển-qua-điện-thoại)
+11. [🏗️ Kiến Trúc Giọng Nói & Tự Trị (Architecture)](#%EF%B8%8F-kiến-trúc-giọng-nói--tự-trị-architecture)
+12. [🔒 Mô Hình Bảo Mật (Security Model)](#-mô-hình-bảo-mật-security-model)
+13. [📄 Giấy Phép & Tác Giả](#-giấy-phép--tác-giả)
 
 ---
 
-## ðŸ’» YÃªu Cáº§u Há»‡ Thá»‘ng (Prerequisites)
+## ✨ Tính Năng Nổi Bật
 
-TrÆ°á»›c khi cÃ i Ä‘áº·t, vui lÃ²ng Ä‘áº£m báº£o mÃ¡y tÃ­nh cá»§a báº¡n Ä‘Ã¡p á»©ng cÃ¡c yÃªu cáº§u sau:
+### 🎙️ Nhận Diện Giọng Nói Offline & Voice Pipeline (v5.1.0)
+- **Wake Word:** Nhận diện từ khóa *"Hey JARVIS"* tức thì với độ trễ cực thấp.
+- **Barge-in (Ngắt lời tức thời):** Khi JARVIS đang nói, bạn có thể nói chèn vào — hệ thống lập tức tắt âm thanh TTS và chuyển sang nghe lệnh mới.
+- **VAD (Voice Activity Detection):** Thuật toán phát hiện giọng nói thông minh bằng năng lượng RMS hoặc WebRTC VAD — xử lý offline, độ trễ <10ms.
+- **STT (Speech-to-Text) & Safe Diacritic Normalization:** Faster-Whisper (CTranslate2) chạy offline với bộ chuẩn hóa bỏ dấu đa âm an toàn (`strip_vietnamese_diacritics`) bảo vệ nguyên vẹn từ đơn, triệt tiêu 100% va chạm homophone (`nhạc` vs `nhắc`, `dừng` vs `dụng`, `dán` vs `dẫn`, `tắt` vs `tắc`).
+- **Kháng Lệch Ngữ Âm (Phonetic Drift Robustness):** Tích hợp 15 alias ngữ âm chọn lọc cho các lỗi nghe nhầm đặc thù của Faster-Whisper (`tắc máy`, `tập máy tính`, `cái đặt`, `đặt time`, `tắc tính`, `tắt tính`, `ghi chú`), nâng độ chính xác thực tế trên 90 audio test lên 63.3% và đạt 100% trên tập held-out mới.
+- **Tiered STT Coordinator (v5.1.0 Phase 5):** Tự động điều phối phân tầng nhận diện đa cấp giữa Faster-Whisper Local (Tier 1), OpenAI Whisper Cloud (Tier 2) và Windows SAPI (Tier 3) dựa trên ước tính chất lượng tín hiệu SNR (>10dB) và thời hạn deadline; tích hợp VAD silence bypass (<1ms, 0 GPU inference).
+- **TTS (Text-to-Speech):** Piper TTS offline mượt mà tự nhiên (<80ms) cùng tùy chọn kết nối ElevenLabs chất lượng studio.
 
-| ThÃ nh pháº§n | YÃªu cáº§u tá»‘i thiá»ƒu | Chi tiáº¿t & Link táº£i chÃ­nh thá»©c |
+### 🧠 Router Ý Định 3 Lớp Thông Minh (3-Tier Intent Router)
+- **Regex & Rule Fast-Path:** Nhận diện ngay lập tức hơn 150+ mẫu câu lệnh tiếng Việt không cần gọi LLM (zero-latency, 0 token), tự động hỗ trợ cả có dấu, không dấu và biến thể ngữ âm.
+- **Project & Workspace Assistant:** Quản lý dự án, chuẩn bị workspace, tạo project, liệt kê thư mục và theo dõi Git thông minh.
+- **Fallback Gemini LLM:** Phân tích ý định phức tạp qua Google Gemini 1.5 Flash / Pro khi không khớp rule.
+- **Autonomous ReAct Agent:** Tự động lập kế hoạch (Plan), thực thi công cụ (Act), quan sát (Observe) và phản hồi (Reflect).
+
+### 🧬 Tự Sinh Kỹ Năng Mới (Self-Coding Skills)
+- Nói *"JARVIS, tạo kỹ năng theo dõi giá vàng"* → JARVIS tự thiết kế interface, viết code Python, kiểm tra cú pháp an toàn tĩnh (AST Validator), chạy thử nghiệm cô lập trong CodeInterpreterSandbox (Job Object & Low Integrity) và đăng ký trực tiếp vào hệ thống trong <15 giây.
+
+### 🔍 Bộ Nhớ Từ Vựng & Tìm Kiếm Tài Liệu (Lexical Search Memory - Tier 1 Hardened)
+- Tự động lưu trữ nhật ký hội thoại, ghi chú và tài liệu vào SQLite lexical store (TF-IDF BM25 & Cosine Similarity) hoàn toàn offline.
+- **An toàn đa luồng & Ghi đĩa nguyên tử (Phase 6):** Kiểm thử chịu tải 30 luồng đồng thời (30-thread stress test), khóa `RLock` toàn diện, và cơ chế ghi đĩa nguyên tử (Atomic Replace) ngăn chặn triệt để tình trạng hỏng dữ liệu hoặc xung đột đọc/ghi khi nhiều tác vụ chạy ngầm.
+- Tìm kiếm từ khóa và ngữ cảnh: *"Hôm qua tôi nói gì về kế hoạch dự án?"*
+
+### 🌐 Tự Động Hóa Trình Duyệt & Hệ Thống
+- Điều khiển Chrome trực tiếp qua giao thức Playwright CDP (Chrome DevTools Protocol).
+- Phân tích ngữ cảnh màn hình tức thời qua Gemini Vision AI (`Ctrl+Shift+Space`).
+- Tự động hóa macro chuột/bàn phím, điều khiển âm lượng, màn hình, quản lý file và ứng dụng Windows.
+
+---
+
+## 💻 Yêu Cầu Hệ Thống (Prerequisites)
+
+Trước khi cài đặt, vui lòng đảm bảo máy tính của bạn đáp ứng các yêu cầu sau:
+
+| Thành phần | Yêu cầu tối thiểu | Chi tiết & Link tải chính thức |
 |---|---|---|
-| **Há»‡ Ä‘iá»u hÃ nh** | Windows 11 / 10 (64-bit) | Build 19041 trá»Ÿ lÃªn (Há»— trá»£ Win32 API & System Tray) |
-| **Python** | **Python 3.13+ (64-bit)** | Táº£i táº¡i: [Python 3.13.2 64-bit](https://www.python.org/downloads/release/python-3132/)<br>âš ï¸ **Báº¯t buá»™c:** TÃ­ch chá»n âœ… **"Add python.exe to PATH"** trong mÃ n hÃ¬nh cÃ i Ä‘áº·t Ä‘áº§u tiÃªn. |
-| **Git** | Git for Windows | Táº£i táº¡i: [Git for Windows Official](https://git-scm.com/download/win) |
-| **Visual C++ Runtime** | VC++ 2015â€“2022 Redistributable (x64) | Táº£i táº¡i: [vc_redist.x64.exe (Microsoft)](https://aka.ms/vs/17/release/vc_redist.x64.exe)<br>*(Báº¯t buá»™c cho Pillow, sounddevice, CTranslate2, faster-whisper)* |
-| **Pháº§n cá»©ng Ã¢m thanh** | Microphone & Loa / Tai nghe | Äáº£m báº£o micro vÃ  loa hoáº¡t Ä‘á»™ng bÃ¬nh thÆ°á»ng trong Windows Settings |
-| **API Key** | Google Gemini API Key | Láº¥y miá»…n phÃ­ táº¡i: [Google AI Studio](https://aistudio.google.com/apikey) |
+| **Hệ điều hành** | Windows 11 / 10 (64-bit) | Build 19041 trở lên (Hỗ trợ Win32 API & System Tray) |
+| **Python** | **Python 3.13+ (64-bit)** | Tải tại: [Python 3.13.2 64-bit](https://www.python.org/downloads/release/python-3132/)<br>⚠️ **Bắt buộc:** Tích chọn ✅ **"Add python.exe to PATH"** trong màn hình cài đặt đầu tiên. |
+| **Git** | Git for Windows | Tải tại: [Git for Windows Official](https://git-scm.com/download/win) |
+| **Visual C++ Runtime** | VC++ 2015–2022 Redistributable (x64) | Tải tại: [vc_redist.x64.exe (Microsoft)](https://aka.ms/vs/17/release/vc_redist.x64.exe)<br>*(Bắt buộc cho Pillow, sounddevice, CTranslate2, faster-whisper)* |
+| **Phần cứng âm thanh** | Microphone & Loa / Tai nghe | Đảm bảo micro và loa hoạt động bình thường trong Windows Settings |
+| **API Key** | Google Gemini API Key | Lấy miễn phí tại: [Google AI Studio](https://aistudio.google.com/apikey) |
 
 ---
 
-## ðŸš€ HÆ°á»›ng Dáº«n CÃ i Äáº·t Tá»«ng BÆ°á»›c (Step-by-Step Installation)
+## 🚀 Hướng Dẫn Cài Đặt Từng Bước (Step-by-Step Installation)
 
-DÃ nh cho ngÆ°á»i dÃ¹ng vÃ  láº­p trÃ¬nh viÃªn muá»‘n cÃ i Ä‘áº·t tá»« mÃ£ nguá»“n (Source Code) trÃªn Windows 11/10.
+Dành cho người dùng và lập trình viên muốn cài đặt từ mã nguồn (Source Code) trên Windows 11/10.
 
-### BÆ°á»›c 1: Clone kho mÃ£ nguá»“n (Repository)
+### Bước 1: Clone kho mã nguồn (Repository)
 
-Má»Ÿ **PowerShell** hoáº·c **Command Prompt (Terminal)** vÃ  cháº¡y:
+Mở **PowerShell** hoặc **Command Prompt (Terminal)** và chạy:
 
 ```powershell
 git clone https://github.com/Duong-Phuoc-Hung/JARVIS.git
 cd JARVIS
 ```
 
-### BÆ°á»›c 2: Táº¡o mÃ´i trÆ°á»ng áº£o (Virtual Environment)
+### Bước 2: Tạo môi trường ảo (Virtual Environment)
 
-Táº¡o mÃ´i trÆ°á»ng áº£o Ä‘á»™c láº­p Ä‘á»ƒ trÃ¡nh xung Ä‘á»™t vá»›i cÃ¡c thÆ° viá»‡n Python khÃ¡c trÃªn há»‡ thá»‘ng:
+Tạo môi trường ảo độc lập để tránh xung đột với các thư viện Python khác trên hệ thống:
 
 ```powershell
 python -m venv .venv
 ```
 
-### BÆ°á»›c 3: KÃ­ch hoáº¡t Virtual Environment
+### Bước 3: Kích hoạt Virtual Environment
 
-- **TrÃªn PowerShell:**
+- **Trên PowerShell:**
   ```powershell
   .\.venv\Scripts\Activate.ps1
   ```
-  *(ðŸ’¡ Náº¿u gáº·p lá»—i `ExecutionPolicy`: cháº¡y lá»‡nh `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` rá»“i kÃ­ch hoáº¡t láº¡i).*
+  *(💡 Nếu gặp lỗi `ExecutionPolicy`: chạy lệnh `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` rồi kích hoạt lại).*
 
-- **TrÃªn Command Prompt (CMD):**
+- **Trên Command Prompt (CMD):**
   ```cmd
   .venv\Scripts\activate.bat
   ```
 
-Sau khi kÃ­ch hoáº¡t, Ä‘áº§u dÃ²ng lá»‡nh sáº½ xuáº¥t hiá»‡n tiá»n tá»‘ `(.venv)`.
+Sau khi kích hoạt, đầu dòng lệnh sẽ xuất hiện tiền tố `(.venv)`.
 
-### BÆ°á»›c 4: CÃ i Ä‘áº·t cÃ¡c thÆ° viá»‡n phá»¥ thuá»™c (Dependencies)
+### Bước 4: Cài đặt các thư viện phụ thuộc (Dependencies)
 
-Cáº­p nháº­t `pip` vÃ  cÃ i Ä‘áº·t danh má»¥c thÆ° viá»‡n:
+Cập nhật `pip` và cài đặt danh mục thư viện:
 
 ```powershell
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-> â³ QuÃ¡ trÃ¬nh cÃ i Ä‘áº·t máº¥t khoáº£ng 1â€“3 phÃºt tÃ¹y tá»‘c Ä‘á»™ máº¡ng.
+> ⏳ Quá trình cài đặt mất khoảng 1–3 phút tùy tốc độ mạng.
 
-### BÆ°á»›c 5: Cáº¥u hÃ¬nh file mÃ´i trÆ°á»ng `.env`
+### Bước 5: Cấu hình file môi trường `.env`
 
-Táº¡o file `.env` táº¡i thÆ° má»¥c gá»‘c cá»§a dá»± Ã¡n `JARVIS\` vÃ  Ä‘iá»n Gemini API Key cá»§a báº¡n:
+Tạo file `.env` tại thư mục gốc của dự án `JARVIS\` và điền Gemini API Key của bạn:
 
 ```powershell
-# Táº¡o nhanh file .env báº±ng PowerShell (UTF-8 clean encoding):
+# Tạo nhanh file .env bằng PowerShell (UTF-8 clean encoding):
 Set-Content -Path .env -Value "GEMINI_API_KEY=AIzaSyYourActualAPIKeyHere" -Encoding utf8
 ```
 
-Hoáº·c má»Ÿ trÃ¬nh soáº¡n tháº£o vÃ  táº¡o file `.env` vá»›i ná»™i dung Ä‘áº§y Ä‘á»§:
+Hoặc mở trình soạn thảo và tạo file `.env` với nội dung đầy đủ:
 
 ```env
-# â”€â”€ Cáº¥u hÃ¬nh báº¯t buá»™c â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Cấu hình bắt buộc ─────────────────────────────────────────
 GEMINI_API_KEY=AIzaSyYourActualGeminiAPIKeyHere
 GOOGLE_API_KEY=AIzaSyYourActualGeminiAPIKeyHere
 
-# â”€â”€ Cáº¥u hÃ¬nh giá»ng nÃ³i & ngÃ´n ngá»¯ (TÃ¹y chá»n) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Cấu hình giọng nói & ngôn ngữ (Tùy chọn) ─────────────────
 JARVIS_LANGUAGE=vi
 JARVIS_WHISPER_MODEL=base
 JARVIS_VOICE=vi_VN-vivos-medium
 
-# â”€â”€ Äiá»u khiá»ƒn tá»« xa (TÃ¹y chá»n) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Điều khiển từ xa (Tùy chọn) ──────────────────────────────
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 DISCORD_BOT_TOKEN=
@@ -162,68 +162,74 @@ ZALO_ACCESS_TOKEN=
 ZALO_OA_ID=
 ```
 
-### BÆ°á»›c 6: Kiá»ƒm tra sá»©c khá»e há»‡ thá»‘ng (Health Check)
+### Bước 6: Kiểm tra sức khỏe hệ thống (Health Check)
 
-Cháº¡y lá»‡nh kiá»ƒm tra cháº©n Ä‘oÃ¡n toÃ n bá»™ 17 há»‡ thá»‘ng con (Audio, Wake Word, Memory Store, UI Tray, Router, v.v.):
+Chạy lệnh kiểm tra chẩn đoán toàn bộ 17 hệ thống con (Audio, Wake Word, Memory Store, UI Tray, Router, v.v.):
 
 ```powershell
 python -m jarvis health-check
 ```
 
-Äáº£m báº£o táº¥t cáº£ cÃ¡c má»¥c quan trá»ng Ä‘á»u bÃ¡o `[+] READY`.
+Đảm bảo tất cả các mục quan trọng đều báo `[+] READY`.
 
-### BÆ°á»›c 7: Khá»Ÿi cháº¡y JARVIS láº§n Ä‘áº§u
+### Bước 7: Khởi chạy JARVIS lần đầu
 
 ```powershell
-# Khá»Ÿi cháº¡y JARVIS (Máº·c Ä‘á»‹nh cháº¡y ná»n á»Ÿ khay há»‡ thá»‘ng System Tray):
+# Khởi chạy JARVIS (Mặc định chạy nền ở khay hệ thống System Tray):
 python -m jarvis
 
-# Xem trá»£ giÃºp vÃ  danh sÃ¡ch tÃ¹y chá»n dÃ²ng lá»‡nh:
+# Xem trợ giúp và danh sách tùy chọn dòng lệnh:
 python -m jarvis --help
 
-# Khá»Ÿi cháº¡y á»Ÿ cháº¿ Ä‘á»™ Headless (khÃ´ng báº­t khay há»‡ thá»‘ng):
+# Khởi chạy ở chế độ Headless (không bật khay hệ thống):
 python -m jarvis run --headless
 ```
 
-Sau khi khá»Ÿi cháº¡y:
-- Biá»ƒu tÆ°á»£ng JARVIS xuáº¥t hiá»‡n á»Ÿ khay há»‡ thá»‘ng (System Tray cáº¡nh Ä‘á»“ng há»“).
-- NÃ³i *"Hey JARVIS"* hoáº·c nháº¥n phÃ­m táº¯t `Ctrl+Shift+J` Ä‘á»ƒ báº¯t Ä‘áº§u trÃ² chuyá»‡n!
+Sau khi khởi chạy:
+- Biểu tượng JARVIS xuất hiện ở khay hệ thống (System Tray cạnh đồng hồ).
+- Nói *"Hey JARVIS"* hoặc nhấn phím tắt `Ctrl+Shift+J` để bắt đầu trò chuyện!
 
-### BÆ°á»›c 8: J.A.R.V.I.S. Terminal Control Center (giao diá»‡n Terminal tÆ°Æ¡ng tÃ¡c)
+### Bước 8: J.A.R.V.I.S. Terminal Control Center (giao diện Terminal tương tác)
 
-NgoÃ i cháº¿ Ä‘á»™ voice-first máº·c Ä‘á»‹nh, JARVIS cÃ²n cung cáº¥p má»™t giao diá»‡n Terminal/PowerShell
-tÆ°Æ¡ng tÃ¡c dáº¡ng menu phÃ¢n cáº¥p â€” má»™t lá»›p trÃ¬nh bÃ y má»ng (thin presentation layer) gá»i trá»±c
-tiáº¿p vÃ o cÃ¡c module sáº£n pháº©m hiá»‡n cÃ³, khÃ´ng sao chÃ©p logic nghiá»‡p vá»¥ hay bá» qua báº¥t ká»³ cÆ¡ cháº¿
-an toÃ n nÃ o:
+Ngoài chế độ voice-first mặc định, JARVIS còn cung cấp một giao diện Terminal/PowerShell
+tương tác dạng menu phân cấp — một lớp trình bày mỏng (thin presentation layer) gọi trực
+tiếp vào các module sản phẩm hiện có, không sao chép logic nghiệp vụ hay bỏ qua bất kỳ cơ chế
+an toàn nào:
 
 ```powershell
 python -m jarvis menu
-# hoáº·c, sau khi cÃ i Ä‘áº·t package:
+# hoặc, sau khi cài đặt package:
 jarvis menu
 ```
 
-Äiá»u hÆ°á»›ng báº±ng má»™t phÃ­m sá»‘ duy nháº¥t (há»— trá»£ cáº£ `msvcrt` má»™t-phÃ­m trÃªn Windows Terminal/
-PowerShell láº«n cháº¿ Ä‘á»™ nháº­p dÃ²ng khi stdin Ä‘Æ°á»£c redirect). Bá»™ phÃ­m toÃ n cá»¥c nháº¥t quÃ¡n trÃªn má»i
-mÃ n hÃ¬nh:
+Điều hướng bằng một phím số duy nhất (hỗ trợ cả `msvcrt` một-phím trên Windows Terminal/
+PowerShell lẫn chế độ nhập dòng khi stdin được redirect). Bộ phím toàn cục nhất quán trên mọi
+màn hình:
 
-| PhÃ­m | Chá»©c nÄƒng |
+| Phím | Chức năng |
 |---|---|
-| `[1]`â€“`[9]` | Chá»n module (Hardware, InfoSec, Workflow, Data, Smart Home, Biometrics, Gesture, Communications, Self-Healing) |
-| `[J]` | Khá»Ÿi cháº¡y JARVIS Voice Core tháº­t (cÃ¹ng má»™t `JarvisApp` dÃ¹ng bá»Ÿi `jarvis run` â€” khÃ´ng cÃ³ lÃµi JARVIS thá»© hai) |
-| `[A]` | Cháº¡y táº¥t cáº£ cÃ¡c thao tÃ¡c **an toÃ n cho batch** trÃªn mÃ n hÃ¬nh hiá»‡n táº¡i â€” chá»‰ hiá»ƒn thá»‹ khi cÃ³ **tá»« 2 thao tÃ¡c an toÃ n trá»Ÿ lÃªn** (khÃ´ng bao giá» gá»­i tin nháº¯n, khÃ´ng bao giá» cháº¥m dá»©t tiáº¿n trÃ¬nh, khÃ´ng bao giá» báº­t/táº¯t toÃ n bá»™ thiáº¿t bá»‹) |
-| `[R]` | LÃ m má»›i mÃ n hÃ¬nh hiá»‡n táº¡i |
-| `[S]` | LÆ°u káº¿t quáº£/phiÃªn lÃ m viá»‡c vÃ o thÆ° má»¥c bÃ¡o cÃ¡o cá»§a JARVIS (`%LOCALAPPDATA%/JARVIS/reports/cli/`) |
-| `[B]` | Quay láº¡i má»™t cáº¥p menu |
-| `[H]` | Trá»£ giÃºp cho mÃ n hÃ¬nh hiá»‡n táº¡i |
-| `[0]` | ThoÃ¡t |
+| `[1]`–`[9]` | Chọn module (Hardware, InfoSec, Workflow, Data, Smart Home, Biometrics, Gesture, Communications, Self-Healing) |
+| `[J]` | Khởi chạy JARVIS Voice Core thật (cùng một `JarvisApp` dùng bởi `jarvis run` — không có lõi JARVIS thứ hai) |
+| `[A]` | Chạy tất cả các thao tác **an toàn cho batch** trên màn hình hiện tại — chỉ hiển thị khi có **từ 2 thao tác an toàn trở lên** (không bao giờ gửi tin nhắn, không bao giờ chấm dứt tiến trình, không bao giờ bật/tắt toàn bộ thiết bị) |
+| `[R]` | Làm mới màn hình hiện tại |
+| `[S]` | Lưu kết quả/phiên làm việc vào thư mục báo cáo của JARVIS (`%LOCALAPPDATA%/JARVIS/reports/cli/`) |
+| `[B]` | Quay lại một cấp menu |
+| `[H]` | Trợ giúp cho màn hình hiện tại |
+| `[0]` | Thoát |
 
-**An toÃ n**: má»i tráº¡ng thÃ¡i hiá»ƒn thá»‹ Ä‘á»u trung thá»±c (khÃ´ng cÃ³ `READY` giáº£ chá»‰ vÃ¬ má»™t class
-import thÃ nh cÃ´ng); má»i bÃ¡o cÃ¡o lÆ°u Ä‘á»u Ä‘Æ°á»£c xÃ¡c minh Ä‘Ã£ ghi thÃ nh cÃ´ng trÆ°á»›c khi bÃ¡o "ÄÃ£
-lÆ°u"; cÃ¡c thÃ´ng tin nháº¡y cáº£m (token, máº­t kháº©u, embedding sinh tráº¯c há»c) luÃ´n Ä‘Æ°á»£c áº©n
-(`<REDACTED>`) trÆ°á»›c khi lÆ°u hoáº·c hiá»ƒn thá»‹. XÃ¡c nháº­n Y/N trÃªn Terminal chá»‰ lÃ  lá»›p UX quyáº¿t
-Ä‘á»‹nh cÃ³ thá»­ gá»i hÃ nh Ä‘á»™ng hay khÃ´ng â€” khÃ´ng bao giá» tá»± nÃ³ lÃ  lá»›p xÃ¡c thá»±c. Vá»›i **cháº¥m dá»©t
-tiáº¿n trÃ¬nh** (Self-Healing), backend `HealingEngine` tá»± kiá»ƒm tra danh sÃ¡ch tiáº¿n trÃ¬nh Ä‘Æ°á»£c
-bảo vệ (`PROTECTED_PROCESS_WHITELIST`) trước khi thực thi, bất kể ai gọi. Với **điều khiển thiết bị Smart Home (v5.1.0)**: Đã có **authoritative write path** thông qua `ActionDispatcher` (`smart_home_turn_on`, `smart_home_turn_off`, `smart_home_set_temp`, `home_assistant_call`). Hệ thống áp dụng danh sách miền an toàn nghiêm ngặt (`ALLOWED_DOMAINS`: light, switch, climate, media_player, fan, sensor) và từ chối dứt điểm (`SECURITY_REFUSAL`) với các thực thể nhạy cảm (`lock.*`, `alarm_control_panel.*`, `camera.*`, `siren.*`, `valve.*`, `vacuum.*`). Thao tác chỉ thực thi khi Home Assistant được cấu hình đầy đủ `HASS_URL` và `HASS_TOKEN` trong Windows Credential Manager. Không bao giờ chạy tự động qua `[A]`.
+**An toàn**: mọi trạng thái hiển thị đều trung thực (không có `READY` giả chỉ vì một class
+import thành công); mọi báo cáo lưu đều được xác minh đã ghi thành công trước khi báo "Đã
+lưu"; các thông tin nhạy cảm (token, mật khẩu, embedding sinh trắc học) luôn được ẩn
+(`<REDACTED>`) trước khi lưu hoặc hiển thị. Xác nhận Y/N trên Terminal chỉ là lớp UX quyết
+định có thử gọi hành động hay không — không bao giờ tự nó là lớp xác thực. Với **chấm dứt
+tiến trình** (Self-Healing), backend `HealingEngine` tự kiểm tra danh sách tiến trình được
+bảo vệ (`PROTECTED_PROCESS_WHITELIST`) trước khi thực thi, bất kể ai gọi. Với **điều khiển
+thiết bị Smart Home**, hiện chưa có cơ chế xác thực đáng tin cậy nào (không có action
+`ActionDispatcher` chính thức, không có hợp đồng an toàn nào trong `HomeAssistantClient`) —
+vì vậy các thao tác Turn On/Off/Toggle/Set Temperature **hiện chưa thực thi thật**, chỉ báo
+cáo trạng thái trung thực rằng chưa có đường xác thực khả dụng, thay vì gọi thẳng API mà
+không có cơ chế bảo vệ nào phía sau. Không bao giờ chạy tự động qua `[A]`.
+
 ---
 
 ## ⚡ Dành Cho Người Dùng Cuối — Quick Start (Installer & Standalone ZIP)
@@ -254,11 +260,11 @@ Nếu bạn không muốn cài đặt vào Program Files:
 
 ---
 
-## ðŸ› ï¸ DÃ nh Cho NhÃ  PhÃ¡t Triá»ƒn (Developer Setup)
+## 🛠️ Dành Cho Nhà Phát Triển (Developer Setup)
 
-DÃ nh cho cÃ¡c láº­p trÃ¬nh viÃªn muá»‘n tÃ¹y biáº¿n mÃ£ nguá»“n, viáº¿t thÃªm ká»¹ nÄƒng hoáº·c Ä‘Ã³ng gÃ³p mÃ£ nguá»“n (Contributing).
+Dành cho các lập trình viên muốn tùy biến mã nguồn, viết thêm kỹ năng hoặc đóng góp mã nguồn (Contributing).
 
-### CÃ i Ä‘áº·t mÃ´i trÆ°á»ng phÃ¡t triá»ƒn Ä‘áº§y Ä‘á»§
+### Cài đặt môi trường phát triển đầy đủ
 
 ```powershell
 git clone https://github.com/Duong-Phuoc-Hung/JARVIS.git
@@ -266,80 +272,80 @@ cd JARVIS
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# CÃ i Ä‘áº·t trá»n gÃ³i bao gá»“m táº¥t cáº£ dev dependencies vÃ  optional extras:
+# Cài đặt trọn gói bao gồm tất cả dev dependencies và optional extras:
 pip install -e ".[all]"
 ```
 
-### Cháº¡y bá»™ kiá»ƒm thá»­ (Running Test Suites)
+### Chạy bộ kiểm thử (Running Test Suites)
 
-JARVIS bao gá»“m hÆ¡n 630+ bÃ i kiá»ƒm thá»­ tá»± Ä‘á»™ng toÃ n diá»‡n:
+JARVIS bao gồm hơn 630+ bài kiểm thử tự động toàn diện:
 
 ```powershell
-# Cháº¡y toÃ n bá»™ test suites:
+# Chạy toàn bộ test suites:
 pytest tests/
 
-# Cháº¡y kiá»ƒm thá»­ kÃ¨m bÃ¡o cÃ¡o Ä‘á»™ bao phá»§ mÃ£ nguá»“n (Coverage Report):
+# Chạy kiểm thử kèm báo cáo độ bao phủ mã nguồn (Coverage Report):
 pytest tests/ --cov=jarvis --cov-report=term-missing
 
-# Cháº¡y kiá»ƒm thá»­ riÃªng cho bá»™ nháº­n diá»‡n Intent Router:
+# Chạy kiểm thử riêng cho bộ nhận diện Intent Router:
 pytest tests/test_router_project_intents.py -v
 ```
 
-### Kiá»ƒm tra cÃº phÃ¡p, Linting & Type Checking
+### Kiểm tra cú pháp, Linting & Type Checking
 
 ```powershell
-# Kiá»ƒm tra code style vÃ  quy chuáº©n vá»›i Ruff:
+# Kiểm tra code style và quy chuẩn với Ruff:
 ruff check .
 
-# Tá»± Ä‘á»™ng Ä‘á»‹nh dáº¡ng code:
+# Tự động định dạng code:
 ruff format .
 
-# Kiá»ƒm tra tÄ©nh kiá»ƒu dá»¯ liá»‡u (Static Type Checking) vá»›i Mypy:
+# Kiểm tra tĩnh kiểu dữ liệu (Static Type Checking) với Mypy:
 mypy jarvis
 ```
 
-### ÄÃ³ng gÃ³i á»©ng dá»¥ng (Building Executable & Installer)
+### Đóng gói ứng dụng (Building Executable & Installer)
 
 ```powershell
-# 1. ÄÃ³ng gÃ³i thÃ nh file cháº¡y trá»±c tiáº¿p dist/JARVIS.exe:
+# 1. Đóng gói thành file chạy trực tiếp dist/JARVIS.exe:
 python scripts/build_exe.py
 
-# 2. ÄÃ³ng gÃ³i thÃ nh file cÃ i Ä‘áº·t Windows Installer dist/installer/JARVIS_Setup_v5.0.0.exe
-#    (chá»‰ build local qua Inno Setup â€” release workflow chÃ­nh thá»©c trÃªn GitHub Actions
-#    KHÃ”NG publish file Setup nÃ y, chá»‰ publish JARVIS_v<version>_windows_x64.zip):
+# 2. Đóng gói thành file cài đặt Windows Installer dist/installer/JARVIS_Setup_v5.0.0.exe
+#    (chỉ build local qua Inno Setup — release workflow chính thức trên GitHub Actions
+#    KHÔNG publish file Setup này, chỉ publish JARVIS_v<version>_windows_x64.zip):
 python scripts/build_installer.py
 ```
 
 ---
 
-## ðŸ”§ CÃ¡c Lá»—i ThÆ°á»ng Gáº·p & CÃ¡ch Kháº¯c Phá»¥c (Common Errors & Fixes)
+## 🔧 Các Lỗi Thường Gặp & Cách Khắc Phục (Common Errors & Fixes)
 
-DÆ°á»›i Ä‘Ã¢y lÃ  5 lá»—i phá»• biáº¿n nháº¥t vÃ  giáº£i phÃ¡p xá»­ lÃ½ triá»‡t Ä‘á»ƒ:
+Dưới đây là 5 lỗi phổ biến nhất và giải pháp xử lý triệt để:
 
-### 1. âŒ SQLite database locked / Permission Denied
-- **Hiá»‡n tÆ°á»£ng:** Gáº·p lá»—i `sqlite3.OperationalError: database is locked` hoáº·c `PermissionError` khi khá»Ÿi Ä‘á»™ng hoáº·c lÆ°u ghi chÃº.
-- **NguyÃªn nhÃ¢n:** CÃ³ tiáº¿n trÃ¬nh JARVIS khÃ¡c Ä‘ang cháº¡y ngáº§m chiáº¿m giá»¯ database, hoáº·c phiÃªn lÃ m viá»‡c trÆ°á»›c bá»‹ táº¯t Ä‘á»™t ngá»™t khiáº¿n file `.wal` / `.shm` bá»‹ khÃ³a.
-- **CÃ¡ch kháº¯c phá»¥c:**
-  1. ÄÃ³ng toÃ n bá»™ tiáº¿n trÃ¬nh JARVIS Ä‘ang cháº¡y:
+### 1. ❌ SQLite database locked / Permission Denied
+- **Hiện tượng:** Gặp lỗi `sqlite3.OperationalError: database is locked` hoặc `PermissionError` khi khởi động hoặc lưu ghi chú.
+- **Nguyên nhân:** Có tiến trình JARVIS khác đang chạy ngầm chiếm giữ database, hoặc phiên làm việc trước bị tắt đột ngột khiến file `.wal` / `.shm` bị khóa.
+- **Cách khắc phục:**
+  1. Đóng toàn bộ tiến trình JARVIS đang chạy:
      ```powershell
      Stop-Process -Name "JARVIS","python" -Force -ErrorAction SilentlyContinue
      ```
-  2. Kiá»ƒm tra thÆ° má»¥c dá»¯ liá»‡u táº¡i `%LOCALAPPDATA%\JARVIS\data` (hoáº·c `~/.jarvis/`).
-  3. XÃ³a cÃ¡c file lock táº¡m `.wal` vÃ  `.shm`:
+  2. Kiểm tra thư mục dữ liệu tại `%LOCALAPPDATA%\JARVIS\data` (hoặc `~/.jarvis/`).
+  3. Xóa các file lock tạm `.wal` và `.shm`:
      ```powershell
      Remove-Item "$env:LOCALAPPDATA\JARVIS\data\*.db-wal" -Force -ErrorAction SilentlyContinue
      Remove-Item "$env:LOCALAPPDATA\JARVIS\data\*.db-shm" -Force -ErrorAction SilentlyContinue
      ```
-  4. Khá»Ÿi Ä‘á»™ng láº¡i JARVIS.
+  4. Khởi động lại JARVIS.
 
 ---
 
-### 2. âŒ PIL / Pillow DLL Load Failed
-- **Hiá»‡n tÆ°á»£ng:** `ImportError: DLL load failed while importing _imaging: The specified module could not be found.`
-- **NguyÃªn nhÃ¢n:** Há»‡ Ä‘iá»u hÃ nh Windows bá»‹ thiáº¿u thÆ° viá»‡n C runtime cá»§a Microsoft hoáº·c cache cÃ i Ä‘áº·t Pillow bá»‹ lá»—i.
-- **CÃ¡ch kháº¯c phá»¥c:**
-  1. Táº£i vÃ  cÃ i Ä‘áº·t [Visual C++ 2015â€“2022 Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
-  2. CÃ i Ä‘áº·t láº¡i Pillow khÃ´ng dÃ¹ng cache:
+### 2. ❌ PIL / Pillow DLL Load Failed
+- **Hiện tượng:** `ImportError: DLL load failed while importing _imaging: The specified module could not be found.`
+- **Nguyên nhân:** Hệ điều hành Windows bị thiếu thư viện C runtime của Microsoft hoặc cache cài đặt Pillow bị lỗi.
+- **Cách khắc phục:**
+  1. Tải và cài đặt [Visual C++ 2015–2022 Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
+  2. Cài đặt lại Pillow không dùng cache:
      ```powershell
      pip uninstall -y Pillow
      pip install --no-cache-dir Pillow
@@ -347,202 +353,202 @@ DÆ°á»›i Ä‘Ã¢y lÃ  5 lá»—i phá»• biáº¿n nháº¥t vÃ  g
 
 ---
 
-### 3. âŒ faster-whisper CTranslate2 model download / CUDA fallback
-- **Hiá»‡n tÆ°á»£ng:** Lá»—i khi táº£i mÃ´ hÃ¬nh Whisper tá»« Hugging Face Hub (Connection Timeout / SSL Error) hoáº·c lá»—i crash liÃªn quan Ä‘áº¿n CUDA/GPU.
-- **NguyÃªn nhÃ¢n:** MÃ¡y tÃ­nh khÃ´ng cÃ³ card Ä‘á»“ há»a NVIDIA hoáº·c CUDA toolkit khÃ´ng khá»›p; káº¿t ná»‘i tá»›i HuggingFace bá»‹ giÃ¡n Ä‘oáº¡n.
-- **CÃ¡ch kháº¯c phá»¥c:**
-  1. Cáº¥u hÃ¬nh fallback sang CPU int8 trong file cáº¥u hÃ¬nh `config.yaml` hoáº·c `.env`:
+### 3. ❌ faster-whisper CTranslate2 model download / CUDA fallback
+- **Hiện tượng:** Lỗi khi tải mô hình Whisper từ Hugging Face Hub (Connection Timeout / SSL Error) hoặc lỗi crash liên quan đến CUDA/GPU.
+- **Nguyên nhân:** Máy tính không có card đồ họa NVIDIA hoặc CUDA toolkit không khớp; kết nối tới HuggingFace bị gián đoạn.
+- **Cách khắc phục:**
+  1. Cấu hình fallback sang CPU int8 trong file cấu hình `config.yaml` hoặc `.env`:
      ```yaml
      whisper:
        device: "cpu"
        compute_type: "int8"
      ```
-  2. Náº¿u máº¡ng quá»‘c táº¿ bá»‹ ngháº½n, cáº¥u hÃ¬nh mirror Hugging Face trÃªn PowerShell trÆ°á»›c khi cháº¡y:
+  2. Nếu mạng quốc tế bị nghẽn, cấu hình mirror Hugging Face trên PowerShell trước khi chạy:
      ```powershell
      $env:HF_ENDPOINT = "https://hf-mirror.com"
      ```
-  3. Táº£i trÆ°á»›c model Ä‘á»ƒ kiá»ƒm tra:
+  3. Tải trước model để kiểm tra:
      ```powershell
      python -c "from faster_whisper import WhisperModel; WhisperModel('base', device='cpu', compute_type='int8')"
      ```
 
 ---
 
-### 4. âŒ UAC / Administrator Rights & PhÃ­m Táº¯t ToÃ n Cá»¥c (Hotkeys)
-- **Hiá»‡n tÆ°á»£ng:** PhÃ­m táº¯t `Ctrl+Shift+J` hoáº·c tÃ­nh nÄƒng gá»­i phÃ­m tá»± Ä‘á»™ng khÃ´ng hoáº¡t Ä‘á»™ng khi Ä‘ang focus vÃ o cÃ¡c cá»­a sá»• cháº¡y quyá»n Admin (nhÆ° Task Manager, CMD Administrator).
-- **NguyÃªn nhÃ¢n:** CÆ¡ cháº¿ báº£o máº­t UIPI (User Interface Privilege Isolation) cá»§a Windows ngÄƒn á»©ng dá»¥ng quyá»n chuáº©n tÆ°Æ¡ng tÃ¡c vá»›i cá»­a sá»• quyá»n Elevated Administrator.
-- **CÃ¡ch kháº¯c phá»¥c:**
-  1. Äá»‘i vá»›i nhu cáº§u hÃ ng ngÃ y, cháº¡y JARVIS dÆ°á»›i quyá»n tÃ i khoáº£n chuáº©n (Standard User).
-  2. Náº¿u thÆ°á»ng xuyÃªn lÃ m viá»‡c trÃªn cÃ¡c cá»­a sá»• Administrator vÃ  muá»‘n JARVIS can thiá»‡p: Nháº¥p chuá»™t pháº£i vÃ o `JARVIS.exe` (hoáº·c Terminal) vÃ  chá»n **"Run as administrator"**.
+### 4. ❌ UAC / Administrator Rights & Phím Tắt Toàn Cục (Hotkeys)
+- **Hiện tượng:** Phím tắt `Ctrl+Shift+J` hoặc tính năng gửi phím tự động không hoạt động khi đang focus vào các cửa sổ chạy quyền Admin (như Task Manager, CMD Administrator).
+- **Nguyên nhân:** Cơ chế bảo mật UIPI (User Interface Privilege Isolation) của Windows ngăn ứng dụng quyền chuẩn tương tác với cửa sổ quyền Elevated Administrator.
+- **Cách khắc phục:**
+  1. Đối với nhu cầu hàng ngày, chạy JARVIS dưới quyền tài khoản chuẩn (Standard User).
+  2. Nếu thường xuyên làm việc trên các cửa sổ Administrator và muốn JARVIS can thiệp: Nhấp chuột phải vào `JARVIS.exe` (hoặc Terminal) và chọn **"Run as administrator"**.
 
 ---
 
-### 5. âŒ API Key 401 Unauthorized / Invalid API Key
-- **Hiá»‡n tÆ°á»£ng:** Lá»—i `google.api_core.exceptions.InvalidArgument: 401 Unauthorized` hoáº·c `API_KEY_INVALID`.
-- **NguyÃªn nhÃ¢n:** File `.env` Ä‘áº·t sai vá»‹ trÃ­, tÃªn biáº¿n khÃ´ng Ä‘Ãºng chuáº©n, hoáº·c API Key bá»‹ dÃ­nh khoáº£ng tráº¯ng, dáº¥u ngoáº·c kÃ©p thá»«a.
-- **CÃ¡ch kháº¯c phá»¥c:**
-  1. Äáº£m báº£o file `.env` náº±m táº¡i thÆ° má»¥c gá»‘c cá»§a dá»± Ã¡n hoáº·c `%LOCALAPPDATA%\JARVIS\.env`.
-  2. Sá»­ dá»¥ng Ä‘á»‹nh dáº¡ng chuáº©n (khÃ´ng dÃ¹ng dáº¥u ngoáº·c kÃ©p, khÃ´ng khoáº£ng tráº¯ng):
+### 5. ❌ API Key 401 Unauthorized / Invalid API Key
+- **Hiện tượng:** Lỗi `google.api_core.exceptions.InvalidArgument: 401 Unauthorized` hoặc `API_KEY_INVALID`.
+- **Nguyên nhân:** File `.env` đặt sai vị trí, tên biến không đúng chuẩn, hoặc API Key bị dính khoảng trắng, dấu ngoặc kép thừa.
+- **Cách khắc phục:**
+  1. Đảm bảo file `.env` nằm tại thư mục gốc của dự án hoặc `%LOCALAPPDATA%\JARVIS\.env`.
+  2. Sử dụng định dạng chuẩn (không dùng dấu ngoặc kép, không khoảng trắng):
      ```env
      GEMINI_API_KEY=AIzaSyD-YourExactKeyHere
      GOOGLE_API_KEY=AIzaSyD-YourExactKeyHere
      ```
-  3. Kiá»ƒm tra káº¿t ná»‘i API Key trá»±c tiáº¿p:
+  3. Kiểm tra kết nối API Key trực tiếp:
      ```powershell
      python -c "import os, dotenv, google.generativeai as genai; dotenv.load_dotenv(); genai.configure(api_key=os.getenv('GEMINI_API_KEY')); print(genai.GenerativeModel('gemini-1.5-flash').generate_content('ping').text)"
      ```
 
 ---
 
-## âš™ï¸ Cáº¥u HÃ¬nh `.env`
+## ⚙️ Cấu Hình `.env`
 
-Báº£ng mÃ´ táº£ cÃ¡c biáº¿n mÃ´i trÆ°á»ng há»— trá»£ trong `.env`:
+Bảng mô tả các biến môi trường hỗ trợ trong `.env`:
 
-| TÃªn biáº¿n | Báº¯t buá»™c | Máº·c Ä‘á»‹nh | Ã nghÄ©a |
+| Tên biến | Bắt buộc | Mặc định | Ý nghĩa |
 |---|---|---|---|
-| `GEMINI_API_KEY` | **CÃ³** | â€” | API Key láº¥y tá»« [Google AI Studio](https://aistudio.google.com/apikey) |
-| `GOOGLE_API_KEY` | TÃ¹y chá»n | â€” | Dá»± phÃ²ng cho `GEMINI_API_KEY` |
-| `JARVIS_LANGUAGE` | KhÃ´ng | `vi` | NgÃ´n ngá»¯ giao tiáº¿p chÃ­nh (`vi` hoáº·c `en`) |
-| `JARVIS_WHISPER_MODEL` | KhÃ´ng | `base` | Model Whisper: `tiny`, `base`, `small`, `medium` |
-| `JARVIS_VOICE` | KhÃ´ng | `vi_VN-vivos-medium` | TÃªn giá»ng Ä‘á»c Piper TTS trong `~/.jarvis/voices/` |
-| `JARVIS_HEADLESS` | KhÃ´ng | `0` | `0`: Cháº¿ Ä‘á»™ thÆ°á»ng (Tray UI), `1`: Headless mode (Server) |
-| `TELEGRAM_BOT_TOKEN` | KhÃ´ng | â€” | Token Telegram Bot tá»« @BotFather |
-| `TELEGRAM_CHAT_ID` | KhÃ´ng | â€” | Chat ID ngÆ°á»i dÃ¹ng nháº­n thÃ´ng bÃ¡o Telegram |
-| `DISCORD_BOT_TOKEN` | KhÃ´ng | â€” | Token á»©ng dá»¥ng Discord Bot |
-| `ZALO_ACCESS_TOKEN` | KhÃ´ng | â€” | Access token Zalo Official Account |
+| `GEMINI_API_KEY` | **Có** | — | API Key lấy từ [Google AI Studio](https://aistudio.google.com/apikey) |
+| `GOOGLE_API_KEY` | Tùy chọn | — | Dự phòng cho `GEMINI_API_KEY` |
+| `JARVIS_LANGUAGE` | Không | `vi` | Ngôn ngữ giao tiếp chính (`vi` hoặc `en`) |
+| `JARVIS_WHISPER_MODEL` | Không | `base` | Model Whisper: `tiny`, `base`, `small`, `medium` |
+| `JARVIS_VOICE` | Không | `vi_VN-vivos-medium` | Tên giọng đọc Piper TTS trong `~/.jarvis/voices/` |
+| `JARVIS_HEADLESS` | Không | `0` | `0`: Chế độ thường (Tray UI), `1`: Headless mode (Server) |
+| `TELEGRAM_BOT_TOKEN` | Không | — | Token Telegram Bot từ @BotFather |
+| `TELEGRAM_CHAT_ID` | Không | — | Chat ID người dùng nhận thông báo Telegram |
+| `DISCORD_BOT_TOKEN` | Không | — | Token ứng dụng Discord Bot |
+| `ZALO_ACCESS_TOKEN` | Không | — | Access token Zalo Official Account |
 
-### ðŸ”’ Báº£o Máº­t: Di Chuyá»ƒn `.env` Sang Windows Credential Manager (`SecretsManager`)
+### 🔒 Bảo Mật: Di Chuyển `.env` Sang Windows Credential Manager (`SecretsManager`)
 
-Äá»ƒ báº£o vá»‡ cÃ¡c API Keys khÃ´ng bá»‹ lÆ°u dÆ°á»›i dáº¡ng vÄƒn báº£n thÃ´ (plaintext) trÃªn á»• Ä‘Ä©a, JARVIS há»— trá»£ cÃ´ng cá»¥ di chuyá»ƒn tá»± Ä‘á»™ng sang Windows Credential Manager:
+Để bảo vệ các API Keys không bị lưu dưới dạng văn bản thô (plaintext) trên ổ đĩa, JARVIS hỗ trợ công cụ di chuyển tự động sang Windows Credential Manager:
 
 ```powershell
-# 1. Xem trÆ°á»›c cÃ¡c khÃ³a sáº½ Ä‘Æ°á»£c di chuyá»ƒn an toÃ n (Dry Run - khÃ´ng thay Ä‘á»•i file):
+# 1. Xem trước các khóa sẽ được di chuyển an toàn (Dry Run - không thay đổi file):
 python -m jarvis.cli migrate-secrets --dry-run
 
-# 2. Thá»±c hiá»‡n di chuyá»ƒn vÃ  tá»± Ä‘á»™ng xÃ³a giÃ¡ trá»‹ plaintext khá»i file .env (Purge):
+# 2. Thực hiện di chuyển và tự động xóa giá trị plaintext khỏi file .env (Purge):
 python -m jarvis.cli migrate-secrets --purge
 ```
-Sau khi thá»±c hiá»‡n, há»‡ thá»‘ng `ConfigManager` sáº½ tá»± Ä‘á»™ng truy xuáº¥t API Keys trá»±c tiáº¿p tá»« Windows Credential Manager an toÃ n mÃ  khÃ´ng cáº§n lÆ°u khÃ³a thÃ´ trong `.env`.
+Sau khi thực hiện, hệ thống `ConfigManager` sẽ tự động truy xuất API Keys trực tiếp từ Windows Credential Manager an toàn mà không cần lưu khóa thô trong `.env`.
 
 ---
 
-## ðŸ§° Danh SÃ¡ch Ká»¹ NÄƒng Chi Tiáº¿t (18+ Skills)
+## 🧰 Danh Sách Kỹ Năng Chi Tiết (18+ Skills)
 
-JARVIS Ä‘Æ°á»£c tÃ­ch há»£p sáºµn 18+ ká»¹ nÄƒng máº¡nh máº½, tá»± Ä‘á»™ng kÃ­ch hoáº¡t qua giá»ng nÃ³i hoáº·c vÄƒn báº£n:
+JARVIS được tích hợp sẵn 18+ kỹ năng mạnh mẽ, tự động kích hoạt qua giọng nói hoặc văn bản:
 
-| # | Ká»¹ nÄƒng | Intent ID | CÃ¢u lá»‡nh máº«u | MÃ´ táº£ chá»©c nÄƒng |
+| # | Kỹ năng | Intent ID | Câu lệnh mẫu | Mô tả chức năng |
 |---|---|---|---|---|
-| 1 | ðŸ“° **Briefing SÃ¡ng** | `briefing` | *"JARVIS, bÃ¡o cÃ¡o sÃ¡ng nay"* | Tá»•ng há»£p thá»i tiáº¿t, tin tá»©c ná»•i báº­t vÃ  lá»‹ch trÃ¬nh |
-| 2 | ðŸ“ **Ghi ChÃº Nhanh** | `note_taker` | *"Ghi chÃº: há»p dá»± Ã¡n lÃºc 3h chiá»u"* | LÆ°u trá»¯ vÃ  tÃ¬m kiáº¿m ghi chÃº toÃ n vÄƒn vá»›i SQLite FTS5 |
-| 3 | â±ï¸ **Bá»™ Äáº¿m Pomodoro** | `pomodoro` | *"Báº¯t Ä‘áº§u táº­p trung 25 phÃºt"* | Äáº¿m ngÆ°á»£c chu ká»³ lÃ m viá»‡c, thÃ´ng bÃ¡o toast khi hoÃ n thÃ nh |
-| 4 | ðŸ’» **Äiá»u Khiá»ƒn Há»‡ Thá»‘ng**| `system_control`| *"TÄƒng Ã¢m lÆ°á»£ng 20%", "KhÃ³a mÃ¡y tÃ­nh"* | Äiá»u chá»‰nh Ã¢m thanh, chá»¥p mÃ n hÃ¬nh, khÃ³a mÃ¡y Windows |
-| 5 | ðŸ—‚ï¸ **Quáº£n LÃ½ File** | `file_manager` | *"TÃ¬m file bÃ¡o cÃ¡o doanh thu"* | TÃ¬m kiáº¿m vÃ  má»Ÿ táº­p tin, thÆ° má»¥c theo ngÃ´n ngá»¯ tá»± nhiÃªn |
-| 6 | ðŸ§® **MÃ¡y TÃ­nh ThÃ´ng Minh**| `calculator` | *"TÃ­nh 15% cá»§a 5 triá»‡u rÆ°á»¡i"* | TÃ­nh toÃ¡n biá»ƒu thá»©c toÃ¡n há»c vÃ  quy Ä‘á»•i tá»· giÃ¡/Ä‘Æ¡n vá»‹ |
-| 7 | ðŸ“‹ **Quáº£n LÃ½ Clipboard** | `clipboard` | *"Äá»c clipboard", "Sao chÃ©p: Xin chÃ o"* | Äá»c to ná»™i dung clipboard hoáº·c lÆ°u trá»¯ lá»‹ch sá»­ sao chÃ©p |
-| 8 | ðŸš€ **Má»Ÿ á»¨ng Dá»¥ng** | `app_launcher` | *"Má»Ÿ Google Chrome", "Má»Ÿ VS Code"* | Fuzzy search tÃ¬m vÃ  khá»Ÿi cháº¡y pháº§n má»m trÃªn mÃ¡y |
-| 9 | ðŸ‘ï¸ **PhÃ¢n TÃ­ch MÃ n HÃ¬nh**| `screen_context`| *"Giáº£i thÃ­ch lá»—i trÃªn mÃ n hÃ¬nh"* (`Ctrl+Shift+Space`) | Chá»¥p áº£nh mÃ n hÃ¬nh vÃ  phÃ¢n tÃ­ch vá»›i Gemini Vision AI |
-| 10| âºï¸ **Ghi & PhÃ¡t Macro** | `macro_recorder`| *"Ghi láº¡i macro gá»­i email"* | Tá»± Ä‘á»™ng hÃ³a chuá»—i thao tÃ¡c bÃ n phÃ­m/chuá»™t láº·p láº¡i |
-| 11| ðŸ”Š **Sound Board** | `sound_board` | *"PhÃ¡t Ã¢m thanh hoÃ n thÃ nh"* | PhÃ¡t Ã¢m thanh pháº£n há»“i tráº¡ng thÃ¡i vui nhá»™n |
-| 12| ðŸ” **TÃ¬m KÃ½ á»¨c / TÃ i Liá»‡u** | `rag_search` | *"Tuáº§n trÆ°á»›c tÃ´i nÃ³i gÃ¬ vá» dá»± Ã¡n X?"* | TÃ¬m kiáº¿m tá»« khÃ³a vÃ  ngá»¯ cáº£nh (TF-IDF & Lexical Search) |
-| 13| ðŸ§¬ **Tá»± Viáº¿t Ká»¹ NÄƒng** | `skill_synthesizer`| *"Táº¡o ká»¹ nÄƒng theo dÃµi giÃ¡ vÃ ng"* | Tá»± Ä‘á»™ng viáº¿t code Python vÃ  náº¡p ká»¹ nÄƒng má»›i trong <15s |
-| 14| ðŸŒ™ **Night Planner** | `night_planner` | *"Tá»‘i nay phÃ¢n tÃ­ch cÃ¡c file log"* | Thá»±c hiá»‡n tÃ¡c vá»¥ náº·ng ban Ä‘Ãªm vÃ  bÃ¡o cÃ¡o lÃºc sÃ¡ng |
-| 15| ðŸ  **NhÃ  ThÃ´ng Minh** | `smart_home_discovery`| *"QuÃ©t thiáº¿t bá»‹ nhÃ  thÃ´ng minh"* | QuÃ©t mDNS vÃ  Ä‘iá»u khiá»ƒn Home Assistant / Tasmota |
-| 16| ðŸŒ **Äiá»u Khiá»ƒn Browser**| `browser_control`| *"Má»Ÿ YouTube tÃ¬m bÃ i hÃ¡t Iron Man"* | Äiá»u khiá»ƒn trÃ¬nh duyá»‡t Chrome qua Playwright CDP |
-| 17| ðŸ”„ **Tá»± Cáº­p Nháº­t** | `auto_updater` | *"Kiá»ƒm tra báº£n cáº­p nháº­t má»›i"* | Tá»± Ä‘á»™ng kiá»ƒm tra vÃ  nÃ¢ng cáº¥p phiÃªn báº£n qua GitHub |
-| 18| ðŸ“‚ **Quáº£n LÃ½ Dá»± Ãn** | `workspace_prepare`| *"Má»Ÿ dá»± Ã¡n JARVIS", "Commit dá»± Ã¡n"* | Quáº£n lÃ½ dá»± Ã¡n láº­p trÃ¬nh, Git assistant vÃ  workspace |
+| 1 | 📰 **Briefing Sáng** | `briefing` | *"JARVIS, báo cáo sáng nay"* | Tổng hợp thời tiết, tin tức nổi bật và lịch trình |
+| 2 | 📝 **Ghi Chú Nhanh** | `note_taker` | *"Ghi chú: họp dự án lúc 3h chiều"* | Lưu trữ và tìm kiếm ghi chú toàn văn với SQLite FTS5 |
+| 3 | ⏱️ **Bộ Đếm Pomodoro** | `pomodoro` | *"Bắt đầu tập trung 25 phút"* | Đếm ngược chu kỳ làm việc, thông báo toast khi hoàn thành |
+| 4 | 💻 **Điều Khiển Hệ Thống**| `system_control`| *"Tăng âm lượng 20%", "Khóa máy tính"* | Điều chỉnh âm thanh, chụp màn hình, khóa máy Windows |
+| 5 | 🗂️ **Quản Lý File** | `file_manager` | *"Tìm file báo cáo doanh thu"* | Tìm kiếm và mở tập tin, thư mục theo ngôn ngữ tự nhiên |
+| 6 | 🧮 **Máy Tính Thông Minh**| `calculator` | *"Tính 15% của 5 triệu rưỡi"* | Tính toán biểu thức toán học và quy đổi tỷ giá/đơn vị |
+| 7 | 📋 **Quản Lý Clipboard** | `clipboard` | *"Đọc clipboard", "Sao chép: Xin chào"* | Đọc to nội dung clipboard hoặc lưu trữ lịch sử sao chép |
+| 8 | 🚀 **Mở Ứng Dụng** | `app_launcher` | *"Mở Google Chrome", "Mở VS Code"* | Fuzzy search tìm và khởi chạy phần mềm trên máy |
+| 9 | 👁️ **Phân Tích Màn Hình**| `screen_context`| *"Giải thích lỗi trên màn hình"* (`Ctrl+Shift+Space`) | Chụp ảnh màn hình và phân tích với Gemini Vision AI |
+| 10| ⏺️ **Ghi & Phát Macro** | `macro_recorder`| *"Ghi lại macro gửi email"* | Tự động hóa chuỗi thao tác bàn phím/chuột lặp lại |
+| 11| 🔊 **Sound Board** | `sound_board` | *"Phát âm thanh hoàn thành"* | Phát âm thanh phản hồi trạng thái vui nhộn |
+| 12| 🔍 **Tìm Ký Ức / Tài Liệu** | `rag_search` | *"Tuần trước tôi nói gì về dự án X?"* | Tìm kiếm từ khóa và ngữ cảnh (TF-IDF & Lexical Search) |
+| 13| 🧬 **Tự Viết Kỹ Năng** | `skill_synthesizer`| *"Tạo kỹ năng theo dõi giá vàng"* | Tự động viết code Python và nạp kỹ năng mới trong <15s |
+| 14| 🌙 **Night Planner** | `night_planner` | *"Tối nay phân tích các file log"* | Thực hiện tác vụ nặng ban đêm và báo cáo lúc sáng |
+| 15| 🏠 **Nhà Thông Minh** | `smart_home_discovery`| *"Quét thiết bị nhà thông minh"* | Quét mDNS và điều khiển Home Assistant / Tasmota |
+| 16| 🌐 **Điều Khiển Browser**| `browser_control`| *"Mở YouTube tìm bài hát Iron Man"* | Điều khiển trình duyệt Chrome qua Playwright CDP |
+| 17| 🔄 **Tự Cập Nhật** | `auto_updater` | *"Kiểm tra bản cập nhật mới"* | Tự động kiểm tra và nâng cấp phiên bản qua GitHub |
+| 18| 📂 **Quản Lý Dự Án** | `workspace_prepare`| *"Mở dự án JARVIS", "Commit dự án"* | Quản lý dự án lập trình, Git assistant và workspace |
 
 ---
 
-## âŒ¨ï¸ PhÃ­m Táº¯t ToÃ n Há»‡ Thá»‘ng
+## ⌨️ Phím Tắt Toàn Hệ Thống
 
-CÃ¡c phÃ­m táº¯t hoáº¡t Ä‘á»™ng toÃ n cáº§u trÃªn Windows (ngay cáº£ khi á»©ng dá»¥ng Ä‘ang cháº¡y áº©n á»Ÿ System Tray):
+Các phím tắt hoạt động toàn cầu trên Windows (ngay cả khi ứng dụng đang chạy ẩn ở System Tray):
 
-| PhÃ­m táº¯t | HÃ nh Ä‘á»™ng | Chi tiáº¿t |
+| Phím tắt | Hành động | Chi tiết |
 |---|---|---|
-| `Ctrl + Shift + J` | **Toggle Listening** | Báº­t / Táº¯t cháº¿ Ä‘á»™ láº¯ng nghe giá»ng nÃ³i |
-| `Ctrl + Shift + Space` | **PhÃ¢n tÃ­ch mÃ n hÃ¬nh** | Chá»¥p mÃ n hÃ¬nh vÃ  gá»­i Gemini Vision AI phÃ¢n tÃ­ch |
-| `Ctrl + Shift + L` | **KhÃ³a mÃ¡y tÃ­nh** | KhÃ³a mÃ n hÃ¬nh Windows (`LockWorkStation`) tá»©c thÃ¬ |
-| `Ctrl + Shift + M` | **Mute Microphone** | Táº¯t / Má»Ÿ nhanh microphone cá»§a JARVIS |
-| `Ctrl + Shift + B` | **Briefing SÃ¡ng** | Äá»c to báº£n tin tá»•ng há»£p buá»•i sÃ¡ng |
-| `Ctrl + Shift + S` | **Chá»¥p mÃ n hÃ¬nh** | LÆ°u áº£nh chá»¥p mÃ n hÃ¬nh cháº¥t lÆ°á»£ng cao ra Desktop |
+| `Ctrl + Shift + J` | **Toggle Listening** | Bật / Tắt chế độ lắng nghe giọng nói |
+| `Ctrl + Shift + Space` | **Phân tích màn hình** | Chụp màn hình và gửi Gemini Vision AI phân tích |
+| `Ctrl + Shift + L` | **Khóa máy tính** | Khóa màn hình Windows (`LockWorkStation`) tức thì |
+| `Ctrl + Shift + M` | **Mute Microphone** | Tắt / Mở nhanh microphone của JARVIS |
+| `Ctrl + Shift + B` | **Briefing Sáng** | Đọc to bản tin tổng hợp buổi sáng |
+| `Ctrl + Shift + S` | **Chụp màn hình** | Lưu ảnh chụp màn hình chất lượng cao ra Desktop |
 
 ---
 
-## ðŸ“± Äiá»u Khiá»ƒn Qua Äiá»‡n Thoáº¡i
+## 📱 Điều Khiển Qua Điện Thoại
 
 ### Telegram Bot
-1. Nháº¯n tin cho `@BotFather` trÃªn Telegram Ä‘á»ƒ táº¡o bot vÃ  láº¥y `TELEGRAM_BOT_TOKEN`.
-2. Äiá»n token vÃ  `TELEGRAM_CHAT_ID` vÃ o file `.env`.
-3. Gá»­i lá»‡nh `/start`, `/status`, `/briefing`, `/note`, `/screenshot` hoáº·c trÃ² chuyá»‡n báº±ng ngÃ´n ngá»¯ tá»± nhiÃªn tá»« báº¥t ká»³ Ä‘Ã¢u!
+1. Nhắn tin cho `@BotFather` trên Telegram để tạo bot và lấy `TELEGRAM_BOT_TOKEN`.
+2. Điền token và `TELEGRAM_CHAT_ID` vào file `.env`.
+3. Gửi lệnh `/start`, `/status`, `/briefing`, `/note`, `/screenshot` hoặc trò chuyện bằng ngôn ngữ tự nhiên từ bất kỳ đâu!
 
 ### Zalo Official Account & Discord Bot
-- Há»— trá»£ webhook 2 chiá»u qua cá»•ng `8765` cho Zalo OA.
-- TÃ­ch há»£p Discord Bot qua `DISCORD_BOT_TOKEN` Ä‘á»ƒ Ä‘iá»u khiá»ƒn mÃ¡y tÃ­nh qua channel Discord riÃªng tÆ°.
+- Hỗ trợ webhook 2 chiều qua cổng `8765` cho Zalo OA.
+- Tích hợp Discord Bot qua `DISCORD_BOT_TOKEN` để điều khiển máy tính qua channel Discord riêng tư.
 
 ---
 
-## ðŸ—ï¸ Kiáº¿n TrÃºc Giá»ng NÃ³i & Tá»± Trá»‹ (Architecture)
+## 🏗️ Kiến Trúc Giọng Nói & Tự Trị (Architecture)
 
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚                              INPUT LAYER                               â”‚
-â”‚  ðŸŽ™ï¸ Voice (VAD RMS/WebRTC)  ðŸ“± Telegram  ðŸ’¬ Discord  ðŸ“ž Zalo OA        â”‚
-â”‚  âŒ¨ï¸ Global Win32 Hotkeys   ðŸ‘ï¸ Screen Context Vision                   â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                                    â”‚
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚                         INTELLIGENCE ROUTER                            â”‚
-â”‚  Layer 1: Regex Fast-Path (20+ VN patterns, zero-latency, 0 token)     â”‚
-â”‚  Layer 2: Rule Engine Greedy Matcher (Workspace, System, Media, App)   â”‚
-â”‚  Layer 3: Gemini 1.5 Flash / Pro LLM Fallback                          â”‚
-â”‚  Layer 4: Autonomous ReAct Engine (Think âž” Act âž” Observe âž” Reflect)    â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                                    â”‚
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚                           CORE SKILLS (18+)                            â”‚
-â”‚  briefing Â· note_taker Â· pomodoro Â· system_control Â· file_manager       â”‚
-â”‚  calculator Â· clipboard Â· app_launcher Â· screen_context Â· macro_rec    â”‚
-â”‚  rag_search Â· skill_synthesizer Â· night_planner Â· smart_home           â”‚
-â”‚  browser_control Â· auto_updater Â· project_manager Â· git_assistant      â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                                    â”‚
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚                       OUTPUT & EXECUTION LAYER                         â”‚
-â”‚  ðŸ—£ï¸ Piper TTS / ElevenLabs (<80ms)    ðŸ”” Windows Notification Toast     â”‚
-â”‚  ðŸªŸ Silent Subprocess Manager (No-Flash) ðŸ’¾ SQLite FTS5 Memory         â”‚
-â”‚  ðŸŒ Playwright CDP Automation          ðŸ“Š Health Diagnostics           â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌────────────────────────────────────────────────────────────────────────┐
+│                              INPUT LAYER                               │
+│  🎙️ Voice (VAD RMS/WebRTC)  📱 Telegram  💬 Discord  📞 Zalo OA        │
+│  ⌨️ Global Win32 Hotkeys   👁️ Screen Context Vision                   │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                         INTELLIGENCE ROUTER                            │
+│  Layer 1: Regex Fast-Path (20+ VN patterns, zero-latency, 0 token)     │
+│  Layer 2: Rule Engine Greedy Matcher (Workspace, System, Media, App)   │
+│  Layer 3: Gemini 1.5 Flash / Pro LLM Fallback                          │
+│  Layer 4: Autonomous ReAct Engine (Think ➔ Act ➔ Observe ➔ Reflect)    │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                           CORE SKILLS (18+)                            │
+│  briefing · note_taker · pomodoro · system_control · file_manager       │
+│  calculator · clipboard · app_launcher · screen_context · macro_rec    │
+│  rag_search · skill_synthesizer · night_planner · smart_home           │
+│  browser_control · auto_updater · project_manager · git_assistant      │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│                       OUTPUT & EXECUTION LAYER                         │
+│  🗣️ Piper TTS / ElevenLabs (<80ms)    🔔 Windows Notification Toast     │
+│  🪟 Silent Subprocess Manager (No-Flash) 💾 SQLite FTS5 Memory         │
+│  🌐 Playwright CDP Automation          📊 Health Diagnostics           │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## ðŸ”’ MÃ´ HÃ¬nh Báº£o Máº­t (Security Model)
+## 🔒 Mô Hình Bảo Mật (Security Model)
 
-- **Cháº¡y Ngáº§m TÄ©nh Láº·ng (No Console Flash):** ToÃ n bá»™ cÃ¡c tiáº¿n trÃ¬nh subprocess/PowerShell/CMD Ä‘Æ°á»£c spawn Ä‘á»u cháº¡y áº©n hoÃ n toÃ n (`CREATE_NO_WINDOW`), khÃ´ng giÃ¡n Ä‘oáº¡n tráº£i nghiá»‡m ngÆ°á»i dÃ¹ng.
-- **Báº£o Máº­t Bá»™ Nhá»› Cá»¥c Bá»™:** Dá»¯ liá»‡u ghi chÃº, kÃ½ á»©c vÃ  cáº¥u hÃ¬nh Ä‘Æ°á»£c lÆ°u cá»¥c bá»™ trÃªn mÃ¡y táº¡i `%LOCALAPPDATA%\JARVIS\` vÃ  thÆ° má»¥c ngÆ°á»i dÃ¹ng `~/.jarvis/`.
-- **An ToÃ n MÃ£ Nguá»“n:** TÃ­nh nÄƒng tá»± táº¡o ká»¹ nÄƒng (Self-Coding) Ä‘Æ°á»£c kiá»ƒm tra cÃº phÃ¡p vÃ  cháº¡y thá»­ nghiá»‡m trong sandbox an toÃ n trÆ°á»›c khi tÃ­ch há»£p vÃ o há»‡ thá»‘ng.
+- **Chạy Ngầm Tĩnh Lặng (No Console Flash):** Toàn bộ các tiến trình subprocess/PowerShell/CMD được spawn đều chạy ẩn hoàn toàn (`CREATE_NO_WINDOW`), không gián đoạn trải nghiệm người dùng.
+- **Bảo Mật Bộ Nhớ Cục Bộ:** Dữ liệu ghi chú, ký ức và cấu hình được lưu cục bộ trên máy tại `%LOCALAPPDATA%\JARVIS\` và thư mục người dùng `~/.jarvis/`.
+- **An Toàn Mã Nguồn:** Tính năng tự tạo kỹ năng (Self-Coding) được kiểm tra cú pháp và chạy thử nghiệm trong sandbox an toàn trước khi tích hợp vào hệ thống.
 
-**Ghi chÃº báº£o trÃ¬ gáº§n Ä‘Ã¢y nháº¥t (sau v4.7.0, khÃ´ng Ä‘á»•i phiÃªn báº£n runtime):**
-- Tá»± phá»¥c há»“i há»‡ thá»‘ng (Self-Healing) giá» chá»‰ bÃ¡o thÃ nh cÃ´ng sau khi viá»‡c cháº¥m dá»©t tiáº¿n trÃ¬nh Ä‘Ã£ Ä‘Æ°á»£c **xÃ¡c nháº­n thá»±c sá»± xáº£y ra** â€” khÃ´ng cÃ²n tá»± nháº­n thÃ nh cÃ´ng chá»‰ vÃ¬ lá»‡nh cháº¥m dá»©t Ä‘Æ°á»£c gá»i.
-- RAM Ä‘Ã£ giáº£i phÃ³ng khÃ´ng bao giá» bá»‹ bá»‹a Ä‘áº·t â€” chá»‰ bÃ¡o cÃ¡o tá»« phÃ©p Ä‘o trÆ°á»›c/sau thá»±c táº¿, bá» qua khi khÃ´ng Ä‘o Ä‘Æ°á»£c.
-- Test wake-word Whisper trÃªn CI Ä‘Ã£ Ä‘Æ°á»£c lÃ m táº¥t Ä‘á»‹nh giá»¯a cÃ¡c mÃ´i trÆ°á»ng cÃ³/khÃ´ng cÃ i `faster-whisper` â€” **khÃ´ng** thay Ä‘á»•i hÃ nh vi wake-word tháº­t khi cháº¡y production.
-- Káº¿t quáº£ tháº¥t báº¡i cá»§a má»™t lá»‡nh giá» Ä‘Æ°á»£c lan truyá»n trung thá»±c xuyÃªn suá»‘t há»‡ thá»‘ng â€” tá»« hÃ nh Ä‘á»™ng thá»±c thi, qua bá»™ Ä‘iá»u phá»‘i hÃ nh Ä‘á»™ng, Ä‘áº¿n pháº£n há»“i hiá»ƒn thá»‹ cho ngÆ°á»i dÃ¹ng, nháº­t kÃ½ tÆ°Æ¡ng tÃ¡c vÃ  bá»™ nhá»› â€” khÃ´ng cÃ²n trÆ°á»ng há»£p má»™t lá»‡nh tháº¥t báº¡i bá»‹ bÃ¡o cÃ¡o nháº§m thÃ nh cÃ´ng.
+**Ghi chú bảo trì gần đây nhất (sau v4.7.0, không đổi phiên bản runtime):**
+- Tự phục hồi hệ thống (Self-Healing) giờ chỉ báo thành công sau khi việc chấm dứt tiến trình đã được **xác nhận thực sự xảy ra** — không còn tự nhận thành công chỉ vì lệnh chấm dứt được gọi.
+- RAM đã giải phóng không bao giờ bị bịa đặt — chỉ báo cáo từ phép đo trước/sau thực tế, bỏ qua khi không đo được.
+- Test wake-word Whisper trên CI đã được làm tất định giữa các môi trường có/không cài `faster-whisper` — **không** thay đổi hành vi wake-word thật khi chạy production.
+- Kết quả thất bại của một lệnh giờ được lan truyền trung thực xuyên suốt hệ thống — từ hành động thực thi, qua bộ điều phối hành động, đến phản hồi hiển thị cho người dùng, nhật ký tương tác và bộ nhớ — không còn trường hợp một lệnh thất bại bị báo cáo nhầm thành công.
 
 ---
 
-## ðŸ“„ Giáº¥y PhÃ©p & TÃ¡c Giáº£
+## 📄 Giấy Phép & Tác Giả
 
-Dá»± Ã¡n Ä‘Æ°á»£c phÃ¡t hÃ nh theo giáº¥y phÃ©p **MIT License**. Xem file [LICENSE](LICENSE) Ä‘á»ƒ biáº¿t thÃªm chi tiáº¿t.
+Dự án được phát hành theo giấy phép **MIT License**. Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
 
-- **TÃ¡c giáº£:** Duong Phuoc Hung
+- **Tác giả:** Duong Phuoc Hung
 - **GitHub:** [@Duong-Phuoc-Hung](https://github.com/Duong-Phuoc-Hung)
 - **Repository:** [https://github.com/Duong-Phuoc-Hung/JARVIS](https://github.com/Duong-Phuoc-Hung/JARVIS)
 
 <div align="center">
 
-*PhÃ¡t triá»ƒn vá»›i táº¥t cáº£ Ä‘am mÃª vÃ  sá»± táº­n tÃ¢m dÃ nh cho cá»™ng Ä‘á»“ng cÃ´ng nghá»‡ Windows & AI Assistant!* ðŸš€
+*Phát triển với tất cả đam mê và sự tận tâm dành cho cộng đồng công nghệ Windows & AI Assistant!* 🚀
 
-[â­ Star Dá»± Ãn](https://github.com/Duong-Phuoc-Hung/JARVIS) Â· [ðŸ› BÃ¡o Lá»—i / ÄÃ³ng GÃ³p](https://github.com/Duong-Phuoc-Hung/JARVIS/issues) Â· [ðŸ“¦ Táº£i Báº£n PhÃ¡t HÃ nh](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
+[⭐ Star Dự Án](https://github.com/Duong-Phuoc-Hung/JARVIS) · [🐛 Báo Lỗi / Đóng Góp](https://github.com/Duong-Phuoc-Hung/JARVIS/issues) · [📦 Tải Bản Phát Hành](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 
 </div>
 
