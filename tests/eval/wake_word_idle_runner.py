@@ -35,17 +35,20 @@ def run_idle_evaluation(duration_seconds: float, threshold: float = 0.5, out_pat
         return {"error": "MISSING_DEPENDENCY", "detail": str(e)}
 
     from jarvis.audio.engine import AudioEngine
-    from jarvis.stt.wake_word import WakeWordDetector
+    from jarvis.audio.wake_word import WakeWordDetector
 
     engine = AudioEngine()
-    device_idx = engine.get_active_input_device()
+    device_idx = engine.get_active_device()
+    # None means use system default input device — valid for sounddevice
+    if device_idx is None:
+        logger.info("  Active device: system default (None)")
 
     logger.info(f"Starting Wake-Word Idle Soak Test:")
     logger.info(f"  Duration: {duration_seconds:.1f}s ({duration_seconds/60:.1f} minutes)")
     logger.info(f"  Active Device Index: {device_idx}")
     logger.info(f"  Sensitivity Threshold: {threshold}")
 
-    detector = WakeWordDetector(threshold=threshold)
+    detector = WakeWordDetector(vad_threshold=threshold)
     false_triggers = []
     start_time = time.time()
     last_heartbeat = start_time
@@ -68,7 +71,7 @@ def run_idle_evaluation(duration_seconds: float, threshold: float = 0.5, out_pat
                     logger.warning("Audio buffer overflowed during idle listen")
 
                 audio_chunk = data.flatten()
-                detected = detector.process_chunk(audio_chunk)
+                detected = detector.process_audio_block(audio_chunk)
                 if detected:
                     elapsed = time.time() - start_time
                     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")

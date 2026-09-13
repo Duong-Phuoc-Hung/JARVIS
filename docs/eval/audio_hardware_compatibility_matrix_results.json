@@ -1,0 +1,118 @@
+{
+  "test_date": "2026-09-13T23:14:39",
+  "sample_rate_hz": 16000,
+  "duration_per_device_s": 2.0,
+  "total_tested": 11,
+  "total_pass": 3,
+  "total_fail": 8,
+  "results": [
+    {
+      "device_idx": 1,
+      "name": "Microphone Array (Realtek(R) Au",
+      "category": "Array Microphone (Realtek)",
+      "sample_rate": 16000,
+      "duration_s": 2.0,
+      "peak_amplitude": 5697.0,
+      "rms": 803.0245,
+      "signal_detected": true,
+      "status": "TIER1_PASS",
+      "note": "Audio stream opened successfully at 16kHz; signal present"
+    },
+    {
+      "device_idx": 2,
+      "name": "Microphone (Camo)",
+      "category": "Virtual/USB (Camo - iPhone)",
+      "sample_rate": 16000,
+      "duration_s": 2.0,
+      "peak_amplitude": 1.0,
+      "rms": 0.4791,
+      "signal_detected": false,
+      "status": "TIER1_PASS_SILENT",
+      "note": "Audio stream opened successfully at 16kHz; stream silent (no input signal)"
+    },
+    {
+      "device_idx": 9,
+      "name": "Microphone (Camo)",
+      "category": "Virtual/USB (Camo - iPhone)",
+      "sample_rate": 16000,
+      "duration_s": 2.0,
+      "peak_amplitude": 0.0,
+      "rms": 0.0,
+      "signal_detected": false,
+      "status": "TIER1_PASS_SILENT",
+      "note": "Audio stream opened successfully at 16kHz; stream silent (no input signal)"
+    },
+    {
+      "device_idx": 18,
+      "name": "Microphone (Camo)",
+      "category": "Virtual/USB (Camo - iPhone)",
+      "sample_rate": 16000,
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Invalid sample rate [PaErrorCode -9997]",
+      "note": "Device failed to open at 16kHz"
+    },
+    {
+      "device_idx": 20,
+      "name": "Headset (@System32\\drivers\\bthhfenum.sys,#2;%1 Hands-Free%0\r\n;(LY-Z5202))",
+      "category": "Bluetooth Headset (LY-Z5202)",
+      "sample_rate": 16000,
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocking API not supported yet' [Windows WDM-KS error -9999]",
+      "note": "Device failed to open at 16kHz"
+    },
+    {
+      "device_idx": 23,
+      "name": "Microphone (Realtek HD Audio Mic input)",
+      "category": "Built-in Mic (Realtek HD)",
+      "sample_rate": 16000,
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocking API not supported yet' [Windows WDM-KS error -9999]",
+      "note": "Device failed to open at 16kHz"
+    },
+    {
+      "device_idx": 24,
+      "name": "Stereo Mix (Realtek HD Audio Stereo input)",
+      "category": "Built-in (Realtek)",
+      "sample_rate": 16000,
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocking API not supported yet' [Windows WDM-KS error -9999]",
+      "note": "Device failed to open at 16kHz"
+    },
+    {
+      "device_idx": 27,
+      "name": "Input ()",
+      "category": "USB Audio Interface (unknown)",
+      "sample_rate": 16000,
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocking API not supported yet' [Windows WDM-KS error -9999]",
+      "note": "Device failed to open at 16kHz"
+    },
+    {
+      "device_idx": 33,
+      "name": "Headset (@System32\\drivers\\bthhfenum.sys,#2;%1 Hands-Free%0\r\n;(AirPods Pro))",
+      "category": "Bluetooth TWS (AirPods Pro)",
+      "sample_rate": 16000,
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocking API not supported yet' [Windows WDM-KS error -9999]",
+      "note": "Device failed to open at 16kHz"
+    },
+    {
+      "device_idx": 35,
+      "name": "Microphone (Camo)",
+      "category": "Virtual/USB (Camo - iPhone)",
+      "sample_rate": 16000,
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocking API not supported yet' [Windows WDM-KS error -9999]",
+      "note": "Device failed to open at 16kHz"
+    },
+    {
+      "device_idx": 38,
+      "name": "Headset (@System32\\drivers\\bthhfenum.sys,#2;%1 Hands-Free%0\r\n;(AirPods của Phước Hưng))",
+      "category": "Bluetooth TWS (AirPods Pro)",
+      "sample_rate": 16000,
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocking API not supported yet' [Windows WDM-KS error -9999]",
+      "note": "Device failed to open at 16kHz"
+    }
+  ]
+}

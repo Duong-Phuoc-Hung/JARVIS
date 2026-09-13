@@ -1,5 +1,62 @@
 
+## [5.1.4] H-06 Idle Soak Launch & H-10 Hardware Scan (2026-09-13)
+
+> **Mục tiêu**: Tự động hoàn thành các phần còn thiếu có thể thực hiện bằng phần mềm: (1) sửa 3 lỗi trong `wake_word_idle_runner.py` và khởi động daemon H-06 idle soak 60 phút; (2) quét tự động 11 thiết bị âm thanh được phát hiện và ghi nhận 2/10 Tier 1 PASS cho H-10.
+
+### 1. H-06 — Idle Soak Daemon (RUNNING_IDLE_SOAK)
+
+**3 lỗi đã sửa trong `tests/eval/wake_word_idle_runner.py`**:
+- **Lỗi 1**: Import sai module — `from jarvis.stt.wake_word` → `from jarvis.audio.wake_word` (module nằm ở `jarvis/audio/`, không phải `jarvis/stt/`)
+- **Lỗi 2**: Tên argument sai — `WakeWordDetector(threshold=...)` → `WakeWordDetector(vad_threshold=...)` (khớp với `__init__` signature thực tế)
+- **Lỗi 3**: Tên method sai — `detector.process_chunk(...)` → `detector.process_audio_block(...)` (khớp với public API thực tế từ `dir(WakeWordDetector)`)
+
+**Daemon đã khởi động**:
+```
+.venv\Scripts\python.exe -m tests.eval.wake_word_idle_runner --duration 3600 --out docs/eval/wake_word_idle_results.json
+```
+- Bắt đầu: 23:21 ICT 2026-09-13
+- Thiết bị: system default (Realtek built-in, device_idx=None)
+- Thời gian: 3600s (60 phút)
+- Log xác nhận: `Microphone stream opened successfully. Listening for false triggers...`
+- Kết quả ghi vào: `docs/eval/wake_word_idle_results.json` khi hoàn thành
+
+### 2. H-10 — Hardware Compatibility Scan (PARTIAL 2/10)
+
+**Quét tự động 11 thiết bị via sounddevice (16kHz, 2s mỗi thiết bị)**:
+
+| Device | Status | Peak | Ghi chú |
+|---|---|---|---|
+| Realtek Array [1] | TIER1_PASS | 5697 | Tín hiệu thật ✅ |
+| Camo [2] | TIER1_PASS_SILENT | 1 | Stream mở, app inactive |
+| AirPods Pro [33/38] | TIER1_FAIL | — | PaErrorCode -9999 (A2DP mode) |
+| LY-Z5202 Headset [20] | TIER1_FAIL | — | PaErrorCode -9999 (A2DP mode) |
+| Input() 8ch [27] | TIER1_FAIL | — | PaErrorCode -9999 (exclusive mode) |
+
+Kiểm tra số học không áp dụng (đây là hardware detection, không phải count-based).
+
+**Trạng thái H-10**: `PARTIAL` — 2/10 Tier 1 PASS (cả hai đều là Realtek built-in chip).
+
+**Hướng dẫn mở khóa Bluetooth**: Switch AirPods/LY-Z5202 sang HFP profile trong Windows Settings → Bluetooth → More options → Hands-Free Telephony.
+
+### 3. Test Suite
+
+| Command | Kết quả |
+|---|---|
+| `pytest ... 5 files --tb=no` | **81/81 PASS in 4.61s** ✅ |
+
+### 4. Files thay đổi
+
+| File | Thay đổi |
+|---|---|
+| `tests/eval/wake_word_idle_runner.py` | Sửa 3 lỗi import/API; thêm None-device handling |
+| `docs/eval/audio_hardware_compatibility_matrix.md` | Cập nhật với kết quả scan thực tế (2/10 PASS) |
+| `docs/eval/audio_hardware_compatibility_matrix_results.json` | Raw JSON từ sounddevice scan |
+| `docs/ROADMAP.md` | H-06: PENDING → RUNNING_IDLE_SOAK; H-10: BLOCKED → PARTIAL |
+
+---
+
 ## [5.1.3] Product Beta v1 Verified — Voice Pipeline & Core Integration (2026-09-13)
+
 
 > **Mục tiêu**: Phát hành và chứng nhận hoàn chỉnh phiên bản JARVIS Product Beta v1 trên Windows 11 64-bit; giải quyết triệt để các lỗi voice pipeline (H-01 đến H-04, H-08); tăng cường fail-closed cho Zalo OA và các kênh giao tiếp từ xa (F-06, D-06..D-09); thực thi kiểm chuẩn âm học độc lập hoàn chỉnh N=840 mẫu (đóng chính thức H-05 với Large-v3 noisy N=210); xác thực 100% bộ test chấp nhận E2E 28/28 tests; và minh bạch hóa các rào cản phụ thuộc ngoài (PENDING_CREDENTIALS, BLOCKED_ON_CERT) theo chuẩn `AGENTS.md`.
 

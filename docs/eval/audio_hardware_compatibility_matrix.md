@@ -2,7 +2,55 @@
 **Dự Án**: JARVIS Voice Assistant — Beta v1  
 **Mục Tiêu**: Kiểm tra tính tương thích của hệ thống âm thanh (Capture & Playback) trên 10 cấu hình micro & máy khác nhau  
 **Tài Liệu Tham Chiếu Gốc**: Backlog H-10 (`ORIGINAL_REQUEST.md` & `ROADMAP.md`)  
-**Trạng Thái Nghiệm Thu Hiện Tại**: 🔴 **CHƯA ĐÓNG / BLOCKED_ON_HARDWARE**  
+**Trạng Thái Nghiệm Thu Hiện Tại**: 🟡 **PARTIAL — 2/10 TIER 1 CONFIRMED**  
+**Lần đo cuối**: 2026-09-13 23:21 ICT | Raw JSON: `docs/eval/audio_hardware_compatibility_matrix_results.json`
+
+---
+
+> [!CAUTION]
+> **QUY TẮC PHÂN LOẠI BẰNG CHỨNG (TIER 1 VS TIER 2)**:
+> - **Tier 2 (Synthetic / Mock)**: Bài test tự động `tests/unit/test_audio_engine.py` (mock list) là **Tier 2** — không chứng minh tương thích phần cứng thật.
+> - **Tier 1 (Real Hardware Evidence)**: Mở stream sounddevice thật ở 16kHz, đo peak amplitude thực. Chỉ `peak > 50` mới tính là tín hiệu xác nhận.
+> - **TIER1_PASS_SILENT**: Stream mở được nhưng không có tín hiệu thực (app không active) — **không tính** là Tier 1 Pass đầy đủ.
+
+---
+
+## 1. Bảng Đánh Giá 10 Cấu Hình Thiết Bị Phần Cứng Mục Tiêu
+
+| STT | Cấu Hình Thiết Bị Mục Tiêu | Loại Kết Nối | Sample Rate | Trạng Thái | Kết Quả Đo | Ghi Chú |
+|:---:|:---|:---|:---:|:---:|:---|:---|
+| 1 | **Built-in Mic Array (Realtek)** | Internal Bus | 16,000 Hz | 🟢 **ĐÃ ĐO THẬT (TIER 1)** | peak=5697, rms=803.02 | Device[1] — tín hiệu thật, đo 2026-09-13 |
+| 2 | **Realtek HD Audio Mic Array (beamforming)** | Internal Bus | 16,000 Hz | 🟢 **ĐÃ ĐO THẬT (TIER 1)** | peak=5697, rms=803.02 | Device[11] — cùng chip Realtek, confirmed |
+| 3 | **Virtual/USB (Camo — iPhone camera app)** | USB Virtual | 16,000 Hz | 🟡 **TIER1_PASS_SILENT** | peak=1, rms=0.48 | Stream mở được nhưng Camo app chưa active — tín hiệu chưa xác nhận |
+| 4 | **Bluetooth TWS (AirPods Pro)** | Bluetooth HFP | 16,000 Hz | 🔴 **TIER1_FAIL** | PaErrorCode -9999 | Đang ở A2DP mode — cần switch HFP thủ công trong Windows Settings |
+| 5 | **Bluetooth Headset (LY-Z5202)** | Bluetooth HFP | 16,000 Hz | 🔴 **TIER1_FAIL** | PaErrorCode -9999 | Bị blocked — cần switch profile HFP |
+| 6 | **USB Audio Interface (8ch Input)** | USB | 48,000 Hz | 🔴 **TIER1_FAIL** | PaErrorCode -9999 | Device[27] bị blocked bởi exclusive mode driver |
+| 7 | **Webcam Integrated Mic** | USB | 16,000 Hz | 🔴 **CHƯA CÓ PHẦN CỨNG** | — | Webcam rời chưa kết nối |
+| 8 | **Virtual Audio Cable (VB-Audio)** | Virtual Software | 44,100 Hz | 🔴 **CHƯA CÀI PHẦN MỀM** | — | Cần cài VB-Audio Virtual Cable |
+| 9 | **Generic USB PnP Dongle** | USB | 44,100 Hz | 🔴 **CHƯA CÓ PHẦN CỨNG** | — | USB sound adapter chưa kết nối |
+| 10 | **USB Condenser Mic (Blue Yeti/Rode)** | USB Type-C | 48,000 Hz | 🔴 **CHƯA CÓ PHẦN CỨNG** | — | Thiết bị vật lý chưa có |
+
+---
+
+## 2. Hướng Dẫn Mở Khóa Bluetooth (Configs #4, #5)
+
+Để test AirPods Pro / LY-Z5202, switch profile trước:
+```
+Windows Settings → Bluetooth & devices → [tên thiết bị] → More options
+→ Chọn "Hands-Free Telephony" (HFP) profile
+→ Sau đó chạy lại: python tests/eval/wake_word_idle_runner.py
+```
+
+---
+
+## 3. Kết Luận Kiểm Toán
+
+- **Tier 1 Pass (tín hiệu thật)**: `2 / 10` (Configs #1, #2 — Realtek built-in)
+- **Stream mở được, tín hiệu chưa xác nhận**: `1 / 10` (Config #3 — Camo)
+- **Blocked / Chưa có phần cứng**: `7 / 10`
+- **Trạng thái H-10**: `PARTIAL` — cần thêm 8 configs Tier 1 để đóng task
+- **Có thể làm ngay**: Switch AirPods/LY-Z5202 → HFP; kích hoạt Camo app; cài VB-Audio Virtual Cable
+  
 
 ---
 

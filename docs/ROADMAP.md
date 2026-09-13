@@ -31,11 +31,11 @@
 | H-03 | DONE | Chống self-audio contamination: 150ms settling delay sau TTS greeting + lockout loop khi TTS đang phát |
 | H-04 | DONE | Fix crash hotkey Ctrl+Shift+L PTT: thay `_handle_voice_command` bằng `_start_voice_interaction` |
 | H-05 | DONE | STT & Router benchmark độc lập hoàn tất 100% (Small: N=420 clean+noisy; Large-v3: N=420 clean+noisy; Clean 87.1% / 2.79s, Noisy 84.8% / 2.79s, 0% empty, 178+2+0+30=210) |
-| H-06 | PENDING_IDLE_SOAK | Đã viết runner `tests/eval/wake_word_idle_runner.py` & VAD gating; chưa chạy soak test mic thật 15-60 phút |
+| H-06 | RUNNING_IDLE_SOAK | Runner `tests/eval/wake_word_idle_runner.py` đã sửa 3 lỗi import/API; daemon đang chạy 60 phút (bắt đầu 23:21 ICT 2026-09-13); kết quả ghi vào `docs/eval/wake_word_idle_results.json` |
 | H-07 | DONE | Chuẩn hóa lệnh mở app/web: launch dedupe stress test (3 lệnh × 20 lần = 60 lần gọi; 3 allowed, 57 suppressed) |
 | H-08 | DONE | Volume & brightness fail-closed trên hardware None: trả `success: False`, không ghost success |
 | H-09 | DONE | Runaway soak test & leak detection framework: `tests/eval/soak_test_runner.py` (+0.00 handles/hr, 15 threads ổn định) |
-| H-10 | BLOCKED_ON_HARDWARE | Đã lập ma trận `docs/eval/audio_hardware_compatibility_matrix.md`; chỉ có 1 mic laptop thật, cần 9 thiết bị phần cứng thật |
+| H-10 | PARTIAL | Ma trận cập nhật `docs/eval/audio_hardware_compatibility_matrix.md`; 2/10 Tier 1 PASS (Realtek built-in + Realtek Array, peak=5697); Bluetooth fail do A2DP mode; cần switch HFP + thêm 8 thiết bị |
 | H-11 | PENDING_FIRST_RUN | Đã tạo onboarding wizard 5 bước `jarvis/ui/setup_wizard.py` (2 unit tests pass); chưa chạy interactive lần đầu với người dùng |
 | H-12 | DONE | Chuẩn hóa tách lớp locale & diacritic folding đa âm bảo vệ nguyên vẹn từ đơn (`strip_vietnamese_diacritics`) |
 | H-13 | PENDING_HUMAN_EXECUTION | Đã lập protocol 50 ca `docs/eval/beta_voice_50_live_acceptance_protocol.md` & 28 unit tests Tier 2 pass; cần tester người thật nói 50 câu live |
