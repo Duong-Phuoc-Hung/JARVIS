@@ -111,3 +111,48 @@ class TestWebhook:
         assert bot._running is True
         bot.stop_webhook()
         assert bot._running is False
+
+
+class TestFailClosed:
+    """P0-B: Verify Zalo fail-closed behavior when access_token is absent.
+
+    Guards against fabrication: send_message MUST NOT return success=True
+    without credentials (AGENTS.md Anti-Fabrication Principle).
+    """
+
+    def test_send_message_not_configured_when_token_empty(self, bot_unconfigured):
+        """send_message() must return NOT_CONFIGURED error when access_token is empty."""
+        result = bot_unconfigured.send_message("user_123", "Hello JARVIS")
+        assert isinstance(result, ZaloSendResult), "Expected ZaloSendResult dataclass"
+        assert result.success is False, (
+            "FABRICATION: send_message returned success=True without access_token"
+        )
+        assert "NOT_CONFIGURED" in result.error, (
+            f"Expected 'NOT_CONFIGURED' in error, got: {result.error!r}"
+        )
+
+    def test_send_message_no_fabricated_success_on_network_error(self):
+        """send_message() must fail-closed on network error, never return success=True."""
+        from unittest.mock import patch
+        from urllib.error import URLError
+
+        cfg = ZaloConfig(
+            access_token="fake_token_for_test",
+            whitelist_user_ids=["u1"],
+        )
+        bot = ZaloBotController(config=cfg, is_mock=False)
+
+        with patch("urllib.request.urlopen", side_effect=URLError("Connection refused")):
+            result = bot.send_message("u1", "Test message")
+
+        assert result.success is False, (
+            "FABRICATION: send_message returned success=True despite network URLError"
+        )
+
+    def test_broadcast_empty_when_no_whitelist(self, bot_unconfigured):
+        """broadcast() with empty whitelist must return [], not fabricate sends."""
+        results = bot_unconfigured.broadcast("Test broadcast")
+        assert results == [], (
+            f"Expected empty list when no users configured, got: {results}"
+        )
+

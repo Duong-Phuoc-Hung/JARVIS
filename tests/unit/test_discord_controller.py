@@ -263,3 +263,43 @@ class TestDiscordSlashCommandsAndRichEmbeds:
         assert "429" in str(res3["status"]) or "quá nhiều yêu cầu" in res3["text"].lower() or "⏳" in res3["text"]
         assert res3.get("retry_after") == 2.5
 
+
+class TestFailClosed:
+    """P0-C: Verify Discord fail-closed behavior when bot_token is absent.
+
+    send_message() MUST return NOT_CONFIGURED error_code, never success=True,
+    when bot_token is empty (AGENTS.md Anti-Fabrication Principle, D-08).
+    """
+
+    def test_send_message_not_configured_when_token_empty(self, bot_unconfigured):
+        """send_message() returns NOT_CONFIGURED when bot_token is empty string."""
+        result = bot_unconfigured.send_message(99, "Hello from JARVIS")
+        assert result["success"] is False, (
+            "FABRICATION: send_message returned success=True without bot_token"
+        )
+        assert result.get("error_code") == "NOT_CONFIGURED", (
+            f"Expected error_code='NOT_CONFIGURED', got: {result.get('error_code')!r}"
+        )
+        assert "NOT sent" in result.get("description", ""), (
+            f"Expected explicit 'NOT sent' in description, got: {result.get('description')!r}"
+        )
+
+    def test_send_file_not_configured_when_token_empty(self, bot_unconfigured):
+        """send_file() returns NOT_CONFIGURED when bot_token is empty string."""
+        result = bot_unconfigured.send_file(99, b"data", "test.png", "caption")
+        assert result["success"] is False, (
+            "FABRICATION: send_file returned success=True without bot_token"
+        )
+        assert result.get("error_code") == "NOT_CONFIGURED", (
+            f"Expected error_code='NOT_CONFIGURED', got: {result.get('error_code')!r}"
+        )
+
+    def test_send_message_logs_message_even_when_not_configured(self, bot_unconfigured):
+        """send_message() must append to sent_messages log (audit trail) even when unconfigured."""
+        initial_count = len(bot_unconfigured.sent_messages)
+        bot_unconfigured.send_message(99, "Audit trail test")
+        assert len(bot_unconfigured.sent_messages) == initial_count + 1, (
+            "send_message must record to sent_messages audit log regardless of config"
+        )
+
+
