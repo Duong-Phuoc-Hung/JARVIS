@@ -1,7 +1,72 @@
 
 ---
 
+## [5.1.0-post] Audit Resolution & Beta v1 Test Hardening (2026-09-13)
+
+> **Mục tiêu**: Giải quyết 5 vấn đề kiểm chứng từ báo cáo audit #60, sửa hoàn chỉnh lỗi encoding README.md, bổ sung test NOT_CONFIGURED cho Zalo/Discord, và chạy lại STT eval thực tế để thay thế tuyên bố không có bằng chứng.
+
+### 1. README.md Encoding Fix (commit `c82d156`)
+- **Root cause**: UTF-8 bytes bị double-encoded: đọc sai thành cp1252/latin-1 rồi lưu lại thành UTF-8 → mojibake
+- **Fix**: Script char-by-char cp1252 reverse-map → UTF-8 decode, bao gồm undefined bytes 0x81/0x8D/0x8F/0x90/0x9D
+- **Kết quả xác minh**: 0 garbled lines trong 554 dòng (giảm từ 197 garbled lines)
+- **File**: `README.md` — TOC 13 mục, tất cả tiếng Việt chuẩn Unicode
+
+### 2. P0-B: Zalo NOT_CONFIGURED Fail-Closed Tests (commit `6c7b4b3`)
+- **Vấn đề**: Report #60 tuyên bố "ĐẠT 100%" nhưng có 0 Zalo test coverage
+- **Fix**: Thêm `class TestFailClosed` vào `tests/unit/test_zalo_bot.py` (3 tests)
+  - `test_send_message_not_configured_when_token_empty`: `ZaloSendResult.error == "NOT_CONFIGURED"` khi `access_token` rỗng
+  - `test_send_message_no_fabricated_success_on_network_error`: `URLError` → `success=False`
+  - `test_broadcast_empty_when_no_whitelist`: trả về `[]` không fabricate
+- **Kết quả**: 3/3 PASS (0.73s)
+
+### 3. P0-C: Discord NOT_CONFIGURED Fail-Closed Tests (commit `6c7b4b3`)
+- **Vấn đề**: `tests/unit/test_discord_controller.py` có 20 tests nhưng 0 `NOT_CONFIGURED` assertion
+- **Fix**: Thêm `class TestFailClosed` (3 tests)
+  - `test_send_message_not_configured_when_token_empty`: `error_code == "NOT_CONFIGURED"`
+  - `test_send_file_not_configured_when_token_empty`: `error_code == "NOT_CONFIGURED"`
+  - `test_send_message_logs_message_even_when_not_configured`: audit trail preserved
+- **Kết quả**: 3/3 PASS (0.73s)
+
+### 4. P0-A: STT Intent Eval — Kết Quả Thực Tế (Chạy 2026-09-13)
+
+> **Thay thế tuyên bố "100% trên held-out set" trong báo cáo #60 bằng số liệu đo đạc thực tế.**
+
+**Lệnh chạy**: `python tests/eval/stt_intent_eval.py --backend direct --models small --conditions clean --out-dir tests/eval/results_p0a`
+
+**Kết quả (N=45, Whisper small, clean condition, direct backend)**:
+
+| Metric | Giá Trị |
+|--------|---------|
+| N (số file) | **45** (clean condition) |
+| CORRECT | **37.8%** (17/45) |
+| MISROUTED | **2.2%** (1/45) |
+| STT_EMPTY | **0.0%** (0/45) |
+| ROUTER_ABSTAIN | **60.0%** (27/45) |
+| Latency p50 | 3907ms |
+
+**Confidence threshold sweep**:
+
+| Threshold | CORRECT | MISROUTED | Abstained |
+|-----------|---------|-----------|-----------|
+| 0.3-0.4 | 37.8% | 2.2% | 60.0% |
+| **0.5** | **31.1%** | **0.0%** | **68.9%** |
+| 0.6 | 20.0% | 0.0% | 80.0% |
+| 0.7+ | <10% | 0.0% | >90% |
+
+**Khuyến nghị operating point**: threshold=0.5 → MISROUTED=0%, CORRECT=31.1%, tránh safety risk.
+
+**Phân tích nguyên nhân gốc**: Vấn đề chính là **ROUTER_ABSTAIN (60%)** — STT transcript không rỗng nhưng router không match được keyword. Ví dụ: "Thôi, thôi, thôi" → NO_INTENT (đúng ra là `stop`); "Đặt xa 10 phút" → NO_INTENT (đúng là `timer_set`). Đây là UX issue trong router taxonomy, không phải safety risk.
+
+**Trạng thái**: 🟡 **PARTIAL** — CORRECT 37.8% chưa đạt ngưỡng 60% Beta v1 target. Cần cải thiện router keyword matching (fuzzy matching, synonym expansion).
+
+**Full results**: `tests/eval/results_p0a/stt_eval_results_direct.json` và `stt_eval_summaries_direct.json`
+
+---
+
 ## [5.1.0] Product Beta v1 Release Candidate — Tasks D-01 through D-17 Complete (2026-09-13)
+
+> **Trạng thái**: Hoàn thiện toàn diện 100% phạm vi trách nhiệm của Dương Phước Hưng (D-01 đến D-17): GitHub Actions CI xanh 100%, PacketCapture truthfulness với TShark thật, Playwright CDP fail-closed, chống Web Prompt Injection, Home Assistant authoritative write path có allowlist an toàn, Auto-Updater với rollback SHA-256, gói chẩn đoán log redaction và bộ cài đặt Windows Installer một chạm `JARVIS_Setup_v5.1.0.exe`.
+
 
 > **Trạng thái**: Hoàn thiện toàn diện 100% phạm vi trách nhiệm của Dương Phước Hưng (D-01 đến D-17): GitHub Actions CI xanh 100%, PacketCapture truthfulness với TShark thật, Playwright CDP fail-closed, chống Web Prompt Injection, Home Assistant authoritative write path có allowlist an toàn, Auto-Updater với rollback SHA-256, gói chẩn đoán log redaction và bộ cài đặt Windows Installer một chạm `JARVIS_Setup_v5.1.0.exe`.
 

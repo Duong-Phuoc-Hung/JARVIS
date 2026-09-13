@@ -1,0 +1,56 @@
+[
+  {
+    "model": "small",
+    "condition": "clean",
+    "backend": "direct",
+    "n_trials": 45,
+    "n_correct": 17,
+    "n_misrouted": 1,
+    "n_stt_empty": 0,
+    "n_router_abstain": 27,
+    "correct_rate": 0.37777777777777777,
+    "misrouting_rate": 0.022222222222222223,
+    "stt_empty_rate": 0.0,
+    "router_abstain_rate": 0.6,
+    "end_to_end_abstention_rate": 0.6,
+    "median_latency_ms": 3906.859799999893,
+    "mean_text_similarity": 0.08148148148148149,
+    "threshold_curve": {
+      "0.3": {
+        "correct": 0.37777777777777777,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.6
+      },
+      "0.4": {
+        "correct": 0.37777777777777777,
+        "misrouting": 0.022222222222222223,
+        "end_to_end_abstention": 0.6
+      },
+      "0.5": {
+        "correct": 0.3111111111111111,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.6888888888888889
+      },
+      "0.6": {
+        "correct": 0.2,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.8
+      },
+      "0.7": {
+        "correct": 0.08888888888888889,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 0.9111111111111111
+      },
+      "0.8": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 1.0
+      },
+      "0.9": {
+        "correct": 0.0,
+        "misrouting": 0.0,
+        "end_to_end_abstention": 1.0
+      }
+    }
+  }
+]
