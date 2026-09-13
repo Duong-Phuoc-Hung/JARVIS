@@ -64,6 +64,8 @@ Desktop.ini
 # Teamwork agent workspaces
 .agents/teamwork_preview_*/
 .agents/victory_auditor_*/
+.agents/worker_*/
+.agents/auditor_*/
 
 # Local downloads/test output
 downloads/
