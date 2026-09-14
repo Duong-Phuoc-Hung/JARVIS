@@ -8,7 +8,8 @@ Evaluates:
   1. Combinatorial configurations of audio.sample_rate vs stt.sample_rate vs explicit argument.
   2. Exact buffer length calculations in headless mode (duration_s=0.1, 0.05, 1.0, etc.).
   3. Microphone device parameter propagation to sounddevice.InputStream and fallback sounddevice.rec.
-  4. Robustness against double-stream failures (InputStream failure -> rec failure -> safe zero buffer).
+  4. Robustness against double-stream failures (InputStream failure -> rec failure ->
+     typed MicrophoneDeviceUnavailableError, per the H-02 corrective fail-closed contract).
   5. Anti-fabrication and truthfulness verification (no ghost success or fake intents).
 """
 
@@ -187,11 +188,23 @@ def test_device_passed_to_input_stream_from_audio_engine(app_instance):
 
 
 def test_device_fallback_to_config_when_audio_engine_none(app_instance):
-    """When AudioEngine is None or has no device, fallback to config audio.input_device."""
+    """
+    When AudioEngine is None, record_audio() resolves an explicit numeric-string
+    audio.input_device against the real device list via the SAME shared
+    MicrophoneProbeManager semantics AudioEngine itself uses (H-02 corrective).
+    """
     app_instance.audio_engine = None
     app_instance.config["audio.input_device"] = "3"
 
-    with patch("sounddevice.InputStream") as mock_stream:
+    devices = [
+        {"name": "Microsoft Sound Mapper - Input", "max_input_channels": 2},
+        {"name": "Realtek High Definition Audio", "max_input_channels": 2},
+        {"name": "USB Microphone Array", "max_input_channels": 1},
+        {"name": "Virtual Audio Cable", "max_input_channels": 2},
+    ]
+
+    with patch("sounddevice.InputStream") as mock_stream, \
+         patch("sounddevice.query_devices", return_value=devices):
         mock_inst = MagicMock()
         mock_inst.read.return_value = (np.zeros((100, 1), dtype=np.float32), False)
         mock_stream.return_value.__enter__.return_value = mock_inst
@@ -201,19 +214,41 @@ def test_device_fallback_to_config_when_audio_engine_none(app_instance):
         assert kwargs["device"] == 3
 
 
-def test_device_none_when_unparseable(app_instance):
-    """When config audio.input_device is unparseable string and no audio_engine, target_device=None."""
+def test_device_name_substring_resolves_and_unmatched_fails_closed(app_instance):
+    """
+    H-02 corrective contract: record_audio()'s config-fallback path must honor a
+    case-insensitive name-substring override exactly like AudioEngine's
+    MicrophoneProbeManager does (config/default_config.yaml documents both index
+    and name-substring as valid audio.input_device forms). An override that
+    matches NOTHING must fail closed -- it must NEVER silently resolve to
+    device=None (the previous, incorrect "unparseable -> None" behavior), since
+    that would silently hand control to the OS default microphone.
+    """
+    from jarvis.audio.engine import MicrophoneDeviceUnavailableError
+
     app_instance.audio_engine = None
-    app_instance.config["audio.input_device"] = "default_mic_name"
+    devices = [
+        {"name": "Microsoft Sound Mapper - Input", "max_input_channels": 2},
+        {"name": "Realtek High Definition Audio", "max_input_channels": 2},
+        {"name": "USB Microphone Array", "max_input_channels": 1},
+    ]
 
-    with patch("sounddevice.InputStream") as mock_stream:
-        mock_inst = MagicMock()
-        mock_inst.read.return_value = (np.zeros((100, 1), dtype=np.float32), False)
-        mock_stream.return_value.__enter__.return_value = mock_inst
+    with patch("sounddevice.query_devices", return_value=devices):
+        # A genuine, matching substring resolves to that device's index.
+        with patch("sounddevice.InputStream") as mock_stream:
+            mock_inst = MagicMock()
+            mock_inst.read.return_value = (np.zeros((100, 1), dtype=np.float32), False)
+            mock_stream.return_value.__enter__.return_value = mock_inst
+            app_instance.config["audio.input_device"] = "usb microphone"
+            app_instance.record_audio()
+            assert mock_stream.call_args[1]["device"] == 2
 
-        app_instance.record_audio()
-        _, kwargs = mock_stream.call_args
-        assert kwargs["device"] is None
+        # An unmatched name must fail closed, not silently fall back to default.
+        with patch("sounddevice.InputStream") as mock_stream:
+            app_instance.config["audio.input_device"] = "default_mic_name"
+            with pytest.raises(MicrophoneDeviceUnavailableError):
+                app_instance.record_audio()
+            mock_stream.assert_not_called()
 
 
 def test_device_passed_to_fallback_rec_on_input_stream_error(app_instance):
@@ -244,22 +279,26 @@ def test_device_passed_to_fallback_rec_on_input_stream_error(app_instance):
         assert len(arr) == 48000
 
 
-def test_both_input_stream_and_rec_fail_returns_safe_zero_buffer(app_instance):
+def test_both_input_stream_and_rec_fail_raises_device_unavailable(app_instance):
     """
-    Adversarial Double Failure:
-    When InputStream AND sounddevice.rec both fail (e.g. mic completely unplugged or driver crash),
-    record_audio must safely return np.zeros(int(sr * 0.5)) instead of crashing or fabricating data.
+    Adversarial Double Failure (H-02 corrective):
+    When InputStream AND sounddevice.rec both fail on the SAME selected device
+    (e.g. mic completely unplugged or driver crash), record_audio must raise a
+    typed MicrophoneDeviceUnavailableError -- it must NOT return a fabricated
+    all-zero "silence" buffer, since that would make a genuine hardware failure
+    indistinguishable from the user simply not speaking.
     """
+    from jarvis.audio.engine import MicrophoneDeviceUnavailableError
+
     app_instance.audio_engine._active_device_index = 1
     with patch("sounddevice.InputStream", side_effect=RuntimeError("InputStream crashed")), \
          patch("sounddevice.rec", side_effect=RuntimeError("rec crashed")):
 
-        arr = app_instance.record_audio()
-        assert isinstance(arr, np.ndarray)
-        assert arr.dtype == np.float32
-        # At 16000 Hz, 0.5s = 8000 samples
-        assert len(arr) == 8000
-        assert np.all(arr == 0.0)
+        with pytest.raises(MicrophoneDeviceUnavailableError) as exc_info:
+            app_instance.record_audio()
+        # Both capture attempts were made against the same physical device (1).
+        assert exc_info.value.spec == 1
+        assert exc_info.value.reason == "capture_failed"
 
 
 # ============================================================================
@@ -292,15 +331,20 @@ def test_energy_cutoff_truthfulness(app_instance):
 
 def test_no_ghost_intent_on_hardware_failure(app_instance):
     """
-    Verify fail-closed truthfulness:
-    When hardware fails and zero buffer is produced, no artificial ok:True or intent is manufactured.
+    Verify fail-closed truthfulness (H-02 corrective):
+    When hardware fails completely (InputStream AND sd.rec both fail), record_audio
+    must raise a typed MicrophoneDeviceUnavailableError -- never manufacture a
+    silent buffer that a caller could mistake for "the mic worked, user said
+    nothing", which would risk a downstream ghost/no-op intent instead of a
+    truthful, distinguishable device-failure report.
     """
+    from jarvis.audio.engine import MicrophoneDeviceUnavailableError
+
     with patch("sounddevice.InputStream", side_effect=RuntimeError("No hardware")):
         with patch("sounddevice.rec", side_effect=RuntimeError("No hardware")):
-            arr = app_instance.record_audio()
-            # Returns exact float32 silence, never non-audio objects or falsified metadata
-            assert isinstance(arr, np.ndarray)
-            assert np.max(np.abs(arr)) == 0.0
+            with pytest.raises(MicrophoneDeviceUnavailableError) as exc_info:
+                app_instance.record_audio()
+            assert exc_info.value.reason == "capture_failed"
 
 
 # ============================================================================
