@@ -85,6 +85,81 @@ class STTError(Exception):
 # Audio Format & Resampling Helpers
 # ============================================================================
 
+STT_SAMPLE_RATE = 16000
+
+
+def validate_sample_rate(value: Any) -> int:
+    """Reject non-positive, fractional and non-numeric rates without truncation."""
+    if isinstance(value, (bool, np.bool_)):
+        raise ValueError("sample rate must be a positive integer")
+    try:
+        rate = int(value)
+        if rate <= 0 or float(value) != rate:
+            raise ValueError
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("sample rate must be a positive integer") from exc
+    return rate
+
+
+@dataclass(frozen=True)
+class CapturedAudio:
+    """Samples paired with the rate actually used for this capture, not live config."""
+
+    samples: np.ndarray
+    source_sample_rate: int
+
+
+def prepare_stt_audio(audio: Any, source_sample_rate: int = STT_SAMPLE_RATE) -> np.ndarray:
+    """Prepare mono float32 at 16 kHz. Legacy raw input is already 16 kHz.
+
+    WAV headers override the raw-input rate. CapturedAudio carries its own rate.
+    The returned plain ndarray is 16 kHz and must not retain source metadata.
+    """
+    rate = validate_sample_rate(source_sample_rate)
+    if isinstance(audio, CapturedAudio):
+        rate = validate_sample_rate(audio.source_sample_rate)
+        audio = audio.samples
+    is_wav = isinstance(audio, (str, Path))
+    raw = audio.getvalue() if isinstance(audio, io.BytesIO) else audio
+    is_wav = is_wav or (isinstance(raw, bytes) and raw.startswith(b"RIFF"))
+    arr = audio_to_float32(audio, sample_rate=STT_SAMPLE_RATE)
+    if is_wav or rate == STT_SAMPLE_RATE or not arr.size:
+        return arr
+    return resample_audio(arr, rate, STT_SAMPLE_RATE)
+
+
+class STTStreamNormalizer:
+    """Continuous linear interpolation with bounded carry and no per-block drift.
+
+    Input is raw mono/stereo ndarray or PCM at one fixed source rate. A sample
+    requiring the next block for interpolation is delayed, never fabricated.
+    """
+
+    def __init__(self, sample_rate: int = STT_SAMPLE_RATE) -> None:
+        self.sample_rate = validate_sample_rate(sample_rate)
+        self._seen = 0
+        self._emitted = 0
+        self._start = 0
+        self._tail = np.empty(0, dtype=np.float32)
+
+    def feed(self, block: np.ndarray | bytes) -> np.ndarray:
+        arr = audio_to_float32(block)
+        if self.sample_rate == STT_SAMPLE_RATE or not arr.size:
+            return arr
+        data = np.concatenate((self._tail, arr))
+        self._seen += arr.size
+        # Integer accounting preserves fractional output samples across blocks.
+        end = min(self._seen * STT_SAMPLE_RATE // self.sample_rate,
+                  (self._seen - 1) * STT_SAMPLE_RATE // self.sample_rate + 1)
+        positions = np.arange(self._emitted, end, dtype=np.float64) * self.sample_rate / STT_SAMPLE_RATE
+        result = np.interp(positions - self._start, np.arange(data.size), data).astype(np.float32)
+        self._emitted = end
+        keep_from = min(self._emitted * self.sample_rate // STT_SAMPLE_RATE, self._seen - 1)
+        self._tail = data[keep_from - self._start:].copy()
+        self._start = keep_from
+        return result
+
+
 def resample_audio(samples: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
     """Linear interpolation resampling for 1D float32 audio arrays."""
     if orig_sr == target_sr or len(samples) == 0:
@@ -127,7 +202,7 @@ def audio_to_float32(
                     arr = np.frombuffer(raw_bytes, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
                 if n_channels > 1:
                     arr = arr.reshape(-1, n_channels).mean(axis=1)
-                return resample_audio(arr, sr, sample_rate)
+                return arr if sr == sample_rate else resample_audio(arr, sr, sample_rate)
         except Exception as e:
             log.warning("Failed reading audio file %s: %s", audio, e)
             return np.empty(0, dtype=np.float32)
@@ -151,7 +226,7 @@ def audio_to_float32(
                         arr = np.frombuffer(raw_bytes, dtype=np.float32)
                     if n_channels > 1:
                         arr = arr.reshape(-1, n_channels).mean(axis=1)
-                    return resample_audio(arr, sr, sample_rate)
+                    return arr if sr == sample_rate else resample_audio(arr, sr, sample_rate)
             except Exception as e:
                 log.warning("Failed parsing WAV bytes: %s", e)
                 return np.empty(0, dtype=np.float32)
@@ -399,7 +474,7 @@ class OpenAIWhisperSTT(BaseSTTEngine):
         mock_http: Any | None = None,
         **kwargs: Any,
     ) -> str:
-        arr = audio_to_float32(audio)
+        arr = prepare_stt_audio(audio, kwargs.pop("source_sample_rate", STT_SAMPLE_RATE))
         if arr.size == 0 or calculate_rms(arr) < 0.001:
             return ""
 
@@ -591,7 +666,7 @@ class FasterWhisperSTT(BaseSTTEngine):
         if not self.is_available():
             raise STTError("faster-whisper is not installed")
 
-        arr = audio_to_float32(audio, sample_rate=16000)
+        arr = prepare_stt_audio(audio, kwargs.pop("source_sample_rate", STT_SAMPLE_RATE))
         if arr.size == 0 or calculate_rms(arr) < 0.001:
             return ""
 
@@ -702,7 +777,7 @@ class WindowsSpeechSTT(BaseSTTEngine):
         if not self.is_available():
             return ""
 
-        arr = audio_to_float32(audio, sample_rate=16000)
+        arr = prepare_stt_audio(audio, kwargs.pop("source_sample_rate", STT_SAMPLE_RATE))
         if arr.size == 0 or calculate_rms(arr) < 0.001:
             return ""
 
@@ -818,7 +893,7 @@ class MockSTTEngine(BaseSTTEngine):
         language: str = "vi",
         **kwargs: Any,
     ) -> str:
-        arr = audio_to_float32(audio)
+        arr = prepare_stt_audio(audio, kwargs.pop("source_sample_rate", STT_SAMPLE_RATE))
         if arr.size == 0:
             return ""
         rms = calculate_rms(arr)
@@ -871,6 +946,7 @@ class STTEngine:
 
         self._lock = threading.RLock()
         self.primary_engine: BaseSTTEngine = primary_engine or self._resolve_engine(self.provider_name)
+        self._stream_normalizer: STTStreamNormalizer | None = None
         self.fallback_engine: BaseSTTEngine = fallback_engine or (
             WindowsSpeechSTT(self.config.get("windows_sapi", self.config.get("web_speech", {})))
             if (sys.platform == "win32" and not isinstance(self.primary_engine, WindowsSpeechSTT))
@@ -993,7 +1069,7 @@ class STTEngine:
         and manages zero-crash provider fallback.
         """
         target_lang = language or self.default_language
-        arr = audio_to_float32(audio)
+        arr = prepare_stt_audio(audio, kwargs.pop("source_sample_rate", STT_SAMPLE_RATE))
         if arr.size == 0:
             if return_result:
                 return TranscriptionResult(
@@ -1091,19 +1167,31 @@ class STTEngine:
         Consumes an audio block generator until VAD segments a complete utterance,
         then transcribes and returns the result.
         """
-        self.vad.reset()
+        self.reset_stream(sample_rate)
         for block in audio_generator:
-            segment = self.vad.feed_block(block)
+            segment = self.vad.feed_block(self._stream_normalizer.feed(block))
             if segment is not None:
                 return self.transcribe(segment, language=language)
         return ""
 
-    def feed_audio_block(self, block: np.ndarray) -> str | None:
+    def reset_stream(self, sample_rate: int = STT_SAMPLE_RATE) -> None:
+        """Start a new stream, discarding prior VAD and interpolation state."""
+        normalizer = STTStreamNormalizer(sample_rate)
+        self.vad.reset()
+        self._stream_normalizer = normalizer
+
+    def feed_audio_block(self, block: np.ndarray, sample_rate: int = STT_SAMPLE_RATE) -> str | None:
         """
-        Feeds a real-time frame from AudioEngine.
+        Feed raw audio at sample_rate (legacy default 16 kHz).
+        Call reset_stream(new_rate) before switching an ongoing stream's rate.
         Returns transcribed text if an utterance completed on this block, otherwise None.
         """
-        segment = self.vad.feed_block(block)
+        rate = validate_sample_rate(sample_rate)
+        if self._stream_normalizer is None:
+            self.reset_stream(rate)
+        elif self._stream_normalizer.sample_rate != rate:
+            raise ValueError("sample rate changed; call reset_stream before feeding a new source")
+        segment = self.vad.feed_block(self._stream_normalizer.feed(block))
         if segment is not None:
             return self.transcribe(segment)
         return None
@@ -1191,7 +1279,7 @@ class TieredSTTEngine(BaseSTTEngine):
         **kwargs: Any,
     ) -> TranscriptionResult:
         t0 = time.perf_counter()
-        arr = audio_to_float32(audio)
+        arr = prepare_stt_audio(audio, kwargs.pop("source_sample_rate", STT_SAMPLE_RATE))
         if arr.size == 0:
             return TranscriptionResult(
                 text="",

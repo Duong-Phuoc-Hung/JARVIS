@@ -11,8 +11,8 @@
 ## 1. Acceptance Criteria Checklist
 
 ### 1.1 Audio Capture & Hardware Synchronization (H-01, H-02, H-03)
-- [x] **16 kHz Direct Capture Precedence (H-01 / F-01)**: `record_audio()` resolves `sample_rate` from `stt.sample_rate: 16000` before falling back, preventing 44.1kHz to 16kHz resampling mismatch and 2.75× audio slow-down in Whisper STT.  
-  *Evidence*: `jarvis/core/app.py:832`, `tests/unit/test_voice_pipeline_fixes.py::test_h01_record_audio_sample_rate_precedence` (PASS).
+- [x] **16 kHz STT Boundary (H-01 / F-01)**: Capture defaults to 16 kHz and permits explicit/configured source rates. The voice loop preserves the rate with each buffer; a shared helper normalizes to 16 kHz before STT/model inference, while streaming normalizes before VAD without cumulative per-block rounding loss.
+  *Evidence*: `tests/unit/test_h01_stt_boundary.py`, `tests/unit/test_voice_pipeline_fixes.py`, `tests/unit/test_adversarial_challenger_m1_sample_rate.py`.
 - [x] **Microphone Device Synchronization (H-02 / F-02)**: `record_audio()` synchronizes with `AudioEngine._active_device_index` and passes `device=target_device` to `sounddevice.InputStream` and fallback `sounddevice.rec`.  
   *Evidence*: `jarvis/core/app.py:844`, `tests/unit/test_voice_pipeline_fixes.py::test_h02_record_audio_uses_audio_engine_device` (PASS).
 - [x] **Acoustic Settling Delay & Playback Lockout (H-03 / F-03)**: Enforces 150ms settling sleep after TTS greeting and active playback lockout loop in `record_audio()` to prevent microphone self-capture of JARVIS voice output.  

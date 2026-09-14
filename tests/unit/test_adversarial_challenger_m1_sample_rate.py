@@ -341,3 +341,11 @@ def test_real_config_manager_integration():
     arr3 = app.record_audio(duration_s=0.1, sample_rate=8000)
     assert len(arr3) == 800
 
+    # Capture overrides remain supported; the STT boundary consumes their rate.
+    from jarvis.stt.engine import prepare_stt_audio
+    capture = app.record_audio(duration_s=0.1, return_capture=True)
+    assert capture.source_sample_rate == 24000
+    assert len(prepare_stt_audio(capture)) == 1600
+    cfg.set("stt.sample_rate", None)
+    assert len(app.record_audio(duration_s=0.1)) == 1600
+

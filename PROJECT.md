@@ -2,7 +2,7 @@
 
 ## Architecture
 JARVIS is a modular AI voice assistant and automation system for Windows 11.
-- **Audio Capture & Hardware Synchronization (`jarvis/audio/`, `jarvis/core/app.py`)**: 16 kHz direct capture for Whisper STT models, microphone device index synchronization with `AudioEngine`, 4-tier acoustic echo suppression & settling guard (2.5s post-TTS echo window frame drop, 150ms settling sleep, active playback lockout, and single-flight execution mutex).
+- **Audio Capture & Hardware Synchronization (`jarvis/audio/`, `jarvis/core/app.py`)**: source-rate capture (16 kHz by default) with normalization to a 16 kHz STT/model boundary, microphone device index synchronization with `AudioEngine`, 4-tier acoustic echo suppression & settling guard (2.5s post-TTS echo window frame drop, 150ms settling sleep, active playback lockout, and single-flight execution mutex).
 - **Core Controls & Hardware Fail-Closed Semantics (`jarvis/core/app.py`, `jarvis/automation/`)**: Global PTT shortcut (`Ctrl+Shift+L`) dispatching directly to `_start_voice_interaction(trigger_name="HOTKEY_PTT")`; system master volume and screen brightness returning explicit `status: failed`, `success: False`, and specific error codes (`VOLUME_SET_FAILED`, `BRIGHTNESS_SET_FAILED`) when endpoints return `None`.
 - **Communications Hub (`jarvis/comms/`)**: Telegram, Zalo, Discord, and IMAP adapters enforcing strict `NOT_CONFIGURED` fail-closed semantics when tokens or credentials are unconfigured, with user whitelisting (HTTP 403) and token-bucket rate limiting (HTTP 429).
 - **STT & Intent Routing Evaluation Pipeline (`tests/eval/`)**: Dual-condition acoustic evaluation (`clean` and `noisy`), multi-model direct execution benchmarking (`small` and `large-v3` on CTranslate2 CUDA), and 4-way outcome classification (`CORRECT`, `MISROUTED`, `STT_EMPTY`, `ROUTER_ABSTAIN`) across historical 90-file and independent 420-utterance test corpora.
@@ -11,7 +11,7 @@ JARVIS is a modular AI voice assistant and automation system for Windows 11.
 ## Feature Inventory
 | # | Feature | Description | Milestone | Status | Source |
 |---|---------|-------------|-----------|:------:|--------|
-| F-01 | 16kHz STT Capture Precedence | Decouple `record_audio()` from `audio.sample_rate: 44100` to guarantee 16kHz capture for Whisper | M1 | DONE | Survey (Explorer 1) |
+| F-01 | 16kHz STT Boundary | Preserve capture rate independently of `audio.sample_rate`; normalize to 16kHz before STT/VAD/model | M1 | DONE | Survey (Explorer 1) |
 | F-02 | Microphone Device Sync | Synchronize `record_audio()` with `AudioEngine._active_device_index` passed to sounddevice | M1 | DONE | ORIGINAL_REQUEST §R1 (H-02) |
 | F-03 | Acoustic Settling & Echo Lockout | 150ms post-TTS settling guard, active playback wait loop, and echo window frame drop | M1 | DONE | ORIGINAL_REQUEST §R1 (H-03) |
 | F-04 | Zero-Crash Hotkeys | `Ctrl+Shift+L` PTT hotkey calling `_start_voice_interaction(trigger_name="HOTKEY_PTT")` | M1 | DONE | ORIGINAL_REQUEST §R2 (H-04) |
@@ -39,11 +39,12 @@ JARVIS is a modular AI voice assistant and automation system for Windows 11.
 
 ## Interface Contracts
 ### Audio Recording Sample Rate Contract (`jarvis/core/app.py`, `config/default_config.yaml`)
-- `JarvisApp.record_audio(duration_s=None, sample_rate=None, chunk_size=1024) -> np.ndarray`:
-  ```python
-  sr = int(sample_rate or self.config.get("stt.sample_rate", 16000))
-  ```
-  ensures 16000 Hz capture for Whisper STT. Passes `device=target_device` from `AudioEngine._active_device_index`.
+- `record_audio(duration_s=None, sample_rate=None, *, return_capture=False)` captures at the explicit rate, otherwise `stt.sample_rate`, otherwise 16000 (including a configured `None`). Invalid rates raise `ValueError` before device access. `audio.sample_rate` is unchanged.
+- The default return remains a source-rate ndarray for compatibility. `return_capture=True` returns `CapturedAudio(samples, source_sample_rate)`; the production voice loop uses this form so a config reload cannot relabel a captured buffer. Device selection still follows `AudioEngine._active_device_index`.
+- `prepare_stt_audio` normalizes/downmixes to mono float32, then resamples once to 16000 when required. WAV/file headers are authoritative; raw ndarray/PCM uses explicit `source_sample_rate`. Legacy raw input without that argument is assumed already 16000. Invalid explicit source rates (including `None`) fail closed.
+- Coordinator, tiered and direct providers consume source metadata at their boundary. They pass plain 16-kHz arrays onward without forwarding source metadata to model APIs. Already-16k input bypasses resampling.
+- `transcribe_stream(sample_rate=...)` and `feed_audio_block(..., sample_rate=...)` normalize before the 16-kHz VAD. Continuous linear interpolation retains fractional sample accounting across blocks; changing an incremental stream's rate requires `reset_stream(new_rate)`. Upsampling may delay an output sample until the next input block supplies its interpolation neighbor.
+- Resampling uses existing NumPy linear interpolation, with no new DSP dependency. This validates rate/duration semantics, not anti-alias quality, WER or physical device compatibility.
 
 ### Zalo OA Fail-Closed Contract (`jarvis/comms/zalo.py`)
 - `ZaloBotController.send_image(user_id, image_path, caption) -> ZaloSendResult`:

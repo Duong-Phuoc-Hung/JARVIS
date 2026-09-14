@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from jarvis.stt.engine import (
     BaseSTTEngine,
+    CapturedAudio,
     FasterWhisperSTT,
     LocalWhisperSTT,
     MockSTTEngine,
@@ -20,10 +21,13 @@ from jarvis.stt.engine import (
     audio_to_wav_bytes,
     float32_to_pcm16_wav_bytes,
     resample_audio,
+    prepare_stt_audio,
 )
 
 __all__ = [
     "BaseSTTEngine",
+    "CapturedAudio",
+    "prepare_stt_audio",
     "STTError",
     "STTEngine",
     "OpenAIWhisperSTT",
