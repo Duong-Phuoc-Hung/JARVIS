@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 
 from jarvis.core.app import JarvisApp
+from jarvis.stt.engine import prepare_stt_audio
 
 
 @pytest.fixture
@@ -67,18 +68,22 @@ def test_h01_record_audio_sample_rate_precedence(mock_app):
         mock_instance.read.return_value = (np.zeros((100, 1), dtype=np.float32), False)
         mock_stream.return_value.__enter__.return_value = mock_instance
 
-        mock_app.record_audio(duration_s=0.3)
+        capture = mock_app.record_audio(duration_s=0.3, return_capture=True)
         _, kwargs = mock_stream.call_args
         assert kwargs.get("samplerate") == 8000
+        assert capture.source_sample_rate == 8000
+        assert prepare_stt_audio(capture).shape == (400,)
 
     with patch("sounddevice.InputStream") as mock_stream:
         mock_instance = MagicMock()
         mock_instance.read.return_value = (np.zeros((100, 1), dtype=np.float32), False)
         mock_stream.return_value.__enter__.return_value = mock_instance
 
-        mock_app.record_audio(duration_s=0.3, sample_rate=22050)
+        capture = mock_app.record_audio(duration_s=0.3, sample_rate=22050, return_capture=True)
         _, kwargs = mock_stream.call_args
         assert kwargs.get("samplerate") == 22050
+        assert capture.source_sample_rate == 22050
+        assert prepare_stt_audio(capture).shape == (145,)
 
 
 def test_h01_record_audio_headless_16khz_buffer_length(mock_app):

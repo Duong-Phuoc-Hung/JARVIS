@@ -110,18 +110,25 @@ class FasterWhisperSTTEngine:
         self,
         audio_bytes: bytes,
         language: str | None = None,
+        *,
+        source_sample_rate: int = 16000,
     ) -> TranscriptionResult:
         """
         Transcribe PCM audio bytes to text.
 
         Args:
-            audio_bytes: Raw PCM 16-bit signed mono audio at 16000 Hz
+            audio_bytes: PCM16 mono, ndarray, or WAV/file audio. Raw input
+                defaults to 16000 Hz; WAV headers supply their own source rate.
             language: Override language detection (None = auto-detect)
+            source_sample_rate: Actual raw-input rate; rejected if invalid.
 
         Returns:
             TranscriptionResult with text, language, confidence, duration_ms
         """
         t0 = time.monotonic()
+
+        from jarvis.stt.engine import prepare_stt_audio
+        audio_float = prepare_stt_audio(audio_bytes, source_sample_rate)
 
         if self.is_mock:
             return TranscriptionResult(
@@ -132,7 +139,7 @@ class FasterWhisperSTTEngine:
                 is_mock=True,
             )
 
-        if audio_bytes is None or len(audio_bytes) == 0:
+        if audio_float.size == 0:
             return TranscriptionResult(
                 text="",
                 language=self.config.language,
@@ -141,18 +148,6 @@ class FasterWhisperSTTEngine:
             )
 
         try:
-            import io  # noqa: E401
-            import wave
-
-            import numpy as np  # type: ignore[import]
-
-            if isinstance(audio_bytes, np.ndarray):
-                audio_float = audio_bytes.astype(np.float32)
-            else:
-                # Convert PCM bytes to float32 numpy array
-                audio_int16 = np.frombuffer(audio_bytes, dtype=np.int16)
-                audio_float = audio_int16.astype(np.float32) / 32768.0
-
             model = self._load_model()
             cfg = self.config
             lang = language or cfg.language

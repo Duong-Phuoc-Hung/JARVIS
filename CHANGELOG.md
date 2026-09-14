@@ -1,3 +1,14 @@
+## H-01 — Source-rate capture and 16-kHz STT boundary (2026-09-14)
+
+- **Goal / root cause:** Direct 16-kHz capture fixed the default path, but supported capture overrides still delivered raw arrays without their source rate. Coordinator/tiered/providers interpreted them as 16 kHz; streaming ignored its rate argument, and `stt.sample_rate=None` raised `TypeError`.
+- **`jarvis/core/app.py`:** Capture remains configurable and independent of `audio.sample_rate`. Optional `return_capture=True` pairs samples with the actual capture rate; the production voice loop uses it, including fallback recording. Config changes cannot relabel a completed capture. Missing/None config uses 16000; invalid selected rates fail before device access. Device sync, echo/settling, PTT and dispatch behavior are preserved.
+- **`jarvis/stt/engine.py`:** Shared `prepare_stt_audio` normalizes/downmixes then converts to 16000. WAV headers win; explicit raw source rates are validated; legacy raw input defaults to 16000. Coordinator, tiered and direct providers consume metadata before forwarding plain 16-kHz arrays, preventing double conversion and unsupported model kwargs. Streaming uses bounded continuous interpolation with integer sample accounting before VAD; `reset_stream` explicitly starts a different source rate.
+- **`jarvis/stt/faster_whisper.py`, `jarvis/stt/__init__.py`:** Offline adapter uses the shared boundary; capture envelope and preparation helper are exported.
+- **Tests:** Added `tests/unit/test_h01_stt_boundary.py` for production capture/config changes, six rates, nested providers, WAV/PCM/stereo, invalid values, silence, tone preservation and streaming timing. Extended `test_voice_pipeline_fixes.py` and `test_adversarial_challenger_m1_sample_rate.py` to check both capture overrides and the STT boundary without deleting their existing capture coverage.
+- **Documentation:** `PROJECT.md`, `README.md`, `docs/ROADMAP.md` and `task.md` distinguish capture rate from STT/model rate. Runtime remains **5.1.3**.
+- **Measured validation:** H-01 focused group **107 passed in 0.96s**. Broader STT/audio/VAD/voice/wake/setup/E2E and H-07/runaway regression group **279 passed, 1 skipped in 29.52s**. Final full `tests/unit/`: **1882 passed, 1 skipped, 89 subtests passed in 244.24s**. `python -m compileall jarvis` and `git diff --check` passed. Hardware/model/cloud seams were mocked; physical audio and external connections were disabled by a disposable test launcher. This is automated test evidence, not physical acoustic evidence.
+- **Limits:** Linear interpolation adds no heavy dependency but is not a band-limited anti-alias resampler. No new WER or real-device claim is made. Streaming upsampling delays samples needing a future neighbor; legacy raw callers must supply their source rate when it differs from 16000.
+
 
 ## [5.1.5] H-06 Wake-Word Idle Soak — DONE (2026-09-14)
 

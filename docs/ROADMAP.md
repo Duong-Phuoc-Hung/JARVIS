@@ -26,7 +26,7 @@
 
 | ID | Status | Mô tả |
 |----|--------|-------|
-| H-01 | DONE | Fix resample mismatch: `record_audio()` chuyển default 16000 Hz, tránh audio slow 2.75x trên Whisper |
+| H-01 | DONE | Boundary STT/VAD/model 16000 Hz: giữ rate theo buffer, hỗ trợ capture 8/16/22.05/24/44.1/48kHz, resample một lần; streaming giữ thời lượng |
 | H-02 | DONE | Đồng bộ input device giữa AudioEngine và `record_audio()` qua `_active_device_index` |
 | H-03 | DONE | Chống self-audio contamination: 150ms settling delay sau TTS greeting + lockout loop khi TTS đang phát |
 | H-04 | DONE | Fix crash hotkey Ctrl+Shift+L PTT: thay `_handle_voice_command` bằng `_start_voice_interaction` |

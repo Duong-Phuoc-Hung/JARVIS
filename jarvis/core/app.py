@@ -77,7 +77,7 @@ from jarvis.skills.synthesizer import DynamicSkillSynthesizer
 
 # Subsystems
 from jarvis.smart_home.home_assistant import HomeAssistantClient
-from jarvis.stt.engine import STTEngine
+from jarvis.stt.engine import CapturedAudio, STTEngine, validate_sample_rate
 from jarvis.tts.manager import TTSManager
 from jarvis.ui.dashboard import DashboardServer
 from jarvis.ui.overlay import AlwaysOnOverlay
@@ -1728,18 +1728,27 @@ class JarvisApp:
         self,
         duration_s: float | None = None,
         sample_rate: int | None = None,
-    ) -> np.ndarray:
+        *,
+        return_capture: bool = False,
+    ) -> np.ndarray | CapturedAudio:
         """
-        Captures an audio buffer from the microphone with fast energy-based silence cutoff.
+        Capture at the requested rate with fast energy-based silence cutoff.
+
+        Set return_capture=True for STT to preserve the source rate with the buffer.
+        The legacy ndarray return remains at the capture rate; callers passing it
+        to STT must supply source_sample_rate unless it is already 16 kHz.
         """
-        # H-01 fix: Whisper requires 16kHz input. Record at 16000 Hz directly to
-        # avoid the silent 44100→16000 resample mismatch that caused ROUTER_ABSTAIN.
-        # Decouple STT capture sample rate (default 16000) from system playback audio.sample_rate (44100).
-        sr = int(sample_rate or self.config.get("stt.sample_rate", 16000))
+        # Snapshot once: reloading config during capture cannot relabel this buffer.
+        configured_rate = self.config.get("stt.sample_rate", 16000)
+        selected_rate = sample_rate if sample_rate is not None else configured_rate
+        sr = validate_sample_rate(16000 if selected_rate is None else selected_rate)
         max_dur = float(duration_s or self.config.get("stt.timeout_s", 4.0))
 
+        def captured(samples: np.ndarray) -> np.ndarray | CapturedAudio:
+            return CapturedAudio(samples, sr) if return_capture else samples
+
         if self.headless:
-            return np.zeros(int(sr * min(max_dur, 0.1)), dtype=np.float32)
+            return captured(np.zeros(int(sr * min(max_dur, 0.1)), dtype=np.float32))
 
         # H-02 fix: Synchronize recording device with AudioEngine's selected active device
         # so wake-word detector and command capture always listen on the exact same microphone.
@@ -1789,8 +1798,8 @@ class JarvisApp:
                             break
 
             if recorded_chunks:
-                return np.concatenate(recorded_chunks)
-            return np.zeros(int(sr * 0.5), dtype=np.float32)
+                return captured(np.concatenate(recorded_chunks))
+            return captured(np.zeros(int(sr * 0.5), dtype=np.float32))
         except Exception as e:
             log.warning("Fast microphone capture via InputStream failed: %s. Falling back to simple rec.", e)
             try:
@@ -1798,9 +1807,9 @@ class JarvisApp:
                 dur = min(max_dur, 3.0)
                 audio_data = _sd.rec(int(dur * sr), samplerate=sr, channels=1, dtype="float32", device=target_device)
                 _sd.wait()
-                return audio_data.flatten()
+                return captured(audio_data.flatten())
             except Exception:
-                return np.zeros(int(sr * 0.5), dtype=np.float32)
+                return captured(np.zeros(int(sr * 0.5), dtype=np.float32))
 
     def _start_voice_interaction(
         self,
@@ -1837,7 +1846,7 @@ class JarvisApp:
                 transcript = ""
                 if self.stt_engine:
                     try:
-                        audio_flat = self.record_audio()
+                        audio_flat = self.record_audio(return_capture=True)
                         # Timeout guard: STT must complete within 30s or we abort
                         import concurrent.futures as _cf
                         with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
