@@ -35,7 +35,7 @@ from typing import Any
 
 import numpy as np
 
-from jarvis.audio.engine import AudioEngine
+from jarvis.audio.engine import AudioEngine, MicrophoneDeviceUnavailableError, MicrophoneProbeManager
 
 # Expansion Subsystems (Milestones 1-6)
 from jarvis.audio.wake_word import WakeWordDetector
@@ -1751,17 +1751,28 @@ class JarvisApp:
             return captured(np.zeros(int(sr * min(max_dur, 0.1)), dtype=np.float32))
 
         # H-02 fix: Synchronize recording device with AudioEngine's selected active device
-        # so wake-word detector and command capture always listen on the exact same microphone.
+        # so wake-word detector and command capture always listen on the exact same
+        # microphone. When AudioEngine has not (yet) resolved a live device, an
+        # explicitly configured audio.input_device (index, numeric string, or
+        # case-insensitive name substring -- same semantics AudioEngine uses) is
+        # resolved through the shared MicrophoneProbeManager.resolve_explicit_device().
+        # An explicit device that cannot be resolved raises MicrophoneDeviceUnavailableError
+        # here (propagated to the caller) rather than silently falling back to the
+        # OS default microphone -- see the H-02 corrective-patch audit for why the
+        # previous int()-only parse was a fail-open bug.
         target_device = None
         if self.audio_engine and getattr(self.audio_engine, "_active_device_index", None) is not None:
             target_device = self.audio_engine._active_device_index
-        if target_device is None:
+        else:
             cfg_dev = self.config.get("audio.input_device")
-            if cfg_dev is not None:
-                try:
-                    target_device = int(cfg_dev)
-                except (ValueError, TypeError):
-                    target_device = None
+            # Only touch device enumeration when there is an actual explicit
+            # request to resolve -- an unset/empty config value means "no
+            # explicit device", so auto (device=None) is fine without probing.
+            if cfg_dev is not None and not (isinstance(cfg_dev, str) and not cfg_dev.strip()):
+                probe_mgr = getattr(self.audio_engine, "probe_manager", None) if self.audio_engine else None
+                if probe_mgr is None:
+                    probe_mgr = MicrophoneProbeManager()
+                target_device = probe_mgr.resolve_explicit_device(cfg_dev, probe_mgr.get_input_devices())
 
         # H-03 fix: Acoustic Echo Guard — if TTS is still actively playing through speakers,
         # wait briefly for it to complete to prevent capturing self-audio into STT.
@@ -1808,8 +1819,20 @@ class JarvisApp:
                 audio_data = _sd.rec(int(dur * sr), samplerate=sr, channels=1, dtype="float32", device=target_device)
                 _sd.wait()
                 return captured(audio_data.flatten())
-            except Exception:
-                return captured(np.zeros(int(sr * 0.5), dtype=np.float32))
+            except Exception as e2:
+                # H-02 fix: both the fast InputStream path AND the same-device sd.rec
+                # fallback failed to access hardware -- this is a genuine microphone
+                # failure (disconnected/in-use/driver error), not silence. Returning a
+                # fabricated all-zero buffer here would make a hardware failure
+                # indistinguishable from the user simply not speaking. Surface a typed,
+                # distinguishable failure instead; the caller (_start_voice_interaction)
+                # reports this to the user as a device problem, not as "didn't hear you".
+                log.error(
+                    "Fallback sd.rec capture also failed on device=%s: %s. "
+                    "Refusing to return a fabricated silent buffer for a hardware failure.",
+                    target_device, e2,
+                )
+                raise MicrophoneDeviceUnavailableError(target_device, reason="capture_failed") from e2
 
     def _start_voice_interaction(
         self,
@@ -1844,21 +1867,49 @@ class JarvisApp:
                     self.tray_controller.update_status(TrayStatus.LISTENING)
 
                 transcript = ""
+                # H-02 fix: a microphone/device failure must be reported distinctly
+                # from ordinary silence -- caught around record_audio() specifically
+                # (not the whole STT block) so it is never conflated with an STT
+                # engine error or a genuinely silent recording.
+                mic_error: MicrophoneDeviceUnavailableError | None = None
                 if self.stt_engine:
                     try:
                         audio_flat = self.record_audio(return_capture=True)
-                        # Timeout guard: STT must complete within 30s or we abort
-                        import concurrent.futures as _cf
-                        with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
-                            _fut = _ex.submit(self.stt_engine.transcribe, audio_flat)
-                            try:
-                                transcript = _fut.result(timeout=30.0)
-                                log.info("Transcribed: '%s'", transcript)
-                            except _cf.TimeoutError:
-                                log.error("STT transcription timed out after 30s")
-                                transcript = ""
-                    except Exception as e:
-                        log.error("STT recording/transcription failed: %s", e)
+                    except MicrophoneDeviceUnavailableError as e:
+                        log.error("Voice capture aborted -- microphone unavailable: %s", e)
+                        mic_error = e
+                    else:
+                        try:
+                            # Timeout guard: STT must complete within 30s or we abort
+                            import concurrent.futures as _cf
+                            with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
+                                _fut = _ex.submit(self.stt_engine.transcribe, audio_flat)
+                                try:
+                                    transcript = _fut.result(timeout=30.0)
+                                    log.info("Transcribed: '%s'", transcript)
+                                except _cf.TimeoutError:
+                                    log.error("STT transcription timed out after 30s")
+                                    transcript = ""
+                        except Exception as e:
+                            log.error("STT recording/transcription failed: %s", e)
+
+                if mic_error is not None:
+                    _mic_msg = "Không tìm thấy hoặc không thể sử dụng microphone đã cấu hình."
+                    if self.overlay:
+                        self.overlay.show_response("(lỗi microphone)", _mic_msg)
+                    # Only play spoken TTS error on explicit user actions (hotkey, tray), not ambient wake word triggers
+                    if self.tts_manager and not trigger_name.startswith("WAKE_WORD"):
+                        self.tts_manager.speak(_mic_msg, wait=True)
+                    if self.tray_controller:
+                        self.tray_controller.update_status(TrayStatus.ACTIVE)
+                    self.log_interaction(
+                        trigger=trigger_name,
+                        input_text="(mic_unavailable)",
+                        action="none",
+                        response=_mic_msg,
+                        status="failed",
+                    )
+                    return
 
                 if not transcript or not transcript.strip():
                     if self.overlay:

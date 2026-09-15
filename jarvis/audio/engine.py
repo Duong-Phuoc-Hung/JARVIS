@@ -40,6 +40,56 @@ class AudioEngineMode(str, Enum):
     HEADLESS = "headless"    # Degraded silent mode on systems without audio cards
 
 
+class MicrophoneDeviceUnavailableError(Exception):
+    """
+    Raised when an EXPLICITLY requested input device (by index or name
+    substring) cannot be resolved against the currently available devices.
+
+    This is distinct from "no explicit device was requested" -- callers
+    (AudioEngine, JarvisApp.record_audio) must never catch this and fall
+    back to auto-selecting a different physical microphone or to
+    device=None (PortAudio/OS default). It signals a real, user-visible
+    hardware/configuration problem that must be surfaced, not hidden.
+    """
+
+    def __init__(self, spec: str | int | None, reason: str = "unresolved") -> None:
+        self.spec = spec
+        self.reason = reason
+        if reason == "capture_failed":
+            msg = (
+                f"Input device {spec!r} could not be opened for capture "
+                "(disconnected, in use, or otherwise unavailable)."
+            )
+        else:
+            msg = (
+                f"Explicit input device {spec!r} does not match any currently "
+                "available microphone (by index or name)."
+            )
+        super().__init__(msg)
+
+
+def _explicit_device_or(
+    primary: str | int | None,
+    fallback: str | int | None,
+) -> str | int | None:
+    """
+    Return `primary` unless it carries no real device identity (None, or an
+    empty/whitespace-only string), in which case `fallback` is used instead.
+
+    Device identity must NEVER be decided by generic Python truthiness --
+    index 0 is a fully valid explicit device selection and must not be
+    treated the same as "unset". Shared by AudioEngine.__init__() (config
+    input_device vs. device_spec precedence) and AudioEngine.start_stream()
+    (resolved input_device vs. JARVIS_INPUT_DEVICE env var precedence) so
+    both apply the exact same non-truthiness-based rule.
+    """
+    if primary is None:
+        return fallback
+    if isinstance(primary, str) and not primary.strip():
+        return fallback
+    return primary
+
+
 @dataclass(frozen=True)
 class AudioDeviceInfo:
     """Hardware metadata and telemetry for an audio endpoint."""
@@ -158,34 +208,91 @@ class MicrophoneProbeManager:
             logger.debug("Probing device [%d] failed: %s", device_idx, e)
             return 0.0
 
+    @staticmethod
+    def resolve_explicit_device(
+        override: str | int | None,
+        devices: list[dict[str, Any]],
+    ) -> int | None:
+        """
+        Resolve an EXPLICIT device override against the given device list.
+
+        Shared by AudioEngine.start_stream() and JarvisApp.record_audio() so
+        both subsystems apply exactly the same index/name-substring semantics
+        and the same fail-closed contract -- this is the single authority
+        for "was a device explicitly requested, and if so did it resolve."
+
+        Accepted override forms: int index, numeric string index (e.g. "3"),
+        or a case-insensitive substring of a device's reported name.
+        Index 0 is a fully valid explicit selection, not treated as "unset".
+
+        Returns:
+            None if `override` is None or an empty/whitespace-only string --
+            meaning no explicit device was requested; caller should proceed
+            with its own automatic default/loudest selection.
+            int index if the override matched exactly one available device.
+
+        Raises:
+            MicrophoneDeviceUnavailableError if `override` is non-empty but
+            does not match any currently available device. Callers MUST NOT
+            catch this and silently substitute a different physical device
+            or device=None -- it must propagate as a clear failure.
+        """
+        if override is None:
+            return None
+        spec = str(override).strip()
+        if not spec:
+            return None
+
+        if spec.isdigit():
+            idx = int(spec)
+            for i, dev in enumerate(devices):
+                if dev.get("index", i) == idx:
+                    return idx
+            raise MicrophoneDeviceUnavailableError(override)
+
+        needle = spec.lower()
+        for i, dev in enumerate(devices):
+            dev_idx = dev.get("index", i)
+            if needle in dev.get("name", "").lower():
+                return dev_idx
+        raise MicrophoneDeviceUnavailableError(override)
+
     def select_best_device(self, sd_module: Any = None, override: str | int | None = None) -> int:
         """
         Selects best input device index using priority resolution:
-          1. Explicit override (digit or name substring).
+          1. Explicit override (digit or name substring) -- resolved via
+             resolve_explicit_device(). An explicit override that does not
+             match any device raises MicrophoneDeviceUnavailableError and
+             does NOT fall through to steps 2-4 below.
           2. Default device if peak RMS >= silent threshold.
           3. Loudest device among all inputs.
           4. Fallback to index 0.
+
+        Steps 2-4 (automatic selection) only run when NO explicit override
+        was given (override is None/empty) -- never as a substitute for an
+        explicit override that failed to resolve.
         """
         sd_mod = sd_module or sd
         devices = self.get_input_devices(sd_mod)
 
+        # 1. Explicit override -- resolved FIRST, against whatever device
+        #    universe is actually available (even an empty one). An explicit
+        #    request must never be silently satisfied by the "no devices at
+        #    all, just pick 0" fallback below, which exists only for the
+        #    NO-explicit-request case -- resolve_explicit_device() itself
+        #    raises MicrophoneDeviceUnavailableError for a non-empty override
+        #    that matches nothing in `devices`, including an empty `devices`.
+        resolved = self.resolve_explicit_device(override, devices)
+        if resolved is not None:
+            return resolved
+
+        # No explicit request beyond this point (resolved is None).
+
         # If device list was explicitly provided (even empty), don't probe real soundcard
-        # since the caller controls the device universe — fallback to index 0 if empty
+        # since the caller controls the device universe — fallback to index 0 if empty.
+        # Only reached when there was NO explicit override to satisfy.
         if self.devices is not None and not devices:
             return 0
-
-        # 1. Check override
-        if override is not None and str(override).strip():
-            spec = str(override).strip()
-            if spec.isdigit():
-                idx = int(spec)
-                if any(d.get("index", i) == idx for i, d in enumerate(devices)):
-                    return idx
-            needle = spec.lower()
-            for i, dev in enumerate(devices):
-                dev_idx = dev.get("index", i)
-                if needle in dev.get("name", "").lower():
-                    return dev_idx
 
         # 2. Check default device
         default_idx: int | None = None
@@ -244,7 +351,10 @@ class AudioEngine:
         self.sample_rate = int(sample_rate)
         self.block_ms = int(block_ms)
         self.channels = int(channels)
-        self.input_device = input_device or device_spec
+        # H-02 fix: explicit None/empty semantics, never generic truthiness --
+        # input_device=0 is a fully valid explicit selection and must survive
+        # this precedence check exactly as-is (see _explicit_device_or()).
+        self.input_device = _explicit_device_or(input_device, device_spec)
         self.probe_seconds = float(probe_seconds)
         self.silent_rms_threshold = float(silent_rms_threshold)
         self.mode = mode
@@ -356,16 +466,45 @@ class AudioEngine:
 
             # Resolve device
             if SOUNDDEVICE_AVAILABLE and self.mode == AudioEngineMode.LIVE:
+                # Explicit None/empty semantics via the shared helper -- NOT
+                # `or` -- so an explicit device index 0 (falsy in Python) is
+                # never discarded in favor of the JARVIS_INPUT_DEVICE env var
+                # or auto-select. Precedence: configured audio.input_device
+                # wins when it is a real (non-empty) selection; only an
+                # unset/empty config value defers to the environment variable.
+                _requested_device = _explicit_device_or(
+                    self.input_device, os.environ.get("JARVIS_INPUT_DEVICE")
+                )
                 try:
                     self._active_device_index = self.probe_manager.select_best_device(
                         sd_module=sd,
-                        override=self.input_device or os.environ.get("JARVIS_INPUT_DEVICE"),
+                        override=_requested_device,
                     )
                     devs = self.probe_devices()
                     self._active_device_info = next(
                         (d for d in devs if d.index == self._active_device_index),
                         None,
                     )
+                except MicrophoneDeviceUnavailableError as e:
+                    # Explicit selection failed to resolve: never silently
+                    # substitute another physical microphone. Keep active
+                    # device state truthful (None = nothing is really
+                    # active) and degrade clearly instead.
+                    logger.error(
+                        "Explicit input device %r could not be resolved to any "
+                        "available microphone; refusing to substitute a different "
+                        "device. AudioEngine entering degraded MOCK mode.",
+                        e.spec,
+                    )
+                    self._active_device_index = None
+                    self._active_device_info = None
+                    self.mode = AudioEngineMode.MOCK
+                    if self.event_bus:
+                        self.event_bus.publish(
+                            "audio.device_unavailable",
+                            requested_device=e.spec,
+                            timestamp=time.monotonic(),
+                        )
                 except Exception as e:
                     logger.warning("PortAudio device probe failed: %s; entering MOCK mode.", e)
                     self.mode = AudioEngineMode.MOCK

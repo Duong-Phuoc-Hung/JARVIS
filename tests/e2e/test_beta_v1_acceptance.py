@@ -316,30 +316,60 @@ class TestBetaV1Tier2Boundaries:
             assert isinstance(buf_long, np.ndarray)
 
     def test_tier2_audio_engine_device_index_boundary_types(self, acceptance_app):
-        """Boundary: Handle string, negative, None, and invalid device configs safely."""
+        """
+        Boundary (H-02 corrective contract): record_audio() must apply the SAME
+        index/name-substring/fail-closed semantics as AudioEngine's
+        MicrophoneProbeManager -- never silently substitute device=None (OS default)
+        or a different physical microphone for an explicit, unresolved request.
+        """
+        from jarvis.audio.engine import MicrophoneDeviceUnavailableError, MicrophoneProbeManager
+
+        devices = [
+            {"index": 0, "name": "Microsoft Sound Mapper - Input", "max_input_channels": 2},
+            {"index": 1, "name": "Realtek High Definition Audio", "max_input_channels": 2},
+            {"index": 2, "name": "USB Microphone Array", "max_input_channels": 1},
+            {"index": 3, "name": "Virtual Audio Cable", "max_input_channels": 2},
+        ]
+
         with patch("sounddevice.InputStream") as mock_stream:
             mock_inst = MagicMock()
             mock_inst.read.return_value = (np.zeros((100, 1), dtype=np.float32), False)
             mock_stream.return_value.__enter__.return_value = mock_inst
 
-            # 1. audio_engine._active_device_index is None -> falls back to config string "3"
+            # 1. audio_engine._active_device_index is None -> falls back to config
+            #    numeric string "3", resolved against the real device list.
             acceptance_app.audio_engine._active_device_index = None
+            acceptance_app.audio_engine.probe_manager = MicrophoneProbeManager(devices=devices)
             acceptance_app.config["audio.input_device"] = "3"
             acceptance_app.record_audio(duration_s=0.2)
             assert mock_stream.call_args[1]["device"] == 3
 
-            # 2. Config has unparseable string -> falls back to None
+            # 2. Config has a VALID case-insensitive name substring -> resolves to
+            #    that device's index, exactly like AudioEngine's own resolution.
             mock_stream.reset_mock()
-            acceptance_app.config["audio.input_device"] = "usb_microphone_name"
+            acceptance_app.config["audio.input_device"] = "usb microphone"
             acceptance_app.record_audio(duration_s=0.2)
-            assert mock_stream.call_args[1]["device"] is None
+            assert mock_stream.call_args[1]["device"] == 2
 
-            # 3. audio_engine is None entirely
+            # 3. audio_engine is None entirely, no explicit device configured ->
+            #    no explicit request was made, so device=None (OS default) is fine.
             mock_stream.reset_mock()
             acceptance_app.audio_engine = None
             acceptance_app.config["audio.input_device"] = None
             acceptance_app.record_audio(duration_s=0.2)
             assert mock_stream.call_args[1]["device"] is None
+
+            # 4. Explicit device name that matches NOTHING on the system must fail
+            #    closed -- never silently pass device=None to PortAudio and never
+            #    fall through to a different physical microphone.
+            mock_stream.reset_mock()
+            acceptance_app.audio_engine = MagicMock()
+            acceptance_app.audio_engine._active_device_index = None
+            acceptance_app.audio_engine.probe_manager = MicrophoneProbeManager(devices=devices)
+            acceptance_app.config["audio.input_device"] = "usb_microphone_name"
+            with pytest.raises(MicrophoneDeviceUnavailableError):
+                acceptance_app.record_audio(duration_s=0.2)
+            mock_stream.assert_not_called()
 
     def test_tier2_acoustic_playback_lockout_timeout_bound(self, acceptance_app):
         """Boundary: Verify record_audio does not deadlock if TTS is_playing hangs perpetually."""
