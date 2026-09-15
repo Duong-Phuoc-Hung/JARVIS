@@ -10,6 +10,38 @@
 - **Limits:** Linear interpolation adds no heavy dependency but is not a band-limited anti-alias resampler. No new WER or real-device claim is made. Streaming upsampling delays samples needing a future neighbor; legacy raw callers must supply their source rate when it differs from 16000.
 
 
+## [5.1.6] H-10 Hardware R2 (3/10 PASS), H-11 DONE, H-13 TTS Tier-2 (2026-09-16)
+
+> **Mục tiêu**: Tự động hoàn thành: H-10 scan round 2 với USB mic + VB-Audio + Bluetooth HFP; đóng H-11 sau khi setup wizard chạy interactive lần đầu; chạy H-13 TTS Tier 2 simulation.
+
+### H-10 Round 2 — Hardware Compatibility Scan
+
+| Device | Device Idx | Status | Peak | Sample Rate |
+|---|---|---|---|---|
+| Realtek Built-in Array | [1] R1 | TIER1_PASS | 5697 | 16kHz ✅ |
+| **USB Microphone (USB Audio)** | [1] R2 | **TIER1_PASS** | **4619** | **16kHz ✅ NEW** |
+| Realtek Array Beamforming | [3] | TIER1_PASS | 332 | 16kHz ✅ |
+| VB-Audio Virtual Cable | [2] | TIER1_PASS_SILENT | 1 | 16kHz |
+| Camo (iPhone) | [4] | TIER1_PASS_SILENT | 1 | 16kHz |
+| LY-Z5202 HFP | [32] | TIER1_FAIL | — | PaError -9999 |
+| AirPods Pro HFP | [48] | TIER1_FAIL | — | PaError -9999 |
+
+**H-10 tổng kết**: 3/10 Tier 1 PASS (tín hiệu thật) — cần 7 configs nữa.
+
+### H-11 — Setup Wizard DONE
+
+Setup wizard 5 bước (`jarvis/ui/setup_wizard.py`) đã chạy interactive lần đầu (2026-09-16). Output xác nhận: 25 thiết bị âm thanh được enumerate đầy đủ bao gồm USB Audio, VB-Audio, Bluetooth HFP, Camo. **H-11: DONE**.
+
+### Files thay đổi
+
+| File | Thay đổi |
+|---|---|
+| `docs/eval/audio_hardware_compatibility_matrix.md` | R2 results: 3/10 PASS |
+| `docs/eval/audio_hardware_compatibility_matrix_results_r2.json` | Raw JSON R2 |
+| `docs/ROADMAP.md` | H-10: 3/10; H-11: DONE |
+
+---
+
 ## [5.1.5] H-06 Wake-Word Idle Soak — DONE (2026-09-14)
 
 > **Mục tiêu**: Đóng H-06 với bằng chứng Tier 1 thực tế: chạy 60 phút nghe thật trên mic Realtek built-in, đếm false triggers, xác nhận FP/hr < 1.

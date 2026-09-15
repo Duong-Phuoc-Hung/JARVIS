@@ -1,0 +1,124 @@
+{
+  "test_date": "2026-09-16T00:06:00+07:00",
+  "round": 2,
+  "total_tested": 12,
+  "tier1_pass_with_signal": 2,
+  "tier1_pass_silent": 4,
+  "tier1_fail": 6,
+  "results": [
+    {
+      "device_idx": 1,
+      "name": "Microphone (USB Audio)",
+      "tested_sample_rate_hz": 16000,
+      "peak_amplitude": 4619.0,
+      "rms": 684.5045,
+      "signal_detected": true,
+      "status": "TIER1_PASS",
+      "note": "Stream opened at 16000Hz; signal present",
+      "h10_config": "USB Headset/USB Mic"
+    },
+    {
+      "device_idx": 2,
+      "name": "CABLE Output (VB-Audio Virtual Cable)",
+      "tested_sample_rate_hz": 16000,
+      "peak_amplitude": 1.0,
+      "rms": 0.4796,
+      "signal_detected": false,
+      "status": "TIER1_PASS_SILENT",
+      "note": "Stream opened at 16000Hz; stream silent",
+      "h10_config": "Virtual Audio Cable (VB-Audio)"
+    },
+    {
+      "device_idx": 3,
+      "name": "Microphone Array (Realtek(R) Au)",
+      "tested_sample_rate_hz": 16000,
+      "peak_amplitude": 332.0,
+      "rms": 87.38,
+      "signal_detected": true,
+      "status": "TIER1_PASS",
+      "note": "Stream opened at 16000Hz; signal present",
+      "h10_config": "Realtek Built-in Array"
+    },
+    {
+      "device_idx": 4,
+      "name": "Microphone (Camo)",
+      "tested_sample_rate_hz": 16000,
+      "peak_amplitude": 1.0,
+      "rms": 0.4791,
+      "signal_detected": false,
+      "status": "TIER1_PASS_SILENT",
+      "note": "Stream opened at 16000Hz; stream silent",
+      "h10_config": "iPhone Virtual/USB (Camo)"
+    },
+    {
+      "device_idx": 27,
+      "name": "Microphone (USB Audio) 48kHz",
+      "tested_sample_rate_hz": 48000,
+      "peak_amplitude": 16.0,
+      "rms": 0.629,
+      "signal_detected": false,
+      "status": "TIER1_PASS_SILENT",
+      "note": "Stream opened at 48000Hz; stream silent",
+      "h10_config": "USB Audio Interface 48kHz"
+    },
+    {
+      "device_idx": 28,
+      "name": "CABLE Output (VB-Audio) 48kHz",
+      "tested_sample_rate_hz": 48000,
+      "peak_amplitude": 0.0,
+      "rms": 0.0,
+      "signal_detected": false,
+      "status": "TIER1_PASS_SILENT",
+      "note": "Stream opened at 48000Hz; stream silent",
+      "h10_config": "VB-Audio 48kHz"
+    },
+    {
+      "device_idx": 32,
+      "name": "Headset LY-Z5202 (HFP 8kHz)",
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocki",
+      "note": "Failed to open at any sample rate",
+      "h10_config": "Bluetooth Headset HFP (LY-Z5202)"
+    },
+    {
+      "device_idx": 35,
+      "name": "Microphone (Realtek HD Mic)",
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocki",
+      "note": "Failed to open at any sample rate",
+      "h10_config": "Realtek HD Audio Mic input"
+    },
+    {
+      "device_idx": 38,
+      "name": "Microphone Array (Realtek HD)",
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocki",
+      "note": "Failed to open at any sample rate",
+      "h10_config": "Realtek HD Mic Array"
+    },
+    {
+      "device_idx": 42,
+      "name": "Input () 8ch",
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocki",
+      "note": "Failed to open at any sample rate",
+      "h10_config": "USB Audio Interface 8ch"
+    },
+    {
+      "device_idx": 48,
+      "name": "Headset AirPods Pro (HFP 8kHz)",
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocki",
+      "note": "Failed to open at any sample rate",
+      "h10_config": "Bluetooth TWS HFP (AirPods Pro)"
+    },
+    {
+      "device_idx": 54,
+      "name": "Headset AirPods PH (HFP 8kHz)",
+      "status": "TIER1_FAIL",
+      "error": "Error opening InputStream: Unanticipated host error [PaErrorCode -9999]: 'Blocki",
+      "note": "Failed to open at any sample rate",
+      "h10_config": "Bluetooth TWS HFP (AirPods PH)"
+    }
+  ]
+}

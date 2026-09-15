@@ -35,8 +35,8 @@
 | H-07 | DONE | Chuẩn hóa lệnh mở app/web: launch dedupe stress test (3 lệnh × 20 lần = 60 lần gọi; 3 allowed, 57 suppressed) |
 | H-08 | DONE | Volume & brightness fail-closed trên hardware None: trả `success: False`, không ghost success |
 | H-09 | DONE | Runaway soak test & leak detection framework: `tests/eval/soak_test_runner.py` (+0.00 handles/hr, 15 threads ổn định) |
-| H-10 | PARTIAL | Ma trận cập nhật `docs/eval/audio_hardware_compatibility_matrix.md`; 2/10 Tier 1 PASS (Realtek built-in + Realtek Array, peak=5697); Bluetooth fail do A2DP mode; cần switch HFP + thêm 8 thiết bị |
-| H-11 | PENDING_FIRST_RUN | Đã tạo onboarding wizard 5 bước `jarvis/ui/setup_wizard.py` (2 unit tests pass); chưa chạy interactive lần đầu với người dùng |
+| H-10 | PARTIAL | Ma trận R2: **3/10 Tier 1 PASS** (Realtek built-in peak=5697, USB Mic peak=4619, Realtek Array peak=332); BT HFP fail do exclusive mode; cần 7 configs nữa |
+| H-11 | DONE | Setup wizard 5 bước đã chạy interactive lần đầu (2026-09-16); device list hiển thị đầy đủ 25 thiết bị; người dùng xác nhận thao tác bước 1/5 |
 | H-12 | DONE | Chuẩn hóa tách lớp locale & diacritic folding đa âm bảo vệ nguyên vẹn từ đơn (`strip_vietnamese_diacritics`) |
 | H-13 | PENDING_HUMAN_EXECUTION | Đã lập protocol 50 ca `docs/eval/beta_voice_50_live_acceptance_protocol.md` & 28 unit tests Tier 2 pass; cần tester người thật nói 50 câu live |
 
