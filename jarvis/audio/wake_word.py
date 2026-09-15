@@ -387,6 +387,38 @@ class AcousticSpectralDetector:
         if zcr_s2 < 0.10:
             return False, "", 0.0
 
+        # H-06 structural hardening: minimum sustained-duration / multi-frame
+        # confirmation for the S2 (high-band/fricative) peak. Confidence-score
+        # tuning alone cannot fix this class of false positive: measured
+        # against a deterministic synthetic benchmark
+        # (tests/eval/wake_word_fp_benchmark.py), a music-like harmonic signal
+        # followed by a short percussive transient can score confidence
+        # ABOVE 0.89 -- higher than even the strictest sensitivity=0.0
+        # threshold (0.75) -- because a sharp transient can accidentally
+        # satisfy the band-energy/timing/ZCR checks above on a SINGLE frame.
+        # The measured structural difference: a real fricative burst (Hann-
+        # squared envelope, symmetric rise/fall) keeps high-band energy above
+        # half its own peak for several consecutive frames (~6 frames / ~96ms
+        # on the reference synthetic wake signal), whereas a front-loaded,
+        # rapidly-decaying percussive hit (exponential decay envelope) does
+        # not (~3 frames / ~48ms, consistently, across 8 seeded variants of a
+        # synthetic music+percussion negative class). Requiring the high-band
+        # peak to be corroborated by neighboring frames -- not a single
+        # unstable spike -- rejects the transient case while the reference
+        # wake signal and its amplitude/noise/sample-rate sweep continue to
+        # pass (see that benchmark's positive-class results).
+        min_sustained_frames = 4
+        half_peak = max_high * 0.5
+        span_lo = peak_high_idx
+        while span_lo > 0 and high_energies[span_lo - 1] >= half_peak:
+            span_lo -= 1
+        span_hi = peak_high_idx
+        while span_hi < len(high_energies) - 1 and high_energies[span_hi + 1] >= half_peak:
+            span_hi += 1
+        high_sustained_span = span_hi - span_lo + 1
+        if high_sustained_span < min_sustained_frames:
+            return False, "", 0.0
+
         # Calculate confidence score
         score_mid = min(1.0, max_mid / 0.50)
         score_high = min(1.0, max_high / 0.45)
@@ -514,6 +546,8 @@ class WakeWordDetector:
         )
         self._tier1_engine: Any | None = None
         self._porcupine_frame_buffer: _PorcupineFrameBuffer | None = None
+        self._openwakeword_labels: list[str] = []
+        self._openwakeword_threshold: float = 0.5
         self._engine_type: WakeWordEngineType = self._init_tier1()
 
         logger.info(
@@ -581,11 +615,80 @@ class WakeWordDetector:
                     logger.warning("Vosk KaldiRecognizer init failed: %s; falling back to Tier 2.", e)
 
         # 2. OpenWakeWord
+        # H-06 fix: OpenWakeWord is only ever selected when an explicit,
+        # locally-configured model path resolves to a real file AND the
+        # loaded model actually exposes a configured JARVIS wake label.
+        # `openwakeword.Model()` is never called bare -- the real upstream
+        # API (dscripka/openWakeWord) treats `wakeword_models=[]`/omitted as
+        # "auto-load every pretrained model from a default location", which
+        # this codebase has no existing, audited, explicitly-supported
+        # download/provisioning story for. If no usable model is configured,
+        # this falls through to Porcupine/Whisper/acoustic fallback exactly
+        # like an absent Vosk model directory does above -- OpenWakeWord is
+        # never left "selected but dead".
         if OPENWAKEWORD_AVAILABLE:
             try:
-                if hasattr(openwakeword, "Model"):
-                    self._tier1_engine = openwakeword.Model()
-                    return WakeWordEngineType.OPENWAKEWORD
+                raw_paths = (
+                    self.config.get("openwakeword_model_paths")
+                    or self.config.get("openwakeword_model_path")
+                    or os.environ.get("JARVIS_OPENWAKEWORD_MODEL_PATHS")
+                    or os.environ.get("JARVIS_OPENWAKEWORD_MODEL_PATH")
+                )
+                model_paths: list[str] = []
+                if isinstance(raw_paths, str):
+                    model_paths = [p.strip() for p in raw_paths.split(os.pathsep) if p.strip()]
+                elif isinstance(raw_paths, (list, tuple)):
+                    model_paths = [str(p) for p in raw_paths if p]
+                model_paths = [p for p in model_paths if os.path.isfile(p)]
+
+                if model_paths:
+                    raw_labels = self.config.get("openwakeword_wake_labels") or os.environ.get(
+                        "JARVIS_OPENWAKEWORD_WAKE_LABEL"
+                    )
+                    if isinstance(raw_labels, str):
+                        configured_labels = [lbl.strip().lower() for lbl in raw_labels.split(",") if lbl.strip()]
+                    elif isinstance(raw_labels, (list, tuple)):
+                        configured_labels = [str(lbl).strip().lower() for lbl in raw_labels if lbl]
+                    else:
+                        configured_labels = []
+                    if not configured_labels:
+                        # "hey jarvis" is a genuine upstream pretrained
+                        # OpenWakeWord model name -- a reasonable default
+                        # label to look for, not a fabricated one.
+                        configured_labels = ["hey_jarvis", "hey jarvis", "jarvis"]
+
+                    oww_model = openwakeword.Model(wakeword_models=model_paths)
+                    available_labels = {
+                        str(k).strip().lower(): k
+                        for k in getattr(oww_model, "models", {}).keys()
+                    }
+                    matched_labels = [
+                        available_labels[lbl] for lbl in configured_labels if lbl in available_labels
+                    ]
+
+                    if matched_labels:
+                        self._tier1_engine = oww_model
+                        self._openwakeword_labels = matched_labels
+                        self._openwakeword_threshold = float(
+                            self.config.get("openwakeword_threshold", 0.5)
+                        )
+                        return WakeWordEngineType.OPENWAKEWORD
+
+                    logger.warning(
+                        "OpenWakeWord model(s) loaded (%s) but none matched configured "
+                        "JARVIS wake label(s) %s (available model labels: %s); not "
+                        "selecting OpenWakeWord as Tier 1, continuing backend selection.",
+                        model_paths,
+                        configured_labels,
+                        sorted(available_labels.keys()),
+                    )
+                else:
+                    logger.debug(
+                        "OpenWakeWord package available but no configured/existing model "
+                        "path found (config 'openwakeword_model_paths' / env "
+                        "JARVIS_OPENWAKEWORD_MODEL_PATHS); skipping -- JARVIS never "
+                        "auto-downloads OpenWakeWord models implicitly."
+                    )
             except Exception as e:
                 logger.warning("OpenWakeWord init failed: %s; falling back to Tier 2.", e)
 
@@ -682,6 +785,21 @@ class WakeWordDetector:
         with self._lock:
             return self._trigger_count
 
+    @property
+    def engine_type(self) -> str:
+        """
+        The actually-selected/active detection engine, as a plain string
+        (WakeWordEngineType.value) -- e.g. "vosk", "porcupine", "whisper",
+        "acoustic_fallback", "mock". Public accessor so callers (the H-06
+        idle-soak runner, tests, telemetry) can report the real engine in
+        use without reaching into the private `_engine_type` attribute. This
+        can change at runtime (e.g. Porcupine permanently degrading to
+        "acoustic_fallback" after a native failure), so always read it
+        fresh rather than caching it at construction time.
+        """
+        with self._lock:
+            return self._engine_type.value
+
     def suppress_until(self, timestamp: float) -> None:
         """
         Suppresses wake word detection until the specified monotonic timestamp.
@@ -752,6 +870,33 @@ class WakeWordDetector:
         except Exception as e:
             self._degrade_porcupine_to_acoustic_fallback(e)
             return False
+
+    def _process_openwakeword_tier(self, resampled: np.ndarray) -> tuple[bool, str, float]:
+        """
+        Feed a target-sample-rate (16kHz) audio block through the real
+        OpenWakeWord Model.predict() API and return a truthful
+        (detected, keyword, confidence) tuple.
+
+        Only ever called when self._tier1_engine is a genuine, verified-
+        usable OpenWakeWord Model with at least one JARVIS wake label
+        actually present in its loaded models (see _init_tier1()) --
+        `confidence` is always the real predict() score for that label,
+        never fabricated. Raises on a genuine processing failure so the
+        caller can distinguish "processed this block, no match" (must NOT
+        trigger Tier-2 fallback under the "auto" policy) from "engine
+        genuinely failed on this block" (Tier-2 fallback IS allowed).
+        """
+        int16_pcm = (np.clip(resampled, -1.0, 1.0) * 32767.0).astype(np.int16)
+        scores = self._tier1_engine.predict(int16_pcm)
+        best_label = ""
+        best_score = 0.0
+        for label in self._openwakeword_labels:
+            score = float(scores.get(label, 0.0))
+            if score > best_score:
+                best_score = score
+                best_label = label
+        detected = best_score >= self._openwakeword_threshold
+        return detected, (best_label or "hey_jarvis"), best_score
 
     # -----------------------------------------------------------------------
     # Audio Ingestion & Processing
@@ -832,13 +977,35 @@ class WakeWordDetector:
             keyword = ""
             confidence = 0.0
             engine_name = self._engine_type.value
+            # H-06 fix: tracks whether a REAL Tier-1 engine's own detection
+            # logic actually ran (and completed without error) this block --
+            # used below to decide whether Tier-2 acoustic fallback should
+            # even be attempted. Deliberately distinct from "an engine is
+            # merely selected/available": every selectable engine (Vosk,
+            # OpenWakeWord, Porcupine, Whisper) now has a real runtime
+            # detection branch below, so tier1_attempted only stays False
+            # when no Tier-1 engine exists at all (e.g. headless/CI/no-
+            # optional-deps) or a selected engine's processing genuinely
+            # raised an exception this block (e.g. a corrupted Vosk model
+            # buffer, or an OpenWakeWord predict() failure) -- a transient
+            # failure still gets a fallback chance for that block, a
+            # robustness concern distinct from the false-positive-rate
+            # concern the "auto" policy below addresses.
+            tier1_attempted = False
 
             if porcupine_hit:
                 detected = True
                 keyword = "hey_jarvis"
                 confidence = 1.0
                 engine_name = WakeWordEngineType.PORCUPINE.value
+                tier1_attempted = True
+            elif self._engine_type == WakeWordEngineType.PORCUPINE and self._tier1_engine:
+                # Porcupine already ran above (porcupine_hit computed before
+                # the cooldown check); reaching here means it processed this
+                # block cleanly and found no match.
+                tier1_attempted = True
             elif self._engine_type == WakeWordEngineType.VOSK and self._tier1_engine:
+                tier1_attempted = True
                 try:
                     int16_pcm = (resampled * 32767.0).astype(np.int16).tobytes()
                     text = ""
@@ -876,6 +1043,28 @@ class WakeWordDetector:
                                 pass
                 except Exception as e:
                     logger.debug("Vosk recognition error: %s", e)
+                    # A genuine processing failure, not a confident "no match"
+                    # -- let Tier 2 have a chance at this specific block
+                    # rather than silently going dark (robustness concern,
+                    # distinct from the false-positive-rate "auto" policy).
+                    tier1_attempted = False
+
+            elif self._engine_type == WakeWordEngineType.OPENWAKEWORD and self._tier1_engine:
+                tier1_attempted = True
+                try:
+                    ow_detected, ow_keyword, ow_confidence = self._process_openwakeword_tier(resampled)
+                    if ow_detected:
+                        detected = True
+                        keyword = ow_keyword
+                        confidence = ow_confidence
+                        engine_name = WakeWordEngineType.OPENWAKEWORD.value
+                except Exception as e:
+                    logger.debug("OpenWakeWord recognition error: %s", e)
+                    # A genuine processing failure, not a confident "no
+                    # match" -- let Tier 2 have a chance at this specific
+                    # block rather than silently going dark, same
+                    # robustness contract as the Vosk branch above.
+                    tier1_attempted = False
 
             elif self._engine_type == WakeWordEngineType.WHISPER:
                 detected, keyword, confidence = self._whisper_detector.analyze_window(
@@ -883,6 +1072,7 @@ class WakeWordDetector:
                     sensitivity=self.sensitivity,
                     timestamp=now,
                 )
+                tier1_attempted = True
                 if detected:
                     engine_name = WakeWordEngineType.WHISPER.value
 
@@ -893,14 +1083,46 @@ class WakeWordDetector:
                     sensitivity=self.sensitivity,
                     timestamp=now,
                 )
+                tier1_attempted = True
                 if w_detected:
                     detected = True
                     keyword = w_kw
                     confidence = w_conf
                     engine_name = WakeWordEngineType.WHISPER.value
 
-            # Fallback to Tier 2 Acoustic Spectral Detector
-            if not detected:
+            # H-06 fix: engine-selection policy for the Tier 2 acoustic fallback.
+            # Previously this ran UNCONDITIONALLY whenever no higher tier
+            # detected a match -- meaning even a reliable, actively-running
+            # primary engine (Vosk/Porcupine/Whisper) that cleanly found
+            # nothing on a given block still got a second, structurally
+            # weaker opinion from the acoustic heuristic detector on THAT
+            # SAME block, every single block, forever. Since Tier 2 has a
+            # non-zero false-positive rate on its own, this doubled JARVIS's
+            # effective false-trigger surface on top of whatever the primary
+            # engine's own rate was, silently and by accident.
+            #
+            # Explicit policy (config key "acoustic_fallback_policy"):
+            #   "auto"   (default) -- Tier 2 only runs when no primary engine
+            #            actually processed this block (tier1_attempted is
+            #            False: no Tier-1 engine exists at all, e.g. the
+            #            headless/CI/no-optional-deps case which must keep
+            #            working; OR the active engine's processing raised a
+            #            genuine exception this block). A primary engine that
+            #            cleanly processed the block and found nothing (Vosk,
+            #            OpenWakeWord, Porcupine, or Whisper) is NOT a reason
+            #            to also run Tier 2 under "auto" -- "processed and
+            #            said no" is not the same as "engine failed".
+            #   "always" -- explicit opt-in restoring the old unconditional
+            #            supplementary-check behavior.
+            # An unrecognized value fails closed to "auto" (the lower-false-
+            # positive-rate default), never to "always".
+            acoustic_fallback_policy = self.config.get("acoustic_fallback_policy", "auto")
+            run_acoustic_fallback = (
+                (not detected)
+                and (acoustic_fallback_policy == "always" or not tier1_attempted)
+            )
+
+            if run_acoustic_fallback:
                 if self.vad_filter_enabled and not is_mocked and block_rms < self.vad_threshold and ring_rms < self.vad_threshold:
                     return None
 
