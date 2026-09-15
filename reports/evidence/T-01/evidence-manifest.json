@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "task_id": "T-01",
+  "status": "DONE",
+  "completion_basis": "Real Playwright/CDP acceptance, browser-scoped regression, and the repository-wide unit release gate all pass.",
+  "artifact_hash_mode": "SHA-256 of canonical repository bytes; text is LF-normalized and PNG is binary via the local .gitattributes",
+  "captured_at": "2026-09-16T18:13:11.508818+07:00",
+  "source": {
+    "version": "5.1.3",
+    "branch": "main",
+    "base_commit": "791639f7353cf35352e91f4844665addd687feca",
+    "commit": null,
+    "state": "final validated working tree; final commit is recorded in Git history because embedding its own hash would be self-referential"
+  },
+  "environment": {
+    "os": "Windows 11 10.0.26200 64-bit",
+    "python": "3.12.14",
+    "pytest": "8.4.2",
+    "playwright": "1.62.0",
+    "psutil": "6.1.1",
+    "idna": "3.19",
+    "psl": "2025.5.26",
+    "chromium_revision": "1234",
+    "chromium_version": "151.0.7922.34",
+    "network_scope": "loopback only",
+    "credentials_used": false
+  },
+  "executions": [
+    {
+      "name": "browser_scoped_regression",
+      "command": "python -m pytest -o addopts='' <13 browser unit/integration files> -q --tb=short --timeout=120",
+      "exit_code": 0,
+      "result": "301 passed in 45.21s"
+    },
+    {
+      "name": "cookie_session_regression",
+      "command": "python -m pytest -o addopts='' tests/unit/test_browser_cookie_security.py tests/unit/test_browser_session_atomic.py -q --tb=short --timeout=120",
+      "exit_code": 0,
+      "result": "87 passed in 1.47s"
+    },
+    {
+      "name": "real_playwright_cdp_e2e",
+      "command": "JARVIS_RUN_BROWSER_E2E=1 JARVIS_BROWSER_EVIDENCE_DIR=<redacted-artifact-dir> PLAYWRIGHT_BROWSERS_PATH=<installed-browser-store> python -m pytest -o addopts='' tests/e2e/test_browser_playwright_e2e.py -q --tb=short --timeout=120 --junit-xml=<T-01/test-results.xml>",
+      "exit_code": 0,
+      "result": "21 passed in 56.91s"
+    },
+    {
+      "name": "task_scoped_ruff",
+      "command": "ruff check <all changed T-01 production and test Python files>",
+      "exit_code": 0,
+      "result": "All checks passed"
+    },
+    {
+      "name": "repository_ruff_diagnostic",
+      "command": "ruff check jarvis tests",
+      "exit_code": 1,
+      "result": "118 historical findings outside the changed T-01 files"
+    },
+    {
+      "name": "repository_compileall",
+      "command": "python -m compileall -q jarvis tests",
+      "exit_code": 0,
+      "result": "No errors"
+    },
+    {
+      "name": "final_repository_unit_gate",
+      "command": "<standard CI test contract, writable isolated profile> python -m pytest -o addopts='' tests/unit -q --tb=short --timeout=120",
+      "exit_code": 0,
+      "result": "2267 passed, 4 skipped, 151 subtests passed in 330.93s"
+    },
+    {
+      "name": "diff_validation",
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "No whitespace errors; line-ending conversion notices only"
+    }
+  ],
+  "artifacts": [
+    {"path": "artifacts/cdp-action-flow.png", "sha256": "6ed577375a3a18ab217d225cbd6c2a0077dcc1944fd7a8937ef0ad0a3f7b90c1"},
+    {"path": "artifacts/cdp-disconnect.json", "sha256": "a7e2b1ac362f4ab2986f7f49a3d3c3f59f78dd9e28778ce3b49806ef5d5efda4"},
+    {"path": "artifacts/legacy-action-flow.png", "sha256": "f450b60cf03285ab7daf4b4d7401bdbdef712b4695e453394f3b329f8a60c8e8"},
+    {"path": "artifacts/navigation-timeout.json", "sha256": "b5fe65cd4822757539d9154dd79837ec86a44d0751a1435208fca905625fc492"},
+    {"path": "artifacts/playwright-action-flow.png", "sha256": "6cf836655a25048ebed912776e87cc5e48246c8cd991659201853e4c92d204c3"},
+    {"path": "artifacts/session-close.json", "sha256": "b1a58425a6cd76d73cf284583a99aa8f3f67b2b858c49b771234c1bd64173d20"},
+    {"path": "artifacts/wait-timeout.json", "sha256": "bc6e3435a2484ccaf5654b5a66f161257127b1c765419c92b8342e21e39e7d6b"},
+    {"path": "compile-results.txt", "sha256": "f51bfc7fb55f44402a6ee909bb7546db29f5d57a417e25bea3561dbb2dca24c1"},
+    {"path": "environment.json", "sha256": "4c56c3cc59bf32fa113cf0dc6dfd24d22585a5a87e73be329ced3823c1c3c5bc"},
+    {"path": "lint-results.txt", "sha256": "c3b36a9248cc5d7f1baca5e00f99f8d7f1a9f2f757ddb9a0477bd66762e1c5f0"},
+    {"path": "negative-tests.txt", "sha256": "1a0d952b4f65474222fc682dfa55984c0d8e443551f33825c6faf99324ea8a01"},
+    {"path": "README.md", "sha256": "50870847c056b008248bae4927c9a6f442ae03e9e4f14948b84985c379c4ed2f"},
+    {"path": "regression-results.txt", "sha256": "6f8b75df111efea904b8783b5083eeab8d514ed9355b45b84b228381aaf0ddba"},
+    {"path": "test-results.txt", "sha256": "19ff60ffdebc6a69be7c995a356ce28e63b80f1dc733ce45f2ad6c32eae13ddb"},
+    {"path": "test-results.xml", "sha256": "ab28078fb19dd65c899a68255b5a3aa8965796a0941d2eb77ed52b30c5172015"},
+    {"path": "traceability.md", "sha256": "c337266d7ef44262b70eea9f0d3abd96e4d624035f09ed8fc429e740ebf62cc1"}
+  ]
+}

@@ -1,7 +1,7 @@
 # JARVIS Beta v1 System Readiness Dashboard
 
 **Release Target**: JARVIS Beta v1 (Voice Pipeline & Core Integration)  
-**Date**: 2026-09-13  
+**Date**: 2026-09-16 (T-01 browser addendum; other subsystem figures retain their original evidence dates)
 **Auditor / Author**: Worker Beta M4  
 **Integrity Standards**: `AGENTS.md` (Fail-Closed Default, Anti-Fabrication Principle, Windows Atomic Persistence)  
 **Architecture Specification**: `PROJECT.md`  
@@ -10,17 +10,28 @@
 
 ## 1. Executive Summary
 
-JARVIS Beta v1 provides an autonomous, privacy-conscious AI desktop assistant tailored for Windows 11 64-bit with offline Vietnamese voice recognition, natural language intent routing, Windows hardware control, browser automation via CDP, and multi-channel remote connectivity.
+JARVIS Beta v1 provides an autonomous, privacy-conscious AI desktop assistant tailored for Windows 11 64-bit with offline Vietnamese voice recognition, natural language intent routing, Windows hardware control, browser automation through Playwright-managed Chromium or real CDP attachment, and multi-channel remote connectivity.
+
+> **Current browser override (T-01, 2026-09-16):** the old D-04 row referenced files that do
+> not exist and mislabeled 23 mock/unit cases as real Chromium evidence. The canonical files are
+> now `jarvis/browser/driver.py`, `actions.py`, `agent.py`, and `cdp_controller.py`. T-01 has
+> **301/301 scoped tests** and **21/21 deterministic local real Chromium E2E** passing, including
+> Playwright-managed launch and `connect_over_cdp`. Its repository-wide unit gate is also green
+> with **2267 passed, 4 skipped, 151 subtests passed**, so its status is **DONE**. See
+> `reports/evidence/T-01/`. This override supersedes
+> browser claims below; it does not recertify the other historical subsystem counts.
 
 This document serves as the authoritative, empirical release readiness register. In strict compliance with the **Anti-Fabrication Principle** (`AGENTS.md`), every subsystem and task is classified by its verified state:
 - **Core & Backend Subsystems (Phase D)**: **13/17 tasks `DONE`** (100% test-verified in real runtime, including D-14 CI Authenticode signing), and **4/17 tasks `PENDING_CREDENTIALS`** (fail-closed verified).
 - **Voice Pipeline Subsystems (Phase H)**: **9/13 tasks `DONE`** (H-01, H-02, H-03, H-04, H-05, H-07, H-08, H-09, H-12), and **4/13 tasks `CHƯA ĐÓNG / BLOCKED`** (H-06: `PENDING_IDLE_SOAK`, H-10: `BLOCKED_ON_HARDWARE`, H-11: `PENDING_FIRST_RUN`, H-13: `PENDING_HUMAN_EXECUTION`).
-- **End-to-End Test Suite**: **100% pass rate (81/81 passing tests)** across all primary verification suites:
+- **Historical Beta-v1 suites (2026-09-13)**: **81/81 passing tests** across the listed voice/comms/setup verification suites; this is not a claim that the current repository-wide suite is green:
   * E2E Acceptance Test Suite (`tests/e2e/test_beta_v1_acceptance.py`): **28/28 PASS** (Tier 2 automated suite)
   * Voice Pipeline Regression Suite (`tests/unit/test_voice_pipeline_fixes.py`): **8/8 PASS**
   * Zalo Bot Controller Seam Suite (`tests/unit/test_zalo_bot.py`): **25/25 PASS**
   * Comms Hub Fail-Closed Adversarial Suite (`tests/test_adversarial_beta_m1_comms_failclosed.py`): **18/18 PASS**
   * Setup Wizard Suite (`tests/unit/test_setup_wizard.py`): **2/2 PASS**
+- **T-01 real browser E2E (2026-09-16)**: **21/21 PASS**, plus **301/301** browser-scoped
+  tests and full unit gate **2267 passed / 4 skipped**.
 - **Independent Acoustic Benchmark (N=840 total evaluations)**: Zero silent transcription failures (**0.0% STT_EMPTY** across all 840 trials), bounded misrouting (**3.3% MISROUTED** for Small, **1.0%** for Large-v3 noisy, **1.2%** combined Large-v3), median inference latency **~708.5ms** on CTranslate2 CUDA (`small`) and **~2,789.8ms** (`large-v3`), and Intent Router accuracy **99.5%** on independent Vietnamese utterances.
 - **Windows Installer Artifact**: Compiled standalone setup executable `dist/installer/JARVIS_Setup_v5.1.0.exe` (71.4 MB) verified with SHA-256 checksum `E6335E5BF7F704B0FA09E38937BA89CB668939FF9090746B45150ED722031650`.
 
@@ -35,7 +46,7 @@ This document serves as the authoritative, empirical release readiness register.
 | **D-01** | `jarvis/audio/` | Fix CI #200 pycaw mock injection & headless audio parity | `tests/unit/test_audio_engine.py`, CI 100% Green | `DONE` |
 | **D-02** | Environment & CI | Clean env parity — full test suite pass with CI env variables | Automated regression suite (630+ passing tests) | `DONE` |
 | **D-03** | `jarvis/security/scanner.py` | PacketCapture truthfulness — check process exit code & parse packets | `tests/unit/test_security_scanner.py` (18 tests) | `DONE` |
-| **D-04** | `jarvis/browser/cdp.py` | Browser CDP fail-closed & real Chromium navigation tests | `tests/unit/test_browser_cdp.py` (23 tests) | `DONE` |
+| **D-04** | Historical browser seam | Legacy fail-closed unit/mock coverage; it did not prove real Chromium | historical `tests/unit/test_browser_control.py` cases | `SUPERSEDED_BY_T-01` |
 | **D-05** | `jarvis/llm/` | Prompt injection regression defense tests | `tests/unit/test_prompt_injection.py` (22 tests) | `DONE` |
 | **D-06** | `jarvis/comms/telegram.py` | Telegram transport fail-closed & user whitelist defense | `tests/test_adversarial_beta_m1_comms_failclosed.py` | `PENDING_CREDENTIALS` |
 | **D-07** | `jarvis/comms/zalo.py` | Zalo OA fail-closed, token bucket, and whitespace sanitization | `tests/unit/test_zalo_bot.py` (25 tests) | `PENDING_CREDENTIALS` |
@@ -49,6 +60,12 @@ This document serves as the authoritative, empirical release readiness register.
 | **D-15** | `jarvis/core/diagnostics.py`| Support diagnostics bundle & log redaction ZIP generator | `tests/unit/test_diagnostics.py` | `DONE` |
 | **D-16** | `jarvis/security/secrets.py`| Windows Credential Manager integration for tokens & API keys | `tests/unit/test_secrets_manager.py` | `DONE` |
 | **D-17** | Release Management | Release Candidate v5.1.0 build, artifact generation & CHANGELOG | `pyproject.toml`, `dist/installer/`, `CHANGELOG.md` | `DONE` |
+
+### 2.1A Browser remediation task
+
+| Task ID | Module / Component | Target Description | Verification Evidence | Status |
+|:---:|---|---|---|:---:|
+| **T-01** | `jarvis/browser/`, browser core/legacy consumers | Canonical truthful Playwright/CDP end-to-end, fail-closed fallback/results/prices/session handling | `reports/evidence/T-01/`: 301 scoped PASS; 21 real Chromium E2E PASS; full unit gate 2267 PASS / 4 SKIP | `DONE` |
 
 ### 2.2 Voice Pipeline & Interaction Tasks (Phase H: H-01 to H-13)
 

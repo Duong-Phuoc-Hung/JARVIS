@@ -1,0 +1,3 @@
+# Evidence hashes use canonical LF text bytes; keep screenshots byte-exact.
+* text eol=lf
+*.png binary

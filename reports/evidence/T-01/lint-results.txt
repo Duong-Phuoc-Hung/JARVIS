@@ -1,0 +1,19 @@
+T-01 STATIC VALIDATION
+Captured: 2026-09-16 UTC+07:00
+
+Task-scoped Ruff command covered every changed T-01 production and test Python file, including
+jarvis/browser/cookie_utils.py, browser/core/CLI/shell consumers, the real E2E suite, and all
+modified browser/session/integration regression files.
+Exit code: 0
+Result: All checks passed.
+
+Whole-repository diagnostic:
+Command: ruff check jarvis tests
+Exit code: 1
+Result: 118 historical findings outside the changed T-01 files. They are not hidden and are
+not claimed as a passing repository-wide lint gate.
+
+Diff validation:
+Command: git diff --check
+Exit code: 0
+Result: no whitespace errors (line-ending conversion notices only).

@@ -312,13 +312,72 @@ jobs:
           PYTHONIOENCODING: utf-8
 
   # -------------------------------------------------------
-  # JOB 4 - Summary
+  # JOB 4 - Real Browser E2E
+  # -------------------------------------------------------
+  browser_e2e:
+    name: Browser E2E (Chromium)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    needs: syntax
+    env:
+      JARVIS_RUN_BROWSER_E2E: "1"
+      JARVIS_BROWSER_EVIDENCE_DIR: reports/browser-e2e/evidence
+      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}\ms-playwright
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Create browser test report directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path reports/browser-e2e | Out-Null
+
+      - name: Install project browser and test dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip --quiet
+          python -m pip install ".[browser,dev]" --quiet
+
+      - name: Install Playwright Chromium
+        shell: pwsh
+        run: |
+          python -m playwright install chromium `
+            2>&1 | Tee-Object reports/browser-e2e/browser-install.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run deterministic real-browser tests
+        shell: pwsh
+        run: |
+          python -m pytest tests/e2e/test_browser_playwright_e2e.py `
+            -v `
+            --tb=long `
+            --timeout=120 `
+            --junit-xml=reports/browser-e2e/junit.xml `
+            2>&1 | Tee-Object reports/browser-e2e/test-output.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload browser test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-e2e-reports-${{ github.run_number }}
+          path: reports/browser-e2e/
+          if-no-files-found: warn
+          retention-days: 14
+
+  # -------------------------------------------------------
+  # JOB 5 - Summary
   # -------------------------------------------------------
   summary:
     name: Pipeline Summary
     runs-on: windows-latest
     timeout-minutes: 3
-    needs: [syntax, test, imports]
+    needs: [syntax, test, imports, browser_e2e]
     if: always()
 
     steps:
@@ -331,11 +390,13 @@ jobs:
           Write-Host "Syntax Check:    ${{ needs.syntax.result }}"
           Write-Host "Unit Tests:      ${{ needs.test.result }}"
           Write-Host "Import Check:    ${{ needs.imports.result }}"
+          Write-Host "Browser E2E:     ${{ needs.browser_e2e.result }}"
           Write-Host "========================================"
           $failed = @()
           if ("${{ needs.syntax.result }}" -ne "success") { $failed += "Syntax" }
           if ("${{ needs.test.result }}"   -ne "success") { $failed += "Tests" }
           if ("${{ needs.imports.result }}" -ne "success") { $failed += "Imports" }
+          if ("${{ needs.browser_e2e.result }}" -ne "success") { $failed += "Browser E2E" }
           if ($failed.Count -gt 0) {
             Write-Host "STATUS: FAILED ($($failed -join ', '))"
             exit 1

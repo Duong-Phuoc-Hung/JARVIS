@@ -1,3 +1,11 @@
+## PHASE T (2026-09-16) — Browser truthfulness và real end-to-end
+
+| ID | Status | Mô tả |
+|----|--------|-------|
+| T-01 | DONE | Canonical Playwright/CDP browser seam đã qua **301/301 scoped tests**, **21/21 real Chromium loopback E2E** và full unit release gate **2267 passed, 4 skipped, 151 subtests passed**. Navigate/click/type/wait/scroll/DOM/screenshot/redirect/timeout/disconnect, CDP attach, exact-origin header isolation, cookie PSL/IDNA/IPv6/CHIPS/expiry, HTTP session state và legacy persistence đều được xác minh; rate-limiter concurrency và Windows shell descendant cleanup cũng đã sửa. Evidence: `reports/evidence/T-01/`. |
+
+---
+
 ## PHASE D (2026-09-12) — D-01 đến D-17 Hoàn thành & Trạng thái Khả dụng
 
 | ID | Status | Mô tả |
@@ -5,7 +13,7 @@
 | D-01 | DONE | Fix CI #200 pycaw mock injection & headless audio parity (CI 100% GREEN) |
 | D-02 | DONE | Clean env parity — full suite pass với CI env vars |
 | D-03 | DONE | PacketCapture truthfulness — proc.returncode check + 18 tests |
-| D-04 | DONE | Browser CDP fail-closed + real Chromium tests (23 tests) |
+| D-04 | SUPERSEDED_BY_T-01 | Mốc 23 test cũ chỉ chứng minh mock/unit seam, không phải real Chromium. T-01 đã thay thế bằng 21 real Playwright/CDP E2E và full-suite gate xanh. |
 | D-05 | DONE | Prompt injection regression tests (22 tests) |
 | D-06 | PENDING_CREDENTIALS | Telegram transport fail-closed & whitelisting — cần bot token thật |
 | D-07 | PENDING_CREDENTIALS | Zalo OA fail-closed & token bucket — cần OA credentials thật |
@@ -53,7 +61,7 @@
 |---|---|---|
 | A1-A7 fabrication fixes (fail-closed) | Full test suite run định kỳ | B1: cần Home Assistant server thật |
 | B3: ASTCodeValidator wired vào synthesizer | Cài `TShark` (Wireshark CLI cho pcap thật) | C1: cần Discord bot token thật |
-| Sandbox dry-run gate cho synthesizer | Mở port CDP 9222 cho browser live tests | B2: cần quyết định thiết kế phần cứng |
+| Sandbox dry-run gate cho synthesizer | T-01 DONE: browser truthfulness + 2 full-suite blockers đã sửa | B2: cần quyết định thiết kế phần cứng |
 | Router & STT eval N=840 hoàn tất (Small N=420, Large-v3 N=420 clean+noisy, 100% held-out, 99.5% oracle text) | Rà soát Terminal Control Center (1.6) | Telegram / Zalo token thật để test nhánh online |
 | Nâng cấp #3: Migrate `.env` → Credential Manager | | (D-14 đã xong: CI Authenticode tự ký $0 & tài liệu nâng cấp CA) |
 | Nâng cấp #4: TieredSTTEngine (Local Whisper + Cloud + VAD) | | |
@@ -92,12 +100,14 @@
 
 ### 🟡 Ưu tiên trung bình — Chi phí thấp, giải quyết được ngay
 
-**1.4 Cài đặt 3 package/binary mở rộng**
+**1.4 Cài đặt package/binary mở rộng**
 - `pytest-asyncio` — giải quyết các async tests
 - `TShark` (Wireshark CLI) — cho phép test parser gói tin thật
-- `playwright` + `playwright install chromium` — cho P2-15 Browser Automation live
+- `playwright` + `playwright install chromium` — **đã xác minh cho T-01** bằng Playwright
+  1.62.0 + Chromium 151.0.7922.34 trên website loopback.
 
-**1.5 Mở port CDP 9222** — mở Chrome/Edge với `--remote-debugging-port=9222` khi chạy live CDP driver tests.
+**1.5 CDP test endpoint** — **đã xác minh cho T-01**: test host tự khởi chạy Chromium thật
+trên loopback với port động rồi attach bằng `connect_over_cdp`; không cần để port 9222 mở thường trực.
 
 **1.6 Mở rộng grep fabrication** — rà soát toàn bộ codebase theo chuẩn `AGENTS.md`.
 

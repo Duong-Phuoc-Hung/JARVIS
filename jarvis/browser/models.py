@@ -5,7 +5,7 @@ Defines configuration, element structures, action outcomes, scrape payloads,
 and price comparison representations for the JARVIS browser automation subsystem.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -16,6 +16,21 @@ class BrowserDriverType(str, Enum):
     CDP = "cdp"
     HTTP_SCRAPER = "http_scraper"
     MOCK = "mock"
+
+
+class BrowserResultStatus(str, Enum):
+    """Stable outcome categories shared by browser actions and scrapes."""
+
+    SUCCESS = "SUCCESS"
+    ERROR = "ERROR"
+    TIMEOUT = "TIMEOUT"
+    NOT_CONFIGURED = "NOT_CONFIGURED"
+    UNAVAILABLE = "UNAVAILABLE"
+    AUTH_FAILED = "AUTH_FAILED"
+    RATE_LIMITED = "RATE_LIMITED"
+    BLOCKED = "BLOCKED"
+    CANCELLED = "CANCELLED"
+    DISCONNECTED = "DISCONNECTED"
 
 
 @dataclass
@@ -37,6 +52,7 @@ class BrowserConfig:
     accept_downloads: bool = True
     slow_mo_ms: int = 0
     extra_headers: dict[str, str] = field(default_factory=dict)
+    cdp_headers: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -67,6 +83,32 @@ class BrowserActionResult:
     screenshot_b64: str | None = None
     execution_time_ms: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
+    status: BrowserResultStatus | str | None = None
+    error_code: str | None = None
+    driver_type: BrowserDriverType | None = None
+
+    def __post_init__(self) -> None:
+        """Keep legacy ``success`` callers compatible while preventing mixed outcomes."""
+        declared_success = self.success
+        if self.status is None:
+            self.status = (
+                BrowserResultStatus.SUCCESS if self.success else BrowserResultStatus.ERROR
+            )
+        elif not isinstance(self.status, BrowserResultStatus):
+            try:
+                self.status = BrowserResultStatus(str(self.status).upper())
+            except ValueError:
+                self.status = BrowserResultStatus.ERROR
+
+        if self.status is BrowserResultStatus.SUCCESS and not declared_success:
+            self.status = BrowserResultStatus.ERROR
+        self.success = self.status is BrowserResultStatus.SUCCESS
+        if self.success:
+            self.error_code = None
+            self.error_message = None
+        else:
+            self.error_code = self.error_code or "BROWSER_ERROR"
+            self.error_message = self.error_message or "The browser action failed."
 
     @property
     def error(self) -> str | None:
@@ -83,10 +125,14 @@ class PriceComparisonItem:
     currency: str = "VND"
     product_url: str = ""
     rating: float | None = None
-    in_stock: bool = True
-    shipping_cost: float = 0.0
+    in_stock: bool | None = None
+    shipping_cost: float | None = None
     source: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-compatible copy of this evidenced offer."""
+        return asdict(self)
 
 
 @dataclass
@@ -101,6 +147,40 @@ class ScrapeResult:
     images: list[str] = field(default_factory=list)
     tables: list[list[dict[str, str]]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+    status: BrowserResultStatus | str | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+    driver_type: BrowserDriverType | None = None
+
+    def __post_init__(self) -> None:
+        """Infer a fail-closed status for legacy constructors that omit one."""
+        has_evidence = bool(
+            self.title
+            or self.markdown_content
+            or self.text_content
+            or self.structured_data.get("json_ld")
+            or self.links
+            or self.images
+            or self.tables
+        ) and self.title.strip().lower() != "error"
+        if self.status is None:
+            self.status = (
+                BrowserResultStatus.SUCCESS if has_evidence else BrowserResultStatus.ERROR
+            )
+        elif not isinstance(self.status, BrowserResultStatus):
+            try:
+                self.status = BrowserResultStatus(str(self.status).upper())
+            except ValueError:
+                self.status = BrowserResultStatus.ERROR
+
+        if self.status is BrowserResultStatus.SUCCESS and not has_evidence:
+            self.status = BrowserResultStatus.ERROR
+        if self.status is BrowserResultStatus.SUCCESS:
+            self.error_code = None
+            self.error_message = None
+        else:
+            self.error_code = self.error_code or "BROWSER_EMPTY_DOCUMENT"
+            self.error_message = self.error_message or "No browser page content was captured."
 
     @property
     def markdown(self) -> str:
@@ -109,13 +189,13 @@ class ScrapeResult:
 
     @property
     def error(self) -> str | None:
-        """Convenience alias returning None on successful scrape payload."""
-        return None
+        """Convenience alias for the normalized error message."""
+        return self.error_message
 
     @property
     def success(self) -> bool:
-        """Convenience boolean indicator for successful scraping."""
-        return True
+        """Return true only when the normalized outcome is successful."""
+        return self.status is BrowserResultStatus.SUCCESS
 
 
 

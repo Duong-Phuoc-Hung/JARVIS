@@ -31,6 +31,8 @@ dependencies = [
     "numpy>=1.24,<3",
     "Pillow>=10,<12",
     "requests>=2.31,<3",
+    "idna>=3.7,<4",
+    "psl>=2025.5.26",
     "psutil>=5.9",
     "keyring>=24",
     "pyperclip>=1.8,<2",
@@ -128,6 +130,7 @@ filterwarnings = [
 markers = [
     "slow: marks tests as slow (deselect with '-m not slow')",
     "integration: marks integration tests",
+    "browser_e2e: real Playwright/Chromium tests against a loopback-only website",
     "real_os: marks tests requiring real OS-level isolation (Job Object, MIC, AppContainer)",
     "requires_audio: marks tests requiring audio hardware",
 ]

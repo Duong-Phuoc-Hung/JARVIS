@@ -15,10 +15,83 @@
 > maintenance work; those remain attributable through Git history and pull
 > requests.
 > Durable current-state handoff for future sessions.
-> Snapshot: 2026-09-01.
+> Snapshot: 2026-09-16 T-01 completion checkpoint; older sections retain their historical dates.
 > Always verify Git state and current code before relying on this snapshot.
 
-## 0. Current Checkpoint — PR #38 merged: `v5.0.0` is a formally tagged and published GitHub Release, release workflow #7 SUCCESS (2026-09-03) — READ THIS FIRST
+## 0. Current checkpoint — T-01 real Playwright/CDP browser, DONE (2026-09-16) — READ THIS FIRST
+
+This checkpoint supersedes browser/runtime claims in older sections but does not rewrite their
+historical release evidence. Always inspect the working tree and verify remote state before
+treating a recorded SHA as current.
+
+**Source state:**
+
+- Canonical branch: `main`. Implementation originally started from checkpoint
+  `770cda4a95524757448fc8343a37546a6a02ec7b`; the final release validation was rebased onto
+  `origin/main` checkpoint `056443a9597ff9c5754af22bfdb0b5711e74cabc`. Both are historical
+  provenance only; verify current HEAD directly.
+- Runtime remains **5.1.3**. No version bump was authorized or needed.
+- Overall T-01 status is **DONE**: browser acceptance and the repository-wide unit release gate
+  are green under the documented CI test contract and a writable isolated profile.
+
+**Implemented browser contract:**
+
+- `jarvis/browser/driver.py`, `actions.py`, and `agent.py` form one canonical seam supporting
+  real Playwright-managed Chromium and real `connect_over_cdp`. Every Playwright sync handle
+  operation runs on one owner thread; action/agent operations serialize execution and evidence
+  reads. Launch/close are verified and stale/failed candidates are cleaned up fail-closed.
+- `cdp_controller.py` and `jarvis/skills/browser_control/` delegate to the canonical seam.
+  Unsupported legacy capabilities return `UNAVAILABLE`; HTTP fallback reports `http_scraper`
+  and is read-only; Mock must be explicitly selected. Explicit legacy `user_data_dir` values
+  retain cookie/localStorage persistence through the canonical session store.
+- Stable outcomes cover SUCCESS, ERROR, TIMEOUT, NOT_CONFIGURED, UNAVAILABLE, AUTH_FAILED,
+  RATE_LIMITED, BLOCKED, CANCELLED, and DISCONNECTED. `CANCELLED` is vocabulary-only because no
+  cancellation runtime API exists yet. Failure messages/codes are stable and redact sensitive
+  URL/query, selector/form, cookie and raw-exception material.
+- `ScrapeResult` cannot succeed without observed evidence or with title `Error`; navigation
+  failures and stale pages cannot become scrape success; redirect handling uses final observed
+  URL/DOM. Screenshots require real non-empty image bytes.
+- Price comparison emits only evidenced JSON-LD or same-container DOM offers. Zero/non-finite or
+  unassociated values are rejected; unknown stock/shipping stays `None`; no synthetic product
+  or search estimate is created after scrape failure.
+- Session JSON persistence follows the required Windows `_save_lock`/snapshot/unique-temp/
+  retrying-atomic-replace/cleanup contract. localStorage is exact-origin only and HTTP capture
+  cannot poison navigation state; cookies are destination-scoped and revalidated on every
+  download redirect without leaking host-only cookies to subdomains. Cookie canonicalization
+  now covers PSL, UTS46 IDNA, IPv4/IPv6, browser paths, expiry caps and CHIPS variants; custom
+  headers are exact-origin/frame scoped and cannot survive a cross-origin redirect bounce.
+- CDP detection requires a verified launch/close handshake and refreshes the configured
+  endpoint at launch. Core handlers and CLI preserve actual driver, status/error code and final
+  URL; failed results redact page titles/content, and health returns READY/LIMITED/ERROR with a
+  matching process exit code. CI has a
+  Windows `browser_e2e` job that installs Chromium, runs the opt-in loopback suite, uploads
+  evidence, and gates the summary job.
+
+**Measured validation:**
+
+- Browser-scoped unit/integration regression: **301 passed in 45.21s**.
+- Deterministic local real-browser artifact suite: **21 passed in 56.91s** using Playwright 1.62.0 and
+  Chromium 151.0.7922.34; covers managed Chromium, a separately owned CDP Chromium, legacy
+  delegation, real navigate/click/clear-first type/wait/scroll/DOM/screenshot/redirect, status
+  pages, exact-origin header/frame isolation, cookie/CHIPS behavior, invalid selector, timeout,
+  session close and process-level CDP disconnect.
+- Ruff for all T-01 Python and `jarvis/core/app.py`: pass. Compileall: pass. CI YAML parse and
+  summary dependency check: pass. Repository-wide Ruff still reports 118 historical issues
+  outside the changed T-01 files; no all-repository lint claim is made.
+- Full `tests/unit/`: **2267 passed, 4 skipped, 151 subtests passed in 330.93s**, exit code 0,
+  using the repository's explicit CI-only sandbox compatibility opt-in, headless/mock-audio
+  settings, and a writable isolated profile. The former blockers were fixed: rate limiting now
+  samples monotonic time inside its lock, and shell timeout recursively kills descendants with
+  bounded `psutil` waits when `taskkill /T` is denied.
+
+**Evidence:** `reports/evidence/T-01/` contains redacted environment metadata, requirement
+traceability, JUnit/text E2E results, negative-status JSON, three visually inspected real-browser
+screenshots, static/regression records, and a SHA-256 manifest. No external credentials or
+internet service were needed; mock cases were not counted as real E2E.
+
+---
+
+## 0-PREV8. Prior checkpoint — PR #38 merged: `v5.0.0` is a formally tagged and published GitHub Release, release workflow #7 SUCCESS (2026-09-03) — historical
 
 This section supersedes the checkpoint immediately below it (now demoted to `0-PREV7`, kept
 as historical record — not rewritten; further checkpoints cascade as `0-PREV8`, etc.). As

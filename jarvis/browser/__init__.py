@@ -6,7 +6,7 @@ persistent session/cookie management, markdown web scraping, structured data ext
 form automation, price comparison aggregation, and autonomous browser workflows.
 """
 
-from jarvis.browser.actions import BrowserActions
+from jarvis.browser.actions import BrowserActionExecutor, BrowserActions
 from jarvis.browser.agent import BrowserAgent
 from jarvis.browser.driver import (
     BaseBrowserDriver,
@@ -20,6 +20,7 @@ from jarvis.browser.models import (
     BrowserActionResult,
     BrowserConfig,
     BrowserDriverType,
+    BrowserResultStatus,
     DownloadProgress,
     PageElement,
     PriceComparisonItem,
@@ -48,6 +49,7 @@ __all__ = [
     "BrowserSessionManager",
     # Actions & Scrapers
     "BrowserActions",
+    "BrowserActionExecutor",
     "WebScraper",
     "HTMLToMarkdownConverter",
     "HTMLTableParser",
@@ -56,6 +58,7 @@ __all__ = [
     # Data Models
     "BrowserConfig",
     "BrowserDriverType",
+    "BrowserResultStatus",
     "PageElement",
     "BrowserActionResult",
     "PriceComparisonItem",

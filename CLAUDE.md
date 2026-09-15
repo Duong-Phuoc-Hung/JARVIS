@@ -21,18 +21,29 @@ specifically marked otherwise.
 > on "current state" for any non-trivial task: run `git fetch origin --prune`, then
 > `git rev-parse origin/main`, and trust that output over anything written here.
 
+- **T-01 completion checkpoint (2026-09-16):** canonical browser automation
+  now uses real Playwright-managed Chromium or Playwright `connect_over_cdp`; legacy
+  `browser_control` delegates to that seam, while HTTP is explicitly read-only and Mock is
+  explicit-only. Browser-scoped validation is **301 passed** and deterministic loopback real
+  browser validation is **21 passed**, with evidence under `reports/evidence/T-01/`. Two
+  pre-existing release blockers were also fixed: token-bucket timestamp ordering under
+  concurrency and Windows shell descendant cleanup after timeout. The standard CI-contract
+  full `tests/unit/` gate is green with **2267 passed, 4 skipped, 151 subtests passed**, so T-01
+  is **DONE**. Development started from `770cda4a95524757448fc8343a37546a6a02ec7b`
+  and the final release validation was rebased onto the `origin/main` checkpoint
+  `056443a9597ff9c5754af22bfdb0b5711e74cabc`; treat both SHAs only as historical
+  provenance and verify current Git state directly.
 - **Documentation state verified through PR #38** (`release/v5.0.0-finalize` merged into
   `main`, merge commit `083171169419447b2bb28734b4c48a667564c9b2` — this is also the commit
   the annotated `v5.0.0` tag points to). This is the **last verified repository checkpoint
   before this documentation-sync pass** (branch `docs/post-v5.0.0-release-sync`) — not a
   permanent "current HEAD" pointer. By the time you read this, `main` may already be ahead of
   it; verify with `git fetch`/`git rev-parse origin/main` as noted above.
-- **Current development runtime:** `5.0.0` (`jarvis.__version__`, `jarvis/__init__.py`) —
-  bumped from `4.7.0` on `feat/terminal-control-center` as an explicit, owner-authorized
-  development-milestone decision marking the J.A.R.V.I.S. Terminal Control Center, and now
-  on `main` via PR #37. Runtime version is itself durable, stable evidence (unlike a commit
-  SHA) — verify it directly with `python -c "import jarvis; print(jarvis.__version__)"` if
-  in doubt.
+- **Current development runtime:** `5.1.3` (`jarvis.__version__`, `jarvis/__init__.py`) —
+  verified locally for T-01 and intentionally unchanged by this browser task. Runtime version
+  is durable source evidence (unlike a mutable commit pointer); verify it directly with
+  `python -c "import jarvis; print(jarvis.__version__)"`. Do not infer a formal release from
+  this value and do not bump it without explicit release/versioning intent.
 - **Latest formal GitHub Release: `v5.0.0`** — formally tagged and published on
   **2026-09-03**. The annotated tag `v5.0.0` dereferences to `083171169419447b2bb28734b4c48a667564c9b2`
   (the PR #38 merge commit), tag message `"JARVIS v5.0.0 - Terminal Control Center"`. The
@@ -47,14 +58,10 @@ specifically marked otherwise.
   actual latest release, always check the
   [GitHub Releases page](https://github.com/Duong-Phuoc-Hung/JARVIS/releases) rather than
   trusting a version number recorded in this file.
-- **Development source/runtime (`5.0.0`) and the latest formal release (now also `v5.0.0`)
-  have converged** — same pattern as the earlier `v4.4.0` and `v4.5.1` convergences (see §1A
-  "Version metadata" below): the repository owner deliberately cut the `v5.0.0` tag/release
-  from the exact commit carrying `jarvis.__version__ == "5.0.0"`, so for this specific release
-  the two concepts happen to share one version number. They remain **conceptually distinct**
-  and will drift again the moment `main`'s runtime version advances past `5.0.0` without a
-  matching new tag — do not assume future runtime bumps automatically imply a new formal
-  release, and do not assume a future formal release always mirrors the runtime version.
+- **Development source/runtime and formal releases are distinct.** The recorded PR #38
+  checkpoint above proves a `v5.0.0` release at that historical point, while current source is
+  `5.1.3`; always verify the actual latest release externally when it matters. Never infer that
+  a runtime bump created a tag/release or that a release must mirror the runtime version.
 - **Completed and merged, as of the PR #37 checkpoint:**
   - **PR #31** (`fix/healing-truthfulness`, merge commit `10d470237b0fe4bc295f02215b4606590d79d17e`) —
     self-healing (`jarvis/healing/terminator.py`) now reports recovery outcomes truthfully.
@@ -632,6 +639,29 @@ it, exactly as they held for its initial implementation:
   instead. **Do not wire the terminal's Packet Capture or Send Message/Photo/Embed actions
   through to these real methods until their underlying truthfulness gap is fixed as its own
   dedicated task** — doing so now would make the terminal UI lie to the user.
+
+### Durable T-01 browser truthfulness invariant
+
+- `jarvis/browser/driver.py` + `actions.py` + `agent.py` are the canonical browser seam.
+  `cdp_controller.py`, the browser skill, CLI, and core handlers must delegate to it or report
+  a stable failure; do not add a second Playwright/CDP implementation.
+- Interactive success requires a running real Playwright/CDP page and observed completion.
+  HTTP fallback is read-only and cannot succeed for click/type/wait/scroll/screenshot. Mock
+  success is permitted only when Mock was selected explicitly and can never count as live E2E.
+- Preserve the stable result vocabulary and safe error codes. `ScrapeResult` needs page
+  evidence, title `Error` is failure, redirect responses report the observed final URL, and
+  failures must not echo query credentials, selector/form values, cookies, or exception text.
+- Playwright sync handles are owner-thread-affine. Keep all handle operations on the driver's
+  single owner executor and serialize action + evidence reads so concurrent results cannot
+  inherit another request's URL/session.
+- Session persistence must keep the Windows atomic-write contract; localStorage is exact-origin
+  only and cookies passed to downloads/capture must be scoped to the applicable destination.
+- Price comparison may emit only source-observed JSON-LD or same-container DOM offers. Unknown
+  stock/shipping remains `None`; never recreate synthetic/search-estimate/zero-price products.
+- The authoritative local real-browser proof is the opt-in loopback suite
+  `tests/e2e/test_browser_playwright_e2e.py`; its evidence belongs under
+  `reports/evidence/T-01/`. `CANCELLED` is currently a contract value only—do not claim a tested
+  runtime cancellation API until one exists.
 
 ## 1. Project identity
 

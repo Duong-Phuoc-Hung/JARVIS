@@ -3,6 +3,18 @@
 
 ---
 
+## POST-AUDIT OVERRIDE — T-01 Browser (2026-09-16)
+
+Các nhận định phía dưới rằng Browser Automation “chưa hề qua audit”, “chỉ có mô tả định tính”
+hoặc CDP chỉ được kiểm tra bằng mock là kết luận lịch sử tại thời điểm báo cáo 13 vòng và đã bị
+T-01 thay thế. Canonical Playwright/CDP seam hiện có **301 test scoped pass**, **21/21
+deterministic local real Chromium E2E pass** (Playwright-managed launch + real CDP attach), và
+full `tests/unit/` **2267 pass / 4 skip / 0 fail / 0 error**, cùng evidence redacted tại
+`reports/evidence/T-01/`. T-01 là **DONE**; phần còn lại của báo cáo giữ nguyên tính lịch sử và
+không được hiểu là đã được T-01 tái chứng nhận.
+
+---
+
 ## 0. TÓM TẮT ĐIỀU HÀNH (EXECUTIVE SUMMARY)
 
 Dự án JARVIS đã trải qua một quá trình audit đối kháng (adversarial audit) hiếm thấy về độ sâu: 13 vòng trao đổi, mỗi vòng phát hiện một lỗ hổng cụ thể trong mã nguồn hoặc trong chính lập luận bảo mật, và mỗi vòng đều được đội ngũ phát triển xử lý bằng bằng chứng thực nghiệm thay vì chỉ khẳng định suông. Đây là điểm khác biệt lớn nhất so với báo cáo tự đánh giá ban đầu.

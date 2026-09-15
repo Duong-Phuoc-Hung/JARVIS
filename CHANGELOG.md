@@ -100,6 +100,79 @@ Summary: 0/4 credentials CONFIGURED
 
 ---
 
+## T-01 — Browser CDP/Playwright real end-to-end — DONE (2026-09-16)
+
+- **Mục tiêu:** hợp nhất browser automation vào một seam canonical và chỉ báo thành công khi
+  Playwright/CDP đã thực hiện, quan sát và xác minh thao tác thật; thêm website loopback xác
+  định để chứng nhận navigate/click/type/wait/scroll/DOM/screenshot/redirect/timeout/disconnect.
+- **Nguyên nhân gốc rễ:** `ScrapeResult.success` từng luôn là `True`; driver CDP/legacy có các
+  nhánh chỉ cập nhật trạng thái nội bộ; HTTP fallback có thể bị trình bày như driver tương tác;
+  title `Error`, navigation thất bại và dữ liệu scrape cũ có thể bị nâng thành success; price
+  comparison ghép title/price rời rạc và điền mặc định stock/shipping; Playwright sync handle
+  bị gọi xuyên thread; session persistence thiếu tuần tự hóa/atomic replace chuẩn Windows; core
+  và legacy consumer làm mất status/error/driver thực tế. Header tùy biến trước đây chưa được
+  ràng buộc theo từng redirect/frame, còn cookie parsing/canonicalization chưa bao phủ đầy đủ
+  PSL, UTS46 IDNA, IPv6, CHIPS variant, expiry và path theo semantics trình duyệt.
+- **Canonical implementation:**
+  - `jarvis/browser/models.py`, `driver.py`, `actions.py`, `agent.py`: result/status ổn định,
+    Playwright-managed Chromium và `connect_over_cdp` thật, lifecycle được xác minh, owner
+    thread riêng, action/agent serialization, failure propagation và URL/error redaction.
+  - `jarvis/browser/session.py`: `_save_lock`, snapshot ngắn dưới data lock, temp file duy nhất,
+    5 lần retry `replace()` trên Windows và cleanup; cookie theo domain/path/scheme/expiry;
+    localStorage chỉ áp dụng cho exact origin; lưu/khôi phục CHIPS không làm mất variant
+    cross-site-ancestor và xác minh postcondition trước khi báo thành công.
+  - `jarvis/browser/cookie_utils.py`, `driver.py`: canonical cookie dùng PSL + UTS46 IDNA,
+    schemeful partition key, IPv4/IPv6/path/expiry chuẩn hóa fail-closed, giữ thứ tự/duplicate
+    `Set-Cookie`, giới hạn 400 ngày và thao tác CHIPS trực tiếp qua CDP. Header tùy biến được
+    cấp quyền theo exact origin cho từng request/frame và không được tái cấp sau cross-origin
+    redirect hoặc bounce.
+  - `jarvis/browser/scraper.py`: chỉ phát offer có bằng chứng JSON-LD/DOM cùng container; giá
+    zero/không hữu hạn và offer thiếu liên kết bị loại; stock/shipping không quan sát được giữ
+    `None`, không còn synthetic/search-estimate product.
+  - `jarvis/browser/cdp_controller.py`, `jarvis/skills/browser_control/__init__.py`: legacy gọi
+    canonical seam; capability chưa hỗ trợ trả `UNAVAILABLE`, screenshot bắt buộc là bytes ảnh
+    thật, không ghost success.
+  - `jarvis/core/app.py`, `jarvis/cli.py`: ánh xạ browser config, báo driver/final URL/status thật,
+    HTTP fallback là `LIMITED`, price rỗng fail closed và form không echo dữ liệu nhập.
+  - `.github/workflows/ci.yml`, `pyproject.toml`: job Windows `browser_e2e` cài Chromium, bật opt-in,
+    upload evidence và là dependency bắt buộc của summary gate.
+- **Release-gate blocker fixes (được người dùng mở rộng phạm vi):**
+  - `jarvis/comms/rate_limiter.py`: timestamp cũ được lấy trước `_lock`, nên thứ tự thread vào
+    lock có thể làm `last_updated` chạy lùi và refill lặp. Chuyển sang `time.monotonic()` lấy
+    trong critical section và dùng cùng clock domain cho inspect/cleanup.
+  - `jarvis/plugins/shell.py`: `taskkill /T` trả `Access denied` trong restricted Windows rồi
+    fallback chỉ kill `cmd.exe`, để lại Python grandchild. Snapshot/kill từng descendant bằng
+    `psutil`, bounded wait/retry, và bảo đảm cleanup exception không che mất `TimeoutError`.
+  - `tests/unit/test_shell_plugin_timeout.py`: đồng bộ mô tả regression với recursive process
+    termination thực tế; các adversarial test public-seam hiện hữu là RED proof cho rate limiter.
+  - `jarvis/browser/actions.py`: giữ đúng semantics host-only/domain cookie và tự xử lý redirect
+    với `allow_redirects=False`, chọn lại cookie cho từng URL nên cookie phiên không thể đi sang
+    origin khác; failure result xóa title riêng tư.
+  - `jarvis/browser/session.py`: HTTP read-only chỉ capture cookie quan sát được, không gọi JS
+    unsupported làm nhiễm `last_error`, không áp localStorage và không xóa state do browser thật
+    đã lưu. `agent.py`/`core/app.py` redaction nhất quán URL/title/content khi thất bại.
+  - `jarvis/browser/scraper.py`: từ chối float overflow/non-finite và giữ `product_url=""` khi
+    trang không cung cấp link thay vì gán search URL. `driver.py` xác minh CDP bằng attach/close
+    thật và refresh endpoint khi `launch(config)`; `cdp_controller.py` khôi phục persistence khi
+    legacy `user_data_dir` được cấu hình; `cli.py` không còn tổng kết READY/all-pass khi browser
+    chỉ LIMITED hoặc probe lỗi. Shell timeout cũng không còn echo toàn bộ command/secret.
+- **Test mới/mở rộng:** website `tests/browser_test_site.py`, CDP host
+  `tests/cdp_browser_host.py`, 21 case real-browser trong
+  `tests/e2e/test_browser_playwright_e2e.py`, cùng các suite browser truthfulness, concurrency,
+  lifecycle/security, cookie/CHIPS, header/redirect/frame isolation, session atomicity, price,
+  CLI/core và thread-affinity dưới `tests/unit/`.
+- **Kết quả đo thực tế sau rebase cuối lên `origin/main`:** browser-scoped **301 passed trong
+  45.21s**; artifact real Playwright/CDP E2E **21 passed trong 56.91s**; cookie/session focused
+  **87 passed trong 1.47s**; Ruff trên toàn bộ file T-01, compileall và diff check xanh. Full
+  `tests/unit/` với đúng CI test contract và writable isolated profile: **2267 passed, 4 skipped,
+  151 subtests passed trong 330.93s**, exit code 0. Ruff toàn repository vẫn có 118 lỗi baseline ngoài các
+  file T-01 và không bị trình bày sai là gate toàn kho đã xanh.
+- **Evidence:** `reports/evidence/T-01/` chứa environment, traceability, JUnit/log, negative
+  outcomes, three real screenshots, regression/static records và manifest SHA-256 đã redacted.
+- **Trạng thái phát hành:** toàn bộ T-01 acceptance và repository unit release gate đã qua 100%;
+  trạng thái **DONE** và đủ điều kiện commit/push lên `main`. Runtime giữ nguyên **5.1.3** vì
+  đây không phải yêu cầu phát hành/version bump.
+
 ## H-01 — Source-rate capture and 16-kHz STT boundary (2026-09-14)
 
 - **Goal / root cause:** Direct 16-kHz capture fixed the default path, but supported capture overrides still delivered raw arrays without their source rate. Coordinator/tiered/providers interpreted them as 16 kHz; streaming ignored its rate argument, and `stt.sample_rate=None` raised `TypeError`.

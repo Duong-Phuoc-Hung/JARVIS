@@ -11,9 +11,9 @@
 [![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)](LICENSE)
 
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
-JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt qua Playwright CDP và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
+JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt bằng Chromium do Playwright quản lý hoặc phiên Chromium được attach qua CDP, và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.1.3** trên `main` — hoàn thiện mã nguồn kỹ thuật phân hệ Core / Backend / Integrations / Release (D-01..D-17) và Voice Pipeline Hardening (H-01..H-13, H-05 DONE): capture mặc định 16kHz và chuẩn hóa nguồn 8/22.05/24/44.1/48kHz về boundary STT/model 16kHz, đồng bộ micro device, 150ms settling delay, hotkey PTT Ctrl+Shift+L, Intent Router 99.5% accuracy trên 210 câu độc lập, Whisper empirical benchmark hoàn chỉnh N=840 (Small N=420: Clean 61.0% / Noisy 53.8%; Large-v3 N=420: Clean 87.1% / Noisy 84.8%, 1.2% misroute tổng hợp, 0.0% empty), bộ test chấp nhận Tier 2 28/28 E2E tests xanh 100%, 81/81 test seams xác thực, và minh bạch các điều kiện nghiệm thu live (50 ca acceptance, 10 thiết bị phần cứng, idle soak).</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.1.3** trên `main` — hoàn thiện mã nguồn kỹ thuật phân hệ Core / Backend / Integrations / Release (D-01..D-17) và Voice Pipeline Hardening (H-01..H-13, H-05 DONE). T-01 browser là **DONE** với 301/301 test scoped, 21/21 deterministic local E2E trên Chromium thật (gồm CDP attach), và full unit release gate 2267 passed / 4 skipped; xem `reports/evidence/T-01/`. Không có version bump cho T-01.</sub>
 
 
 </div>
@@ -64,7 +64,10 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 - Tìm kiếm từ khóa và ngữ cảnh: *"Hôm qua tôi nói gì về kế hoạch dự án?"*
 
 ### 🌐 Tự Động Hóa Trình Duyệt & Hệ Thống
-- Điều khiển Chrome trực tiếp qua giao thức Playwright CDP (Chrome DevTools Protocol).
+- Mở Chromium thật do Playwright quản lý hoặc attach một Chromium đang chạy qua Chrome DevTools Protocol (`connect_over_cdp`).
+- Thực hiện và xác minh navigate, click, clear-first typing, selector wait, scroll, DOM/title/URL read và screenshot thật; timeout, browser đóng và CDP mất kết nối trả status/error code fail-closed.
+- HTTP fallback chỉ đọc HTML và luôn báo đúng `driver_type=http_scraper`; nó không thể biến click/type/wait/scroll/screenshot thành success. Mock chỉ dùng khi caller chọn rõ `driver_type=mock` và không được tính là E2E.
+- Price comparison chỉ trả offer có nguồn JSON-LD/DOM quan sát được; không sinh giá 0, stock hoặc shipping giả khi scrape thất bại.
 - Phân tích ngữ cảnh màn hình tức thời qua Gemini Vision AI (`Ctrl+Shift+Space`).
 - Tự động hóa macro chuột/bàn phím, điều khiển âm lượng, màn hình, quản lý file và ứng dụng Windows.
 
@@ -282,11 +285,14 @@ python -m venv .venv
 
 # Cài đặt trọn gói bao gồm tất cả dev dependencies và optional extras:
 pip install -e ".[all]"
+
+# Cài Chromium revision tương thích với Playwright để dùng browser automation/E2E:
+python -m playwright install chromium
 ```
 
 ### Chạy bộ kiểm thử (Running Test Suites)
 
-JARVIS bao gồm hơn 630+ bài kiểm thử tự động toàn diện cùng các bộ kiểm chuẩn chuyên biệt cho Product Beta v1:
+JARVIS bao gồm hơn 2.000 bài kiểm thử tự động cùng các bộ kiểm chuẩn chuyên biệt cho Product Beta v1 và browser automation:
 
 ```powershell
 # 1. Chạy bộ kiểm thử chấp nhận E2E Beta v1 (28 tests qua 4 tầng kiểm thử):
@@ -301,12 +307,23 @@ pytest tests/unit/test_zalo_bot.py -v
 # 4. Chạy bộ kiểm thử đối kháng Fail-Closed Comms Hub (18 tests):
 pytest tests/test_adversarial_beta_m1_comms_failclosed.py -v
 
-# 5. Chạy toàn bộ test suites kết hợp (hơn 630+ tests):
+# 5. Chạy deterministic local E2E bằng Chromium/CDP thật (opt-in, không dùng mạng ngoài):
+$env:JARVIS_RUN_BROWSER_E2E = "1"
+pytest tests/e2e/test_browser_playwright_e2e.py -v --timeout=120
+
+# 6. Chạy toàn bộ unit release gate:
+pytest tests/unit/
+
+# 7. Chạy toàn bộ test suites kết hợp:
 pytest tests/
 
-# 6. Chạy kiểm thử kèm báo cáo độ bao phủ mã nguồn (Coverage Report):
+# 8. Chạy kiểm thử kèm báo cáo độ bao phủ mã nguồn (Coverage Report):
 pytest tests/ --cov=jarvis --cov-report=term-missing
 ```
+
+Evidence T-01 được lưu tại `reports/evidence/T-01/`. Snapshot 2026-09-16 có 21/21
+real-browser E2E, 301/301 browser-scoped tests và full `tests/unit/` 2267 passed / 4 skipped;
+T-01 được chứng nhận DONE trên môi trường test chuẩn CI với writable isolated profile.
 
 ### Kiểm tra cú pháp, Linting & Type Checking
 
@@ -470,7 +487,7 @@ JARVIS được tích hợp sẵn 18+ kỹ năng mạnh mẽ, tự động kích
 | 13| 🧬 **Tự Viết Kỹ Năng** | `skill_synthesizer`| *"Tạo kỹ năng theo dõi giá vàng"* | Tự động viết code Python và nạp kỹ năng mới trong <15s |
 | 14| 🌙 **Night Planner** | `night_planner` | *"Tối nay phân tích các file log"* | Thực hiện tác vụ nặng ban đêm và báo cáo lúc sáng |
 | 15| 🏠 **Nhà Thông Minh** | `smart_home_discovery`| *"Quét thiết bị nhà thông minh"* | Quét mDNS và điều khiển Home Assistant / Tasmota |
-| 16| 🌐 **Điều Khiển Browser**| `browser_control`| *"Mở YouTube tìm bài hát Iron Man"* | Điều khiển trình duyệt Chrome qua Playwright CDP |
+| 16| 🌐 **Điều Khiển Browser**| `browser_control`| *"Mở YouTube tìm bài hát Iron Man"* | Chromium thật qua Playwright managed launch hoặc CDP attach; HTTP chỉ-read fail-closed |
 | 17| 🔄 **Tự Cập Nhật** | `auto_updater` | *"Kiểm tra bản cập nhật mới"* | Tự động kiểm tra và nâng cấp phiên bản qua GitHub |
 | 18| 📂 **Quản Lý Dự Án** | `workspace_prepare`| *"Mở dự án JARVIS", "Commit dự án"* | Quản lý dự án lập trình, Git assistant và workspace |
 
@@ -533,7 +550,7 @@ Các phím tắt hoạt động toàn cầu trên Windows (ngay cả khi ứng d
 │                       OUTPUT & EXECUTION LAYER                         │
 │  🗣️ Piper TTS / ElevenLabs (<80ms)    🔔 Windows Notification Toast     │
 │  🪟 Silent Subprocess Manager (No-Flash) 💾 SQLite FTS5 Memory         │
-│  🌐 Playwright CDP Automation          📊 Health Diagnostics           │
+│  🌐 Playwright + Real CDP Automation   📊 Health Diagnostics           │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 

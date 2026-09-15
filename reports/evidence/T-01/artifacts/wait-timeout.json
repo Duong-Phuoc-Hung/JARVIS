@@ -1,0 +1,7 @@
+{
+  "success": false,
+  "status": "TIMEOUT",
+  "error_code": "BROWSER_TIMEOUT",
+  "error_message": "Timed out waiting for the browser element.",
+  "driver_type": "playwright"
+}

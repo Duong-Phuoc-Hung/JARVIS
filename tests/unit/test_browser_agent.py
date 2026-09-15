@@ -237,6 +237,10 @@ class TestBrowserSessionManager(unittest.TestCase):
             {"name": "auth_token", "value": "new_xyz456", "domain": "example.com", "path": "/"},
             {"name": "session_id", "value": "sess_999", "domain": "example.com", "path": "/"},
         ])
+        driver.set_fixture_html(
+            "<html><body>Profile</body></html>",
+            url="https://example.com/profile",
+        )
         captured = self.session_mgr.capture_from_driver(driver, "https://example.com/profile")
         self.assertTrue(captured)
 

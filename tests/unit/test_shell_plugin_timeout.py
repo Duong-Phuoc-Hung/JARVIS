@@ -54,7 +54,11 @@ def test_exec_command_timeout_is_wall_clock_bounded_not_grandchild_bounded(shell
     subprocess.run()'s own timeout handling on either OS, so this must hold
     on POSIX too, not just Windows.
     """
-    command = f'"{sys.executable}" -c "import time; time.sleep({GRANDCHILD_SLEEP_S})"'
+    secret = "API_TOKEN=must-not-appear-in-timeout"
+    command = (
+        f'"{sys.executable}" -c "import time; time.sleep({GRANDCHILD_SLEEP_S})" '
+        f'"{secret}"'
+    )
 
     t0 = time.monotonic()
     with pytest.raises(TimeoutError) as exc_info:
@@ -62,6 +66,7 @@ def test_exec_command_timeout_is_wall_clock_bounded_not_grandchild_bounded(shell
     elapsed = time.monotonic() - t0
 
     assert f"timed out after {REQUESTED_TIMEOUT_S}s" in str(exc_info.value)
+    assert secret not in str(exc_info.value)
     assert elapsed < MAX_ACCEPTABLE_WALL_CLOCK_S, (
         f"exec_command() took {elapsed:.2f}s to raise TimeoutError -- it waited "
         f"for something close to the grandchild's {GRANDCHILD_SLEEP_S}s sleep "
@@ -87,7 +92,8 @@ def test_exec_command_normal_completion_still_returns_output(shell_plugin):
     reason=(
         "This checks that the grandchild process itself (not just the "
         "immediate shell wrapper) is actually terminated -- the specific "
-        "Windows process-tree defect this fix closes via `taskkill /F /T`. "
+        "Windows process-tree defect this fix closes via recursive process "
+        "termination. "
         "POSIX's subprocess timeout handling does not exhibit the same "
         "defect (CPython already populates output incrementally before "
         "raising TimeoutExpired there; see subprocess.py's own comment), "

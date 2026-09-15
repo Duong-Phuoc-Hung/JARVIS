@@ -1,49 +1,185 @@
-"""
-jarvis/skills/browser_control/__init__.py
-==========================================
-Browser Control skill: điều khiển Chrome bằng giọng nói.
+"""Legacy browser-control skill backed by the canonical browser adapter."""
 
-Lệnh thoại:
-  "JARVIS, mở YouTube"
-  "Tìm kiếm tin tức công nghệ hôm nay"
-  "Chụp ảnh trang này"
-  "Kéo xuống"
-  "Click vào nút Đăng nhập"
-  "Trích xuất nội dung bài báo này"
-"""
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+import threading
+from typing import Any
+
+from jarvis.browser.models import BrowserDriverType, BrowserResultStatus
 
 log = logging.getLogger("jarvis.skills.browser_control")
 
 _BROWSER: Any | None = None
+_BROWSER_LOCK = threading.Lock()
+_LAST_LAUNCH_STATUS: BrowserResultStatus | None = None
+_LAST_LAUNCH_ERROR_CODE: str | None = None
+_LAST_LAUNCH_DRIVER_TYPE: BrowserDriverType | str | None = None
 _QUICK_URLS: dict[str, str] = {
-    "youtube":   "https://www.youtube.com",
-    "google":    "https://www.google.com",
-    "facebook":  "https://www.facebook.com",
-    "gmail":     "https://mail.google.com",
-    "github":    "https://github.com",
-    "chatgpt":   "https://chat.openai.com",
-    "gemini":    "https://gemini.google.com",
-    "shopee":    "https://shopee.vn",
-    "lazada":    "https://www.lazada.vn",
+    "youtube": "https://www.youtube.com",
+    "google": "https://www.google.com",
+    "facebook": "https://www.facebook.com",
+    "gmail": "https://mail.google.com",
+    "github": "https://github.com",
+    "chatgpt": "https://chat.openai.com",
+    "gemini": "https://gemini.google.com",
+    "shopee": "https://shopee.vn",
+    "lazada": "https://www.lazada.vn",
     "vnexpress": "https://vnexpress.net",
-    "tuoitre":   "https://tuoitre.vn",
-    "dantri":    "https://dantri.com.vn",
-    "tgdd":      "https://www.thegioididong.com",
+    "tuoitre": "https://tuoitre.vn",
+    "dantri": "https://dantri.com.vn",
+    "tgdd": "https://www.thegioididong.com",
 }
 
 
-def _get_browser():
+def _status_value(status: BrowserResultStatus | str) -> str:
+    return status.value if isinstance(status, BrowserResultStatus) else str(status).upper()
+
+
+def _driver_value(driver_type: BrowserDriverType | str | None) -> str | None:
+    if isinstance(driver_type, BrowserDriverType):
+        return driver_type.value
+    return str(driver_type) if driver_type is not None else None
+
+
+def _safe_error_message(status: BrowserResultStatus | str) -> str:
+    value = _status_value(status)
+    messages = {
+        "TIMEOUT": "The browser action timed out.",
+        "NOT_CONFIGURED": "The browser is not configured.",
+        "UNAVAILABLE": "The browser driver is unavailable.",
+        "AUTH_FAILED": "Browser authentication failed.",
+        "RATE_LIMITED": "The browser request was rate limited.",
+        "BLOCKED": "The browser action was blocked.",
+        "CANCELLED": "The browser action was cancelled.",
+        "DISCONNECTED": "The browser session is disconnected.",
+    }
+    return messages.get(value, "The browser action failed.")
+
+
+def _response(
+    *,
+    success: bool,
+    message: str,
+    status: BrowserResultStatus | str,
+    error_code: str | None = None,
+    driver_type: BrowserDriverType | str | None = None,
+    **data: Any,
+) -> dict[str, Any]:
+    """Build the stable top-level contract while retaining legacy nested fields."""
+
+    status_value = _status_value(status)
+    if not success and status_value == BrowserResultStatus.SUCCESS.value:
+        status_value = BrowserResultStatus.ERROR.value
+    elif success and status_value != BrowserResultStatus.SUCCESS.value:
+        success = False
+    error_code = None if success else (error_code or "BROWSER_ACTION_FAILED")
+    safe_error = None if success else _safe_error_message(status_value)
+    for sensitive_key in (
+        "selector",
+        "text",
+        "value",
+        "fields",
+        "cookies",
+        "password",
+        "token",
+    ):
+        data.pop(sensitive_key, None)
+    payload: dict[str, Any] = {
+        "text": message,
+        "success": success,
+        "status": status_value,
+        "error_code": error_code,
+        "error_message": safe_error,
+        "driver_type": _driver_value(driver_type),
+    }
+    payload.update(data)
+    return {
+        "success": success,
+        "status": status_value,
+        "error_code": error_code,
+        "error_message": safe_error,
+        "driver_type": _driver_value(driver_type),
+        "data": payload,
+        "output": message,
+    }
+
+
+def _browser_response(
+    browser: Any,
+    *,
+    success: bool,
+    message: str,
+    error_code: str | None = None,
+    **data: Any,
+) -> dict[str, Any]:
+    status = (
+        BrowserResultStatus.SUCCESS
+        if success
+        else getattr(browser, "last_status", None) or BrowserResultStatus.ERROR
+    )
+    code = None if success else (
+        error_code
+        or getattr(browser, "last_error_code", None)
+        or "BROWSER_ACTION_FAILED"
+    )
+    return _response(
+        success=success,
+        message=message,
+        status=status,
+        error_code=code,
+        driver_type=getattr(browser, "driver_type", None),
+        **data,
+    )
+
+
+def _get_browser() -> Any | None:
+    """Return a launched browser, never caching a failed launch candidate."""
+
     global _BROWSER
-    if _BROWSER is None:
+    global _LAST_LAUNCH_DRIVER_TYPE
+    global _LAST_LAUNCH_ERROR_CODE
+    global _LAST_LAUNCH_STATUS
+    with _BROWSER_LOCK:
+        if _BROWSER is not None:
+            return _BROWSER
+
         from jarvis.browser.cdp_controller import BrowserCDPController, BrowserConfig
-        cfg = BrowserConfig(headless=False, slow_mo_ms=50)
-        _BROWSER = BrowserCDPController(config=cfg, is_mock=False)
-        _BROWSER.launch()
-    return _BROWSER
+
+        candidate = BrowserCDPController(
+            config=BrowserConfig(headless=False, slow_mo_ms=50),
+            is_mock=False,
+        )
+        try:
+            launched = candidate.launch()
+        except Exception as exc:
+            log.error("Browser skill launch failed (%s).", type(exc).__name__)
+            launched = False
+        if not launched:
+            candidate_status = getattr(candidate, "last_status", None)
+            _LAST_LAUNCH_STATUS = (
+                candidate_status
+                if isinstance(candidate_status, BrowserResultStatus)
+                else BrowserResultStatus.UNAVAILABLE
+            )
+            candidate_code = getattr(candidate, "last_error_code", None)
+            _LAST_LAUNCH_ERROR_CODE = (
+                candidate_code
+                if isinstance(candidate_code, str) and candidate_code
+                else "BROWSER_DRIVER_UNAVAILABLE"
+            )
+            _LAST_LAUNCH_DRIVER_TYPE = getattr(candidate, "driver_type", None)
+            try:
+                candidate.close()
+            except Exception:
+                pass
+            return None
+
+        _BROWSER = candidate
+        _LAST_LAUNCH_STATUS = None
+        _LAST_LAUNCH_ERROR_CODE = None
+        _LAST_LAUNCH_DRIVER_TYPE = None
+        return _BROWSER
 
 
 def execute(
@@ -58,99 +194,274 @@ def execute(
     filename: str = "",
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """
-    Browser Control skill — điều khiển Chrome bằng giọng nói.
+    """Execute a legacy browser command through the canonical browser layer."""
 
-    Actions:
-      open       - Mở URL hoặc trang web nhanh (youtube, github...)
-      navigate   - Điều hướng đến URL bất kỳ
-      search     - Tìm kiếm Google
-      click      - Click vào phần tử (CSS selector hoặc text)
-      type       - Gõ văn bản vào form
-      screenshot - Chụp ảnh màn hình trình duyệt
-      extract    - Trích xuất nội dung trang thành Markdown
-      scroll     - Cuộn trang
-      close      - Đóng trình duyệt
-    """
+    global _BROWSER
     act = action.lower().strip()
+
+    if act in ("close", "exit", "quit"):
+        with _BROWSER_LOCK:
+            browser = _BROWSER
+            _BROWSER = None
+        if browser is None:
+            return _response(
+                success=False,
+                message="❌ Không có phiên trình duyệt đang hoạt động.",
+                status=BrowserResultStatus.DISCONNECTED,
+                error_code="BROWSER_NO_ACTIVE_SESSION",
+            )
+        driver_type = getattr(browser, "driver_type", None)
+        try:
+            closed = browser.close()
+        except Exception as exc:
+            log.error("Browser skill close failed (%s).", type(exc).__name__)
+            return _response(
+                success=False,
+                message="❌ Không thể đóng trình duyệt.",
+                status=BrowserResultStatus.ERROR,
+                error_code="BROWSER_CLOSE_FAILED",
+                driver_type=driver_type,
+            )
+        if closed is not True:
+            return _browser_response(
+                browser,
+                success=False,
+                message="❌ Không thể đóng trình duyệt.",
+                error_code="BROWSER_CLOSE_FAILED",
+            )
+        return _response(
+            success=True,
+            message="🔴 Trình duyệt đã đóng.",
+            status=BrowserResultStatus.SUCCESS,
+            driver_type=driver_type,
+        )
+
+    if act == "search" and not query:
+        return _response(
+            success=False,
+            message="Vui lòng cung cấp query để tìm kiếm.",
+            status=BrowserResultStatus.ERROR,
+            error_code="BROWSER_INPUT_REQUIRED",
+        )
+    if act in ("open", "navigate") and not (url or query):
+        return _response(
+            success=False,
+            message="Vui lòng cung cấp URL.",
+            status=BrowserResultStatus.ERROR,
+            error_code="BROWSER_INPUT_REQUIRED",
+        )
+    if act in ("click", "wait") and not selector:
+        return _response(
+            success=False,
+            message="Vui lòng cung cấp selector.",
+            status=BrowserResultStatus.ERROR,
+            error_code="BROWSER_INPUT_REQUIRED",
+        )
+    if act == "type" and (not selector or not text):
+        return _response(
+            success=False,
+            message="Cần cả selector và nội dung cần nhập.",
+            status=BrowserResultStatus.ERROR,
+            error_code="BROWSER_INPUT_REQUIRED",
+        )
+    supported = {
+        "open",
+        "navigate",
+        "search",
+        "click",
+        "type",
+        "wait",
+        "screenshot",
+        "extract",
+        "scroll",
+        "key",
+    }
+    if act not in supported:
+        return _response(
+            success=False,
+            message=f"Hành động '{act}' không được hỗ trợ.",
+            status=BrowserResultStatus.ERROR,
+            error_code="BROWSER_ACTION_UNSUPPORTED",
+        )
 
     try:
         browser = _get_browser()
+        if browser is None:
+            return _response(
+                success=False,
+                message="❌ Trình duyệt hiện không khả dụng.",
+                status=_LAST_LAUNCH_STATUS or BrowserResultStatus.UNAVAILABLE,
+                error_code=(
+                    _LAST_LAUNCH_ERROR_CODE or "BROWSER_DRIVER_UNAVAILABLE"
+                ),
+                driver_type=(
+                    _LAST_LAUNCH_DRIVER_TYPE or BrowserDriverType.PLAYWRIGHT
+                ),
+            )
 
         if act == "open":
-            # Resolve quick URL aliases
             target = url or query
             resolved = _QUICK_URLS.get(target.lower().rstrip("/"), target)
-            if not resolved.startswith("http"):
+            if not resolved.startswith(("http://", "https://")):
                 resolved = f"https://{resolved}"
             page = browser.navigate(resolved)
-            msg = f"🌐 Đã mở: **{page.title}**\n📍 {page.url}"
-            return {"data": {"text": msg, "url": page.url, "title": page.title, "success": True}, "output": msg}
+            if page.success:
+                message = f"🌐 Đã mở: **{page.title}**\n📍 {page.url}"
+                return _response(
+                    success=True,
+                    message=message,
+                    status=page.status,
+                    driver_type=page.driver_type,
+                    url=page.url,
+                    title=page.title,
+                )
+            return _response(
+                success=False,
+                message="❌ Không thể mở trang được yêu cầu.",
+                status=page.status,
+                error_code=page.error_code,
+                driver_type=page.driver_type,
+            )
 
-        elif act == "navigate":
-            target = url or query
-            page = browser.navigate(target)
-            msg = f"🌐 Đã điều hướng đến: **{page.title}**\n📍 {page.url}"
-            return {"data": {"text": msg, "url": page.url, "success": True}, "output": msg}
+        if act == "navigate":
+            page = browser.navigate(url or query)
+            if page.success:
+                message = f"🌐 Đã điều hướng đến: **{page.title}**\n📍 {page.url}"
+                return _response(
+                    success=True,
+                    message=message,
+                    status=page.status,
+                    driver_type=page.driver_type,
+                    url=page.url,
+                    title=page.title,
+                )
+            return _response(
+                success=False,
+                message="❌ Không thể điều hướng đến trang được yêu cầu.",
+                status=page.status,
+                error_code=page.error_code,
+                driver_type=page.driver_type,
+            )
 
-        elif act == "search":
-            if not query:
-                return {"data": {"text": "Vui lòng cung cấp query để tìm kiếm.", "success": False}, "output": "Thiếu query"}
+        if act == "search":
             page = browser.search_google(query)
-            msg = f"🔍 Đang tìm kiếm: **{query}**\n📍 {page.url}"
-            return {"data": {"text": msg, "query": query, "url": page.url, "success": True}, "output": msg}
+            if page.success:
+                return _response(
+                    success=True,
+                    message="🔍 Đã mở trang kết quả tìm kiếm.",
+                    status=page.status,
+                    driver_type=page.driver_type,
+                    url=page.url,
+                )
+            return _response(
+                success=False,
+                message="❌ Không thể mở trang kết quả tìm kiếm.",
+                status=page.status,
+                error_code=page.error_code,
+                driver_type=page.driver_type,
+            )
 
-        elif act == "click":
-            if not selector:
-                return {"data": {"text": "Vui lòng cung cấp selector hoặc text để click.", "success": False}, "output": "Thiếu selector"}
+        if act == "click":
             ok = browser.click(selector)
-            msg = f"{'✅' if ok else '❌'} Click: **{selector}**"
-            return {"data": {"text": msg, "selector": selector, "success": ok}, "output": msg}
+            message = "✅ Đã click phần tử." if ok else "❌ Không thể click phần tử."
+            return _browser_response(
+                browser,
+                success=ok,
+                message=message,
+                selector=selector,
+            )
 
-        elif act == "type":
-            if not selector or not text:
-                return {"data": {"text": "Cần cả selector và text.", "success": False}, "output": "Thiếu thông tin"}
+        if act == "type":
             ok = browser.type_text(selector, text)
-            msg = f"⌨️ Đã gõ vào [{selector}]: **{text[:40]}{'...' if len(text) > 40 else ''}**"
-            return {"data": {"text": msg, "success": ok}, "output": msg}
+            message = (
+                "⌨️ Đã nhập dữ liệu vào trường được chọn."
+                if ok
+                else "❌ Không thể nhập dữ liệu vào trường được chọn."
+            )
+            # Never include the typed value in response data, output, or logs.
+            return _browser_response(
+                browser,
+                success=ok,
+                message=message,
+                selector=selector,
+            )
 
-        elif act == "screenshot":
+        if act == "wait":
+            state = str(kwargs.get("state", "visible"))
+            timeout = kwargs.get("timeout_ms")
+            ok = browser.wait_for_selector(selector, state=state, timeout_ms=timeout)
+            message = (
+                "✅ Phần tử đã đạt trạng thái yêu cầu."
+                if ok
+                else "❌ Phần tử không đạt trạng thái yêu cầu."
+            )
+            return _browser_response(
+                browser,
+                success=ok,
+                message=message,
+                selector=selector,
+                state=state,
+            )
+
+        if act == "screenshot":
             path = browser.screenshot(filename)
             if path:
-                msg = f"📸 Ảnh chụp trình duyệt: `{path}`"
-                return {"data": {"text": msg, "path": path, "success": True}, "output": msg}
-            msg = "❌ Không chụp được ảnh."
-            return {"data": {"text": msg, "success": False}, "output": msg}
+                return _browser_response(
+                    browser,
+                    success=True,
+                    message=f"📸 Ảnh chụp trình duyệt: `{path}`",
+                    path=path,
+                )
+            return _browser_response(
+                browser,
+                success=False,
+                message="❌ Không chụp được ảnh.",
+                error_code="BROWSER_SCREENSHOT_FAILED",
+            )
 
-        elif act == "extract":
+        if act == "extract":
             content = browser.extract_content_as_markdown()
-            url_now = browser.get_current_url()
-            preview = content[:200] + "..." if len(content) > 200 else content
-            msg = f"📄 Nội dung từ `{url_now}`:\n\n{preview}"
-            return {"data": {"text": msg, "content": content, "url": url_now, "success": bool(content)}, "output": msg}
+            if content:
+                url_now = browser.get_current_url()
+                preview = content[:200] + "..." if len(content) > 200 else content
+                message = f"📄 Nội dung từ `{url_now}`:\n\n{preview}"
+                return _browser_response(
+                    browser,
+                    success=True,
+                    message=message,
+                    content=content,
+                    url=url_now,
+                )
+            return _browser_response(
+                browser,
+                success=False,
+                message="❌ Không đọc được nội dung trang.",
+                error_code="BROWSER_CONTENT_READ_FAILED",
+            )
 
-        elif act == "scroll":
+        if act == "scroll":
             ok = browser.scroll(direction, amount)
-            msg = f"📜 Đã cuộn {'xuống' if direction == 'down' else 'lên'} {amount}px"
-            return {"data": {"text": msg, "success": ok}, "output": msg}
+            direction_label = {
+                "down": "xuống",
+                "up": "lên",
+                "top": "lên đầu trang",
+                "bottom": "xuống cuối trang",
+            }.get(direction.lower().strip(), direction)
+            message = (
+                f"📜 Đã cuộn {direction_label} {amount}px."
+                if ok
+                else "❌ Không thể cuộn trang."
+            )
+            return _browser_response(browser, success=ok, message=message)
 
-        elif act == "key":
-            ok = browser.press_key(key)
-            msg = f"⌨️ Đã nhấn phím: **{key}**"
-            return {"data": {"text": msg, "success": ok}, "output": msg}
-
-        elif act in ("close", "exit", "quit"):
-            browser.close()
-            global _BROWSER
-            _BROWSER = None
-            msg = "🔴 Trình duyệt đã đóng."
-            return {"data": {"text": msg, "success": True}, "output": msg}
-
-        else:
-            msg = f"Hành động '{act}' không hỗ trợ. Thử: open, search, click, type, screenshot, extract, scroll, close."
-            return {"data": {"text": msg, "success": False}, "output": msg}
-
+        ok = browser.press_key(key)
+        message = f"⌨️ Đã nhấn phím: **{key}**" if ok else "❌ Không thể nhấn phím."
+        return _browser_response(browser, success=ok, message=message)
     except Exception as exc:
-        log.error("Browser skill error: %s", exc)
-        err = f"❌ Lỗi browser: {exc}"
-        return {"data": {"text": err, "success": False}, "output": err}
+        log.error("Browser skill action failed (%s).", type(exc).__name__)
+        return _response(
+            success=False,
+            message="❌ Tác vụ browser thất bại.",
+            status=BrowserResultStatus.ERROR,
+            error_code="BROWSER_SKILL_ERROR",
+        )

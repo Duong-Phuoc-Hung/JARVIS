@@ -1,0 +1,7 @@
+{
+  "success": false,
+  "status": "DISCONNECTED",
+  "error_code": "BROWSER_DISCONNECTED",
+  "error_message": "The browser session is disconnected.",
+  "driver_type": "playwright"
+}

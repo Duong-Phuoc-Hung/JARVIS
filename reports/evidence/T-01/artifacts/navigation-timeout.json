@@ -1,0 +1,7 @@
+{
+  "success": false,
+  "status": "TIMEOUT",
+  "error_code": "BROWSER_TIMEOUT",
+  "error_message": "Browser navigation timed out.",
+  "driver_type": "playwright"
+}

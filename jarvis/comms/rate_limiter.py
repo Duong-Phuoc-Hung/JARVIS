@@ -110,9 +110,11 @@ class TokenBucketRateLimiter:
             )
 
         uid = str(user_id)
-        now = time.time()
-
         with self._lock:
+            # Capture time only after acquiring the lock.  If callers capture it
+            # before waiting, lock acquisition can occur out of timestamp order
+            # and move ``last_updated`` backwards, double-counting refill time.
+            now = time.monotonic()
             if uid not in self._buckets:
                 self._buckets[uid] = TokenBucket(
                     tokens=self.capacity,
@@ -172,7 +174,7 @@ class TokenBucketRateLimiter:
 
     def cleanup_idle(self, max_idle_s: float = 3600.0) -> int:
         """Evict buckets that haven't been accessed for max_idle_s to reclaim memory."""
-        now = time.time()
+        now = time.monotonic()
         evicted = 0
         with self._lock:
             for uid in list(self._buckets.keys()):
@@ -184,7 +186,7 @@ class TokenBucketRateLimiter:
     def get_token_count(self, user_id: str | int) -> float:
         """Inspect current available tokens for user_id without consuming."""
         uid = str(user_id)
-        now = time.time()
+        now = time.monotonic()
         with self._lock:
             if uid not in self._buckets:
                 return self.capacity

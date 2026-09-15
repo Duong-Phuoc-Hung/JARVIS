@@ -264,8 +264,41 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _browser_health_line() -> str:
+    """Probe the actual best browser tier and describe its honest capability."""
+    from jarvis.browser.driver import DriverFactory
+    from jarvis.browser.models import BrowserDriverType
+
+    driver_type = DriverFactory.detect_best_driver()
+    if driver_type is BrowserDriverType.HTTP_SCRAPER:
+        return (
+            "[!] Browser Automation Agent: LIMITED "
+            "(Driver=http_scraper, read-only HTML; interactive actions unavailable)"
+        )
+    return (
+        "[+] Browser Automation Agent: READY "
+        f"(Driver={driver_type.value}, real interactive browser verified)"
+    )
+
+
+def _browser_health_exit_code(line: str | None) -> int:
+    """Map the browser diagnostic to a truthful process outcome."""
+    if line and "Browser Automation Agent: READY" in line:
+        return 0
+    if line and "Browser Automation Agent: LIMITED" in line:
+        return 2
+    return 1
+
+
 def run_health_check(config: ConfigManager) -> int:
     """Execute comprehensive diagnostics on all 17 JARVIS core and autonomous subsystems."""
+    failure_count = 0
+
+    def report_subsystem_error(subsystem: str, error: Exception) -> None:
+        nonlocal failure_count
+        failure_count += 1
+        _safe_print(f"[-] {subsystem} Error: {error}")
+
     _safe_print("=" * 65)
     _safe_print(f" JARVIS System Health Diagnostics (v{__version__})")
     _safe_print("=" * 65)
@@ -286,7 +319,7 @@ def run_health_check(config: ConfigManager) -> int:
         else:
             _safe_print("    - [!] Default Input: None (Headless/Virtual fallback active)")
     except Exception as e:
-        _safe_print(f"[+] Audio Subsystem: READY (Mock/Virtual stream active: {e})")
+        report_subsystem_error("Audio Subsystem", e)
 
     # 3. Wake Word Engine (R1 / Milestone 1)
     try:
@@ -296,7 +329,7 @@ def run_health_check(config: ConfigManager) -> int:
         model_name = "Vosk" if getattr(detector, "_vosk_model", None) else ("Porcupine" if getattr(detector, "_porcupine", None) else "Acoustic Spectral Filter")
         _safe_print(f"[+] Wake Word Engine: {model_name} READY (keyword='hey jarvis', sensitivity={detector.sensitivity})")
     except Exception as e:
-        _safe_print(f"[-] Wake Word Engine Error: {e}")
+        report_subsystem_error("Wake Word Engine", e)
 
     # 4. Persistent Memory Subsystem (R2 / Milestone 2)
     try:
@@ -307,7 +340,7 @@ def run_health_check(config: ConfigManager) -> int:
         episodes = store.get_episodes(limit=5) if hasattr(store, "get_episodes") else store.list_episodes(limit=5)
         _safe_print(f"[+] Persistent Memory: SQLite WAL Store READY ({mem_db} | {len(facts)} facts, {len(episodes)} recent episodes)")
     except Exception as e:
-        _safe_print(f"[-] Memory Subsystem Error: {e}")
+        report_subsystem_error("Memory Subsystem", e)
 
     # 5. Screen Vision Subsystem (R3 / Milestone 3)
     try:
@@ -326,7 +359,7 @@ def run_health_check(config: ConfigManager) -> int:
         key_status = "API Key Active" if vis_key else "Polite Fallback Mode"
         _safe_print(f"[+] Screen Vision: Engine READY (Capture={'mss/PIL' if cap_ok else 'Ready'}, Win32 Dialog Detector={'Ready' if diag_ok else 'N/A'}, {key_status})")
     except Exception as e:
-        _safe_print(f"[-] Vision Subsystem Error: {e}")
+        report_subsystem_error("Vision Subsystem", e)
 
     # 6. Web Intelligence Hub (R5 / Milestone 3)
     try:
@@ -335,7 +368,7 @@ def run_health_check(config: ConfigManager) -> int:
         online_str = "Online" if web_hub.is_online() else "Offline Cache Fallback"
         _safe_print(f"[+] Web Intelligence Hub: READY ({online_str} | Weather, News, Crypto, 10m TTLCache OK)")
     except Exception as e:
-        _safe_print(f"[-] Web Intelligence Hub Error: {e}")
+        report_subsystem_error("Web Intelligence Hub", e)
 
     # 7. OS Automation & Dev Shell (R4 & R7 / Milestone 4)
     try:
@@ -348,7 +381,7 @@ def run_health_check(config: ConfigManager) -> int:
         mon_count = len(ctrl.get_monitors()) if hasattr(ctrl, "get_monitors") else len(ctrl.win32.get_monitors())
         _safe_print(f"[+] OS Automation & Shell: Win32 APIs READY ({mon_count} display(s), Safety Gate 30s Token FSM OK)")
     except Exception as e:
-        _safe_print(f"[-] OS Automation Error: {e}")
+        report_subsystem_error("OS Automation", e)
 
     # 8. Proactive Intelligence Engine (R6 / Milestone 5)
     try:
@@ -357,7 +390,7 @@ def run_health_check(config: ConfigManager) -> int:
         engine = ProactiveEngine(config=p_cfg if isinstance(p_cfg, dict) else {})
         _safe_print("[+] Proactive Intelligence: READY (5 Sub-Engines Operational: Reminders, Health Watchdog, Pomodoro, 8AM Briefing, Inactivity)")
     except Exception as e:
-        _safe_print(f"[-] Proactive Intelligence Error: {e}")
+        report_subsystem_error("Proactive Intelligence", e)
 
     # 9. Always-On Overlay HUD UI (R8 / Milestone 6)
     try:
@@ -365,7 +398,7 @@ def run_health_check(config: ConfigManager) -> int:
         overlay = AlwaysOnOverlay(headless=True)
         _safe_print("[+] Always-On Overlay HUD: READY (Sidebar HUD, Task DAG & Waveform Spectrum Analyzer OK)")
     except Exception as e:
-        _safe_print(f"[-] Overlay HUD Error: {e}")
+        report_subsystem_error("Overlay HUD", e)
 
     # 10. Autonomous ReAct Planner (R1 / Milestone 1)
     try:
@@ -374,7 +407,7 @@ def run_health_check(config: ConfigManager) -> int:
         test_dag = planner.create_plan("Kiểm tra sức khỏe hệ thống tự trị")
         _safe_print(f"[+] Autonomous ReAct Planner: READY ({len(test_dag.nodes)} steps planned, Self-Reflection & Safety Gate Active)")
     except Exception as e:
-        _safe_print(f"[-] Autonomous ReAct Planner Error: {e}")
+        report_subsystem_error("Autonomous ReAct Planner", e)
 
     # 11. Code Interpreter Sandbox (R2 / Milestone 2)
     try:
@@ -382,7 +415,7 @@ def run_health_check(config: ConfigManager) -> int:
         sandbox = CodeInterpreterSandbox()
         _safe_print("[+] Code Interpreter Sandbox: READY (AST Safety Validator, Python/PowerShell Subprocess & Artifact Manager OK)")
     except Exception as e:
-        _safe_print(f"[-] Code Interpreter Sandbox Error: {e}")
+        report_subsystem_error("Code Interpreter Sandbox", e)
 
     # 12. Persistent Skill Library (R2 / Milestone 2)
     try:
@@ -392,15 +425,15 @@ def run_health_check(config: ConfigManager) -> int:
         count = len(registry.list_skills())
         _safe_print(f"[+] Persistent Skill Library: READY ({count} packaged skills indexed in {skills_dir})")
     except Exception as e:
-        _safe_print(f"[-] Persistent Skill Library Error: {e}")
+        report_subsystem_error("Persistent Skill Library", e)
 
     # 13. Browser Automation Agent (R3 / Milestone 3)
+    browser_health_line: str | None = None
     try:
-        from jarvis.browser.driver import DriverFactory
-        driver_type = DriverFactory.detect_best_driver()
-        _safe_print(f"[+] Browser Automation Agent: READY (Driver={driver_type.value}, Session/Cookie Persistence & Markdown Scraper OK)")
+        browser_health_line = _browser_health_line()
+        _safe_print(browser_health_line)
     except Exception as e:
-        _safe_print(f"[-] Browser Automation Agent Error: {e}")
+        report_subsystem_error("Browser Automation Agent", e)
 
     # 14. Computer-Use Vision & GUI Actor (R4 / Milestone 4)
     try:
@@ -410,7 +443,7 @@ def run_health_check(config: ConfigManager) -> int:
         actor = GUIActor(vision=cuv)
         _safe_print("[+] Computer-Use Vision & GUI Actor: READY (1000x1000 Coordinate Grounding & Visual Verification Loop Active)")
     except Exception as e:
-        _safe_print(f"[-] Computer-Use Vision & GUI Actor Error: {e}")
+        report_subsystem_error("Computer-Use Vision & GUI Actor", e)
 
     # 15. Sub-Agent Worker Pool (R5 / Milestone 1)
     try:
@@ -419,7 +452,7 @@ def run_health_check(config: ConfigManager) -> int:
         _safe_print("[+] Sub-Agent Worker Pool: READY (Concurrency=4 workers, Cooperative Cancellation & Telemetry OK)")
         mgr.shutdown(wait=False, cancel_running=True)
     except Exception as e:
-        _safe_print(f"[-] Sub-Agent Worker Pool Error: {e}")
+        report_subsystem_error("Sub-Agent Worker Pool", e)
 
     # 16. Speech & AI Services
     eleven_key = config.get("tts.elevenlabs.api_key") or os.environ.get("ELEVENLABS_API_KEY")
@@ -429,8 +462,26 @@ def run_health_check(config: ConfigManager) -> int:
     # 17. Configuration Status
     _safe_print(f"[+] Configuration: READY (Schema loaded with {len(config.to_dict())} root sections, Hot-Reload Watcher Ready)")
     _safe_print("=" * 65)
-    _safe_print(" Diagnostics completed successfully. All 17 JARVIS subsystems passed health diagnostics.")
-    return 0
+    browser_exit_code = _browser_health_exit_code(browser_health_line)
+    if failure_count:
+        error_word = "error" if failure_count == 1 else "errors"
+        browser_note = (
+            " Browser automation is also LIMITED."
+            if browser_exit_code == 2
+            else ""
+        )
+        _safe_print(
+            f" Diagnostics completed with {failure_count} subsystem {error_word}; "
+            f"review the failures above.{browser_note}"
+        )
+        return 1
+    if browser_exit_code == 0:
+        _safe_print(" Diagnostics completed. Browser automation is READY; review each subsystem result above.")
+    elif browser_exit_code == 2:
+        _safe_print(" Diagnostics completed with LIMITED browser capability; interactive browser checks did not pass.")
+    else:
+        _safe_print(" Diagnostics completed with a browser diagnostic ERROR; review the failure above.")
+    return browser_exit_code
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -338,13 +338,48 @@ def test_overlay_hud_sidebar_collapse_and_quick_actions():
 # 6. CLI Diagnostics & Health Check Tests
 # ============================================================================
 
-def test_cli_health_check_returns_zero_all_green():
+def test_cli_health_check_returns_zero_all_green(monkeypatch, tmp_path):
     """Verify CLI run_health_check checks all 10 subsystems and exits cleanly with 0."""
     config = ConfigManager()
     config.load()
+    config.set("memory.db_path", str(tmp_path / "health-memory.db"))
+    monkeypatch.setattr(
+        "jarvis.cli._browser_health_line",
+        lambda: "[+] Browser Automation Agent: READY (Driver=playwright)",
+    )
 
     exit_code = run_health_check(config)
     assert exit_code == 0
+
+
+def test_cli_health_check_returns_error_when_any_subsystem_fails(
+    monkeypatch, capsys, tmp_path
+):
+    """A READY browser must not mask an error from another subsystem."""
+    config = ConfigManager()
+    config.load()
+    config.set("memory.db_path", str(tmp_path / "health-memory.db"))
+    monkeypatch.setattr(
+        "jarvis.cli._browser_health_line",
+        lambda: "[+] Browser Automation Agent: READY (Driver=playwright)",
+    )
+
+    class FailingMemoryStore:
+        def __init__(self, **_kwargs):
+            raise RuntimeError("forced memory probe failure")
+
+    monkeypatch.setattr(
+        "jarvis.memory.sqlite_store.SQLiteMemoryStore",
+        FailingMemoryStore,
+    )
+
+    exit_code = run_health_check(config)
+    output = capsys.readouterr().out
+
+    assert exit_code == 1
+    assert "Memory Subsystem Error: forced memory probe failure" in output
+    assert "Diagnostics completed with 1 subsystem error" in output
+    assert "Browser automation is READY" not in output
 
 
 def test_wake_word_trigger_starts_voice_interaction(monkeypatch):

@@ -1,0 +1,37 @@
+T-01 TEST RESULTS (redacted concise record)
+Captured: 2026-09-16 UTC+07:00
+
+1) Browser-scoped unit/integration regression
+Command: python -m pytest -o addopts='' <13 browser unit/integration files> -q
+Exit code: 0
+Result: 301 passed in 45.21s
+
+2) Cookie/session focused regression
+Command: python -m pytest -o addopts='' tests/unit/test_browser_cookie_security.py
+         tests/unit/test_browser_session_atomic.py -q --tb=short --timeout=120
+Exit code: 0
+Result: 87 passed in 1.47s
+
+3) Deterministic local real-browser E2E
+Command: JARVIS_RUN_BROWSER_E2E=1 JARVIS_BROWSER_EVIDENCE_DIR=<T-01/artifacts>
+         PLAYWRIGHT_BROWSERS_PATH=<installed-browser-store>
+         python -m pytest -o addopts='' tests/e2e/test_browser_playwright_e2e.py
+         -q --tb=short --timeout=120 --junit-xml=<T-01/test-results.xml>
+Exit code: 0
+Result: 21 passed in 56.91s
+
+4) Repository-wide unit release gate
+Command: <standard CI test contract, writable isolated profile>
+         python -m pytest -o addopts='' tests/unit -q --tb=short --timeout=120
+Exit code: 0
+Result: 2267 passed, 4 skipped, 151 subtests passed in 330.93s
+
+5) Static checks
+- Ruff on every changed T-01 Python file: exit 0, All checks passed.
+- python -m compileall -q jarvis tests: exit 0.
+- git diff --check: exit 0.
+- Whole-repository Ruff diagnostic: exit 1 with 118 pre-existing findings outside the changed
+  T-01 files. This is baseline debt, not represented as a passing repository-wide lint gate.
+
+Conclusion: all T-01 acceptance criteria and the required repository unit release gate pass.
+The honest final status is DONE and the snapshot is eligible for commit/push.

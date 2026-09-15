@@ -1,0 +1,34 @@
+{
+  "task_id": "T-01",
+  "captured_at_utc": "2026-09-16T11:13:11.508818+00:00",
+  "captured_at_local": "2026-09-16T18:13:11.508818+07:00",
+  "timezone": "SE Asia Standard Time (UTC+07:00)",
+  "os": "Windows 11 10.0.26200 64-bit",
+  "architecture": "AMD64",
+  "python": "3.12.14",
+  "pytest": "8.4.2",
+  "playwright": "1.62.0",
+  "chromium": {
+    "revision": "1234",
+    "version": "151.0.7922.34"
+  },
+  "requests": "2.34.2",
+  "idna": "3.19",
+  "psl": "2025.5.26",
+  "jarvis_source_version": "5.1.3",
+  "git": {
+    "branch": "main",
+    "base_commit": "791639f7353cf35352e91f4844665addd687feca",
+    "source_commit": null,
+    "working_tree": "final validated working tree; final commit is recorded in Git history because embedding its own hash would be self-referential"
+  },
+  "execution": {
+    "network_scope": "loopback-only deterministic test website and CDP endpoint",
+    "managed_browser": "Playwright Chromium",
+    "cdp_transport": "Playwright connect_over_cdp",
+    "external_credentials_used": false,
+    "mock_counted_as_e2e": false,
+    "unit_test_profile": "isolated writable test profile",
+    "ci_test_contract": "headless, mock audio, explicit sandbox compatibility fallback"
+  }
+}

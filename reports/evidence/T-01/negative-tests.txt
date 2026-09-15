@@ -1,0 +1,68 @@
+T-01 NEGATIVE / FAILURE / SECURITY EVIDENCE
+Captured: 2026-09-16 UTC+07:00
+
+REAL PLAYWRIGHT / CDP E2E (all PASS)
+- HTTP 503 -> success=false, status=UNAVAILABLE,
+  error_code=BROWSER_NAVIGATION_UNAVAILABLE, driver_type=playwright.
+- HTTP 403 -> success=false, status=BLOCKED,
+  error_code=BROWSER_ACCESS_BLOCKED.
+- HTTP 200 with title "Error" -> success=false, status=ERROR,
+  error_code=BROWSER_INVALID_PAGE.
+- Missing selector wait -> success=false, status=TIMEOUT,
+  error_code=BROWSER_TIMEOUT; see artifacts/wait-timeout.json.
+- Slow navigation -> success=false, status=TIMEOUT,
+  error_code=BROWSER_TIMEOUT; see artifacts/navigation-timeout.json.
+- Click after managed browser close -> success=false, status=DISCONNECTED,
+  error_code=BROWSER_DISCONNECTED; see artifacts/session-close.json.
+- Invalid CSS selector -> success=false, status=ERROR,
+  error_code=BROWSER_INVALID_SELECTOR; raw selector is not returned.
+- Kill independently owned CDP browser, then click -> success=false,
+  status=DISCONNECTED, error_code=BROWSER_DISCONNECTED,
+  driver_type=cdp; see artifacts/cdp-disconnect.json.
+
+SCOPED SECURITY / TRUTHFULNESS REGRESSION (all PASS within 301-case suite)
+- HTTP read-only fallback rejects click/type/wait/scroll/screenshot and reports
+  driver=http_scraper; unsupported localStorage cannot poison an otherwise valid HTTP read.
+- Driver detection requires successful launch and verified close; arbitrary HTTP 200 at a CDP
+  endpoint is rejected, failed candidates are closed, and launch-time CDP config is refreshed.
+- Concurrent action/result reads are serialized; a result cannot inherit another request's URL.
+- Playwright sync handles stay on one owner thread, including core handlers invoked elsewhere.
+- Empty workflow, partial form fill, failed submit, stale scrape, and empty/error-title documents
+  cannot normalize to SUCCESS.
+- Scroll distance is validated before JavaScript evaluation.
+- Download requests receive only cookies applicable to the destination domain/path/scheme/expiry;
+  host-only cookies do not reach subdomains, and cookies are recomputed on every redirect hop.
+- Custom headers are granted only to the exact authorized origin/request frame, are stripped on
+  cross-origin redirects, cannot be spent by a hostile iframe, and are never restored after a
+  cross-origin bounce.
+- Cookie validation is fail-closed across PSL public suffixes, UTS46 IDNA, IPv4/IPv6, default
+  paths, trailing dots, browser expiry limits and invalid numeric values. Ordered duplicate
+  cookie headers and Set-Cookie values retain browser-observed order.
+- CHIPS partition keys and cross-site-ancestor variants survive capture/save/restore; targeted
+  expiry/deletion cannot remove the sibling variant, and Secure is mandatory for partitioned
+  cookies.
+- localStorage is applied only to an exact matching origin and not after cross-origin redirect.
+- Session JSON writes use a unique temp file, retry atomic replace on Windows, and clean failures.
+- Price extraction rejects zero/non-finite/overflow/unassociated offers, does not invent
+  stock/shipping, and leaves the product URL empty when no link was observed.
+- Browser, session, factory, core, and legacy errors/logs do not echo selectors, form values,
+  exception secrets, query credentials, cookies, tokens, failed page titles, or stale content.
+- Explicit legacy user_data_dir state persists through the canonical session seam.
+- Browser health reports READY/LIMITED/ERROR truthfully and returns 0/2/1 respectively; it never
+  prints an unconditional all-checks-passed summary.
+
+No credential was needed for this loopback-only real-browser test. No external live service was
+contacted. Mock cases remain unit evidence only and were not counted among the 21 E2E cases.
+
+RELEASE-GATE BLOCKER REMEDIATION (all final checks PASS)
+- Token bucket RED: concurrent pre-lock wall-clock samples could move `last_updated` backward
+  and mint refill repeatedly (30/31 observed allowed versus a ~22-token bound).
+- Token bucket GREEN: monotonic time is sampled inside the bucket lock; the 10,000-request
+  adversarial case passed 10/10 repetitions and the related 14-case suite passed.
+- Shell RED: restricted Windows returned Access denied for `taskkill /T`; killing only the
+  wrapper left Python descendants alive.
+- Shell GREEN: descendants are snapshotted and killed individually through psutil with bounded
+  wait/retry; timeout tests passed 3/3 and the post-run survivor scan was empty.
+- Shell timeout messages no longer echo the command or embedded secret.
+- Final browser-scoped regression: 301 passed, exit code 0.
+- Final repository unit gate: 2267 passed, 4 skipped, 151 subtests passed, exit code 0.

@@ -9,6 +9,8 @@ import subprocess
 import sys
 from typing import Any
 
+import psutil
+
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import PluginMetadata, PrivilegeLevel
 from jarvis.core.plugin import BasePlugin
@@ -79,7 +81,7 @@ class ShellPlugin(BasePlugin):
                 pass
             # Fail closed unconditionally: a timeout is always reported as a
             # timeout, regardless of whether cleanup above fully succeeded.
-            raise TimeoutError(f"Command '{command}' timed out after {timeout}s")
+            raise TimeoutError(f"Command timed out after {timeout}s")
 
     def _terminate_process_tree(self, proc: Any) -> None:
         """
@@ -89,19 +91,40 @@ class ShellPlugin(BasePlugin):
         may itself spawn a grandchild (e.g. curl.exe/python.exe); killing only
         the wrapper leaves the grandchild running and holding the output pipes
         open indefinitely -- this is the actual defect being fixed here.
-        `taskkill /F /T /PID` terminates the wrapper and every descendant.
-        Never raises: termination failure must still leave the caller free to
-        report a truthful timeout, never a silently fabricated success.
+        Kill the descendants through psutil before killing the wrapper.  A
+        single ``taskkill /T`` call is not reliable in restricted Windows
+        sessions: it can return ``Access denied`` for one console helper and
+        leave the executable grandchild alive.  Capturing the tree first and
+        terminating each process independently avoids that all-or-nothing
+        failure mode.  Never raises: termination failure must still leave the
+        caller free to report a truthful timeout, never a fabricated success.
         """
         if sys.platform == "win32":
             try:
-                subprocess.run(
-                    ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                    capture_output=True,
-                    timeout=5.0,
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                )
+                root = psutil.Process(proc.pid)
+                descendants = root.children(recursive=True)
+                for child in reversed(descendants):
+                    try:
+                        child.kill()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+                try:
+                    root.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+                _, survivors = psutil.wait_procs([*descendants, root], timeout=0.5)
+                for survivor in survivors:
+                    try:
+                        survivor.kill()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+                if survivors:
+                    psutil.wait_procs(survivors, timeout=0.5)
             except Exception:
+                # The wrapper may have exited between communicate() timing
+                # out and this snapshot, or OS policy may deny inspection.
+                # Cleanup errors must not replace the truthful TimeoutError;
+                # the Popen handle is still killed below as a final fallback.
                 pass
         try:
             proc.kill()

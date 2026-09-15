@@ -31,11 +31,17 @@ import threading
 import time
 import uuid
 from collections.abc import Callable
+from dataclasses import asdict, is_dataclass
 from typing import Any
+from urllib.parse import urlsplit
 
 import numpy as np
 
-from jarvis.audio.engine import AudioEngine, MicrophoneDeviceUnavailableError, MicrophoneProbeManager
+from jarvis.audio.engine import (
+    AudioEngine,
+    MicrophoneDeviceUnavailableError,
+    MicrophoneProbeManager,
+)
 
 # Expansion Subsystems (Milestones 1-6)
 from jarvis.audio.wake_word import WakeWordDetector
@@ -44,12 +50,18 @@ from jarvis.automation.gui_actor import GUIActor
 from jarvis.automation.safety_gate import SafetyGate
 from jarvis.automation.shell_assistant import ShellAssistant
 from jarvis.browser.agent import BrowserAgent
-from jarvis.browser.models import BrowserActionResult, ScrapeResult
+from jarvis.browser.models import (
+    BrowserActionResult,
+    BrowserConfig,
+    BrowserDriverType,
+    ScrapeResult,
+)
 from jarvis.browser.session import BrowserSessionManager
 from jarvis.core.config import ConfigManager
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
 from jarvis.core.logger import log_interaction as _global_log_interaction
 from jarvis.core.models import RequesterContext
+from jarvis.core.paths import get_data_dir as get_jarvis_data_dir
 from jarvis.core.plugin import PluginRegistry
 from jarvis.core.runaway_guard import PassiveTriggerGuard, launch_dedupe_guard
 from jarvis.gesture.detector import GestureDetector
@@ -72,6 +84,7 @@ from jarvis.plugins.spotify import SpotifyPlugin
 from jarvis.plugins.webhook import WebhookPlugin
 from jarvis.proactive.engine import ProactiveEngine
 from jarvis.sandbox.interpreter import CodeInterpreterSandbox, SandboxResult
+from jarvis.security.secrets import get_secret
 from jarvis.skills.registry import SkillRegistry
 from jarvis.skills.synthesizer import DynamicSkillSynthesizer
 
@@ -92,12 +105,63 @@ from jarvis.workers.notifications import WorkerNotificationDispatcher
 
 log = logging.getLogger("jarvis.core.app")
 
-# Secrets: read API keys from Windows Credential Manager first, fallback to .env
-from jarvis.security.secrets import get_secret  # noqa: E402
+
+def _safe_browser_failure_url(url: str) -> str:
+    """Return only a credential-free origin for failed browser responses."""
+    try:
+        parsed = urlsplit(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            return ""
+        host = parsed.hostname
+        if ":" in host:
+            host = f"[{host}]"
+        port = f":{parsed.port}" if parsed.port is not None else ""
+        return f"{parsed.scheme}://{host}{port}"
+    except (TypeError, ValueError):
+        return ""
 
 
-# get_jarvis_data_dir is now in jarvis.core.paths
-from jarvis.core.paths import get_data_dir as get_jarvis_data_dir
+def _build_browser_config(
+    browser_cfg: dict[str, Any],
+    *,
+    session_dir: str,
+    app_headless: bool,
+) -> BrowserConfig:
+    """Map the application configuration onto the canonical browser contract."""
+    defaults = BrowserConfig()
+    raw_driver = browser_cfg.get(
+        "driver_type",
+        browser_cfg.get("driver", defaults.driver_type.value),
+    )
+    driver_type = (
+        raw_driver
+        if isinstance(raw_driver, BrowserDriverType)
+        else BrowserDriverType(str(raw_driver).strip().lower())
+    )
+    extra_headers = browser_cfg.get("extra_headers", {})
+    if not isinstance(extra_headers, dict):
+        raise ValueError("browser.extra_headers must be a mapping")
+    cdp_headers = browser_cfg.get("cdp_headers", {})
+    if not isinstance(cdp_headers, dict):
+        raise ValueError("browser.cdp_headers must be a mapping")
+    return BrowserConfig(
+        driver_type=driver_type,
+        headless=bool(browser_cfg.get("headless", app_headless)),
+        user_agent=str(browser_cfg.get("user_agent", defaults.user_agent)),
+        viewport_width=int(browser_cfg.get("viewport_width", defaults.viewport_width)),
+        viewport_height=int(browser_cfg.get("viewport_height", defaults.viewport_height)),
+        timeout_ms=int(browser_cfg.get("timeout_ms", defaults.timeout_ms)),
+        downloads_dir=str(browser_cfg.get("downloads_dir", defaults.downloads_dir)),
+        session_storage_dir=session_dir,
+        cdp_endpoint=str(browser_cfg.get("cdp_endpoint", defaults.cdp_endpoint)),
+        proxy=browser_cfg.get("proxy"),
+        accept_downloads=bool(
+            browser_cfg.get("accept_downloads", defaults.accept_downloads)
+        ),
+        slow_mo_ms=int(browser_cfg.get("slow_mo_ms", defaults.slow_mo_ms)),
+        extra_headers={str(key): str(value) for key, value in extra_headers.items()},
+        cdp_headers={str(key): str(value) for key, value in cdp_headers.items()},
+    )
 
 
 # Deterministic system_power sub-action alias normalization. Keys are matched
@@ -468,11 +532,20 @@ class JarvisApp:
 
         # 18. Browser Automation Agent & Session Manager (M3 / Requirement R3)
         browser_cfg = self.config.get("browser", {})
+        browser_session_dir = browser_cfg.get("session_dir") or str(
+            get_jarvis_data_dir() / "browser_sessions"
+        )
         self.browser_session_manager = BrowserSessionManager(
-            storage_dir=browser_cfg.get("session_dir") or str(get_jarvis_data_dir() / "browser_sessions"),
+            storage_dir=browser_session_dir,
             db_path=mem_db,
         )
+        canonical_browser_config = _build_browser_config(
+            browser_cfg,
+            session_dir=browser_session_dir,
+            app_headless=self.headless,
+        )
         self.browser_agent = BrowserAgent(
+            config=canonical_browser_config,
             session_manager=self.browser_session_manager,
         )
 
@@ -1724,23 +1797,61 @@ class JarvisApp:
     def _handle_browser_navigate(self, url: str, **kwargs) -> dict[str, Any]:
         """Navigates browser to target URL and captures page state."""
         if not self.browser_agent:
-            return {"status": "failed", "message": "Browser Agent is unavailable."}
+            return {
+                "success": False,
+                "status": "failed",
+                "result_status": "NOT_CONFIGURED",
+                "error_code": "BROWSER_AGENT_NOT_CONFIGURED",
+                "driver_type": None,
+                "message": "Browser Agent is unavailable.",
+            }
         res: BrowserActionResult = self.browser_agent.navigate(url=url)
-        msg = f"Đã điều hướng tới {url} ({res.title or 'Sẵn sàng'})." if res.success else f"Không thể điều hướng tới {url}: {res.error}"
-        return {"status": "success" if res.success else "failed", "url": url, "title": res.title, "message": msg}
+        reported_url = res.url if res.success else _safe_browser_failure_url(res.url or url)
+        msg = (
+            f"Đã điều hướng tới {reported_url} ({res.title or 'Sẵn sàng'})."
+            if res.success
+            else f"Không thể điều hướng trang: {res.error}"
+        )
+        return {
+            "success": res.success,
+            "status": "success" if res.success else "failed",
+            "result_status": res.status.value,
+            "error_code": res.error_code,
+            "driver_type": res.driver_type.value if res.driver_type else None,
+            "url": reported_url,
+            "title": res.title if res.success else "",
+            "message": msg,
+        }
 
     def _handle_browser_scrape(self, url: str, extract_tables: bool = True, **kwargs) -> dict[str, Any]:
         """Scrapes and parses structured markdown from web page."""
         if not self.browser_agent:
-            return {"status": "failed", "message": "Browser Agent is unavailable."}
+            return {
+                "success": False,
+                "status": "failed",
+                "result_status": "NOT_CONFIGURED",
+                "error_code": "BROWSER_AGENT_NOT_CONFIGURED",
+                "driver_type": None,
+                "message": "Browser Agent is unavailable.",
+            }
         res: ScrapeResult = self.browser_agent.scrape_page(url=url, extract_tables=extract_tables)
-        msg = f"Đã trích xuất dữ liệu từ {url} ({len(res.markdown)} ký tự, {len(res.tables)} bảng)." if res.success else f"Lỗi trích xuất từ {url}: {res.error}"
+        reported_url = res.url if res.success else _safe_browser_failure_url(res.url or url)
+        msg = (
+            f"Đã trích xuất dữ liệu từ {reported_url} "
+            f"({len(res.markdown)} ký tự, {len(res.tables)} bảng)."
+            if res.success
+            else f"Không thể trích xuất trang: {res.error}"
+        )
         return {
+            "success": res.success,
             "status": "success" if res.success else "failed",
-            "url": url,
-            "title": res.title,
-            "markdown": res.markdown,
-            "tables": res.tables,
+            "result_status": res.status.value,
+            "error_code": res.error_code,
+            "driver_type": res.driver_type.value if res.driver_type else None,
+            "url": reported_url,
+            "title": res.title if res.success else "",
+            "markdown": res.markdown if res.success else "",
+            "tables": res.tables if res.success else [],
             "message": msg,
         }
 
@@ -1753,19 +1864,100 @@ class JarvisApp:
     ) -> dict[str, Any]:
         """Fills and submits web forms automatically."""
         if not self.browser_agent:
-            return {"status": "failed", "message": "Browser Agent is unavailable."}
+            return {
+                "success": False,
+                "status": "failed",
+                "result_status": "NOT_CONFIGURED",
+                "error_code": "BROWSER_AGENT_NOT_CONFIGURED",
+                "driver_type": None,
+                "message": "Browser Agent is unavailable.",
+            }
         res: BrowserActionResult = self.browser_agent.fill_form(url=url, form_fields=fields, submit_selector=submit_selector)
-        msg = f"Đã điền tự động {len(fields)} trường dữ liệu trên {url}." if res.success else f"Lỗi điền form: {res.error}"
-        return {"status": "success" if res.success else "failed", "url": url, "fields": fields, "message": msg}
+        msg = (
+            f"Đã điền tự động {len(fields)} trường dữ liệu trên {url}."
+            if res.success
+            else "Không thể hoàn tất biểu mẫu trên trang được yêu cầu."
+        )
+        reported_url = res.url if res.success else _safe_browser_failure_url(res.url or url)
+        return {
+            "success": res.success,
+            "status": "success" if res.success else "failed",
+            "result_status": res.status.value,
+            "error_code": res.error_code,
+            "driver_type": res.driver_type.value if res.driver_type else None,
+            "url": reported_url,
+            "field_count": len(fields),
+            "message": msg,
+        }
 
     def _handle_browser_compare_prices(self, product: str, stores: list[str] | None = None, **kwargs) -> dict[str, Any]:
         """Scrapes multiple eCommerce sites and compares prices."""
         if not self.browser_agent:
-            return {"status": "failed", "message": "Browser Agent is unavailable."}
+            return {
+                "success": False,
+                "status": "failed",
+                "result_status": "NOT_CONFIGURED",
+                "error_code": "BROWSER_AGENT_NOT_CONFIGURED",
+                "driver_type": None,
+                "message": "Browser Agent is unavailable.",
+            }
         target_stores = stores or ["Shopee", "Tiki", "Lazada"]
         items = self.browser_agent.compare_prices(product=product, stores=target_stores)
-        msg = f"Đã so sánh giá cho '{product}' trên {len(target_stores)} sàn TMĐT, tìm thấy {len(items)} kết quả."
-        return {"status": "success", "product": product, "items": [i.to_dict() if hasattr(i, "to_dict") else i for i in items], "message": msg}
+        driver_type = self.browser_agent.get_active_driver_type()
+        if not items:
+            return {
+                "success": False,
+                "status": "failed",
+                "result_status": "UNAVAILABLE",
+                "error_code": "BROWSER_PRICE_DATA_UNAVAILABLE",
+                "driver_type": driver_type.value if driver_type else None,
+                "product": product,
+                "items": [],
+                "message": f"Không lấy được dữ liệu giá thực cho '{product}'.",
+            }
+        serialized_items = [
+            asdict(item)
+            if is_dataclass(item) and not isinstance(item, type)
+            else item.to_dict()
+            if hasattr(item, "to_dict")
+            else item
+            for item in items
+        ]
+        evidenced_lookup = {
+            str(item.store_name).strip().casefold(): str(item.store_name).strip()
+            for item in items
+            if hasattr(item, "store_name") and str(item.store_name).strip()
+        }
+        evidenced_stores = [
+            store
+            for store in target_stores
+            if store.strip().casefold() in evidenced_lookup
+        ]
+        missing_stores = [
+            store
+            for store in target_stores
+            if store.strip().casefold() not in evidenced_lookup
+        ]
+        partial = bool(missing_stores)
+        coverage = f"{len(evidenced_stores)}/{len(target_stores)}"
+        msg = (
+            f"Tìm thấy {len(items)} kết quả giá có bằng chứng từ "
+            f"{coverage} nguồn đã yêu cầu"
+            f"{' (kết quả một phần).' if partial else '.'}"
+        )
+        return {
+            "success": True,
+            "status": "success",
+            "result_status": "SUCCESS",
+            "error_code": None,
+            "driver_type": driver_type.value if driver_type else None,
+            "product": product,
+            "items": serialized_items,
+            "partial": partial,
+            "evidenced_stores": evidenced_stores,
+            "missing_stores": missing_stores,
+            "message": msg,
+        }
 
     def _handle_vision_click_ui(self, query: str, verify: bool = True, button: str = "left", clicks: int = 1, **kwargs) -> dict[str, Any]:
         """Locates target UI element visually and clicks it."""

@@ -12,6 +12,7 @@ Provides:
 import html as html_module
 import json
 import logging
+import math
 import re
 import urllib.parse
 from html.parser import HTMLParser
@@ -319,7 +320,10 @@ class StructuredDataExtractor:
                 parsed_json = json.loads(block.strip())
                 result["json_ld"].append(parsed_json)
             except Exception as exc:
-                logger.debug("Failed parsing JSON-LD block: %s", exc)
+                logger.debug(
+                    "Failed parsing JSON-LD block (%s).",
+                    type(exc).__name__,
+                )
 
         return result
 
@@ -351,6 +355,119 @@ class StructuredDataExtractor:
 # ---------------------------------------------------------------------------
 # Price Comparison Aggregator
 # ---------------------------------------------------------------------------
+
+
+class _ObservedOfferCardParser(HTMLParser):
+    """Collect title/price evidence only when it shares one product container."""
+
+    _CARD_TAGS = {"article", "div", "li", "section"}
+    _VOID_TAGS = {
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "param",
+        "source",
+        "track",
+        "wbr",
+    }
+    _CARD_CLASSES = {
+        "item",
+        "offer",
+        "product",
+        "product-card",
+        "product-item",
+        "product-tile",
+        "result-item",
+        "search-result",
+    }
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.cards: list[dict[str, str]] = []
+        self._frames: list[tuple[str, bool, bool]] = []
+        self._card: dict[str, Any] | None = None
+        self._card_depth = -1
+
+    @staticmethod
+    def _classes(attrs: dict[str, str]) -> set[str]:
+        return {token.lower() for token in attrs.get("class", "").split() if token}
+
+    @classmethod
+    def _is_card(cls, tag: str, classes: set[str]) -> bool:
+        return tag in cls._CARD_TAGS and bool(classes & cls._CARD_CLASSES)
+
+    @staticmethod
+    def _is_title(tag: str, classes: set[str]) -> bool:
+        return tag in {"h2", "h3"} or any(
+            token in {"name", "pro-name", "product-name", "product-title", "title"}
+            or token.endswith("-title")
+            for token in classes
+        )
+
+    @staticmethod
+    def _is_price(classes: set[str]) -> bool:
+        return any(token == "gia" or "price" in token for token in classes)
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = {key.lower(): value or "" for key, value in attrs}
+        classes = self._classes(attributes)
+        if self._card is None and self._is_card(tag, classes):
+            self._card = {"title": [], "price": [], "href": ""}
+            self._card_depth = len(self._frames)
+
+        parent_title = self._frames[-1][1] if self._frames else False
+        parent_price = self._frames[-1][2] if self._frames else False
+        title_scope = parent_title or self._is_title(tag, classes)
+        price_scope = parent_price or self._is_price(classes)
+        if tag not in self._VOID_TAGS:
+            self._frames.append((tag, title_scope, price_scope))
+
+        if self._card is not None:
+            href = attributes.get("href", "")
+            if href and not self._card["href"]:
+                self._card["href"] = href
+            data_price = attributes.get("data-price", "")
+            if data_price:
+                self._card["price"].append(data_price)
+
+    def handle_startendtag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        self.handle_starttag(tag, attrs)
+        if tag not in self._VOID_TAGS:
+            self.handle_endtag(tag)
+
+    def handle_data(self, data: str) -> None:
+        if self._card is None or not self._frames or not data.strip():
+            return
+        _, title_scope, price_scope = self._frames[-1]
+        if title_scope:
+            self._card["title"].append(data)
+        if price_scope:
+            self._card["price"].append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if not self._frames:
+            return
+        self._frames.pop()
+        if self._card is not None and len(self._frames) == self._card_depth:
+            title = " ".join(" ".join(self._card["title"]).split())
+            price = " ".join(" ".join(self._card["price"]).split())
+            self.cards.append(
+                {"title": title, "price": price, "href": str(self._card["href"])}
+            )
+            self._card = None
+            self._card_depth = -1
+
 
 class PriceComparisonAggregator:
     """
@@ -396,7 +513,8 @@ class PriceComparisonAggregator:
             clean = clean.replace(",", ".")
 
         try:
-            return float(clean)
+            value = float(clean)
+            return value if math.isfinite(value) else None
         except ValueError:
             return None
 
@@ -429,24 +547,44 @@ class PriceComparisonAggregator:
                     nodes = [data]
 
                 for node in nodes:
-                    if node.get("@type") in ("Product", "IndividualProduct"):
-                        title = node.get("name", "")
-                        offers = node.get("offers", {})
-                        if isinstance(offers, list) and offers:
-                            offers = offers[0]
-                        price_val = offers.get("price") or offers.get("lowPrice")
-                        curr = offers.get("priceCurrency", "VND")
-                        url_val = offers.get("url", base_url)
-                        if price_val and title:
+                    if not isinstance(node, dict) or node.get("@type") not in (
+                        "Product",
+                        "IndividualProduct",
+                    ):
+                        continue
+                    title = str(node.get("name") or "").strip()
+                    offers_value = node.get("offers", {})
+                    offers_list = offers_value if isinstance(offers_value, list) else [offers_value]
+                    for offers in offers_list:
+                        if not isinstance(offers, dict):
+                            continue
+                        price_val = cls.parse_price_value(str(offers.get("price") or offers.get("lowPrice") or ""))
+                        curr = str(offers.get("priceCurrency") or "VND")
+                        url_val = str(offers.get("url") or "").strip()
+                        if price_val is not None and price_val > 0 and title:
+                            availability = str(offers.get("availability") or "")
+                            availability_name = availability.rstrip("/").rsplit("/", 1)[-1].lower()
+                            in_stock = {
+                                "instock": True,
+                                "outofstock": False,
+                            }.get(availability_name)
                             items.append(
                                 PriceComparisonItem(
                                     store_name=store_name,
                                     product_title=title,
-                                    price=float(price_val),
+                                    price=price_val,
                                     currency=curr,
-                                    product_url=urllib.parse.urljoin(base_url, url_val),
-                                    in_stock=offers.get("availability", "").endswith("InStock"),
+                                    product_url=(
+                                        urllib.parse.urljoin(base_url, url_val)
+                                        if url_val
+                                        else ""
+                                    ),
+                                    in_stock=in_stock,
                                     source="json_ld",
+                                    metadata={
+                                        "evidence": ["title", "price"],
+                                        "association": "same_json_ld_product",
+                                    },
                                 )
                             )
             except Exception:
@@ -455,50 +593,34 @@ class PriceComparisonAggregator:
         if items:
             return items
 
-        # 2. DOM Pattern Matching for Product Cards
-        # Match common eCommerce price selectors and patterns
-        price_patterns = [
-            r'class=[\'"][^\'"]*(?:price|gia|current-price|price-box)[^\'"]*[\'"][^>]*>([^<]+<)?([^<]+)',
-            r'data-price=[\'"]([^\'"]+)[\'"]',
-            r'(?:₫|\$|VND|€)\s*([\d.,]+)',
-            r'([\d.,]+)\s*(?:₫|VND|đ)',
-        ]
-
-        title_patterns = [
-            r'class=[\'"][^\'"]*(?:product-title|title|name|pro-name)[^\'"]*[\'"][^>]*>(?:<a[^>]*>)?([^<]+)',
-            r'<h[23][^>]*>(?:<a[^>]*>)?([^<]+)</h[23]>',
-        ]
-
-        titles = []
-        for tp in title_patterns:
-            matches = re.findall(tp, html_content, re.IGNORECASE)
-            for m in matches:
-                clean_t = html_module.unescape(m.strip())
-                if len(clean_t) > 3 and clean_t not in titles:
-                    titles.append(clean_t)
-
-        prices = []
-        for pp in price_patterns:
-            matches = re.findall(pp, html_content, re.IGNORECASE)
-            for m in matches:
-                p_text = m if isinstance(m, str) else (m[1] if len(m) > 1 and m[1] else m[0])
-                p_val = cls.parse_price_value(p_text)
-                if p_val and p_val > 0 and p_val not in prices:
-                    prices.append(p_val)
-
-        # Pair titles with prices
-        for idx, p in enumerate(prices[:10]):
-            t = titles[idx] if idx < len(titles) else f"{store_name} Product Offer #{idx+1}"
-            currency = "USD" if "$" in html_content else "VND"
+        # 2. DOM evidence, scoped to a single product container. Never zip
+        # unrelated title and price nodes from different regions of a page.
+        parser = _ObservedOfferCardParser()
+        parser.feed(html_content)
+        for card in parser.cards[:10]:
+            title = html_module.unescape(card["title"]).strip()
+            price_text = html_module.unescape(card["price"]).strip()
+            price = cls.parse_price_value(price_text)
+            if len(title) <= 3 or price is None or price <= 0:
+                continue
+            currency = "USD" if "$" in price_text else "EUR" if "€" in price_text else "VND"
+            observed_href = str(card["href"] or "").strip()
             items.append(
                 PriceComparisonItem(
                     store_name=store_name,
-                    product_title=t,
-                    price=p,
+                    product_title=title,
+                    price=price,
                     currency=currency,
-                    product_url=base_url,
-                    in_stock=True,
+                    product_url=(
+                        urllib.parse.urljoin(base_url, observed_href)
+                        if observed_href
+                        else ""
+                    ),
                     source="html_regex",
+                    metadata={
+                        "evidence": ["title", "price"],
+                        "association": "same_dom_container",
+                    },
                 )
             )
 
@@ -533,7 +655,9 @@ class WebScraper:
         title = PromptGuard.sanitize(raw_title, source=url or "web").clean_text if raw_title else ""
 
         # 2. Markdown Content
-        raw_md = self.markdown_converter.convert(html_content)
+        # HTMLParser instances retain stack state after malformed/unclosed input;
+        # use a fresh converter so one origin cannot contaminate the next scrape.
+        raw_md = HTMLToMarkdownConverter().convert(html_content)
         md_sanitized = PromptGuard.sanitize(raw_md, source=url or "web") if raw_md else None
         md_content = md_sanitized.clean_text if md_sanitized else ""
 

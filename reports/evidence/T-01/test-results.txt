@@ -1,0 +1,16 @@
+T-01 REAL PLAYWRIGHT / CDP E2E — REDACTED FINAL RECORD
+Captured: 2026-09-16 UTC+07:00
+Runtime: Windows, Python 3.12.14, pytest 8.4.2, Playwright 1.62.0,
+         Chromium 151.0.7922.34
+Scope: deterministic loopback-only website and CDP host; no external credentials
+Command: JARVIS_RUN_BROWSER_E2E=1 JARVIS_BROWSER_EVIDENCE_DIR=<T-01/artifacts>
+         PLAYWRIGHT_BROWSERS_PATH=<installed-browser-store>
+         python -m pytest -o addopts='' tests/e2e/test_browser_playwright_e2e.py
+         -q --tb=short --timeout=120 --junit-xml=<T-01/test-results.xml>
+Collected: 21
+Passed: 21
+Failed: 0
+Errors: 0
+Exit code: 0
+Duration: 56.91 seconds
+Result: PASS
