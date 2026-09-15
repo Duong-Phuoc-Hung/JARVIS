@@ -1,0 +1,319 @@
+{
+  "summary": {
+    "n_trials": 43,
+    "n_domains": 14,
+    "n_correct": 31,
+    "n_misrouted": 0,
+    "n_stt_empty": 0,
+    "n_router_abstain": 12,
+    "correct_rate": 0.7209302325581395,
+    "misrouting_rate": 0.0,
+    "router_abstain_rate": 0.27906976744186046,
+    "intent_success_rate": 0.7209302325581395,
+    "misroute_rate": 0.0,
+    "abstain_rate": 0.27906976744186046
+  },
+  "rows": [
+    {
+      "domain": "open_app",
+      "variant": 0,
+      "phrase": "mo chrome",
+      "predicted_action": "app_open",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "open_app",
+      "variant": 1,
+      "phrase": "mo word",
+      "predicted_action": "app_open",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "open_app",
+      "variant": 2,
+      "phrase": "khoi dong discord",
+      "predicted_action": "app_open",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "open_app",
+      "variant": 3,
+      "phrase": "mo may tinh calculator",
+      "predicted_action": "NO_INTENT",
+      "outcome": "ROUTER_ABSTAIN"
+    },
+    {
+      "domain": "system_shutdown",
+      "variant": 0,
+      "phrase": "tat may tinh",
+      "predicted_action": "system_power",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "system_shutdown",
+      "variant": 1,
+      "phrase": "tat nguon may",
+      "predicted_action": "system_power",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "system_shutdown",
+      "variant": 2,
+      "phrase": "shutdown may tinh",
+      "predicted_action": "system_power",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "system_restart",
+      "variant": 0,
+      "phrase": "khoi dong lai may",
+      "predicted_action": "system_power",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "system_restart",
+      "variant": 1,
+      "phrase": "restart lai may tinh",
+      "predicted_action": "system_power",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "system_restart",
+      "variant": 2,
+      "phrase": "reboot may tinh",
+      "predicted_action": "system_power",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "volume_control",
+      "variant": 0,
+      "phrase": "tang am luong len",
+      "predicted_action": "system_volume",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "volume_control",
+      "variant": 1,
+      "phrase": "giam am luong xuong",
+      "predicted_action": "system_volume",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "volume_control",
+      "variant": 2,
+      "phrase": "tat tieng loa",
+      "predicted_action": "system_volume",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "weather_query",
+      "variant": 0,
+      "phrase": "thoi tiet hom nay the nao",
+      "predicted_action": "shell_exec",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "weather_query",
+      "variant": 1,
+      "phrase": "du bao thoi tiet ngay mai",
+      "predicted_action": "shell_exec",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "weather_query",
+      "variant": 2,
+      "phrase": "nhiet do hien tai la bao nhieu",
+      "predicted_action": "NO_INTENT",
+      "outcome": "ROUTER_ABSTAIN"
+    },
+    {
+      "domain": "timer_set",
+      "variant": 0,
+      "phrase": "dat hen gio muoi phut",
+      "predicted_action": "reminder",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "timer_set",
+      "variant": 1,
+      "phrase": "cai dong ho dem nguoc",
+      "predicted_action": "NO_INTENT",
+      "outcome": "ROUTER_ABSTAIN"
+    },
+    {
+      "domain": "timer_set",
+      "variant": 2,
+      "phrase": "hen gio nau an",
+      "predicted_action": "reminder",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "reminder_set",
+      "variant": 0,
+      "phrase": "nhac toi uong nuoc",
+      "predicted_action": "reminder",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "reminder_set",
+      "variant": 1,
+      "phrase": "dat loi nhac hop chieu nay",
+      "predicted_action": "NO_INTENT",
+      "outcome": "ROUTER_ABSTAIN"
+    },
+    {
+      "domain": "reminder_set",
+      "variant": 2,
+      "phrase": "nho nhac toi goi dien",
+      "predicted_action": "reminder",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "screenshot",
+      "variant": 0,
+      "phrase": "chup man hinh",
+      "predicted_action": "screen_capture",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "screenshot",
+      "variant": 1,
+      "phrase": "chup anh man hinh lai",
+      "predicted_action": "screen_capture",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "screenshot",
+      "variant": 2,
+      "phrase": "luu anh man hinh",
+      "predicted_action": "NO_INTENT",
+      "outcome": "ROUTER_ABSTAIN"
+    },
+    {
+      "domain": "stop",
+      "variant": 0,
+      "phrase": "dung lai",
+      "predicted_action": "system_power",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "stop",
+      "variant": 1,
+      "phrase": "huy thao tac nay",
+      "predicted_action": "system_power",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "stop",
+      "variant": 2,
+      "phrase": "ngung lam viec",
+      "predicted_action": "NO_INTENT",
+      "outcome": "ROUTER_ABSTAIN"
+    },
+    {
+      "domain": "search",
+      "variant": 0,
+      "phrase": "tim kiem tren google",
+      "predicted_action": "web_open",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "search",
+      "variant": 1,
+      "phrase": "tra cuu thong tin",
+      "predicted_action": "NO_INTENT",
+      "outcome": "ROUTER_ABSTAIN"
+    },
+    {
+      "domain": "search",
+      "variant": 2,
+      "phrase": "tim video tren youtube",
+      "predicted_action": "web_open",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "music_play",
+      "variant": 0,
+      "phrase": "mo spotify len",
+      "predicted_action": "spotify",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "music_play",
+      "variant": 1,
+      "phrase": "phat nhac di",
+      "predicted_action": "spotify",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "music_play",
+      "variant": 2,
+      "phrase": "bat bai hat",
+      "predicted_action": "spotify",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "screen_off",
+      "variant": 0,
+      "phrase": "tat man hinh",
+      "predicted_action": "system_brightness",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "screen_off",
+      "variant": 1,
+      "phrase": "khoa man hinh lai",
+      "predicted_action": "system_power",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "screen_off",
+      "variant": 2,
+      "phrase": "man hinh nghi ngoi",
+      "predicted_action": "NO_INTENT",
+      "outcome": "ROUTER_ABSTAIN"
+    },
+    {
+      "domain": "note_take",
+      "variant": 0,
+      "phrase": "ghi chu lai",
+      "predicted_action": "memory_save_fact",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "note_take",
+      "variant": 1,
+      "phrase": "tao ghi chep moi",
+      "predicted_action": "NO_INTENT",
+      "outcome": "ROUTER_ABSTAIN"
+    },
+    {
+      "domain": "note_take",
+      "variant": 2,
+      "phrase": "luu y tuong nay",
+      "predicted_action": "NO_INTENT",
+      "outcome": "ROUTER_ABSTAIN"
+    },
+    {
+      "domain": "settings_open",
+      "variant": 0,
+      "phrase": "mo cai dat",
+      "predicted_action": "app_open",
+      "outcome": "CORRECT"
+    },
+    {
+      "domain": "settings_open",
+      "variant": 1,
+      "phrase": "vao phan cau hinh he thong",
+      "predicted_action": "NO_INTENT",
+      "outcome": "ROUTER_ABSTAIN"
+    },
+    {
+      "domain": "settings_open",
+      "variant": 2,
+      "phrase": "mo bang dieu khien",
+      "predicted_action": "NO_INTENT",
+      "outcome": "ROUTER_ABSTAIN"
+    }
+  ]
+}

@@ -97,6 +97,7 @@ def _bucket_stats(counter: Counter, n_sub: int) -> dict:
     stt_empty = counter.get("STT_EMPTY", 0)
     router_abstain = counter.get("ROUTER_ABSTAIN", 0)
     denom = n_sub if n_sub else 1
+    stt_success = n_sub - stt_empty
     return {
         "n_trials": n_sub,
         "n_correct": correct,
@@ -108,6 +109,23 @@ def _bucket_stats(counter: Counter, n_sub: int) -> dict:
         "stt_empty_rate": stt_empty / denom,
         "router_abstain_rate": router_abstain / denom,
         "end_to_end_abstention_rate": (stt_empty + router_abstain) / denom,
+        # H-05 official-terminology aliases (purely additive -- every key above
+        # is unchanged, so any existing reader of this dict keeps working).
+        # Mapping (see docs/eval/h05_metric_terminology.md for the full
+        # rationale): STT success = non-empty transcript rate; intent success
+        # = correct routed action rate (alias of correct_rate); misroute =
+        # wrong routed action rate (alias of misrouting_rate); abstain =
+        # router produced no actionable intent after a non-empty transcript
+        # (alias of router_abstain_rate, NOT stt_empty_rate -- an empty
+        # transcript is an STT failure, not a router abstention).
+        "stt_success_count": stt_success,
+        "stt_success_rate": stt_success / denom,
+        "intent_success_count": correct,
+        "intent_success_rate": correct / denom,
+        "misroute_count": misrouted,
+        "misroute_rate": misrouted / denom,
+        "abstain_count": router_abstain,
+        "abstain_rate": router_abstain / denom,
     }
 
 
