@@ -24,6 +24,26 @@ from jarvis.tts.fallback import SAPI5FallbackTTS
 log = logging.getLogger("jarvis.tts.manager")
 
 
+class AcousticGateTimeoutError(Exception):
+    """
+    Raised when a command-capture caller (JarvisApp.record_audio()) could not
+    acquire the shared acoustic I/O exclusion gate within the allowed bound --
+    JARVIS's own TTS/audio playback was still using it.
+
+    This is a distinct, typed failure from both ordinary user silence and
+    H-02's MicrophoneDeviceUnavailableError: the microphone was never opened
+    at all, so the caller (_start_voice_interaction) must report this as
+    "audio busy", not as "didn't hear you" or "microphone unavailable".
+    """
+
+    def __init__(self, timeout: float) -> None:
+        self.timeout = timeout
+        super().__init__(
+            f"Could not acquire the acoustic I/O gate within {timeout}s -- "
+            "JARVIS's own TTS/audio playback was still active."
+        )
+
+
 WELCOME_PHRASES: list[str] = [
     "Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.",
     "Chào mừng Ngài trở lại. Mọi hệ thống đang hoạt động tối ưu.",
@@ -66,6 +86,22 @@ class TTSManager:
         self._stop_event = threading.Event()
         self._worker_thread: threading.Thread | None = None
         self._lock = threading.RLock()
+        # H-03 fix: the shared acoustic I/O exclusion gate. Serializes the
+        # actual synthesis/playback I/O (cache lookup, network synthesis,
+        # audio playback) AND doubles as the public gate command-capture
+        # callers acquire via try_acquire_acoustic_gate()/release_acoustic_gate()
+        # -- TTS playback and microphone capture use this SAME lock, so they
+        # can never overlap acoustically (see those methods for the full
+        # contract). self._lock itself must never be held across this
+        # blocking work: is_playing()/is_in_echo_window() (via self._lock)
+        # are read from other threads that need a fast, bounded answer --
+        # the real-time per-audio-block echo-window check in AudioEngine's
+        # dispatch callback in particular. Holding self._lock across
+        # multi-second synthesis+playback would make those reads block for
+        # the full TTS duration instead of returning near-instantly. The two
+        # locks are never nested/acquired while holding the other, in either
+        # direction, so there is no lock-ordering deadlock risk between them.
+        self._playback_resource_lock = threading.Lock()
         self._last_welcome_phrase: str | None = None
         self._last_playback_finish_time: float = 0.0
         self._is_playing: bool = False
@@ -132,6 +168,36 @@ class TTSManager:
         with self._lock:
             return self._is_playing
 
+    def try_acquire_acoustic_gate(self, timeout: float) -> bool:
+        """
+        Attempt to acquire the shared acoustic I/O exclusion gate, bounded by
+        `timeout` seconds. This is the SAME lock _execute_speak() holds for
+        its own synthesis+playback (_playback_resource_lock) -- so holding it
+        here makes it impossible for a new speak() call to actually start
+        audio output while the caller holds the gate, and vice versa.
+
+        Command-capture callers (JarvisApp.record_audio()) must use this
+        instead of polling is_playing in a loop: polling has an inherent
+        check-then-act race (is_playing can flip to True again in the gap
+        between the check and opening the microphone), whereas a bounded
+        lock acquisition is atomic with respect to _execute_speak()'s own
+        acquisition of the identical lock -- there is no gap in which a new
+        speak() call can slip in and start playing while the caller believes
+        it has exclusive access.
+
+        Returns True if the gate was acquired -- the caller MUST call
+        release_acoustic_gate() exactly once when done, holding the gate for
+        the complete duration of whatever acoustic I/O it is about to
+        perform. Returns False if the gate could not be acquired within
+        `timeout` -- the caller must fail closed (never proceed to open the
+        microphone) and must NOT call release_acoustic_gate() in that case.
+        """
+        return self._playback_resource_lock.acquire(timeout=timeout)
+
+    def release_acoustic_gate(self) -> None:
+        """Release a gate previously acquired via try_acquire_acoustic_gate()."""
+        self._playback_resource_lock.release()
+
     def speak(
         self,
         text: str,
@@ -163,7 +229,12 @@ class TTSManager:
         with self._lock:
             self._is_playing = True
         try:
-            with self._lock:
+            # H-03 fix: only the actual blocking I/O (cache lookup, network
+            # synthesis, audio playback) is serialized under the DEDICATED
+            # resource lock -- never under self._lock, so is_playing()/
+            # is_in_echo_window() stay fast for any other thread reading them
+            # concurrently, regardless of how long this call takes.
+            with self._playback_resource_lock:
                 v_id = voice_id or str(getattr(self.primary_engine, "voice_id", "") or "")
                 m_id = getattr(self.primary_engine, "model_id", "eleven_multilingual_v2")
                 out_fmt = getattr(self.primary_engine, "output_format", "pcm_24000")

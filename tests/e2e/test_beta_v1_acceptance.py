@@ -47,6 +47,7 @@ from jarvis.comms.email_imap import IMAPEmailReader, IMAPNotConfiguredError
 from jarvis.comms.telegram import TelegramBotController, TelegramConfig
 from jarvis.comms.zalo import ZaloBotController, ZaloConfig, ZaloSendResult
 from jarvis.core.app import JarvisApp
+from tests.conftest import FakeGateTTS
 
 
 # ============================================================================
@@ -177,15 +178,13 @@ class TestBetaV1Tier1FeatureCoverage:
                 "150ms acoustic settling delay must be invoked post-TTS greeting"
 
     def test_tier1_acoustic_playback_lockout(self, acceptance_app):
-        """F-03: record_audio() waits if TTS is actively playing to prevent self-capture."""
-        class MockTTS:
-            def __init__(self):
-                self._states = [True, True, False]
-            @property
-            def is_playing(self):
-                return self._states.pop(0) if self._states else False
-
-        acceptance_app.tts_manager = MockTTS()
+        """
+        F-03: record_audio() waits (via the shared acoustic gate) if TTS is
+        actively playing, before it can ever open the microphone -- using a
+        real threading.Lock-backed fake so this proves genuine mutual
+        exclusion, not a polled is_playing flag with a check-then-act gap.
+        """
+        acceptance_app.tts_manager = FakeGateTTS(held_for_s=0.1)
 
         with patch("sounddevice.InputStream") as mock_stream, \
              patch("jarvis.core.app.time.sleep") as mock_sleep:
@@ -371,25 +370,34 @@ class TestBetaV1Tier2Boundaries:
                 acceptance_app.record_audio(duration_s=0.2)
             mock_stream.assert_not_called()
 
-    def test_tier2_acoustic_playback_lockout_timeout_bound(self, acceptance_app):
-        """Boundary: Verify record_audio does not deadlock if TTS is_playing hangs perpetually."""
-        class StalledTTS:
-            @property
-            def is_playing(self):
-                return True  # Never clears
+    def test_tier2_acoustic_gate_timeout_fails_closed(self, acceptance_app):
+        """
+        Boundary (H-03 final fix): if TTS holds the shared acoustic gate
+        beyond the allowed bound (simulating a stuck/perpetual playback),
+        record_audio() must FAIL CLOSED with a typed AcousticGateTimeoutError
+        within bounded real wall-clock time -- never deadlock, and never
+        open the microphone. This replaces the previous "wait then proceed
+        anyway after 1.0s" behavior, which left a TOCTOU window for a new
+        TTS output to start between the wait's expiry and the microphone
+        actually opening.
+        """
+        from jarvis.tts.manager import AcousticGateTimeoutError
 
-        acceptance_app.tts_manager = StalledTTS()
-        # Advance time.monotonic across iterations to simulate 1.0s timeout expiration
-        monotonic_sequence = [100.0, 100.2, 100.6, 101.5]
-        with patch("sounddevice.InputStream") as mock_stream, \
-             patch("jarvis.core.app.time.monotonic", side_effect=monotonic_sequence), \
-             patch("jarvis.core.app.time.sleep") as mock_sleep:
-            mock_inst = MagicMock()
-            mock_inst.read.return_value = (np.zeros((100, 1), dtype=np.float32), False)
-            mock_stream.return_value.__enter__.return_value = mock_inst
+        # held_for_s far exceeds record_audio()'s own gate timeout -- the
+        # gate is never released within this test's lifetime.
+        acceptance_app.tts_manager = FakeGateTTS(held_for_s=999.0)
 
-            acceptance_app.record_audio(duration_s=0.1)
-            assert mock_sleep.call_count >= 1
+        with patch("sounddevice.InputStream") as mock_stream:
+            t0 = time.monotonic()
+            with pytest.raises(AcousticGateTimeoutError):
+                acceptance_app.record_audio(duration_s=0.1)
+            elapsed = time.monotonic() - t0
+
+        assert elapsed < 3.0, (
+            f"Gate timeout took {elapsed:.2f}s -- must be bounded near record_audio()'s "
+            "own acoustic-gate timeout, not deadlock or wait indefinitely."
+        )
+        mock_stream.assert_not_called()
 
     def test_tier2_voice_interaction_single_flight_mutex_lockout(self, acceptance_app):
         """Boundary: Suppress concurrent voice interaction triggers when interaction is active."""
@@ -572,30 +580,27 @@ class TestBetaV1Tier3Interactions:
             assert mock_stream.call_args[1]["device"] == 9
 
     def test_tier3_interaction_tts_playback_lockout_during_recording(self, acceptance_app):
-        """Interaction: Active TTS blocks record_audio until speech output finishes."""
-        playback_log = []
+        """
+        Interaction: active TTS blocks record_audio via the shared acoustic
+        gate until speech output genuinely finishes -- proven with a real
+        threading.Lock-backed fake, not a manually-stepped is_playing
+        sequence, so the microphone provably cannot open while the gate is
+        held.
+        """
+        tts = FakeGateTTS(held_for_s=0.15)
+        acceptance_app.tts_manager = tts
 
-        class MockTTS:
-            def __init__(self):
-                self._counter = 2
-            @property
-            def is_playing(self):
-                is_active = self._counter > 0
-                self._counter -= 1
-                playback_log.append(is_active)
-                return is_active
-
-        acceptance_app.tts_manager = MockTTS()
-
-        with patch("sounddevice.InputStream") as mock_stream, patch("jarvis.core.app.time.sleep") as mock_sleep:
+        with patch("sounddevice.InputStream") as mock_stream:
             mock_inst = MagicMock()
             mock_inst.read.return_value = (np.zeros((100, 1), dtype=np.float32), False)
             mock_stream.return_value.__enter__.return_value = mock_inst
 
+            t0 = time.monotonic()
             acceptance_app.record_audio(duration_s=0.2)
-            # Should have checked playback twice as True, then False
-            assert playback_log == [True, True, False]
+            elapsed = time.monotonic() - t0
+
             assert mock_stream.called
+            assert elapsed >= 0.15, "record_audio() must have genuinely waited for the gate to free up"
 
 
 # ============================================================================
