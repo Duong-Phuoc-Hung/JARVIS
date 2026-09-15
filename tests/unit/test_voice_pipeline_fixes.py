@@ -14,6 +14,7 @@ import pytest
 
 from jarvis.core.app import JarvisApp
 from jarvis.stt.engine import prepare_stt_audio
+from tests.conftest import FakeGateTTS
 
 
 @pytest.fixture
@@ -109,15 +110,13 @@ def test_h02_record_audio_uses_audio_engine_device(mock_app):
 
 
 def test_h03_record_audio_waits_for_active_tts(mock_app):
-    """H-03: record_audio waits if TTS is actively playing to prevent self-capture."""
-    class MockTTS:
-        def __init__(self):
-            self._states = [True, True, False]
-        @property
-        def is_playing(self):
-            return self._states.pop(0) if self._states else False
-
-    mock_app.tts_manager = MockTTS()
+    """
+    H-03: record_audio() must wait (via the shared acoustic gate, a real
+    threading.Lock) if TTS is actively playing, before it can ever open the
+    microphone -- proving genuine mutual exclusion, not a polled is_playing
+    flag with a check-then-act gap.
+    """
+    mock_app.tts_manager = FakeGateTTS(held_for_s=0.1)
 
     with patch("sounddevice.InputStream") as mock_stream, patch("jarvis.core.app.time.sleep") as mock_sleep:
         mock_instance = MagicMock()

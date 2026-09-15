@@ -41,6 +41,7 @@ from jarvis.audio.engine import (
 )
 from jarvis.core.app import JarvisApp
 from jarvis.stt.engine import CapturedAudio, prepare_stt_audio
+from tests.conftest import FakeGateTTS
 
 # A realistic 4-device enumeration, shaped exactly like MicrophoneProbeManager
 # expects (mirrors the pattern already used by tests/conftest.py's
@@ -379,17 +380,11 @@ def test_14_h01_captured_audio_contract_intact(mock_app):
 
 
 def test_15_h03_echo_guard_intact(mock_app):
-    """The TTS is_playing settling/lockout wait loop must still run before any
-    device-resolution or capture logic executes."""
-    class MockTTS:
-        def __init__(self):
-            self._states = [True, True, False]
-
-        @property
-        def is_playing(self):
-            return self._states.pop(0) if self._states else False
-
-    mock_app.tts_manager = MockTTS()
+    """The H-03 acoustic gate (TTS-busy wait + settle) must still run before
+    any device-resolution or capture logic executes -- using a real
+    threading.Lock-backed gate (not a polled is_playing flag) so this
+    proves genuine mutual exclusion, not just a truthy attribute."""
+    mock_app.tts_manager = FakeGateTTS(held_for_s=0.1)
     mock_app.audio_engine._active_device_index = 5
     with patch("sounddevice.InputStream") as mock_stream, patch("jarvis.core.app.time.sleep") as mock_sleep:
         mock_stream.return_value.__enter__.return_value = _mock_input_stream()

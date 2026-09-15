@@ -274,6 +274,55 @@ class AudioSynthesizer:
             yield chunk
 
 
+class FakeGateTTS:
+    """
+    Minimal TTSManager stand-in implementing the H-03 shared acoustic I/O
+    gate protocol (try_acquire_acoustic_gate/release_acoustic_gate) with a
+    REAL threading.Lock, for tests that need genuine mutual exclusion --
+    not just a truthy/falsy attribute a caller happens to poll -- without
+    constructing a full TTSManager (and its cache/engine dependencies).
+
+    Pass held_for_s > 0 to simulate "TTS is already speaking right now" --
+    the gate is acquired immediately in __init__ and released automatically
+    on a background daemon thread after held_for_s seconds. Leave it at 0
+    (the default) to simulate "TTS idle" -- the gate starts free.
+    """
+
+    def __init__(self, held_for_s: float = 0.0) -> None:
+        self._gate = threading.Lock()
+        self._is_playing = False
+        self._last_playback_finish_time = 0.0
+        self.speak_calls: List[str] = []
+        if held_for_s > 0:
+            self._gate.acquire()
+            self._is_playing = True
+
+            def _release() -> None:
+                time.sleep(held_for_s)
+                self._is_playing = False
+                self._last_playback_finish_time = time.monotonic()
+                self._gate.release()
+
+            threading.Thread(target=_release, daemon=True, name="FakeGateTTS-release").start()
+
+    def try_acquire_acoustic_gate(self, timeout: float) -> bool:
+        return self._gate.acquire(timeout=timeout)
+
+    def release_acoustic_gate(self) -> None:
+        self._gate.release()
+
+    @property
+    def is_playing(self) -> bool:
+        return self._is_playing
+
+    def is_in_echo_window(self, current_time: Optional[float] = None, cooldown_s: float = 2.5) -> bool:
+        return self._is_playing
+
+    def speak(self, text: str, *args, **kwargs) -> bool:
+        self.speak_calls.append(text)
+        return True
+
+
 class MockAudioStream:
     """
     Mock sounddevice.InputStream emulator that streams synthetic PCM chunks

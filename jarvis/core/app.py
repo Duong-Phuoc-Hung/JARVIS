@@ -78,7 +78,7 @@ from jarvis.skills.synthesizer import DynamicSkillSynthesizer
 # Subsystems
 from jarvis.smart_home.home_assistant import HomeAssistantClient
 from jarvis.stt.engine import CapturedAudio, STTEngine, validate_sample_rate
-from jarvis.tts.manager import TTSManager
+from jarvis.tts.manager import AcousticGateTimeoutError, TTSManager
 from jarvis.ui.dashboard import DashboardServer
 from jarvis.ui.overlay import AlwaysOnOverlay
 from jarvis.ui.tray import SystemTrayController, TrayStatus
@@ -1774,65 +1774,100 @@ class JarvisApp:
                     probe_mgr = MicrophoneProbeManager()
                 target_device = probe_mgr.resolve_explicit_device(cfg_dev, probe_mgr.get_input_devices())
 
-        # H-03 fix: Acoustic Echo Guard — if TTS is still actively playing through speakers,
-        # wait briefly for it to complete to prevent capturing self-audio into STT.
-        if self.tts_manager and getattr(self.tts_manager, "is_playing", False):
-            t_wait_start = time.monotonic()
-            while getattr(self.tts_manager, "is_playing", False) and (time.monotonic() - t_wait_start) < 1.0:
-                time.sleep(0.05)
+        # H-03 FINAL fix: shared acoustic I/O exclusion gate — replaces the previous
+        # is_playing-polling wait loop, which had an inherent check-then-act (TOCTOU)
+        # race: is_playing could observe False, then a NEW TTS output could start
+        # (from an unrelated hotkey/dispatched action, not just the current
+        # interaction's own greeting) in the gap before the microphone stream
+        # actually opened. try_acquire_acoustic_gate() acquires the SAME lock
+        # TTSManager._execute_speak() holds for its own synthesis+playback, so once
+        # acquired here, no speak() call anywhere in the process can actually start
+        # producing audio until this capture releases it -- there is no gap for a
+        # concurrent TTS output to slip into. Acquisition is bounded; on timeout this
+        # fails closed with a typed, distinguishable error and the microphone is
+        # NEVER opened -- never a fabricated silent buffer.
+        ACOUSTIC_GATE_TIMEOUT_S = 1.0
+        gate_acquired = False
+        if self.tts_manager:
+            _gate_wait_start = time.monotonic()
+            gate_acquired = self.tts_manager.try_acquire_acoustic_gate(timeout=ACOUSTIC_GATE_TIMEOUT_S)
+            _gate_wait_elapsed = time.monotonic() - _gate_wait_start
+            if not gate_acquired:
+                log.error(
+                    "Acoustic I/O gate not acquired within %.1fs -- JARVIS's own TTS/"
+                    "playback is still active. Refusing to open the microphone.",
+                    ACOUSTIC_GATE_TIMEOUT_S,
+                )
+                raise AcousticGateTimeoutError(ACOUSTIC_GATE_TIMEOUT_S)
+            # The gate was genuinely contended (we had to wait for a real TTS
+            # playback to release it) -- allow a short settling delay for speaker
+            # reverberation to decay before opening the microphone, mirroring the
+            # 150ms settle already applied after the greeting in
+            # _start_voice_interaction(). Skipped when the gate was immediately
+            # free (TTS was already idle), so the common fast path never pays a
+            # redundant delay.
+            if _gate_wait_elapsed > 0.02:
+                time.sleep(0.15)
 
         try:
-            import sounddevice as _sd
-            chunk_size = int(sr * 0.15)  # 150ms chunks
-            recorded_chunks: list[np.ndarray] = []
-            max_chunks = int(max_dur / 0.15)
-            silence_chunks_after_speech = 0
-            has_speech_started = False
-            energy_threshold = 0.015
-
-            log.info("Capturing voice command (device=%s, sr=%d, max %.1fs)...", target_device, sr, max_dur)
-            with _sd.InputStream(samplerate=sr, channels=1, dtype="float32", blocksize=chunk_size, device=target_device) as stream:
-                for _ in range(max_chunks):
-                    chunk, overflowed = stream.read(chunk_size)
-                    chunk_flat = chunk.flatten()
-                    recorded_chunks.append(chunk_flat)
-
-                    rms = float(np.sqrt(np.mean(chunk_flat ** 2))) if len(chunk_flat) > 0 else 0.0
-                    if rms > energy_threshold:
-                        has_speech_started = True
-                        silence_chunks_after_speech = 0
-                    elif has_speech_started:
-                        silence_chunks_after_speech += 1
-                        # If user spoke and then fell silent for ~1.0s (7 chunks), cut off early
-                        if silence_chunks_after_speech >= 7:
-                            log.debug("Speech ended naturally (silence cutoff after %d chunks).", len(recorded_chunks))
-                            break
-
-            if recorded_chunks:
-                return captured(np.concatenate(recorded_chunks))
-            return captured(np.zeros(int(sr * 0.5), dtype=np.float32))
-        except Exception as e:
-            log.warning("Fast microphone capture via InputStream failed: %s. Falling back to simple rec.", e)
             try:
                 import sounddevice as _sd
-                dur = min(max_dur, 3.0)
-                audio_data = _sd.rec(int(dur * sr), samplerate=sr, channels=1, dtype="float32", device=target_device)
-                _sd.wait()
-                return captured(audio_data.flatten())
-            except Exception as e2:
-                # H-02 fix: both the fast InputStream path AND the same-device sd.rec
-                # fallback failed to access hardware -- this is a genuine microphone
-                # failure (disconnected/in-use/driver error), not silence. Returning a
-                # fabricated all-zero buffer here would make a hardware failure
-                # indistinguishable from the user simply not speaking. Surface a typed,
-                # distinguishable failure instead; the caller (_start_voice_interaction)
-                # reports this to the user as a device problem, not as "didn't hear you".
-                log.error(
-                    "Fallback sd.rec capture also failed on device=%s: %s. "
-                    "Refusing to return a fabricated silent buffer for a hardware failure.",
-                    target_device, e2,
-                )
-                raise MicrophoneDeviceUnavailableError(target_device, reason="capture_failed") from e2
+                chunk_size = int(sr * 0.15)  # 150ms chunks
+                recorded_chunks: list[np.ndarray] = []
+                max_chunks = int(max_dur / 0.15)
+                silence_chunks_after_speech = 0
+                has_speech_started = False
+                energy_threshold = 0.015
+
+                log.info("Capturing voice command (device=%s, sr=%d, max %.1fs)...", target_device, sr, max_dur)
+                with _sd.InputStream(samplerate=sr, channels=1, dtype="float32", blocksize=chunk_size, device=target_device) as stream:
+                    for _ in range(max_chunks):
+                        chunk, overflowed = stream.read(chunk_size)
+                        chunk_flat = chunk.flatten()
+                        recorded_chunks.append(chunk_flat)
+
+                        rms = float(np.sqrt(np.mean(chunk_flat ** 2))) if len(chunk_flat) > 0 else 0.0
+                        if rms > energy_threshold:
+                            has_speech_started = True
+                            silence_chunks_after_speech = 0
+                        elif has_speech_started:
+                            silence_chunks_after_speech += 1
+                            # If user spoke and then fell silent for ~1.0s (7 chunks), cut off early
+                            if silence_chunks_after_speech >= 7:
+                                log.debug("Speech ended naturally (silence cutoff after %d chunks).", len(recorded_chunks))
+                                break
+
+                if recorded_chunks:
+                    return captured(np.concatenate(recorded_chunks))
+                return captured(np.zeros(int(sr * 0.5), dtype=np.float32))
+            except Exception as e:
+                log.warning("Fast microphone capture via InputStream failed: %s. Falling back to simple rec.", e)
+                try:
+                    import sounddevice as _sd
+                    dur = min(max_dur, 3.0)
+                    audio_data = _sd.rec(int(dur * sr), samplerate=sr, channels=1, dtype="float32", device=target_device)
+                    _sd.wait()
+                    return captured(audio_data.flatten())
+                except Exception as e2:
+                    # H-02 fix: both the fast InputStream path AND the same-device sd.rec
+                    # fallback failed to access hardware -- this is a genuine microphone
+                    # failure (disconnected/in-use/driver error), not silence. Returning a
+                    # fabricated all-zero buffer here would make a hardware failure
+                    # indistinguishable from the user simply not speaking. Surface a typed,
+                    # distinguishable failure instead; the caller (_start_voice_interaction)
+                    # reports this to the user as a device problem, not as "didn't hear you".
+                    log.error(
+                        "Fallback sd.rec capture also failed on device=%s: %s. "
+                        "Refusing to return a fabricated silent buffer for a hardware failure.",
+                        target_device, e2,
+                    )
+                    raise MicrophoneDeviceUnavailableError(target_device, reason="capture_failed") from e2
+        finally:
+            # Keep the gate for the complete command recording period -- release
+            # only now, after every capture attempt (success or failure) is fully
+            # done, so TTS can never start playing mid-capture either.
+            if gate_acquired:
+                self.tts_manager.release_acoustic_gate()
 
     def _start_voice_interaction(
         self,
@@ -1867,17 +1902,23 @@ class JarvisApp:
                     self.tray_controller.update_status(TrayStatus.LISTENING)
 
                 transcript = ""
-                # H-02 fix: a microphone/device failure must be reported distinctly
-                # from ordinary silence -- caught around record_audio() specifically
-                # (not the whole STT block) so it is never conflated with an STT
-                # engine error or a genuinely silent recording.
+                # H-02/H-03 fix: a microphone/device failure and an acoustic-gate
+                # timeout (JARVIS's own TTS still busy) must both be reported
+                # distinctly from ordinary silence -- and from each other -- caught
+                # around record_audio() specifically (not the whole STT block) so
+                # neither is ever conflated with an STT engine error or a genuinely
+                # silent recording.
                 mic_error: MicrophoneDeviceUnavailableError | None = None
+                gate_error: AcousticGateTimeoutError | None = None
                 if self.stt_engine:
                     try:
                         audio_flat = self.record_audio(return_capture=True)
                     except MicrophoneDeviceUnavailableError as e:
                         log.error("Voice capture aborted -- microphone unavailable: %s", e)
                         mic_error = e
+                    except AcousticGateTimeoutError as e:
+                        log.error("Voice capture aborted -- acoustic gate busy: %s", e)
+                        gate_error = e
                     else:
                         try:
                             # Timeout guard: STT must complete within 30s or we abort
@@ -1907,6 +1948,26 @@ class JarvisApp:
                         input_text="(mic_unavailable)",
                         action="none",
                         response=_mic_msg,
+                        status="failed",
+                    )
+                    return
+
+                if gate_error is not None:
+                    _gate_msg = "JARVIS đang phát âm thanh, vui lòng đợi trong giây lát rồi thử lại."
+                    if self.overlay:
+                        self.overlay.show_response("(đang bận phát âm thanh)", _gate_msg)
+                    # Only play spoken TTS error on explicit user actions (hotkey, tray), not ambient
+                    # wake word triggers -- and only a best-effort attempt: if TTS is genuinely still
+                    # busy this will simply wait its turn via the same acoustic gate/serialization.
+                    if self.tts_manager and not trigger_name.startswith("WAKE_WORD"):
+                        self.tts_manager.speak(_gate_msg, wait=True)
+                    if self.tray_controller:
+                        self.tray_controller.update_status(TrayStatus.ACTIVE)
+                    self.log_interaction(
+                        trigger=trigger_name,
+                        input_text="(audio_gate_busy)",
+                        action="none",
+                        response=_gate_msg,
                         status="failed",
                     )
                     return
