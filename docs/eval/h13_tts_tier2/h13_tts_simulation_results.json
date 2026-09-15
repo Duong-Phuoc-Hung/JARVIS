@@ -1,0 +1,369 @@
+{
+  "tier": "TIER_2_SYNTHETIC_TTS",
+  "warning": "Does NOT close H-13. Tier 1 requires real human voice and microphone.",
+  "voice_model": "vi-VN-HoaiMyNeural (Microsoft edge-tts)",
+  "stt_model": "small CPU int8",
+  "router_method": "keyword_match (no LLM API required)",
+  "date": "2026-09-16T00:45:03",
+  "total": 50,
+  "counts": {
+    "CORRECT": 13,
+    "MISROUTED": 37,
+    "STT_EMPTY": 0,
+    "ROUTER_ABSTAIN": 0
+  },
+  "accuracy_pct": 26.0,
+  "arithmetic_check": "13+37+0+0=50",
+  "results": [
+    {
+      "case_id": "WF01-1",
+      "status": "MISROUTED",
+      "transcribed": "Mờ nô tếp lên cho tôi.",
+      "expected_action": "open_app",
+      "latency_ms": 6468.7
+    },
+    {
+      "case_id": "WF01-2",
+      "status": "MISROUTED",
+      "transcribed": "Mò mày tinh tinh tay.",
+      "expected_action": "open_app",
+      "latency_ms": 5209.8
+    },
+    {
+      "case_id": "WF01-3",
+      "status": "MISROUTED",
+      "transcribed": "Mở phai ít bởi lò rơ ra.",
+      "expected_action": "open_app",
+      "latency_ms": 4018.3
+    },
+    {
+      "case_id": "WF01-4",
+      "status": "CORRECT",
+      "transcribed": "Khoi dòng ung dung Spotify.",
+      "expected_action": "open_app",
+      "latency_ms": 3770.7
+    },
+    {
+      "case_id": "WF01-5",
+      "status": "MISROUTED",
+      "transcribed": "Mở tát manager xem hiu năng.",
+      "expected_action": "open_app",
+      "latency_ms": 3594.1
+    },
+    {
+      "case_id": "WF02-1",
+      "status": "CORRECT",
+      "transcribed": "Mở trang Google",
+      "expected_action": "web_open",
+      "latency_ms": 3478.5
+    },
+    {
+      "case_id": "WF02-2",
+      "status": "CORRECT",
+      "transcribed": "Mở kênh YouTube Lan",
+      "expected_action": "web_open",
+      "latency_ms": 3961.5
+    },
+    {
+      "case_id": "WF02-3",
+      "status": "CORRECT",
+      "transcribed": "Tuy cáp vào trang dít thúc.",
+      "expected_action": "web_open",
+      "latency_ms": 3272.4
+    },
+    {
+      "case_id": "WF02-4",
+      "status": "MISROUTED",
+      "transcribed": "Mờ bao gian tri gióc tinh tục.",
+      "expected_action": "web_open",
+      "latency_ms": 3449.5
+    },
+    {
+      "case_id": "WF02-5",
+      "status": "CORRECT",
+      "transcribed": "Mò trang chát",
+      "expected_action": "web_open",
+      "latency_ms": 3229.1
+    },
+    {
+      "case_id": "WF03-1",
+      "status": "MISROUTED",
+      "transcribed": "Tạm ám lùng lên mùa y phang trạm.",
+      "expected_action": "volume_control",
+      "latency_ms": 3555.7
+    },
+    {
+      "case_id": "WF03-2",
+      "status": "CORRECT",
+      "transcribed": "giam âm lung xung.",
+      "expected_action": "volume_control",
+      "latency_ms": 4215.5
+    },
+    {
+      "case_id": "WF03-3",
+      "status": "MISROUTED",
+      "transcribed": "Tắt tành loại gì?",
+      "expected_action": "volume_control",
+      "latency_ms": 4719.5
+    },
+    {
+      "case_id": "WF03-4",
+      "status": "MISROUTED",
+      "transcribed": "Giác am lùng ở múc Nam mua ở Phan Tram.",
+      "expected_action": "volume_control",
+      "latency_ms": 4721.4
+    },
+    {
+      "case_id": "WF03-5",
+      "status": "CORRECT",
+      "transcribed": "Tàn do sang mang hình lên!",
+      "expected_action": "brightness_control",
+      "latency_ms": 3817.8
+    },
+    {
+      "case_id": "WF04-1",
+      "status": "MISROUTED",
+      "transcribed": "Bác mốc bài nhạt nhề không loài.",
+      "expected_action": "music_play",
+      "latency_ms": 5014.9
+    },
+    {
+      "case_id": "WF04-2",
+      "status": "CORRECT",
+      "transcribed": "Tam dung phát nhạc",
+      "expected_action": "music_pause",
+      "latency_ms": 4641.6
+    },
+    {
+      "case_id": "WF04-3",
+      "status": "MISROUTED",
+      "transcribed": "Tiếp tục phát bay hạt.",
+      "expected_action": "music_resume",
+      "latency_ms": 4321.1
+    },
+    {
+      "case_id": "WF04-4",
+      "status": "MISROUTED",
+      "transcribed": "Chuyện sang bài tiếp theo.",
+      "expected_action": "music_next",
+      "latency_ms": 4804.8
+    },
+    {
+      "case_id": "WF04-5",
+      "status": "MISROUTED",
+      "transcribed": "Quay lại bài vô phát.",
+      "expected_action": "music_prev",
+      "latency_ms": 3490.2
+    },
+    {
+      "case_id": "WF05-1",
+      "status": "MISROUTED",
+      "transcribed": "Hẹn do cho tôi Nam Phúc nua.",
+      "expected_action": "timer_set",
+      "latency_ms": 3624.8
+    },
+    {
+      "case_id": "WF05-2",
+      "status": "MISROUTED",
+      "transcribed": "Giác bào thúc lúc bày do sang mai.",
+      "expected_action": "alarm_set",
+      "latency_ms": 4152.3
+    },
+    {
+      "case_id": "WF05-3",
+      "status": "MISROUTED",
+      "transcribed": "Vì hên do giang chây.",
+      "expected_action": "timer_cancel",
+      "latency_ms": 4619.2
+    },
+    {
+      "case_id": "WF05-4",
+      "status": "MISROUTED",
+      "transcribed": "Còn bao nhiêu thời gian nua hết giờ?",
+      "expected_action": "timer_status",
+      "latency_ms": 5384.6
+    },
+    {
+      "case_id": "WF05-5",
+      "status": "MISROUTED",
+      "transcribed": "Giác dòng họ về mút 2 mùa 1 phút.",
+      "expected_action": "timer_set",
+      "latency_ms": 6740.4
+    },
+    {
+      "case_id": "WF06-1",
+      "status": "MISROUTED",
+      "transcribed": "Vì chú nhò nắp bao cao lúc mua ai bơn giờ.",
+      "expected_action": "note_create",
+      "latency_ms": 4931.1
+    },
+    {
+      "case_id": "WF06-2",
+      "status": "MISROUTED",
+      "transcribed": "Nhắc tội ụng nút sau móc tai nua.",
+      "expected_action": "reminder_set",
+      "latency_ms": 4761.8
+    },
+    {
+      "case_id": "WF06-3",
+      "status": "MISROUTED",
+      "transcribed": "Giúp lại các dì chú hôm nay của tôi.",
+      "expected_action": "note_list",
+      "latency_ms": 4721.2
+    },
+    {
+      "case_id": "WF06-4",
+      "status": "MISROUTED",
+      "transcribed": "Khoa gì chú mua hàng hôm qua gì?",
+      "expected_action": "note_delete",
+      "latency_ms": 4711.3
+    },
+    {
+      "case_id": "WF06-5",
+      "status": "MISROUTED",
+      "transcribed": "Thêm vào viết càng làm gọi Diane cho dời ta.",
+      "expected_action": "todo_add",
+      "latency_ms": 4805.3
+    },
+    {
+      "case_id": "WF07-1",
+      "status": "MISROUTED",
+      "transcribed": "Thôi tài hôm nay thế nào?",
+      "expected_action": "weather_query",
+      "latency_ms": 4562.5
+    },
+    {
+      "case_id": "WF07-2",
+      "status": "CORRECT",
+      "transcribed": "Ngày mai có mua không?",
+      "expected_action": "weather_query",
+      "latency_ms": 4681.8
+    },
+    {
+      "case_id": "WF07-3",
+      "status": "MISROUTED",
+      "transcribed": "Nha gió Hàn Tài O Hà nói là bao nhiêu?",
+      "expected_action": "weather_query",
+      "latency_ms": 5194.1
+    },
+    {
+      "case_id": "WF07-4",
+      "status": "MISROUTED",
+      "transcribed": "Thôi tại thành phố Ho Chi Minh Cui Tuy Anh.",
+      "expected_action": "weather_query",
+      "latency_ms": 4633.0
+    },
+    {
+      "case_id": "WF07-5",
+      "status": "MISROUTED",
+      "transcribed": "Do âm không kỳ bày do ra sao?",
+      "expected_action": "weather_query",
+      "latency_ms": 4740.8
+    },
+    {
+      "case_id": "WF08-1",
+      "status": "MISROUTED",
+      "transcribed": "Bác Giang Phong khách len",
+      "expected_action": "home_assistant",
+      "latency_ms": 4436.7
+    },
+    {
+      "case_id": "WF08-2",
+      "status": "MISROUTED",
+      "transcribed": "Tạch gian xong ngu",
+      "expected_action": "home_assistant",
+      "latency_ms": 4391.5
+    },
+    {
+      "case_id": "WF08-3",
+      "status": "MISROUTED",
+      "transcribed": "Nha do phong mua hàng tài là bao nhiêu?",
+      "expected_action": "home_assistant",
+      "latency_ms": 4709.0
+    },
+    {
+      "case_id": "WF08-4",
+      "status": "MISROUTED",
+      "transcribed": "Kêu thêm câu sỡ trà.",
+      "expected_action": "home_assistant",
+      "latency_ms": 4674.0
+    },
+    {
+      "case_id": "WF08-5",
+      "status": "MISROUTED",
+      "transcribed": "Bắt điều hòa 2 muôi 5 giờ.",
+      "expected_action": "home_assistant",
+      "latency_ms": 4632.9
+    },
+    {
+      "case_id": "WF09-1",
+      "status": "MISROUTED",
+      "transcribed": "Tâm tác đêm tin bùi sang cho tôi.",
+      "expected_action": "morning_briefing",
+      "latency_ms": 4481.5
+    },
+    {
+      "case_id": "WF09-2",
+      "status": "MISROUTED",
+      "transcribed": "Kim tra xem có tin nhạc tới lời REM mọi không?",
+      "expected_action": "telegram_check",
+      "latency_ms": 4703.5
+    },
+    {
+      "case_id": "WF09-3",
+      "status": "CORRECT",
+      "transcribed": "Kim tra hôm thu email chua giấc.",
+      "expected_action": "email_check",
+      "latency_ms": 4882.8
+    },
+    {
+      "case_id": "WF09-4",
+      "status": "CORRECT",
+      "transcribed": "Bao cao trang thay he thông hành tài.",
+      "expected_action": "system_status",
+      "latency_ms": 4857.9
+    },
+    {
+      "case_id": "WF09-5",
+      "status": "CORRECT",
+      "transcribed": "Kim tra kết nội mang internet.",
+      "expected_action": "network_check",
+      "latency_ms": 4547.0
+    },
+    {
+      "case_id": "WF10-1",
+      "status": "MISROUTED",
+      "transcribed": "Phá mang hình mây tình lành.",
+      "expected_action": "system_lock",
+      "latency_ms": 4555.2
+    },
+    {
+      "case_id": "WF10-2",
+      "status": "CORRECT",
+      "transcribed": "Cho mày tin vào che do ngu",
+      "expected_action": "system_sleep",
+      "latency_ms": 4415.2
+    },
+    {
+      "case_id": "WF10-3",
+      "status": "MISROUTED",
+      "transcribed": "Huy Lên Tạc May Tinh",
+      "expected_action": "shutdown_abort",
+      "latency_ms": 4494.9
+    },
+    {
+      "case_id": "WF10-4",
+      "status": "MISROUTED",
+      "transcribed": "Thôi giống lại may tinh.",
+      "expected_action": "system_restart",
+      "latency_ms": 4646.3
+    },
+    {
+      "case_id": "WF10-5",
+      "status": "MISROUTED",
+      "transcribed": "Kinh tra tinh trang binh của mày.",
+      "expected_action": "battery_status",
+      "latency_ms": 4796.6
+    }
+  ]
+}

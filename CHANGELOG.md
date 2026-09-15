@@ -40,6 +40,24 @@ Setup wizard 5 bước (`jarvis/ui/setup_wizard.py`) đã chạy interactive l�
 | `docs/eval/audio_hardware_compatibility_matrix_results_r2.json` | Raw JSON R2 |
 | `docs/ROADMAP.md` | H-10: 3/10; H-11: DONE |
 
+### H-13 — TTS Tier-2 Simulation (không đóng H-13)
+
+| Chỉ số | Giá trị |
+|---|---|
+| Tier | **TIER_2_SYNTHETIC_TTS** — không thay thế Tier 1 |
+| Voice | `vi-VN-HoaiMyNeural` (Microsoft edge-tts) |
+| STT | `small CPU int8` |
+| Router | Keyword matching |
+| Total | 50 clips |
+| CORRECT | **13** (26.0%) |
+| MISROUTED | **37** (74.0%) |
+| STT_EMPTY | 0 |
+| Arithmetic | **13+37+0+0=50** ✅ |
+
+**Root cause accuracy thấp (26%)**: Input text viết không dấu tiếng Việt (e.g., "Mo Notepad" thay vì "Mở Notepad") → TTS phát âm không chuẩn → Whisper small transcribe lệch → keyword match fail. Tier 1 (người thật nói có dấu) sẽ có accuracy cao hơn đáng kể.
+
+**H-13 status**: Vẫn **PENDING_HUMAN_EXECUTION** — 50 ca người thật nói qua micro thật là bằng chứng duy nhất được chấp nhận.
+
 ---
 
 ## [5.1.5] H-06 Wake-Word Idle Soak — DONE (2026-09-14)
