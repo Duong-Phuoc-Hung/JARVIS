@@ -390,10 +390,26 @@ def test_safety_gate_confirmation_flow():
     app.stop()
 
 
-def test_inactivity_monitor_recording_on_text_command():
-    """Verify executing text command records user activity on proactive inactivity monitor."""
+def test_inactivity_monitor_recording_on_text_command(monkeypatch):
+    """
+    Verify executing text command records user activity on proactive inactivity monitor.
+
+    process_text_command() resets the inactivity timer unconditionally as its
+    very first step, before any intent routing or action dispatch -- that is
+    the only behavior this test verifies. Intent routing is mocked out so this
+    test can never depend on live network/subprocess behavior regardless of
+    the input phrase: real routing previously sent "Kiểm tra thời tiết" through
+    the Tier-1 weather rule -> shell_exec -> `curl -s wttr.in`, causing this
+    test to hang in CI on a real network call entirely unrelated to what it
+    actually tests (see jarvis/plugins/shell.py's timeout fix for the
+    production side of that incident).
+    """
     app = JarvisApp(headless=True, no_hot_reload=True)
     app.initialize()
+
+    # Neutralize routing/dispatch: this test's subject is the inactivity-timer
+    # side effect alone, not what (if anything) the text would route to.
+    monkeypatch.setattr(app.llm_router, "parse_intent", lambda text: None)
 
     initial_time = app.proactive_engine.inactivity_monitor.last_activity_time
     time.sleep(0.05)
