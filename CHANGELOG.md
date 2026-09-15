@@ -10,21 +10,21 @@
 - **Limits:** Linear interpolation adds no heavy dependency but is not a band-limited anti-alias resampler. No new WER or real-device claim is made. Streaming upsampling delays samples needing a future neighbor; legacy raw callers must supply their source rate when it differs from 16000.
 
 
-## [5.1.7] D-14 SignPath CI Integration, H-10 R3 Reconfirm (2026-09-16)
+## [5.1.7] D-14 SignPath CI Integration COMPLETE, H-10 R3 Reconfirm (2026-09-16)
 
-> **Mục tiêu**: Hoàn thiện D-14 (code signing tự động qua SignPath Foundation); xác nhận lại H-10 R3 với Bluetooth apps đã đóng.
+> **Mục tiêu**: Hoàn thiện D-14 (code signing tự động qua SignPath Foundation); xác nhận lại H-10 R3.
 
-### D-14 — SignPath GitHub Actions Integration
+### D-14 — SignPath GitHub Actions Integration ✅
 
 | Hạng mục | Trạng thái | Chi tiết |
 |---|---|---|
-| SignPath project | ✅ VALID | Project "Jarvis" + Policy "Jarvis Test Signing" |
-| GitHub Secret `SIGNPATH_API_TOKEN` | ✅ Đã set | via `gh secret set` |
-| GitHub Secret `SIGNPATH_ORG_ID` | ⏳ PENDING | Cần user cung cấp UUID từ URL SignPath |
-| Release workflow | ✅ Updated | `.github/workflows/release.yml`: build → sign → release |
-| SignPath action | `signpath/github-action-submit-signing-request@v1.1` | 3-job pipeline |
-
-**Để activate D-14 hoàn toàn**: Vào `https://app.signpath.io/web/{orgId}/projects` → copy UUID sau `/web/` → chạy: `gh secret set SIGNPATH_ORG_ID --body "{uuid}" --repo Duong-Phuoc-Hung/JARVIS`
+| SignPath project | ✅ VALID | `slug: Jarvis` |
+| Artifact Configuration | ✅ VALID | `slug: initial`, PE signing JARVIS.exe |
+| Signing Policy | ✅ VALID | `slug: Jarvis_Test_Signing`, cert: Dev_Test_Signing_Cert |
+| CI User `GitHub Actions` | ✅ Submitter | `id: 4591cc67-...`, token set as `SIGNPATH_API_TOKEN` |
+| `SIGNPATH_ORG_ID` secret | ✅ Set | `14be0b5a-511d-4104-8b35-c23386fd2ba0` |
+| Release workflow | ✅ Fixed | Correct slugs: `Jarvis` / `Jarvis_Test_Signing` / `initial` |
+| Test tag | ⏳ Triggered | `v5.2.0-beta.1` |
 
 ### H-10 Round 3 — Bluetooth Re-scan (apps closed)
 

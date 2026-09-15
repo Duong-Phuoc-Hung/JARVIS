@@ -105,8 +105,8 @@ jobs:
         with:
           api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
           organization-id: '${{ secrets.SIGNPATH_ORG_ID }}'
-          project-slug: 'jarvis'
-          signing-policy-slug: 'jarvis-test-signing'
+          project-slug: 'Jarvis'
+          signing-policy-slug: 'Jarvis_Test_Signing'
           artifact-configuration-slug: 'initial'
           github-artifact-id: '${{ needs.build.outputs.unsigned_artifact_id }}'
           wait-for-completion: true
