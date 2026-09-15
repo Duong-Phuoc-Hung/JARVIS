@@ -149,21 +149,26 @@ def test_notification_hub_toast_uses_creationflags(monkeypatch):
 
 
 def test_shell_plugin_exec_uses_creationflags(monkeypatch):
-    """Verify ShellPlugin.exec_command passes creationflags."""
+    """
+    Verify ShellPlugin.exec_command passes creationflags on its actual
+    subprocess call. exec_command() launches the shelled-out command via
+    subprocess.Popen (not subprocess.run's convenience wrapper -- see the
+    Windows timeout/grandchild-kill fix in jarvis/plugins/shell.py for why),
+    so this mocks Popen directly rather than run().
+    """
     from jarvis.plugins.shell import ShellPlugin
 
-    mock_run = MagicMock()
-    mock_run.return_value.returncode = 0
-    mock_run.return_value.stdout = "OK"
-    mock_run.return_value.stderr = ""
-    monkeypatch.setattr(subprocess, "run", mock_run)
+    mock_popen = MagicMock()
+    mock_popen.return_value.communicate.return_value = ("OK", "")
+    mock_popen.return_value.returncode = 0
+    monkeypatch.setattr(subprocess, "Popen", mock_popen)
     monkeypatch.setattr(sys, "platform", "win32")
 
     plugin = ShellPlugin()
     plugin.exec_command("dir")
 
-    assert mock_run.called
-    kwargs = mock_run.call_args[1]
+    assert mock_popen.called
+    kwargs = mock_popen.call_args[1]
     assert "creationflags" in kwargs
     assert kwargs["creationflags"] == subprocess.CREATE_NO_WINDOW
 
