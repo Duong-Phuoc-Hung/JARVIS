@@ -666,12 +666,18 @@ class LLMIntentRouter:
                 source="rule_fallback",
                 response_text="Đang mở Spotify và phát nhạc cho Ngài.",
             ),
-            "spotify": IntentResult(
-                action_name="spotify",
-                parameters={},
-                source="rule_fallback",
-                response_text="Đang mở Spotify và phát nhạc cho Ngài.",
-            ),
+            # H-07 fix: a bare, unqualified single-word "spotify" key was
+            # removed here. _match_rule_key()'s word_count==1 path is a
+            # whole-word (not full-utterance) boundary match, so it fired on
+            # ANY sentence containing the standalone word "spotify" --
+            # including questions ("spotify có tốt không") and negations
+            # ("tôi không muốn mở spotify") -- incorrectly launching Spotify.
+            # Every genuine positive alias ("mở spotify", "bật spotify",
+            # "mo spotify", "open spotify", bare "spotify" alone) is still
+            # covered by dedicated verb-qualified dict entries and the
+            # anchored (^...$) regexes elsewhere in this file, so removing
+            # this overly broad key closes the false-positive gap with no
+            # loss of legitimate positive coverage.
             "bật nhạc": IntentResult(
                 action_name="spotify",
                 parameters={},
@@ -1098,7 +1104,15 @@ class LLMIntentRouter:
             "mo cai dat": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
             "cai dat he thong": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
             "cài đặt hệ thống": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
-            "settings": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
+            # H-07 fix: a bare, unqualified single-word "settings" key was
+            # removed here for the same reason as the bare "spotify" key
+            # above -- word_count==1 matching fires on ANY sentence
+            # containing the standalone word "settings" (e.g. "settings
+            # nghĩa là gì" incorrectly launched Settings). Every genuine
+            # positive alias ("mở settings", "open settings", "mo settings",
+            # bare "cài đặt") remains covered by dedicated dict entries and
+            # the anchored regex + _make_app_intent()'s canonical-settings
+            # branch above.
             "cai dat windows": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
             "cài đặt windows": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
             "mo settings": IntentResult(action_name="app_open", parameters={"app_name": "Settings", "app": "ms-settings:"}, source="rule_fallback", response_text="Đang mở cài đặt hệ thống cho Ngài."),
@@ -1684,6 +1698,19 @@ class LLMIntentRouter:
                     response_text="Đang mở Spotify cho Ngài.",
                 ),
             ),
+            # H-07 fix: bare "settings" (English, no diacritics) said ALONE
+            # is a legitimate one-word command (mirrors the bare "spotify"
+            # anchored regex immediately above, and "cai dat"/"cài đặt" alone
+            # already worked via their own multi-word dict entries) -- but it
+            # must be ANCHORED to the full utterance so it can never match a
+            # question/statement that merely CONTAINS the word "settings"
+            # (e.g. "settings nghĩa là gì" must not launch Settings). This is
+            # the safe replacement for the whole-word-but-unanchored dict key
+            # removed above.
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?settings$", re.IGNORECASE),
+                lambda m: self._make_app_intent("settings"),
+            ),
             (
                 re.compile(r"(?:dừng|tạm\s*dừng|tắt|pause|stop)\s+(?:nhạc|spotify|phát\s*nhạc)", re.IGNORECASE),
                 lambda m: IntentResult(
@@ -2246,6 +2273,48 @@ class LLMIntentRouter:
             response_text=f"Đã ghi nhận lời nhắc '{clean}' của Ngài.",
         )
 
+    # H-07: a small, explicit negation-marker list -- deliberately NOT a
+    # general sentiment/negation parser -- that suppresses an otherwise-
+    # matched Settings/Spotify/Claude LAUNCH intent when the utterance is
+    # actually declining the action (e.g. "tôi không muốn mở spotify" must
+    # not launch Spotify). Kept to the one unambiguous marker the H-07
+    # contract requires; deliberately excludes broader/ambiguous markers
+    # like bare "đừng"/"dung" (diacritic-folds identically with "dùng",
+    # "to use", which would risk suppressing a legitimate command).
+    _H07_NEGATION_MARKERS = ("không muốn", "khong muon")
+
+    def _is_negated_h07_launch_target(
+        self,
+        action_name: str,
+        parameters: dict[str, Any],
+        clean_lower: str,
+        clean_lower_stripped: str | None,
+    ) -> bool:
+        """
+        Returns True only when BOTH: (1) the already-matched rule resolves
+        to one of the three H-07 canonical launch targets (Spotify /
+        canonical Settings / Claude via web_open), and (2) the utterance
+        contains an explicit negation marker -- so a rule match that would
+        otherwise launch one of these three targets is treated as a
+        non-match and routing continues (to the next candidate rule, then
+        Tier 2/3, then unknown_intent) instead of firing the launch.
+        Deliberately scoped to only these three targets so it cannot alter
+        routing behavior for any other action domain (weather, reminders,
+        smart home, etc.) -- those are out of H-07's scope.
+        """
+        is_h07_target = (
+            action_name == "spotify"
+            or (action_name == "app_open" and parameters.get("app_name") == "Settings")
+            or (action_name == "web_open" and parameters.get("site") == "claude")
+        )
+        if not is_h07_target:
+            return False
+        if any(marker in clean_lower for marker in self._H07_NEGATION_MARKERS):
+            return True
+        if clean_lower_stripped and "khong muon" in clean_lower_stripped:
+            return True
+        return False
+
     def _make_app_intent(self, app_name: str) -> IntentResult:
         clean = (app_name or "").strip().lower()
         if clean == "spotify":
@@ -2254,6 +2323,26 @@ class LLMIntentRouter:
                 parameters={"query": "", "name": "spotify"},
                 source="rule_fallback",
                 response_text="Đang mở Spotify và phát nhạc cho Ngài.",  # consistent with rule_engine entry
+            )
+        # H-07 fix: the "Universal Application & Software Launchers" regex
+        # (category 7, includes "cài đặt"/"cai dat"/"settings" as app-name
+        # alternatives) runs BEFORE the static rule_engine dict, so it
+        # previously intercepted phrases like "mở cài đặt"/"bật settings"/
+        # "mo cai dat" before they ever reached the dict's canonical
+        # {"app_name": "Settings", "app": "ms-settings:"} entries -- each
+        # different literal alias produced a DIFFERENT, non-canonical
+        # app_name ("cài đặt" vs "cai dat" vs "settings"), which would also
+        # have meant three different LaunchDedupeGuard identities for the
+        # SAME real Settings app. Folding every Settings alias onto the
+        # same canonical branch here (diacritic-insensitive) guarantees one
+        # identity regardless of which code path -- regex or dict -- a
+        # given phrasing happens to hit.
+        if strip_vietnamese_diacritics(clean) in ("settings", "cai dat"):
+            return IntentResult(
+                action_name="app_open",
+                parameters={"app_name": "Settings", "app": "ms-settings:"},
+                source="rule_fallback",
+                response_text="Đang mở cài đặt hệ thống cho Ngài.",  # consistent with rule_engine entry
             )
         params = {"app_name": clean, "name": clean}
         return IntentResult(
@@ -2692,6 +2781,10 @@ class LLMIntentRouter:
                 m = pattern.search(clean_for_regex)
                 if m:
                     res = extractor(m)
+                    if self._is_negated_h07_launch_target(
+                        res.action_name, res.parameters, clean_lower, clean_lower_stripped
+                    ):
+                        continue
                     res.raw_text = text
                     if not res.response_text:
                         res.response_text = self.get_natural_response(res.action_name, res.parameters, text)
@@ -2701,6 +2794,10 @@ class LLMIntentRouter:
             for key in self._sorted_rule_keys:
                 if self._match_rule_key(key, clean_lower, clean_lower_stripped):
                     intent = self.rule_engine[key]
+                    if self._is_negated_h07_launch_target(
+                        intent.action_name, intent.parameters, clean_lower, clean_lower_stripped
+                    ):
+                        continue
                     res = IntentResult(
                         action_name=intent.action_name,
                         parameters=dict(intent.parameters),
@@ -2794,6 +2891,10 @@ class LLMIntentRouter:
                 m = pattern.search(clean_for_regex)
                 if m:
                     res = extractor(m)
+                    if self._is_negated_h07_launch_target(
+                        res.action_name, res.parameters, clean_lower, clean_lower_stripped
+                    ):
+                        continue
                     res.raw_text = text
                     res.confidence = 0.85
                     if not res.response_text:
@@ -2803,6 +2904,10 @@ class LLMIntentRouter:
             for key in self._sorted_rule_keys:
                 if self._match_rule_key(key, clean_lower, clean_lower_stripped):
                     intent = self.rule_engine[key]
+                    if self._is_negated_h07_launch_target(
+                        intent.action_name, intent.parameters, clean_lower, clean_lower_stripped
+                    ):
+                        continue
                     return IntentResult(
                         action_name=intent.action_name,
                         parameters=dict(intent.parameters),
