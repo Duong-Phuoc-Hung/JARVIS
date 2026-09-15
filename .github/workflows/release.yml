@@ -104,84 +104,44 @@ jobs:
           name: jarvis-unsigned-exe
           path: unsigned/
 
-      - name: Sign JARVIS.exe via SignPath REST API (direct)
+      - name: Install SignPath PowerShell module
+        shell: pwsh
+        run: |
+          Install-Module -Name SignPath -Force -Scope CurrentUser -AllowClobber
+          Import-Module SignPath
+          Write-Host "SignPath module version: $((Get-Module SignPath).Version)"
+
+      - name: Sign JARVIS.exe via SignPath PowerShell module
         id: signing
         shell: pwsh
         run: |
-          Add-Type -AssemblyName System.Net.Http
+          Import-Module SignPath
           $orgId  = "${{ secrets.SIGNPATH_ORG_ID }}"
           $token  = "${{ secrets.SIGNPATH_API_TOKEN }}"
-          $exe    = "unsigned\JARVIS.exe"
           $outDir = "signed-output"
           New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
-          $baseUrl = "https://app.signpath.io/api/v1/$orgId"
+          Write-Host "Submitting signing request..."
+          $reqId = Submit-SigningRequest `
+            -ApiToken              $token `
+            -OrganizationId        $orgId `
+            -ProjectSlug           "Jarvis" `
+            -SigningPolicySlug     "Jarvis_Test_Signing" `
+            -ArtifactConfigurationSlug "initial" `
+            -InputArtifactPath     "unsigned\JARVIS.exe" `
+            -WaitForCompletion
 
-          # ── 1. Build multipart request with HttpClient ────────────
-          Write-Host "Submitting signing request to SignPath..."
-          $client = [System.Net.Http.HttpClient]::new()
-          $client.DefaultRequestHeaders.Authorization =
-              [System.Net.Http.Headers.AuthenticationHeaderValue]::new("Bearer", $token)
+          Write-Host "Signing request completed: $reqId"
 
-          $form = [System.Net.Http.MultipartFormDataContent]::new()
-          $form.Add([System.Net.Http.StringContent]::new("Jarvis"),             "ProjectSlug")
-          $form.Add([System.Net.Http.StringContent]::new("Jarvis_Test_Signing"),"SigningPolicySlug")
-          $form.Add([System.Net.Http.StringContent]::new("initial"),            "ArtifactConfigurationSlug")
-
-          $fileBytes   = [System.IO.File]::ReadAllBytes($exe)
-          $fileContent = [System.Net.Http.ByteArrayContent]::new($fileBytes)
-          $fileContent.Headers.ContentType =
-              [System.Net.Http.Headers.MediaTypeHeaderValue]::new("application/octet-stream")
-          $form.Add($fileContent, "Artifact", "JARVIS.exe")
-
-          $resp = $client.PostAsync("$baseUrl/signing-requests", $form).GetAwaiter().GetResult()
-          $body = $resp.Content.ReadAsStringAsync().GetAwaiter().GetResult()
-          Write-Host "Submit status: $($resp.StatusCode) ($([int]$resp.StatusCode))"
-          Write-Host "Response body: $body"
-
-          if (-not $resp.IsSuccessStatusCode) {
-              Write-Error "Failed to submit signing request: $($resp.StatusCode) — $body"
-              exit 1
-          }
-
-          $parsed = $body | ConvertFrom-Json
-          $reqId  = $parsed.signingRequestId
-          $reqUrl = "$baseUrl/signing-requests/$reqId"
-          Write-Host "Signing request ID: $reqId"
-          "SIGNING_REQUEST_URL=$reqUrl" >> $env:GITHUB_ENV
-
-          # ── 2. Poll until completed ───────────────────────────────
-          Write-Host "Polling for completion (timeout 10min)..."
-          $deadline = (Get-Date).AddMinutes(10)
-          $status   = ""
-          while ((Get-Date) -lt $deadline) {
-              Start-Sleep -Seconds 20
-              $pollResp = $client.GetAsync($reqUrl).GetAwaiter().GetResult()
-              $pollBody = $pollResp.Content.ReadAsStringAsync().GetAwaiter().GetResult()
-              $sr       = $pollBody | ConvertFrom-Json
-              $status   = $sr.status
-              Write-Host "  $(Get-Date -Format 'HH:mm:ss') Status: $status"
-              if ($status -in "Completed","Failed","Denied","Canceled") { break }
-          }
-
-          if ($status -ne "Completed") {
-              Write-Error "Signing did not complete. Final status: $status"
-              exit 1
-          }
-
-          # ── 3. Download signed artifact ───────────────────────────
           Write-Host "Downloading signed artifact..."
-          $dlReq = [System.Net.Http.HttpRequestMessage]::new("GET", "$reqUrl/signed-artifact")
-          $dlReq.Headers.Authorization =
-              [System.Net.Http.Headers.AuthenticationHeaderValue]::new("Bearer", $token)
-          $dlReq.Headers.Accept.Add(
-              [System.Net.Http.Headers.MediaTypeWithQualityHeaderValue]::new("application/octet-stream"))
-          $dlResp   = $client.SendAsync($dlReq).GetAwaiter().GetResult()
-          $dlBytes  = $dlResp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
-          [System.IO.File]::WriteAllBytes("$outDir\JARVIS.exe", $dlBytes)
-          $sz = [math]::Round($dlBytes.Length / 1MB, 2)
+          Get-SignedArtifact `
+            -ApiToken       $token `
+            -OrganizationId $orgId `
+            -SigningRequestId $reqId `
+            -OutputArtifactPath "$outDir\JARVIS.exe"
+
+          $sz = [math]::Round((Get-Item "$outDir\JARVIS.exe").Length / 1MB, 2)
           Write-Host "Signed JARVIS.exe: $sz MB"
-          $client.Dispose()
 
       - name: Verify signed artifact
         shell: pwsh
