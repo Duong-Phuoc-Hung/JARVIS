@@ -10,6 +10,44 @@
 - **Limits:** Linear interpolation adds no heavy dependency but is not a band-limited anti-alias resampler. No new WER or real-device claim is made. Streaming upsampling delays samples needing a future neighbor; legacy raw callers must supply their source rate when it differs from 16000.
 
 
+## [5.1.7] D-14 SignPath CI Integration, H-10 R3 Reconfirm (2026-09-16)
+
+> **Mục tiêu**: Hoàn thiện D-14 (code signing tự động qua SignPath Foundation); xác nhận lại H-10 R3 với Bluetooth apps đã đóng.
+
+### D-14 — SignPath GitHub Actions Integration
+
+| Hạng mục | Trạng thái | Chi tiết |
+|---|---|---|
+| SignPath project | ✅ VALID | Project "Jarvis" + Policy "Jarvis Test Signing" |
+| GitHub Secret `SIGNPATH_API_TOKEN` | ✅ Đã set | via `gh secret set` |
+| GitHub Secret `SIGNPATH_ORG_ID` | ⏳ PENDING | Cần user cung cấp UUID từ URL SignPath |
+| Release workflow | ✅ Updated | `.github/workflows/release.yml`: build → sign → release |
+| SignPath action | `signpath/github-action-submit-signing-request@v1.1` | 3-job pipeline |
+
+**Để activate D-14 hoàn toàn**: Vào `https://app.signpath.io/web/{orgId}/projects` → copy UUID sau `/web/` → chạy: `gh secret set SIGNPATH_ORG_ID --body "{uuid}" --repo Duong-Phuoc-Hung/JARVIS`
+
+### H-10 Round 3 — Bluetooth Re-scan (apps closed)
+
+| Device | R2 Peak | R3 Peak | Status |
+|---|---|---|---|
+| USB Audio [1] 16kHz | 4619 | **2580** | TIER1_PASS ✅ (ambient variation) |
+| Realtek Array [3] | 332 | **1760** | TIER1_PASS ✅ |
+| USB Audio [27] 48kHz | SILENT | **5583** | TIER1_PASS ✅ UPGRADED |
+| BT LY-Z5202 HFP | FAIL | FAIL | PaError -9999 (Windows exclusive session) |
+| BT AirPods HFP | FAIL | FAIL | Same root cause |
+
+**Root cause BT HFP failure**: Windows audio exclusive mode session giữ bởi OS session manager, không phải app cụ thể. Không thể bypass bằng portaudio — cần WASAPI exclusive capture trực tiếp.
+
+**H-10 tổng kết R3**: 3/10 Tier 1 PASS (tín hiệu thật) — không thay đổi so với R2.
+
+### Files thay đổi
+
+| File | Thay đổi |
+|---|---|
+| `.github/workflows/release.yml` | 3-job pipeline: build → sign → release |
+
+---
+
 ## [5.1.6] H-10 Hardware R2 (3/10 PASS), H-11 DONE, H-13 TTS Tier-2 (2026-09-16)
 
 > **Mục tiêu**: Tự động hoàn thành: H-10 scan round 2 với USB mic + VB-Audio + Bluetooth HFP; đóng H-11 sau khi setup wizard chạy interactive lần đầu; chạy H-13 TTS Tier 2 simulation.
