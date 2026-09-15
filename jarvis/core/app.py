@@ -583,13 +583,28 @@ class JarvisApp:
                 self.overlay.toggle()
 
         def _ptt_voice_cb():
-            # H-04 fix: _handle_voice_command did not exist → delegate to _start_voice_interaction.
+            # H-04 fix: delegate directly to _start_voice_interaction (which does NOT
+            # exist as _handle_voice_command anywhere -- that path never existed).
             # PTT hotkey uses shorter greeting to minimize delay before recording starts.
-            threading.Thread(
-                target=self._start_voice_interaction,
-                kwargs={"trigger_name": "HOTKEY_PTT", "greeting_phrase": "Vâng, tôi nghe."},
-                daemon=True,
-            ).start()
+            #
+            # H-04 FINAL: no wrapper thread here. GlobalHotkeyManager already invokes
+            # every hotkey callback on its own dedicated background thread (see
+            # jarvis/platform/hotkeys.py::_message_pump_loop -- "Run callback in
+            # background thread to avoid blocking pump"), so this callback never runs
+            # on the Win32 message-pump thread. And _start_voice_interaction() is
+            # itself already non-blocking: it atomically acquires _voice_lock, checks/
+            # sets _is_voice_interacting, and only THEN spawns the one real
+            # "JARVIS-VoiceInteraction" work thread -- or returns immediately if an
+            # interaction is already in progress. Wrapping it in a second thread here
+            # added nothing but an extra OS thread per keypress, spawned BEFORE
+            # single-flight was ever evaluated; the single-flight decision itself was
+            # always safe either way (the lock makes the check-and-set atomic
+            # regardless of which thread calls in), so removing the wrapper is a pure
+            # structural cleanup, not a correctness fix to the guard itself.
+            self._start_voice_interaction(
+                trigger_name="HOTKEY_PTT",
+                greeting_phrase="Vâng, tôi nghe.",
+            )
 
         def _toggle_wake_word_cb():
             if self.wake_word_detector:

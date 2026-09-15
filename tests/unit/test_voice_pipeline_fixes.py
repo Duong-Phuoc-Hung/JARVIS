@@ -128,7 +128,15 @@ def test_h03_record_audio_waits_for_active_tts(mock_app):
 
 
 def test_h04_hotkey_registration_has_valid_target():
-    """H-04: Ctrl+Shift+L callback delegates to _start_voice_interaction."""
+    """
+    H-04 FINAL: Ctrl+Shift+L callback calls _start_voice_interaction()
+    DIRECTLY (no wrapper threading.Thread) with the exact PTT trigger_name/
+    greeting_phrase -- _start_voice_interaction() already owns the
+    single-flight decision and its own async dispatch internally, so the
+    hotkey callback must not spawn an extra thread before that guard is
+    even evaluated. See test_h04_ptt_callback_creates_no_wrapper_thread and
+    test_h04_rapid_presses_single_flight for the rest of the H-04 proof.
+    """
     app = JarvisApp.__new__(JarvisApp)
     app.hotkey_manager = MagicMock()
     app._start_voice_interaction = MagicMock()
@@ -137,7 +145,7 @@ def test_h04_hotkey_registration_has_valid_target():
     app.tts_manager = MagicMock()
 
     app._register_default_hotkeys()
-    
+
     registered = {}
     for call in app.hotkey_manager.register.call_args_list:
         args, _ = call
@@ -146,14 +154,11 @@ def test_h04_hotkey_registration_has_valid_target():
     assert "Ctrl+Shift+L" in registered
     ptt_cb = registered["Ctrl+Shift+L"]
 
-    with patch("threading.Thread") as mock_thread:
-        mock_thread_instance = MagicMock()
-        mock_thread.return_value = mock_thread_instance
-        ptt_cb()
-        mock_thread.assert_called_once()
-        _, kwargs = mock_thread.call_args
-        assert kwargs.get("target") == app._start_voice_interaction
-        assert kwargs.get("kwargs", {}).get("trigger_name") == "HOTKEY_PTT"
+    ptt_cb()
+    app._start_voice_interaction.assert_called_once_with(
+        trigger_name="HOTKEY_PTT",
+        greeting_phrase="Vâng, tôi nghe.",
+    )
 
 
 def test_h08_volume_fail_closed_on_none(mock_app):

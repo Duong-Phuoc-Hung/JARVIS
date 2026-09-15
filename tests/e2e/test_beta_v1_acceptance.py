@@ -196,7 +196,14 @@ class TestBetaV1Tier1FeatureCoverage:
             assert mock_sleep.called, "Must wait while TTS playback is active"
 
     def test_tier1_hotkey_ctrl_shift_l_initiates_voice_interaction_ptt(self, acceptance_app):
-        """F-04: Ctrl+Shift+L PTT hotkey initiates _start_voice_interaction without crash."""
+        """
+        F-04 (H-04 FINAL): Ctrl+Shift+L PTT hotkey calls _start_voice_interaction()
+        DIRECTLY -- no wrapper threading.Thread -- with the exact PTT
+        trigger_name/greeting_phrase. GlobalHotkeyManager already dispatches
+        every real hotkey callback on its own background thread, and
+        _start_voice_interaction() is itself already non-blocking/async, so
+        no extra thread is needed here.
+        """
         acceptance_app._register_default_hotkeys()
 
         registered_hotkeys = {}
@@ -207,13 +214,12 @@ class TestBetaV1Tier1FeatureCoverage:
         assert "Ctrl+Shift+L" in registered_hotkeys, "Ctrl+Shift+L must be registered in hotkey manager"
         ptt_callback = registered_hotkeys["Ctrl+Shift+L"]
 
-        with patch("threading.Thread") as mock_thread:
-            ptt_callback()
-            mock_thread.assert_called_once()
-            _, kwargs = mock_thread.call_args
-            assert kwargs.get("target") == acceptance_app._start_voice_interaction
-            assert kwargs.get("kwargs", {}).get("trigger_name") == "HOTKEY_PTT"
-            assert kwargs.get("kwargs", {}).get("greeting_phrase") == "Vâng, tôi nghe."
+        acceptance_app._start_voice_interaction = MagicMock()
+        ptt_callback()
+        acceptance_app._start_voice_interaction.assert_called_once_with(
+            trigger_name="HOTKEY_PTT",
+            greeting_phrase="Vâng, tôi nghe.",
+        )
 
     def test_tier1_system_volume_fail_closed_on_none_controller(self, acceptance_app):
         """F-05: Master volume control reports fail-closed when hardware returns None."""
@@ -502,15 +508,11 @@ class TestBetaV1Tier3Interactions:
                 recorded_events.append(("speak", phrase, wait))
             acceptance_app.tts_manager.speak.side_effect = trace_speak
 
-            # Trigger PTT: ptt_cb spawns thread running _start_voice_interaction
+            # Trigger PTT: ptt_cb calls _start_voice_interaction() directly (H-04
+            # FINAL -- no wrapper thread), which itself spawns the ONE real
+            # "JARVIS-VoiceInteraction" work thread.
             with patch("threading.Thread") as mock_thread:
                 ptt_cb()
-                start_fn = mock_thread.call_args[1]["target"]
-                start_kwargs = mock_thread.call_args[1]["kwargs"]
-
-                # Invoking start_fn runs _start_voice_interaction which spawns _voice_loop
-                mock_thread.reset_mock()
-                start_fn(**start_kwargs)
                 voice_loop_fn = mock_thread.call_args[1]["target"]
 
                 # Execute voice loop
@@ -611,7 +613,17 @@ class TestBetaV1Tier4Workflows:
     """Tier 4: Verification of complete multi-step user scenarios and workflows."""
 
     def test_tier4_workflow_ptt_voice_interaction_roundtrip(self, acceptance_app):
-        """Workflow: Full PTT voice interaction turnaround from hotkey to executed response."""
+        """
+        Workflow (H-04 FINAL): Full PTT voice interaction turnaround from
+        hotkey to executed response -- now a SINGLE thread-launch stage.
+        Ctrl+Shift+L's callback calls _start_voice_interaction() directly
+        (no wrapper thread); _start_voice_interaction() itself is the only
+        place that spawns a thread, launching exactly one
+        "JARVIS-VoiceInteraction" work thread. This replaces the old
+        two-nested-thread-launch assumption (callback spawns a thread whose
+        target is _start_voice_interaction, which itself spawns a second
+        thread for _voice_loop) with the real, current architecture.
+        """
         acceptance_app._register_default_hotkeys()
         ptt_cb = acceptance_app.hotkey_manager.register.call_args_list[1][0][1]
 
@@ -631,20 +643,18 @@ class TestBetaV1Tier4Workflows:
             mock_inst.read.return_value = (np.zeros((2400, 1), dtype=np.float32), False)
             mock_stream.return_value.__enter__.return_value = mock_inst
 
-            # 1. User presses Ctrl+Shift+L: spawns _start_voice_interaction thread
+            # 1. User presses Ctrl+Shift+L -> directly calls _start_voice_interaction(),
+            #    which -- since no interaction is currently in progress -- spawns
+            #    exactly ONE real "JARVIS-VoiceInteraction" work thread.
             ptt_cb()
-            start_fn = mock_thread.call_args[1]["target"]
-            start_kwargs = mock_thread.call_args[1]["kwargs"]
+            mock_thread.assert_called_once()
+            assert mock_thread.call_args.kwargs.get("name") == "JARVIS-VoiceInteraction"
+            voice_loop_fn = mock_thread.call_args.kwargs["target"]
 
-            # 2. _start_voice_interaction spawns _voice_loop thread
-            mock_thread.reset_mock()
-            start_fn(**start_kwargs)
-            voice_loop_fn = mock_thread.call_args[1]["target"]
-
-            # 3. Execute voice loop
+            # 2. Execute the voice loop (the thread's target) directly.
             voice_loop_fn()
 
-        # 4. Verify end-to-end trace
+        # 3. Verify end-to-end trace
         acceptance_app.overlay.show_listening.assert_called_with("Vâng, tôi nghe.")
         acceptance_app.tts_manager.speak.assert_any_call("Vâng, tôi nghe.", wait=True)
         acceptance_app.process_text_command.assert_called_with("bật đèn bàn", "hotkey_ptt")
