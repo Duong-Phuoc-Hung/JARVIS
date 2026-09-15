@@ -28,6 +28,7 @@ process and never opens a real browser window.
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from jarvis.automation.control import ComputerController
@@ -486,17 +487,63 @@ class TestH07RateLimitProof(_BaseCase):
 
 class TestDoubleClapFanoutStillDefaultFalse(unittest.TestCase):
     def test_default_config_yaml_declares_fanout_disabled(self):
-        import yaml
+        """
+        Stdlib-only check (no PyYAML -- CI intentionally does not install
+        it): locates the unique `double_clap:` block in
+        config/default_config.yaml via indentation-bounded textual
+        inspection (never a YAML parser, never a regex loose enough to
+        match another section) and asserts it contains exactly the line
+        `allow_side_effect_fanout: false`.
+        """
+        config_text = Path("config/default_config.yaml").read_text(encoding="utf-8")
+        lines = config_text.splitlines()
 
-        with open("config/default_config.yaml", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f)
-        fanout = (
-            cfg.get("gesture", {})
-            .get("patterns", {})
-            .get("double_clap", {})
-            .get("allow_side_effect_fanout")
+        def indent_of(line: str) -> int:
+            return len(line) - len(line.lstrip(" "))
+
+        double_clap_indices = [i for i, line in enumerate(lines) if line.strip() == "double_clap:"]
+        self.assertEqual(
+            len(double_clap_indices),
+            1,
+            "Expected exactly one 'double_clap:' section in "
+            f"config/default_config.yaml, found {len(double_clap_indices)} "
+            "-- a missing or duplicated section must not silently pass.",
         )
-        self.assertIs(fanout, False, "gesture.patterns.double_clap.allow_side_effect_fanout must default to false")
+        header_index = double_clap_indices[0]
+        header_indent = indent_of(lines[header_index])
+
+        # Bounded block: every line strictly more indented than the
+        # "double_clap:" header, up to (not including) the next line at the
+        # same or lesser indentation -- i.e. the next sibling key
+        # ("triple_clap:") or an enclosing section. This is a structural
+        # (indentation-based) bound, not a fixed line count, so it can never
+        # accidentally spill into -- or stop short of -- the real section.
+        block: list[str] = []
+        for line in lines[header_index + 1:]:
+            if line.strip() == "":
+                block.append(line)
+                continue
+            if indent_of(line) <= header_indent:
+                break
+            block.append(line)
+
+        fanout_disabled_lines = [line for line in block if line.strip() == "allow_side_effect_fanout: false"]
+        self.assertEqual(
+            len(fanout_disabled_lines),
+            1,
+            "gesture.patterns.double_clap block must contain exactly one "
+            "'allow_side_effect_fanout: false' line -- got "
+            f"{len(fanout_disabled_lines)} (missing, duplicated, or the "
+            "value differs).",
+        )
+
+        fanout_enabled_lines = [line for line in block if line.strip() == "allow_side_effect_fanout: true"]
+        self.assertEqual(
+            len(fanout_enabled_lines),
+            0,
+            "gesture.patterns.double_clap.allow_side_effect_fanout must "
+            "default to false, but found it set to true.",
+        )
 
     def test_double_clap_first_activation_does_not_launch_spotify_or_claude(self):
         """
