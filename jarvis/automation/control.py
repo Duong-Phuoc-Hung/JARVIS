@@ -672,6 +672,18 @@ class ComputerController:
         "chatgpt": "https://chatgpt.com",
         "gpt": "https://chatgpt.com",
         "claude": "https://claude.ai",
+        # H-07 fix: the router's universal web-launcher regex lists both
+        # "claude" and "claude ai" as SITE alternatives, but regex
+        # alternation tries "claude" first and succeeds at that position
+        # for input like "mở claude ai" (leaving " ai" to be absorbed as a
+        # trailing "query"). _make_web_intent() then reconstructs
+        # target=f"{site} {query}" = "claude ai", which prioritizes over
+        # the correctly-resolvable site="claude" in _handle_web_open()'s
+        # dest lookup -- without this key, that reconstructed phrase missed
+        # WEBSITE_MAP entirely and silently fell through to a Google search
+        # for "claude ai" instead of opening Claude. Mirrors the existing
+        # "google dịch"/"zalo web" precedent below for multi-word aliases.
+        "claude ai": "https://claude.ai",
         "binance": "https://www.binance.com",
         "zalo web": "https://chat.zalo.me",
         "gmail": "https://mail.google.com",
