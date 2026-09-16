@@ -43,7 +43,7 @@
 | H-07 | DONE | Chuẩn hóa lệnh mở app/web: launch dedupe stress test (3 lệnh × 20 lần = 60 lần gọi; 3 allowed, 57 suppressed) |
 | H-08 | DONE | Volume & brightness fail-closed trên hardware None: trả `success: False`, không ghost success |
 | H-09 | DONE | Runaway soak test & leak detection framework: `tests/eval/soak_test_runner.py` (+0.00 handles/hr, 15 threads ổn định) |
-| H-10 | DONE | WASAPI exclusive mode capture fallback ho?n thi?n (10 unit tests + 27 adversarial tests pass). ?? ki?m ch?ng capture th?c t? tr?n tai nghe AirPods (MME & WASAPI, LIVE mode, peak 0.2511) |
+| H-10 | DONE | WASAPI exclusive mode capture fallback ho?n thi?n (10 unit tests + 27 adversarial tests pass). Ph?n m?m ho?n t?t 100%; ma tr?n ph?n c?ng ??t 4/10 c?u h?nh th?c t? c? t?n hi?u (Realtek, USB Mic, Beamforming, AirPods BT MME/WASAPI); 6 c?u h?nh c?n l?i ch?a c? thi?t b? |
 | H-11 | DONE | Setup wizard 5 bước đã chạy interactive lần đầu (2026-09-16); device list hiển thị đầy đủ 25 thiết bị; người dùng xác nhận thao tác bước 1/5 |
 | H-12 | DONE | Chuẩn hóa tách lớp locale & diacritic folding đa âm bảo vệ nguyên vẹn từ đơn (`strip_vietnamese_diacritics`) |
 | H-13 | PENDING_HUMAN_EXECUTION | Đã lập protocol 50 ca `docs/eval/beta_voice_50_live_acceptance_protocol.md` & 28 unit tests Tier 2 pass; cần tester người thật nói 50 câu live |
@@ -96,7 +96,7 @@
 - Không cần hạ tầng ngoài — dùng lại `CodeInterpreterSandbox` đã có sẵn.
 
 **1.3 Full test suite liên tục**
-- Duy trì 100% pass rate trên các test suite cốt lõi (79/79 seam/acceptance tests).
+- Duy trì 96.0% pass rate tr?n 50 ca (48/48 = 100% ca ??nh gi?) trên các test suite cốt lõi (79/79 seam/acceptance tests).
 
 ### 🟡 Ưu tiên trung bình — Chi phí thấp, giải quyết được ngay
 
@@ -213,7 +213,7 @@ BETA v1 ENGINEERING HARDENING STATUS (2026-09-13):
   [x] 1.6 Seam Regression Suites (79/79 passed in ~4.83s) — COMPLETE
   [x] 1.7 One-click Windows Installer JARVIS_Setup_v5.1.0.exe (SHA-256 verified) — COMPLETE
   [x] 1.8 Setup Wizard & Audio Matrix & 50-Case Protocol prepared — COMPLETE
-  [x] 1.9 Human Live Voice Acceptance (H-13: 50 cases) — DONE (48/50 PASS, 100.0%, 2026-09-16)
+  [x] 1.9 Human Live Voice Acceptance (H-13: 50 cases) — DONE (48/50 PASS, 96.0% tr?n 50 ca protocol [48/48 ca ??nh gi? ??t 100%], 2026-09-16)
   [x] 1.10 WASAPI Exclusive Capture Fallback (H-10 software implementation complete; physical BT matrix pending hardware) — IMPLEMENTED
   [ ] 1.11 Idle Soak Test Microphone Stream (H-06: 15-60min) — PENDING_IDLE_SOAK
   [x] 1.12 Third-Party Live Credentials (D-06..D-09) — DONE (Telegram, Discord, Gmail live; Zalo pending OA approval) (D-14 Code Signing: DONE via CI self-signed & upgrade roadmap)

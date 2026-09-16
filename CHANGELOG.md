@@ -3,7 +3,7 @@
 > **M?c ti?u**: Ph?t h?nh ch?nh th?c phi?n b?n th??ng m?i Product Beta v1 c?a JARVIS tr?n Windows 11/10 64-bit. Ho?n t?t to?n di?n 17/17 nhi?m v? Core/Backend/Release (D-01 ??n D-17) v? 13/13 nhi?m v? Voice Pipeline (H-01 ??n H-13) theo chu?n m?c k? thu?t `AGENTS.md` v? `docs/AUDIT_FRAMEWORK.md`.
 
 ### 1. ?i?m nh?n ph?t h?nh ch?nh th?c (Release Highlights)
-- **H-13 Human Live Voice Acceptance**: Ho?n th?nh nghi?m thu tr?c ti?p v?i gi?ng n?i ng??i th?t live 50 ca qua VB-Audio, ??t **48/50 PASS (100.0% t? l? ??t)**, 0 FAIL, 2 SKIP (l?nh nguy hi?m: sleep/restart).
+- **H-13 Human Live Voice Acceptance**: Ho?n th?nh nghi?m thu tr?c ti?p v?i gi?ng n?i ng??i th?t live 50 ca qua VB-Audio, ??t **48/50 PASS (96.0% tr?n 50 ca protocol; 48/48 = 100% tr?n s? ca ?? ??nh gi?, 2 ca skip an to?n: sleep/restart)**, 0 FAIL, 2 SKIP (l?nh nguy hi?m: sleep/restart).
 - **H-10 Bluetooth HFP WASAPI Exclusive Mode**: Kh?c ph?c d?t ?i?m l?i `PaError -9999` tr?n tai nghe ??m tho?i Bluetooth (AirPods, LY-Z5202) b?ng c? ch? two-tier capture (PortAudio -> WASAPI Exclusive 16kHz mono -> MOCK fail-closed). X?c minh t?n hi?u th?c t? tr?n AirPods: peak = 0.2511, RMS = 0.0101, AudioEngine LIVE mode.
 - **D-06, D-08, D-09 Multi-Channel Comms**: K?t n?i th?nh c?ng API th?t cho Telegram (`@JARVISAssistantTest_bot`, chat ID `7826874041`), Discord (`bot1549735760809164881`), v? Gmail SMTP (`SMTP OK`).
 - **D-14 Windows Authenticode Signing**: T? ??ng h?a k? s? Authenticode trong CI GitHub Actions ($0 qua PowerShell self-signed + `signtool.exe` SHA256) v? ho?n thi?n c?m nang k? th? c?ng SignPath.
