@@ -90,70 +90,33 @@ jobs:
 
   # ── Sign with SignPath (D-14) ───────────────────────────────────
   sign:
-    name: 🔐 Code Signing (SignPath Foundation — Direct API)
-    runs-on: windows-latest
+    name: 🔐 Code Signing (SignPath Foundation Connector)
+    runs-on: ubuntu-latest
     needs: build
-    timeout-minutes: 20
+    timeout-minutes: 15
     permissions:
+      id-token: write   # Required: GitHub OIDC token for connector auth
       contents: write
 
     steps:
-      - name: Download unsigned artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: jarvis-unsigned-exe
-          path: unsigned/
-
-      - name: Install SignPath PowerShell module
-        shell: pwsh
-        run: |
-          Install-Module -Name SignPath -Force -Scope CurrentUser -AllowClobber
-          Import-Module SignPath
-          Write-Host "SignPath module version: $((Get-Module SignPath).Version)"
-
-      - name: Sign JARVIS.exe via SignPath PowerShell module
+      - name: Submit to SignPath via GitHub Actions Connector
         id: signing
-        shell: pwsh
+        uses: signpath/github-action-submit-signing-request@v1.1
+        with:
+          api-token:                    '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id:              '${{ secrets.SIGNPATH_ORG_ID }}'
+          project-slug:                 'Jarvis'
+          signing-policy-slug:          'Jarvis_Test_Signing'
+          artifact-configuration-slug:  'initial'
+          github-artifact-id:           '${{ needs.build.outputs.unsigned_artifact_id }}'
+          wait-for-completion:          true
+          output-artifact-directory:    'signed-output'
+          github-token:                 '${{ secrets.GITHUB_TOKEN }}'
+
+      - name: Verify and show Authenticode info
         run: |
-          Import-Module SignPath
-          $orgId  = "${{ secrets.SIGNPATH_ORG_ID }}"
-          $token  = "${{ secrets.SIGNPATH_API_TOKEN }}"
-          $outDir = "signed-output"
-          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-
-          Write-Host "Submitting signing request..."
-          $reqId = Submit-SigningRequest `
-            -ApiToken              $token `
-            -OrganizationId        $orgId `
-            -ProjectSlug           "Jarvis" `
-            -SigningPolicySlug     "Jarvis_Test_Signing" `
-            -ArtifactConfigurationSlug "initial" `
-            -InputArtifactPath     "unsigned\JARVIS.exe" `
-            -WaitForCompletion
-
-          Write-Host "Signing request completed: $reqId"
-
-          Write-Host "Downloading signed artifact..."
-          Get-SignedArtifact `
-            -ApiToken       $token `
-            -OrganizationId $orgId `
-            -SigningRequestId $reqId `
-            -OutputArtifactPath "$outDir\JARVIS.exe"
-
-          $sz = [math]::Round((Get-Item "$outDir\JARVIS.exe").Length / 1MB, 2)
-          Write-Host "Signed JARVIS.exe: $sz MB"
-
-      - name: Verify signed artifact
-        shell: pwsh
-        run: |
-          $f = "signed-output/JARVIS.exe"
-          if (-not (Test-Path $f)) { Write-Error "Signed artifact missing!"; exit 1 }
-          $sz = [math]::Round((Get-Item $f).Length / 1MB, 2)
-          Write-Host "Signed artifact: $sz MB"
-          # Show Authenticode signature info
-          $sig = Get-AuthenticodeSignature $f
-          Write-Host "Signature status : $($sig.Status)"
-          Write-Host "Signer           : $($sig.SignerCertificate?.Subject)"
+          ls -la signed-output/
+          echo "Signed artifact size: $(du -sh signed-output/JARVIS.exe | cut -f1)"
 
       - name: Upload SIGNED artifact
         uses: actions/upload-artifact@v4
