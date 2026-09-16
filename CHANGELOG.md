@@ -1,3 +1,66 @@
+## [5.1.9] D-06~D-09 Credentials Setup Wizard & Fail-Closed Verification (2026-09-16)
+
+> **Mục tiêu**: Tạo tài liệu hướng dẫn thiết lập credential step-by-step copy-paste-ready cho 4 module giao tiếp (Telegram D-06, Zalo OA D-07, Discord D-08, Gmail SMTP/IMAP D-09) và script kiểm tra fail-closed theo Anti-Fabrication Principle (AGENTS.md §2).
+
+### 1. Root Cause & Bối cảnh
+- Không có hướng dẫn thiết lập credential thống nhất, dẫn đến người dùng phải mò mẫm tìm URL, định dạng token, và lệnh `gh secret set` chính xác cho từng service.
+- Script kiểm tra credential chưa tồn tại — không thể xác minh nhanh trạng thái CONFIGURED / NOT_CONFIGURED theo chuẩn fail-closed của dự án.
+
+### 2. Chi tiết thay đổi kỹ thuật
+
+#### `docs/wizard/credentials_setup_wizard.md` [NEW]
+- Wizard 4 phần với URL chính xác, bước numbered 1-câu/bước, định dạng token ví dụ, lệnh `gh secret set --repo Duong-Phuoc-Hung/JARVIS`, và snippet `.env` cho từng credential:
+  * **D-06 Telegram**: BotFather `/newbot` flow, token format `123456789:ABCdef...`, `TELEGRAM_BOT_TOKEN`, hướng dẫn lấy User ID qua `@userinfobot`.
+  * **D-07 Zalo OA**: developers.zalo.me app creation flow, 3 secrets (`ZALO_OA_ACCESS_TOKEN`, `ZALO_APP_ID`, `ZALO_APP_SECRET`), hướng dẫn webhook ngrok.
+  * **D-08 Discord**: discord.com/developers/applications, Reset Token, bật MESSAGE CONTENT INTENT + SERVER MEMBERS INTENT, invite URL template.
+  * **D-09 Gmail SMTP**: Google Account → Security → 2-Step → App passwords, 16-char App Password (no spaces), `SMTP_USER` + `SMTP_PASSWORD`, kiểm tra IMAP Python nhanh.
+- Bảng quick-reference 7 GitHub Secrets và lệnh `python scripts/verify_credentials.py`.
+
+#### `scripts/verify_credentials.py` [NEW]
+- Script Python kiểm tra fail-closed 4 credentials: `check_telegram()`, `check_zalo()`, `check_discord()`, `check_gmail()`.
+- Mỗi check: đọc env var → nếu trống → in `[NOT_CONFIGURED]` ngay (không bao giờ fabricate CONFIGURED).
+- Với credentials có sẵn: import module thực (`TelegramBotController`, `ZaloBotController`, `DiscordBotController`, `IMAPEmailReader`) → gọi probe → xử lý `error_code=NOT_CONFIGURED` đúng fail-closed contract.
+- `check_telegram`: `send_message()` không có HTTP client → `NOT_CONFIGURED` kết quả đúng offline; token có giá trị → `[CONFIGURED]`.
+- `check_discord`: `send_message(channel_id=0)` với bot_token set → thử HTTP thực (404/network error → OK); không có token → `NOT_CONFIGURED`.
+- `check_zalo`: `send_message(user_id='__probe__')` → nếu `error='NOT_CONFIGURED'` thì fail; sinon → credentials set (network error expected offline).
+- `check_gmail`: instantiate `IMAPEmailReader` với credentials → kiểm tra `reader.username/password/host` không rỗng → không gọi `connect()` (tránh network dependency).
+- Force UTF-8 output (`io.TextIOWrapper`) để chạy đúng trên Windows console cp1252.
+- Auto-load `.env` qua `python-dotenv` nếu có; graceful fallback nếu không.
+- Exit code 0 khi tất cả configured; exit 1 khi có credential thiếu + hướng dẫn next steps.
+
+### 3. Kết quả kiểm thử
+
+```
+$ python scripts/verify_credentials.py --verbose
+=================================================================
+  JARVIS Credential Verification (scripts/verify_credentials.py)
+=================================================================
+
+[D-06 Telegram   ]
+  [NOT_CONFIGURED] TELEGRAM_BOT_TOKEN not set in environment
+
+[D-07 Zalo OA    ]
+  [NOT_CONFIGURED] Missing env vars: ['ZALO_OA_ACCESS_TOKEN', 'ZALO_APP_ID', 'ZALO_APP_SECRET']
+
+[D-08 Discord    ]
+  [NOT_CONFIGURED] DISCORD_BOT_TOKEN not set in environment
+
+[D-09 Gmail IMAP ]
+  [NOT_CONFIGURED] Missing env vars: ['SMTP_USER', 'SMTP_PASSWORD']
+
+Summary: 0/4 credentials CONFIGURED
+```
+
+**Kết quả mong đợi**: 0/4 CONFIGURED (credentials chưa được thêm vào `.env` — script báo cáo trung thực, không fabricate). Anti-Fabrication Principle tuân thủ 100%.
+
+### 4. Files thay đổi
+| File | Thao tác | Mô tả |
+|---|---|---|
+| `docs/wizard/credentials_setup_wizard.md` | NEW | Wizard thiết lập 4 credentials copy-paste-ready |
+| `scripts/verify_credentials.py` | NEW | Script kiểm tra fail-closed 4 credentials |
+
+---
+
 ## [5.1.8] D-14 Code Signing Resolution: Free CI Authenticode & Signing Guides (2026-09-16)
 
 > **Mục tiêu**: Đóng hoàn toàn milestone D-14 (Code Signing) — triển khai giải pháp ký số Authenticode tự động $0 trong GitHub Actions CI (R1 & R4), xây dựng cẩm nang ký thủ công qua SignPath Web UI Option A (R2), và lập lộ trình nâng cấp ký số sản xuất Option B (R3).
