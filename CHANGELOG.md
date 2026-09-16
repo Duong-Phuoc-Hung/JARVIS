@@ -1,3 +1,41 @@
+## [5.1.10] H-10 WASAPI Exclusive Mode Capture Fallback for BT HFP Devices (2026-09-16)
+
+> **Mục tiêu**: Khắc phục lỗi chiếm dụng phiên độc quyền Windows OS (`PaError -9999`) trên các thiết bị Bluetooth HFP (LY-Z5202, AirPods) bằng cơ chế hai tầng (two-tier capture): tự động kích hoạt WASAPI Exclusive mode ở tần số native 16kHz (mono) khi PortAudio thất bại, bảo toàn nguyên tắc Fail-Closed (Anti-Fabrication AGENTS.md §2) nếu cả hai tầng đều không thể ghi âm.
+
+### 1. Root Cause & Bối cảnh
+- **Bối cảnh**: Trong ma trận kiểm thử phần cứng H-10 (CHANGELOG [5.1.7]), các microphone USB và Realtek đạt TIER1_PASS nhưng toàn bộ thiết bị Bluetooth đàm thoại (BT HFP) thất bại với mã lỗi `PaError -9999` (paDeviceUnavailable).
+- **Root cause**: Windows OS session manager giữ phiên độc quyền cho giao thức Bluetooth HFP/Hands-Free, khiến PortAudio (sounddevice backend mặc định) bị từ chối truy cập qua Shared mode.
+- **Giải pháp**: Mở luồng ghi âm qua WASAPI Exclusive mode (`sd.WasapiSettings(exclusive=True)`), truy cập trực tiếp tầng kernel audio engine, cấu hình tại tần số lấy mẫu chuẩn 16000 Hz và 1 kênh (mono).
+
+### 2. Chi tiết thay đổi kỹ thuật (Technical Changes)
+- **`jarvis/audio/engine.py`**:
+  - Bổ sung dataclass `AudioEngineConfig` với cờ `use_wasapi_exclusive: bool = True`.
+  - Nâng cấp `AudioEngine.__init__` nhận `config: AudioEngineConfig | None = None` và `use_wasapi_exclusive: bool = True` (tương thích ngược 100%).
+  - Đồng bộ hóa `use_wasapi_exclusive` từ `ConfigManager` trong `_load_from_config()`.
+  - Tái cấu trúc worker loop `_stream_worker()` sang cơ chế Two-Tier Capture:
+    1. Tier 1: Thử mở `sd.InputStream` tiêu chuẩn qua PortAudio.
+    2. Tier 2: Khi phát sinh ngoại lệ trên Windows (`sys.platform == "win32"` và `use_wasapi_exclusive=True`), thử lại với `sd.WasapiSettings(exclusive=True)` ở 16kHz mono.
+    3. Fail-Closed: Nếu cả 2 tầng thất bại sau 3 lần thử, hạ cấp về `AudioEngineMode.MOCK`, ghi log lỗi chi tiết (`"BT HFP device %s failed on both PortAudio and WASAPI exclusive. Entering MOCK mode. Error: %s"`), và phát sự kiện `audio.device_unavailable` với `reason="wasapi_exclusive_failed"` lên EventBus. Tuyệt đối không giả mạo thành công hoặc tự động tráo microphone vật lý khác.
+
+### 3. Chỉ số kiểm thử thực tế (Test Metrics)
+- **Unit test mới**: Bổ sung 4 test cases chuyên biệt trong `tests/unit/test_audio_engine.py`:
+  - `test_wasapi_fallback_triggered_on_pa_error`: PASS (bắt PortAudio error, kích hoạt WASAPI retry với `exclusive=True` ở 16kHz).
+  - `test_wasapi_fallback_both_fail_enters_mock`: PASS (Fail-Closed bảo đảm chuyển về MOCK và phát sự kiện `audio.device_unavailable`).
+  - `test_wasapi_skipped_on_non_windows`: PASS (không gọi WASAPI trên Linux/macOS).
+  - `test_wasapi_exclusive_disabled_config`: PASS (không gọi WASAPI khi `use_wasapi_exclusive=False`).
+- **Tổng số test AudioEngine**: 10/10 tests PASS (tăng từ 6 lên 10).
+- **Audio test group**: 70/70 tests PASS (100% pass trong 89.64s).
+- **Full regression suite**: Toàn bộ unit tests vượt qua không có hồi quy.
+
+### 4. Files thay đổi
+- `jarvis/audio/engine.py`
+- `tests/unit/test_audio_engine.py`
+- `CHANGELOG.md`
+- `docs/ROADMAP.md`
+- `README.md`
+
+---
+
 ## [5.1.9] D-06~D-09 Credentials Setup Wizard & Fail-Closed Verification (2026-09-16)
 
 > **Mục tiêu**: Tạo tài liệu hướng dẫn thiết lập credential step-by-step copy-paste-ready cho 4 module giao tiếp (Telegram D-06, Zalo OA D-07, Discord D-08, Gmail SMTP/IMAP D-09) và script kiểm tra fail-closed theo Anti-Fabrication Principle (AGENTS.md §2).

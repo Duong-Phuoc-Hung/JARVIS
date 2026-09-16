@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt bằng Chromium do Playwright quản lý hoặc phiên Chromium được attach qua CDP, và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.1.3** trên `main` — hoàn thiện mã nguồn kỹ thuật phân hệ Core / Backend / Integrations / Release (D-01..D-17) và Voice Pipeline Hardening (H-01..H-13, H-05 DONE). T-01 browser là **DONE** với 301/301 test scoped, 21/21 deterministic local E2E trên Chromium thật (gồm CDP attach), và full unit release gate 2267 passed / 4 skipped; xem `reports/evidence/T-01/`. Không có version bump cho T-01.</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.1.3** trên `main` — hoàn thiện mã nguồn kỹ thuật phân hệ Core / Backend / Integrations / Release (D-01..D-17) và Voice Pipeline Hardening (H-01..H-13, H-05 DONE, H-10 WASAPI DONE): capture mặc định 16kHz và chuẩn hóa nguồn 8/22.05/24/44.1/48kHz về boundary STT/model 16kHz, fallback tự động WASAPI Exclusive capture cho tai nghe Bluetooth HFP (PaError -9999), đồng bộ micro device, 150ms settling delay, hotkey PTT Ctrl+Shift+L, Intent Router 99.5% accuracy trên 210 câu độc lập, Whisper empirical benchmark hoàn chỉnh N=840 (Small N=420: Clean 61.0% / Noisy 53.8%; Large-v3 N=420: Clean 87.1% / Noisy 84.8%, 1.2% misroute tổng hợp, 0.0% empty), bộ test chấp nhận Tier 2 28/28 E2E tests xanh 100%, 81/81 test seams xác thực, và minh bạch các điều kiện nghiệm thu live (50 ca acceptance, 10 thiết bị phần cứng, idle soak). T-01 browser là **DONE** với 301/301 test scoped, 21/21 deterministic local E2E trên Chromium thật (gồm CDP attach), và full unit release gate 2267 passed / 4 skipped; xem `reports/evidence/T-01/`. Không có version bump cho T-01.</sub>
 
 
 </div>
@@ -44,6 +44,7 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 - **Wake Word:** Nhận diện từ khóa *"Hey JARVIS"* tức thì với độ trễ cực thấp.
 - **Barge-in (Ngắt lời tức thời):** Khi JARVIS đang nói, bạn có thể nói chèn vào — hệ thống lập tức tắt âm thanh TTS và chuyển sang nghe lệnh mới.
 - **VAD (Voice Activity Detection):** Thuật toán phát hiện giọng nói thông minh bằng năng lượng RMS hoặc WebRTC VAD — xử lý offline, độ trễ <10ms.
+- **WASAPI Exclusive Capture Fallback (Windows):** Tự động kích hoạt cơ chế WASAPI Exclusive mode khi thiết bị Bluetooth HFP (AirPods, tai nghe đàm thoại) gặp lỗi chiếm dụng phiên độc quyền Windows OS (`PaError -9999`), ghi âm trực tiếp tại tầng kernel ở tần số 16kHz native.
 - **STT (Speech-to-Text) & Safe Diacritic Normalization:** Faster-Whisper (CTranslate2) chạy offline với bộ chuẩn hóa bỏ dấu đa âm an toàn (`strip_vietnamese_diacritics`) bảo vệ nguyên vẹn từ đơn, triệt tiêu 100% va chạm homophone (`nhạc` vs `nhắc`, `dừng` vs `dụng`, `dán` vs `dẫn`, `tắt` vs `tắc`).
 - **Kháng Lệch Ngữ Âm (Phonetic Drift Robustness):** Tích hợp 15 alias ngữ âm chọn lọc cho các lỗi nghe nhầm đặc thù của Faster-Whisper (`tắc máy`, `tập máy tính`, `cái đặt`, `đặt time`, `tắc tính`, `tắt tính`, `ghi chú`), nâng độ chính xác thực tế trên 90 audio test lên 63.3% và đạt 100% trên tập held-out mới.
 - **Tiered STT Coordinator (v5.1.0 Phase 5):** Tự động điều phối phân tầng nhận diện đa cấp giữa Faster-Whisper Local (Tier 1), OpenAI Whisper Cloud (Tier 2) và Windows SAPI (Tier 3) dựa trên ước tính chất lượng tín hiệu SNR (>10dB) và thời hạn deadline; tích hợp VAD silence bypass (<1ms, 0 GPU inference).
@@ -83,7 +84,7 @@ Trước khi cài đặt, vui lòng đảm bảo máy tính của bạn đáp �
 | **Python** | **Python 3.13+ (64-bit)** | Tải tại: [Python 3.13.2 64-bit](https://www.python.org/downloads/release/python-3132/)<br>⚠️ **Bắt buộc:** Tích chọn ✅ **"Add python.exe to PATH"** trong màn hình cài đặt đầu tiên. |
 | **Git** | Git for Windows | Tải tại: [Git for Windows Official](https://git-scm.com/download/win) |
 | **Visual C++ Runtime** | VC++ 2015–2022 Redistributable (x64) | Tải tại: [vc_redist.x64.exe (Microsoft)](https://aka.ms/vs/17/release/vc_redist.x64.exe)<br>*(Bắt buộc cho Pillow, sounddevice, CTranslate2, faster-whisper)* |
-| **Phần cứng âm thanh** | Microphone & Loa / Tai nghe | Đảm bảo micro và loa hoạt động bình thường trong Windows Settings |
+| **Phần cứng âm thanh** | Microphone & Loa / Tai nghe | Đảm bảo micro và loa hoạt động bình thường trong Windows Settings. Hỗ trợ tự động WASAPI Exclusive fallback cho tai nghe Bluetooth HFP (AirPods, v.v.). |
 | **API Key** | Google Gemini API Key | Lấy miễn phí tại: [Google AI Studio](https://aistudio.google.com/apikey) |
 
 ---
@@ -354,7 +355,7 @@ python scripts/build_installer.py
 
 ## 🔧 Các Lỗi Thường Gặp & Cách Khắc Phục (Common Errors & Fixes)
 
-Dưới đây là 5 lỗi phổ biến nhất và giải pháp xử lý triệt để:
+Dưới đây là 6 lỗi phổ biến nhất và giải pháp xử lý triệt để:
 
 ### 1. ❌ SQLite database locked / Permission Denied
 - **Hiện tượng:** Gặp lỗi `sqlite3.OperationalError: database is locked` hoặc `PermissionError` khi khởi động hoặc lưu ghi chú.
@@ -431,6 +432,16 @@ Dưới đây là 5 lỗi phổ biến nhất và giải pháp xử lý triệt 
      ```powershell
      python -c "import os, dotenv, google.generativeai as genai; dotenv.load_dotenv(); genai.configure(api_key=os.getenv('GEMINI_API_KEY')); print(genai.GenerativeModel('gemini-1.5-flash').generate_content('ping').text)"
      ```
+
+---
+
+### 6. ❌ Lỗi micro Bluetooth HFP / PaError -9999 (Windows Exclusive Session)
+- **Hiện tượng:** Tai nghe Bluetooth đàm thoại (AirPods, tai nghe HFP) không thu được âm thanh hoặc báo lỗi `PaError -9999` (`paDeviceUnavailable`).
+- **Nguyên nhân:** Windows OS Session Manager tự động chiếm giữ phiên đàm thoại Bluetooth HFP ở chế độ độc quyền, khiến PortAudio mặc định bị từ chối truy cập qua Shared mode.
+- **Cách khắc phục:**
+  1. JARVIS v5.1.10 đã tích hợp tự động cơ chế **WASAPI Exclusive Capture Fallback**: hệ thống tự động nhận biết lỗi PortAudio và mở luồng ghi âm kernel WASAPI Exclusive trực tiếp tại tần số 16kHz mono.
+  2. Đảm bảo cấu hình `audio.use_wasapi_exclusive = True` trong config (mặc định đã bật).
+  3. Nếu tai nghe vẫn không thu âm được, kiểm tra kết nối Bluetooth trong Windows Settings và đảm bảo tai nghe đang ở profile *Hands-free AG Audio*.
 
 ---
 

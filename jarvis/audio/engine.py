@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -115,6 +116,19 @@ class AudioDeviceInfo:
             "is_default_output": self.is_default_output,
             "probed_rms": self.probed_rms,
         }
+
+
+@dataclass
+class AudioEngineConfig:
+    """Configuration options for AudioEngine streaming and device handling."""
+    sample_rate: int = 44100
+    block_ms: int = 40
+    channels: int = 1
+    input_device: str | int | None = None
+    probe_seconds: float = 0.5
+    silent_rms_threshold: float = 0.001
+    mode: AudioEngineMode = AudioEngineMode.LIVE
+    use_wasapi_exclusive: bool = True
 
 
 class MicrophoneProbeManager:
@@ -347,17 +361,41 @@ class AudioEngine:
         config_manager: Any | None = None,
         on_audio_block: Callable[[np.ndarray], None] | None = None,
         device_spec: str | None = None,
+        config: AudioEngineConfig | None = None,
+        use_wasapi_exclusive: bool = True,
     ) -> None:
-        self.sample_rate = int(sample_rate)
-        self.block_ms = int(block_ms)
-        self.channels = int(channels)
-        # H-02 fix: explicit None/empty semantics, never generic truthiness --
-        # input_device=0 is a fully valid explicit selection and must survive
-        # this precedence check exactly as-is (see _explicit_device_or()).
-        self.input_device = _explicit_device_or(input_device, device_spec)
-        self.probe_seconds = float(probe_seconds)
-        self.silent_rms_threshold = float(silent_rms_threshold)
-        self.mode = mode
+        if config is not None:
+            self.config = config
+            self.sample_rate = int(config.sample_rate)
+            self.block_ms = int(config.block_ms)
+            self.channels = int(config.channels)
+            self.input_device = _explicit_device_or(config.input_device, device_spec)
+            self.probe_seconds = float(config.probe_seconds)
+            self.silent_rms_threshold = float(config.silent_rms_threshold)
+            self.mode = config.mode
+            self.use_wasapi_exclusive = bool(config.use_wasapi_exclusive)
+        else:
+            self.sample_rate = int(sample_rate)
+            self.block_ms = int(block_ms)
+            self.channels = int(channels)
+            # H-02 fix: explicit None/empty semantics, never generic truthiness --
+            # input_device=0 is a fully valid explicit selection and must survive
+            # this precedence check exactly as-is (see _explicit_device_or()).
+            self.input_device = _explicit_device_or(input_device, device_spec)
+            self.probe_seconds = float(probe_seconds)
+            self.silent_rms_threshold = float(silent_rms_threshold)
+            self.mode = mode
+            self.use_wasapi_exclusive = bool(use_wasapi_exclusive)
+            self.config = AudioEngineConfig(
+                sample_rate=self.sample_rate,
+                block_ms=self.block_ms,
+                channels=self.channels,
+                input_device=self.input_device,
+                probe_seconds=self.probe_seconds,
+                silent_rms_threshold=self.silent_rms_threshold,
+                mode=self.mode,
+                use_wasapi_exclusive=self.use_wasapi_exclusive,
+            )
         self.event_bus = event_bus
         self.config_manager = config_manager
 
@@ -402,6 +440,8 @@ class AudioEngine:
         self.input_device = self.config_manager.get("audio.input_device", self.input_device)
         self.probe_seconds = float(self.config_manager.get("audio.probe_seconds", self.probe_seconds))
         self.silent_rms_threshold = float(self.config_manager.get("audio.silent_rms_threshold", self.silent_rms_threshold))
+        self.use_wasapi_exclusive = bool(self.config_manager.get("audio.use_wasapi_exclusive", self.use_wasapi_exclusive))
+        self.config.use_wasapi_exclusive = self.use_wasapi_exclusive
         self.block_size = int(self.sample_rate * (self.block_ms / 1000.0))
 
     def _on_config_reloaded(self, new_config: Any) -> None:
@@ -620,33 +660,112 @@ class AudioEngine:
             return
 
         reconnect_attempts = 0
+        last_error: Exception | None = None
         while not self._stop_event.is_set() and reconnect_attempts < 3:
+            stream = None
+            used_wasapi = False
             try:
-                with sd.InputStream(
+                # 1. Standard PortAudio stream attempt
+                stream = sd.InputStream(
                     device=self._active_device_index,
                     samplerate=self.sample_rate,
                     channels=self.channels,
                     dtype="float32",
                     blocksize=self.block_size,
-                ) as stream:
-                    reconnect_attempts = 0
-                    while not self._stop_event.is_set():
-                        self._pause_event.wait(timeout=0.1)
-                        if self._stop_event.is_set():
-                            break
-                        data, overflowed = stream.read(self.block_size)
-                        if overflowed:
-                            logger.warning("SoundDevice input stream buffer overflowed.")
-                            if self.event_bus:
-                                self.event_bus.publish("audio.overflow", timestamp=time.monotonic())
-                        self._dispatch_block(data)
-            except Exception as e:
-                reconnect_attempts += 1
-                logger.error("SoundDevice stream error: %s (attempt %d/3)", e, reconnect_attempts)
-                if self.event_bus:
-                    self.event_bus.publish("audio.error", error=str(e), error_type=type(e).__name__)
-                time.sleep(0.5)
+                )
+            except Exception as e_pa:
+                last_error = e_pa
+                # 2. WASAPI Exclusive fallback (Windows only, when enabled)
+                if sys.platform == "win32" and getattr(self.config, "use_wasapi_exclusive", True):
+                    logger.warning(
+                        "PortAudio failed for device %s (%s); attempting WASAPI exclusive fallback at 16kHz.",
+                        self._active_device_index,
+                        e_pa,
+                    )
+                    try:
+                        extra_settings = None
+                        wasapi_cls = getattr(sd, "WasapiSettings", None)
+                        if wasapi_cls is not None:
+                            extra_settings = wasapi_cls(exclusive=True)
+                            try:
+                                extra_settings.exclusive = True
+                            except (AttributeError, TypeError):
+                                pass
+                        wasapi_block_size = int(16000 * (self.block_ms / 1000.0))
+                        stream = sd.InputStream(
+                            device=self._active_device_index,
+                            extra_settings=extra_settings,
+                            samplerate=16000,
+                            channels=1,
+                            dtype="float32",
+                            blocksize=wasapi_block_size,
+                        )
+                        used_wasapi = True
+                    except Exception as e_wasapi:
+                        last_error = e_wasapi
+                        reconnect_attempts += 1
+                        logger.error(
+                            "BT HFP device %s failed on both PortAudio and WASAPI exclusive (attempt %d/3). Error: %s",
+                            self._active_device_index,
+                            reconnect_attempts,
+                            e_wasapi,
+                        )
+                        if self.event_bus:
+                            self.event_bus.publish("audio.error", error=str(e_wasapi), error_type=type(e_wasapi).__name__)
+                        time.sleep(0.5)
+                        continue
+                else:
+                    reconnect_attempts += 1
+                    logger.error("SoundDevice stream error: %s (attempt %d/3)", e_pa, reconnect_attempts)
+                    if self.event_bus:
+                        self.event_bus.publish("audio.error", error=str(e_pa), error_type=type(e_pa).__name__)
+                    time.sleep(0.5)
+                    continue
+
+            # Stream successfully opened
+            if stream is not None:
+                try:
+                    with stream:
+                        reconnect_attempts = 0
+                        blk_size = int(16000 * (self.block_ms / 1000.0)) if used_wasapi else self.block_size
+                        while not self._stop_event.is_set():
+                            self._pause_event.wait(timeout=0.1)
+                            if self._stop_event.is_set():
+                                break
+                            data, overflowed = stream.read(blk_size)
+                            if overflowed:
+                                logger.warning("SoundDevice input stream buffer overflowed.")
+                                if self.event_bus:
+                                    self.event_bus.publish("audio.overflow", timestamp=time.monotonic())
+                            self._dispatch_block(data)
+                except Exception as e_run:
+                    reconnect_attempts += 1
+                    last_error = e_run
+                    logger.error("Active audio stream runtime error: %s (attempt %d/3)", e_run, reconnect_attempts)
+                    if self.event_bus:
+                        self.event_bus.publish("audio.error", error=str(e_run), error_type=type(e_run).__name__)
+                    time.sleep(0.5)
 
         if reconnect_attempts >= 3:
+            logger.error(
+                "BT HFP device %s failed on both PortAudio and WASAPI exclusive. Entering MOCK mode. Error: %s",
+                self._active_device_index,
+                last_error,
+            )
             logger.error("Maximum audio reconnect attempts exceeded. Switching to MOCK mode.")
             self.mode = AudioEngineMode.MOCK
+            if self.event_bus:
+                reason = (
+                    "wasapi_exclusive_failed"
+                    if (sys.platform == "win32" and getattr(self.config, "use_wasapi_exclusive", True))
+                    else "reconnect_exhausted"
+                )
+                self.event_bus.publish(
+                    "audio.device_unavailable",
+                    requested_device=self.input_device or self._active_device_index,
+                    device_index=self._active_device_index,
+                    reason=reason,
+                    error=str(last_error),
+                    timestamp=time.monotonic(),
+                )
+
