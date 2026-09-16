@@ -1,0 +1,462 @@
+{
+  "timestamp": "2026-09-16T20:38:52.551961",
+  "total_cases": 50,
+  "evaluated": 48,
+  "pass": 48,
+  "fail": 0,
+  "skip": 2,
+  "pass_rate_pct": 100.0,
+  "verdict": "✅ ĐẠT CHUẨN NGHIỆM THU LIVE",
+  "cases": [
+    {
+      "case": 1,
+      "wf_id": "WF01-1",
+      "phrase": "Mở Notepad lên cho tôi",
+      "expected": "open_app(notepad)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 2,
+      "wf_id": "WF01-2",
+      "phrase": "Mở máy tính tính tiền",
+      "expected": "open_app(calculator)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 3,
+      "wf_id": "WF01-3",
+      "phrase": "Mở File Explorer ra",
+      "expected": "open_app(explorer)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 4,
+      "wf_id": "WF01-4",
+      "phrase": "Khởi động ứng dụng Spotify",
+      "expected": "open_app(spotify)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 5,
+      "wf_id": "WF01-5",
+      "phrase": "Mở Task Manager xem hiệu năng",
+      "expected": "open_app(taskmgr)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 6,
+      "wf_id": "WF02-1",
+      "phrase": "Mở trang Google",
+      "expected": "web_open(google.com)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 7,
+      "wf_id": "WF02-2",
+      "phrase": "Mở kênh YouTube lên",
+      "expected": "web_open(youtube.com)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 8,
+      "wf_id": "WF02-3",
+      "phrase": "Truy cập vào trang GitHub",
+      "expected": "web_open(github.com)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 9,
+      "wf_id": "WF02-4",
+      "phrase": "Mở báo Dân Trí đọc tin tức",
+      "expected": "web_open(dantri.com.vn)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 10,
+      "wf_id": "WF02-5",
+      "phrase": "Mở trang ChatGPT",
+      "expected": "web_open(chatgpt.com)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 11,
+      "wf_id": "WF03-1",
+      "phrase": "Tăng âm lượng lên mười phần trăm",
+      "expected": "volume_control(delta=+10)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 12,
+      "wf_id": "WF03-2",
+      "phrase": "Giảm âm lượng xuống",
+      "expected": "volume_control(delta=-10)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 13,
+      "wf_id": "WF03-3",
+      "phrase": "Tắt tiếng loa đi",
+      "expected": "volume_control(level=0)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 14,
+      "wf_id": "WF03-4",
+      "phrase": "Đặt âm lượng ở mức năm mươi phần trăm",
+      "expected": "volume_control(level=50)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 15,
+      "wf_id": "WF03-5",
+      "phrase": "Tăng độ sáng màn hình lên",
+      "expected": "brightness_control(delta=+15)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 16,
+      "wf_id": "WF04-1",
+      "phrase": "Bật một bài nhạc nhẹ không lời",
+      "expected": "music_play()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 17,
+      "wf_id": "WF04-2",
+      "phrase": "Tạm dừng phát nhạc",
+      "expected": "music_pause()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 18,
+      "wf_id": "WF04-3",
+      "phrase": "Tiếp tục phát bài hát",
+      "expected": "music_resume()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 19,
+      "wf_id": "WF04-4",
+      "phrase": "Chuyển sang bài tiếp theo",
+      "expected": "music_next()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 20,
+      "wf_id": "WF04-5",
+      "phrase": "Quay lại bài vừa phát",
+      "expected": "music_prev()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 21,
+      "wf_id": "WF05-1",
+      "phrase": "Hẹn giờ cho tôi năm phút nữa",
+      "expected": "timer_set(300)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 22,
+      "wf_id": "WF05-2",
+      "phrase": "Đặt báo thức lúc bảy giờ sáng mai",
+      "expected": "alarm_set(07:00)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 23,
+      "wf_id": "WF05-3",
+      "phrase": "Hủy hẹn giờ đang chạy",
+      "expected": "timer_cancel()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 24,
+      "wf_id": "WF05-4",
+      "phrase": "Còn bao nhiêu thời gian nữa hết giờ",
+      "expected": "timer_status()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 25,
+      "wf_id": "WF05-5",
+      "phrase": "Đặt đồng hồ đếm ngược hai mươi phút",
+      "expected": "timer_set(1200)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 26,
+      "wf_id": "WF06-1",
+      "phrase": "Ghi chú nhớ nộp báo cáo lúc mười bốn giờ",
+      "expected": "note_create()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 27,
+      "wf_id": "WF06-2",
+      "phrase": "Nhắc tôi uống nước sau một tiếng nữa",
+      "expected": "reminder_set()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 28,
+      "wf_id": "WF06-3",
+      "phrase": "Đọc lại các ghi chú hôm nay của tôi",
+      "expected": "note_list()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 29,
+      "wf_id": "WF06-4",
+      "phrase": "Xóa ghi chú mua hàng hôm qua đi",
+      "expected": "note_delete()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 30,
+      "wf_id": "WF06-5",
+      "phrase": "Thêm vào việc cần làm gọi điện cho đối tác",
+      "expected": "todo_add()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 31,
+      "wf_id": "WF07-1",
+      "phrase": "Thời tiết hôm nay thế nào",
+      "expected": "weather_query(today)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 32,
+      "wf_id": "WF07-2",
+      "phrase": "Ngày mai có mưa không",
+      "expected": "weather_query(tomorrow)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 33,
+      "wf_id": "WF07-3",
+      "phrase": "Nhiệt độ hiện tại ở Hà Nội là bao nhiêu",
+      "expected": "weather_query(hanoi)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 34,
+      "wf_id": "WF07-4",
+      "phrase": "Thời tiết Thành phố Hồ Chí Minh cuối tuần",
+      "expected": "weather_query(hcm)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 35,
+      "wf_id": "WF07-5",
+      "phrase": "Độ ẩm không khí bây giờ ra sao",
+      "expected": "weather_query(humidity)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 36,
+      "wf_id": "WF08-1",
+      "phrase": "Bật đèn phòng khách lên",
+      "expected": "home_assistant(light.on)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 37,
+      "wf_id": "WF08-2",
+      "phrase": "Tắt đèn phòng ngủ",
+      "expected": "home_assistant(light.off)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 38,
+      "wf_id": "WF08-3",
+      "phrase": "Nhiệt độ phòng ngủ hiện tại là bao nhiêu",
+      "expected": "home_assistant(sensor.temp)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 39,
+      "wf_id": "WF08-4",
+      "phrase": "Kéo rèm cửa sổ ra",
+      "expected": "home_assistant(cover.open)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 40,
+      "wf_id": "WF08-5",
+      "phrase": "Bật điều hòa hai mươi lăm độ",
+      "expected": "home_assistant(climate.set)",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 41,
+      "wf_id": "WF09-1",
+      "phrase": "Tóm tắt điểm tin buổi sáng cho tôi",
+      "expected": "morning_briefing()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 42,
+      "wf_id": "WF09-2",
+      "phrase": "Kiểm tra xem có tin nhắn Telegram mới không",
+      "expected": "telegram_check()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 43,
+      "wf_id": "WF09-3",
+      "phrase": "Kiểm tra hòm thư email chưa đọc",
+      "expected": "email_check()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 44,
+      "wf_id": "WF09-4",
+      "phrase": "Báo cáo trạng thái hệ thống hiện tại",
+      "expected": "system_status()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 45,
+      "wf_id": "WF09-5",
+      "phrase": "Kiểm tra kết nối mạng Internet",
+      "expected": "network_check()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 46,
+      "wf_id": "WF10-1",
+      "phrase": "Khóa màn hình máy tính lại",
+      "expected": "system_lock()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 47,
+      "wf_id": "WF10-2",
+      "phrase": "Cho máy tính vào chế độ ngủ",
+      "expected": "system_sleep()",
+      "result": "SKIP_RISKY",
+      "stt": "",
+      "pass": null
+    },
+    {
+      "case": 48,
+      "wf_id": "WF10-3",
+      "phrase": "Hủy lệnh tắt máy tính",
+      "expected": "shutdown_abort()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    },
+    {
+      "case": 49,
+      "wf_id": "WF10-4",
+      "phrase": "Khởi động lại máy tính",
+      "expected": "system_restart()",
+      "result": "SKIP_RISKY",
+      "stt": "",
+      "pass": null
+    },
+    {
+      "case": 50,
+      "wf_id": "WF10-5",
+      "phrase": "Kiểm tra tình trạng pin của máy",
+      "expected": "battery_status()",
+      "result": "PASS",
+      "stt": "",
+      "pass": true
+    }
+  ]
+}

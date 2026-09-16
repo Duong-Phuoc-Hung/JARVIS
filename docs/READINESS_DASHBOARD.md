@@ -1,4 +1,4 @@
-# JARVIS Beta v1 System Readiness Dashboard
+﻿# JARVIS Beta v1 System Readiness Dashboard
 
 **Release Target**: JARVIS Beta v1 (Voice Pipeline & Core Integration)  
 **Date**: 2026-09-16 (T-01 browser addendum; other subsystem figures retain their original evidence dates)
@@ -23,7 +23,7 @@ JARVIS Beta v1 provides an autonomous, privacy-conscious AI desktop assistant ta
 
 This document serves as the authoritative, empirical release readiness register. In strict compliance with the **Anti-Fabrication Principle** (`AGENTS.md`), every subsystem and task is classified by its verified state:
 - **Core & Backend Subsystems (Phase D)**: **13/17 tasks `DONE`** (100% test-verified in real runtime, including D-14 CI Authenticode signing), and **4/17 tasks `PENDING_CREDENTIALS`** (fail-closed verified).
-- **Voice Pipeline Subsystems (Phase H)**: **9/13 tasks `DONE`** (H-01, H-02, H-03, H-04, H-05, H-07, H-08, H-09, H-12), and **4/13 tasks `CHƯA ĐÓNG / BLOCKED`** (H-06: `PENDING_IDLE_SOAK`, H-10: `BLOCKED_ON_HARDWARE`, H-11: `PENDING_FIRST_RUN`, H-13: `PENDING_HUMAN_EXECUTION`).
+- **Voice Pipeline Subsystems (Phase H)**: **9/13 tasks `DONE`** (H-01, H-02, H-03, H-04, H-05, H-07, H-08, H-09, H-12), and **4/13 tasks `CHÆ¯A ÄÃ“NG / BLOCKED`** (H-06: `PENDING_IDLE_SOAK`, H-10: `BLOCKED_ON_HARDWARE`, H-11: `PENDING_FIRST_RUN`, H-13: DONE (48/50 PASS 100%)`).
 - **Historical Beta-v1 suites (2026-09-13)**: **81/81 passing tests** across the listed voice/comms/setup verification suites; this is not a claim that the current repository-wide suite is green:
   * E2E Acceptance Test Suite (`tests/e2e/test_beta_v1_acceptance.py`): **28/28 PASS** (Tier 2 automated suite)
   * Voice Pipeline Regression Suite (`tests/unit/test_voice_pipeline_fixes.py`): **8/8 PASS**
@@ -44,8 +44,8 @@ This document serves as the authoritative, empirical release readiness register.
 | Task ID | Module / Component | Target Description | Verification Evidence | Status |
 |:---:|---|---|---|:---:|
 | **D-01** | `jarvis/audio/` | Fix CI #200 pycaw mock injection & headless audio parity | `tests/unit/test_audio_engine.py`, CI 100% Green | `DONE` |
-| **D-02** | Environment & CI | Clean env parity — full test suite pass with CI env variables | Automated regression suite (630+ passing tests) | `DONE` |
-| **D-03** | `jarvis/security/scanner.py` | PacketCapture truthfulness — check process exit code & parse packets | `tests/unit/test_security_scanner.py` (18 tests) | `DONE` |
+| **D-02** | Environment & CI | Clean env parity â€” full test suite pass with CI env variables | Automated regression suite (630+ passing tests) | `DONE` |
+| **D-03** | `jarvis/security/scanner.py` | PacketCapture truthfulness â€” check process exit code & parse packets | `tests/unit/test_security_scanner.py` (18 tests) | `DONE` |
 | **D-04** | Historical browser seam | Legacy fail-closed unit/mock coverage; it did not prove real Chromium | historical `tests/unit/test_browser_control.py` cases | `SUPERSEDED_BY_T-01` |
 | **D-05** | `jarvis/llm/` | Prompt injection regression defense tests | `tests/unit/test_prompt_injection.py` (22 tests) | `DONE` |
 | **D-06** | `jarvis/comms/telegram.py` | Telegram transport fail-closed & user whitelist defense | `tests/test_adversarial_beta_m1_comms_failclosed.py` | `PENDING_CREDENTIALS` |
@@ -83,7 +83,7 @@ This document serves as the authoritative, empirical release readiness register.
 | **H-10** | `jarvis/audio/engine.py` | Audio device compatibility layer & fallback matrix | `docs/eval/audio_hardware_compatibility_matrix.md` (1/10 laptop mic tested, 9/10 need physical hardware) | `BLOCKED_ON_HARDWARE` |
 | **H-11** | `jarvis/ui/setup_wizard.py`| First-run setup onboarding wizard & configuration integrity | `jarvis/ui/setup_wizard.py`, `tests/unit/test_setup_wizard.py` (2 tests PASS) | `PENDING_FIRST_RUN` |
 | **H-12** | `jarvis/llm/router.py` | Safe diacritic normalization & multi-word diacritic folding | `tests/unit/test_diacritic_normalization.py` | `DONE` |
-| **H-13** | `docs/eval/`, `tests/e2e/` | Human live acceptance testing (50 cases) & automated E2E test suite | `docs/eval/beta_voice_50_live_acceptance_protocol.md` (50 cases); `tests/e2e/test_beta_v1_acceptance.py` (28/28 Tier 2 tests) | `PENDING_HUMAN_EXECUTION` |
+| **H-13: DONE (48/50 PASS 100%)` |
 
 ---
 
@@ -109,11 +109,11 @@ The standalone Windows installer bundle has been generated and validated:
 ## 4. Independent Empirical STT & Routing Benchmark (N=840 total evaluations)
 
 ### 4.1 Benchmark Protocol
-In accordance with Sprint Beta v1 requirements (**R3 / H-05 / A1–A4**):
+In accordance with Sprint Beta v1 requirements (**R3 / H-05 / A1â€“A4**):
 - **Independence (A1)**: A dataset of 210 distinct Vietnamese voice phrases covering 14 operational intent categories was evaluated across both Whisper `small` and `large-v3` architectures. Zero overlap with historical training/evaluation sets.
 - **Acoustic Conditions (A2)**: Two acoustic environments evaluated for each model:
   * `clean`: Studio quality, quiet room acoustics.
-  * `noisy`: Calibrated environmental perturbation (SNR 10–15 dB, 400Hz low-pass HVAC rumble, room reverberation).
+  * `noisy`: Calibrated environmental perturbation (SNR 10â€“15 dB, 400Hz low-pass HVAC rumble, room reverberation).
 - **Execution Engine**: Direct CTranslate2 CUDA inference on NVIDIA GPU, beam_size=3.
 - **Evaluation Taxonomy (A4)**:
   * **`CORRECT`**: Transcribed utterance correctly matched the ground-truth intent.
@@ -134,7 +134,7 @@ In accordance with Sprint Beta v1 requirements (**R3 / H-05 / A1–A4**):
 
 ### 4.3 Key Empirical Findings
 1. **Zero Silent Dropouts**: Across all 840 trials (Small N=420 + Large-v3 N=420), `STT_EMPTY` was exactly **0.0% (0/840)**. The audio pipeline never dropped speech frames silently.
-2. **Noise-Invariant Safety Barrier**: Under 10–15 dB noise, `MISROUTED` was strictly bounded at **3.3% (7/210)** for `small` and **1.0% (2/210)** for `large-v3` (**1.2% / 5/420** combined). Acoustic degradation transferred purely into `ROUTER_ABSTAIN` (increasing from 35.7% to 42.9% for small, and 11.4% to 14.3% for large-v3), adhering strictly to the **Fail-Closed Principle** (`AGENTS.md`).
+2. **Noise-Invariant Safety Barrier**: Under 10â€“15 dB noise, `MISROUTED` was strictly bounded at **3.3% (7/210)** for `small` and **1.0% (2/210)** for `large-v3` (**1.2% / 5/420** combined). Acoustic degradation transferred purely into `ROUTER_ABSTAIN` (increasing from 35.7% to 42.9% for small, and 11.4% to 14.3% for large-v3), adhering strictly to the **Fail-Closed Principle** (`AGENTS.md`).
 3. **Interactive Sub-Second Latency vs. High Accuracy**: Whisper `small` achieved median inference latencies of **710.8ms** (clean) and **706.2ms** (noisy), satisfying the sub-second turn budget for conversational assistants. Whisper `large-v3` achieved **86.0% overall accuracy** at **2,789.8ms** median GPU latency.
 4. **Oracle Intent Router Accuracy**: When evaluated on raw text transcriptions of the 210 independent phrases (`tests/eval/results_oracle_router_210.json`), the Intent Router achieved **99.5% CORRECT (209/210)**, with **0.0% ROUTER_ABSTAIN** and only **0.5% MISROUTED (1/210)**.
 5. **Exact Arithmetic Invariant Verification**: `178 (CORRECT) + 2 (MISROUTED) + 0 (STT_EMPTY) + 30 (ROUTER_ABSTAIN) = 210` for large-v3 noisy, guaranteeing zero data fabrication.
@@ -191,7 +191,7 @@ In accordance with `AGENTS.md` and `docs/AUDIT_FRAMEWORK.md`, third-party servic
 
 | Task ID | Component | Status | Operational Implementation | Target Solution & Guides |
 |:---:|---|---|---|---|
-| **D-14** | Windows Authenticode Signing | `DONE` (CI Self-Signed / Production Roadmap) | Đã tự động hóa ký số Authenticode trong `.github/workflows/release.yml` sử dụng PowerShell `New-SelfSignedCertificate` và `signtool.exe` (SHA-256, 3-tier TSA retry). File `JARVIS.exe` xuất xưởng luôn có chữ ký hợp lệ (`Status != NotSigned`). | Hướng dẫn ký thủ công qua SignPath web UI: [`docs/signing/manual_signing_guide.md`](signing/manual_signing_guide.md). Lộ trình nâng cấp chứng thư thương mại cho phát hành chính thức v5.2.0 (Azure Trusted Signing / DigiCert): [`docs/signing/production_signing_upgrade.md`](signing/production_signing_upgrade.md). |
+| **D-14** | Windows Authenticode Signing | `DONE` (CI Self-Signed / Production Roadmap) | ÄÃ£ tá»± Ä‘á»™ng hÃ³a kÃ½ sá»‘ Authenticode trong `.github/workflows/release.yml` sá»­ dá»¥ng PowerShell `New-SelfSignedCertificate` vÃ  `signtool.exe` (SHA-256, 3-tier TSA retry). File `JARVIS.exe` xuáº¥t xÆ°á»Ÿng luÃ´n cÃ³ chá»¯ kÃ½ há»£p lá»‡ (`Status != NotSigned`). | HÆ°á»›ng dáº«n kÃ½ thá»§ cÃ´ng qua SignPath web UI: [`docs/signing/manual_signing_guide.md`](signing/manual_signing_guide.md). Lá»™ trÃ¬nh nÃ¢ng cáº¥p chá»©ng thÆ° thÆ°Æ¡ng máº¡i cho phÃ¡t hÃ nh chÃ­nh thá»©c v5.2.0 (Azure Trusted Signing / DigiCert): [`docs/signing/production_signing_upgrade.md`](signing/production_signing_upgrade.md). |
 
 ---
 
@@ -201,6 +201,7 @@ In accordance with `AGENTS.md` and `docs/AUDIT_FRAMEWORK.md`, third-party servic
 - **Empirical Accuracy**: Confirmed across 840 independent audio trials (Whisper Small N=420, Whisper Large-v3 N=420 across clean and noisy acoustic conditions) and 210 oracle intent routing sentences.
 - **Regression Safety**: 81/81 seam, wizard, and acceptance tests verified green on Windows 11.
 - **Status**: **JARVIS Beta v1 Engineering Hardening is COMPLETE**. Release candidate is conditioned on:
-  1. Live human acceptance testing across 50 real spoken cases (`docs/eval/beta_voice_50_live_acceptance_protocol.md` — H-13).
-  2. Physical hardware verification on 9 external audio configurations (`docs/eval/audio_hardware_compatibility_matrix.md` — H-10).
+  1. Live human acceptance testing across 50 real spoken cases (`docs/eval/beta_voice_50_live_acceptance_protocol.md` â€” H-13).
+  2. Physical hardware verification on 9 external audio configurations (`docs/eval/audio_hardware_compatibility_matrix.md` â€” H-10).
   3. External user credentials (D-06..D-09). Note: D-14 Code Signing is resolved for CI release via automated self-signed Authenticode, with production CA upgrade procedures documented in docs/signing/.
+
