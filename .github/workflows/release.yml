@@ -88,41 +88,34 @@ jobs:
           path: "dist/JARVIS.exe"
           retention-days: 7
 
-  # ── Sign with SignPath (D-14) ───────────────────────────────────
+  # ── Code Signing — Option C: Unsigned pass-through (D-14 blocked on SignPath Foundation tier) ──
   sign:
-    name: 🔐 Code Signing (SignPath Foundation Connector)
+    name: 🔐 Code Signing (UNSIGNED — SignPath Foundation blocked)
     runs-on: ubuntu-latest
     needs: build
-    timeout-minutes: 15
+    timeout-minutes: 5
     permissions:
-      id-token: write   # Required: GitHub OIDC token for connector auth
       contents: write
 
     steps:
-      - name: Submit to SignPath via GitHub Actions Connector
-        id: signing
-        uses: signpath/github-action-submit-signing-request@v1.1
+      - name: Download unsigned artifact
+        uses: actions/download-artifact@v4
         with:
-          api-token:                    '${{ secrets.SIGNPATH_API_TOKEN }}'
-          organization-id:              '${{ secrets.SIGNPATH_ORG_ID }}'
-          project-slug:                 'Jarvis'
-          signing-policy-slug:          'Jarvis_Test_Signing'
-          artifact-configuration-slug:  'initial'
-          github-artifact-id:           '${{ needs.build.outputs.unsigned_artifact_id }}'
-          wait-for-completion:          true
-          output-artifact-directory:    'signed-output'
-          github-token:                 '${{ secrets.GITHUB_TOKEN }}'
+          name: jarvis-unsigned-exe
+          path: dist/
 
-      - name: Verify and show Authenticode info
+      - name: Pass-through (no signing — Foundation tier limitation)
         run: |
-          ls -la signed-output/
-          echo "Signed artifact size: $(du -sh signed-output/JARVIS.exe | cut -f1)"
+          ls -la dist/
+          echo "⚠️  SignPath Foundation does not support CI signing."
+          echo "     exe is UNSIGNED — SmartScreen warning expected on first run."
+          echo "     Size: $(du -sh dist/JARVIS.exe | cut -f1)"
 
-      - name: Upload SIGNED artifact
+      - name: Upload as signed artifact (unsigned pass-through)
         uses: actions/upload-artifact@v4
         with:
           name: jarvis-signed-exe
-          path: "signed-output/JARVIS.exe"
+          path: "dist/JARVIS.exe"
           retention-days: 90
 
   # ── Publish GitHub Release ─────────────────────────────────────
@@ -135,36 +128,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download SIGNED artifact
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: jarvis-signed-exe
           path: dist/
 
-      - name: Create release archive (signed)
+      - name: Create release archive
+        shell: pwsh
         run: |
           $ver = "${{ needs.build.outputs.version }}"
           $archiveName = "JARVIS_v${ver}_windows_x64.zip"
           Compress-Archive -Path "dist/JARVIS.exe" -DestinationPath $archiveName -Force
-          Write-Host "Signed archive: $archiveName"
+          $sz = [math]::Round((Get-Item $archiveName).Length / 1MB, 1)
+          Write-Host "Archive: $archiveName ($sz MB)"
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "JARVIS v${{ steps.version.outputs.version }}"
+          name: "JARVIS v${{ needs.build.outputs.version }}"
           body: |
-            ## JARVIS v${{ steps.version.outputs.version }}
+            ## JARVIS v${{ needs.build.outputs.version }}
+
+            > ⚠️ **Note**: This build is **unsigned** (no Authenticode signature). Windows SmartScreen may show a warning on first launch — click "More info → Run anyway". This is a known limitation of the current free tier signing plan. A properly signed release is planned for v5.2.0 final.
 
             ### 📥 Download & Install
 
             | File | Description |
             |------|-------------|
-            | `JARVIS_v${{ steps.version.outputs.version }}_windows_x64.zip` | Standalone .exe (extract & run) |
+            | `JARVIS_v${{ needs.build.outputs.version }}_windows_x64.zip` | Standalone .exe (extract & run, unsigned) |
 
             **Quick Start:**
             1. Download and extract the ZIP
             2. Double-click `JARVIS.exe` or run `JARVIS.exe --tray`
-            3. JARVIS appears in your system tray ⚡
+            3. If SmartScreen appears: click **More info → Run anyway**
+            4. JARVIS appears in your system tray ⚡
 
             **Full installation guide:** See [README.md](https://github.com/Duong-Phuoc-Hung/JARVIS#readme)
 
@@ -173,7 +171,6 @@ jobs:
 
             ---
             *Built automatically from tag `${{ github.ref_name }}` by GitHub Actions*
-            *Tests: release workflow test suite passed | Size: ${{ steps.build.outputs.exe_size }}*
           files: "*.zip"
           draft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
