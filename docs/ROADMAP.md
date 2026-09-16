@@ -15,7 +15,7 @@
 | D-11 | DONE | Dispatcher consistency tests (13 tests) |
 | D-12 | DONE | One-click Windows Installer `JARVIS_Setup_v5.1.0.exe` (71.4 MB, Inno Setup 6, SHA-256 `E6335E5BF7F704B0FA09E38937BA89CB668939FF9090746B45150ED722031650`) |
 | D-13 | DONE | Updater module với SHA256 + atomic replace + rollback (19 tests) |
-| D-14 | BLOCKED_ON_CERT | Authenticode signing pipeline documented; blocked on commercial EV/OV cert |
+| D-14 | BLOCKED_ON_DASHBOARD | SignPath Foundation connector pipeline setup: ✅ org/project/policy/secrets tất cả đúng; ❌ project repo URL sai (username/jarvis) + pipelinePolicies rỗng — cần fix 2 thứ trong dashboard |
 | D-15 | DONE | Support diagnostics + log redaction bundle zip |
 | D-16 | DONE | Secrets hardening — HASS_TOKEN & ELEVENLABS_API_KEY managed by Credential Manager |
 | D-17 | DONE | RC build v5.1.0 / v5.1.3 — version bumped, artifact SHA256 generated, CHANGELOG updated |
@@ -74,7 +74,7 @@
 
 ---
 
-## PHẦN 1 — VÁ LỖI (theo thứ tự ưu tiên thực thi)
+## PHẦN 1 — VÁ LỖI (Phần A — Part A: Current Fixes)
 
 ### 🔴 Ưu tiên tối cao — Không bị chặn, ảnh hưởng trực tiếp người dùng
 
@@ -111,7 +111,50 @@
 
 ---
 
-## PHẦN 2 — KIỂM TRA TÍNH NĂNG
+## BACKLOG ƯU TIÊN (Phần B — Part B: Prioritized Technical Backlog P0–P3)
+
+### P0 — Khẩn cấp (Blocking release)
+
+- **P0-01: D-14 SignPath pipeline policy** — Thêm GitHub Actions Trusted Build System vào Signing Policy; sửa project repo URL từ `username/jarvis` → `Duong-Phuoc-Hung/JARVIS`. Verify: `pipelinePolicies` không rỗng, workflow beta pass.
+- **P0-02: H-13 Live Voice 50 ca** — Người thật nói 50 câu trong `beta_voice_50_live_acceptance_protocol.md`, ghi Pass/Fail. Verify: 40+/50 ca pass.
+- **P0-03: D-06 Telegram token thật** — `@BotFather → /newbot → TELEGRAM_BOT_TOKEN`. Verify: integration test gửi tin nhắn thật.
+- **P0-04: D-07 Zalo OA credentials** — `developers.zalo.me` duyệt OA. Verify: gửi tin nhắn qua Zalo OA API.
+- **P0-05: D-08 Discord bot token** — `discord.com/developers → New App → Bot`. Verify: bot online, nhận lệnh.
+- **P0-06: D-09 Gmail App Password** — Google Account → Security → App Passwords → SMTP_PASSWORD. Verify: gửi email thật.
+
+### P1 — Cao (Next sprint priority)
+
+- **P1-01: H-10 BT HFP WASAPI mode** — Implement WASAPI exclusive capture bypass cho LY-Z5202 / AirPods HFP. Hiện: 3/10 TIER1_PASS. Verify: BT device có peak > 1000.
+- **P1-02: H-10 remaining 7 devices** — Test Realtek HD Audio, BT 8-channel. Verify: matrix R4 >=7/10.
+- **P1-03: D-14 signed exe verify** — Sau khi workflow pass, chạy `signtool verify /pa JARVIS.exe`. Verify: Authenticode valid.
+- **P1-04: Router LLM fallback live** — Test LLMIntentRouter với Gemini API key thật. Verify: N=10 câu intent routing qua LLM.
+- **P1-05: Release v5.2.0** — Tag, build, sign, publish GitHub Release. Verify: GitHub Release có signed JARVIS.exe.
+
+### P2 — Trung bình (Next 2-4 weeks)
+
+- **P2-01: P2-12 Memory Tier 1 stress** — 30-thread concurrent VectorStore với WAL safety. ĐÃ HOÀN THÀNH (57/57 tests). Files: `tests/unit/test_memory_*.py`.
+- **P2-02: P2-13 Screen Vision live** — Benchmark FPS với webcam thật. Verify: >=10 FPS.
+- **P2-03: P2-15 Browser Automation live** — Chrome CDP 9222 với URL thật. Verify: page load, screenshot.
+- **P2-04: P2-16 Comms Hub live tokens** — D-06..D-09 credentials. Verify: all 4 channels send/receive.
+- **P2-05: P2-17 Smart Home HA test** — Home Assistant Docker test instance. Verify: light.on action.
+- **P2-06: TieredSTT WER domain** — Đo WER theo domain (wake/cmd/free) N>=200. Verify: WER table in `docs/eval/`.
+- **P2-07: Proactive engine live** — Test với real calendar/weather API. Verify: 1 proactive notification.
+- **P2-08: Installer signed** — Ship signed `JARVIS_Setup_v5.2.0.exe`. Verify: SmartScreen no warning.
+
+### P3 — Thấp (Future)
+
+- **P3-01: ONNX local embedding** — Thay TF-IDF bằng ONNX semantic embedding. Verify: cosine similarity test.
+- **P3-02: On-demand model download** — Giảm installer size từ 71.4 MB. Verify: installer <30 MB.
+- **P3-03: B2 Gesture wiring** — Hardware sensor quyết định. Verify: gesture → action map.
+- **P3-04: B1 Home Assistant prod** — Kết nối HA server production (cần quyền). Verify: prod entity control.
+- **P3-05: Advanced Prompt Injection** — Browser automation adversarial eval N>=50. Verify: 0 successful injections.
+- **P3-06: WASAPI exclusive mode** — Implement direct WASAPI capture cho BT HFP. Verify: BT peak >1000.
+- **P3-07: Multi-language STT** — Thêm English/Korean profile. Verify: WER <20% English N=100.
+- **P3-08: Wake word custom model** — Train JARVIS-specific wake word thay energy-based VAD. Verify: FP/hr=0, sensitivity >=95%.
+
+---
+
+## PHẦN 2 — KIỂM TRA TÍNH NĂNG (Phần B — Part B: Feature Testing)
 
 | Module | Trục 1 hiện tại | Việc cần làm | Rủi ro nếu bỏ qua |
 |---|:---:|---|---|
@@ -126,7 +169,7 @@
 
 ---
 
-## PHẦN 3 — ĐỀ XUẤT NÂNG CẤP
+## PHẦN 3 — ĐỀ XUẤT NÂNG CẤP (Phần C — Part C: Upgrade Proposals)
 
 ### Ngắn hạn (Đã hoàn tất trong Beta v1)
 1. Rate-limiting cho 4 kênh comms (Telegram/Zalo/Discord/Mobile) — **ĐÃ HOÀN THÀNH** (22/22 tests passing).
@@ -165,6 +208,13 @@ BETA v1 ENGINEERING HARDENING STATUS (2026-09-13):
   [ ] 1.11 Idle Soak Test Microphone Stream (H-06: 15-60min) — PENDING_IDLE_SOAK
   [ ] 1.12 Third-Party Live Credentials (D-06..D-09) & EV/OV Cert (D-14) — PENDING_CREDENTIALS / BLOCKED_ON_CERT
 ```
+
+### Kế hoạch Sprint (Phần C — Part C: Phased Sprint Plan)
+
+- **Sprint 1** (1-2 tuần ngay): P0 Critical — D-14 signing fix, D-06-D-09 credentials, H-13 live voice 50 cases.
+- **Sprint 2** (2-4 tuần): P1 — H-10 BT WASAPI mode, release v5.2.0 signed, Router LLM live test.
+- **Sprint 3** (1-2 tháng): P2 — Browser live, Comms live tokens, Smart Home Docker test, TieredSTT WER domain.
+- **Sprint 4** (ongoing): P3 — ONNX embedding, on-demand download, gesture wiring, multi-language STT.
 
 ---
 

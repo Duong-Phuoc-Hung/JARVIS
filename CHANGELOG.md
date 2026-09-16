@@ -10,21 +10,33 @@
 - **Limits:** Linear interpolation adds no heavy dependency but is not a band-limited anti-alias resampler. No new WER or real-device claim is made. Streaming upsampling delays samples needing a future neighbor; legacy raw callers must supply their source rate when it differs from 16000.
 
 
-## [5.1.7] D-14 SignPath CI Integration COMPLETE, H-10 R3 Reconfirm (2026-09-16)
+## [5.1.7] D-14 SignPath CI Integration (BLOCKED — root cause identified), H-10 R3 (2026-09-16)
 
 > **Mục tiêu**: Hoàn thiện D-14 (code signing tự động qua SignPath Foundation); xác nhận lại H-10 R3.
 
-### D-14 — SignPath GitHub Actions Integration ✅
+### D-14 — SignPath GitHub Actions Integration 🔄 BLOCKED
+
+**Root cause**: SignPath Foundation không hỗ trợ direct REST API (`POST /signing-requests` → 404 với mọi token). Phải dùng connector `githubactions.connectors.signpath.io`. Connector yêu cầu:
+1. Project repository URL đúng (hiện là placeholder `username/jarvis` thay vì `Duong-Phuoc-Hung/JARVIS`)
+2. Signing Policy có pipeline policy (Trusted Build System = GitHub Actions) — hiện `pipelinePolicies: []`
 
 | Hạng mục | Trạng thái | Chi tiết |
 |---|---|---|
 | SignPath project | ✅ VALID | `slug: Jarvis` |
 | Artifact Configuration | ✅ VALID | `slug: initial`, PE signing JARVIS.exe |
 | Signing Policy | ✅ VALID | `slug: Jarvis_Test_Signing`, cert: Dev_Test_Signing_Cert |
-| CI User `GitHub Actions` | ✅ Submitter | `id: 4591cc67-...`, token set as `SIGNPATH_API_TOKEN` |
-| `SIGNPATH_ORG_ID` secret | ✅ Set | `14be0b5a-511d-4104-8b35-c23386fd2ba0` |
-| Release workflow | ✅ Fixed | Correct slugs: `Jarvis` / `Jarvis_Test_Signing` / `initial` |
-| Test tag | ⏳ Triggered | `v5.2.0-beta.1` |
+| CI User `GitHub Actions` submitter | ✅ | `id: 4591cc67-...` added as submitter |
+| `SIGNPATH_API_TOKEN` secret | ✅ | CI User token set |
+| `SIGNPATH_ORG_ID` secret | ✅ | `14be0b5a-511d-4104-8b35-c23386fd2ba0` |
+| Project repository URL | ❌ WRONG | `username/jarvis` → cần `Duong-Phuoc-Hung/JARVIS` |
+| Pipeline policy (Trusted Build System) | ❌ MISSING | `pipelinePolicies: []` |
+| Release workflow | ✅ | connector approach, correct slugs |
+
+**Betas tested**: `v5.2.0-beta.1` (connector, no pipeline policy) → fail; `v5.2.0-beta.2` (direct API) → 404; `v5.2.0-beta.3` (HttpClient) → 404 confirmed endpoint không tồn tại trên Foundation tier.
+
+**Cần làm trong SignPath dashboard**:
+1. Projects → Jarvis → Edit → Repository URL: `https://github.com/Duong-Phuoc-Hung/JARVIS`
+2. Signing Policies → Jarvis Test Signing → Edit → Trusted Build Systems → Add → GitHub Actions → Repo: `https://github.com/Duong-Phuoc-Hung/JARVIS`
 
 ### H-10 Round 3 — Bluetooth Re-scan (apps closed)
 
@@ -44,7 +56,7 @@
 
 | File | Thay đổi |
 |---|---|
-| `.github/workflows/release.yml` | 3-job pipeline: build → sign → release |
+| `.github/workflows/release.yml` | 3-job pipeline: build → sign (connector) → release |
 
 ---
 
