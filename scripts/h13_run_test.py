@@ -1,4 +1,4 @@
-﻿"""
+"""
 H-13 Voice Acceptance Test — Step 2: Playback through VB-Audio + auto Pass/Fail
 Usage: python scripts/h13_run_test.py
 Requires: VB-Audio Virtual Cable installed, JARVIS running
@@ -97,12 +97,12 @@ def play_wav_to_vbaudio(wav_path: Path, vb_device_name: str = "CABLE Input") -> 
         sd.wait()
         return True
     except ImportError:
-        # Fallback: Windows PowerShell media player
         try:
+            creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             subprocess.run(
                 ["powershell", "-Command",
                  f" = New-Object System.Media.SoundPlayer '{wav_path}'; .PlaySync()"],
-                timeout=10, capture_output=True
+                timeout=10, capture_output=True, creationflags=creationflags,
             )
             return True
         except Exception:
