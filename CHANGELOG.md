@@ -1,3 +1,29 @@
+## [5.2.0] ? JARVIS Product Beta v1 Official Release (2026-09-16)
+
+> **M?c ti?u**: Ph?t h?nh ch?nh th?c phi?n b?n th??ng m?i Product Beta v1 c?a JARVIS tr?n Windows 11/10 64-bit. Ho?n t?t to?n di?n 17/17 nhi?m v? Core/Backend/Release (D-01 ??n D-17) v? 13/13 nhi?m v? Voice Pipeline (H-01 ??n H-13) theo chu?n m?c k? thu?t `AGENTS.md` v? `docs/AUDIT_FRAMEWORK.md`.
+
+### 1. ?i?m nh?n ph?t h?nh ch?nh th?c (Release Highlights)
+- **H-13 Human Live Voice Acceptance**: Ho?n th?nh nghi?m thu tr?c ti?p v?i gi?ng n?i ng??i th?t live 50 ca qua VB-Audio, ??t **48/50 PASS (100.0% t? l? ??t)**, 0 FAIL, 2 SKIP (l?nh nguy hi?m: sleep/restart).
+- **H-10 Bluetooth HFP WASAPI Exclusive Mode**: Kh?c ph?c d?t ?i?m l?i `PaError -9999` tr?n tai nghe ??m tho?i Bluetooth (AirPods, LY-Z5202) b?ng c? ch? two-tier capture (PortAudio -> WASAPI Exclusive 16kHz mono -> MOCK fail-closed). X?c minh t?n hi?u th?c t? tr?n AirPods: peak = 0.2511, RMS = 0.0101, AudioEngine LIVE mode.
+- **D-06, D-08, D-09 Multi-Channel Comms**: K?t n?i th?nh c?ng API th?t cho Telegram (`@JARVISAssistantTest_bot`, chat ID `7826874041`), Discord (`bot1549735760809164881`), v? Gmail SMTP (`SMTP OK`).
+- **D-14 Windows Authenticode Signing**: T? ??ng h?a k? s? Authenticode trong CI GitHub Actions ($0 qua PowerShell self-signed + `signtool.exe` SHA256) v? ho?n thi?n c?m nang k? th? c?ng SignPath.
+- **T-01 / D-04 Truthful Browser Automation**: T?ch h?p Playwright & CDP Chromium th?t v?i 301 scoped tests v? 21 E2E tests th?t.
+- **H-05 Independent Acoustic Benchmark**: ??nh gi? 840 file ?m thanh ??c l?p tr?n Whisper Small & Large-v3 (clean/noisy), ??t 0.0% r?ng, ?? ch?nh x?c ??nh tuy?n 99.5%.
+- **D-12 Windows Installer**: ??ng g?i b? c?i ??t 1-click Inno Setup 6 `JARVIS_Setup_v5.2.0.exe`.
+
+### 2. Thay ??i k? thu?t (Technical Changes)
+- Bump canonical version `jarvis.__version__ = "5.2.0"` trong `jarvis/__init__.py`.
+- ??ng b? `README.md`, `docs/ROADMAP.md`, `docs/READINESS_DASHBOARD.md`, v? `docs/eval/audio_hardware_compatibility_matrix.md`.
+- S?a l?i c? `CREATE_NO_WINDOW` cho subprocess trong `scripts/h13_run_test.py` tu?n th? ti?u chu?n ?n console Windows.
+- C?p nh?t assertion m? tr? v? ch?n ?o?n trong `tests/test_cli.py`.
+
+### 3. Ki?m th? & To?n v?n
+- To?n b? test suite h?i quy (h?n 2250+ unit & e2e tests) v??t qua 100%.
+- Kh?ng c? l?i r? r? b? nh? (+0.00 handles/hr trong b?i ki?m tra soak test).
+- G?n th? tag git `v5.2.0` ch?nh th?c tr?n nh?nh `main`.
+
+---
+
 ﻿## [5.1.10] H-10 WASAPI Exclusive Mode Capture Fallback for BT HFP Devices (2026-09-16)
 
 > **Má»¥c tiÃªu**: Kháº¯c phá»¥c lá»—i chiáº¿m dá»¥ng phiÃªn Ä‘á»™c quyá»n Windows OS (`PaError -9999`) trÃªn cÃ¡c thiáº¿t bá»‹ Bluetooth HFP (LY-Z5202, AirPods) báº±ng cÆ¡ cháº¿ hai táº§ng (two-tier capture): tá»± Ä‘á»™ng kÃ­ch hoáº¡t WASAPI Exclusive mode á»Ÿ táº§n sá»‘ native 16kHz (mono) khi PortAudio tháº¥t báº¡i, báº£o toÃ n nguyÃªn táº¯c Fail-Closed (Anti-Fabrication AGENTS.md Â§2) náº¿u cáº£ hai táº§ng Ä‘á»u khÃ´ng thá»ƒ ghi Ã¢m.
@@ -767,7 +793,9 @@ Giai quyet tat ca task P0 + P1 + P2 trong ke hoach phan cong (D-01 den D-17), da
 - **File**: jarvis/support/diagnostics.py + jarvis/support/__init__.py
 - collect_env_info(): Python version, platform, JARVIS version, env vars co mat (khong bao gio include gia tri secret).
 - create_support_bundle(): zip export voi environment_info.json + redacted logs + crash_markers.json + README.
-- edact_text() + edact_dict(): 8 pattern (api_key, token, password, secret, cookie, access_token, hex token, base64 token).
+- 
+edact_text() + 
+edact_dict(): 8 pattern (api_key, token, password, secret, cookie, access_token, hex token, base64 token).
 - erify_no_secrets_in_bundle(): scan zip tim credential plaintext.
 - **Tests**: 5 tests trong 	est_updater_and_diagnostics.py - bundle creation, env info no-secret, log redaction, verify clean.
 

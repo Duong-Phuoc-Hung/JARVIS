@@ -9,7 +9,7 @@ from __future__ import annotations
 # scripts/health_check_report.py also locate it by scanning this file's raw
 # source text for a "__version__ = ..." line, so keep this a plain top-level
 # string-literal assignment — do not move it behind an import or compute it.
-__version__ = "5.1.3"
+__version__ = "5.2.0"
 __author__ = "Duong Phuoc Hung"
 
 from jarvis.core.config import ConfigManager, get_config

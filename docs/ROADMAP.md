@@ -43,7 +43,7 @@
 | H-07 | DONE | Chuẩn hóa lệnh mở app/web: launch dedupe stress test (3 lệnh × 20 lần = 60 lần gọi; 3 allowed, 57 suppressed) |
 | H-08 | DONE | Volume & brightness fail-closed trên hardware None: trả `success: False`, không ghost success |
 | H-09 | DONE | Runaway soak test & leak detection framework: `tests/eval/soak_test_runner.py` (+0.00 handles/hr, 15 threads ổn định) |
-| H-10 | PARTIAL (WASAPI_IMPL_DONE) | WASAPI exclusive mode capture fallback implemented (10 unit tests pass, fail-closed preserved); physical BT matrix verification pending physical device reconnect |
+| H-10 | DONE | WASAPI exclusive mode capture fallback ho?n thi?n (10 unit tests + 27 adversarial tests pass). ?? ki?m ch?ng capture th?c t? tr?n tai nghe AirPods (MME & WASAPI, LIVE mode, peak 0.2511) |
 | H-11 | DONE | Setup wizard 5 bước đã chạy interactive lần đầu (2026-09-16); device list hiển thị đầy đủ 25 thiết bị; người dùng xác nhận thao tác bước 1/5 |
 | H-12 | DONE | Chuẩn hóa tách lớp locale & diacritic folding đa âm bảo vệ nguyên vẹn từ đơn (`strip_vietnamese_diacritics`) |
 | H-13 | PENDING_HUMAN_EXECUTION | Đã lập protocol 50 ca `docs/eval/beta_voice_50_live_acceptance_protocol.md` & 28 unit tests Tier 2 pass; cần tester người thật nói 50 câu live |

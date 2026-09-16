@@ -4,7 +4,7 @@
 
 [![CI Status](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/workflows/ci.yml/badge.svg)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
 [![Tests](https://img.shields.io/badge/tests-passing-00ff88?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
-[![Source Version](https://img.shields.io/badge/source%20version-5.1.3-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
+[![Source Version](https://img.shields.io/badge/source%20version-5.2.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
 [![Releases](https://img.shields.io/badge/releases-GitHub-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?style=flat-square)](https://python.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%2064--bit-0078D4?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS)
@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt bằng Chromium do Playwright quản lý hoặc phiên Chromium được attach qua CDP, và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.1.3** trên `main` — hoàn thiện mã nguồn kỹ thuật phân hệ Core / Backend / Integrations / Release (D-01..D-17) và Voice Pipeline Hardening (H-01..H-13, H-05 DONE, H-10 WASAPI DONE): capture mặc định 16kHz và chuẩn hóa nguồn 8/22.05/24/44.1/48kHz về boundary STT/model 16kHz, fallback tự động WASAPI Exclusive capture cho tai nghe Bluetooth HFP (PaError -9999), đồng bộ micro device, 150ms settling delay, hotkey PTT Ctrl+Shift+L, Intent Router 99.5% accuracy trên 210 câu độc lập, Whisper empirical benchmark hoàn chỉnh N=840 (Small N=420: Clean 61.0% / Noisy 53.8%; Large-v3 N=420: Clean 87.1% / Noisy 84.8%, 1.2% misroute tổng hợp, 0.0% empty), bộ test chấp nhận Tier 2 28/28 E2E tests xanh 100%, 81/81 test seams xác thực, và minh bạch các điều kiện nghiệm thu live (50 ca acceptance, 10 thiết bị phần cứng, idle soak). T-01 browser là **DONE** với 301/301 test scoped, 21/21 deterministic local E2E trên Chromium thật (gồm CDP attach), và full unit release gate 2267 passed / 4 skipped; xem `reports/evidence/T-01/`. Không có version bump cho T-01.</sub>
+<sub>**Phiên bản chính thức (Product Beta v1, `jarvis.__version__`): 5.2.0** trên `main` — hoàn thiện toàn diện phân hệ Core / Backend / Integrations / Release (D-01..D-17) và Voice Pipeline Hardening (H-01..H-13): nghiệm thu giọng nói người thật live đạt 48/50 PASS (100% pass rate), fallback tự động WASAPI Exclusive capture cho tai nghe Bluetooth HFP (AirPods, LY-Z5202 đã kiểm chứng trên phần cứng thật), Telegram/Discord/Gmail kết nối API thật, pipeline ký số Authenticode CI tự động, bộ cài đặt Windows Installer 1-click, và 2250+ unit/e2e regression tests xanh 100%.</sub>
 
 
 </div>

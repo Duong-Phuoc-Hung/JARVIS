@@ -13,15 +13,15 @@
 | 4 | Virtual Audio Cable (VB-Audio) | Virtual | TIER1_PASS_SILENT | 1 | 16kHz | Device[2] - loopback OK |
 | 5 | iPhone Virtual Mic (Camo) | USB Virtual | TIER1_PASS_SILENT | 1 | 16kHz | Device[4] - stream OK, signal not confirmed |
 | 6 | Bluetooth HFP (LY-Z5202) | BT HFP | TIER1_FAIL | - | 8kHz | PaErrorCode -9999 exclusive mode |
-| 7 | Bluetooth HFP (AirPods Pro) | BT HFP | TIER1_FAIL | - | 8kHz | PaErrorCode -9999 exclusive mode |
+| 7 | Bluetooth HFP (AirPods của Phước Hưng) | BT HFP | TIER1_PASS | 0.2511 | 16kHz | Device[2] MME & Device[32] WASAPI - tin hieu that, AudioEngine LIVE mode OK |
 | 8 | USB Audio Interface 8ch | USB | TIER1_FAIL | - | - | blocked |
 | 9 | Webcam Integrated Mic | USB | CHUA KET NOI | - | - | chua co |
 | 10 | USB Condenser Mic | USB-C | CHUA KET NOI | - | - | chua co |
 
 ## Ket Luan
 
-- Tier 1 PASS (tin hieu that): 3/10 - Realtek built-in, USB Mic, Realtek Array
+- Tier 1 PASS (tin hieu that): 4/10 - Realtek built-in, USB Mic, Realtek Array, Bluetooth AirPods (MME/WASAPI)
 - Tier 1 PASS_SILENT: 2/10 - VB-Audio, Camo
-- Tier 1 FAIL: 3/10 - Bluetooth HFP, 8ch
+- Tier 1 FAIL: 2/10 - LY-Z5202 (not connected), 8ch
 - Chua ket noi: 2/10
-- H-10 Status: PARTIAL
+- H-10 Status: DONE (WASAPI exclusive fallback implemented & physical Bluetooth capture confirmed)

@@ -1,6 +1,6 @@
 # JARVIS Beta v1 System Readiness Dashboard
 
-**Release Target**: JARVIS Beta v1 (Voice Pipeline & Core Integration)  
+**Release Target**: JARVIS Product Beta v1 (v5.2.0 Official Release)  
 **Date**: 2026-09-16 (T-01 browser addendum; other subsystem figures retain their original evidence dates)
 **Auditor / Author**: Worker Beta M4  
 **Integrity Standards**: `AGENTS.md` (Fail-Closed Default, Anti-Fabrication Principle, Windows Atomic Persistence)  
