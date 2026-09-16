@@ -1173,7 +1173,27 @@ class LLMIntentRouter:
             "giảm âm lượng": IntentResult(action_name="system_volume", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm âm lượng cho Ngài."),
             "tang am luong": IntentResult(action_name="system_volume", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng âm lượng cho Ngài."),
             "giam am luong": IntentResult(action_name="system_volume", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm âm lượng cho Ngài."),
-            "dieu chinh am luong": IntentResult(action_name="system_volume", parameters={"delta": 0}, source="rule_fallback", response_text="Đang điều chỉnh âm lượng cho Ngài."),
+            # H-08 final contract correction: a bare "adjust the volume"
+            # request with no direction/level is genuinely ambiguous, but
+            # remains categorized under the established system_volume P0
+            # routing contract (tests/unit/test_router_p0.py,
+            # tests/eval/routing_eval_n150.py) rather than unknown_intent --
+            # it must NOT silently execute a fake volume change
+            # ({"delta": 0} previously implied a real action happened when
+            # none did), but it also must not be reclassified out of
+            # system_volume. The explicit {"clarify": True} parameter tells
+            # _handle_system_volume() to ask a clarification question with
+            # ZERO hardware side effects, before ever touching
+            # computer_controller -- see its clarify branch.
+            "dieu chinh am luong": IntentResult(
+                action_name="system_volume",
+                parameters={"clarify": True},
+                source="rule_fallback",
+                response_text=(
+                    "Ngài muốn tăng âm lượng, giảm âm lượng, tắt tiếng, bật tiếng, "
+                    "hay đặt một mức âm lượng cụ thể? Xin nói rõ hơn, thưa Ngài."
+                ),
+            ),
             "volume up": IntentResult(action_name="system_volume", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng âm lượng cho Ngài."),
             "volume down": IntentResult(action_name="system_volume", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm âm lượng cho Ngài."),
             "giảm âm": IntentResult(action_name="system_volume", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm âm lượng cho Ngài."),
@@ -1540,12 +1560,12 @@ class LLMIntentRouter:
             (
                 re.compile(
                     r"(?:cho\s+)?(?:loa|âm\s*thanh|âm\s*lượng|tiếng)\s+(?:to\s*lên|nhỏ\s*lại|bé\s*lại|phát\s*to|hết\s*cỡ|vừa\s*đủ\s*nghe|hạ\s*xuống)|"
-                    r"(?:vặn|chỉnh|hạ|tăng\s*(?:thêm)?|giảm\s*(?:bớt)?|bật\s*(?:lại)?|tắt)\s+(?:bớt\s+)?(?:loa|âm\s*thanh|âm\s*lượng|tiếng)(?:\s+(?:lên|xuống|về|mức|lại))?(?:\s+(?:\d+|năm\s*mươi|ba\s*mươi|thấp\s*nhất|cao\s*nhất))?|"
+                    r"(?:vặn|chỉnh|hạ|tăng\s*(?:thêm)?|giảm\s*(?:bớt)?|bật\s*(?:lại)?|tắt)\s+(?:bớt\s+)?(?:loa|âm\s*thanh|âm\s*lượng|tiếng)(?:\s+(?:lên\s*mức|xuống\s*mức|về\s*mức|lên|xuống|về|mức|lại))?(?:\s+(?:\d+|năm\s*mươi|ba\s*mươi|thấp\s*nhất|cao\s*nhất))?|"
                     r"(?:tắt\s*hẳn|tắt\s*hết|tắt)\s+(?:âm\s*thanh|tiếng|loa)(?:\s+ngoài)?|"
                     r"(?:vặn\s*nhỏ|bật\s*lại\s*tiếng|tăng\s*thêm\s*âm\s*lượng)",
                     re.IGNORECASE,
                 ),
-                lambda m: IntentResult(action_name="system_volume", parameters={"action": "adjust"}, source="rule_fallback", response_text="Đang điều chỉnh âm lượng cho Ngài."),
+                lambda m: self._make_system_volume_intent(m.group(0)),
             ),
             # Stop / Cancel expanded
             (
@@ -1950,12 +1970,14 @@ class LLMIntentRouter:
             ),
             (
                 re.compile(r"^(?:jarvis[,\s]*)?(?:tắt\s*tiếng|tat\s*tieng|mute|bật\s*tiếng|bat\s*tieng|unmute|điều\s*chỉnh\s*âm\s*lượng|dieu\s*chinh\s*am\s*luong|giảm\s*âm|giam\s*am)$", re.IGNORECASE),
-                lambda m: IntentResult(
-                    action_name="system_volume",
-                    parameters={"mute": True} if any(w in m.group(0).lower() for w in ("tắt", "tat", "mute")) else ({"delta": -10} if any(w in m.group(0).lower() for w in ("giảm", "giam")) else {"delta": 0}),
-                    source="rule_fallback",
-                    response_text="Đã điều chỉnh âm lượng cho Ngài.",
-                ),
+                # H-08 fix: previously used `"mute" in m.group(0).lower()`,
+                # a raw substring check that misclassified "unmute" as a
+                # MUTE request (the literal substring "mute" occurs inside
+                # "unmute") and never produced {"mute": False} for any
+                # alternative at all. _make_system_volume_intent() uses
+                # exact whole-token matching instead, so "unmute"/"bật
+                # tiếng"/"bat tieng" correctly resolve to {"mute": False}.
+                lambda m: self._make_system_volume_intent(m.group(0)),
             ),
             (
                 re.compile(r"^(?:jarvis[,\s]*)?(?:tăng|tang)\s*(?:độ\s*sáng|do\s*sang)(?:\s+(?:lên)?\s*(\d+))?|^(?:brightness\s*up)$", re.IGNORECASE),
@@ -2362,6 +2384,107 @@ class LLMIntentRouter:
             parameters=params,
             source="rule_fallback",
             response_text=f"Đang mở {clean_site} cho Ngài.",
+        )
+
+    _VOLUME_INCREASE_TOKENS = frozenset({"len", "to", "het", "tang"})
+    _VOLUME_DECREASE_TOKENS = frozenset({"xuong", "nho", "be", "giam", "ha"})
+    _VOLUME_MUTE_TOKENS = frozenset({"tat", "mute"})
+    _VOLUME_UNMUTE_TOKENS = frozenset({"bat", "unmute"})
+    _VOLUME_LEVEL_TOKEN = "muc"
+
+    def _make_system_volume_intent(self, matched_text: str) -> IntentResult:
+        """
+        H-08 fix: deterministically classifies a matched speaker
+        volume-control phrase into an exact level / mute / unmute /
+        increase / decrease / ambiguous-no-op, instead of collapsing
+        everything into a meaningless {"action": "adjust"} that
+        _handle_system_volume() cannot act on at all (the confirmed bug:
+        "tắt tiếng"/"bật tiếng" previously reached that generic branch and
+        silently became a +10 volume INCREASE instead of a mute/unmute).
+
+        Matches on whole, diacritic-folded, whitespace-tokenized words --
+        never a raw substring check -- so "unmute" (tokenizes to the
+        single whole token "unmute") is never misclassified as "mute" (a
+        bare `"mute" in text` substring check would otherwise incorrectly
+        match inside "unmute").
+
+        Priority, and why (H-08 review correction): an explicit "mức <N>"
+        (exact level) is checked first -- an unambiguous absolute request.
+        MUTE ("tắt"/"mute") is checked BEFORE increase/decrease so that
+        "tắt hết âm thanh"/"tắt hẳn tiếng" can never be misread as an
+        INCREASE merely because "hết" also happens to double as the
+        increase-direction token used by "hết cỡ" (= max out volume) --
+        "tắt" unconditionally means mute regardless of what follows it.
+        Increase/decrease are checked before UNMUTE ("bật"/"unmute") so
+        that "bật âm lượng lên" (turn the volume UP) still correctly
+        reads as an increase, not an unmute -- "bật" alone (no direction
+        word) is the only case that resolves to unmute.
+        An explicit trailing number (e.g. "lên 20", "xuống 20") is used
+        as the exact delta magnitude instead of the generic +/-10 default.
+        """
+        number_match = re.search(r"\d+", matched_text)
+        explicit_amount = int(number_match.group(0)) if number_match else None
+        tokens = set(strip_vietnamese_diacritics(matched_text.lower()).split())
+
+        if self._VOLUME_LEVEL_TOKEN in tokens and explicit_amount is not None:
+            level = max(0, min(100, explicit_amount))
+            return IntentResult(
+                action_name="system_volume",
+                parameters={"level": level},
+                source="rule_fallback",
+                response_text=f"Đang đặt âm lượng ở mức {level}%, cho Ngài.",
+            )
+        if tokens & self._VOLUME_MUTE_TOKENS:
+            return IntentResult(
+                action_name="system_volume",
+                parameters={"mute": True},
+                source="rule_fallback",
+                response_text="Đã tắt tiếng máy tính, thưa Ngài.",
+            )
+        if tokens & self._VOLUME_INCREASE_TOKENS:
+            amount = explicit_amount if explicit_amount is not None else 10
+            return IntentResult(
+                action_name="system_volume",
+                parameters={"delta": amount},
+                source="rule_fallback",
+                response_text="Đang tăng âm lượng cho Ngài.",
+            )
+        if tokens & self._VOLUME_DECREASE_TOKENS:
+            amount = explicit_amount if explicit_amount is not None else 10
+            return IntentResult(
+                action_name="system_volume",
+                parameters={"delta": -amount},
+                source="rule_fallback",
+                response_text="Đang giảm âm lượng cho Ngài.",
+            )
+        if tokens & self._VOLUME_UNMUTE_TOKENS:
+            return IntentResult(
+                action_name="system_volume",
+                parameters={"mute": False},
+                source="rule_fallback",
+                response_text="Đã bật tiếng máy tính, thưa Ngài.",
+            )
+        # Genuinely ambiguous phrasing (e.g. bare "vặn loa" / "điều chỉnh
+        # âm lượng" with no direction word, level, or mute/unmute verb).
+        # H-08 final contract correction: this used to execute system_volume
+        # {"delta": 0} and claim success ("Đang điều chỉnh âm lượng cho
+        # Ngài." implied a real action happened when none did). It stays
+        # categorized under system_volume (the established P0 routing
+        # contract, tests/unit/test_router_p0.py /
+        # tests/eval/routing_eval_n150.py) rather than being reclassified
+        # to unknown_intent -- the explicit {"clarify": True} parameter
+        # tells _handle_system_volume() to ask a clarification question
+        # with ZERO hardware side effects, never touching
+        # computer_controller. Mirrors the "dieu chinh am luong" dict
+        # entry's identical fix above.
+        return IntentResult(
+            action_name="system_volume",
+            parameters={"clarify": True},
+            source="rule_fallback",
+            response_text=(
+                "Ngài muốn tăng âm lượng, giảm âm lượng, tắt tiếng, bật tiếng, "
+                "hay đặt một mức âm lượng cụ thể? Xin nói rõ hơn, thưa Ngài."
+            ),
         )
 
     def _make_folder_intent(self, folder: str) -> IntentResult:

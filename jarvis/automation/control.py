@@ -402,43 +402,95 @@ class ComputerController:
             return None
 
     def change_volume(self, delta_percent: int) -> int | None:
-        """Adjusts master volume by delta (+10%, -10%)."""
+        """
+        Adjusts master volume by delta (+10%, -10%) via the authoritative
+        pycaw backend only.
+
+        H-08 review fix: this previously ALSO sent volume_up/volume_down
+        hotkeys after a successful set_volume() -- on a real Windows
+        machine that double-applies the requested delta (pycaw sets the
+        exact level, then the hotkeys shift it again). Worse, the hotkeys
+        fired unconditionally even when set_volume() failed and returned
+        None, so real hardware volume could still change while JARVIS
+        truthfully reported failure. pycaw is now the sole backend and
+        the sole side effect: no hotkey fallback ever fires, and a failed
+        set_volume() call has zero secondary effect.
+
+        H-08 final correction: delta=0 is now a REAL no-op -- it returns
+        the current volume via a pure read (get_volume(), which only ever
+        calls the read-only GetMasterVolumeLevelScalar()) and never calls
+        set_volume()/SetMasterVolumeLevelScalar() at all, not even as a
+        harmless-seeming write-back of the unchanged value. "No change
+        requested" must mean zero backend writes, not a same-value write.
+        """
         delta = int(delta_percent)
+        if delta == 0:
+            return self.get_volume()
         new_level = max(0, min(100, self.get_volume() + delta))
-        res = self.set_volume(new_level)
+        return self.set_volume(new_level)
 
-        # Dispatch keystrokes for hardware feedback
-        steps = max(1, abs(delta) // 2)
-        key = "volume_up" if delta > 0 else "volume_down"
-        for _ in range(steps):
-            self.win32.send_hotkey(key)
+    def mute_volume(self, mute: bool | None = None) -> bool | None:
+        """
+        Sets (mute=True/False) or toggles (mute=None) the REAL master
+        audio endpoint mute state via pycaw.
 
-        return res
+        H-08 fix: this previously wrote self._is_muted BEFORE ever
+        attempting the real backend call, then -- on any pycaw failure --
+        silently fell back to blindly sending a "volume_mute" TOGGLE
+        hotkey while still returning the pre-computed cached value as if
+        it were a confirmed result. That hotkey cannot verify it achieved
+        the requested desired state (a toggle can just as easily undo a
+        real prior mute as apply one), so the old code could report
+        success for the opposite of what actually happened, and could
+        never fail closed at all -- every call "succeeded".
 
-    def mute_volume(self, mute: bool | None = None) -> bool:
-        """Toggles or sets master audio mute state."""
-        if mute is None:
-            self._is_muted = not self._is_muted
-        else:
-            self._is_muted = bool(mute)
+        Returns the confirmed new state on success, or None if the
+        backend endpoint could not be reached/controlled -- callers MUST
+        treat None as failure and must NEVER report success or silently
+        keep serving the last cached self._is_muted value in that case.
+        self._is_muted is written ONLY after a real, unraised SetMute()
+        call -- never before, never on failure -- mirroring
+        set_volume()'s existing fail-closed contract for this same class.
+        A toggle (mute=None) reads the REAL current hardware mute state
+        via GetMute() first, rather than trusting a possibly-stale cached
+        self._is_muted (which could have drifted if the mute state
+        changed through another path, e.g. a physical hardware mute key).
 
+        H-08 review fix: after SetMute(), the resulting REAL endpoint
+        state is read back via GetMute() and compared against the
+        requested value before self._is_muted is updated or success is
+        reported. A confirmed SetMute() call is not, by itself, proof the
+        endpoint actually ended up in the requested state -- if the
+        read-back disagrees, this fails closed (returns None) and leaves
+        the cached state untouched, exactly like a raised exception would.
+        """
         try:
-            from comtypes import CLSCTX_ALL  # type: ignore
             from pycaw.pycaw import AudioUtilities  # type: ignore
             speakers = AudioUtilities.GetSpeakers()
-            if speakers:
-                endpoint = speakers.Activate(
-                    AudioUtilities.IAudioEndpointVolume._iid_,
-                    CLSCTX_ALL,
-                    None,
-                )
-                endpoint.SetMute(int(self._is_muted), None)
-                return self._is_muted
-        except Exception:
-            pass
+            # _get_audio_endpoint() lazily imports comtypes itself, only on
+            # the code path that actually needs a fresh .Activate() call --
+            # the mocked/real EndpointVolume-attribute path used by tests
+            # and some pycaw versions never needs comtypes at all.
+            endpoint = self._get_audio_endpoint(speakers)
+            if endpoint is None:
+                logger.warning("No audio speaker endpoint found on this host")
+                return None
 
-        self.win32.send_hotkey("volume_mute")
-        return self._is_muted
+            new_value = (not bool(endpoint.GetMute())) if mute is None else bool(mute)
+            endpoint.SetMute(int(new_value), None)
+            confirmed = bool(endpoint.GetMute())
+            if confirmed != new_value:
+                logger.warning(
+                    "Speaker mute set to %s but backend read-back reports %s; "
+                    "treating as a failed request rather than claiming success.",
+                    new_value, confirmed,
+                )
+                return None
+            self._is_muted = confirmed
+            return confirmed
+        except Exception as exc:
+            logger.warning("Failed to set speaker mute via pycaw: %s", exc)
+            return None
 
     def is_muted(self) -> bool:
         """Returns True if audio is currently muted."""

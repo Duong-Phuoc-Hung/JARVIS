@@ -162,18 +162,26 @@ def test_h04_hotkey_registration_has_valid_target():
 
 
 def test_h08_volume_fail_closed_on_none(mock_app):
-    """H-08: Volume control reports fail-closed when hardware returns None."""
+    """
+    H-08: Volume control reports fail-closed when hardware returns None.
+    H-08 review correction: "error" must hold the clear Vietnamese
+    human-readable message (what process_text_command() actually speaks
+    to the user), and "error_code" the short machine constant -- not the
+    reverse, which would surface the raw code as the spoken response.
+    """
     mock_app.computer_controller.set_volume.return_value = None
     res = mock_app._handle_system_volume(level=80)
     assert res["status"] == "failed"
     assert res["success"] is False
-    assert res["error"] == "VOLUME_SET_FAILED"
+    assert res["error_code"] == "VOLUME_SET_FAILED"
+    assert "Không thể" in res["error"]
 
     mock_app.computer_controller.change_volume.return_value = None
     res2 = mock_app._handle_system_volume(delta=10)
     assert res2["status"] == "failed"
     assert res2["success"] is False
-    assert res2["error"] == "VOLUME_CHANGE_FAILED"
+    assert res2["error_code"] == "VOLUME_CHANGE_FAILED"
+    assert "Không thể" in res2["error"]
 
 
 def test_h08_brightness_fail_closed_on_none(mock_app):

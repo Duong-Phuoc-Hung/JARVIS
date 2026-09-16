@@ -121,6 +121,12 @@ class TestHardwareFailClosed:
     """Verify hardware fail-closed: _handle_system_volume and _handle_system_brightness."""
 
     def test_volume_set_controller_returns_none(self):
+        """
+        H-08 review correction: "error" holds the clear Vietnamese
+        human-readable message (what reaches the user via
+        process_text_command()'s failure-text precedence), "error_code"
+        holds the short machine constant -- not the reverse.
+        """
         app = JarvisApp.__new__(JarvisApp)
         app.computer_controller = MagicMock()
         app.computer_controller.set_volume.return_value = None
@@ -128,7 +134,8 @@ class TestHardwareFailClosed:
         res = app._handle_system_volume(level=80)
         assert res["status"] == "failed"
         assert res["success"] is False
-        assert res["error"] == "VOLUME_SET_FAILED"
+        assert res["error_code"] == "VOLUME_SET_FAILED"
+        assert "Không thể" in res["error"]
 
     def test_volume_change_controller_returns_none(self):
         app = JarvisApp.__new__(JarvisApp)
@@ -138,7 +145,8 @@ class TestHardwareFailClosed:
         res = app._handle_system_volume(delta=10)
         assert res["status"] == "failed"
         assert res["success"] is False
-        assert res["error"] == "VOLUME_CHANGE_FAILED"
+        assert res["error_code"] == "VOLUME_CHANGE_FAILED"
+        assert "Không thể" in res["error"]
 
     def test_brightness_set_controller_returns_none(self):
         app = JarvisApp.__new__(JarvisApp)

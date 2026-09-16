@@ -222,20 +222,27 @@ class TestBetaV1Tier1FeatureCoverage:
         )
 
     def test_tier1_system_volume_fail_closed_on_none_controller(self, acceptance_app):
-        """F-05: Master volume control reports fail-closed when hardware returns None."""
+        """
+        F-05: Master volume control reports fail-closed when hardware
+        returns None. H-08 review correction: "error" holds the clear
+        Vietnamese human-readable message actually spoken to the user,
+        "error_code" holds the short machine constant -- not the reverse.
+        """
         acceptance_app.computer_controller.set_volume.return_value = None
         res_set = acceptance_app._handle_system_volume(level=70)
         assert res_set["status"] == "failed"
         assert res_set["success"] is False
         assert res_set["volume"] is None
-        assert res_set["error"] == "VOLUME_SET_FAILED"
+        assert res_set["error_code"] == "VOLUME_SET_FAILED"
+        assert "Không thể" in res_set["error"]
 
         acceptance_app.computer_controller.change_volume.return_value = None
         res_change = acceptance_app._handle_system_volume(delta=15)
         assert res_change["status"] == "failed"
         assert res_change["success"] is False
         assert res_change["volume"] is None
-        assert res_change["error"] == "VOLUME_CHANGE_FAILED"
+        assert res_change["error_code"] == "VOLUME_CHANGE_FAILED"
+        assert "Không thể" in res_change["error"]
 
     def test_tier1_system_brightness_fail_closed_on_none_controller(self, acceptance_app):
         """F-05: Display brightness control reports fail-closed when hardware returns None."""
@@ -535,8 +542,8 @@ class TestBetaV1Tier3Interactions:
         result = acceptance_app._handle_system_volume(level=85)
         assert result["status"] == "failed"
         assert result["success"] is False
-        assert result["error"] == "VOLUME_SET_FAILED"
-        assert "Không thể đặt âm lượng" in result["message"]
+        assert result["error_code"] == "VOLUME_SET_FAILED"
+        assert "Không thể đặt âm lượng" in result["error"]
 
     def test_tier3_interaction_multi_channel_comms_fail_closed_audit(self):
         """Interaction: Cross-channel audit verifies all 4 adapters report NOT_CONFIGURED simultaneously."""
@@ -672,8 +679,8 @@ class TestBetaV1Tier4Workflows:
         # Assert honest failure reporting
         assert res["status"] == "failed"
         assert res["success"] is False
-        assert res["error"] == "VOLUME_CHANGE_FAILED"
-        assert "Không thể điều chỉnh âm lượng" in res["message"]
+        assert res["error_code"] == "VOLUME_CHANGE_FAILED"
+        assert "Không thể điều chỉnh âm lượng" in res["error"]
 
     def test_tier4_workflow_comms_security_alert_unconfigured_protection(self):
         """Workflow: Security intruder alert distribution handles unconfigured channels safely."""
