@@ -156,6 +156,10 @@ class TestAvailability:
 
         with (
             patch(
+                "importlib.util.find_spec",
+                return_value=MagicMock(),
+            ),
+            patch(
                 "jarvis.browser.cdp_controller.CDPBrowserDriver.launch",
                 return_value=True,
             ) as launch,

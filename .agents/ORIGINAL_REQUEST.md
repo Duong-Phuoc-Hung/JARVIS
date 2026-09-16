@@ -627,4 +627,121 @@ Update `.github/workflows/release.yml` sign job to use the R1 solution instead o
 - [ ] Release body text accurately states the signing type (self-signed vs trusted)
 - [ ] All existing GitHub Actions tests in JARVIS CI still pass (`pytest tests/unit/ -q` exits 0)
 
+## 2026-09-16T12:02:27Z
 
+Implement WASAPI exclusive mode capture fallback in the JARVIS audio engine so that Bluetooth HFP devices (LY-Z5202, AirPods) that currently fail with PaError -9999 can be captured successfully.
+
+Working directory: `d:\Software GitCode\JARVIS`
+Integrity mode: development
+
+## Context
+
+JARVIS is a Windows AI assistant that uses `sounddevice` (PortAudio backend) for microphone capture in `jarvis/audio/engine.py`. Bluetooth HFP devices fail with `PaError -9999` (paDeviceUnavailable) because Windows holds an exclusive audio session for HFP devices that PortAudio cannot bypass.
+
+**Confirmed hardware matrix** (from CHANGELOG [5.1.7]):
+- TIER1_PASS (real signal): USB Audio [1] 16kHz, Realtek Array [3], USB Audio [27] 48kHz
+- TIER1_FAIL: BT LY-Z5202 [32], AirPods Pro [48], AirPods PH [54] — all PaError -9999
+
+**Root cause**: Windows OS session manager holds exclusive HFP session. PortAudio (sounddevice default) cannot bypass it. WASAPI exclusive mode opens the device directly at the kernel level, bypassing the session manager.
+
+**Key codebase facts**:
+- `jarvis/audio/engine.py` — 652 lines; stream opened at line 625 via `sd.InputStream(...)`
+- `AudioEngineMode`: LIVE | MOCK | HEADLESS
+- `_stream_worker()` at line 613: opens stream, retries 3x on exception, then degrades to MOCK
+- AGENTS.md rule: Fail-Closed — must NOT silently return mock if a real BT device is explicitly selected and WASAPI also fails; surface the error truthfully
+
+## Requirements
+
+### R1. WASAPI Exclusive Capture Fallback
+
+Modify `jarvis/audio/engine.py` `_stream_worker()` to attempt WASAPI exclusive mode when PortAudio fails with any exception (including PaError -9999). The retry sequence must be:
+
+1. Try standard `sd.InputStream(device=idx, ...)` — existing behavior
+2. If exception -> try `sd.InputStream(device=idx, extra_settings=sd.WasapiSettings(exclusive=True), samplerate=16000, channels=1, ...)` — WASAPI exclusive at 16kHz (HFP native rate)
+3. If both fail -> log truthful error, set `self.mode = AudioEngineMode.MOCK` (existing fallback)
+
+Add a config field `use_wasapi_exclusive: bool = True` to `AudioEngineConfig` (or equivalent config dataclass in the file). When False, skip step 2.
+
+The WASAPI attempt must only be made on Windows (guard with `sys.platform == "win32"`). On non-Windows, maintain existing behavior.
+
+### R2. Fail-Closed Semantics Preserved
+
+If the user explicitly configured a specific BT device (via `input_device` config or `JARVIS_INPUT_DEVICE` env var) and BOTH PortAudio AND WASAPI fail:
+- Do NOT silently substitute a different physical device
+- Log: `"BT HFP device {idx} failed on both PortAudio and WASAPI exclusive. Entering MOCK mode. Error: {e}"`
+- Publish `audio.device_unavailable` event on the event bus with `reason="wasapi_exclusive_failed"`
+- This matches the existing `MicrophoneDeviceUnavailableError` fail-closed contract
+
+### R3. Tests (TDD — Red first, then Green)
+
+Add/update tests in `tests/unit/test_audio_engine.py`:
+
+1. **test_wasapi_fallback_triggered_on_pa_error**: Mock `sd.InputStream` to raise `Exception("PaError -9999")` on first call, then succeed on second call (simulating WASAPI success). Assert `_stream_worker` called InputStream twice and the second call included `extra_settings` with `exclusive=True`.
+
+2. **test_wasapi_fallback_both_fail_enters_mock**: Mock `sd.InputStream` to always raise `Exception("PaError -9999")`. Assert engine enters `AudioEngineMode.MOCK` after exhausting retries. Assert no True/success return is fabricated.
+
+3. **test_wasapi_skipped_on_non_windows**: With `sys.platform` patched to `"linux"`, assert that -9999 failure does NOT trigger WASAPI retry — goes straight to reconnect/mock logic.
+
+4. **test_wasapi_exclusive_disabled_config**: Set `use_wasapi_exclusive=False` in config. Assert WASAPI retry is never attempted even when PortAudio fails.
+
+All 4 new tests must pass alongside ALL existing tests in `tests/unit/test_audio_engine.py`.
+
+### R4. Documentation (MANDATORY per AGENTS.md)
+
+Update per AGENTS.md mandatory rules:
+1. `CHANGELOG.md` — Add entry for H-10 WASAPI fix: objective, root cause, files changed, test counts
+2. `docs/ROADMAP.md` — Update H-10 status from BLOCKED_ON_HARDWARE to reflect WASAPI implementation done (physical BT verification still pending physical device)
+3. `README.md` — Add note in audio/hardware section that WASAPI exclusive mode is auto-enabled for BT HFP devices on Windows
+4. Commit all changes: `git add CHANGELOG.md docs/ROADMAP.md README.md jarvis/audio/engine.py tests/unit/test_audio_engine.py && git commit -m "feat(h10): WASAPI exclusive capture fallback for BT HFP devices (PaError -9999)" && git push origin main`
+
+## Verification Resources
+
+**Existing tests**: `tests/unit/test_audio_engine.py` — run with:
+```
+.venv\Scripts\python.exe -m pytest tests/unit/test_audio_engine.py -v
+```
+
+**Full suite** (must not regress):
+```
+.venv\Scripts\python.exe -m pytest tests/ -q --tb=short 2>&1 | tail -5
+```
+
+**WASAPI API** (sounddevice built-in, no new deps needed):
+```python
+import sounddevice as sd
+# Check if WasapiSettings exists:
+hasattr(sd, 'WasapiSettings')  # True on Windows sounddevice build
+# Usage:
+extra = sd.WasapiSettings(exclusive=True)
+stream = sd.InputStream(device=idx, extra_settings=extra, samplerate=16000, channels=1, dtype='float32', blocksize=512)
+```
+
+**AGENTS.md rules** (mandatory, read at `d:\Software GitCode\JARVIS\AGENTS.md` before implementing):
+- Fail-Closed: Never return False/MOCK without logging the real error
+- Anti-Fabrication: Do not simulate "BT device working" in tests using fake peak values
+- TDD: Write failing test first, then implement to pass it
+- Atomic writes: Use threading.Lock for any file writes
+- Git: Must commit CHANGELOG.md + ROADMAP.md + README.md together with source changes
+
+## Acceptance Criteria
+
+### R1 — WASAPI Implementation
+- [ ] `sd.WasapiSettings(exclusive=True)` retry logic present in `_stream_worker()` or a private helper it calls
+- [ ] Guarded by `sys.platform == "win32"` check
+- [ ] `use_wasapi_exclusive` config field exists and controls the retry
+- [ ] Samplerate for WASAPI attempt is 16000 Hz (HFP native rate)
+
+### R2 — Fail-Closed
+- [ ] When WASAPI attempt also fails: `self.mode == AudioEngineMode.MOCK` (not silently succeeds)
+- [ ] Error log contains device index and exception message (not fabricated success)
+- [ ] `audio.device_unavailable` event published with truthful reason
+
+### R3 — Tests
+- [ ] 4 new tests added and named exactly as specified
+- [ ] All 4 pass: `pytest tests/unit/test_audio_engine.py -v -k "wasapi"` exits 0
+- [ ] Full suite still passes: `pytest tests/ -q` exits 0 with >= 1882 tests passing
+
+### R4 — Documentation
+- [ ] `CHANGELOG.md` has new entry for H-10 WASAPI with root cause + file list + test counts
+- [ ] `docs/ROADMAP.md` H-10 reflects WASAPI implementation done
+- [ ] All changes committed and pushed to `origin/main`
