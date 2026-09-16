@@ -26,6 +26,7 @@ JARVIS is a modular AI voice assistant and automation system for Windows 11.
 | F-13 | Documentation Synchronization | Synchronize `CHANGELOG.md`, `task.md`, `README.md`, and `docs/ROADMAP.md` per `AGENTS.md` | M4 | PLANNED | AGENTS.md Invariant |
 | F-14 | E2E & Full Regression Verification | Pass 100% of `tests/unit/test_voice_pipeline_fixes.py` (8/8), `test_beta_v1_acceptance.py` (28/28) | M5 | IN_PROGRESS | Acceptance Criteria |
 | F-15 | Forensic Integrity & Adversarial Audit | Independent Forensic Auditor and Challenger validation against fabrication and ghost success | M5 | PLANNED | Audit Framework |
+| F-16 | D-14 Code Signing Resolution | Zero-cost CI Authenticode signing in release.yml, manual SignPath guide (R2), and production CA upgrade roadmap (R3) | M6 | DONE | ORIGINAL_REQUEST (D-14) |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
@@ -36,6 +37,7 @@ JARVIS is a modular AI voice assistant and automation system for Windows 11.
 | M3 | Multi-Model Benchmark & 4-Way Evaluation | F-10, F-11 (Execute direct benchmark for small & large-v3, generate 4-way evaluation report) | M2 | PLANNED |
 | M4 | Readiness Dashboard & Doc Synchronization | F-12, F-13 (Publish READINESS_DASHBOARD.md, update CHANGELOG.md, task.md, README.md, ROADMAP.md) | M1, M3 | PLANNED |
 | M5 | Final Regression, Adversarial & Forensic Audit | F-14, F-15 (Run full test suites, Challenger verification, Forensic Auditor verification) | M1, M2, M3, M4 | PLANNED |
+| M6 | D-14 Code Signing Resolution | F-16 (Automated CI Authenticode signing in release.yml, manual_signing_guide.md, production_signing_upgrade.md, doc sync) | M1, M2 | DONE |
 
 ## Interface Contracts
 ### Audio Recording Sample Rate Contract (`jarvis/core/app.py`, `config/default_config.yaml`)
@@ -85,3 +87,6 @@ JARVIS is a modular AI voice assistant and automation system for Windows 11.
 - `task.md`: Task tracking list.
 - `README.md`: Root system overview.
 - `docs/ROADMAP.md`: Master roadmap tracker.
+- `docs/signing/manual_signing_guide.md`: Manual signing guide for SignPath web UI (Option A).
+- `docs/signing/production_signing_upgrade.md`: Production code signing upgrade roadmap & CA alternatives (Option B).
+- `.github/workflows/release.yml`: Windows release CI workflow with ephemeral self-signed Authenticode signing and verification.

@@ -556,3 +556,75 @@ git push origin main
 - [ ] Commit tồn tại trên `origin/main` sau push
 - [ ] `git status` sạch sau push
 
+## 2026-09-16T06:10:43Z
+
+Complete the D-14 code signing milestone for the JARVIS Windows desktop assistant. The goal is to get GitHub Actions producing a properly Authenticode-signed `JARVIS.exe` without requiring a paid certificate authority, and document a clear upgrade path for production signing.
+
+Working directory: `d:\Software GitCode\JARVIS`
+Integrity mode: development
+
+## Context
+
+JARVIS is a Windows desktop AI assistant built with Python/PyInstaller. The project uses:
+- GitHub Actions for CI/CD (`.github/workflows/release.yml`)
+- SignPath Foundation (free tier) — **confirmed**: Foundation tier blocks ALL CI-based signing (both direct REST API and GitHub Actions connector). CI signing requires paid plan.
+- Currently using Option C (unsigned pass-through) as interim solution — exe ships without Authenticode, SmartScreen warns on first run.
+
+## Requirements
+
+### R1. Free CI-based Authenticode signing
+
+Implement a working solution that signs `JARVIS.exe` with an Authenticode signature in the GitHub Actions CI pipeline at zero cost. Acceptable approaches (pick best one):
+
+- **Self-signed certificate via signtool** (using a repo-stored PFX or generated in-workflow via PowerShell `New-SelfSignedCertificate`) — signature valid but not CA-trusted; eliminates "unsigned" status, SmartScreen still warns but differently
+- **Azure Code Signing** free tier (if it exists and supports GitHub Actions) — may provide a trusted signature
+- **Windows SDK signtool** with a test certificate
+- Any other legitimate zero-cost Authenticode approach
+
+The chosen approach must work reliably in `windows-latest` GitHub Actions runners. The signed exe must pass `Get-AuthenticodeSignature` with `Status = Valid` (self-signed is acceptable; `NotTrusted` is acceptable; `NotSigned` is NOT acceptable).
+
+### R2. Manual signing documentation (Option A)
+
+Document the step-by-step process for a human operator to manually sign `JARVIS.exe` using the existing SignPath account (interactive user submission via web UI at `app.signpath.io`). Store as `docs/signing/manual_signing_guide.md`. Include:
+- How to download the unsigned artifact from a GitHub Actions run
+- How to submit it via SignPath web UI
+- How to attach the signed exe to a GitHub Release
+- Estimated time: ≤15 minutes per release
+
+### R3. Upgrade path documentation (Option B)
+
+Document the cost and steps to upgrade SignPath to a paid tier (or switch to an alternative like DigiCert, Sectigo, or Azure Code Signing paid) for production CI signing. Store as `docs/signing/production_signing_upgrade.md`. Include:
+- Current blocker: SignPath Foundation blocks `githubactions.connectors.signpath.io` CI connector
+- Minimum paid tier needed and estimated cost
+- Alternative: Microsoft Azure Code Signing (ACS) — pricing and GitHub Actions integration steps
+- What changes in `release.yml` would be needed
+
+### R4. Update CI workflow
+
+Update `.github/workflows/release.yml` sign job to use the R1 solution instead of the current unsigned pass-through. The release body should clearly indicate whether the exe is self-signed or CA-trusted.
+
+## Verification Resources
+
+- Current workflow: `.github/workflows/release.yml` — sign job at line ~91
+- SignPath API confirmed: `POST /api/v1/{orgId}/signing-requests` → 404 on Foundation tier
+- Self-signed test: `$cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=JARVIS Test" -CertStoreLocation Cert:\CurrentUser\My`; `$pfxPass = ConvertTo-SecureString "password" -AsPlainText -Force`; `Export-PfxCertificate -Cert $cert -FilePath jarvis_test.pfx -Password $pfxPass`; `signtool sign /f jarvis_test.pfx /p password /fd SHA256 JARVIS.exe`
+- Verify: `Get-AuthenticodeSignature JARVIS.exe | Select-Object Status, SignerCertificate`
+
+## Acceptance Criteria
+
+### Signing (R1)
+- [ ] `JARVIS.exe` produced by the CI pipeline passes `Get-AuthenticodeSignature` with `Status` = `Valid` or `UnknownError` (self-signed, not `NotSigned`)
+- [ ] The signing step completes in ≤ 5 minutes in the GitHub Actions workflow
+- [ ] No secrets cost money to set up (free certificate generation or free-tier service)
+- [ ] The approach works reliably on `windows-latest` runners
+
+### Documentation (R2 + R3)
+- [ ] `docs/signing/manual_signing_guide.md` exists with ≥ 5 numbered steps, each ≤ 3 sentences
+- [ ] `docs/signing/production_signing_upgrade.md` lists ≥ 2 alternative signing solutions with pricing
+
+### Workflow (R4)
+- [ ] `.github/workflows/release.yml` sign job uses the R1 approach (not the unsigned pass-through)
+- [ ] Release body text accurately states the signing type (self-signed vs trusted)
+- [ ] All existing GitHub Actions tests in JARVIS CI still pass (`pytest tests/unit/ -q` exits 0)
+
+

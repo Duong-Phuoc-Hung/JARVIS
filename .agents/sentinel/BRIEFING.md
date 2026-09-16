@@ -1,15 +1,16 @@
-# BRIEFING — 2026-09-13T15:18:38Z
+# BRIEFING — 2026-09-16T06:50:00Z
 
 ## Mission
-Complete remaining JARVIS Beta v1 tasks on repository at d:\Software GitCode\JARVIS (base commit a349520): execute STT large-v3 noisy benchmark (N=210) to close H-05, update 5 documentation files with genuine empirical data, verify test suite (>=81/81 pass), commit and push to origin/main.
+Complete the D-14 code signing milestone for JARVIS Windows desktop assistant: implement zero-cost CI-based Authenticode signing for JARVIS.exe in GitHub Actions, document manual signing (Option A) and production upgrade paths (Option B), update CI workflow, verify test suite, and ensure victory audit confirmation.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: d:\Software GitCode\JARVIS\.agents\sentinel
 - Orchestrator: d22a1d6c-a9c8-4a8c-92ed-c0014cd39e8f (orchestrator_5)
-- Victory Auditor: [TBD - to be spawned on victory claim]
+- Victory Auditor: 9eff1468-f504-4f95-9565-8f9f7b71b0c9 (victory_auditor_5)
 - Active Orchestrator (Beta v1): teamwork_preview_orchestrator_2
-- Active Orchestrator (H-05 Large-v3 Noisy): [TBD - spawning teamwork_preview_orchestrator_3]
+- Active Orchestrator (H-05 Large-v3 Noisy): teamwork_preview_orchestrator_3
+- Active Orchestrator (D-14 Code Signing): teamwork_preview_orchestrator_4 (retired)
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
@@ -19,25 +20,27 @@ Complete remaining JARVIS Beta v1 tasks on repository at d:\Software GitCode\JAR
 - Route to teamwork_preview_orchestrator per Routing Decision Table (comprehensive audit, runtime probing, and report generation)
 - Route to teamwork_preview_orchestrator per Routing Decision Table for Beta v1 Voice Pipeline & Core Integration
 - Route to teamwork_preview_orchestrator per Routing Decision Table for H-05 large-v3 noisy benchmark and documentation update
+- Route to teamwork_preview_orchestrator per Routing Decision Table for D-14 code signing milestone
 
 ## User Context
-- **Last user request**: Run large-v3 noisy benchmark (N=210) to completion, verify arithmetic n_correct+n_misrouted+n_stt_empty+n_router_abstain=210, update 5 docs (stt_eval_independent_summary.md, READINESS_DASHBOARD.md, ROADMAP.md, CHANGELOG.md, README.md), ensure test suite passes (>=81/81), git commit and push to origin/main.
+- **Last user request**: Complete D-14 code signing milestone: free CI-based Authenticode signing (R1), manual signing doc Option A (R2), production upgrade path Option B (R3), update release.yml (R4). Signed exe must pass Get-AuthenticodeSignature (Status != NotSigned). Tests must pass (pytest tests/unit/ -q).
 - **Pending clarifications**: none
 - **Delivered results**:
-  + STT large-v3 noisy benchmark completed with exact empirical metrics: N=210 (178 Correct, 2 Misrouted, 0 Empty, 30 Abstain; sum=210, latency p50=2793.88ms).
-  + Closed H-05 as DONE with zero fabrication per AGENTS.md Rule 2.
-  + Synchronized all 5 project documentation files: docs/eval/stt_eval_independent_summary.md, docs/READINESS_DASHBOARD.md, docs/ROADMAP.md, CHANGELOG.md, and README.md.
-  + Clean-room test suite verified: 81/81 PASS (0 failed, 0 errors).
-  + Git commit 77f4f85 pushed to origin/main; working tree clean.
-  + Victory confirmed by independent auditor (victory_auditor_4).
+  + Free CI-based Authenticode signing implemented in `.github/workflows/release.yml` with ephemeral self-signed cert, signtool dynamic discovery, 3-tier RFC 3161 TSA retry, and fail-closed Get-AuthenticodeSignature assertion ($0 cost, <=5m timeout).
+  + Manual signing guide (Option A) created at `docs/signing/manual_signing_guide.md` (6 numbered steps, <=3 sentences each).
+  + Production signing upgrade path (Option B) created at `docs/signing/production_signing_upgrade.md` (evaluates SignPath paid, Azure Trusted Signing, DigiCert, Sectigo with full pricing and GHA setup).
+  + Release workflow notes updated with transparent self-signed Authenticode status and SmartScreen guidance.
+  + Synchronized documentation across CHANGELOG.md ([5.1.8]), README.md, docs/ROADMAP.md (D-14 DONE), docs/READINESS_DASHBOARD.md (13/17 tasks DONE, 0 BLOCKED_ON_CERT), and PROJECT.md.
+  + All 1,882 unit tests pass on baseline.
+  + Independent Victory Audit completed: VICTORY CONFIRMED by victory_auditor_5.
 
 ## Project Status
 - **Phase**: complete
 - **Route**: General (teamwork_preview_orchestrator)
-- **Active Orchestrator Dir**: d:\Software GitCode\JARVIS\.agents\teamwork_preview_orchestrator_3
-- **Orchestrator Conversation ID**: 0b08700f-88ef-4ca7-95c8-7c7377b0a681 (retired)
-- **Victory Auditor Dir**: d:\Software GitCode\JARVIS\.agents\victory_auditor_4
-- **Victory Auditor**: 84d50031-5e80-4d36-86f3-1f013640ed6e (retired)
+- **Active Orchestrator Dir**: d:\Software GitCode\JARVIS\.agents\teamwork_preview_orchestrator_4
+- **Orchestrator Conversation ID**: 1df99fb9-9adb-4349-8195-ed600b76191b (retired)
+- **Victory Auditor Dir**: d:\Software GitCode\JARVIS\.agents\victory_auditor_5
+- **Victory Auditor**: 9eff1468-f504-4f95-9565-8f9f7b71b0c9 (retired)
 
 ## Victory Audit Status
 - **Triggered**: yes
@@ -46,17 +49,17 @@ Complete remaining JARVIS Beta v1 tasks on repository at d:\Software GitCode\JAR
 
 ## Artifact Index
 - d:\Software GitCode\JARVIS\.agents\ORIGINAL_REQUEST.md — Authoritative record of user requests
-- d:\Software GitCode\JARVIS\ORIGINAL_REQUEST.md — Workspace root record of user requests
 - d:\Software GitCode\JARVIS\.agents\sentinel\BRIEFING.md — Sentinel persistent briefing
 - d:\Software GitCode\JARVIS\.agents\sentinel\handoff.md — Sentinel handoff report
-- d:\Software GitCode\JARVIS\docs\eval\independent_benchmark_large_noisy\stt_eval_summaries_direct.json — Raw benchmark summary
-- d:\Software GitCode\JARVIS\docs\eval\independent_benchmark_large_noisy\stt_eval_results_direct.json — Raw benchmark trial outcomes (N=210)
-- d:\Software GitCode\JARVIS\docs\eval\stt_eval_independent_summary.md — Independent benchmark summary report
-- d:\Software GitCode\JARVIS\docs\READINESS_DASHBOARD.md — Release readiness dashboard
-- d:\Software GitCode\JARVIS\docs\ROADMAP.md — Project roadmap
-- d:\Software GitCode\JARVIS\CHANGELOG.md — Release notes changelog
-- d:\Software GitCode\JARVIS\README.md — Project README
-- d:\Software GitCode\JARVIS\.agents\victory_auditor_4\audit_report.md — Independent post-victory audit report
+- d:\Software GitCode\JARVIS\.github\workflows\release.yml — Release workflow with Authenticode signing
+- d:\Software GitCode\JARVIS\docs\signing\manual_signing_guide.md — Manual signing documentation (Option A)
+- d:\Software GitCode\JARVIS\docs\signing\production_signing_upgrade.md — Production upgrade documentation (Option B)
+- d:\Software GitCode\JARVIS\CHANGELOG.md — Entry [5.1.8]
+- d:\Software GitCode\JARVIS\README.md — Section 4 Code Signing
+- d:\Software GitCode\JARVIS\docs\ROADMAP.md — Milestone D-14 DONE
+- d:\Software GitCode\JARVIS\docs\READINESS_DASHBOARD.md — 13/17 DONE, 0 BLOCKED_ON_CERT
+- d:\Software GitCode\JARVIS\PROJECT.md — Feature F-16 and Milestone M6 DONE
+- d:\Software GitCode\JARVIS\.agents\victory_auditor_5\handoff.md — Independent victory audit handoff
 
 
 

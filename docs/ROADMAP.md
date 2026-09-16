@@ -15,7 +15,7 @@
 | D-11 | DONE | Dispatcher consistency tests (13 tests) |
 | D-12 | DONE | One-click Windows Installer `JARVIS_Setup_v5.1.0.exe` (71.4 MB, Inno Setup 6, SHA-256 `E6335E5BF7F704B0FA09E38937BA89CB668939FF9090746B45150ED722031650`) |
 | D-13 | DONE | Updater module với SHA256 + atomic replace + rollback (19 tests) |
-| D-14 | BLOCKED_ON_DASHBOARD | SignPath Foundation connector pipeline setup: ✅ org/project/policy/secrets tất cả đúng; ❌ project repo URL sai (username/jarvis) + pipelinePolicies rỗng — cần fix 2 thứ trong dashboard |
+| D-14 | DONE | Windows Authenticode CI signing tự động ($0, PowerShell self-signed + signtool SHA256); tài liệu ký thủ công SignPath (`docs/signing/manual_signing_guide.md`) & lộ trình nâng cấp CA sản xuất (`docs/signing/production_signing_upgrade.md`) |
 | D-15 | DONE | Support diagnostics + log redaction bundle zip |
 | D-16 | DONE | Secrets hardening — HASS_TOKEN & ELEVENLABS_API_KEY managed by Credential Manager |
 | D-17 | DONE | RC build v5.1.0 / v5.1.3 — version bumped, artifact SHA256 generated, CHANGELOG updated |
@@ -55,7 +55,7 @@
 | B3: ASTCodeValidator wired vào synthesizer | Cài `TShark` (Wireshark CLI cho pcap thật) | C1: cần Discord bot token thật |
 | Sandbox dry-run gate cho synthesizer | Mở port CDP 9222 cho browser live tests | B2: cần quyết định thiết kế phần cứng |
 | Router & STT eval N=840 hoàn tất (Small N=420, Large-v3 N=420 clean+noisy, 100% held-out, 99.5% oracle text) | Rà soát Terminal Control Center (1.6) | Telegram / Zalo token thật để test nhánh online |
-| Nâng cấp #3: Migrate `.env` → Credential Manager | | D-14: cần chứng thư Authenticode OV/EV thương mại |
+| Nâng cấp #3: Migrate `.env` → Credential Manager | | (D-14 đã xong: CI Authenticode tự ký $0 & tài liệu nâng cấp CA) |
 | Nâng cấp #4: TieredSTTEngine (Local Whisper + Cloud + VAD) | | |
 | Rate-limiting 4 kênh comms (Token Bucket) | | |
 | P2-12 Memory Concurrency Hardening (Tier 1, 30 threads) | | |
@@ -115,7 +115,7 @@
 
 ### P0 — Khẩn cấp (Blocking release)
 
-- **P0-01: D-14 SignPath pipeline policy** — Thêm GitHub Actions Trusted Build System vào Signing Policy; sửa project repo URL từ `username/jarvis` → `Duong-Phuoc-Hung/JARVIS`. Verify: `pipelinePolicies` không rỗng, workflow beta pass.
+- **P0-01: D-14 SignPath pipeline & CI signing** — [ĐÃ GIẢI QUYẾT] CI Authenticode signing tự động trong `.github/workflows/release.yml` (ephemeral self-signed + signtool SHA256); quy trình ký thủ công SignPath web UI tại `docs/signing/manual_signing_guide.md`; lộ trình nâng cấp CA tại `docs/signing/production_signing_upgrade.md`. Không còn chặn phát hành.
 - **P0-02: H-13 Live Voice 50 ca** — Người thật nói 50 câu trong `beta_voice_50_live_acceptance_protocol.md`, ghi Pass/Fail. Verify: 40+/50 ca pass.
 - **P0-03: D-06 Telegram token thật** — `@BotFather → /newbot → TELEGRAM_BOT_TOKEN`. Verify: integration test gửi tin nhắn thật.
 - **P0-04: D-07 Zalo OA credentials** — `developers.zalo.me` duyệt OA. Verify: gửi tin nhắn qua Zalo OA API.
@@ -126,7 +126,7 @@
 
 - **P1-01: H-10 BT HFP WASAPI mode** — Implement WASAPI exclusive capture bypass cho LY-Z5202 / AirPods HFP. Hiện: 3/10 TIER1_PASS. Verify: BT device có peak > 1000.
 - **P1-02: H-10 remaining 7 devices** — Test Realtek HD Audio, BT 8-channel. Verify: matrix R4 >=7/10.
-- **P1-03: D-14 signed exe verify** — Sau khi workflow pass, chạy `signtool verify /pa JARVIS.exe`. Verify: Authenticode valid.
+- **P1-03: D-14 signed exe verify** — [ĐÃ GIẢI QUYẾT] Workflow release CI tự động xác thực chữ ký bằng `Get-AuthenticodeSignature` (Status != 'NotSigned', SignerCertificate != null). Cẩm nang kiểm tra thủ công tại `docs/signing/manual_signing_guide.md`.
 - **P1-04: Router LLM fallback live** — Test LLMIntentRouter với Gemini API key thật. Verify: N=10 câu intent routing qua LLM.
 - **P1-05: Release v5.2.0** — Tag, build, sign, publish GitHub Release. Verify: GitHub Release có signed JARVIS.exe.
 
@@ -206,12 +206,12 @@ BETA v1 ENGINEERING HARDENING STATUS (2026-09-13):
   [ ] 1.9 Human Live Voice Acceptance (H-13: 50 cases) — PENDING_HUMAN_EXECUTION
   [ ] 1.10 Physical Audio Hardware Matrix (H-10: 9/10 endpoints) — BLOCKED_ON_HARDWARE
   [ ] 1.11 Idle Soak Test Microphone Stream (H-06: 15-60min) — PENDING_IDLE_SOAK
-  [ ] 1.12 Third-Party Live Credentials (D-06..D-09) & EV/OV Cert (D-14) — PENDING_CREDENTIALS / BLOCKED_ON_CERT
+  [ ] 1.12 Third-Party Live Credentials (D-06..D-09) — PENDING_CREDENTIALS (D-14 Code Signing: DONE via CI self-signed & upgrade roadmap)
 ```
 
 ### Kế hoạch Sprint (Phần C — Part C: Phased Sprint Plan)
 
-- **Sprint 1** (1-2 tuần ngay): P0 Critical — D-14 signing fix, D-06-D-09 credentials, H-13 live voice 50 cases.
+- **Sprint 1** (1-2 tuần ngay): P0 Critical — D-14 signing (ĐÃ XONG), D-06-D-09 credentials, H-13 live voice 50 cases.
 - **Sprint 2** (2-4 tuần): P1 — H-10 BT WASAPI mode, release v5.2.0 signed, Router LLM live test.
 - **Sprint 3** (1-2 tháng): P2 — Browser live, Comms live tokens, Smart Home Docker test, TieredSTT WER domain.
 - **Sprint 4** (ongoing): P3 — ONNX embedding, on-demand download, gesture wiring, multi-language STT.

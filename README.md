@@ -25,10 +25,10 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 1. [✨ Tính Năng Nổi Bật](#-tính-năng-nổi-bật)
 2. [💻 Yêu Cầu Hệ Thống (Prerequisites)](#-yêu-cầu-hệ-thống-prerequisites)
 3. [🚀 Hướng Dẫn Cài Đặt Từng Bước (Step-by-Step Installation)](#-hướng-dẫn-cài-đặt-từng-bước-step-by-step-installation)
-4. [⚡ Dành Cho Người Dùng Cuối — Quick Start (Standalone ZIP)](#-dành-cho-người-dùng-cuối--quick-start-standalone-zip)
+4. [⚡ Dành Cho Người Dùng Cuối — Quick Start (Installer & Standalone ZIP)](#-dành-cho-người-dùng-cuối--quick-start-installer--standalone-zip)
 5. [🛠️ Dành Cho Nhà Phát Triển (Developer Setup)](#%EF%B8%8F-dành-cho-nhà-phát-triển-developer-setup)
 6. [🔧 Các Lỗi Thường Gặp & Cách Khắc Phục (Common Errors & Fixes)](#-các-lỗi-thường-gặp--cách-khắc-phục-common-errors--fixes)
-7. [⚙️ Cấu Hình `.env` & Bảo Mật Secrets](#%EF%B8%8F-cấu-hình-env--bảo-mật-secrets)
+7. [⚙️ Cấu Hình `.env`](#%EF%B8%8F-cấu-hình-env)
 8. [🧰 Danh Sách Kỹ Năng Chi Tiết (18+ Skills)](#-danh-sách-kỹ-năng-chi-tiết-18-skills)
 9. [⌨️ Phím Tắt Toàn Hệ Thống](#%EF%B8%8F-phím-tắt-toàn-hệ-thống)
 10. [📱 Điều Khiển Qua Điện Thoại (Telegram / Zalo / Discord)](#-điều-khiển-qua-điện-thoại)
@@ -257,6 +257,14 @@ Nếu bạn không muốn cài đặt vào Program Files:
 1. Tải file ZIP `JARVIS_v5.1.0_windows_x64.zip` từ trang Releases.
 2. Giải nén vào thư mục tùy chọn (ví dụ: `D:\JARVIS\`).
 3. Chạy `JARVIS.exe` hoặc `JARVIS.exe --tray`.
+
+### 🔐 Chữ Ký Số Authenticode & Bảo Mật Binary (Code Signing)
+Toàn bộ các bản phát hành nhị phân (`JARVIS.exe` standalone và bộ cài đặt `JARVIS_Setup_*.exe`) đều được gắn chữ ký số Windows Authenticode (mã băm SHA-256) tự động trong pipeline GitHub Actions CI nhằm bảo vệ tính toàn vẹn mã nguồn (code integrity) và ngăn chặn mã độc can thiệp/chỉnh sửa trái phép (tamper detection).
+
+- **Cảnh báo Windows SmartScreen ("Unknown Publisher")**: Vì JARVIS là dự án mã nguồn mở sử dụng chứng thư Authenticode tự ký (self-signed) trong CI để giữ chi phí $0, Windows SmartScreen sẽ hiển thị hộp thoại cảnh báo *"Windows protected your PC / Unknown Publisher"* trong lần khởi chạy đầu tiên. Đây là hành vi bảo mật mặc định của Windows đối với các chứng thư chưa tích lũy danh tiếng SmartScreen. Người dùng hoàn toàn có thể yên tâm bấm **"More info" → "Run anyway"** để khởi chạy ứng dụng.
+- **Tài liệu hướng dẫn ký số & Nâng cấp sản xuất**:
+  * **Ký thủ công qua SignPath Web UI (Option A)**: Dành cho release engineer muốn ký số qua cổng SignPath Foundation mà không tốn phí, xem hướng dẫn chi tiết tại [`docs/signing/manual_signing_guide.md`](docs/signing/manual_signing_guide.md).
+  * **Lộ trình nâng cấp chứng thư sản xuất (Option B)**: Đánh giá chi phí và hướng dẫn tích hợp chứng thư số thương mại toàn cầu (Microsoft Azure Trusted Signing, DigiCert, Sectigo) cho các bản phát hành v5.2.0 chính thức, xem tại [`docs/signing/production_signing_upgrade.md`](docs/signing/production_signing_upgrade.md).
 
 ---
 

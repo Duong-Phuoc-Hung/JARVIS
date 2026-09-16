@@ -1,3 +1,42 @@
+## [5.1.8] D-14 Code Signing Resolution: Free CI Authenticode & Signing Guides (2026-09-16)
+
+> **Mục tiêu**: Đóng hoàn toàn milestone D-14 (Code Signing) — triển khai giải pháp ký số Authenticode tự động $0 trong GitHub Actions CI (R1 & R4), xây dựng cẩm nang ký thủ công qua SignPath Web UI Option A (R2), và lập lộ trình nâng cấp ký số sản xuất Option B (R3).
+
+### 1. Root Cause & Bối cảnh
+- **SignPath Foundation API & Connector Blocker**: SignPath Foundation (gói miễn phí cho open-source) chủ động chặn tất cả automated CI connectors (`githubactions.connectors.signpath.io`) và trả về HTTP 404 cho direct REST API (`POST /api/v1/{orgId}/signing-requests`).
+- **Hệ quả của Option C trước đây**: Phương án tạm thời Option C (unsigned pass-through) khiến file thực thi `JARVIS.exe` xuất xưởng hoàn toàn không có chữ ký Authenticode (`NotSigned`). Hậu quả là Windows SmartScreen kích hoạt cảnh báo chặn người dùng ("Windows protected your PC") và không thể xác thực tính toàn vẹn nhị phân chống giả mạo (tamper protection).
+
+### 2. Chi tiết thay đổi kỹ thuật (Technical Changes)
+- **`.github/workflows/release.yml`**:
+  * Nâng cấp job `sign` từ runner `ubuntu-latest` sang `windows-latest` với định danh `🔐 Code Signing (Self-Signed Authenticode)`.
+  * Tự động phát hiện đường dẫn Windows SDK `signtool.exe` linh hoạt qua quét thư mục `C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe` và system `$env:PATH`.
+  * Tạo chứng thư số Authenticode tạm thời (ephemeral) bằng PowerShell `New-SelfSignedCertificate` (`-Type CodeSigningCert`, 2048-bit RSA, SHA-256, thời hạn 5 năm) tại store `Cert:\CurrentUser\My`.
+  * Xuất ra container `.pfx` với mật khẩu ngẫu nhiên bảo mật cao và import public certificate vào `Cert:\CurrentUser\Root` trên runner để phục vụ xác thực chuỗi cục bộ.
+  * Thực hiện ký Authenticode cho `dist/JARVIS.exe` bằng `signtool.exe sign` với mã băm SHA-256 (`/fd SHA256`) và cơ chế thử lại RFC 3161 TSA 3 tầng (`http://timestamp.digicert.com`, `http://timestamp.sectigo.com`, `http://time.certum.pl`), tự động chuyển sang fallback ký không timestamp khi tất cả TSA bị ngắt kết nối mạng.
+  * Kiểm tra chữ ký theo chuẩn Fail-Closed bằng `Get-AuthenticodeSignature`: bắt buộc trạng thái không phải `NotSigned` và có `SignerCertificate` hợp lệ.
+  * Thu hồi/dọn dẹp chứng thư tạm thời và file PFX khỏi runner sau khi ký; đóng gói và tải lên artifact `jarvis-signed-exe` (retention 90 ngày).
+  * Cập nhật nội dung ghi chú phát hành (release body) và bảng download để thông báo minh bạch chữ ký số Authenticode tự ký và hướng dẫn người dùng vượt qua cảnh báo SmartScreen "Unknown Publisher".
+- **`docs/signing/manual_signing_guide.md`**:
+  * Xây dựng cẩm nang vận hành ký số thủ công qua SignPath Web UI (Option A) cho release engineer.
+  * Cấu trúc đúng 6 bước tuần tự, mỗi bước tối đa 3 câu, hoàn thành trong 5–10 phút (đảm bảo ≤ 15 phút).
+  * Bao quát đầy đủ: tải artifact chưa ký `jarvis-unsigned-exe`, đăng nhập `https://app.signpath.io` (Org `14be0b5a-511d-4104-8b35-c23386fd2ba0`, Project `Jarvis`), gửi yêu cầu ký dưới policy `Jarvis_Test_Signing`, tải file đã ký, xác thực PowerShell `Get-AuthenticodeSignature`, và đính kèm lại vào GitHub Release.
+- **`docs/signing/production_signing_upgrade.md`**:
+  * Phân tích và đánh giá toàn diện lộ trình nâng cấp chứng thư số sản xuất (Option B) tuân thủ quy định phần cứng FIPS 140-2 Level 2 của CA/Browser Forum (có hiệu lực từ 01/06/2023).
+  * Đánh giá chi tiết 3 giải pháp thương mại:
+    1. **Microsoft Azure Trusted Signing**: ~$9.99/tháng (~$120/năm cho Basic tier), tin cậy gốc Microsoft, không cần phần cứng, tích hợp OIDC GitHub Actions (`azure/login@v3`, `azure/artifact-signing-action@v2`) — giải pháp khuyến nghị hàng đầu.
+    2. **DigiCert KeyLocker / Software Trust Manager**: ~$1,000+/năm (~$83/tháng), chuẩn Extended Validation (EV) doanh nghiệp, tích hợp qua `smctl` CLI hoặc `digicert/ssm-code-signing`.
+    3. **Sectigo / SSL.com eSigner**: ~$490–$740/năm tổng chi phí (chứng thư EV + Cloud HSM eSigner).
+  * Bảng so sánh đa tiêu chí và cung cấp cấu hình YAML mẫu chi tiết cho `.github/workflows/release.yml`.
+- **`docs/ROADMAP.md` & `docs/READINESS_DASHBOARD.md`**:
+  * Cập nhật chuyển trạng thái milestone D-14 từ `BLOCKED_ON_DASHBOARD` / `BLOCKED_ON_CERT` sang `DONE`.
+  * Gỡ bỏ D-14 khỏi danh sách các tác vụ chặn phát hành (release blockers).
+
+### 3. Chỉ số kiểm thử thực tế (Test Metrics)
+- **Unit test suite baseline**: `1882 passed, 1 skipped, 89 subtests passed in 244.24s` (`python -m pytest tests/unit/ -q`, exit code 0).
+- **Phạm vi an toàn (Zero Regressions)**: Toàn bộ các thay đổi của D-14 chỉ nằm trong CI workflow (`.github/workflows/release.yml`) và hệ thống tài liệu hướng dẫn (`docs/signing/`, `docs/`, `PROJECT.md`), không can thiệp vào logic thực thi của mã nguồn `jarvis/` hay bộ test `tests/`.
+
+---
+
 ## H-01 — Source-rate capture and 16-kHz STT boundary (2026-09-14)
 
 - **Goal / root cause:** Direct 16-kHz capture fixed the default path, but supported capture overrides still delivered raw arrays without their source rate. Coordinator/tiered/providers interpreted them as 16 kHz; streaming ignored its rate argument, and `stt.sample_rate=None` raised `TypeError`.

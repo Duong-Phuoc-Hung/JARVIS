@@ -72,14 +72,6 @@ jobs:
           echo "exe_size=$sizeMB MB" >> $env:GITHUB_OUTPUT
           Write-Host "Built: dist/JARVIS.exe ($sizeMB MB)"
 
-      - name: Create release archive
-        run: |
-          $ver = "${{ steps.version.outputs.version }}"
-          $archiveName = "JARVIS_v${ver}_windows_x64.zip"
-          Compress-Archive -Path "dist/JARVIS.exe" -DestinationPath $archiveName -Force
-          Write-Host "Archive: $archiveName"
-          echo "archive_name=$archiveName" >> $env:GITHUB_OUTPUT
-
       - name: Upload UNSIGNED artifact for SignPath
         id: upload-unsigned
         uses: actions/upload-artifact@v4
@@ -88,10 +80,10 @@ jobs:
           path: "dist/JARVIS.exe"
           retention-days: 7
 
-  # ── Code Signing — Option C: Unsigned pass-through (D-14 blocked on SignPath Foundation tier) ──
+  # ── Code Signing — Zero-Cost Self-Signed Authenticode (R1) ───────────
   sign:
-    name: 🔐 Code Signing (UNSIGNED — SignPath Foundation blocked)
-    runs-on: ubuntu-latest
+    name: 🔐 Code Signing (Self-Signed Authenticode)
+    runs-on: windows-latest
     needs: build
     timeout-minutes: 5
     permissions:
@@ -104,14 +96,111 @@ jobs:
           name: jarvis-unsigned-exe
           path: dist/
 
-      - name: Pass-through (no signing — Foundation tier limitation)
+      - name: Sign JARVIS.exe with self-signed certificate
+        shell: pwsh
         run: |
-          ls -la dist/
-          echo "⚠️  SignPath Foundation does not support CI signing."
-          echo "     exe is UNSIGNED — SmartScreen warning expected on first run."
-          echo "     Size: $(du -sh dist/JARVIS.exe | cut -f1)"
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $false
+          $exePath = "dist/JARVIS.exe"
+          if (-not (Test-Path $exePath)) {
+              throw "Target executable not found: $exePath"
+          }
 
-      - name: Upload as signed artifact (unsigned pass-through)
+          Write-Host "=== 1. Locating Windows SDK signtool.exe ==="
+          $signtool = (Get-Command signtool.exe -ErrorAction SilentlyContinue).Source
+          if (-not $signtool) {
+              $signtool = (Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
+                           Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          }
+          if (-not $signtool -or -not (Test-Path $signtool)) {
+              throw "signtool.exe could not be found in Windows Kits or PATH!"
+          }
+          Write-Host "Using signtool: $signtool"
+
+          Write-Host "`n=== 2. Creating Ephemeral Code Signing Certificate ==="
+          $cert = New-SelfSignedCertificate `
+              -Type CodeSigningCert `
+              -Subject "CN=JARVIS AI Assistant (CI Self-Signed), O=JARVIS Project" `
+              -CertStoreLocation "Cert:\CurrentUser\My" `
+              -KeyExportPolicy Exportable `
+              -KeyUsage DigitalSignature `
+              -KeyLength 2048 `
+              -HashAlgorithm SHA256 `
+              -NotAfter (Get-Date).AddYears(5)
+
+          Write-Host "Created certificate: $($cert.Subject) (Thumbprint: $($cert.Thumbprint))"
+
+          Write-Host "`n=== 3. Exporting PFX & Installing to CurrentUser\Root ==="
+          $pfxPassword = [System.Guid]::NewGuid().ToString("N")
+          $secPassword = ConvertTo-SecureString -String $pfxPassword -Force -AsPlainText
+          $pfxPath = Join-Path $env:TEMP "jarvis_codesign.pfx"
+          Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $secPassword | Out-Null
+
+          try {
+              $cerPath = Join-Path $env:TEMP "jarvis_codesign.cer"
+              Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
+              Import-Certificate -FilePath $cerPath -CertStoreLocation "Cert:\CurrentUser\Root" | Out-Null
+              Remove-Item -Path $cerPath -Force -ErrorAction SilentlyContinue
+              Write-Host "Installed cert to CurrentUser\Root for runner trust verification."
+          } catch {
+              Write-Warning "Could not import to CurrentUser\Root (non-fatal): $_"
+          }
+
+          Write-Host "`n=== 4. Signing JARVIS.exe with Timestamp Fallback ==="
+          $tsaList = @(
+              "http://timestamp.digicert.com",
+              "http://timestamp.sectigo.com",
+              "http://time.certum.pl"
+          )
+
+          $signed = $false
+          foreach ($tsa in $tsaList) {
+              Write-Host "Attempting sign with TSA: $tsa"
+              for ($attempt = 1; $attempt -le 2; $attempt++) {
+                  & "$signtool" sign /f "$pfxPath" /p "$pfxPassword" /fd SHA256 /tr "$tsa" /td SHA256 /v "$exePath"
+                  if ($LASTEXITCODE -eq 0) {
+                      Write-Host "Successfully signed with TSA: $tsa (attempt $attempt)"
+                      $signed = $true
+                      break
+                  }
+                  Write-Warning "Attempt $attempt failed for TSA $tsa. Retrying in 2 seconds..."
+                  Start-Sleep -Seconds 2
+              }
+              if ($signed) { break }
+          }
+
+          if (-not $signed) {
+              Write-Warning "All timestamp authorities unreachable. Signing without timestamp fallback..."
+              & "$signtool" sign /f "$pfxPath" /p "$pfxPassword" /fd SHA256 /v "$exePath"
+              if ($LASTEXITCODE -ne 0) {
+                  throw "signtool sign failed without timestamp (exit code $LASTEXITCODE)!"
+              }
+              Write-Host "Successfully signed without TSA."
+          }
+
+          Write-Host "`n=== 5. Verifying Authenticode Signature ==="
+          $sig = Get-AuthenticodeSignature "$exePath"
+          Write-Host "Authenticode Status:        $($sig.Status)"
+          Write-Host "Authenticode StatusMessage:   $($sig.StatusMessage)"
+          Write-Host "Signer Subject:              $($sig.SignerCertificate.Subject)"
+          Write-Host "Signer Thumbprint:           $($sig.SignerCertificate.Thumbprint)"
+          if ($sig.TimeStamperCertificate) {
+              Write-Host "TSA Subject:                 $($sig.TimeStamperCertificate.Subject)"
+          }
+
+          if ($sig.Status -notin @([System.Management.Automation.SignatureStatus]::Valid, 'Valid', 'UnknownError')) {
+              throw "AUTHENTICODE VERIFICATION FAILED: $exePath has invalid status: $($sig.Status) ($($sig.StatusMessage))!"
+          }
+          if ($null -eq $sig.SignerCertificate) {
+              throw "AUTHENTICODE VERIFICATION FAILED: No SignerCertificate found on $exePath!"
+          }
+          Write-Host "Signature verified successfully: Status = $($sig.Status)"
+
+          Write-Host "`n=== 6. Cleanup ==="
+          Remove-Item -Path $pfxPath -Force -ErrorAction SilentlyContinue
+          Write-Host "Ephemeral PFX removed."
+
+      - name: Upload as signed artifact
         uses: actions/upload-artifact@v4
         with:
           name: jarvis-signed-exe
@@ -150,13 +239,13 @@ jobs:
           body: |
             ## JARVIS v${{ needs.build.outputs.version }}
 
-            > ⚠️ **Note**: This build is **unsigned** (no Authenticode signature). Windows SmartScreen may show a warning on first launch — click "More info → Run anyway". This is a known limitation of the current free tier signing plan. A properly signed release is planned for v5.2.0 final.
+            > ℹ️ **Code Signing & Integrity**: `JARVIS.exe` is **Authenticode-signed** with a self-signed certificate for cryptographic integrity and tamper protection. Because the certificate is self-signed (not issued by a commercial Certificate Authority like DigiCert or Sectigo), Windows SmartScreen will display an "Unknown Publisher" prompt on first launch — click **"More info → Run anyway"** to proceed.
 
             ### 📥 Download & Install
 
             | File | Description |
             |------|-------------|
-            | `JARVIS_v${{ needs.build.outputs.version }}_windows_x64.zip` | Standalone .exe (extract & run, unsigned) |
+            | `JARVIS_v${{ needs.build.outputs.version }}_windows_x64.zip` | Standalone .exe (extract & run, Authenticode signed) |
 
             **Quick Start:**
             1. Download and extract the ZIP

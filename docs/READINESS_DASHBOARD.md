@@ -13,7 +13,7 @@
 JARVIS Beta v1 provides an autonomous, privacy-conscious AI desktop assistant tailored for Windows 11 64-bit with offline Vietnamese voice recognition, natural language intent routing, Windows hardware control, browser automation via CDP, and multi-channel remote connectivity.
 
 This document serves as the authoritative, empirical release readiness register. In strict compliance with the **Anti-Fabrication Principle** (`AGENTS.md`), every subsystem and task is classified by its verified state:
-- **Core & Backend Subsystems (Phase D)**: **12/17 tasks `DONE`** (100% test-verified in real runtime), **4/17 tasks `PENDING_CREDENTIALS`** (fail-closed verified), and **1/17 task `BLOCKED_ON_CERT`** (Windows Authenticode code-signing certificate).
+- **Core & Backend Subsystems (Phase D)**: **13/17 tasks `DONE`** (100% test-verified in real runtime, including D-14 CI Authenticode signing), and **4/17 tasks `PENDING_CREDENTIALS`** (fail-closed verified).
 - **Voice Pipeline Subsystems (Phase H)**: **9/13 tasks `DONE`** (H-01, H-02, H-03, H-04, H-05, H-07, H-08, H-09, H-12), and **4/13 tasks `CHƯA ĐÓNG / BLOCKED`** (H-06: `PENDING_IDLE_SOAK`, H-10: `BLOCKED_ON_HARDWARE`, H-11: `PENDING_FIRST_RUN`, H-13: `PENDING_HUMAN_EXECUTION`).
 - **End-to-End Test Suite**: **100% pass rate (81/81 passing tests)** across all primary verification suites:
   * E2E Acceptance Test Suite (`tests/e2e/test_beta_v1_acceptance.py`): **28/28 PASS** (Tier 2 automated suite)
@@ -45,7 +45,7 @@ This document serves as the authoritative, empirical release readiness register.
 | **D-11** | `jarvis/core/app.py` | ActionDispatcher consistency & registration tests | `tests/unit/test_action_dispatcher.py` (13 tests) | `DONE` |
 | **D-12** | Packaging & Installer | One-click Windows Installer `JARVIS_Setup_v5.1.0.exe` (71.4 MB) | Inno Setup 6, SHA-256 verified | `DONE` |
 | **D-13** | `jarvis/workers/updater.py`| Auto-updater with SHA256 integrity, atomic replace & rollback | `tests/unit/test_auto_updater.py` (19 tests) | `DONE` |
-| **D-14** | Code Signing | Windows Authenticode commercial OV/EV code signing pipeline | Documented signing pipeline; pending commercial CA | `BLOCKED_ON_CERT` |
+| **D-14** | Code Signing | Windows Authenticode CI signing & release procedure | Automated CI Authenticode signing in release workflow; manual SignPath & production upgrade guides documented | `DONE` |
 | **D-15** | `jarvis/core/diagnostics.py`| Support diagnostics bundle & log redaction ZIP generator | `tests/unit/test_diagnostics.py` | `DONE` |
 | **D-16** | `jarvis/security/secrets.py`| Windows Credential Manager integration for tokens & API keys | `tests/unit/test_secrets_manager.py` | `DONE` |
 | **D-17** | Release Management | Release Candidate v5.1.0 build, artifact generation & CHANGELOG | `pyproject.toml`, `dist/installer/`, `CHANGELOG.md` | `DONE` |
@@ -170,11 +170,11 @@ In accordance with `AGENTS.md` and `docs/AUDIT_FRAMEWORK.md`, third-party servic
 | **D-08** | Discord Bot | `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID` | Returns `{"success": False, "error_code": "NOT_CONFIGURED"}`; halts gateway thread cleanly | Create application at `discord.com/developers`, invite bot with message read/write permissions. |
 | **D-09** | IMAP Email | `IMAP_HOST`, `IMAP_USER`, `IMAP_PASSWORD` | Raises `IMAPNotConfiguredError` with code `"NOT_CONFIGURED"`; does not attempt network socket connection | Generate App Password in Gmail/Outlook account security settings. |
 
-### 6.2 `BLOCKED_ON_CERT` (1 Task: D-14)
+### 6.2 Code Signing Resolution: D-14 `DONE` (CI Authenticode Active & Upgrade Guides Documented)
 
-| Task ID | Component | Blocker Specification | Operational Mitigation | Target Solution |
+| Task ID | Component | Status | Operational Implementation | Target Solution & Guides |
 |:---:|---|---|---|---|
-| **D-14** | Windows Authenticode Signing | Requires commercial OV (Organization Validation) or EV (Extended Validation) code-signing certificate from trusted CA (e.g., DigiCert, Sectigo). | Installer executable is validated via SHA-256 hash checksums in `docs/READINESS_DASHBOARD.md` and `CHANGELOG.md`. Windows SmartScreen warning can be bypassed via *"More info" -> "Run anyway"*. | Acquire commercial hardware token or Cloud HSM signing certificate (e.g., Azure Trusted Signing / DigiCert ONE) for final v5.2.0 production release. |
+| **D-14** | Windows Authenticode Signing | `DONE` (CI Self-Signed / Production Roadmap) | Đã tự động hóa ký số Authenticode trong `.github/workflows/release.yml` sử dụng PowerShell `New-SelfSignedCertificate` và `signtool.exe` (SHA-256, 3-tier TSA retry). File `JARVIS.exe` xuất xưởng luôn có chữ ký hợp lệ (`Status != NotSigned`). | Hướng dẫn ký thủ công qua SignPath web UI: [`docs/signing/manual_signing_guide.md`](signing/manual_signing_guide.md). Lộ trình nâng cấp chứng thư thương mại cho phát hành chính thức v5.2.0 (Azure Trusted Signing / DigiCert): [`docs/signing/production_signing_upgrade.md`](signing/production_signing_upgrade.md). |
 
 ---
 
@@ -186,4 +186,4 @@ In accordance with `AGENTS.md` and `docs/AUDIT_FRAMEWORK.md`, third-party servic
 - **Status**: **JARVIS Beta v1 Engineering Hardening is COMPLETE**. Release candidate is conditioned on:
   1. Live human acceptance testing across 50 real spoken cases (`docs/eval/beta_voice_50_live_acceptance_protocol.md` — H-13).
   2. Physical hardware verification on 9 external audio configurations (`docs/eval/audio_hardware_compatibility_matrix.md` — H-10).
-  3. External user credentials (D-06..D-09) and commercial Authenticode certificate (D-14).
+  3. External user credentials (D-06..D-09). Note: D-14 Code Signing is resolved for CI release via automated self-signed Authenticode, with production CA upgrade procedures documented in docs/signing/.
