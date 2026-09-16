@@ -85,7 +85,7 @@ jobs:
     name: 🔐 Code Signing (Self-Signed Authenticode)
     runs-on: windows-latest
     needs: build
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       contents: write
 
@@ -130,21 +130,15 @@ jobs:
 
           Write-Host "Created certificate: $($cert.Subject) (Thumbprint: $($cert.Thumbprint))"
 
-          Write-Host "`n=== 3. Exporting PFX & Installing to CurrentUser\Root ==="
+          Write-Host "`n=== 3. Exporting PFX ==="
           $pfxPassword = [System.Guid]::NewGuid().ToString("N")
           $secPassword = ConvertTo-SecureString -String $pfxPassword -Force -AsPlainText
           $pfxPath = Join-Path $env:TEMP "jarvis_codesign.pfx"
           Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $secPassword | Out-Null
-
-          try {
-              $cerPath = Join-Path $env:TEMP "jarvis_codesign.cer"
-              Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
-              Import-Certificate -FilePath $cerPath -CertStoreLocation "Cert:\CurrentUser\Root" | Out-Null
-              Remove-Item -Path $cerPath -Force -ErrorAction SilentlyContinue
-              Write-Host "Installed cert to CurrentUser\Root for runner trust verification."
-          } catch {
-              Write-Warning "Could not import to CurrentUser\Root (non-fatal): $_"
-          }
+          Write-Host "PFX exported to $pfxPath"
+          # NOTE: Skipping Import-Certificate to Cert:\CurrentUser\Root — triggers UAC dialog on
+          # Windows Server 2025 CI runners, causing a non-interactive hang. The PFX file is
+          # sufficient for signtool /f signing without a store import.
 
           Write-Host "`n=== 4. Signing JARVIS.exe with Timestamp Fallback ==="
           $tsaList = @(
