@@ -1309,20 +1309,100 @@ class JarvisApp:
             return {"status": "success" if ok else "failed", "message": "Đã thu nhỏ tất cả các cửa sổ xuống màn hình Desktop, thưa Ngài."}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
-    def _handle_system_volume(self, delta: int | None = None, level: int | None = None, **kwargs) -> dict[str, Any]:
-        """Adjusts or sets master audio volume (fail-closed if endpoint unavailable)."""
-        if self.computer_controller:
-            if level is not None:
-                vol = self.computer_controller.set_volume(level)
-                if vol is None:
-                    return {"status": "failed", "success": False, "volume": None, "error": "VOLUME_SET_FAILED", "message": "Không thể đặt âm lượng phần cứng, thưa Ngài."}
-                return {"status": "success", "success": True, "volume": vol, "message": f"Đã đặt âm lượng hệ thống thành {vol}%, thưa Ngài."}
-            delta_val = delta if delta is not None else 10
-            vol = self.computer_controller.change_volume(delta_val)
+    def _handle_system_volume(
+        self,
+        delta: int | None = None,
+        level: int | None = None,
+        mute: bool | None = None,
+        clarify: bool = False,
+        **kwargs,
+    ) -> dict[str, Any]:
+        """
+        Adjusts or sets master SPEAKER/output volume, or mutes/unmutes it
+        -- fail-closed if the endpoint is unavailable.
+
+        Backed by ComputerController.set_volume()/change_volume()/
+        mute_volume() -- the real Windows master speaker/output device --
+        NOT AudioEngine.pause_stream()/resume_stream(), which controls the
+        separate microphone INPUT stream (see _handle_toggle_mute()) and
+        must never be conflated with speaker output control.
+
+        H-08 fix: `mute` was previously accepted by the router
+        ("tắt tiếng"/"bật tiếng" both emit system_volume with a `mute`
+        parameter) but silently discarded here via **kwargs -- neither
+        branch below ever read it, so a mute/unmute request fell through
+        to the delta branch and actually changed the VOLUME LEVEL instead
+        of muting/unmuting anything.
+
+        `mute` here is an explicit desired-state request for THIS call
+        only (True=mute, False=unmute). Unlike _handle_toggle_mute's
+        microphone `muted` parameter, an omitted/None `mute` here does
+        NOT mean "toggle" -- it simply means no mute action was requested
+        (a plain volume level/delta adjustment), since this one handler
+        also serves level/delta requests that naturally omit `mute`
+        entirely. No router path today emits a speaker-mute TOGGLE
+        request; if one is ever added it must use its own explicit
+        signal rather than overloading `mute=None`.
+
+        H-08 review fix: every failure branch below now follows the
+        established truthfulness contract -- "error" holds the clear
+        Vietnamese human-readable message and "error_code" holds the
+        short machine constant, never the reverse. The dispatcher's
+        failure-normalization (_normalize_handler_outcome()) prefers
+        "error" as the spoken response text; putting a raw code like
+        "VOLUME_SET_FAILED" there (the previous level/delta branches'
+        contract) meant the machine code, not clear Vietnamese wording,
+        could reach the user.
+
+        H-08 final contract correction: `clarify=True` is how the router
+        represents a genuinely ambiguous volume request ("điều chỉnh âm
+        lượng" with no direction/level/mute verb) WITHOUT leaving the
+        established system_volume routing category (see
+        _make_system_volume_intent()'s ambiguous-phrasing fallback and the
+        "dieu chinh am luong" dict entry). This branch runs FIRST --
+        before the computer_controller availability check and before any
+        of set_volume()/change_volume()/mute_volume() -- so asking for
+        clarification has ZERO hardware side effects and never depends on
+        computer_controller existing at all. It is a genuinely successful
+        conversational outcome (a clear question was asked), never a
+        claim that any volume change occurred.
+        """
+        if clarify:
+            return {
+                "status": "success",
+                "success": True,
+                "clarification_required": True,
+                "message": (
+                    "Ngài muốn tăng âm lượng, giảm âm lượng, tắt tiếng, bật tiếng, "
+                    "hay đặt một mức âm lượng cụ thể? Xin nói rõ hơn, thưa Ngài."
+                ),
+            }
+
+        if not self.computer_controller:
+            msg = "Không thể điều khiển âm lượng: bộ điều khiển máy tính không khả dụng, thưa Ngài."
+            return {"status": "failed", "success": False, "error": msg, "error_code": "COMPUTER_CONTROLLER_UNAVAILABLE"}
+
+        if level is not None:
+            vol = self.computer_controller.set_volume(level)
             if vol is None:
-                return {"status": "failed", "success": False, "volume": None, "error": "VOLUME_CHANGE_FAILED", "message": "Không thể điều chỉnh âm lượng phần cứng, thưa Ngài."}
-            return {"status": "success", "success": True, "volume": vol, "message": f"Đã điều chỉnh âm lượng lên {vol}%, thưa Ngài."}
-        return {"status": "failed", "success": False, "message": "Computer controller unavailable"}
+                msg = "Không thể đặt âm lượng phần cứng, thưa Ngài."
+                return {"status": "failed", "success": False, "volume": None, "error": msg, "error_code": "VOLUME_SET_FAILED"}
+            return {"status": "success", "success": True, "volume": vol, "message": f"Đã đặt âm lượng hệ thống thành {vol}%, thưa Ngài."}
+
+        if mute is not None:
+            result = self.computer_controller.mute_volume(bool(mute))
+            if result is None:
+                msg = "Không thể tắt tiếng loa, thưa Ngài." if mute else "Không thể bật tiếng loa, thưa Ngài."
+                return {"status": "failed", "success": False, "muted": None, "error": msg, "error_code": "VOLUME_MUTE_FAILED"}
+            msg = "Đã tắt tiếng loa, thưa Ngài." if result else "Đã bật tiếng loa, thưa Ngài."
+            return {"status": "success", "success": True, "muted": result, "message": msg}
+
+        delta_val = delta if delta is not None else 10
+        vol = self.computer_controller.change_volume(delta_val)
+        if vol is None:
+            msg = "Không thể điều chỉnh âm lượng phần cứng, thưa Ngài."
+            return {"status": "failed", "success": False, "volume": None, "error": msg, "error_code": "VOLUME_CHANGE_FAILED"}
+        return {"status": "success", "success": True, "volume": vol, "message": f"Đã điều chỉnh âm lượng lên {vol}%, thưa Ngài."}
 
     def _handle_system_brightness(self, delta: int | None = None, level: int | None = None, **kwargs) -> dict[str, Any]:
         """Adjusts or sets screen brightness (fail-closed if monitor unavailable)."""

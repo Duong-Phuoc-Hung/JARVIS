@@ -199,13 +199,152 @@ def test_volume_get_set_change(controller, mock_win32):
     assert controller.set_volume(-50) == 0
 
 
+def test_change_volume_successful_delta_never_sends_hotkeys(controller, mock_win32):
+    """
+    H-08 review fix: change_volume() previously sent volume_up/down
+    hotkeys AFTER a successful pycaw set_volume() call, double-applying
+    the requested delta on a real machine (pycaw sets the exact level,
+    then the hotkeys shift it again). pycaw is now the sole authoritative
+    backend and the sole side effect -- no hotkey fallback ever fires.
+    """
+    controller.set_volume(50)
+    mock_win32.send_hotkey.reset_mock()
+    result = controller.change_volume(10)
+    assert result == 60
+    mock_win32.send_hotkey.assert_not_called()
+
+
+def test_change_volume_failed_delta_never_sends_hotkeys(controller, mock_win32, monkeypatch):
+    """
+    H-08 review fix: previously, hotkeys fired unconditionally even when
+    set_volume() failed and returned None -- real hardware volume could
+    still change through the hotkey while JARVIS truthfully reported
+    failure. A failed backend call must now have zero secondary effect.
+    """
+    monkeypatch.setattr(controller, "set_volume", lambda level: None)
+    mock_win32.send_hotkey.reset_mock()
+    result = controller.change_volume(10)
+    assert result is None
+    mock_win32.send_hotkey.assert_not_called()
+
+
+class _CountingVolumeEndpoint:
+    """
+    Deterministic fake pycaw endpoint that counts real write calls
+    (SetMasterVolumeLevelScalar), so a test can prove ZERO backend writes
+    occurred -- not merely that the returned value happens to equal the
+    prior one (which a redundant same-value write would also satisfy).
+    """
+
+    def __init__(self, initial_scalar: float = 0.5) -> None:
+        self._scalar = initial_scalar
+        self.set_master_volume_calls = 0
+
+    def GetMasterVolumeLevelScalar(self) -> float:
+        return self._scalar
+
+    def SetMasterVolumeLevelScalar(self, level: float, ctx: object = None) -> None:
+        self.set_master_volume_calls += 1
+        self._scalar = float(level)
+
+
+def test_change_volume_zero_delta_causes_zero_backend_writes(controller, mock_win32, monkeypatch):
+    """
+    H-08 final correction: delta=0 must be a REAL no-op -- zero calls to
+    SetMasterVolumeLevelScalar() (not even a redundant write-back of the
+    unchanged value), and zero volume_up/volume_down hotkeys. Only the
+    read-only GetMasterVolumeLevelScalar() (via get_volume()) may occur.
+    """
+    fake_endpoint = _CountingVolumeEndpoint(initial_scalar=0.5)  # 50%
+    monkeypatch.setattr(controller, "_get_audio_endpoint", staticmethod(lambda speakers: fake_endpoint))
+    mock_win32.send_hotkey.reset_mock()
+
+    result = controller.change_volume(0)
+
+    assert result == 50
+    assert fake_endpoint.set_master_volume_calls == 0, "delta=0 must not write to the backend at all"
+    mock_win32.send_hotkey.assert_not_called()
+
+
 def test_volume_mute_toggle(controller, mock_win32):
+    """
+    H-08 fix: mute_volume() previously wrote self._is_muted BEFORE ever
+    attempting the real backend, then silently fell back to a blind
+    "volume_mute" TOGGLE hotkey on any pycaw failure while still
+    returning the pre-computed value as if confirmed. Now that the
+    virtual pycaw endpoint (tests/conftest.py::_VirtualEndpointVolume)
+    genuinely implements GetMute()/SetMute(), the real backend path
+    succeeds directly -- the hotkey fallback must NOT be used at all.
+    """
     assert controller.is_muted() is False
+
+    # Bare toggle (mute=None) still supported, reading the real backend
+    # state rather than trusting a possibly-stale cache.
     assert controller.mute_volume() is True
     assert controller.is_muted() is True
     assert controller.mute_volume() is False
     assert controller.is_muted() is False
-    mock_win32.send_hotkey.assert_called_with("volume_mute")
+
+    # Explicit desired-state requests are idempotent -- repeating the same
+    # desired state must not flip it back.
+    assert controller.mute_volume(True) is True
+    assert controller.is_muted() is True
+    assert controller.mute_volume(True) is True
+    assert controller.is_muted() is True
+    assert controller.mute_volume(False) is False
+    assert controller.is_muted() is False
+    assert controller.mute_volume(False) is False
+    assert controller.is_muted() is False
+
+    mock_win32.send_hotkey.assert_not_called()
+
+
+def test_volume_mute_backend_unavailable_fails_closed(controller, mock_win32, monkeypatch):
+    """Backend endpoint unreachable -> None, never a fabricated result, and
+    the cached is_muted() state must not be mutated by the failed call."""
+    monkeypatch.setattr(controller, "_get_audio_endpoint", staticmethod(lambda speakers: None))
+    assert controller.is_muted() is False
+    assert controller.mute_volume(True) is None
+    assert controller.is_muted() is False, "a failed call must not mutate the cached mute state"
+    mock_win32.send_hotkey.assert_not_called()
+
+
+class _FakeMismatchEndpoint:
+    """
+    Deterministic fake pycaw endpoint whose SetMute() call succeeds (never
+    raises) but whose GetMute() read-back always reports a FIXED value,
+    disagreeing with whatever was just requested -- simulating a real
+    scenario where the backend call didn't error but the hardware state
+    didn't actually change (driver quirk, race with another process, a
+    stale/virtual audio device, etc).
+    """
+
+    def __init__(self, fixed_readback: bool) -> None:
+        self._fixed_readback = fixed_readback
+
+    def GetMute(self) -> int:
+        return int(self._fixed_readback)
+
+    def SetMute(self, value: int, ctx: object = None) -> None:
+        pass  # deliberately never actually changes what GetMute() reports
+
+
+def test_volume_mute_readback_mismatch_fails_closed(controller, mock_win32, monkeypatch):
+    """
+    H-08 review fix: SetMute() succeeding without raising is not proof the
+    endpoint actually ended up in the requested state. When the GetMute()
+    read-back disagrees with what was requested, mute_volume() must fail
+    closed (None) -- never claim the requested state succeeded, and never
+    mutate the cached is_muted() to the requested (unconfirmed) value.
+    """
+    fake_endpoint = _FakeMismatchEndpoint(fixed_readback=False)  # always reports "unmuted"
+    monkeypatch.setattr(controller, "_get_audio_endpoint", staticmethod(lambda speakers: fake_endpoint))
+
+    assert controller.is_muted() is False
+    result = controller.mute_volume(True)  # requested MUTE, but the endpoint will keep reporting unmuted
+    assert result is None, "a read-back mismatch must fail closed, not report the requested state as achieved"
+    assert controller.is_muted() is False, "a mismatched read-back must not mutate cached state"
+    mock_win32.send_hotkey.assert_not_called()
 
 
 def test_brightness_get_set_change(controller):

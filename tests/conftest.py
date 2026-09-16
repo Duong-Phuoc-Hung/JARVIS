@@ -62,12 +62,19 @@ def _reset_runaway_guards():
 class _VirtualEndpointVolume:
     def __init__(self, initial_scalar: float = 0.5):
         self._scalar = initial_scalar
+        self._muted = False
 
     def GetMasterVolumeLevelScalar(self) -> float:
         return self._scalar
 
     def SetMasterVolumeLevelScalar(self, level: float, ctx: Any = None) -> None:
         self._scalar = float(level)
+
+    def GetMute(self) -> int:
+        return int(self._muted)
+
+    def SetMute(self, mute: int, ctx: Any = None) -> None:
+        self._muted = bool(mute)
 
 
 @pytest.fixture(autouse=True)
