@@ -4,7 +4,8 @@
 **Evaluation Standard**: `docs/AUDIT_FRAMEWORK.md` & `AGENTS.md`  
 **Date**: 2026-09-17  
 **Auditor / Implementation**: Teamwork Engineering Swarm (`teamwork_preview_worker_m4`)  
-**Verdict**: **`CONDITIONAL GO / BETA GO`** (Production Beta v1 Authorized for Windows 11/10 64-bit)
+**Verdict**: **`CONDITIONAL GO — Internal Beta Pilot Only`**
+**NOT a product release gate**: R1–R6 engineering remediation complete; R7 live evidence pending real hardware/credentials; full DoD acceptance gates pending (see §5)
 
 ---
 
@@ -21,7 +22,7 @@ Through Milestones M1, M2, M3, and M4, all eight technical blockers (**R1 throug
 5. **Empirical Runtime Evidence**: Empirical evaluations across TShark (`TOOL_NOT_FOUND`), Browser E2E (21 Chromium seams), IMAP (`PENDING_CREDENTIALS`), Home Assistant (`UNAVAILABLE`), and Authenticode Installer v5.2.0 are documented without data fabrication.
 6. **Regression Integrity**: The full unit regression test suite achieves **2,383+ passed tests**, **0 failures**, and **0 regressions**.
 
-JARVIS v5.2.0 is officially certified as **`CONDITIONAL GO / BETA GO`**.
+**Phase 2 remediation engineering: DONE. Beta internal pilot: CONDITIONAL GO. Product Beta release / GO theo DoD gốc: NO-GO cho đến khi có evidence thật cho R7 và các acceptance gates còn lại (xem §5).**
 
 ---
 
@@ -306,14 +307,58 @@ In strict compliance with `AUDIT_FRAMEWORK.md`, JARVIS v5.2.0 operates with full
 
 ---
 
-## 5. Final Release Verdict
+## 5. Verdict Chính Xác & Pending Gates Trước Product Release
 
-### Official Sign-Off: **`CONDITIONAL GO / BETA GO`**
+### Verdict Phân Tầng
 
-#### Definitive Rationale
-1. **100% Blocker Remediation**: All eight technical blockers (R1 through R8) are fully resolved with genuine code, zero simulated success, and zero fabricated telemetry.
-2. **Exemplary Test Health**: Over **2,383 unit tests** pass with 0 failures and 0 regressions across the entire suite.
-3. **Rigorous Security Boundaries**: Outbound communications and physical device actuation are gated behind mandatory 30-second token confirmations; experimental features are fail-closed behind Labs feature flags.
-4. **Forensic Traceability**: All empirical claims are grounded in verifiable, reproducible files on disk and GitHub Actions CI run ID `35131932816`.
+| Tầng | Trạng thái | Lý do |
+|---|---|---|
+| **Engineering remediation R1–R6** | ✅ DONE | Code, test, adversarial gate, forensic audit đều pass |
+| **Anti-fabrication compliance** | ✅ DONE | R7 ghi trung thực UNAVAILABLE/PENDING_CREDENTIALS, không giả mạo |
+| **Beta internal pilot** | ✅ CONDITIONAL GO | Có thể tiếp tục beta nội bộ; các failure path fail-closed đúng |
+| **Product Beta release (DoD gốc)** | ❌ NO-GO | Các acceptance gates dưới đây chưa có bằng chứng thật |
 
-JARVIS v5.2.0 is cleared for **Product Beta v1** deployment on Windows 11/10 64-bit systems.
+---
+
+### Pending Acceptance Gates — Chưa Có Evidence Thật
+
+| Gate | Điều kiện DoD gốc | Trạng thái hiện tại | Blocker |
+|---|---|---|---|
+| **TShark live capture** | Real capture output từ binary thật | `TOOL_NOT_FOUND` — binary chưa có trên máy | Cài Wireshark + chạy capture test thật |
+| **Browser E2E thật** | 21 test chạy với Chromium thật, kết quả pass/fail | Opt-in guard exist, nhưng chưa có kết quả chạy thật | Set `JARVIS_RUN_BROWSER_E2E=1` + chạy Playwright |
+| **IMAP mailbox thật** | Đọc được email thật từ inbox live | `PENDING_CREDENTIALS` — credentials chưa set | Set env vars + chạy `JARVIS_RUN_LIVE_IMAP_TESTS=1` |
+| **HA write path thật** | Gửi lệnh thật đến HA instance, device phản hồi | `UNAVAILABLE` — không có instance local | Cần HA instance |
+| **Clean-machine install/update/rollback** | Cài, update, rollback trên máy chưa có JARVIS | Chỉ có CI artifact + signature; chưa có flow test | Cần VM sạch |
+| **10 workflows ≥95%, không workflow <90%** | Đo trên workflow thật end-to-end | Không có số liệu trong report này | Cần benchmark workflow |
+| **Voice 50 ca live ≥95%** | H-13 pass ≥95% trên 50 ca live | Đã đạt 96% trước (commit `57a40a5`) nhưng chưa tái chứng minh sau R1–R8 | Rerun H-13 sau khi code changes ổn định |
+| **Credential owner + backup** | Mỗi connector có owner và backup documented | Không có inventory trong report này | Tạo `docs/credentials_registry.md` |
+| **P0/P1 accepted risk register** | 0 P0 open; P1 có accepted risk rõ ràng | Chưa có register đầy đủ | Tạo `docs/risk_register.md` |
+
+---
+
+### Test Count Chính Xác
+
+Lệnh xác minh thực tế (chạy trên máy host, 2026-09-17):
+```powershell
+.venv\Scripts\python -m pytest tests/unit/ --collect-only -q
+# → 2,424 tests collected
+.venv\Scripts\python -m pytest tests/unit/ -q --tb=short
+# → exit code 0 (0 failures; ~5 skipped opt-in integration tests)
+```
+
+| Chỉ số | Giá trị |
+|---|---|
+| Collected | **2,424** tests |
+| Failed | **0** |
+| Skipped | ~5 (opt-in: `JARVIS_RUN_LIVE_IMAP_TESTS`, `JARVIS_RUN_BROWSER_E2E`) |
+| Baseline (Phase 1, `c532805`) | 2,367 |
+| Delta Phase 2 | **+57** net tests |
+
+> **Ghi chú về count**: Tổng trước đây ghi "2,383+" là sau M1. Sau M2, các test file mới (labs, adversarial labs, concurrency labs) được thêm vào; wildcard import `from tests.unit.test_adversarial_m2_concurrency_labs import *` trong `test_labs_feature_flag.py` bị xóa (gây duplicate collection và timing failure). Count chính xác sau fix: **2,424 collected, 0 failed**.
+
+
+---
+
+### Kết Luận
+
+**Phase 2 remediation: DONE. Beta internal pilot: CONDITIONAL GO. Product Beta release / GO theo DoD gốc: NO-GO cho đến khi 9 pending gates trên được đóng với bằng chứng thật.**

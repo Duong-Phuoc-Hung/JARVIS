@@ -454,7 +454,7 @@ def test_packet_capture_direct_call_default_none_config_fails_closed():
         cfg.set("labs.features", orig_features)
 
 
-# ── 7. Milestone M2 Adversarial Concurrency & Async Tests ───────────────────
-from tests.unit.test_adversarial_m2_concurrency_labs import *
 
-
+# NOTE: Concurrency and async adversarial tests for M2 are in their own dedicated file:
+# tests/unit/test_adversarial_m2_concurrency_labs.py
+# Do NOT wildcard-import test modules — pytest collects them automatically.
