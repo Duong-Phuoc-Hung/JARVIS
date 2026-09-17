@@ -620,3 +620,52 @@ pytest --cov=myapp --cov-report=term-missing tests/
 ```
 
 For advanced patterns (async testing, monkeypatching, property-based testing, database testing, CI/CD integration, and configuration), see [references/advanced-patterns.md](references/advanced-patterns.md)
+
+---
+
+## Test Collection Anti-Patterns
+
+### ❌ Wildcard Import Between Test Modules
+
+**Never wildcard-import another test module:**
+```python
+# test_foo.py — WRONG: causes duplicate test collection
+from tests.unit.test_bar import *
+```
+
+pytest auto-discovers all `test_*.py` files via its collection mechanism. Wildcard imports cause every test to be collected **twice** (once from the source file, once from the importer), leading to:
+- Duplicate test IDs in output (confusing "1 failed, 1 passed" for the same test name)
+- Timing-sensitive assertions failing on loaded machines (second run has less CPU than first)
+- `from module import *` silently importing all module-level names including non-test symbols
+
+**✅ Use conftest.py for shared fixtures, non-test helpers for shared utilities:**
+```python
+# tests/unit/conftest.py — shared fixtures discovered automatically
+@pytest.fixture
+def my_config():
+    return {"labs": {"enabled": False}}
+
+# tests/helpers/labs_helpers.py — shared utilities (file not prefixed test_)
+def make_labs_config(enabled=False, features=None):
+    return {"labs": {"enabled": enabled, "features": features or []}}
+```
+
+### ❌ Timing-Sensitive Assertions with Absolute Counts
+
+Assertions like `assert count > 50` on background thread dispatch counts fail under load (CI machines, full test suite runs, antivirus scans):
+
+```python
+# WRONG — absolute count is machine-speed dependent
+assert labs_rejected_count[0] > 50
+```
+
+**✅ Use machine-speed-agnostic thresholds that prove "did it happen", not "exactly how many":**
+```python
+# CORRECT — proves concurrency occurred without depending on machine speed
+assert labs_rejected_count[0] > 5, (
+    f"Only {labs_rejected_count[0]} actions completed — "
+    "expected concurrent background threads to have run"
+)
+```
+
+**Rule of thumb:** If the test's purpose is to verify *that* concurrent behavior occurred, any count > 0 or > 5 is sufficient. Reserve high absolute thresholds only for genuine throughput benchmarks that are explicitly annotated with `@pytest.mark.slow` and excluded from the default test run.
