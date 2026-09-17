@@ -4,7 +4,7 @@
 **Evaluation Standard**: `docs/AUDIT_FRAMEWORK.md` & `AGENTS.md`  
 **Date**: 2026-09-18 (Phase 3 Acceptance Sign-Off)  
 **Auditor / Implementation**: Teamwork Engineering Swarm (`teamwork_preview_worker_m4_1`)  
-**Verdict**: **`CONDITIONAL GO / BETA GO (Production Beta v1 Authorized for Internal Pilot)`**  
+**Verdict**: **`CONDITIONAL GO — Internal Beta Pilot Only`**  
 **Operational Scope**: R1–R8 engineering remediation complete; R9 (Credentials) & R10 (Risks) closed; R12 (Browser E2E) & R13 (Workflow Benchmark) verified with real runtime evidence; R11 (TShark) and hardware gates truthfully profiled as accepted pilot risks (see §5 & §6).
 
 ---
@@ -24,7 +24,7 @@ Through Milestones M1 through M4 (Phase 2 & Phase 3), all eight technical blocke
 7. **End-to-End Workflow Verification (R13)**: Executed `tests/benchmarks/test_workflow_acceptance_benchmark.py` across 10 core workflows (200/200 trials passed, 100.00% pass rate, avg latency 0.105ms / 0.112ms).
 8. **Regression Integrity**: The full unit regression test suite achieves **2,424 passed tests**, **0 failures**, and **0 regressions**.
 
-**System status: CONDITIONAL GO / BETA GO (Production Beta v1 Authorized for Internal Pilot). All engineering gates are PASS; real runtime proof is verified for browser E2E and workflow benchmarks; hardware-dependent gates are documented as accepted risks under developer workstation supervision.**
+**System status: CONDITIONAL GO — Internal Beta Pilot Only. Engineering and runtime: PASS for R1–R10, R12, R13. Product release remains NO-GO: 5 hardware-blocked gates pending (TShark Npcap driver, HA instance, IMAP credentials, clean-machine VM, H-13 voice acceptance).**
 
 ---
 
@@ -369,7 +369,7 @@ Theo quy định tại `docs/risk_register.md` §2.2 và `AGENTS.md §5`:
 
 ## 6. Phán Quyết Phát Hành Chính Thức (Final Release Verdict)
 
-### Trạng Thái Tổng Thể: **`CONDITIONAL GO / BETA GO (Production Beta v1 Authorized for Internal Pilot)`**
+### Trạng Thái Tổng Thể: **`CONDITIONAL GO — Internal Beta Pilot Only`**
 
 1. **Tuân Thủ Kỹ Thuật 100% (Engineering Compliance)**:
    - Toàn bộ 8 technical blockers ban đầu (R1–R8) đã được xử lý triệt để, không còn bất kỳ đường code nào trả kết quả giả lập hay nuốt lỗi ngầm định.
@@ -381,4 +381,4 @@ Theo quy định tại `docs/risk_register.md` §2.2 và `AGENTS.md §5`:
    - R11 (TShark) và các cổng phần cứng bên ngoài (HA, VM sạch, Voice H-13, Bluetooth HFP) được ghi nhận trung thực dưới nhãn `HARDWARE_BLOCKED` hoặc `PENDING_CREDENTIALS`, hoàn toàn không có dữ liệu giả mạo.
    - Tất cả các ranh giới này đã được đánh giá và chấp thuận rủi ro cho giai đoạn **Internal Beta Pilot**.
 4. **Quyết Định Cấp Phép**:
-   - Hệ thống chính thức đạt cấp độ **`CONDITIONAL GO / BETA GO`** và được phê duyệt triển khai thử nghiệm nội bộ (**Internal Beta Pilot**) trên môi trường Windows 11/10 64-bit.
+   - Hệ thống đạt cấp độ **`CONDITIONAL GO — Internal Beta Pilot Only`**. Product release (GO) vẫn là **NO-GO** cho đến khi 5 hardware-blocked gates được đóng: TShark Npcap driver, HA instance, IMAP credentials, clean-machine VM, và H-13 voice acceptance.
