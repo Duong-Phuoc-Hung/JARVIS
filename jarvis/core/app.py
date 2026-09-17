@@ -59,6 +59,7 @@ from jarvis.browser.models import (
 from jarvis.browser.session import BrowserSessionManager
 from jarvis.core.config import ConfigManager
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
+from jarvis.core.labs import require_labs
 from jarvis.core.logger import log_interaction as _global_log_interaction
 from jarvis.core.models import RequesterContext
 from jarvis.core.paths import get_data_dir as get_jarvis_data_dir
@@ -215,7 +216,7 @@ class JarvisApp:
         # 1. Core Framework Foundation
         self.config = ConfigManager(config_path=self.config_path)
         self.event_bus = EventBus()
-        self.dispatcher = ActionDispatcher(event_bus=self.event_bus)
+        self.dispatcher = ActionDispatcher(event_bus=self.event_bus, config=self.config)
         self.plugin_registry = PluginRegistry(self.dispatcher)
 
         # 2. Audio & Speech Subsystems
@@ -1018,7 +1019,174 @@ class JarvisApp:
             description="Reads state and attributes of a smart home entity via Home Assistant",
         )
 
+        # 8. Experimental / Labs actions
+        self.dispatcher.register_action(
+            name="browser_cdp_capture",
+            handler=self._handle_browser_cdp_capture,
+            labs_feature="browser_cdp",
+            description="Captures live DOM state and screenshot via Chrome DevTools Protocol (CDP)",
+        )
+        self.dispatcher.register_action(
+            name="tshark_capture",
+            handler=self._handle_tshark_capture,
+            labs_feature="tshark_capture",
+            description="Executes live packet capture and protocol analysis via TShark",
+        )
+
     # ── Action Handlers ──────────────────────────────────────────────────────
+
+    @require_labs("browser_cdp")
+    def _handle_browser_cdp_capture(
+        self,
+        url: str | None = None,
+        endpoint: str | None = None,
+        timeout_s: float = 2.0,
+        **kwargs,
+    ) -> dict[str, Any]:
+        """Captures DOM state and screenshot via Chrome DevTools Protocol (Labs feature)."""
+        cdp_endpoint = endpoint or (
+            self.config.get("browser.cdp_endpoint", "http://127.0.0.1:9222")
+            if hasattr(self.config, "get")
+            else "http://127.0.0.1:9222"
+        )
+        version_url = f"{cdp_endpoint.rstrip('/')}/json/version"
+
+        # 1. Honest endpoint connectivity probe
+        import socket
+        import urllib.error
+        import urllib.request
+
+        try:
+            req = urllib.request.Request(version_url, headers={"User-Agent": "JARVIS-CDP/1.0"})
+            with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+                if resp.status != 200:
+                    return {
+                        "success": False,
+                        "status": "FAILED",
+                        "code": "CDP_ENDPOINT_UNAVAILABLE",
+                        "error": f"Chrome CDP endpoint returned non-200 status: {resp.status}",
+                        "error_code": "CDP_ENDPOINT_UNAVAILABLE",
+                        "message": f"Chrome CDP endpoint unavailable at {cdp_endpoint}",
+                        "retryable": False,
+                    }
+        except (urllib.error.URLError, ConnectionRefusedError, TimeoutError, OSError, socket.timeout) as exc:
+            log.warning("Chrome CDP endpoint unreachable at %s: %s", version_url, exc)
+            return {
+                "success": False,
+                "status": "FAILED",
+                "code": "CDP_ENDPOINT_UNAVAILABLE",
+                "message": f"Chrome CDP endpoint unavailable at {cdp_endpoint}",
+                "error": "Chrome debugging port 9222 is not reachable",
+                "error_code": "CDP_ENDPOINT_UNAVAILABLE",
+                "retryable": False,
+            }
+        except Exception as exc:
+            log.error("Unexpected error probing CDP endpoint %s: %s", version_url, exc)
+            return {
+                "success": False,
+                "status": "FAILED",
+                "code": "CDP_ENDPOINT_UNAVAILABLE",
+                "error": str(exc),
+                "error_code": "CDP_ENDPOINT_UNAVAILABLE",
+                "message": f"Failed to probe CDP endpoint: {exc}",
+                "retryable": False,
+            }
+
+        # 2. Genuine CDP execution via BrowserCDPController
+        try:
+            from jarvis.browser.cdp_controller import BrowserCDPController, BrowserConfig
+
+            controller = BrowserCDPController(
+                config=BrowserConfig(cdp_endpoint=cdp_endpoint, timeout_ms=int(timeout_s * 1000)),
+            )
+            if not controller.launch():
+                return {
+                    "success": False,
+                    "status": "FAILED",
+                    "code": controller.last_error_code or "CDP_ATTACH_FAILED",
+                    "error": controller.last_error_message or "Failed to attach to Chromium CDP session",
+                    "error_code": controller.last_error_code or "CDP_ATTACH_FAILED",
+                    "message": "Failed to attach to Chromium CDP session",
+                    "retryable": False,
+                }
+
+            try:
+                target_url = url or kwargs.get("target_url")
+                if target_url:
+                    page_info = controller.navigate(target_url)
+                    if not page_info.success:
+                        return {
+                            "success": False,
+                            "status": "FAILED",
+                            "code": page_info.error_code or "BROWSER_NAVIGATION_FAILED",
+                            "error": page_info.error_message or "Navigation failed",
+                            "error_code": page_info.error_code or "BROWSER_NAVIGATION_FAILED",
+                            "message": f"Navigation to {target_url} failed",
+                            "retryable": False,
+                        }
+
+                content_md = controller.extract_content_as_markdown()
+                screenshot_path = controller.screenshot()
+                current_url = controller.get_current_url()
+
+                return {
+                    "success": True,
+                    "status": "SUCCESS",
+                    "code": "OK",
+                    "message": "CDP capture executed successfully",
+                    "data": {
+                        "url": current_url,
+                        "content_md": content_md,
+                        "screenshot_path": screenshot_path,
+                    },
+                }
+            finally:
+                controller.close()
+
+        except ImportError:
+            return {
+                "success": False,
+                "status": "FAILED",
+                "code": "BROWSER_CDP_NOT_INSTALLED",
+                "error": "BrowserCDPController dependencies not installed",
+                "error_code": "BROWSER_CDP_NOT_INSTALLED",
+                "message": "Browser CDP controller dependencies not installed",
+                "retryable": False,
+            }
+        except Exception as exc:
+            log.error("CDP capture execution failed: %s", exc, exc_info=True)
+            return {
+                "success": False,
+                "status": "ERROR",
+                "code": "CDP_EXECUTION_ERROR",
+                "error": str(exc),
+                "error_code": "CDP_EXECUTION_ERROR",
+                "message": f"CDP capture encountered an error: {exc}",
+                "retryable": False,
+            }
+
+    @require_labs("tshark_capture")
+    def _handle_tshark_capture(
+        self,
+        interface: str = "eth0",
+        count: int = 50,
+        duration_s: float | None = None,
+        bpf_filter: str | None = None,
+        **kwargs,
+    ) -> dict[str, Any]:
+        """Executes live packet capture via TShark (Labs feature)."""
+        from jarvis.security.scanner import PacketCapture
+        pc = PacketCapture(config=self.config)
+        result = pc.capture_packets(
+            interface=interface,
+            count=count,
+            duration_s=duration_s,
+            bpf_filter=bpf_filter,
+            **kwargs,
+        )
+        if hasattr(result, "to_dict"):
+            return result.to_dict()
+        return dict(result)
 
     def _handle_home_assistant_call(self, **kwargs) -> dict[str, Any]:
         """Dispatches an authoritative service call to Home Assistant."""
@@ -2699,7 +2867,7 @@ class JarvisApp:
                             response_text = str(action_result.error)
                         elif isinstance(action_result.data, dict) and action_result.data.get("message"):
                             response_text = str(action_result.data["message"])
-                        elif action_result.error_code:
+                        elif action_result.error_code and action_result.error_code not in ("ACTION_FAILED", "FAILED", "ERROR"):
                             response_text = f"Không thể thực hiện lệnh ({action_result.error_code})."
                         else:
                             response_text = "Không thể thực hiện lệnh."

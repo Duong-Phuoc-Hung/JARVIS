@@ -1,4 +1,4 @@
-## PHASE G (2026-09-17) — Beta GO Resolution: Resolving Technical Blockers R1–R4
+## PHASE G (2026-09-17) — Beta GO Full Resolution: Resolving Technical Blockers R1–R8
 
 | ID | Status | Mô tả |
 |----|--------|-------|
@@ -6,7 +6,11 @@
 | R-02 | DONE | Unified ActionResult Contract: Thống nhất mô hình dữ liệu chuẩn 4 trường (`status`, `code`, `message`, `retryable`) trong `jarvis/core/models.py`. Hỗ trợ dict emulation và đồng bộ hai chiều legacy fields. Hoàn tất migrate 3 backend modules: `HomeAssistantClient`, `MobileFileBridge` (429 retryable=True), và `VMOrchestrator` (`VMActionResult` kế thừa `ActionResult`). (12 contract tests + 150 regression tests pass) |
 | R-03 | DONE | Health Status Vocabulary Standardization: Chuẩn hóa `StatusLevel` trong `jarvis/ui/terminal/theme.py` thành đúng 5 trạng thái canonical: `READY`, `LIMITED`, `BLOCKED`, `ERROR`, `UNAVAILABLE`. Bổ sung `UNAVAILABLE` và cập nhật toàn bộ 52 callsites phân tán tại 11 file production trong `jarvis/ui/terminal/`. (110 terminal tests pass) |
 | R-04 | DONE | Safety Classifier High-Risk Expansion: Mở rộng `HIGH_RISK_ACTIONS` trong `jarvis/planner/safety_interceptor.py` cho toàn bộ hành động outbound (Email, Zalo, Discord) và actuation thiết bị Home Assistant. Bắt buộc phê duyệt token xác nhận 30s tại `ActionDispatcher` trước khi thực thi. Phân tách an toàn truy vấn chỉ đọc (read-only) ungated. (17 tests pass) |
-| M-05 | DONE | Full Unit Regression & Release: Toàn bộ unit test suite (2367 passed, 4 skipped, 1 xfailed trong 189.62s) vượt qua 100% không có hồi quy; đồng bộ tài liệu CHANGELOG.md, README.md, docs/ROADMAP.md và commit git main. |
+| R-05 | DONE | Discord Inbound Gateway: Triển khai background REST polling loop tại `jarvis/comms/discord.py` truy vấn messages kèm snowflake tracking (`&after=`), cơ chế fail-closed tự động ngắt khi gặp mã HTTP 401/403/404 hoặc vượt ngưỡng lỗi, enforce danh sách trắng `whitelist_user_ids` và lưu nhật ký vi phạm băm SHA-256. (30+ tests pass) |
+| R-06 | DONE | Core/Labs Feature Flag Mechanism: Xây dựng cơ chế phân tách tính năng lõi (Core) và thử nghiệm (Labs) tại `jarvis/core/labs.py` và `jarvis/core/config.py`. Cung cấp decorator `@require_labs` trả về `ActionResult(status=LABS_DISABLED)` khi tính năng Labs (browser CDP, TShark capture) chưa kích hoạt opt-in. (40+ tests pass) |
+| R-07 | DONE | Runtime Evidence Portfolio: Thu thập và công bố 5 báo cáo thực nghiệm runtime độc lập tại `docs/eval/`: TShark (R7a), Browser Playwright E2E (R7b), IMAP Live (R7c), Home Assistant Live Probe (R7d), và Windows Installer v5.2.0 Authenticode Signature (R7e) tuân thủ nghiêm ngặt Anti-Fabrication Principle. |
+| R-08 | DONE | Comprehensive Beta GO Report: Hoàn tất báo cáo tổng hợp `docs/BETA_GO_REPORT.md` đánh giá chi tiết 8 blockers R1–R8, xác định ranh giới vận hành chấp nhận được và đưa ra phán quyết chính thức CONDITIONAL GO / BETA GO cho phiên bản v5.2.0. |
+| M-05 | DONE | Full Unit Regression & Standards Synchronization: Toàn bộ unit test suite (2,383+ passed, 0 failures, 0 regressions) vượt qua 100%; đồng bộ tài liệu CHANGELOG.md, README.md, docs/ROADMAP.md và commit git main. |
 
 ---
 
@@ -221,7 +225,11 @@ BETA GO ENGINEERING HARDENING STATUS (2026-09-17):
   [x] R-02 Unified ActionResult Contract (status, code, message, retryable + 3 backends) — COMPLETE
   [x] R-03 Health Status Vocabulary (5 canonical states: READY, LIMITED, BLOCKED, ERROR, UNAVAILABLE) — COMPLETE
   [x] R-04 Safety Interceptor High-Risk Gate (outbound email, Zalo, Discord, HA actuation with 30s token) — COMPLETE
-  [x] M-05 Full Unit Regression Verification (2367 passed, 0 failures) & Docs Sync — COMPLETE
+  [x] R-05 Discord Inbound Gateway (start_polling, _poll_loop, whitelist, fail-closed) — COMPLETE
+  [x] R-06 Core/Labs Feature Flag Mechanism (labs.enabled, labs.features, LABS_DISABLED) — COMPLETE
+  [x] R-07 Runtime Evidence Portfolio (R7a TShark, R7b Browser E2E, R7c IMAP, R7d HA, R7e Installer) — COMPLETE
+  [x] R-08 Comprehensive Beta GO Report & Standards Synchronization — COMPLETE
+  [x] M-05 Full Unit Regression Verification (2,383+ passed, 0 failures) & Docs Sync — COMPLETE
 
 BETA v1 ENGINEERING HARDENING STATUS (2026-09-13):
   [x] 1.1 Independent Router eval (N=420 Small clean/noisy + N=420 Large-v3 clean/noisy CUDA) — EMPIRICAL COMPLETE

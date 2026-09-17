@@ -23,6 +23,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from jarvis.core.labs import require_labs
 from jarvis.core.models import RequesterContext
 
 log = logging.getLogger("jarvis.security.scanner")
@@ -643,10 +644,13 @@ class PacketCapture:
         self,
         tshark_path: str | None = None,
         default_duration_s: float = 10.0,
+        config: Any | None = None,
     ) -> None:
         self.tshark_path = tshark_path
         self.default_duration_s = default_duration_s
+        self.config = config
 
+    @require_labs("tshark_capture")
     def capture_packets(
         self,
         interface: str = "eth0",
@@ -655,6 +659,7 @@ class PacketCapture:
         bpf_filter: str | None = None,
         output_pcap: Path | None = None,
         context: RequesterContext | None = None,
+        config: Any | None = None,
     ) -> PacketCaptureResult:
         """
         Executes live packet capture and protocol distribution analysis.

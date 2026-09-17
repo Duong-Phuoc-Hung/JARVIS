@@ -72,6 +72,7 @@ LEGACY_ENV_MAPPING: dict[str, tuple[str, type]] = {
     "JARVIS_MEMORY_DB": ("memory.db_path", str),
     "PORCUPINE_ACCESS_KEY": ("audio.wake_word.porcupine_access_key", str),
     "JARVIS_VOSK_MODEL": ("audio.wake_word.vosk_model_path", str),
+    "JARVIS_LABS_ENABLED": ("labs.enabled", bool),
 }
 
 
@@ -500,6 +501,19 @@ class OverlayConfig(ConfigNode):
         super().__init__(defaults)
 
 
+class LabsConfig(ConfigNode):
+    """Configuration section for experimental and Labs feature flags."""
+
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
+        defaults = {
+            "enabled": False,
+            "features": [],
+        }
+        if data:
+            defaults.update(data)
+        super().__init__(defaults)
+
+
 class JarvisConfig(ConfigNode):
     """Structured root configuration schema."""
 
@@ -537,6 +551,7 @@ class JarvisConfig(ConfigNode):
         self.automation = AutomationConfig(raw.get("automation", {}))
         self.proactive = ProactiveConfigNode(raw.get("proactive", {}))
         self.overlay = OverlayConfig(raw.get("ui", {}).get("overlay", {}))
+        self.labs = LabsConfig(raw.get("labs", {}))
 
 
 
@@ -753,6 +768,14 @@ class ConfigManager:
         """Return full deep copy of current configuration dictionary."""
         with self._lock:
             return copy.deepcopy(self._data)
+
+    @property
+    def labs(self) -> LabsConfig:
+        """Access structured LabsConfig node."""
+        with self._lock:
+            if self._structured_config is None:
+                self.load()
+            return self._structured_config.labs
 
     def on_change(self, callback: Callable[[Any], None]) -> None:
         """Register callback for hot-reload notifications."""

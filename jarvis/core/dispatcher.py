@@ -19,6 +19,7 @@ from typing import Any
 from jarvis.core.models import (
     ActionDefinition,
     ActionResult,
+    ActionStatus,
     HandlerResult,
     PrivilegeLevel,
     RequesterContext,
@@ -266,13 +267,13 @@ def _normalize_handler_outcome(raw: Any) -> tuple[bool, Any, str | None, str | N
             if success_flag:
                 return True, raw, None, None
             error = raw.get("error") or raw.get("message")
-            error_code = raw.get("error_code")
+            error_code = raw.get("error_code") or raw.get("code")
             return False, raw, error, error_code
 
         status = raw.get("status")
-        if isinstance(status, str) and status in ("failed", "error"):
+        if isinstance(status, str) and status.lower() in ("failed", "error"):
             error = raw.get("error") or raw.get("message")
-            error_code = raw.get("error_code")
+            error_code = raw.get("error_code") or raw.get("code")
             return False, raw, error, error_code
 
     return True, raw, None, None
@@ -300,12 +301,14 @@ class ActionDispatcher:
         privilege_interceptor: Callable[..., bool] | None = None,
         bypass_security: bool = False,
         safety_interceptor: Any | None = None,
+        config: Any | None = None,
     ) -> None:
         self.event_bus = event_bus or EventBus()
         self._actions: dict[str, ActionDefinition] = {}
         self._privilege_interceptor = privilege_interceptor or default_privilege_interceptor
         self.bypass_security = bypass_security
         self._lock = threading.RLock()
+        self.config = config
         # Destructive-action safety gate (SafetyGateInterceptor). Imported
         # lazily here -- never at module scope -- to avoid a circular
         # import (jarvis.planner.engine imports ActionDispatcher from this
@@ -326,7 +329,8 @@ class ActionDispatcher:
         description: str = "",
         schema: dict[str, Any] | None = None,
         timeout_seconds: float | None = None,
-        plugin_name: str | None = None
+        plugin_name: str | None = None,
+        labs_feature: str | None = None,
     ) -> None:
         """Register a new callable action."""
         if not name or not isinstance(name, str):
@@ -345,6 +349,7 @@ class ActionDispatcher:
             timeout_seconds=timeout_seconds,
             plugin_name=plugin_name,
             is_async=is_async,
+            labs_feature=labs_feature,
         )
 
         with self._lock:
@@ -548,6 +553,22 @@ class ActionDispatcher:
         # 4. Pre-Dispatch Event
         self.event_bus.publish("action.pre_dispatch", action_name=action_name, requester=context.requester_id)
 
+        # 4.5 Labs Feature Flag Check
+        if action_def.labs_feature is not None:
+            from jarvis.core.labs import is_labs_enabled, create_labs_disabled_result
+            if not is_labs_enabled(action_def.labs_feature, getattr(self, "config", None)):
+                elapsed = (time.perf_counter() - t0) * 1000.0
+                logger.warning(
+                    "Action '%s' blocked: Labs feature '%s' is not enabled in configuration.",
+                    action_name, action_def.labs_feature,
+                )
+                return create_labs_disabled_result(
+                    action_name=action_name,
+                    feature_name=action_def.labs_feature,
+                    requester=context.requester_id,
+                    execution_time_ms=elapsed,
+                )
+
         # 5. Handler Execution
         effective_timeout = timeout or action_def.timeout_seconds
         try:
@@ -572,9 +593,21 @@ class ActionDispatcher:
                 logger.warning(
                     "Action '%s' handler reported failure: %s", action_name, error or "(no error detail)"
                 )
+            handler_status = norm_data.get("status") if isinstance(norm_data, dict) else None
+            status_arg = (
+                handler_status
+                if (handler_status and str(handler_status).upper() in ActionStatus.__members__)
+                else (ActionStatus.SUCCESS if success else ActionStatus.FAILED)
+            )
             return ActionResult(
                 action_name=action_name,
                 success=success,
+                status=status_arg,
+                code=(
+                    norm_data.get("code") or error_code or ("OK" if success else "ACTION_FAILED")
+                    if isinstance(norm_data, dict)
+                    else (error_code or ("OK" if success else "ACTION_FAILED"))
+                ),
                 data=norm_data,
                 error=error,
                 error_code=error_code,
@@ -652,6 +685,22 @@ class ActionDispatcher:
 
         await self.event_bus.publish_async("action.pre_dispatch", action_name=action_name, requester=context.requester_id)
 
+        # Labs Feature Flag Check
+        if action_def.labs_feature is not None:
+            from jarvis.core.labs import is_labs_enabled, create_labs_disabled_result
+            if not is_labs_enabled(action_def.labs_feature, getattr(self, "config", None)):
+                elapsed = (time.perf_counter() - t0) * 1000.0
+                logger.warning(
+                    "Action '%s' blocked (async): Labs feature '%s' is not enabled in configuration.",
+                    action_name, action_def.labs_feature,
+                )
+                return create_labs_disabled_result(
+                    action_name=action_name,
+                    feature_name=action_def.labs_feature,
+                    requester=context.requester_id,
+                    execution_time_ms=elapsed,
+                )
+
         effective_timeout = timeout or action_def.timeout_seconds
         try:
             if action_def.is_async:
@@ -676,9 +725,21 @@ class ActionDispatcher:
                 logger.warning(
                     "Action '%s' handler reported failure (async): %s", action_name, error or "(no error detail)"
                 )
+            handler_status = norm_data.get("status") if isinstance(norm_data, dict) else None
+            status_arg = (
+                handler_status
+                if (handler_status and str(handler_status).upper() in ActionStatus.__members__)
+                else (ActionStatus.SUCCESS if success else ActionStatus.FAILED)
+            )
             return ActionResult(
                 action_name=action_name,
                 success=success,
+                status=status_arg,
+                code=(
+                    norm_data.get("code") or error_code or ("OK" if success else "ACTION_FAILED")
+                    if isinstance(norm_data, dict)
+                    else (error_code or ("OK" if success else "ACTION_FAILED"))
+                ),
                 data=norm_data,
                 error=error,
                 error_code=error_code,

@@ -301,3 +301,7 @@ plugins:
     focus_existing: true
     open_new: false
     fullscreen: true
+
+labs:
+  enabled: false              # Master switch for experimental/labs features
+  features: []                # Whitelist of allowed labs feature tags (e.g. ["browser_cdp", "tshark_capture"])

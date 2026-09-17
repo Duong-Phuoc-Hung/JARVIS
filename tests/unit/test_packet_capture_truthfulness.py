@@ -60,9 +60,27 @@ class TestParseTsharkProtocols:
         assert isinstance(result, dict)
 
 
+TSHARK_LABS_CONFIG = {"labs": {"enabled": True, "features": ["tshark_capture"]}}
+
+
+@pytest.fixture(autouse=True)
+def enable_tshark_labs_global():
+    """Ensure global config allows tshark_capture during truthfulness testing."""
+    from jarvis.core.config import get_config
+    cfg = get_config()
+    orig_enabled = cfg.get("labs.enabled", False)
+    orig_features = list(cfg.get("labs.features", []))
+    cfg.set("labs.enabled", True)
+    if "tshark_capture" not in orig_features:
+        cfg.set("labs.features", orig_features + ["tshark_capture"])
+    yield
+    cfg.set("labs.enabled", orig_enabled)
+    cfg.set("labs.features", orig_features)
+
+
 class TestPacketCaptureTruthfulness:
     def test_tool_not_found_when_no_tshark_binary(self):
-        pc = PacketCapture(tshark_path=None)
+        pc = PacketCapture(tshark_path=None, config=TSHARK_LABS_CONFIG)
         with patch("jarvis.security.scanner.resolve_tshark_binary", return_value=None):
             result = pc.capture_packets(interface="eth0", count=10)
         assert result.status == "TOOL_NOT_FOUND"
@@ -70,14 +88,14 @@ class TestPacketCaptureTruthfulness:
         assert result.protocols == {}
 
     def test_permission_denied_for_unauthenticated_context(self):
-        pc = PacketCapture()
+        pc = PacketCapture(config=TSHARK_LABS_CONFIG)
         ctx = RequesterContext(requester_id="user1", is_authenticated=False)
         result = pc.capture_packets(interface="eth0", count=10, context=ctx)
         assert result.status == "PERMISSION_DENIED"
         assert result.packet_count == 0
 
     def test_no_tshark_output_on_subprocess_exception(self):
-        pc = PacketCapture()
+        pc = PacketCapture(config=TSHARK_LABS_CONFIG)
         with patch("jarvis.security.scanner.resolve_tshark_binary", return_value="/usr/bin/tshark"), \
              patch("subprocess.run", side_effect=OSError("tshark exec failed")):
             result = pc.capture_packets(interface="eth0", count=10)
@@ -86,7 +104,7 @@ class TestPacketCaptureTruthfulness:
         assert result.protocols == {}
 
     def test_no_tshark_output_on_timeout(self):
-        pc = PacketCapture()
+        pc = PacketCapture(config=TSHARK_LABS_CONFIG)
         with patch("jarvis.security.scanner.resolve_tshark_binary", return_value="/usr/bin/tshark"), \
              patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="tshark", timeout=15)):
             result = pc.capture_packets(interface="eth0", count=10)
@@ -94,7 +112,7 @@ class TestPacketCaptureTruthfulness:
         assert result.packet_count == 0
 
     def test_no_protocols_parsed_on_empty_stdout(self):
-        pc = PacketCapture()
+        pc = PacketCapture(config=TSHARK_LABS_CONFIG)
         mock_proc = MagicMock()
         mock_proc.stdout = ""
         mock_proc.stderr = ""
@@ -103,7 +121,7 @@ class TestPacketCaptureTruthfulness:
              patch("subprocess.run", return_value=mock_proc):
             result = pc.capture_packets(interface="eth0", count=10)
     def test_no_tshark_output_on_nonzero_returncode(self):
-        pc = PacketCapture()
+        pc = PacketCapture(config=TSHARK_LABS_CONFIG)
         mock_proc = MagicMock()
         mock_proc.stdout = "eth:ethertype:ip:tcp\n"
         mock_proc.stderr = "tshark: interface not found"
@@ -116,7 +134,7 @@ class TestPacketCaptureTruthfulness:
         assert result.protocols == {}
 
     def test_success_with_real_parseable_output(self):
-        pc = PacketCapture()
+        pc = PacketCapture(config=TSHARK_LABS_CONFIG)
         mock_proc = MagicMock()
         mock_proc.stdout = "eth:ethertype:ip:tcp\neth:ethertype:ip:tcp\neth:ethertype:ip:udp\n"
         mock_proc.stderr = ""
@@ -130,14 +148,14 @@ class TestPacketCaptureTruthfulness:
         assert result.packet_count == sum(result.protocols.values())
 
     def test_packet_count_never_fabricated(self):
-        pc = PacketCapture()
+        pc = PacketCapture(config=TSHARK_LABS_CONFIG)
         with patch("jarvis.security.scanner.resolve_tshark_binary", return_value=None):
             result = pc.capture_packets(interface="eth0", count=50)
         assert result.packet_count == 0
         assert result.packet_count != 50
 
     def test_authenticated_system_context_allowed(self):
-        pc = PacketCapture()
+        pc = PacketCapture(config=TSHARK_LABS_CONFIG)
         ctx = RequesterContext(requester_id="system", is_authenticated=True)
         with patch("jarvis.security.scanner.resolve_tshark_binary", return_value=None):
             result = pc.capture_packets(interface="eth0", count=10, context=ctx)
@@ -145,14 +163,14 @@ class TestPacketCaptureTruthfulness:
         assert result.status != "PERMISSION_DENIED"
 
     def test_build_capture_result_with_none_raw_stdout(self):
-        pc = PacketCapture()
+        pc = PacketCapture(config=TSHARK_LABS_CONFIG)
         result = pc._build_capture_result("eth0", 100, 10.0, None, None)
         assert result.packet_count == 0
         assert result.protocols == {}
         assert result.status == "NO_TSHARK_OUTPUT"
 
     def test_build_capture_result_with_real_stdout_succeeds(self):
-        pc = PacketCapture()
+        pc = PacketCapture(config=TSHARK_LABS_CONFIG)
         real_stdout = "  tcp  frames:25 bytes:15000\n  udp  frames:5 bytes:2000\n"
         result = pc._build_capture_result("eth0", 100, 10.0, None, real_stdout)
         assert result.status == "SUCCESS"

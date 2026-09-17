@@ -76,6 +76,7 @@ class ActionStatus(str, Enum):
     FAILED = "FAILED"
     TIMEOUT = "TIMEOUT"
     RATE_LIMITED = "RATE_LIMITED"
+    LABS_DISABLED = "LABS_DISABLED"
 
 
 @dataclass
@@ -110,8 +111,12 @@ class ActionResult:
         # 2. Harmonize status and success
         if not self.success and self.status == ActionStatus.SUCCESS:
             self.status = ActionStatus.ERROR
-        elif self.status in (ActionStatus.ERROR, ActionStatus.FAILED, ActionStatus.TIMEOUT, ActionStatus.RATE_LIMITED):
+        elif self.status in (ActionStatus.ERROR, ActionStatus.FAILED, ActionStatus.TIMEOUT, ActionStatus.RATE_LIMITED, ActionStatus.LABS_DISABLED):
             self.success = False
+            if self.status == ActionStatus.LABS_DISABLED:
+                if self.code in ("OK", "SUCCESS"):
+                    self.code = "LABS_FEATURE_DISABLED"
+                self.retryable = False
 
         # 3. Harmonize error and message
         if self.error and not self.message:
@@ -173,6 +178,11 @@ class ActionResult:
         except KeyError:
             return default
 
+    def __getattr__(self, name: str) -> Any:
+        if name != "data" and isinstance(getattr(self, "data", None), dict) and name in self.data:
+            return self.data[name]
+        raise AttributeError(f"'ActionResult' object has no attribute '{name}'")
+
     def __contains__(self, key: str) -> bool:
         if hasattr(self, key):
             return True
@@ -202,6 +212,7 @@ class ActionDefinition:
     timeout_seconds: float | None = None
     plugin_name: str | None = None
     is_async: bool = False
+    labs_feature: str | None = None
 
 
 @dataclass

@@ -38,6 +38,8 @@ class DiscordConfig:
     enabled: bool = True
     rate_limit_s: float = 1.0
     rate_limit: RateLimitConfig = field(default_factory=lambda: RateLimitConfig(requests_per_minute=30, burst_limit=10))
+    poll_interval_s: float = 2.0
+    consecutive_error_threshold: int = 5
 
 
 @dataclass
@@ -73,9 +75,20 @@ class DiscordBotController:
         rate_limiter: Any | None = None,
         rate_limit_config: RateLimitConfig | None = None,
         config: DiscordConfig | None = None,
+        poll_interval_s: float = 2.0,
+        consecutive_error_threshold: int = 5,
+        message_handler: Callable | None = None,
     ) -> None:
         self.bot_token = bot_token or (config.bot_token if config else "")
-        self.whitelist: list[int] = whitelist_user_ids or (config.whitelist_user_ids if config else [])
+        raw_whitelist = whitelist_user_ids or (config.whitelist_user_ids if config else [])
+        self.whitelist: list[int] = []
+        for uid in raw_whitelist:
+            try:
+                u_int = int(uid)
+                if u_int > 0:
+                    self.whitelist.append(u_int)
+            except (ValueError, TypeError):
+                pass
         self.guild_id = guild_id or (config.guild_id if config else None)
         self.default_channel_id = channel_id or (config.default_channel_id if config else None)
         self.dispatcher = dispatcher
@@ -89,6 +102,15 @@ class DiscordBotController:
         self._running = False
         self._poll_thread: threading.Thread | None = None
         self._last_message_id: str | None = None
+        self.poll_interval_s: float = float(
+            poll_interval_s if poll_interval_s is not None else (config.poll_interval_s if config and config.poll_interval_s is not None else 2.0)
+        )
+        self.consecutive_error_threshold: int = int(
+            consecutive_error_threshold if consecutive_error_threshold is not None else (config.consecutive_error_threshold if config and config.consecutive_error_threshold is not None else 5)
+        )
+        self.consecutive_errors: int = 0
+        self._stop_event: threading.Event = threading.Event()
+        self.message_handler: Callable | None = message_handler
         log.info("DiscordBotController initialized (token=%s, whitelist=%d users, rate_limiter=%s)",
                  "set" if bot_token else "not_set", len(self.whitelist), "set" if rate_limiter else "none")
 
@@ -101,12 +123,16 @@ class DiscordBotController:
         Validate user against configured Discord whitelist.
         Enforces Fail-Close: If whitelist is unconfigured/empty, all requests are rejected.
         """
-        if not user_id:
+        try:
+            u_int = int(user_id) if user_id is not None else 0
+        except (ValueError, TypeError):
+            return False
+        if u_int <= 0:
             return False
         if not self.whitelist:
             log.warning("Discord security rejection: whitelist is unconfigured or empty.")
             return False
-        return user_id in self.whitelist
+        return u_int in self.whitelist
 
     # ------------------------------------------------------------------
     # Message Handling
@@ -431,26 +457,260 @@ class DiscordBotController:
             return None
 
     # ------------------------------------------------------------------
-    # Polling
+    # Polling & Inbound Gateway
     # ------------------------------------------------------------------
 
-    def start_polling(self) -> None:
-        """Start background polling loop."""
-        if not self.bot_token:
-            log.info("Discord polling skipped (no bot_token configured)")
+    def register_handler(self, handler: Callable[[dict[str, Any]], None]) -> None:
+        """Register callback handler for inbound Discord messages."""
+        self.message_handler = handler
+
+    def start_polling(self, channel_id: str | int | None = None) -> None:
+        """
+        Start background polling loop.
+        Fail-closed: If not self.bot_token or not (channel_id or self.default_channel_id):
+        log warning/info and return immediately. Ensure self._running = False and self._poll_thread is None.
+        """
+        target_channel = channel_id or self.default_channel_id
+        if not self.bot_token or not target_channel:
+            log.warning("Discord polling skipped (missing bot_token or channel_id)")
+            self._running = False
+            self._poll_thread = None
             return
-        # Fail-closed / truthful: Discord gateway WebSocket client is not implemented in this build
-        log.warning("Discord background polling is not supported in this build. Outbound webhooks/REST only.")
-        self._running = False
 
-    def stop_polling(self) -> None:
+        if self._running:
+            log.info("Discord polling is already running.")
+            return
+
+        self._running = True
+        self._stop_event.clear()
+        self.consecutive_errors = 0
+        self._poll_thread = threading.Thread(
+            target=self._poll_loop,
+            args=(str(target_channel),),
+            name="DiscordPollThread",
+            daemon=True,
+        )
+        self._poll_thread.start()
+        log.info("Discord polling started on channel %s", target_channel)
+
+    def stop_polling(self, timeout: float = 2.0) -> None:
+        """Stop background polling loop gracefully."""
         self._running = False
+        self._stop_event.set()
         if self._poll_thread and self._poll_thread.is_alive():
-            self._poll_thread.join(timeout=1.0)
+            self._poll_thread.join(timeout=timeout)
+        self._poll_thread = None
+        log.info("Discord polling stopped.")
 
-    def _poll_loop(self) -> None:
-        log.warning("Discord _poll_loop invoked but no gateway client is available.")
-        self._running = False
+    def _poll_loop(self, channel_id: str | int | None = None) -> None:
+        """Background polling worker loop."""
+        target_channel = str(channel_id or self.default_channel_id or "")
+        if not self.bot_token or not target_channel:
+            self._running = False
+            return
+
+        try:
+            while self._running and not self._stop_event.is_set():
+                try:
+                    should_continue = self.poll_once(target_channel)
+                except Exception as exc:
+                    log.error("Unexpected error in Discord poll_once: %s", exc)
+                    should_continue = True
+                    self._stop_event.wait(timeout=min(self.poll_interval_s, 1.0))
+                if not should_continue:
+                    break
+                self._stop_event.wait(timeout=self.poll_interval_s)
+        finally:
+            self._running = False
+
+    def poll_once(self, channel_id: str | int | None = None, mock_http: Any | None = None) -> bool:
+        """
+        Execute a single polling pass on the specified channel.
+        Queries GET /channels/{channel_id}/messages?limit=50 (&after={_last_message_id} if set).
+        Enforces user authorization whitelist, filters bot messages, and dispatches to handler.
+        Returns True to continue polling, False to terminate polling loop.
+        """
+        target_channel = str(channel_id or self.default_channel_id or "")
+        if not self.bot_token or not target_channel:
+            log.warning("Discord poll_once skipped: missing bot_token or channel_id")
+            return False
+
+        url = f"https://discord.com/api/v10/channels/{target_channel}/messages?limit=50"
+        if self._last_message_id:
+            url += f"&after={self._last_message_id}"
+
+        headers = {
+            "Authorization": f"Bot {self.bot_token}",
+            "User-Agent": "JARVIS-Assistant/5.2.0",
+        }
+
+        client = mock_http if mock_http is not None else self._http
+        raw_messages: list[dict[str, Any]] = []
+
+        try:
+            if client is not None:
+                if hasattr(client, "get"):
+                    resp = client.get(url, headers=headers)
+                    status_code = getattr(resp, "status_code", 200)
+                    if status_code in (401, 403, 404):
+                        log.critical("Fatal Discord HTTP %d error on channel %s. Terminating polling loop.", status_code, target_channel)
+                        self._running = False
+                        return False
+                    if status_code >= 400:
+                        raise RuntimeError(f"HTTP {status_code}: {getattr(resp, 'text', '')}")
+                    if hasattr(resp, "json"):
+                        raw_messages = resp.json()
+                    else:
+                        import json as _json
+                        raw_messages = _json.loads(getattr(resp, "text", "[]"))
+                elif hasattr(client, "urlopen"):
+                    import json as _json
+                    import urllib.request
+                    req = urllib.request.Request(url, headers=headers, method="GET")
+                    with client.urlopen(req, timeout=10) as resp:
+                        raw_messages = _json.loads(resp.read().decode("utf-8"))
+                elif callable(client):
+                    resp = client(url, headers=headers)
+                    status_code = getattr(resp, "status_code", 200)
+                    if status_code in (401, 403, 404):
+                        log.critical("Fatal Discord HTTP %d error on channel %s. Terminating polling loop.", status_code, target_channel)
+                        self._running = False
+                        return False
+                    if status_code >= 400:
+                        raise RuntimeError(f"HTTP {status_code}: {getattr(resp, 'text', '')}")
+                    if hasattr(resp, "json"):
+                        raw_messages = resp.json()
+                    else:
+                        import json as _json
+                        raw_messages = _json.loads(getattr(resp, "text", "[]"))
+            else:
+                import json as _json
+                import urllib.request
+                req = urllib.request.Request(url, headers=headers, method="GET")
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    raw_messages = _json.loads(resp.read().decode("utf-8"))
+
+            self.consecutive_errors = 0
+
+        except Exception as exc:
+            status_code = getattr(exc, "code", getattr(getattr(exc, "response", None), "status_code", None))
+            if status_code in (401, 403, 404):
+                log.critical("Fatal Discord HTTP %d error on channel %s: %s. Terminating polling loop.", status_code, target_channel, exc)
+                self._running = False
+                return False
+
+            self.consecutive_errors += 1
+            if self.consecutive_errors >= self.consecutive_error_threshold:
+                log.critical(
+                    "Discord polling reached consecutive error threshold (%d >= %d): %s. Terminating polling loop.",
+                    self.consecutive_errors,
+                    self.consecutive_error_threshold,
+                    exc,
+                )
+                self._running = False
+                return False
+            else:
+                log.warning(
+                    "Discord polling network/request error (%d/%d): %s",
+                    self.consecutive_errors,
+                    self.consecutive_error_threshold,
+                    exc,
+                )
+                return True
+
+        if not raw_messages or not isinstance(raw_messages, list):
+            return True
+
+        # Filter raw_messages to only dict elements before sorting
+        raw_messages = [m for m in raw_messages if isinstance(m, dict)]
+        if not raw_messages:
+            return True
+
+        # Sort messages ascending by numeric snowflake ID: int(msg["id"])
+        try:
+            sorted_messages = sorted(raw_messages, key=lambda m: int(m.get("id", 0)))
+        except (ValueError, TypeError, AttributeError):
+            sorted_messages = raw_messages
+
+        # Update self._last_message_id to the max snowflake string (strictly numeric)
+        if sorted_messages:
+            max_id = str(sorted_messages[-1].get("id", "") or "")
+            if max_id.isdigit():
+                try:
+                    if self._last_message_id is None or int(max_id) > int(self._last_message_id):
+                        self._last_message_id = max_id
+                except (ValueError, TypeError):
+                    pass
+
+        for msg in sorted_messages:
+            if not isinstance(msg, dict):
+                continue
+
+            author = msg.get("author", {})
+            if not isinstance(author, dict):
+                author = {}
+
+            # If author.get("bot", False) is True: skip
+            if author.get("bot", False) is True:
+                continue
+
+            # Author ID: author_id_int = int(author["id"])
+            author_id_raw = author.get("id")
+            try:
+                author_id_int = int(author_id_raw) if author_id_raw is not None else 0
+            except (ValueError, TypeError):
+                author_id_int = 0
+
+            username = str(author.get("username", "unknown"))
+            content = str(msg.get("content", ""))
+
+            # If not self.is_user_authorized(author_id_int): log security drop with SHA-256 hash prefix, record in self.security_violations, do NOT dispatch
+            if not self.is_user_authorized(author_id_int):
+                import hashlib
+                sha256_prefix = hashlib.sha256(content.encode("utf-8", errors="replace")).hexdigest()[:12]
+                audit_entry = {
+                    "event": "UNAUTHORIZED_DISCORD_ACCESS",
+                    "user_id": author_id_int,
+                    "username": username,
+                    "payload_sha256_prefix": sha256_prefix,
+                    "payload_length": len(content),
+                    "timestamp": time.time(),
+                }
+                self.security_violations.append(audit_entry)
+                log.warning(
+                    "Unauthorized Discord message dropped: user %s (ID=%d, len=%d, hash_prefix=%s)",
+                    username,
+                    author_id_int,
+                    len(content),
+                    sha256_prefix,
+                )
+                continue
+
+            # If authorized: dispatch to self.message_handler(msg) if callable, else self.handle_message(msg)
+            if callable(self.message_handler):
+                try:
+                    self.message_handler(msg)
+                except Exception as exc:
+                    log.error("Error in Discord message_handler for message %s: %s", msg.get("id"), exc)
+            else:
+                try:
+                    cid = int(target_channel)
+                except (ValueError, TypeError):
+                    cid = 0
+                try:
+                    try:
+                        self.handle_message(
+                            user_id=author_id_int,
+                            username=username,
+                            content=content,
+                            channel_id=cid,
+                        )
+                    except TypeError:
+                        self.handle_message(msg)
+                except Exception as exc:
+                    log.error("Error in Discord handle_message for message %s: %s", msg.get("id"), exc)
+
+        return True
 
 
 # Backward compatibility

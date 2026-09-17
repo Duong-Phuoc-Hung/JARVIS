@@ -32,6 +32,8 @@ from jarvis.security.scanner import (
     validate_scan_target,
 )
 
+TSHARK_LABS_CONFIG = {"labs": {"enabled": True, "features": ["tshark_capture"]}}
+
 # ============================================================================
 # Deterministic realistic Nmap -oX XML fixtures (v4.5.2 scanner-scope-
 # truthfulness hotfix). Tests must prove real XML parsing -- never rely on
@@ -119,7 +121,7 @@ def test_security_tshark_packet_capture_wrapper_tier1(monkeypatch):
     monkeypatch.setattr(shutil, "which", lambda cmd: "C:\\Program Files\\Wireshark\\tshark.exe")
     monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_proc)
 
-    wrapper = TSharkCaptureWrapper()
+    wrapper = TSharkCaptureWrapper(config=TSHARK_LABS_CONFIG)
     capture = wrapper.capture_packets(interface="eth0", count=10)
 
     assert capture["packet_count"] == 10
@@ -174,7 +176,7 @@ def test_security_tshark_binary_not_installed_error_tier2(monkeypatch):
     [F-24] Validate missing tshark executable returns TOOL_NOT_FOUND without raising unhandled exceptions.
     """
     monkeypatch.setattr(shutil, "which", lambda cmd: None)
-    wrapper = TSharkCaptureWrapper()
+    wrapper = TSharkCaptureWrapper(config=TSHARK_LABS_CONFIG)
     capture = wrapper.capture_packets(interface="eth0", count=50)
 
     assert capture.status == "TOOL_NOT_FOUND" or capture["status"] == "TOOL_NOT_FOUND"
@@ -529,7 +531,7 @@ def test_scan_subnet_malformed_xml_is_truthful_error_not_fabricated(monkeypatch)
 
 def test_tshark_capture_no_output_reports_zero_packet_count():
     """When TShark capture produces no output or fails, packet_count must be 0, not echo requested count."""
-    wrapper = PacketCapture()
+    wrapper = PacketCapture(config=TSHARK_LABS_CONFIG)
     res = wrapper._build_capture_result(
         interface="eth0",
         count=100,
