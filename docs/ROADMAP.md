@@ -1,3 +1,16 @@
+## PHASE P3 (2026-09-18) — Product Beta Acceptance Gates Sign-Off: R9–R14 Closed
+
+| ID | Status | Mô tả |
+|----|--------|-------|
+| R-09 | DONE | Credential Registry: Lập tài liệu quản trị tập trung `docs/credentials_registry.md` cho 12 external connectors, phân cấp lưu trữ 3 tầng (Windows Credential Manager DPAPI `keyring`, env var, default fail-closed), 0 mục placeholder TBD, quy trình sao lưu và phục hồi offline vault. (PASS engineering) |
+| R-10 | DONE | P0/P1 Risk Register: Xuất bản `docs/risk_register.md` xác nhận 0 open technical P0s trong code, phân tích và đề xuất giải pháp cho 6 rủi ro P1, lập hồ sơ minh bạch 5 cổng phần cứng (TShark, HA, VM sạch, Voice H-13, Bluetooth HFP) được phê duyệt chấp nhận rủi ro cho Internal Beta Pilot. (PASS engineering) |
+| R-11 | HARDWARE_BLOCKED | TShark Live Capture Probe: Cài đặt và phát hiện `tshark.exe` (Wireshark 4.6.8) tại `C:\Program Files\Wireshark\tshark.exe` (exit code 0); xác nhận thiếu Npcap kernel driver; kiểm chứng fail-closed `status="NO_TSHARK_OUTPUT"`, `packet_count=0`, 0 synthetic packets (`docs/eval/tshark_live_evidence_v2.md`). (KERNEL_DRIVER_PENDING) |
+| R-12 | DONE | Browser E2E Real Chromium Execution: Thực thi 21 test seams với Chromium thật do Playwright quản lý trên test site loopback hermetic đạt **21/21 passed trong 45.38s (exit code 0)**, bảo mật cách ly header, iframe và cookie (`docs/eval/browser_e2e_evidence_v2.md`). (PASS runtime) |
+| R-13 | DONE | Workflow Acceptance Benchmark: Thiết kế và chạy benchmark định lượng trên 10 workflows cốt lõi qua ActionDispatcher và SafetyGateInterceptor đạt **200/200 trials thành công (100.00% pass rate)**, avg latency 0.105ms / 0.112ms tại `docs/eval/workflow_benchmark.md` và `tests/benchmarks/test_workflow_acceptance_benchmark.py`. (PASS runtime) |
+| R-14 | DONE | Documentation Sync & Final Gate Status Report: Cập nhật `docs/BETA_GO_REPORT.md` (§5 & §6), `CHANGELOG.md` [5.2.0-phase3], `README.md`, `docs/ROADMAP.md`; xác nhận toàn bộ 2,424 unit tests và 200 workflow benchmark trials 100% pass; phán quyết chính thức: `CONDITIONAL GO / BETA GO (Production Beta v1 Authorized for Internal Pilot)`. |
+
+---
+
 ## PHASE G (2026-09-17) — Beta GO Full Resolution: Resolving Technical Blockers R1–R8
 
 | ID | Status | Mô tả |
@@ -220,6 +233,14 @@ trên loopback với port động rồi attach bằng `connect_over_cdp`; không
 ## PHẦN 4 — TRÌNH TỰ THỰC THI & CHỮ KÝ PHÁT HÀNH
 
 ```
+PHASE 3 PRODUCT BETA ACCEPTANCE GATES STATUS (2026-09-18):
+  [x] R-09 External Connector Credentials Registry (docs/credentials_registry.md, 12 connectors, 0 TBDs) — COMPLETE (PASS engineering)
+  [x] R-10 P0/P1 Risk Register & Hardware Boundary Profile (docs/risk_register.md, 0 code P0s, 6 P1s, 5 gates) — COMPLETE (PASS engineering)
+  [x] R-11 TShark Live Evidence Probe (docs/eval/tshark_live_evidence_v2.md, Wireshark installed, Npcap driver pending) — HARDWARE_BLOCKED
+  [x] R-12 Browser E2E Real Chromium Evidence (docs/eval/browser_e2e_evidence_v2.md, 21/21 passed in 45.38s) — COMPLETE (PASS runtime)
+  [x] R-13 Workflow Acceptance Benchmark (docs/eval/workflow_benchmark.md, 200/200 trials passed, 100%) — COMPLETE (PASS runtime)
+  [x] R-14 Documentation Sync & Final Gate Status Report (docs/BETA_GO_REPORT.md, CHANGELOG.md, README.md, ROADMAP.md) — COMPLETE
+
 BETA GO ENGINEERING HARDENING STATUS (2026-09-17):
   [x] R-01 Planner Fail-Closed Engine (HANDLER_NOT_FOUND, no simulated success) — COMPLETE
   [x] R-02 Unified ActionResult Contract (status, code, message, retryable + 3 backends) — COMPLETE

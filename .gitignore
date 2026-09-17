@@ -70,4 +70,6 @@ Desktop.ini
 # Local downloads/test output
 downloads/
 
-
+# External untracked binaries & scratch files
+flowkit-main/
+user_prompt_last.txt

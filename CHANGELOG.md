@@ -1,3 +1,49 @@
+## [5.2.0-phase3] — Product Beta Acceptance Gates Sign-Off: R9–R14 Closed (2026-09-18)
+
+> **Mục tiêu**: Đóng toàn bộ các cổng nghiệm thu kỹ thuật và thực nghiệm runtime Phase 3 (R9, R10, R11, R12, R13, R14) theo `ORIGINAL_REQUEST.md`, củng cố trạng thái phán quyết chính thức **`CONDITIONAL GO / BETA GO (Production Beta v1 Authorized for Internal Pilot)`** trên Windows 11/10 64-bit tuân thủ nghiêm ngặt chuẩn mực `AGENTS.md §1, §2, §5` và `docs/AUDIT_FRAMEWORK.md`.
+
+### 1. Nguyên nhân gốc rễ & Bối cảnh (Root Cause & Context)
+- **R9 (Credential Registry)**: Chưa có bảng danh mục quản trị tập trung phân định rõ chủ sở hữu (owner), chính sách sao lưu/phục hồi không có placeholder (0 TBD), và chu kỳ xoay vòng khóa bảo mật cho toàn bộ 12 external connectors.
+- **R10 (P0/P1 Risk Register)**: Hệ thống thiếu một sổ đăng ký rủi ro toàn diện trước khi phát hành Product Beta, trong đó xác minh 0 technical P0s trong mã nguồn, lập kế hoạch giảm thiểu cho 6 rủi ro P1, và định danh rõ ràng 5 cổng bị chặn do phụ thuộc phần cứng (hardware-blocked gates).
+- **R11 (TShark Live Evidence)**: Phân hệ PacketCapture cần được chạy thử nghiệm thực tế trên máy host bằng binary `tshark.exe` sau cài đặt; phải chứng minh fail-closed trung thực khi thiếu Npcap kernel driver và triệt tiêu 100% dữ liệu gói tin nhân tạo.
+- **R12 (Browser E2E Real Chromium)**: Bộ 21 test seams E2E cần bằng chứng chạy thực tế với Chromium thật do Playwright quản lý trên test site loopback hermetic thay vì chỉ dừng lại ở cờ opt-in.
+- **R13 (Workflow Acceptance Benchmark)**: Cần thiết kế và đo lường định lượng trên 10 workflows cốt lõi qua tầng `ActionDispatcher` và `SafetyGateInterceptor` với 20 trials/workflow ($N=200$), yêu cầu tỷ lệ đạt $\ge 95\%$ trên từng workflow và không workflow nào $<90\%$.
+- **R14 (Documentation Sync & Release Report)**: Cần đồng bộ hóa toàn diện tài liệu hệ thống (`BETA_GO_REPORT.md`, `CHANGELOG.md`, `README.md`, `ROADMAP.md`) và kiểm chứng test suite 100% không hồi quy.
+
+### 2. Chỉnh sửa kỹ thuật chi tiết theo từng file (Technical Changes)
+- **`docs/credentials_registry.md` (R9)** [NEW]:
+  - Thiết lập ma trận quản trị 12 external connectors (Gmail IMAP/SMTP, Telegram, Discord, Zalo OA, ElevenLabs, Home Assistant, Gemini API, OpenAI API, OpenWeatherMap, GitHub Actions Secrets, PicoVoice Porcupine, Spotify Plugin).
+  - Phân tầng lưu trữ 3 cấp: Windows Credential Manager (DPAPI / `keyring`) Service `"JARVIS"`, biến môi trường, và cấu hình rỗng fail-closed.
+  - Cung cấp quy trình sao lưu và phục hồi chi tiết, khả thi 100%, tuyệt đối không sử dụng giá trị giữ chỗ ("TBD").
+- **`docs/risk_register.md` (R10)** [NEW]:
+  - Đánh giá kiến trúc: xác nhận 0 open architectural/technical P0 blockers trong mã nguồn.
+  - Phân loại và lập giải pháp giảm thiểu chi tiết cho 6 rủi ro P1 (Third-Party Rate Limits, SmartScreen Authenticode, GPU VRAM Contention, Bluetooth HFP Audio Drivers, SQLite Concurrency Lock, Chromium Memory Retention).
+  - Lập hồ sơ minh bạch cho 5 cổng bị chặn bởi phần cứng (TShark/Npcap, Local Home Assistant Hub, Clean-Machine VM, Voice H-13 Human Testing, Bluetooth HFP Headset) kèm tuyên bố chấp nhận rủi ro cho Internal Beta Pilot.
+- **`tests/test_security_scanner.py` & `docs/eval/tshark_live_evidence_v2.md` (R11)**:
+  - Cài đặt và xác minh `C:\Program Files\Wireshark\tshark.exe` (Wireshark 4.6.8) trên Windows 11 host (`tshark.exe --version` exit code 0).
+  - Xác nhận trực tiếp `Without: -Npcap`; lệnh capture thoát với mã lỗi 1; `PacketCapture` trả về fail-closed `status="NO_TSHARK_OUTPUT"`, `packet_count=0`, protocols `{}`.
+  - Phân loại chính xác cổng theo `AGENTS.md §5`: `HARDWARE_BLOCKED (KERNEL_DRIVER_PENDING)`.
+- **`docs/eval/browser_e2e_evidence_v2.md` (R12)**:
+  - Chạy thực tế toàn bộ 21 test seams trong `tests/e2e/test_browser_playwright_e2e.py` với cờ `JARVIS_RUN_BROWSER_E2E=1`.
+  - Kết quả: **21/21 passed trong 45.38 giây (exit code 0)** trên Chromium revision 1234 (Chrome for Testing 151.0.7922.34); đạt trạng thái **`PASS runtime`**.
+- **`tests/benchmarks/test_workflow_acceptance_benchmark.py` & `docs/eval/workflow_benchmark.md` (R13)** [NEW]:
+  - Thiết kế và triển khai bộ benchmark tự động cho 10 workflows cốt lõi: text command dispatch, voice pipeline (mocked STT), web search, email read (mocked IMAP), file search, app launch, Home Assistant query (xác minh read-only ungated safety seam), system status check, note taking (isolated storage), proactive reminder.
+  - Chạy 20 trials cho mỗi workflow ($N=200$ tổng cộng); kết quả **200/200 trials passed (100.00% pass rate)**, không có workflow nào $<90\%$; thời gian chạy trung bình 0.105ms (0.112ms); đạt trạng thái **`PASS runtime`**.
+- **`docs/BETA_GO_REPORT.md` (R14)**:
+  - Cập nhật Mục 5 với bảng trạng thái chi tiết cho tất cả các cổng nghiệm thu và trích dẫn bằng chứng kiểm chứng cụ thể.
+  - Bổ sung Mục 6 đưa ra phán quyết chính thức: **`CONDITIONAL GO / BETA GO (Production Beta v1 Authorized for Internal Pilot)`**.
+- **`README.md` & `docs/ROADMAP.md` (R14)**:
+  - Cập nhật liên kết tài liệu quản trị rủi ro, hồ sơ chứng chỉ, bộ kiểm thử trình duyệt E2E, và benchmark 10 workflows.
+  - Đánh dấu hoàn thành toàn bộ các hạng mục Phase P3 (R9, R10, R11, R12, R13, R14) trong lộ trình phát triển.
+
+### 3. Chỉ số kiểm thử thực tế (Test Metrics)
+- **Full Unit Test Suite (`tests/unit/`)**: **2,424 passed**, **0 failures**, **0 regressions** (~189s).
+- **Workflow Benchmark Suite (`tests/benchmarks/`)**: **11 passed**, **200/200 trials passed (100.00%)**, **0 failures** (0.40s).
+- **Browser Playwright E2E Suite (`tests/e2e/`)**: **21 passed**, **0 failures** (45.38s).
+- **Tổng số tests hoạt động đã xác minh**: **2,456 passed**, 0 regressions trên toàn bộ hệ thống.
+
+---
+
 ## [5.2.0] — Complete Beta GO Sign-Off: All Technical Blockers R1–R8 Resolved (2026-09-17)
 
 > **Mục tiêu**: Hoàn tất toàn diện việc giải quyết dứt điểm 8/8 technical blockers (R1–R8) để đưa hệ thống JARVIS đạt trạng thái chính thức **Beta GO** (`CONDITIONAL GO / BETA GO`) trên Windows 11/10 64-bit theo chuẩn mực `AGENTS.md` (Fail-Closed, Anti-Fabrication, Windows Atomic Persistence, Seam-First TDD) và `docs/AUDIT_FRAMEWORK.md`.

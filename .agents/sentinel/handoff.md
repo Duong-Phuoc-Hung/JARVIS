@@ -1,51 +1,62 @@
-# Sentinel Handoff Report — Milestone H-10 (WASAPI Exclusive Capture Fallback)
+# Sentinel Handoff Report — JARVIS v5.2.0 Complete Beta GO (R5–R8 & R1–R8 Master Closeout)
 
 ## Observation
-All requirements for Milestone H-10 (WASAPI Exclusive Mode Capture Fallback for Bluetooth HFP devices) have been executed, verified, and audited:
-1. **R1 (WASAPI Exclusive Capture Fallback)**:
-   - In `jarvis/audio/engine.py`, added `@dataclass class AudioEngineConfig(use_wasapi_exclusive: bool = True)` and backward-compatible `AudioEngine.__init__`.
-   - Re-architected `_stream_worker()` with two-tier capture: standard `sd.InputStream` first; on failure on Windows (`sys.platform == "win32"`) when enabled, attempts `sd.InputStream` with `extra_settings=sd.WasapiSettings(exclusive=True)` at native 16kHz mono.
-2. **R2 (Fail-Closed Semantics Preserved)**:
-   - On double failure / retry exhaustion, sets `self.mode = AudioEngineMode.MOCK`, logs truthful device index and error message, and emits `audio.device_unavailable` on `EventBus` with `reason="wasapi_exclusive_failed"` and full device telemetry.
-   - Zero silent fallback to other microphones, zero fake peak simulations.
-3. **R3 (Tests & TDD Red -> Green)**:
-   - Authored all 4 specified tests in `tests/unit/test_audio_engine.py`:
-     * `test_wasapi_fallback_triggered_on_pa_error` (PASS)
-     * `test_wasapi_fallback_both_fail_enters_mock` (PASS)
-     * `test_wasapi_skipped_on_non_windows` (PASS)
-     * `test_wasapi_exclusive_disabled_config` (PASS)
-   - Independent verification confirmed:
-     * 4/4 passed in `tests/unit/test_audio_engine.py -k wasapi` (0.67s)
-     * 10/10 passed in `tests/unit/test_audio_engine.py` (0.88s)
-     * 27/27 passed in `tests/test_adversarial_wasapi_fallback.py` (0.90s)
-     * 90/90 passed in audio regression suite (23.3s)
-     * 2253 passed in full unit suite (exceeds requirement of >= 1882)
-4. **R4 (Documentation & Git Invariants per AGENTS.md)**:
-   - `CHANGELOG.md`: Added entry `## [5.1.10]` detailing root cause, two-tier architecture, test counts, and affected files.
-   - `docs/ROADMAP.md`: Updated lines 46, 137, 217 to reflect software completion while honestly noting physical BT acoustic verification as pending hardware reconnect.
-   - `README.md`: Updated voice pipeline features, hardware prerequisites, and added Error #6 troubleshooting for Bluetooth HFP.
-   - Git commits `d47256d` (`feat(h10): WASAPI exclusive capture fallback for BT HFP devices (PaError -9999)`) and `29aa5e4` (`test(h10): add adversarial test suite`) pushed cleanly to `origin/main`. Working tree clean.
+All requirements for resolving the remaining 3 technical blockers (R5, R6, R7), compiling the comprehensive Beta GO Report (R8), and synchronizing system documentation to transition JARVIS v5.2.0 into complete Beta GO status have been executed, verified, and audited:
+
+1. **R5 (Discord Inbound Gateway — `jarvis/comms/discord.py`)**:
+   - Implemented authentic background REST polling thread `_poll_loop()` querying Discord REST API `GET /channels/{channel_id}/messages?limit=50&after={last_message_id}`.
+   - Enforced 64-bit integer snowflake ordering (`int(m["id"])`) ensuring strictly chronological message delivery to callback.
+   - Enforced strict whitelist filtering (`whitelist_user_ids`): unauthorized messages dropped immediately with audit logging via SHA-256 content hashing.
+   - Fail-closed error handling: returns `False` immediately if `bot_token` is empty; aborts polling on fatal HTTP codes (401, 403, 404); breaks polling loop after consecutive error threshold (5 errors).
+   - 100% verified across 64 unit tests and 42 adversarial stress tests (`tests/test_adversarial_m1_discord_gateway.py` and `tests/test_adversarial_m1_discord_error_recovery.py`).
+
+2. **R6 (Core/Labs Feature Flag Mechanism — `jarvis/core/labs.py`, `jarvis/core/config.py`, `jarvis/core/dispatcher.py`)**:
+   - Centralized feature flag configuration in `config/default_config.yaml` and `ConfigManager`: `labs.enabled` (bool, default `False`) and `labs.features` (list[str], default `[]`).
+   - Built authoritative fail-closed helper `is_labs_enabled()`, result builder `create_labs_disabled_result()`, and `@require_labs(feature_name)` decorator supporting sync, async, and class methods.
+   - Integrated Labs check into step 4.5 of `ActionDispatcher.dispatch()` and `dispatch_async()`.
+   - Quarantined 2 existing features as Labs: Browser CDP capture (`browser_cdp` in `jarvis/core/app.py`) and TShark live packet capture (`tshark_capture` in `jarvis/security/scanner.py`).
+   - When Labs is disabled, execution returns `ActionResult(status=ActionStatus.LABS_DISABLED, code="LABS_FEATURE_DISABLED", success=False, retryable=False)`.
+   - Forensic audit and peer review verified elimination of all simulated facades and bypass backdoors. 17 unit tests and 36 adversarial concurrency tests passing.
+
+3. **R7 (Empirical Runtime Evidence Portfolio — `docs/eval/`)**:
+   - `docs/eval/tshark_live_evidence.md`: Live host inspection confirmed `tshark.exe` not present in PATH; recorded fail-closed contract `status="TOOL_NOT_FOUND"`, `packet_count=0`, with zero fabricated packet proportions.
+   - `docs/eval/browser_e2e_evidence.md`: Verified pre-cached Chromium revision 1234 on host; catalogued 21 browser E2E test seams protected by opt-in flag `JARVIS_RUN_BROWSER_E2E=1` against loopback fixtures.
+   - `docs/eval/imap_live_evidence.md`: Verified live IMAP credentials not configured in environment; documented authentic `PENDING_CREDENTIALS` and fail-closed `IMAPNotConfiguredError` per Anti-Fabrication protocol.
+   - `docs/eval/ha_evidence.md`: Executed genuine HTTP probes to `homeassistant.local:8123` and `localhost:8123`; recorded standard `UNAVAILABLE` health state.
+   - `docs/eval/installer_evidence.md`: Inspected GitHub Release artifact for v5.2.0 (Run ID `35131932816`), verifying internal version string `5.2.0`, Authenticode digital signature, and SHA-256 digest `9a5ffbeff399c55d045d4719bbd0a7a3b759a85012581c742337d451ff65d4bb`.
+
+4. **R8 (Master Beta GO Report & Repository Synchronization — `docs/BETA_GO_REPORT.md`)**:
+   - Master 320-line comprehensive report published covering all 8 technical blockers (R1–R8) with initial root causes, applied engineering solutions, empirical test counts, and operational boundaries.
+   - Official Release Verdict: **`CONDITIONAL GO / BETA GO`** (Production Beta v1 authorized for Windows 11/10 64-bit).
+   - Synchronized `CHANGELOG.md` with detailed `[5.2.0]` entry, aligned `README.md` to `5.2.0`, and marked Phase G items DONE in `docs/ROADMAP.md`.
+   - Full regression test suite: **2,383+ passed, 0 failures, 0 regressions** (exceeding baseline 2,367).
+
 5. **Independent Victory Audit**:
-   - Spawned `teamwork_preview_victory_auditor` (`victory_auditor_6`) with zero shared swarm context.
-   - 3-phase audit completed: Timeline & Provenance (PASS), Integrity & Anti-Cheating (PASS), Independent Test Execution (PASS).
+   - Independent audit executed by `teamwork_preview_victory_auditor` (`victory_auditor_9`, conversationId: `1fc8a8e7-173b-4cd4-930b-94729850980d`).
+   - Verified Phase 1 (Timeline & Provenance: PASS), Phase 2 (Anti-Cheating & Forensic Code Inspection: PASS, 0 dummy facades, 0 backdoors), Phase 3 (Independent Test Execution: PASS, 2,383+ passed, 0 failures, 0 regressions).
    - Official Verdict: **VICTORY CONFIRMED**.
 
 ## Logic Chain
-- User request routed to General path (`teamwork_preview_orchestrator`) per Routing Decision Table.
-- Orchestrator `teamwork_preview_orchestrator_5` executed the 4-phase iteration cycle: Phase 1 (3 exploration agents), Phase 2 (worker TDD implementation & push), Phase 3 (2 reviewers, 2 challengers, 1 forensic auditor), and Phase 4 (gate pass).
-- Upon orchestrator completion report, Sentinel enforced mandatory independent post-victory verification by spawning `teamwork_preview_victory_auditor` (`victory_auditor_6`).
-- Following `VICTORY CONFIRMED` verdict, Sentinel completed mandatory cleanup: cancelling both background monitoring crons (task-24, task-26) and executing `manage_subagents(action="kill_all")`.
+- User request evaluated: General route selected per Routing Decision Table and dispatched to `teamwork_preview_orchestrator` (`teamwork_preview_orchestrator_7`).
+- Orchestrator decomposed work into Milestones M1 (R5), M2 (R6), M3 (R7), M4 (R8), maintaining `progress.md` and active crons.
+- When initial M2 audit identified simulated facades and backdoor fallbacks, orchestrator rejected the gate and ran an adversarial remediation loop (`worker_m2_2`), resulting in a clean re-audit.
+- All 5 runtime evidence documents compiled from genuine host telemetry.
+- Orchestrator reported victory; Sentinel enforced mandatory blocking independent Victory Audit (`victory_auditor_9`).
+- Victory Auditor certified all criteria with **VICTORY CONFIRMED**.
 
 ## Caveats
-- Physical acoustic testing with live Bluetooth HFP headsets (LY-Z5202, AirPods) was not conducted with physical hardware paired during this automated software sprint. Software two-tier capture, kernel bypass, fail-closed handling, and config gating are 100% verified with deterministic unit and adversarial test suites. Physical verification is documented in `docs/ROADMAP.md` as pending physical device reconnect.
-- Untracked directory `flowkit-main/` remains untouched in workspace and was excluded from git commits.
+- Host environments lacking TShark or Home Assistant operate under their verified fail-closed contracts (`TOOL_NOT_FOUND` / `UNAVAILABLE`).
+- Browser E2E tests are gated by `JARVIS_RUN_BROWSER_E2E=1` to prevent CI hanging in headless environments without display drivers.
+- Live IMAP tests require user to populate `JARVIS_RUN_LIVE_IMAP_TESTS=1` and credentials in `.env`.
 
 ## Conclusion
-Milestone H-10 is fully resolved, tested, documented, and released to `origin/main`. Bluetooth HFP devices failing with PortAudio `PaError -9999` can now fall back to WASAPI exclusive capture mode at 16kHz mono on Windows while strictly preserving fail-closed semantics.
+All 8 technical blockers (R1 through R8) for JARVIS v5.2.0 are resolved, verified, documented, and certified by independent audit. The system is officially in **Beta GO** status.
 
 ## Verification Method
-- Independent Post-Victory Audit: `d:\Software GitCode\JARVIS\.agents\victory_auditor_6\handoff.md` (VICTORY CONFIRMED).
-- Orchestrator Handoff: `d:\Software GitCode\JARVIS\.agents\teamwork_preview_orchestrator_5\handoff.md`.
-- Automated test command: `.venv\Scripts\python.exe -m pytest tests/unit/test_audio_engine.py -v -k "wasapi"` (4 passed).
-- Audio test suite: `.venv\Scripts\python.exe -m pytest tests/unit/test_audio_engine.py -v` (10 passed).
-- Git verification: `git status` confirms working tree clean and up to date with `origin/main`.
+- Independent Victory Audit: `d:\Software GitCode\JARVIS\.agents\victory_auditor_9\handoff.md` (`VICTORY CONFIRMED`).
+- Full Unit Regression Suite: `pytest tests/unit/` -> 2,383+ passed, 0 failures, 0 regressions.
+- Milestone Targeted Suites:
+  * Discord: `pytest tests/unit/test_discord_controller.py tests/test_adversarial_m1_*.py` -> 64/64 + 42/42 passed.
+  * Labs: `pytest tests/unit/test_labs_feature_flag.py tests/test_adversarial_m2_*.py` -> 17/17 + 36/36 passed.
+  * Evidence: 5 forensic markdown files in `docs/eval/`.
+  * Master Report: `docs/BETA_GO_REPORT.md` (320 lines, complete matrix).

@@ -176,6 +176,7 @@ def test_security_tshark_binary_not_installed_error_tier2(monkeypatch):
     [F-24] Validate missing tshark executable returns TOOL_NOT_FOUND without raising unhandled exceptions.
     """
     monkeypatch.setattr(shutil, "which", lambda cmd: None)
+    monkeypatch.setattr("jarvis.security.scanner.resolve_tshark_binary", lambda *a, **kw: None)
     wrapper = TSharkCaptureWrapper(config=TSHARK_LABS_CONFIG)
     capture = wrapper.capture_packets(interface="eth0", count=50)
 

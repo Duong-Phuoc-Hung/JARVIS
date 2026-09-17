@@ -454,4 +454,206 @@ Integrity mode: benchmark
 - [ ] Commit tất cả thay đổi vào `main` với message rõ ràng theo từng R
 - [ ] Cập nhật `CHANGELOG.md` ghi lại từng blocker đã sửa
 
+## 2026-09-17T11:47:29Z
 
+JARVIS v5.2.0 đã giải quyết xong các blocker kỹ thuật R1–R4 (commit `c532805`). Giai đoạn này hoàn thiện 3 hạng mục còn lại để đưa hệ thống vào trạng thái Beta GO hoàn chỉnh: implement Discord inbound gateway, thiết lập cơ chế Core/Labs feature flag, thu thập runtime evidence thật cho các module chưa được kiểm thử live. Cuối cùng xuất báo cáo tổng hợp chi tiết.
+
+Working directory: `d:\Software GitCode\JARVIS`
+Integrity mode: benchmark
+
+---
+
+## Context
+
+- Codebase hiện tại tại HEAD `c532805` trên `origin/main`
+- Test baseline: `pytest tests/unit/` → 2,367 passed tại HEAD mới nhất
+- `jarvis/comms/discord.py`: `start_polling()` log warning "not supported" và return ngưay; `_poll_loop` không có implementation
+- `jarvis/core/config.py`: ConfigManager có sẵn dot-notation (`config.get("labs.xxx")`), nhưng chưa có bất kỳ Labs flag nào
+- `jarvis/security/scanner.py`: TSharkCaptureWrapper code hoàn chỉnh nhưng comment ghi "UNTESTED: no TShark available in dev environment"; tests bị `@pytest.mark.skip(reason="requires tshark binary")`
+- `tests/`: 21 browser E2E tests đang skip do thiếu opt-in flag
+- IMAP live test: chưa được commit; credentials phải lấy từ env vars `JARVIS_RUN_LIVE_IMAP_TESTS`, `JARVIS_TEST_IMAP_HOST`, `JARVIS_TEST_IMAP_USER`, `JARVIS_TEST_IMAP_PASSWORD` (không được hardcode trong code)
+
+---
+
+## Requirements
+
+### R5. Discord Inbound Gateway
+
+`jarvis/comms/discord.py` — implement thực sự cho `start_polling()` và `_poll_loop()`. Gateway phải nhận được tin nhắn từ Discord và chuyển chúng vào handler callback đã đăng ký. Phải dùng Discord REST API (GET `/channels/{channel_id}/messages` với `after` tracking) trong thread riêng biệt — không cần WebSocket nếu REST polling đủ để nhận lệnh. Fail-closed: nếu `bot_token` trống hoặc request lỗi liên tục, phải log và dừng polling hoàn toàn, không retry vô tận. Whitelist `whitelist_user_ids` phải được enforce cho mọi message đến.
+
+### R6. Core/Labs Feature Flag Mechanism
+
+Thêm cơ chế tách biệt tính năng ổn định (Core) và tính năng thử nghiệm (Labs) trong hệ thống. Cần có: (1) config key `labs.enabled` (bool, mặc định `False`) và `labs.features` (list[str], các tính năng Labs được phép); (2) một hàm/decorator hoặc guard check tại dispatch layer để block tính năng Labs khi flag tắt; (3) ít nhất 2 tính năng hiện có được đánh dấu là Labs (ví dụ: browser CDP capture, TShark live capture — hoặc tương đương phù hợp). Khi Labs bị tắt và code cố chạy tính năng Labs, phải trả về `ActionResult` với `status="LABS_DISABLED"`, không phải silent success.
+
+### R7. Runtime Evidence — Thu Thập Bằng Chứng Thật
+
+Thu thập runtime evidence thật cho các module chưa có bằng chứng live. Thực hiện theo thứ tự:
+
+**R7a — TShark:** Kiểm tra TShark có trong PATH hoặc `C:\Program Files\Wireshark\tshark.exe`. Nếu có: bỏ skip marker trên test TShark, chạy `pytest tests/ -m tshark -v` và ghi kết quả. Nếu không có: cài Wireshark/TShark qua `winget install wireshark` hoặc `choco install wireshark`, sau đó chạy test. Ghi output thật (không mock) vào `docs/eval/tshark_live_evidence.md`.
+
+**R7b — Browser E2E (Chromium/Playwright):** Kiểm tra Playwright và Chromium có sẵn. Nếu thiếu: chạy `python -m playwright install chromium`. Bật opt-in flag phù hợp để chạy 21 test đang skip, rồi chạy `pytest tests/ -m browser_e2e -v`. Ghi kết quả thật vào `docs/eval/browser_e2e_evidence.md`.
+
+**R7c — IMAP Live:** Kiểm tra biến `JARVIS_RUN_LIVE_IMAP_TESTS` có bằng `"1"` không. Nếu có và đủ 3 biến credential: chạy integration test live. Nếu không: ghi rõ "credentials not configured in environment — test skipped per opt-in protocol" vào `docs/eval/imap_live_evidence.md`. Không được tự tạo credentials giả.
+
+**R7d — Home Assistant:** Kiểm tra xem có HA instance local tại `http://homeassistant.local:8123` hoặc `http://localhost:8123` bằng HTTP request. Ghi kết quả thật (AVAILABLE/UNAVAILABLE) vào `docs/eval/ha_evidence.md`. Không cần cài mới nếu chưa có.
+
+**R7e — Installer v5.2.0:** Kiểm tra GitHub Release artifact cho v5.2.0: `jarvis-signed-exe` tồn tại và version string bên trong là `5.2.0` (không phải `5.1.0`). Ghi bằng chứng vào `docs/eval/installer_evidence.md`.
+
+### R8. Báo Cáo Tổng Hợp Beta GO
+
+Sau khi hoàn thành R5–R7, tạo file `docs/BETA_GO_REPORT.md` với nội dung:
+- Tómタップ trạng thái tất cả 8 blocker (R1–R8): DONE / PARTIAL / BLOCKED
+- Cho mỗi item: root cause ban đầu, giải pháp áp dụng, bằng chứng xác minh (số test pass, runtime output)
+- Danh sách known limitations còn lại (nếu có) với lý do chấp nhận được
+- Verdict cuối cùng: GO / CONDITIONAL GO / NO-GO với lý do
+
+---
+
+## Verification Resources
+
+- Test suite: `pytest tests/unit/` → 2,367 passed baseline (tại HEAD `c532805`)
+- Marker đã đăng ký trong `pyproject.toml`: `integration`, `browser_e2e`, `requires_audio`, `slow`
+- `AGENTS.md` Section 2: Anti-Fabrication — runtime evidence phải từ process thật, không mock
+- `AGENTS.md` Section 1: commit CHANGELOG.md, README.md, ROADMAP.md cùng với code
+
+---
+
+## Acceptance Criteria
+
+### R5 — Discord inbound gateway
+- [ ] `start_polling()` không còn log "not supported" — có thread thật chạy polling loop
+- [ ] `_poll_loop()` có implementation gọi Discord REST API thật (hoặc mock integration test chứng minh contract)
+- [ ] Whitelist enforcement: message từ user ngoài whitelist bị drop với log rõ ràng
+- [ ] Fail-closed: nếu token trống → return ngưay, không start thread
+- [ ] Unit test cho: polling với valid token, polling với empty token (fail-closed), whitelist block, message dispatch đến callback
+- [ ] `pytest tests/unit/` không có regression
+
+### R6 — Core/Labs flag
+- [ ] `config.get("labs.enabled")` trả `False` khi không set
+- [ ] Khi `labs.enabled = False`: gọi tính năng Labs → `ActionResult(status="LABS_DISABLED")`, không execute
+- [ ] Khi `labs.enabled = True`: tính năng Labs chạy bình thường
+- [ ] Ít nhất 2 tính năng được đánh dấu Labs trong code
+- [ ] Unit test cho cả 3 scenario trên
+- [ ] `pytest tests/unit/` không có regression
+
+### R7 — Runtime evidence
+- [ ] `docs/eval/tshark_live_evidence.md` tồn tại với output thật từ tshark hoặc ghi rõ "binary not found"
+- [ ] `docs/eval/browser_e2e_evidence.md` tồn tại với kết quả 21 tests (pass/skip/fail) từ lần chạy thật
+- [ ] `docs/eval/imap_live_evidence.md` tồn tại với bằng chứng live hoặc ghi rõ "opt-in env var not set"
+- [ ] `docs/eval/ha_evidence.md` tồn tại với kết quả HTTP probe thật (AVAILABLE/UNAVAILABLE)
+- [ ] `docs/eval/installer_evidence.md` tồn tại xác minh version artifact
+- [ ] Không có file nào chứa kết quả fabricated/hardcoded
+
+### R8 — Beta GO Report
+- [ ] `docs/BETA_GO_REPORT.md` tồn tại với đủ 8 blocker
+- [ ] Mỗi blocker có: root cause, solution, evidence (test count hoặc runtime proof)
+- [ ] Verdict rõ ràng: GO / CONDITIONAL GO / NO-GO
+
+### Tổng thể
+- [ ] Commit tất cả thay đổi và docs vào `main`
+- [ ] `pytest tests/unit/` sau toàn bộ thay đổi: >= 2,367 passed, 0 regression
+
+## 2026-09-17T19:21:38Z
+
+JARVIS v5.2.0 is a Windows desktop AI assistant. Phase 2 (R1–R8) engineering remediation is DONE and committed at `HEAD` (`88eca25` on `origin/main`). The current verdict is **CONDITIONAL GO — Internal Beta Pilot Only**. Product Beta release requires 9 additional acceptance gates to be closed with real runtime evidence. This session closes the **completable** gates and documents the hardware-blocked ones precisely.
+
+Working directory: `d:\Software GitCode\JARVIS`
+Integrity mode: benchmark
+
+**Anti-Fabrication Constraint (MANDATORY):** This project enforces `AGENTS.md §2` strictly. Do NOT report any gate as PASS or DONE unless the evidence is from a real process execution on this host machine. Specifically:
+- `PENDING_CREDENTIALS` is **not** a live IMAP test pass
+- `TOOL_NOT_FOUND` is **not** a TShark capture pass
+- `UNAVAILABLE` is **not** an HA write-path pass
+- A CI artifact URL is **not** a clean-machine install pass
+
+Every evidence file must contain actual command output (stdout/stderr verbatim), timestamps, exit codes, and host context. No fabricated data.
+
+---
+
+## Requirements
+
+### R9. Credential Registry
+Create `docs/credentials_registry.md` cataloguing every external connector in the JARVIS codebase with: connector name, credential type(s), environment variable(s), current owner (documented as "primary user"), backup/recovery procedure, and rotation policy. Cover: Gmail IMAP/SMTP, Telegram bot, Discord bot, Zalo (pending), ElevenLabs TTS, Home Assistant token, OpenAI/Gemini API keys, GitHub Actions secrets. Each row must have a concrete backup procedure (not "TBD").
+
+### R10. P0/P1 Risk Register
+Create `docs/risk_register.md` containing:
+- **P0 issues** (blocker — must resolve before any production use): list with accepted-risk rationale or resolution path
+- **P1 issues** (high-severity — must resolve before General Availability): list with owner, ETA, accepted-risk statement
+- **Known hardware-blocked gates**: TShark binary not in PATH, HA instance not available locally, clean-machine VM not provisioned, voice acceptance H-13 requires human tester — each documented with: what would constitute PASS, what hardware/environment is needed, and who is responsible
+
+### R11. TShark Live Evidence (attempt + document)
+Attempt to install Wireshark/TShark via `winget install Wireshark.Wireshark` (or verify if already available). If install succeeds OR binary is already in PATH: run a real live packet capture test using `jarvis/security/scanner.py` with the actual binary and capture the real output as `docs/eval/tshark_live_evidence_v2.md`. If install requires UAC or fails: document the exact error, exit code, and what steps would be needed, and update the existing `docs/eval/tshark_live_evidence.md` to reflect the current status accurately (do NOT overstate).
+
+### R12. Browser E2E Real Chromium Evidence
+Run the browser E2E test suite with `JARVIS_RUN_BROWSER_E2E=1` environment variable set. Capture the actual pytest output (pass/fail counts, timing) and save as `docs/eval/browser_e2e_evidence_v2.md`. If tests fail: record the actual failure messages verbatim — do NOT hide failures. Gate passes only if exit code 0.
+
+### R13. Workflow Acceptance Benchmark (design + run)
+Design and implement a benchmark for 10 representative JARVIS workflows. Each workflow must be end-to-end testable via the dispatcher/planner layer without real hardware (stub external APIs). Target: ≥95% pass rate per workflow, no workflow below 90%. Save benchmark results as `docs/eval/workflow_benchmark.md`. The 10 workflows should cover: text command dispatch, voice→text→action pipeline (mocked STT), web search, email read (mocked IMAP), file management, app launch, HA query (mocked), system status check, note taking, reminder setting. Run the benchmark and report actual results.
+
+### R14. Documentation Sync + Final Gate Status Report
+After R9–R13 are complete:
+1. Update `docs/BETA_GO_REPORT.md` §5 (Pending Acceptance Gates table) with actual status of each gate — PASS/PARTIAL/BLOCKED with evidence citations
+2. Update `CHANGELOG.md` with a `[5.2.0-phase3]` entry
+3. Update `docs/ROADMAP.md` to reflect new gate statuses
+4. Run full unit suite (`pytest tests/unit/ -q --tb=short`) and record exact pass/fail count
+5. Commit all changes: `git add -A && git commit -m "feat(beta-go): Phase 3 — close R9/R10/R13 gates, attempt R11/R12, final gate status report"`
+6. Push to `origin/main`
+
+---
+
+## Acceptance Criteria
+
+### R9 — Credential Registry
+- [ ] File `docs/credentials_registry.md` exists and is committed
+- [ ] Every connector listed in the codebase (`grep -r "os.getenv\|os.environ" jarvis/comms/ jarvis/core/config.py`) has a corresponding row
+- [ ] Each row has: connector, env var(s), owner, backup procedure (specific, not "TBD"), rotation policy
+- [ ] No row uses placeholder text for backup procedure
+
+### R10 — Risk Register
+- [ ] File `docs/risk_register.md` exists and is committed
+- [ ] P0 section: either empty (no P0s) with justification, or each P0 has accepted-risk rationale
+- [ ] P1 section: each known hardware-blocked gate documented with exact PASS criteria and hardware requirements
+- [ ] H-13 voice acceptance explicitly documented as `PENDING_HUMAN_EXECUTION` with testing protocol reference
+
+### R11 — TShark Evidence
+- [ ] `docs/eval/tshark_live_evidence.md` (or `_v2.md`) reflects current host state accurately
+- [ ] If binary available: real capture output with actual packet count > 0
+- [ ] If binary not available: exact winget/install output, exit code, and remediation steps
+- [ ] No fabricated capture output
+
+### R12 — Browser E2E Evidence
+- [ ] `docs/eval/browser_e2e_evidence_v2.md` contains real pytest output with timestamp
+- [ ] Reports actual pass/skip/fail counts from this host machine
+- [ ] If tests fail: failure messages included verbatim, gate marked BLOCKED not PASS
+
+### R13 — Workflow Benchmark
+- [ ] `docs/eval/workflow_benchmark.md` exists with 10 workflows measured
+- [ ] Each workflow: name, pass/fail/skip count, pass rate %
+- [ ] Overall: if ≥9/10 workflows achieve ≥95% pass, mark as PASS; otherwise PARTIAL with specifics
+- [ ] Benchmark code committed to `tests/eval/` or `tests/benchmarks/`
+
+### R14 — Documentation Sync
+- [ ] `docs/BETA_GO_REPORT.md` §5 table updated with post-Phase-3 gate statuses
+- [ ] `CHANGELOG.md` updated with Phase 3 entry
+- [ ] `docs/ROADMAP.md` updated
+- [ ] `pytest tests/unit/ -q --tb=short` exits with code 0, exact count documented
+- [ ] Git commit pushed to `origin/main`
+
+---
+
+## Verification Resources
+
+- Current `HEAD`: `88eca25` on `main` (Phase 2 complete)
+- Existing evidence files: `docs/eval/` (5 files from Phase 2)
+- Existing `docs/BETA_GO_REPORT.md` §5 has the pending gates table to update
+- Full unit suite baseline: **2,424 collected, 0 failed** (as of Phase 2 fix commit)
+- AGENTS.md §2 Anti-Fabrication Principle is the governing standard for all evidence
+- H-13 voice protocol: `docs/eval/beta_voice_50_live_acceptance_protocol.md`
+- Hardware-blocked items (DO NOT fake evidence for these):
+  - HA write path: no local HA instance
+  - IMAP live: `JARVIS_RUN_LIVE_IMAP_TESTS=1` requires real credentials from user
+  - Clean-machine install: requires fresh VM
+  - Voice H-13: requires human tester speaking 50 utterances
+
+---
+*This is a full multi-part project (R9–R14 are distinct workstreams, some parallelizable). Voice H-13, HA live, and clean-machine are explicitly out of scope — document them precisely, do not attempt to fake them.*
