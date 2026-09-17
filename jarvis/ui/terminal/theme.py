@@ -40,34 +40,39 @@ class Ansi:
 class StatusLevel(str, Enum):
     """Truthful status vocabulary for the terminal UI.
 
-    A component is never READY/AVAILABLE merely because a class imported
+    A component is never READY merely because a class imported
     successfully -- callers must derive this from an actual real check.
     """
     READY = "READY"
-    AVAILABLE = "AVAILABLE"
-    PASS = "PASS"
     LIMITED = "LIMITED"
-    PARTIAL = "PARTIAL"
-    SKIPPED = "SKIPPED"
-    OFFLINE = "OFFLINE"
     BLOCKED = "BLOCKED"
     ERROR = "ERROR"
-    FAILED = "FAILED"
-    UNKNOWN = "UNKNOWN"
+    UNAVAILABLE = "UNAVAILABLE"
+
+    # Backward-compatibility aliases for legacy callers/tests
+    AVAILABLE = "READY"
+    PASS = "READY"
+    PARTIAL = "LIMITED"
+    SKIPPED = "BLOCKED"
+    OFFLINE = "UNAVAILABLE"
+    FAILED = "ERROR"
+    UNKNOWN = "UNAVAILABLE"
 
 
 _STATUS_COLOR = {
     StatusLevel.READY: "BRIGHT_GREEN",
-    StatusLevel.AVAILABLE: "GREEN",
-    StatusLevel.PASS: "GREEN",
     StatusLevel.LIMITED: "YELLOW",
-    StatusLevel.PARTIAL: "YELLOW",
-    StatusLevel.SKIPPED: "YELLOW",
-    StatusLevel.OFFLINE: "GRAY",
     StatusLevel.BLOCKED: "BRIGHT_RED",
     StatusLevel.ERROR: "BRIGHT_RED",
-    StatusLevel.FAILED: "BRIGHT_RED",
-    StatusLevel.UNKNOWN: "GRAY",
+    StatusLevel.UNAVAILABLE: "GRAY",
+}
+
+_STATUS_ICON = {
+    StatusLevel.READY: "[+]",
+    StatusLevel.LIMITED: "[!]",
+    StatusLevel.BLOCKED: "[x]",
+    StatusLevel.ERROR: "[-]",
+    StatusLevel.UNAVAILABLE: "[o]",
 }
 
 
@@ -151,7 +156,7 @@ class TerminalTheme:
         try:
             lvl = level if isinstance(level, StatusLevel) else StatusLevel(str(level).upper())
         except ValueError:
-            lvl = StatusLevel.UNKNOWN
+            lvl = StatusLevel.UNAVAILABLE
         code = _STATUS_COLOR.get(lvl, "GRAY")
         return self.style(lvl.value, "BOLD", code)
 
@@ -159,6 +164,15 @@ class TerminalTheme:
         try:
             lvl = level if isinstance(level, StatusLevel) else StatusLevel(str(level).upper())
         except ValueError:
-            lvl = StatusLevel.UNKNOWN
+            lvl = StatusLevel.UNAVAILABLE
         code = _STATUS_COLOR.get(lvl, "GRAY")
         return self.style(text, code)
+
+    def status_icon(self, level: StatusLevel | str) -> str:
+        try:
+            lvl = level if isinstance(level, StatusLevel) else StatusLevel(str(level).upper())
+        except ValueError:
+            lvl = StatusLevel.UNAVAILABLE
+        code = _STATUS_COLOR.get(lvl, "GRAY")
+        icon = _STATUS_ICON.get(lvl, "[?]")
+        return self.style(icon, "BOLD", code)

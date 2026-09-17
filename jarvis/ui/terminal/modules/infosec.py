@@ -33,8 +33,8 @@ from jarvis.ui.terminal.theme import StatusLevel
 MODULE = "INFOSEC"
 
 _SCAN_STATUS_MAP = {
-    "SUCCESS": StatusLevel.PASS,
-    "TOOL_NOT_FOUND": StatusLevel.OFFLINE,
+    "SUCCESS": StatusLevel.READY,
+    "TOOL_NOT_FOUND": StatusLevel.UNAVAILABLE,
     "TARGET_REJECTED": StatusLevel.BLOCKED,
     "PERMISSION_DENIED": StatusLevel.BLOCKED,
     "TIMEOUT": StatusLevel.LIMITED,
@@ -50,11 +50,11 @@ def _tools_status(ctx: TerminalContext) -> ActionOutcome:
             ("TShark", "AVAILABLE" if tshark else "OFFLINE"),
         ]
         if nmap and tshark:
-            status = StatusLevel.AVAILABLE
+            status = StatusLevel.READY
         elif nmap or tshark:
             status = StatusLevel.LIMITED
         else:
-            status = StatusLevel.OFFLINE
+            status = StatusLevel.UNAVAILABLE
         return ActionOutcome(status=status, title="Security Tools Status", fields=fields)
     return run_timed(body)
 
@@ -62,7 +62,7 @@ def _tools_status(ctx: TerminalContext) -> ActionOutcome:
 def _validate_target_prompt(ctx: TerminalContext) -> ActionOutcome:
     target = ctx.console.read_line("Enter target IP or CIDR (RFC1918 private ranges only): ")
     if not target:
-        return ActionOutcome(status=StatusLevel.SKIPPED, title="Validate Scan Target",
+        return ActionOutcome(status=StatusLevel.BLOCKED, title="Validate Scan Target",
                               detail_lines=["No target entered."])
     return _validate_target(ctx, target)
 
@@ -73,7 +73,7 @@ def _validate_target(ctx: TerminalContext, target: str) -> ActionOutcome:
         if allowed:
             ctx.state["infosec_target"] = target
             return ActionOutcome(
-                status=StatusLevel.PASS, title="Validate Scan Target",
+                status=StatusLevel.READY, title="Validate Scan Target",
                 fields=[("Target", target), ("Result", "ALLOWED")],
             )
         ctx.state.pop("infosec_target", None)
@@ -90,7 +90,7 @@ def _lan_scan(ctx: TerminalContext) -> ActionOutcome:
         target = ctx.state.get("infosec_target")
         if not target:
             return ActionOutcome(
-                status=StatusLevel.SKIPPED, title="LAN Host / Port Scan",
+                status=StatusLevel.BLOCKED, title="LAN Host / Port Scan",
                 detail_lines=["No target selected. Use 'Validate Scan Target' first."],
             )
         scanner = NetworkScanner()
@@ -130,13 +130,13 @@ def _security_report(ctx: TerminalContext) -> ActionOutcome:
     def body() -> ActionOutcome:
         scan = ctx.state.get("infosec_last_scan")
         if scan is None:
-            return ActionOutcome(status=StatusLevel.SKIPPED, title="Security Report",
+            return ActionOutcome(status=StatusLevel.BLOCKED, title="Security Report",
                                   detail_lines=["No scan has been run this session. Run 'LAN Host / Port Scan' first."])
         generator = SecurityReportGenerator()
         markdown = generator.format_markdown_report(scan)
         voice_summary = generator.get_voice_summary(scan, lang="vi")
         return ActionOutcome(
-            status=StatusLevel.PASS, title="Security Report",
+            status=StatusLevel.READY, title="Security Report",
             fields=[("Target", scan.target), ("Hosts", str(scan.total_hosts))],
             detail_lines=[voice_summary],
             structured_data={"markdown_report": markdown},

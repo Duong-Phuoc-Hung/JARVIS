@@ -29,6 +29,17 @@ class SafetyGateInterceptor:
         "drop_database", "truncate_table", "telegram_send_document",
         "telegram_send_photo", "bank_transfer", "order_checkout",
         "shell_execute_destructive", "os_kill_process",
+        # Outbound Email
+        "email_send", "send_email", "send_mail", "email_send_message",
+        # Outbound Zalo
+        "zalo_send_message", "zalo_send_image", "send_zalo_message", "zalo_broadcast",
+        # Outbound Discord
+        "discord_send_message", "discord_send_file", "send_discord_message",
+        # Home Assistant actuation
+        "home_assistant_call", "smart_home_turn_on", "smart_home_turn_off",
+        "smart_home_set_temp", "smart_home_toggle", "home_assistant_turn_on",
+        "home_assistant_turn_off", "home_assistant_toggle", "home_assistant_set_temp",
+        "home_assistant_set_temperature",
     }
 
     DANGEROUS_PATTERNS: list[re.Pattern] = [
@@ -118,8 +129,19 @@ class SafetyGateInterceptor:
             if sub_action in self.SYSTEM_POWER_DESTRUCTIVE_SUBACTIONS:
                 return True
 
+        # Explicitly exclude read-only suffixes/actions from high-risk classification
+        safe_suffixes = ("_get_state", "_status", "_query", "_read", "_get_temperature")
+        if action_clean == "smart_home_get_state" or any(action_clean.endswith(s) for s in safe_suffixes):
+            return False
+
         # Check action prefixes
-        risky_prefixes = ("delete_", "remove_", "drop_", "truncate_", "format_", "destroy_")
+        risky_prefixes = (
+            "delete_", "remove_", "drop_", "truncate_", "format_", "destroy_",
+            "email_send", "send_email",
+            "zalo_send", "send_zalo",
+            "discord_send", "send_discord",
+            "home_assistant_", "smart_home_turn_", "smart_home_set_", "smart_home_toggle",
+        )
         if any(action_clean.startswith(prefix) for prefix in risky_prefixes):
             return True
 
@@ -312,6 +334,10 @@ class SafetyGateInterceptor:
 
     def confirm(self, token: str) -> bool:
         """Manually confirms a pending safety gate token."""
+        return self.safety_gate.confirm(token)
+
+    def confirm_action(self, token: str) -> bool:
+        """Manually confirms a pending safety gate token (alias for confirm)."""
         return self.safety_gate.confirm(token)
 
     def reject(self, token: str) -> bool:

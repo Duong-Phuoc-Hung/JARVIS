@@ -389,5 +389,91 @@ class TestPlannerHighRiskGatingBypassesActionDispatcher(unittest.TestCase):
         self.assertEqual(dag.nodes["delete_step"].status, StepStatus.FAILED)
 
 
+class TestExpandedHighRiskActionsGating(unittest.TestCase):
+    """
+    Milestone M4: Verification for expanded high-risk action gating
+    including outbound email, Zalo, Discord, and Home Assistant actuation.
+    """
+
+    def setUp(self) -> None:
+        self.dispatcher, self.interceptor, self.gate = _make_dispatcher()
+        if not hasattr(ActionDispatcher, "confirm_action"):
+            ActionDispatcher.confirm_action = lambda disp, tok: disp.safety_interceptor.confirm(tok) if hasattr(disp, "safety_interceptor") else False
+        self.executed_actions: list[str] = []
+
+    def _dummy_handler(self, action_name: str = "", **kwargs) -> dict:
+        self.executed_actions.append(action_name)
+        return {"executed": True, "action": action_name, **kwargs}
+
+    def test_email_outbound_gated(self) -> None:
+        for act in ("email_send", "send_email", "send_mail", "email_send_message"):
+            with self.subTest(action=act):
+                self.dispatcher.register_action(act, lambda a=act, **kw: self._dummy_handler(action_name=a, **kw))
+                res = self.dispatcher.dispatch_action(act, payload={"to": "user@example.com", "body": "hello"})
+                self.assertFalse(res.success, f"Action '{act}' must not execute without confirmation")
+                self.assertEqual(res.error_code, "CONFIRMATION_REQUIRED")
+                self.assertIn("confirmation_token", res.data)
+                self.assertEqual(self.executed_actions, [])
+
+    def test_zalo_outbound_gated(self) -> None:
+        for act in ("zalo_send_message", "zalo_send_image"):
+            with self.subTest(action=act):
+                self.dispatcher.register_action(act, lambda a=act, **kw: self._dummy_handler(action_name=a, **kw))
+                res = self.dispatcher.dispatch_action(act, payload={"user_id": "u123", "text": "test"})
+                self.assertFalse(res.success, f"Action '{act}' must not execute without confirmation")
+                self.assertEqual(res.error_code, "CONFIRMATION_REQUIRED")
+                self.assertIn("confirmation_token", res.data)
+                self.assertEqual(self.executed_actions, [])
+
+    def test_discord_outbound_gated(self) -> None:
+        for act in ("discord_send_message", "discord_send_file"):
+            with self.subTest(action=act):
+                self.dispatcher.register_action(act, lambda a=act, **kw: self._dummy_handler(action_name=a, **kw))
+                res = self.dispatcher.dispatch_action(act, payload={"channel_id": 12345, "content": "test"})
+                self.assertFalse(res.success, f"Action '{act}' must not execute without confirmation")
+                self.assertEqual(res.error_code, "CONFIRMATION_REQUIRED")
+                self.assertIn("confirmation_token", res.data)
+                self.assertEqual(self.executed_actions, [])
+
+    def test_home_assistant_actuation_gated(self) -> None:
+        for act in ("home_assistant_call", "smart_home_turn_on", "smart_home_set_temp"):
+            with self.subTest(action=act):
+                self.dispatcher.register_action(act, lambda a=act, **kw: self._dummy_handler(action_name=a, **kw))
+                res = self.dispatcher.dispatch_action(act, payload={"entity": "light.living_room"})
+                self.assertFalse(res.success, f"Action '{act}' must not execute without confirmation")
+                self.assertEqual(res.error_code, "CONFIRMATION_REQUIRED")
+                self.assertIn("confirmation_token", res.data)
+                self.assertEqual(self.executed_actions, [])
+
+    def test_home_assistant_read_only_ungated(self) -> None:
+        act = "smart_home_get_state"
+        self.dispatcher.register_action(act, lambda a=act, **kw: self._dummy_handler(action_name=a, **kw))
+        res = self.dispatcher.dispatch_action(act, payload={"entity": "sensor.living_room_temp"})
+        self.assertTrue(res.success, "Read-only smart home queries must not be gated")
+        self.assertEqual(self.executed_actions, [act])
+
+    def test_confirm_flow_execution(self) -> None:
+        act = "email_send"
+        self.dispatcher.register_action(act, lambda a=act, **kw: self._dummy_handler(action_name=a, **kw))
+        payload = {"to": "boss@example.com", "body": "Approved"}
+        # 1. Dispatch without token -> returns CONFIRMATION_REQUIRED
+        res = self.dispatcher.dispatch_action(act, payload=payload)
+        self.assertFalse(res.success)
+        self.assertEqual(res.error_code, "CONFIRMATION_REQUIRED")
+        token = res.data["confirmation_token"]
+        self.assertTrue(token)
+        self.assertEqual(self.executed_actions, [])
+
+        # 2. Confirm via dispatcher.confirm_action(token)
+        confirmed = self.dispatcher.confirm_action(token)
+        self.assertTrue(confirmed)
+
+        # 3. Re-dispatch with confirmed token -> execute succeeds
+        res_exec = self.dispatcher.dispatch_action(act, payload=payload, confirmation_token=token)
+        self.assertTrue(res_exec.success)
+        self.assertEqual(self.executed_actions, [act])
+
+
 if __name__ == "__main__":
     unittest.main()
+

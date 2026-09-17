@@ -41,7 +41,7 @@ def _windows_control(ctx: TerminalContext) -> ActionOutcome:
         except Exception:
             fields.append(("Active Window", "N/A"))
             limited = True
-        status = StatusLevel.LIMITED if limited else StatusLevel.PASS
+        status = StatusLevel.LIMITED if limited else StatusLevel.READY
         return ActionOutcome(status=status, title="Windows Control", fields=fields)
     return run_timed(body)
 
@@ -49,7 +49,7 @@ def _windows_control(ctx: TerminalContext) -> ActionOutcome:
 def _workspace_management(ctx: TerminalContext) -> ActionOutcome:
     def body() -> ActionOutcome:
         return ActionOutcome(
-            status=StatusLevel.OFFLINE, title="Workspace Management",
+            status=StatusLevel.UNAVAILABLE, title="Workspace Management",
             detail_lines=["NOT CONFIGURED -- no dedicated workspace-management backend exists in "
                           "this codebase. Project/workspace assistance is currently routed through "
                           "the LLM intent router's rule fast-path, not a standalone module."],
@@ -67,7 +67,7 @@ def _shell_assistant(ctx: TerminalContext) -> ActionOutcome:
         fields = [("Backend", "AVAILABLE"), ("Destructive-command detection", "ACTIVE")]
         detail = ["Live command execution is intentionally not exposed from this menu -- "
                   "see follow-up findings in docs/PROJECT_STATE.md."]
-        return ActionOutcome(status=StatusLevel.AVAILABLE, title="Shell Assistant", fields=fields,
+        return ActionOutcome(status=StatusLevel.READY, title="Shell Assistant", fields=fields,
                               detail_lines=detail)
     return run_timed(body)
 
@@ -82,14 +82,14 @@ def _gui_automation(ctx: TerminalContext) -> ActionOutcome:
                                   detail_lines=[f"Backend unavailable: {e}"])
         history_len = len(actor.action_history) if hasattr(actor, "action_history") else 0
         fields = [("Backend", "AVAILABLE"), ("Actions this session", str(history_len))]
-        return ActionOutcome(status=StatusLevel.AVAILABLE, title="GUI Automation", fields=fields)
+        return ActionOutcome(status=StatusLevel.READY, title="GUI Automation", fields=fields)
     return run_timed(body)
 
 
 def _lab_workflow(ctx: TerminalContext) -> ActionOutcome:
     def body() -> ActionOutcome:
         return ActionOutcome(
-            status=StatusLevel.OFFLINE, title="Lab Workflow",
+            status=StatusLevel.UNAVAILABLE, title="Lab Workflow",
             detail_lines=["NOT CONFIGURED -- automatic VM (VMware/VirtualBox) launch and network "
                           "bridging described in early planning documents has no mature "
                           "implementation in this codebase."],
@@ -109,9 +109,9 @@ def _automation_status(ctx: TerminalContext) -> ActionOutcome:
             ("Workspace Management", "OFFLINE"),
             ("Lab Workflow", "OFFLINE"),
         ]
-        worst = StatusLevel.PASS
+        worst = StatusLevel.READY
         for s in (win.status, shell.status, gui.status):
-            if s in (StatusLevel.ERROR, StatusLevel.FAILED):
+            if s == StatusLevel.ERROR:
                 worst = StatusLevel.ERROR
                 break
             if s == StatusLevel.LIMITED:

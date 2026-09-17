@@ -14,6 +14,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from jarvis.core.models import ActionResult, ActionStatus
 from jarvis.security.secrets import get_secret
 
 log = logging.getLogger("jarvis.smart_home.ha")
@@ -138,11 +139,19 @@ class HomeAssistantClient:
         service: str,
         service_data: dict[str, Any],
         mock_http: Any | None = None,
-    ) -> dict[str, Any]:
+    ) -> ActionResult:
         """Calls a Home Assistant domain service with authoritative security gating."""
         domain_clean = domain.strip().lower()
         if domain_clean not in self.ALLOWED_DOMAINS:
-            return {"success": False, "error": f"SECURITY_REFUSAL: domain '{domain}' is not in authoritative allowlist"}
+            return ActionResult(
+                action_name="home_assistant_call",
+                success=False,
+                status=ActionStatus.ERROR,
+                code="SECURITY_REFUSAL",
+                message=f"SECURITY_REFUSAL: domain '{domain}' is not in authoritative allowlist",
+                retryable=False,
+                data={"domain": domain_clean, "service": service},
+            )
 
         resolved_data = dict(service_data)
         if "entity_id" in resolved_data:
@@ -150,14 +159,37 @@ class HomeAssistantClient:
             resolved_data["entity_id"] = resolved_entity
             is_allowed, err = self.validate_entity_allowed(resolved_entity)
             if not is_allowed:
-                return {"success": False, "error": err}
+                return ActionResult(
+                    action_name="home_assistant_call",
+                    success=False,
+                    status=ActionStatus.ERROR,
+                    code="SECURITY_REFUSAL",
+                    message=err or f"SECURITY_REFUSAL: entity '{resolved_entity}' is not allowed",
+                    retryable=False,
+                    data={"entity_id": resolved_entity},
+                )
 
         if mock_http is not None:
             res = mock_http.handle_ha_call_service(domain_clean, service, resolved_data)
-            return {"success": True, "result": res}
+            return ActionResult(
+                action_name="home_assistant_call",
+                success=True,
+                status=ActionStatus.SUCCESS,
+                code="OK",
+                message=f"Service {domain_clean}.{service} executed successfully",
+                retryable=False,
+                data=res,
+            )
 
         if not self.token:
-            return {"success": False, "error": "NOT_CONFIGURED: Home Assistant token missing"}
+            return ActionResult(
+                action_name="home_assistant_call",
+                success=False,
+                status=ActionStatus.ERROR,
+                code="NOT_CONFIGURED",
+                message="NOT_CONFIGURED: Home Assistant token missing",
+                retryable=False,
+            )
 
         url = f"{self.base_url}/api/services/{domain_clean}/{service}"
         headers = {
@@ -171,18 +203,40 @@ class HomeAssistantClient:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 if resp.status in (200, 201):
                     res = json.loads(resp.read().decode("utf-8"))
-                    return {"success": True, "result": res}
-                return {"success": False, "error": f"Home Assistant returned HTTP {resp.status}"}
+                    return ActionResult(
+                        action_name="home_assistant_call",
+                        success=True,
+                        status=ActionStatus.SUCCESS,
+                        code="OK",
+                        message=f"Service {domain_clean}.{service} executed successfully",
+                        retryable=False,
+                        data=res,
+                    )
+                return ActionResult(
+                    action_name="home_assistant_call",
+                    success=False,
+                    status=ActionStatus.ERROR,
+                    code=f"HTTP_{resp.status}",
+                    message=f"Home Assistant returned HTTP {resp.status}",
+                    retryable=(resp.status >= 500 or resp.status == 429),
+                )
         except Exception as exc:
             log.warning("Home Assistant service call failed: %s", exc)
-            return {"success": False, "error": f"Connection failed: Home Assistant unreachable - {exc}"}
+            return ActionResult(
+                action_name="home_assistant_call",
+                success=False,
+                status=ActionStatus.ERROR,
+                code="CONNECTION_FAILED",
+                message=f"Connection failed: Home Assistant unreachable - {exc}",
+                retryable=True,
+            )
 
     def turn_on(
         self,
         entity: str,
         brightness: int | None = None,
         mock_http: Any | None = None,
-    ) -> dict[str, Any]:
+    ) -> ActionResult:
         resolved = self.resolve_entity(entity)
         domain = resolved.split(".")[0] if "." in resolved else "light"
         payload: dict[str, Any] = {"entity_id": resolved}
@@ -190,12 +244,12 @@ class HomeAssistantClient:
             payload["brightness"] = brightness
         return self.call_service(domain, "turn_on", payload, mock_http=mock_http)
 
-    def turn_off(self, entity: str, mock_http: Any | None = None) -> dict[str, Any]:
+    def turn_off(self, entity: str, mock_http: Any | None = None) -> ActionResult:
         resolved = self.resolve_entity(entity)
         domain = resolved.split(".")[0] if "." in resolved else "light"
         return self.call_service(domain, "turn_off", {"entity_id": resolved}, mock_http=mock_http)
 
-    def toggle(self, entity: str, mock_http: Any | None = None) -> dict[str, Any]:
+    def toggle(self, entity: str, mock_http: Any | None = None) -> ActionResult:
         resolved = self.resolve_entity(entity)
         domain = resolved.split(".")[0] if "." in resolved else "light"
         return self.call_service(domain, "toggle", {"entity_id": resolved}, mock_http=mock_http)
@@ -205,7 +259,7 @@ class HomeAssistantClient:
         entity: str,
         temperature: float,
         mock_http: Any | None = None,
-    ) -> dict[str, Any]:
+    ) -> ActionResult:
         resolved = self.resolve_entity(entity)
         domain = resolved.split(".")[0] if "." in resolved else "climate"
         return self.call_service(

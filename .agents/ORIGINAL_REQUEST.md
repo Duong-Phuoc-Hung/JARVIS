@@ -745,3 +745,73 @@ stream = sd.InputStream(device=idx, extra_settings=extra, samplerate=16000, chan
 - [ ] `CHANGELOG.md` has new entry for H-10 WASAPI with root cause + file list + test counts
 - [ ] `docs/ROADMAP.md` H-10 reflects WASAPI implementation done
 - [ ] All changes committed and pushed to `origin/main`
+
+## 2026-09-17T09:17:05Z
+
+JARVIS v5.2.0 tại `HEAD 57a40a5` đang ở trạng thái **Beta NO-GO**. Mục tiêu là giải quyết 4 blocker kỹ thuật ưu tiên cao nhất để đưa hệ thống đạt trạng thái Beta GO. Các blocker còn lại (Discord inbound, Core/Labs, runtime evidence) được xử lý trong giai đoạn tiếp theo.
+
+Working directory: `d:\Software GitCode\JARVIS`
+Integrity mode: benchmark
+
+---
+
+## Requirements
+
+### R1. Bỏ simulated success trong planner (fail-closed)
+
+`jarvis/planner/engine.py` tại khoảng line 414 hiện trả kết quả thành công giả khi không tìm thấy handler cho một action. Hành vi này vi phạm fail-closed contract của toàn hệ thống. Planner phải trả một kết quả lỗi rõ ràng — với error code cụ thể như `UNHANDLED_ACTION`, `HANDLER_NOT_FOUND`, hoặc tương đương — thay vì giả vờ thành công. Không được dùng silent fallback hay exception bị nuốt.
+
+### R2. Thống nhất Result model (`ActionResult`)
+
+`jarvis/core/models.py` — `ActionResult` hiện thiếu các fields tiêu chuẩn. Model phải có đủ 4 fields: `status` (enum hoặc string chuẩn hóa), `code` (error/success code cụ thể), `message` (human-readable), `retryable` (bool — caller có nên retry không). Ít nhất 3 backend module đang trả `dict` hoặc `dataclass` khác nhau phải được migrate để dùng chung `ActionResult`. Toàn bộ callsite hiện tại phải tương thích ngược hoặc được cập nhật.
+
+### R3. Thống nhất Health status vocabulary
+
+`jarvis/ui/terminal/theme.py` và các module liên quan hiện dùng nhiều trạng thái health không nhất quán. Vocabulary chuẩn phải gồm đúng 5 trạng thái: `READY`, `LIMITED`, `BLOCKED`, `ERROR`, `UNAVAILABLE`. Trạng thái `UNAVAILABLE` hiện không tồn tại và phải được thêm vào. Các trạng thái ngoài 5 trạng thái này phải được xóa hoặc alias về chuẩn. Tất cả module báo cáo health phải dùng vocabulary này.
+
+### R4. Mở rộng Safety classifier lên high-risk actions mới
+
+`jarvis/planner/safety_interceptor.py` — classifier hiện không liệt kê email outbound, Zalo outbound, Discord outbound, và Home Assistant actions trong nhóm high-risk cần xác nhận của người dùng trước khi thực thi. Các action này phải được thêm vào nhóm high-risk. Khi dispatcher nhận action thuộc nhóm này, phải trigger confirm flow trước khi execute — không được execute ngầm.
+
+---
+
+## Verification Resources
+
+- Test suite hiện tại: `pytest tests/unit/` → 153 passed tại HEAD `57a40a5`
+- Các file liên quan trực tiếp:
+  - `jarvis/planner/engine.py` ~line 414 (simulated success)
+  - `jarvis/core/models.py` ~line 73 (ActionResult)
+  - `jarvis/ui/terminal/theme.py` ~line 37 (health status enum)
+  - `jarvis/planner/safety_interceptor.py` ~line 31 (high-risk classifier)
+- Quy tắc fail-closed bắt buộc: `AGENTS.md` Section 2 (Anti-Fabrication Principle)
+- Quy tắc atomic persistence: `AGENTS.md` Section 3
+
+---
+
+## Acceptance Criteria
+
+### R1 — Planner fail-closed
+- [ ] Thêm unit test trước khi sửa chứng minh hành vi sai hiện tại (Red phase)
+- [ ] Sau khi sửa: test đó pass; planner trả error rõ ràng với error code cụ thể khi không có handler
+- [ ] `pytest tests/unit/` không có regression (>= 153 passed)
+- [ ] Không còn bất kỳ đường code nào trả `{"ok": True}` hay `{"success": True}` ngầm định khi action chưa thực sự chạy
+
+### R2 — ActionResult contract
+- [ ] `ActionResult` có đủ 4 fields với type hints: `status`, `code`, `message`, `retryable`
+- [ ] Ít nhất 3 backend module đã migrate — xác minh bằng grep không còn trả raw `dict` từ các callsite đó
+- [ ] `pytest tests/unit/` không có regression
+
+### R3 — Health vocabulary
+- [ ] `UNAVAILABLE` tồn tại trong enum/constant
+- [ ] Grep toàn repo không còn health status nằm ngoài 5 trạng thái chuẩn trong production code
+- [ ] `pytest tests/unit/` không có regression
+
+### R4 — Safety high-risk
+- [ ] Email outbound, Zalo outbound, Discord outbound, HA actions xuất hiện trong danh sách high-risk của `safety_interceptor.py`
+- [ ] Có ít nhất 1 test case cho mỗi nhóm action mới xác nhận confirm flow được trigger
+- [ ] `pytest tests/unit/` không có regression
+
+### Tổng thể
+- [ ] `pytest tests/unit/` sau tất cả thay đổi: >= 153 passed, 0 regression
+- [ ] Commit tất cả thay đổi vào `main` với message rõ ràng theo từng R
+- [ ] Cập nhật `CHANGELOG.md` ghi lại từng blocker đã sửa

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from jarvis.comms.rate_limiter import RateLimitConfig, TokenBucketRateLimiter
+from jarvis.core.models import ActionResult, ActionStatus
 from jarvis.core.paths import data_path
 
 log = logging.getLogger("jarvis.comms.mobile_bridge")
@@ -66,29 +67,43 @@ class MobileFileBridge:
         file_bytes: bytes,
         filename: str,
         metadata: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    ) -> ActionResult:
         """
         Save an incoming file from mobile to the configured directory.
         Enforces token-bucket rate limiting per user_id / device_id.
 
         Returns:
-            dict with success, saved_path, size_kb keys
+            ActionResult with success, saved_path, size_kb keys
         """
         user_id = (metadata or {}).get("user_id") or (metadata or {}).get("device_id") or "default_mobile"
         rl = self.rate_limiter.acquire(user_id)
         if not rl.allowed:
             log.warning("Mobile transfer rate limit exceeded for user_id=%s, retry_after=%.2fs", user_id, rl.retry_after_s)
-            return {
-                "success": False,
-                "status": 429,
-                "error": f"Too Many Requests: Mobile transfer rate limit exceeded. Retry after {rl.retry_after_s}s.",
-                "retry_after_s": rl.retry_after_s,
-            }
+            return ActionResult(
+                action_name="mobile_bridge.receive_file",
+                success=False,
+                status=ActionStatus.ERROR,
+                code="RATE_LIMITED",
+                message=f"Too Many Requests: Mobile transfer rate limit exceeded. Retry after {rl.retry_after_s}s.",
+                retryable=True,
+                data={
+                    "status": 429,
+                    "retry_after_s": rl.retry_after_s,
+                },
+            )
 
         validation_error = self._validate_file(filename, len(file_bytes))
         if validation_error:
             log.warning("File rejected: %s — %s", filename, validation_error)
-            return {"success": False, "status": 400, "error": validation_error}
+            return ActionResult(
+                action_name="mobile_bridge.receive_file",
+                success=False,
+                status=ActionStatus.ERROR,
+                code="VALIDATION_ERROR",
+                message=validation_error,
+                retryable=False,
+                data={"status": 400},
+            )
 
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         stem = Path(filename).stem[:40]
@@ -102,10 +117,25 @@ class MobileFileBridge:
             self._log_transfer("receive", filename, str(dest), size_kb)
             msg = f"✅ Đã lưu file từ điện thoại: {dest.name} ({size_kb}KB)"
             log.info("File received: %s (%dKB)", dest, size_kb)
-            return {"success": True, "saved_path": str(dest), "size_kb": size_kb, "text": msg}
+            return ActionResult(
+                action_name="mobile_bridge.receive_file",
+                success=True,
+                status=ActionStatus.SUCCESS,
+                code="OK",
+                message=msg,
+                retryable=False,
+                data={"saved_path": str(dest), "size_kb": size_kb, "text": msg},
+            )
         except Exception as exc:
             log.error("File save error: %s", exc)
-            return {"success": False, "error": str(exc)}
+            return ActionResult(
+                action_name="mobile_bridge.receive_file",
+                success=False,
+                status=ActionStatus.ERROR,
+                code="FILE_SAVE_ERROR",
+                message=str(exc),
+                retryable=False,
+            )
 
     # ------------------------------------------------------------------
     # Send (PC → Mobile)
@@ -114,11 +144,18 @@ class MobileFileBridge:
     def send_clipboard_to_mobile(
         self,
         telegram_chat_id: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> ActionResult:
         """Read system clipboard and send as text message to Telegram."""
         text = self._get_clipboard_text()
         if not text:
-            return {"success": False, "error": "Clipboard trống hoặc không đọc được."}
+            return ActionResult(
+                action_name="mobile_bridge.send_clipboard",
+                success=False,
+                status=ActionStatus.ERROR,
+                code="EMPTY_CLIPBOARD",
+                message="Clipboard trống hoặc không đọc được.",
+                retryable=False,
+            )
 
         preview = text[:200] + ("..." if len(text) > 200 else "")
 
@@ -127,44 +164,71 @@ class MobileFileBridge:
                 res = self.telegram.send_message(telegram_chat_id, f"📋 Clipboard:\n{text}")
                 if isinstance(res, dict) and not res.get("ok", True):
                     log.warning("Telegram send returned failure: %s", res)
-                    return {
-                        "success": False,
-                        "error_code": res.get("error_code", "TELEGRAM_SEND_FAILED"),
-                        "error": res.get("description", "Telegram send failed"),
-                        "text": preview,
-                        "length": len(text),
-                    }
+                    err_code = str(res.get("error_code", "TELEGRAM_SEND_FAILED"))
+                    err_msg = res.get("description", "Telegram send failed")
+                    return ActionResult(
+                        action_name="mobile_bridge.send_clipboard",
+                        success=False,
+                        status=ActionStatus.ERROR,
+                        code=err_code,
+                        message=err_msg,
+                        retryable=False,
+                        data={"text": preview, "length": len(text)},
+                    )
                 log.info("Clipboard sent to mobile via Telegram (%d chars)", len(text))
             except Exception as exc:
                 log.warning("Telegram send failed: %s", exc)
-                return {
-                    "success": False,
-                    "error_code": "TELEGRAM_SEND_FAILED",
-                    "error": str(exc),
-                    "text": preview,
-                    "length": len(text),
-                }
+                return ActionResult(
+                    action_name="mobile_bridge.send_clipboard",
+                    success=False,
+                    status=ActionStatus.ERROR,
+                    code="TELEGRAM_SEND_FAILED",
+                    message=str(exc),
+                    retryable=True,
+                    data={"text": preview, "length": len(text)},
+                )
         else:
             log.info("Clipboard read (%d chars) — no Telegram configured, not sent to mobile.", len(text))
-            return {
-                "success": False,
-                "error_code": "NOT_CONFIGURED",
-                "description": "Clipboard read but NOT sent — no Telegram client or chat_id configured.",
-                "text": preview,
-                "length": len(text),
-            }
+            return ActionResult(
+                action_name="mobile_bridge.send_clipboard",
+                success=False,
+                status=ActionStatus.ERROR,
+                code="NOT_CONFIGURED",
+                message="Clipboard read but NOT sent — no Telegram client or chat_id configured.",
+                retryable=False,
+                data={
+                    "text": preview,
+                    "length": len(text),
+                    "description": "Clipboard read but NOT sent — no Telegram client or chat_id configured.",
+                },
+            )
 
         self._log_transfer("clipboard_send", "clipboard", "telegram", len(text))
-        return {"success": True, "text": preview, "length": len(text)}
+        return ActionResult(
+            action_name="mobile_bridge.send_clipboard",
+            success=True,
+            status=ActionStatus.SUCCESS,
+            code="OK",
+            message=f"Clipboard sent to mobile ({len(text)} chars)",
+            retryable=False,
+            data={"text": preview, "length": len(text)},
+        )
 
     def send_screenshot_to_mobile(
         self,
         telegram_chat_id: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> ActionResult:
         """Capture screenshot, save locally, and send to Telegram as image."""
         png_bytes = self._capture_screenshot()
         if not png_bytes:
-            return {"success": False, "error": "Không thể chụp màn hình."}
+            return ActionResult(
+                action_name="mobile_bridge.send_screenshot",
+                success=False,
+                status=ActionStatus.ERROR,
+                code="CAPTURE_FAILED",
+                message="Không thể chụp màn hình.",
+                retryable=False,
+            )
 
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         temp_path = self.save_dir / f"screenshot_{ts}.png"
@@ -176,34 +240,54 @@ class MobileFileBridge:
                 res = self.telegram.send_photo(telegram_chat_id, png_bytes, caption=f"📸 Screenshot {ts}")
                 if isinstance(res, dict) and not res.get("ok", True):
                     log.warning("Telegram photo send returned failure: %s", res)
-                    return {
-                        "success": False,
-                        "error_code": res.get("error_code", "TELEGRAM_SEND_FAILED"),
-                        "error": res.get("description", "Telegram photo send failed"),
-                        "saved_path": str(temp_path),
-                        "size_kb": size_kb,
-                    }
+                    err_code = str(res.get("error_code", "TELEGRAM_SEND_FAILED"))
+                    err_msg = res.get("description", "Telegram photo send failed")
+                    return ActionResult(
+                        action_name="mobile_bridge.send_screenshot",
+                        success=False,
+                        status=ActionStatus.ERROR,
+                        code=err_code,
+                        message=err_msg,
+                        retryable=False,
+                        data={"saved_path": str(temp_path), "size_kb": size_kb},
+                    )
                 log.info("Screenshot sent to mobile via Telegram (%dKB)", size_kb)
             except Exception as exc:
                 log.warning("Telegram photo send failed: %s", exc)
-                return {
-                    "success": False,
-                    "error_code": "TELEGRAM_SEND_FAILED",
-                    "error": str(exc),
+                return ActionResult(
+                    action_name="mobile_bridge.send_screenshot",
+                    success=False,
+                    status=ActionStatus.ERROR,
+                    code="TELEGRAM_SEND_FAILED",
+                    message=str(exc),
+                    retryable=True,
+                    data={"saved_path": str(temp_path), "size_kb": size_kb},
+                )
+        else:
+            return ActionResult(
+                action_name="mobile_bridge.send_screenshot",
+                success=False,
+                status=ActionStatus.ERROR,
+                code="NOT_CONFIGURED",
+                message="Screenshot saved locally but NOT sent — no Telegram client or chat_id configured.",
+                retryable=False,
+                data={
                     "saved_path": str(temp_path),
                     "size_kb": size_kb,
-                }
-        else:
-            return {
-                "success": False,
-                "error_code": "NOT_CONFIGURED",
-                "description": "Screenshot saved locally but NOT sent — no Telegram client or chat_id configured.",
-                "saved_path": str(temp_path),
-                "size_kb": size_kb,
-            }
+                    "description": "Screenshot saved locally but NOT sent — no Telegram client or chat_id configured.",
+                },
+            )
 
         self._log_transfer("screenshot_send", "screen", "telegram", size_kb)
-        return {"success": True, "saved_path": str(temp_path), "size_kb": size_kb}
+        return ActionResult(
+            action_name="mobile_bridge.send_screenshot",
+            success=True,
+            status=ActionStatus.SUCCESS,
+            code="OK",
+            message="Screenshot sent to mobile via Telegram",
+            retryable=False,
+            data={"saved_path": str(temp_path), "size_kb": size_kb},
+        )
 
     def get_file_transfer_history(self) -> list[dict[str, Any]]:
         """Return recent file transfer records."""
@@ -223,7 +307,7 @@ class MobileFileBridge:
         path_obj = Path(filename)
         suffix = path_obj.suffix.lower()
         if suffix not in _ALLOWED_EXTENSIONS:
-            return f"Định dạng file '{suffix}' không được phép."
+            return f"Định dạng file '{suffix}' không được phép (không được hỗ trợ)."
         
         # Check against dangerous intermediate extensions (double extension attack, e.g. payload.exe.pdf)
         dangerous_suffixes = {".exe", ".bat", ".cmd", ".ps1", ".vbs", ".js", ".dll", ".scr", ".msi", ".jar", ".py", ".zip", ".sh"}
@@ -232,7 +316,7 @@ class MobileFileBridge:
             return "Phát hiện cấu trúc tệp chứa phần mở rộng nguy hiểm (Double Extension)."
 
         if size_bytes > self.max_size_bytes:
-            return f"File quá lớn ({size_bytes // 1024 // 1024}MB > {self.max_size_bytes // 1024 // 1024}MB)."
+            return f"File quá lớn, vượt quá giới hạn ({size_bytes // 1024 // 1024}MB > {self.max_size_bytes // 1024 // 1024}MB)."
         return None
 
     def _get_clipboard_text(self) -> str | None:

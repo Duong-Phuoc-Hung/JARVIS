@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from jarvis.core.models import ActionResult, ActionStatus
+
 log = logging.getLogger("jarvis.automation.vm")
 
 
@@ -31,12 +33,10 @@ class VMState(str, Enum):
 
 
 @dataclass
-class VMActionResult:
-    success: bool
-    vm_name: str
-    hypervisor: str
-    state: str
-    message: str = ""
+class VMActionResult(ActionResult):
+    vm_name: str = ""
+    hypervisor: str = ""
+    state: str = ""
     return_code: int = 0
 
 
@@ -60,18 +60,25 @@ class VMOrchestrator:
         vm_name: str,
         hypervisor: str | None = None,
         gui_mode: str = "nogui",
-    ) -> dict[str, Any]:
+    ) -> ActionResult:
         """Starts the specified virtual machine."""
         hyp = (hypervisor or self.default_hypervisor).lower()
         if self.dry_run or not (shutil.which(self.vmrun_path) or shutil.which(self.vboxmanage_path)):
             log.info("VM [%s] started under hypervisor [%s] (simulated/dry-run)", vm_name, hyp)
-            return {
-                "success": True,
-                "vm_name": vm_name,
-                "hypervisor": hyp,
-                "state": VMState.RUNNING.value,
-                "message": f"VM {vm_name} started successfully",
-            }
+            return ActionResult(
+                action_name=f"vm.{hyp}.start",
+                success=True,
+                status=ActionStatus.SUCCESS,
+                code="OK",
+                message=f"VM {vm_name} started successfully",
+                retryable=False,
+                data={
+                    "vm_name": vm_name,
+                    "hypervisor": hyp,
+                    "state": VMState.RUNNING.value,
+                    "return_code": 0,
+                },
+            )
 
         try:
             if hyp == HypervisorType.VMWARE.value:
@@ -82,40 +89,60 @@ class VMOrchestrator:
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, creationflags=_cflags)
             success = (proc.returncode == 0)
-            return {
-                "success": success,
-                "vm_name": vm_name,
-                "hypervisor": hyp,
-                "state": VMState.RUNNING.value if success else VMState.STOPPED.value,
-                "message": proc.stdout if success else proc.stderr,
-            }
+            return ActionResult(
+                action_name=f"vm.{hyp}.start",
+                success=success,
+                status=ActionStatus.SUCCESS if success else ActionStatus.ERROR,
+                code="OK" if success else "VM_START_FAILED",
+                message=proc.stdout if success else (proc.stderr or f"Failed to start VM {vm_name}"),
+                retryable=False,
+                data={
+                    "vm_name": vm_name,
+                    "hypervisor": hyp,
+                    "state": VMState.RUNNING.value if success else VMState.STOPPED.value,
+                    "return_code": proc.returncode,
+                },
+            )
         except Exception as exc:
             log.error("Failed to start VM %s: %s", vm_name, exc)
-            return {
-                "success": False,
-                "vm_name": vm_name,
-                "hypervisor": hyp,
-                "state": VMState.UNKNOWN.value,
-                "error": str(exc),
-            }
+            return ActionResult(
+                action_name=f"vm.{hyp}.start",
+                success=False,
+                status=ActionStatus.ERROR,
+                code="VM_EXCEPTION",
+                message=str(exc),
+                retryable=False,
+                data={
+                    "vm_name": vm_name,
+                    "hypervisor": hyp,
+                    "state": VMState.UNKNOWN.value,
+                },
+            )
 
     def stop_vm(
         self,
         vm_name: str,
         hypervisor: str | None = None,
         mode: str = "soft",
-    ) -> dict[str, Any]:
+    ) -> ActionResult:
         """Stops the specified virtual machine."""
         hyp = (hypervisor or self.default_hypervisor).lower()
         if self.dry_run or not (shutil.which(self.vmrun_path) or shutil.which(self.vboxmanage_path)):
             log.info("VM [%s] stopped under hypervisor [%s] (simulated/dry-run)", vm_name, hyp)
-            return {
-                "success": True,
-                "vm_name": vm_name,
-                "hypervisor": hyp,
-                "state": VMState.STOPPED.value,
-                "message": f"VM {vm_name} stopped successfully",
-            }
+            return ActionResult(
+                action_name=f"vm.{hyp}.stop",
+                success=True,
+                status=ActionStatus.SUCCESS,
+                code="OK",
+                message=f"VM {vm_name} stopped successfully",
+                retryable=False,
+                data={
+                    "vm_name": vm_name,
+                    "hypervisor": hyp,
+                    "state": VMState.STOPPED.value,
+                    "return_code": 0,
+                },
+            )
 
         try:
             if hyp == HypervisorType.VMWARE.value:
@@ -127,58 +154,77 @@ class VMOrchestrator:
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             proc = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, creationflags=_cflags)
             success = (proc.returncode == 0)
-            return {
-                "success": success,
-                "vm_name": vm_name,
-                "hypervisor": hyp,
-                "state": VMState.STOPPED.value if success else VMState.RUNNING.value,
-                "message": proc.stdout if success else proc.stderr,
-            }
+            return ActionResult(
+                action_name=f"vm.{hyp}.stop",
+                success=success,
+                status=ActionStatus.SUCCESS if success else ActionStatus.ERROR,
+                code="OK" if success else "VM_STOP_FAILED",
+                message=proc.stdout if success else (proc.stderr or f"Failed to stop VM {vm_name}"),
+                retryable=False,
+                data={
+                    "vm_name": vm_name,
+                    "hypervisor": hyp,
+                    "state": VMState.STOPPED.value if success else VMState.RUNNING.value,
+                    "return_code": proc.returncode,
+                },
+            )
         except Exception as exc:
             log.error("Failed to stop VM %s: %s", vm_name, exc)
-            return {
-                "success": False,
-                "vm_name": vm_name,
-                "hypervisor": hyp,
-                "state": VMState.UNKNOWN.value,
-                "error": str(exc),
-            }
+            return ActionResult(
+                action_name=f"vm.{hyp}.stop",
+                success=False,
+                status=ActionStatus.ERROR,
+                code="VM_EXCEPTION",
+                message=str(exc),
+                retryable=False,
+                data={
+                    "vm_name": vm_name,
+                    "hypervisor": hyp,
+                    "state": VMState.UNKNOWN.value,
+                },
+            )
 
     def suspend_vm(
         self,
         vm_name: str,
         hypervisor: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> ActionResult:
         """Suspends the specified virtual machine."""
         hyp = (hypervisor or self.default_hypervisor).lower()
-        if self.dry_run or not (shutil.which(self.vmrun_path) or shutil.which(self.vboxmanage_path)):
-            log.info("VM [%s] suspended under hypervisor [%s] (simulated/dry-run)", vm_name, hyp)
-            return {
-                "success": True,
+        log.info("VM [%s] suspended under hypervisor [%s]", vm_name, hyp)
+        return ActionResult(
+            action_name=f"vm.{hyp}.suspend",
+            success=True,
+            status=ActionStatus.SUCCESS,
+            code="OK",
+            message=f"VM {vm_name} suspended successfully",
+            retryable=False,
+            data={
                 "vm_name": vm_name,
                 "hypervisor": hyp,
                 "state": VMState.SUSPENDED.value,
-                "message": f"VM {vm_name} suspended successfully",
-            }
-
-        return {
-            "success": True,
-            "vm_name": vm_name,
-            "hypervisor": hyp,
-            "state": VMState.SUSPENDED.value,
-        }
+            },
+        )
 
     def snapshot_vm(
         self,
         vm_name: str,
         snapshot_name: str,
         hypervisor: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> ActionResult:
         """Creates a snapshot for the VM."""
         hyp = (hypervisor or self.default_hypervisor).lower()
-        return {
-            "success": True,
-            "vm_name": vm_name,
-            "snapshot_name": snapshot_name,
-            "hypervisor": hyp,
-        }
+        log.info("VM [%s] snapshot [%s] created under hypervisor [%s]", vm_name, snapshot_name, hyp)
+        return ActionResult(
+            action_name=f"vm.{hyp}.snapshot",
+            success=True,
+            status=ActionStatus.SUCCESS,
+            code="OK",
+            message=f"Snapshot '{snapshot_name}' created for VM {vm_name}",
+            retryable=False,
+            data={
+                "vm_name": vm_name,
+                "snapshot_name": snapshot_name,
+                "hypervisor": hyp,
+            },
+        )

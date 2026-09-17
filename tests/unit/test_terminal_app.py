@@ -53,7 +53,7 @@ def _synthetic_screens(counter: dict | None = None, extra_actions=None):
 
     def make_module_action():
         def handler():
-            return ActionOutcome(status=StatusLevel.PASS, title="Do Thing", fields=[("X", "1")], duration_s=0.01)
+            return ActionOutcome(status=StatusLevel.READY, title="Do Thing", fields=[("X", "1")], duration_s=0.01)
         return MenuAction(id="do_thing", key="1", label="Do Thing", handler=handler, safe_for_batch=True)
 
     def build_root(ctx) -> MenuScreen:
@@ -279,7 +279,7 @@ def test_refresh_shows_freshly_read_live_data_not_a_stale_cache():
     def build_root(ctx):
         return MenuScreen(id="root", title="MAIN", breadcrumb=["MAIN"], actions=[
             MenuAction(id="probe", key="1", label=f"CPU={live_cpu['value']}",
-                       handler=lambda: ActionOutcome(status=StatusLevel.PASS, title="x")),
+                       handler=lambda: ActionOutcome(status=StatusLevel.READY, title="x")),
         ])
 
     # First key request happens right after the FIRST render (CPU=10 already
@@ -319,7 +319,7 @@ def test_refresh_never_invokes_an_action_handler():
     def build_root(ctx):
         def handler():
             calls["n"] += 1
-            return ActionOutcome(status=StatusLevel.PASS, title="x")
+            return ActionOutcome(status=StatusLevel.READY, title="x")
         return MenuScreen(id="root", title="MAIN", breadcrumb=["MAIN"], actions=[
             MenuAction(id="probe", key="1", label="Probe", handler=handler),
         ])
@@ -345,7 +345,7 @@ def test_a_not_offered_with_zero_eligible_actions():
     def build_module(ctx):
         return MenuScreen(id="module", title="MODULE", breadcrumb=["MAIN", "MODULE"], actions=[
             MenuAction(id="readonly", key="1", label="Status Only",
-                       handler=lambda: ActionOutcome(status=StatusLevel.PASS, title="x"),
+                       handler=lambda: ActionOutcome(status=StatusLevel.READY, title="x"),
                        safe_for_batch=False),
         ])
 
@@ -364,7 +364,7 @@ def test_a_not_offered_with_exactly_one_eligible_action():
     def build_module(ctx):
         return MenuScreen(id="module", title="MODULE", breadcrumb=["MAIN", "MODULE"], actions=[
             MenuAction(id="only_one", key="1", label="Only Safe Action",
-                       handler=lambda: ActionOutcome(status=StatusLevel.PASS, title="x"),
+                       handler=lambda: ActionOutcome(status=StatusLevel.READY, title="x"),
                        safe_for_batch=True),
         ])
 
@@ -381,9 +381,9 @@ def test_a_offered_with_exactly_two_eligible_actions():
     def build_module(ctx):
         return MenuScreen(id="module", title="MODULE", breadcrumb=["MAIN", "MODULE"], actions=[
             MenuAction(id="a1", key="1", label="First",
-                       handler=lambda: ActionOutcome(status=StatusLevel.PASS, title="x"), safe_for_batch=True),
+                       handler=lambda: ActionOutcome(status=StatusLevel.READY, title="x"), safe_for_batch=True),
             MenuAction(id="a2", key="2", label="Second",
-                       handler=lambda: ActionOutcome(status=StatusLevel.PASS, title="x"), safe_for_batch=True),
+                       handler=lambda: ActionOutcome(status=StatusLevel.READY, title="x"), safe_for_batch=True),
         ], batch_label="Run Both")
 
     resolve = {"module": build_module, "root": lambda ctx: MenuScreen(
@@ -398,9 +398,9 @@ def test_a_offered_with_exactly_two_eligible_actions():
 def test_a_offered_with_three_or_more_eligible_actions():
     resolve, _ = _synthetic_screens(extra_actions=lambda: [
         MenuAction(id="extra1", key="2", label="Extra1",
-                   handler=lambda: ActionOutcome(status=StatusLevel.PASS, title="x"), safe_for_batch=True),
+                   handler=lambda: ActionOutcome(status=StatusLevel.READY, title="x"), safe_for_batch=True),
         MenuAction(id="extra2", key="3", label="Extra2",
-                   handler=lambda: ActionOutcome(status=StatusLevel.PASS, title="x"), safe_for_batch=True),
+                   handler=lambda: ActionOutcome(status=StatusLevel.READY, title="x"), safe_for_batch=True),
     ])
     app, lines = _make_app(keys=["1", "0"])
     _install_synthetic_navigator(app, resolve)
@@ -415,11 +415,11 @@ def test_a_runs_each_eligible_action_exactly_once():
     def extra():
         def safe_handler():
             call_counts["safe"] += 1
-            return ActionOutcome(status=StatusLevel.PASS, title="Safe")
+            return ActionOutcome(status=StatusLevel.READY, title="Safe")
 
         def unsafe_handler():
             call_counts["unsafe"] += 1
-            return ActionOutcome(status=StatusLevel.PASS, title="Unsafe")
+            return ActionOutcome(status=StatusLevel.READY, title="Unsafe")
 
         return [
             MenuAction(id="safe2", key="2", label="Safe Two", handler=safe_handler, safe_for_batch=True),
@@ -440,10 +440,10 @@ def test_batch_aggregates_mixed_statuses_truthfully():
         return [
             MenuAction(id="limited", key="2", label="Limited One",
                        handler=lambda: ActionOutcome(status=StatusLevel.LIMITED, title="L"), safe_for_batch=True),
-            MenuAction(id="skipped", key="3", label="Skipped One",
-                       handler=lambda: ActionOutcome(status=StatusLevel.SKIPPED, title="S"), safe_for_batch=True),
-            MenuAction(id="failed", key="4", label="Failed One",
-                       handler=lambda: ActionOutcome(status=StatusLevel.FAILED, title="F"), safe_for_batch=True),
+            MenuAction(id="blocked", key="3", label="Blocked One",
+                       handler=lambda: ActionOutcome(status=StatusLevel.BLOCKED, title="B"), safe_for_batch=True),
+            MenuAction(id="error", key="4", label="Error One",
+                       handler=lambda: ActionOutcome(status=StatusLevel.ERROR, title="E"), safe_for_batch=True),
         ]
 
     resolve, _ = _synthetic_screens(extra_actions=extra)
@@ -451,10 +451,10 @@ def test_batch_aggregates_mixed_statuses_truthfully():
     _install_synthetic_navigator(app, resolve)
     app.run()
     text = "\n".join(lines)
-    assert "PASS      : 1" in text
+    assert "READY     : 1" in text
     assert "LIMITED   : 1" in text
-    assert "SKIPPED   : 1" in text
-    assert "FAILED    : 1" in text
+    assert "BLOCKED   : 1" in text
+    assert "ERROR     : 1" in text
 
 
 def test_empty_batch_handled_gracefully():
@@ -513,7 +513,7 @@ def test_dynamic_menu_zero_items():
     items: list[str] = []
 
     def build_root(ctx):
-        actions = [MenuAction(id=f"item_{i}", key=str(i + 1), label=i, handler=lambda: ActionOutcome(status=StatusLevel.PASS, title="x"))
+        actions = [MenuAction(id=f"item_{i}", key=str(i + 1), label=i, handler=lambda: ActionOutcome(status=StatusLevel.READY, title="x"))
                    for i, i in enumerate(items)]
         return MenuScreen(id="root", title="MAIN", breadcrumb=["MAIN"], actions=actions)
 
@@ -528,7 +528,7 @@ def test_dynamic_menu_one_then_many_then_disappearing():
 
     def build_root(ctx):
         actions = [MenuAction(id=f"d{i}", key=str(i + 1), label=lbl,
-                               handler=lambda lbl=lbl: ActionOutcome(status=StatusLevel.PASS, title=lbl))
+                               handler=lambda lbl=lbl: ActionOutcome(status=StatusLevel.READY, title=lbl))
                    for i, lbl in enumerate(items)]
         return MenuScreen(id="root", title="MAIN", breadcrumb=["MAIN"], actions=actions)
 

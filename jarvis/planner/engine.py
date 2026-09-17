@@ -374,6 +374,14 @@ class ReActTaskEngine:
                 res = handler(**params) if isinstance(params, dict) else handler(params)
                 if isinstance(res, ActionResult):
                     return res
+                if isinstance(res, dict) and res.get("success") is False:
+                    return ActionResult(
+                        action_name=action_name,
+                        success=False,
+                        error=res.get("error"),
+                        error_code=res.get("error_code", "ACTION_FAILED"),
+                        data=res,
+                    )
                 return ActionResult(
                     action_name=action_name,
                     success=True,
@@ -410,12 +418,14 @@ class ReActTaskEngine:
                     error_code="DISPATCHER_EXCEPTION",
                 )
 
-        # 3. Default fallback mock execution
-        logger.debug("No handler found for '%s', returning simulated success.", action_name)
+        # 3. Fail-closed: No handler or dispatcher available
+        logger.warning("No handler found for action '%s'. Failing closed.", action_name)
         return ActionResult(
             action_name=action_name,
-            success=True,
-            data={"simulated": True, "action": action_name, "parameters": params},
+            success=False,
+            error=f"No handler registered for action '{action_name}'.",
+            error_code="HANDLER_NOT_FOUND",
+            data={"action": action_name, "parameters": params},
         )
 
     def confirm_step(self, token: str) -> bool:

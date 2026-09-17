@@ -69,11 +69,24 @@ class HandlerResult:
     execution_time_ms: float = 0.0
 
 
+class ActionStatus(str, Enum):
+    """Standardized lifecycle status of an executed action."""
+    SUCCESS = "SUCCESS"
+    ERROR = "ERROR"
+    FAILED = "FAILED"
+    TIMEOUT = "TIMEOUT"
+    RATE_LIMITED = "RATE_LIMITED"
+
+
 @dataclass
 class ActionResult:
     """Structured result returned by ActionDispatcher after executing an action."""
-    action_name: str
-    success: bool
+    action_name: str = ""
+    success: bool = True
+    status: ActionStatus | str = ActionStatus.SUCCESS
+    code: str = "OK"
+    message: str = ""
+    retryable: bool = False
     data: Any = None
     error: str | None = None
     error_code: str | None = None     # e.g. ACTION_NOT_FOUND, PERMISSION_DENIED, TIMEOUT, HANDLER_EXCEPTION
@@ -81,13 +94,49 @@ class ActionResult:
     requester: str = "system"
     timestamp: float = field(default_factory=time.time)
 
+    def __post_init__(self) -> None:
+        """Bi-directional synchronization between legacy and standardized fields."""
+        # 1. Normalize status enum / string
+        if isinstance(self.status, str) and not isinstance(self.status, ActionStatus):
+            norm = self.status.upper().strip()
+            try:
+                self.status = ActionStatus[norm]
+            except KeyError:
+                try:
+                    self.status = ActionStatus(self.status)
+                except ValueError:
+                    pass
+
+        # 2. Harmonize status and success
+        if not self.success and self.status == ActionStatus.SUCCESS:
+            self.status = ActionStatus.ERROR
+        elif self.status in (ActionStatus.ERROR, ActionStatus.FAILED, ActionStatus.TIMEOUT, ActionStatus.RATE_LIMITED):
+            self.success = False
+
+        # 3. Harmonize error and message
+        if self.error and not self.message:
+            self.message = self.error
+        elif self.message and not self.error and not self.success:
+            self.error = self.message
+
+        # 4. Harmonize code and error_code
+        if self.error_code and (self.code == "OK" or self.code == "SUCCESS"):
+            self.code = self.error_code
+        elif self.code not in ("OK", "SUCCESS") and not self.error_code:
+            self.error_code = self.code
+
     @property
     def is_success(self) -> bool:
         return self.success
 
     def to_dict(self) -> dict[str, Any]:
+        status_val = self.status.value if isinstance(self.status, Enum) else str(self.status)
         return {
             "action_name": self.action_name,
+            "status": status_val,
+            "code": self.code,
+            "message": self.message,
+            "retryable": self.retryable,
             "success": self.success,
             "data": self.data,
             "error": self.error,
@@ -96,6 +145,50 @@ class ActionResult:
             "requester": self.requester,
             "timestamp": self.timestamp,
         }
+
+    # --- Dict Emulation Interface for Backward Compatibility ---
+    def __getitem__(self, key: str) -> Any:
+        if isinstance(self.data, dict) and key in self.data:
+            if key == "status" and isinstance(self.data["status"], int):
+                return self.data["status"]
+            if not hasattr(self, key):
+                return self.data[key]
+        if hasattr(self, key):
+            val = getattr(self, key)
+            if val is not None:
+                return val
+            if isinstance(self.data, dict) and key in self.data:
+                return self.data[key]
+            return val
+        if isinstance(self.data, dict) and key in self.data:
+            return self.data[key]
+        if key == "result":
+            return self.data
+        raise KeyError(f"'{key}' not found in ActionResult or its data payload")
+
+    def get(self, key: str, default: Any = None) -> Any:
+        try:
+            val = self[key]
+            return val if val is not None else default
+        except KeyError:
+            return default
+
+    def __contains__(self, key: str) -> bool:
+        if hasattr(self, key):
+            return True
+        if isinstance(self.data, dict) and key in self.data:
+            return True
+        return key == "result" and self.data is not None
+
+    def keys(self) -> list[str]:
+        k = list(self.to_dict().keys())
+        if isinstance(self.data, dict):
+            for data_key in self.data.keys():
+                if data_key not in k:
+                    k.append(data_key)
+        if "result" not in k and self.data is not None:
+            k.append("result")
+        return k
 
 
 @dataclass

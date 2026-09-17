@@ -49,7 +49,7 @@ def _health_snapshot(ctx: TerminalContext) -> ActionOutcome:
             return ActionOutcome(status=StatusLevel.ERROR, title="System Health Snapshot", error_reason=str(e))
         fields = [("RAM Critical", "YES" if ram_critical else "NO"),
                   ("Healing Actions Logged", str(len(eng.healing_log)))]
-        status = StatusLevel.LIMITED if ram_critical else StatusLevel.PASS
+        status = StatusLevel.LIMITED if ram_critical else StatusLevel.READY
         return ActionOutcome(status=status, title="System Health Snapshot", fields=fields)
     return run_timed(body)
 
@@ -67,7 +67,7 @@ def _process_health(ctx: TerminalContext) -> ActionOutcome:
         hung = _find_hung(ctx)
         ctx.state["healing_last_hung"] = hung
         fields = [("Hung Windows Detected", str(len(hung)))]
-        status = StatusLevel.LIMITED if hung else StatusLevel.PASS
+        status = StatusLevel.LIMITED if hung else StatusLevel.READY
         return ActionOutcome(status=status, title="Process Health", fields=fields)
     return run_timed(body)
 
@@ -77,7 +77,7 @@ def _detect_hung(ctx: TerminalContext) -> ActionOutcome:
         hung = _find_hung(ctx)
         ctx.state["healing_last_hung"] = hung
         if not hung:
-            return ActionOutcome(status=StatusLevel.PASS, title="Detect Hung Processes",
+            return ActionOutcome(status=StatusLevel.READY, title="Detect Hung Processes",
                                   detail_lines=["No hung windows detected."])
         fields = []
         for i, w in enumerate(hung[:10]):
@@ -106,7 +106,7 @@ def _recommendations(ctx: TerminalContext) -> ActionOutcome:
                           "and run 'Run Healing Action' if appropriate.")
         if not lines:
             lines.append("No immediate recovery actions recommended.")
-        status = StatusLevel.LIMITED if (ram_critical or hung) else StatusLevel.PASS
+        status = StatusLevel.LIMITED if (ram_critical or hung) else StatusLevel.READY
         return ActionOutcome(status=status, title="Recovery Recommendations", detail_lines=lines)
     return run_timed(body)
 
@@ -122,14 +122,14 @@ def _run_healing_action(ctx: TerminalContext) -> ActionOutcome:
                                   error_reason=f"'{pid_raw}' is not a valid PID.")
         name = ctx.console.read_line("Enter process name: ")
         if not name:
-            return ActionOutcome(status=StatusLevel.SKIPPED, title="Run Healing Action",
+            return ActionOutcome(status=StatusLevel.BLOCKED, title="Run Healing Action",
                                   detail_lines=["No process name entered."])
         # Direct call: HealingEngine.heal_hung_process() enforces its own
         # protected-process whitelist internally (see module docstring) --
         # no dispatcher/safety-gate wrapper is needed or invented here.
         report = eng.heal_hung_process(pid, name)
         success = bool(report.get("success"))
-        status = StatusLevel.PASS if success else StatusLevel.FAILED
+        status = StatusLevel.READY if success else StatusLevel.ERROR
         fields = [("PID", str(pid)), ("Process", name), ("Success", str(success))]
         reclaimed = report.get("reclaimed_ram")
         if reclaimed is not None:
@@ -150,7 +150,7 @@ def _telemetry(ctx: TerminalContext) -> ActionOutcome:
         fields = []
         for entry in log[-5:]:
             fields.append((str(entry.get("name", "?")), f"success={entry.get('success')}"))
-        return ActionOutcome(status=StatusLevel.PASS, title="Healing Telemetry", fields=fields)
+        return ActionOutcome(status=StatusLevel.READY, title="Healing Telemetry", fields=fields)
     return run_timed(body)
 
 

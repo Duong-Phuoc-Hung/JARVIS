@@ -1,3 +1,15 @@
+## PHASE G (2026-09-17) — Beta GO Resolution: Resolving Technical Blockers R1–R4
+
+| ID | Status | Mô tả |
+|----|--------|-------|
+| R-01 | DONE | Planner Engine Fail-Closed: Loại bỏ simulated success (`{"simulated": True}`) tại fallback line 414 trong `jarvis/planner/engine.py`. Trả về `ActionResult(success=False, error_code="HANDLER_NOT_FOUND")`. Bảo toàn kết quả lỗi thực từ direct handler. (27 tests pass) |
+| R-02 | DONE | Unified ActionResult Contract: Thống nhất mô hình dữ liệu chuẩn 4 trường (`status`, `code`, `message`, `retryable`) trong `jarvis/core/models.py`. Hỗ trợ dict emulation và đồng bộ hai chiều legacy fields. Hoàn tất migrate 3 backend modules: `HomeAssistantClient`, `MobileFileBridge` (429 retryable=True), và `VMOrchestrator` (`VMActionResult` kế thừa `ActionResult`). (12 contract tests + 150 regression tests pass) |
+| R-03 | DONE | Health Status Vocabulary Standardization: Chuẩn hóa `StatusLevel` trong `jarvis/ui/terminal/theme.py` thành đúng 5 trạng thái canonical: `READY`, `LIMITED`, `BLOCKED`, `ERROR`, `UNAVAILABLE`. Bổ sung `UNAVAILABLE` và cập nhật toàn bộ 52 callsites phân tán tại 11 file production trong `jarvis/ui/terminal/`. (110 terminal tests pass) |
+| R-04 | DONE | Safety Classifier High-Risk Expansion: Mở rộng `HIGH_RISK_ACTIONS` trong `jarvis/planner/safety_interceptor.py` cho toàn bộ hành động outbound (Email, Zalo, Discord) và actuation thiết bị Home Assistant. Bắt buộc phê duyệt token xác nhận 30s tại `ActionDispatcher` trước khi thực thi. Phân tách an toàn truy vấn chỉ đọc (read-only) ungated. (17 tests pass) |
+| M-05 | DONE | Full Unit Regression & Release: Toàn bộ unit test suite (2367 passed, 4 skipped, 1 xfailed trong 189.62s) vượt qua 100% không có hồi quy; đồng bộ tài liệu CHANGELOG.md, README.md, docs/ROADMAP.md và commit git main. |
+
+---
+
 ## PHASE T (2026-09-16) — Browser truthfulness và real end-to-end
 
 | ID | Status | Mô tả |
@@ -204,6 +216,13 @@ trên loopback với port động rồi attach bằng `connect_over_cdp`; không
 ## PHẦN 4 — TRÌNH TỰ THỰC THI & CHỮ KÝ PHÁT HÀNH
 
 ```
+BETA GO ENGINEERING HARDENING STATUS (2026-09-17):
+  [x] R-01 Planner Fail-Closed Engine (HANDLER_NOT_FOUND, no simulated success) — COMPLETE
+  [x] R-02 Unified ActionResult Contract (status, code, message, retryable + 3 backends) — COMPLETE
+  [x] R-03 Health Status Vocabulary (5 canonical states: READY, LIMITED, BLOCKED, ERROR, UNAVAILABLE) — COMPLETE
+  [x] R-04 Safety Interceptor High-Risk Gate (outbound email, Zalo, Discord, HA actuation with 30s token) — COMPLETE
+  [x] M-05 Full Unit Regression Verification (2367 passed, 0 failures) & Docs Sync — COMPLETE
+
 BETA v1 ENGINEERING HARDENING STATUS (2026-09-13):
   [x] 1.1 Independent Router eval (N=420 Small clean/noisy + N=420 Large-v3 clean/noisy CUDA) — EMPIRICAL COMPLETE
   [x] 1.2 Voice pipeline fixes (16kHz capture, mic sync, settling, hotkey PTT, fail-closed) — COMPLETE

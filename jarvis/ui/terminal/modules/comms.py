@@ -76,7 +76,7 @@ def _channel_status(ctx: TerminalContext) -> ActionOutcome:
             ("Email / IMAP", "CONFIGURED" if em else "NOT CONFIGURED"),
         ]
         any_on = tg or dc or em
-        status = StatusLevel.PARTIAL if any_on else StatusLevel.OFFLINE
+        status = StatusLevel.LIMITED if any_on else StatusLevel.UNAVAILABLE
         return ActionOutcome(status=status, title="Channel Status", fields=fields)
     return run_timed(body)
 
@@ -88,7 +88,7 @@ def _rate_limiter_status(ctx: TerminalContext) -> ActionOutcome:
             rpm = ctx.config.get(f"comms.{channel}.rate_limit.requests_per_minute", None)
             burst = ctx.config.get(f"comms.{channel}.rate_limit.burst_limit", None)
             fields.append((channel.capitalize(), f"{rpm or 'N/A'} req/min, burst {burst or 'N/A'}"))
-        return ActionOutcome(status=StatusLevel.AVAILABLE, title="Rate Limiter Status", fields=fields)
+        return ActionOutcome(status=StatusLevel.READY, title="Rate Limiter Status", fields=fields)
     return run_timed(body)
 
 
@@ -101,7 +101,7 @@ def _whitelist_status(ctx: TerminalContext) -> ActionOutcome:
             ("Discord Channel Allowlist Size", str(len(dc_ids))),
         ]
         empty = not tg_ids and not dc_ids
-        status = StatusLevel.LIMITED if empty else StatusLevel.PASS
+        status = StatusLevel.LIMITED if empty else StatusLevel.READY
         detail = ["Both bots fail closed (reject everyone) while their allowlist is empty."] if empty else []
         return ActionOutcome(status=status, title="Whitelist / Security Status", fields=fields, detail_lines=detail)
     return run_timed(body)
@@ -118,7 +118,7 @@ def _telegram_status(ctx: TerminalContext) -> ActionOutcome:
             ("Whitelist Size", str(len(ctrl.allowed_user_ids))),
             ("Security Violations Logged", str(len(getattr(ctrl, "security_violations", [])))),
         ]
-        status = StatusLevel.PARTIAL if configured else StatusLevel.OFFLINE
+        status = StatusLevel.LIMITED if configured else StatusLevel.UNAVAILABLE
         return ActionOutcome(status=status, title="Telegram Status", fields=fields)
     return run_timed(body)
 
@@ -131,7 +131,7 @@ def _telegram_whitelist(ctx: TerminalContext) -> ActionOutcome:
             return ActionOutcome(status=StatusLevel.LIMITED, title="Telegram Whitelist",
                                   detail_lines=["Whitelist is empty -- all users are rejected (fail-closed)."])
         fields = [(f"Chat {i + 1}", str(cid)) for i, cid in enumerate(ids)]
-        return ActionOutcome(status=StatusLevel.PASS, title="Telegram Whitelist", fields=fields)
+        return ActionOutcome(status=StatusLevel.READY, title="Telegram Whitelist", fields=fields)
     return run_timed(body)
 
 
@@ -140,7 +140,7 @@ def _telegram_rate_limiter(ctx: TerminalContext) -> ActionOutcome:
         ctrl = _telegram(ctx)
         limiter: TokenBucketRateLimiter = ctrl.rate_limiter
         fields = [("Capacity", str(limiter.capacity)), ("Refill Rate", f"{limiter.refill_rate}/min")]
-        return ActionOutcome(status=StatusLevel.AVAILABLE, title="Telegram Rate Limiter", fields=fields)
+        return ActionOutcome(status=StatusLevel.READY, title="Telegram Rate Limiter", fields=fields)
     return run_timed(body)
 
 
@@ -176,7 +176,7 @@ def _discord_status(ctx: TerminalContext) -> ActionOutcome:
             ("Configured", "YES" if configured else "NO"),
             ("Channel Allowlist Size", str(len(ctrl.whitelist))),
         ]
-        status = StatusLevel.PARTIAL if configured else StatusLevel.OFFLINE
+        status = StatusLevel.LIMITED if configured else StatusLevel.UNAVAILABLE
         return ActionOutcome(status=status, title="Discord Status", fields=fields)
     return run_timed(body)
 
@@ -189,7 +189,7 @@ def _discord_whitelist(ctx: TerminalContext) -> ActionOutcome:
             return ActionOutcome(status=StatusLevel.LIMITED, title="Discord Whitelist",
                                   detail_lines=["Allowlist is empty -- all users are rejected (fail-closed)."])
         fields = [(f"Channel {i + 1}", str(cid)) for i, cid in enumerate(ids)]
-        return ActionOutcome(status=StatusLevel.PASS, title="Discord Whitelist", fields=fields)
+        return ActionOutcome(status=StatusLevel.READY, title="Discord Whitelist", fields=fields)
     return run_timed(body)
 
 
@@ -230,7 +230,7 @@ def _email_senders(ctx: TerminalContext) -> ActionOutcome:
     def body() -> ActionOutcome:
         username = ctx.config.get("comms.email_imap.username", "") or ""
         fields = [("Configured Username", username or "(none)")]
-        return ActionOutcome(status=StatusLevel.PASS if username else StatusLevel.LIMITED,
+        return ActionOutcome(status=StatusLevel.READY if username else StatusLevel.LIMITED,
                               title="Priority Senders", fields=fields)
     return run_timed(body)
 

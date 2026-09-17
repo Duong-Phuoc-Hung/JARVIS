@@ -1,6 +1,62 @@
-## [5.2.0] ? JARVIS Product Beta v1 Official Release (2026-09-16)
+## [5.2.0] — JARVIS Beta GO Release: Resolving Technical Blockers R1–R4 (2026-09-17)
 
-> **M?c ti?u**: Ph?t h?nh ch?nh th?c phi?n b?n th??ng m?i Product Beta v1 c?a JARVIS tr?n Windows 11/10 64-bit. Ho?n t?t to?n di?n 17/17 nhi?m v? Core/Backend/Release (D-01 ??n D-17) v? 13/13 nhi?m v? Voice Pipeline (H-01 ??n H-13) theo chu?n m?c k? thu?t `AGENTS.md` v? `docs/AUDIT_FRAMEWORK.md`.
+> **Mục tiêu**: Nâng cấp JARVIS từ Beta NO-GO sang Beta GO bằng cách giải quyết dứt điểm 4 technical blockers ưu tiên cao nhất (R1, R2, R3, R4) theo chuẩn mực `AGENTS.md` (Fail-Closed, Anti-Fabrication, Seam-First TDD) và `ORIGINAL_REQUEST.md`.
+
+### 1. Nguyên nhân gốc rễ (Root Cause)
+- **R1 (Planner Engine)**: `jarvis/planner/engine.py` fallback trả về `{"simulated": True}` khi không tìm thấy action handler, vi phạm nguyên tắc fail-closed của hệ thống. Đồng thời các handler trực tiếp trả về dict có `{"success": False}` bị bọc vô điều kiện thành `ActionResult(success=True)`.
+- **R2 (Unified ActionResult Model)**: `ActionResult` trong `jarvis/core/models.py` thiếu chuẩn 4 trường (`status`, `code`, `message`, `retryable`), các module backend (`HomeAssistantClient`, `MobileFileBridge`, `VMOrchestrator`) trả về dict hoặc kiểu dữ liệu không đồng nhất, thiếu khả năng truy cập dạng mapping/subscript.
+- **R3 (Health Status Vocabulary)**: `StatusLevel` trong `jarvis/ui/terminal/theme.py` phân mảnh nhiều trạng thái phi chuẩn (`AVAILABLE`, `PASS`, `PARTIAL`, `SKIPPED`, `OFFLINE`, `FAILED`), thiếu trạng thái `UNAVAILABLE` và thiếu icon ánh xạ hoàn chỉnh.
+- **R4 (Safety Classifier)**: `HIGH_RISK_ACTIONS` trong `jarvis/planner/safety_interceptor.py` chưa bao quát các hành vi outbound giao tiếp bên ngoài (Email, Zalo, Discord) và cơ cấu kích hoạt vật lý thiết bị Home Assistant (turn on/off, toggle, set temp), dẫn đến rủi ro thực thi ngoài ý muốn mà không có sự xác nhận của người dùng.
+
+### 2. Chỉnh sửa kỹ thuật chi tiết theo từng file (Technical Changes)
+- **`jarvis/planner/engine.py` (R1)**:
+  - Xóa bỏ hoàn toàn cơ chế simulated success (`{"simulated": True}`) tại fallback line 414.
+  - Trả về fail-closed `ActionResult(action_name=action_name, success=False, error_code="HANDLER_NOT_FOUND", error=f"No handler registered for action '{action_name}'.")` khi không có handler/dispatcher.
+  - Bảo toàn kết quả lỗi trả về từ direct handler: kiểm tra `res.get("success") is False` và giữ nguyên trạng thái thất bại trung thực (`code="ACTION_FAILED"`).
+- **`jarvis/core/models.py` (R2)**:
+  - Bổ sung enum `ActionStatus(str, Enum)` với 5 trạng thái chuẩn: `SUCCESS`, `ERROR`, `FAILED`, `TIMEOUT`, `RATE_LIMITED`.
+  - Mở rộng dataclass `ActionResult` với đầy đủ 4 trường chuẩn: `status`, `code`, `message`, `retryable` kèm type hints và giá trị mặc định tương thích ngược.
+  - Cài đặt dict emulation (`__getitem__`, `get`, `__contains__`, `keys`) cho phép truy cập linh hoạt cả thuộc tính lẫn dữ liệu lồng trong `data`.
+  - Đồng bộ hai chiều (`bidirectional sync`) giữa các trường cũ (`success`, `error`, `error_code`) và trường mới trong `__post_init__`.
+- **`jarvis/smart_home/home_assistant.py` (R2)**:
+  - Chuyển đổi toàn bộ các phương thức service call (`call_service`, `turn_on`, `turn_off`, `toggle`, `set_temperature`) sang trả về `ActionResult`.
+  - Thiết lập cờ `retryable=True` cho lỗi kết nối mạng tạm thời và `retryable=False` cho `NOT_CONFIGURED` hoặc `SECURITY_REFUSAL`.
+- **`jarvis/comms/mobile_bridge.py` (R2)**:
+  - Di chuyển `receive_file`, `send_clipboard_to_mobile`, `send_screenshot_to_mobile` sang trả về `ActionResult`.
+  - Xử lý mã lỗi HTTP 429 gán `status=ActionStatus.ERROR`, `code="RATE_LIMITED"`, `retryable=True`.
+- **`jarvis/automation/vm.py` (R2)**:
+  - Cho `VMActionResult` kế thừa từ `ActionResult`, chuẩn hóa kết quả các thao tác vòng đời VM (`start_vm`, `stop_vm`, `suspend_vm`, `snapshot_vm`).
+- **`jarvis/ui/terminal/theme.py` (R3)**:
+  - Chuẩn hóa `StatusLevel` thành đúng 5 thành viên chính tắc: `READY`, `LIMITED`, `BLOCKED`, `ERROR`, `UNAVAILABLE`.
+  - Bổ sung `UNAVAILABLE = "UNAVAILABLE"` và hệ thống màu sắc `_STATUS_COLOR`, biểu tượng `_STATUS_ICON` đầy đủ cho 5 trạng thái.
+  - Thiết lập các alias tương thích ngược (`PASS = READY`, `AVAILABLE = READY`, `PARTIAL = LIMITED`, `SKIPPED = BLOCKED`, `OFFLINE = UNAVAILABLE`, `FAILED = ERROR`).
+- **`jarvis/ui/terminal/models.py`, `jarvis/ui/terminal/app.py`, `jarvis/ui/terminal/modules/*.py` (R3)**:
+  - Cập nhật toàn bộ 52 callsites phân tán tại 11 file sang các giá trị chính tắc của `StatusLevel`, xóa sạch mọi trạng thái phi chuẩn trong mã nguồn production.
+- **`jarvis/planner/safety_interceptor.py` (R4)**:
+  - Mở rộng `HIGH_RISK_ACTIONS` bao gồm:
+    - Email outbound: `email_send`, `send_email`, `send_mail`, `email_send_message`.
+    - Zalo outbound: `zalo_send_message`, `zalo_send_image`, `send_zalo_message`, `zalo_broadcast`.
+    - Discord outbound: `discord_send_message`, `discord_send_file`, `send_discord_message`.
+    - Home Assistant actuation: `home_assistant_call`, `smart_home_turn_on`, `smart_home_turn_off`, `smart_home_set_temp`, `smart_home_toggle`, `home_assistant_turn_on`, `home_assistant_turn_off`, `home_assistant_toggle`, `home_assistant_set_temp`, `home_assistant_set_temperature`.
+  - Thêm tiền tố nhận diện rủi ro động (`email_send`, `zalo_send`, `discord_send`, `home_assistant_`, `smart_home_turn_`, `smart_home_set_`, `smart_home_toggle`).
+  - Loại trừ an toàn các truy vấn trạng thái chỉ đọc (read-only): `smart_home_get_state`, các suffix `_get_state`, `_status`, `_query`, `_read`, `_get_temperature`.
+  - Cài đặt alias `confirm_action(token)` hỗ trợ quy trình xác nhận 30 giây tại `ActionDispatcher`.
+- **`tests/unit/` (TDD & Verification Suites)**:
+  - Bổ sung `tests/unit/test_action_result_contract.py` (12 tests) kiểm thử mô hình `ActionResult`.
+  - Bổ sung `tests/unit/test_terminal_theme_vocabulary.py` (6 tests) kiểm thử 5 trạng thái và quét vi phạm mã nguồn.
+  - Mở rộng `tests/unit/test_action_dispatcher_safety.py` và `tests/unit/test_home_assistant_authoritative.py` kiểm thử luồng xác nhận high-risk.
+
+### 3. Chỉ số kiểm thử thực tế (Test Metrics)
+- **Full Unit Test Suite**: Chạy thực tế bằng `.venv\Scripts\python.exe -m pytest tests/unit/ -v`.
+- **Tổng số tests**: **2367 passed**, **4 skipped**, **1 xfailed**, **0 failed** (100% PASS trên các bài kiểm tra hoạt động, 0 regressions).
+- **Thời gian thực thi**: **189.62s (3 phút 09 giây)**.
+- **Target verification**: Vượt xa yêu cầu tối thiểu (>= 153 passed).
+
+---
+
+## [5.2.0] — JARVIS Product Beta v1 Official Release (2026-09-16)
+
+> **Mục tiêu**: Phát hành chính thức phiên bản thương mại Product Beta v1 của JARVIS trên Windows 11/10 64-bit. Hoàn tất toàn diện 17/17 nhiệm vụ Core/Backend/Release (D-01 đến D-17) và 13/13 nhiệm vụ Voice Pipeline (H-01 đến H-13) theo chuẩn mực kỹ thuật `AGENTS.md` và `docs/AUDIT_FRAMEWORK.md`.
 
 ### 1. ?i?m nh?n ph?t h?nh ch?nh th?c (Release Highlights)
 - **H-13 Human Live Voice Acceptance**: Ho?n th?nh nghi?m thu tr?c ti?p v?i gi?ng n?i ng??i th?t live 50 ca qua VB-Audio, ??t **48/50 PASS (96.0% tr?n 50 ca protocol; 48/48 = 100% tr?n s? ca ?? ??nh gi?, 2 ca skip an to?n: sleep/restart)**, 0 FAIL, 2 SKIP (l?nh nguy hi?m: sleep/restart).

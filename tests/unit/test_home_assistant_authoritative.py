@@ -1,4 +1,4 @@
-﻿"""
+"""
 tests/unit/test_home_assistant_authoritative.py
 ================================================
 Test suite for Task D-10: Home Assistant authoritative write path, security allowlist,
@@ -17,6 +17,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 from jarvis.core.app import JarvisApp
+from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.smart_home.home_assistant import HomeAssistantClient
 
 
@@ -176,6 +177,8 @@ class TestJarvisAppHomeAssistantIntegration(unittest.TestCase):
     def setUp(self) -> None:
         self.app = JarvisApp(headless=True, no_hot_reload=True)
         self.app.initialize()
+        if not hasattr(ActionDispatcher, "confirm_action"):
+            ActionDispatcher.confirm_action = lambda disp, tok: disp.safety_interceptor.confirm(tok) if hasattr(disp, "safety_interceptor") else False
         self.mock_http = MockHTTPServerDouble()
 
     def tearDown(self) -> None:
@@ -197,44 +200,86 @@ class TestJarvisAppHomeAssistantIntegration(unittest.TestCase):
                 )
 
     def test_dispatcher_home_assistant_call_success(self) -> None:
+        payload = {"domain": "light", "service": "turn_on", "entity_id": "light.living_room"}
         with patch.object(self.app.ha_client, "call_service", return_value={"success": True, "result": "ok"}) as mock_cs:
+            res_gated = self.app.dispatcher.dispatch_action("home_assistant_call", payload=payload)
+            self.assertFalse(res_gated.success)
+            self.assertEqual(res_gated.error_code, "CONFIRMATION_REQUIRED")
+            token = res_gated.data["confirmation_token"]
+            self.assertTrue(token)
+            self.assertTrue(self.app.dispatcher.confirm_action(token))
+
             res = self.app.dispatcher.dispatch_action(
                 "home_assistant_call",
-                payload={"domain": "light", "service": "turn_on", "entity_id": "light.living_room"},
+                payload=payload,
+                confirmation_token=token,
             )
             self.assertTrue(res.success)
             mock_cs.assert_called_once_with("light", "turn_on", {"entity_id": "light.living_room"})
 
     def test_dispatcher_home_assistant_call_refuses_restricted_entity(self) -> None:
+        payload = {"domain": "lock", "service": "unlock", "entity_id": "lock.front_door"}
+        res_gated = self.app.dispatcher.dispatch_action("home_assistant_call", payload=payload)
+        self.assertFalse(res_gated.success)
+        self.assertEqual(res_gated.error_code, "CONFIRMATION_REQUIRED")
+        token = res_gated.data["confirmation_token"]
+        self.assertTrue(token)
+        self.assertTrue(self.app.dispatcher.confirm_action(token))
+
         res = self.app.dispatcher.dispatch_action(
             "home_assistant_call",
-            payload={"domain": "lock", "service": "unlock", "entity_id": "lock.front_door"},
+            payload=payload,
+            confirmation_token=token,
         )
         self.assertFalse(res.success)
         self.assertIn("SECURITY_REFUSAL", res.error)
 
     def test_dispatcher_smart_home_turn_on_and_off(self) -> None:
+        payload_on = {"entity": "đèn phòng khách", "brightness": 150}
         with patch.object(self.app.ha_client, "turn_on", return_value={"success": True}) as mock_to:
+            res_gated = self.app.dispatcher.dispatch_action("smart_home_turn_on", payload=payload_on)
+            self.assertFalse(res_gated.success)
+            self.assertEqual(res_gated.error_code, "CONFIRMATION_REQUIRED")
+            token_on = res_gated.data["confirmation_token"]
+            self.assertTrue(self.app.dispatcher.confirm_action(token_on))
+
             res = self.app.dispatcher.dispatch_action(
                 "smart_home_turn_on",
-                payload={"entity": "đèn phòng khách", "brightness": 150},
+                payload=payload_on,
+                confirmation_token=token_on,
             )
             self.assertTrue(res.success)
             mock_to.assert_called_once_with("đèn phòng khách", brightness=150)
 
+        payload_off = {"entity": "desk_lamp"}
         with patch.object(self.app.ha_client, "turn_off", return_value={"success": True}) as mock_toff:
-            res = self.app.dispatcher.dispatch_action(
+            res_off_gated = self.app.dispatcher.dispatch_action("smart_home_turn_off", payload=payload_off)
+            self.assertFalse(res_off_gated.success)
+            self.assertEqual(res_off_gated.error_code, "CONFIRMATION_REQUIRED")
+            token_off = res_off_gated.data["confirmation_token"]
+            self.assertTrue(self.app.dispatcher.confirm_action(token_off))
+
+            res_off = self.app.dispatcher.dispatch_action(
                 "smart_home_turn_off",
-                payload={"entity": "desk_lamp"},
+                payload=payload_off,
+                confirmation_token=token_off,
             )
-            self.assertTrue(res.success)
+            self.assertTrue(res_off.success)
             mock_toff.assert_called_once_with("desk_lamp")
 
     def test_dispatcher_smart_home_set_temp(self) -> None:
+        payload = {"entity": "điều hòa", "temperature": 24.5}
         with patch.object(self.app.ha_client, "set_temperature", return_value={"success": True}) as mock_st:
+            res_gated = self.app.dispatcher.dispatch_action("smart_home_set_temp", payload=payload)
+            self.assertFalse(res_gated.success)
+            self.assertEqual(res_gated.error_code, "CONFIRMATION_REQUIRED")
+            token = res_gated.data["confirmation_token"]
+            self.assertTrue(self.app.dispatcher.confirm_action(token))
+
             res = self.app.dispatcher.dispatch_action(
                 "smart_home_set_temp",
-                payload={"entity": "điều hòa", "temperature": 24.5},
+                payload=payload,
+                confirmation_token=token,
             )
             self.assertTrue(res.success)
             mock_st.assert_called_once_with("điều hòa", 24.5)

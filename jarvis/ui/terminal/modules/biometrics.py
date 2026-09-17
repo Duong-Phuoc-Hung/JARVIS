@@ -48,7 +48,7 @@ def _biometric_status(ctx: TerminalContext) -> ActionOutcome:
             ("Embedding Storage", "AVAILABLE" if storage_ok else "ERROR"),
         ]
         if cv2_ok and fr_ok and storage_ok:
-            status = StatusLevel.AVAILABLE
+            status = StatusLevel.READY
         elif storage_ok:
             status = StatusLevel.LIMITED
         else:
@@ -68,7 +68,7 @@ def _enrolled_profiles(ctx: TerminalContext) -> ActionOutcome:
             return ActionOutcome(status=StatusLevel.LIMITED, title="Enrolled Profiles",
                                   detail_lines=["No profiles enrolled."])
         fields = [(f"Profile {i + 1}", label) for i, label in enumerate(labels)]
-        return ActionOutcome(status=StatusLevel.PASS, title="Enrolled Profiles", fields=fields,
+        return ActionOutcome(status=StatusLevel.READY, title="Enrolled Profiles", fields=fields,
                               structured_data={"profile_count": len(labels)})
     return run_timed(body)
 
@@ -118,7 +118,7 @@ def _security_configuration(ctx: TerminalContext) -> ActionOutcome:
             ("Match Tolerance", str(tolerance)),
             ("Bypass Mode", "ENABLED (!!)" if bypass else "DISABLED"),
         ]
-        status = StatusLevel.LIMITED if bypass else StatusLevel.PASS
+        status = StatusLevel.LIMITED if bypass else StatusLevel.READY
         return ActionOutcome(status=status, title="Security Configuration", fields=fields)
     return run_timed(body)
 

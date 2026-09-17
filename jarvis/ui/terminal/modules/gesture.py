@@ -31,7 +31,7 @@ def _camera_status(ctx: TerminalContext) -> ActionOutcome:
     def body() -> ActionOutcome:
         mod = _hand_tracker_module()
         available = mod.HandGestureTracker().is_backend_available()
-        status = StatusLevel.AVAILABLE if available else StatusLevel.OFFLINE
+        status = StatusLevel.READY if available else StatusLevel.UNAVAILABLE
         fields = [("Camera Backend (cv2/mediapipe)", "AVAILABLE" if available else "NOT INSTALLED")]
         return ActionOutcome(status=status, title="Camera Status", fields=fields)
     return run_timed(body)
@@ -50,7 +50,7 @@ def _gesture_engine_status(ctx: TerminalContext) -> ActionOutcome:
             ("Acoustic Clap Detector", "AVAILABLE" if acoustic_ok else "ERROR"),
             ("Hand Gesture Tracker", "AVAILABLE" if hand_ok else "LIMITED (cv2/mediapipe missing)"),
         ]
-        status = StatusLevel.AVAILABLE if acoustic_ok else StatusLevel.LIMITED
+        status = StatusLevel.READY if acoustic_ok else StatusLevel.LIMITED
         return ActionOutcome(status=status, title="Gesture Engine Status", fields=fields)
     return run_timed(body)
 
@@ -78,7 +78,7 @@ def _gesture_mapping(ctx: TerminalContext) -> ActionOutcome:
                                   detail_lines=["Pattern-to-action mapping is not introspectable "
                                                 "from a standalone GestureDetector instance."])
         fields = [(str(k), str(v)) for k, v in list(patterns.items())[:10]]
-        return ActionOutcome(status=StatusLevel.PASS, title="Gesture Mapping", fields=fields)
+        return ActionOutcome(status=StatusLevel.READY, title="Gesture Mapping", fields=fields)
     return run_timed(body)
 
 
@@ -90,7 +90,7 @@ def _os_action_integration(ctx: TerminalContext) -> ActionOutcome:
             ("Hand Gesture - Recognition", "AVAILABLE" if _hand_tracker_module().HandGestureTracker().is_backend_available() else "LIMITED"),
             ("Hand Gesture - OS Action Wiring", "LIMITED (emits callbacks only, not wired to ActionDispatcher)"),
         ]
-        return ActionOutcome(status=StatusLevel.PARTIAL, title="OS Action Integration Status", fields=fields)
+        return ActionOutcome(status=StatusLevel.LIMITED, title="OS Action Integration Status", fields=fields)
     return run_timed(body)
 
 

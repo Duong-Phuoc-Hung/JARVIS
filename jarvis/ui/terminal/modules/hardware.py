@@ -44,7 +44,7 @@ def _system_snapshot(ctx: TerminalContext) -> ActionOutcome:
             ("GPU", f"{metrics.gpu_percent:.1f} %" if metrics.gpu_percent is not None else "N/A"),
             ("Disks Detected", str(len(metrics.disks))),
         ]
-        return ActionOutcome(status=StatusLevel.PASS, title="System Snapshot", fields=fields,
+        return ActionOutcome(status=StatusLevel.READY, title="System Snapshot", fields=fields,
                               structured_data=metrics.to_dict())
     return run_timed(body)
 
@@ -60,7 +60,7 @@ def _cpu_ram(ctx: TerminalContext) -> ActionOutcome:
             ("CPU Temp", f"{metrics.cpu_temp_c:.1f} C" if metrics.cpu_temp_c is not None else "N/A"),
             ("RAM Usage", f"{metrics.ram_percent:.1f} %"),
         ]
-        return ActionOutcome(status=StatusLevel.PASS, title="CPU / RAM Monitor", fields=fields)
+        return ActionOutcome(status=StatusLevel.READY, title="CPU / RAM Monitor", fields=fields)
     return run_timed(body)
 
 
@@ -81,7 +81,7 @@ def _gpu_vram(ctx: TerminalContext) -> ActionOutcome:
             ("GPU Temp", f"{metrics.gpu_temp_c:.1f} C" if metrics.gpu_temp_c is not None else "N/A"),
             ("VRAM Used", f"{metrics.vram_used_gb:.2f} GB" if metrics.vram_used_gb is not None else "N/A"),
         ]
-        return ActionOutcome(status=StatusLevel.PASS, title="GPU / VRAM Monitor", fields=fields)
+        return ActionOutcome(status=StatusLevel.READY, title="GPU / VRAM Monitor", fields=fields)
     return run_timed(body)
 
 
@@ -93,7 +93,7 @@ def _drive_detail(ctx: TerminalContext, drive: str) -> ActionOutcome:
             return ActionOutcome(status=StatusLevel.ERROR, title=f"Drive {drive}", error_reason=str(e))
         d = disks.get(drive)
         if d is None:
-            return ActionOutcome(status=StatusLevel.SKIPPED, title=f"Drive {drive}",
+            return ActionOutcome(status=StatusLevel.UNAVAILABLE, title=f"Drive {drive}",
                                   detail_lines=["This drive is no longer present (disappeared since last refresh)."])
         fields = [
             ("Status", d.status), ("Model", d.model or "N/A"), ("Media Type", d.media_type or "N/A"),
@@ -101,7 +101,7 @@ def _drive_detail(ctx: TerminalContext, drive: str) -> ActionOutcome:
             ("Percent Used", f"{d.percent_used:.1f} %" if d.percent_used is not None else "N/A"),
             ("Power-On Hours", str(d.power_on_hours) if d.power_on_hours is not None else "N/A"),
         ]
-        status = StatusLevel.PASS if str(d.status).upper() in ("PASSED", "OK", "HEALTHY") else StatusLevel.LIMITED
+        status = StatusLevel.READY if str(d.status).upper() in ("PASSED", "OK", "HEALTHY") else StatusLevel.LIMITED
         return ActionOutcome(status=status, title=f"Drive {drive}", fields=fields, structured_data=d.__dict__)
     return run_timed(body)
 
@@ -136,7 +136,7 @@ def _sensors_alerts(ctx: TerminalContext) -> ActionOutcome:
         except Exception as e:
             return ActionOutcome(status=StatusLevel.ERROR, title="Sensor & Alert Status", error_reason=str(e))
         temp_known = metrics.cpu_temp_c is not None or metrics.gpu_temp_c is not None
-        status = StatusLevel.PASS if temp_known else StatusLevel.LIMITED
+        status = StatusLevel.READY if temp_known else StatusLevel.LIMITED
         fields = [
             ("Active Alerts", str(len(alerts))),
             ("CPU Temp Sensor", "AVAILABLE" if metrics.cpu_temp_c is not None else "UNAVAILABLE"),

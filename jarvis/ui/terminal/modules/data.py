@@ -32,7 +32,7 @@ def _select_dataset(ctx: TerminalContext) -> ActionOutcome:
     def body() -> ActionOutcome:
         raw = ctx.console.read_line("Enter dataset/document file path: ")
         if not raw:
-            return ActionOutcome(status=StatusLevel.SKIPPED, title="Select Dataset / Document",
+            return ActionOutcome(status=StatusLevel.BLOCKED, title="Select Dataset / Document",
                                   detail_lines=["No path entered."])
         path = Path(raw).expanduser()
         if not path.exists() or not path.is_file():
@@ -40,7 +40,7 @@ def _select_dataset(ctx: TerminalContext) -> ActionOutcome:
                                   fields=[("Path", str(path))],
                                   error_reason="File does not exist or is not a regular file.")
         ctx.state["data_selected_file"] = str(path)
-        return ActionOutcome(status=StatusLevel.PASS, title="Select Dataset / Document",
+        return ActionOutcome(status=StatusLevel.READY, title="Select Dataset / Document",
                               fields=[("Path", str(path)), ("Size", f"{path.stat().st_size} bytes")])
     return run_timed(body)
 
@@ -49,19 +49,19 @@ def _run_operation(ctx: TerminalContext, label: str, op: AnalysisOperation) -> A
     def body() -> ActionOutcome:
         selected = ctx.state.get("data_selected_file")
         if not selected:
-            return ActionOutcome(status=StatusLevel.SKIPPED, title=label,
+            return ActionOutcome(status=StatusLevel.BLOCKED, title=label,
                                   detail_lines=["No dataset selected. Use 'Select Dataset / Document' first."])
         request = DataAnalysisRequest(operation=op, file_path=selected)
         result = _service(ctx).execute(request)
         if not result.success:
-            return ActionOutcome(status=StatusLevel.FAILED, title=label,
+            return ActionOutcome(status=StatusLevel.ERROR, title=label,
                                   fields=[("File", selected)], error_reason=result.error or "Unknown error.")
         summary_fields = [("File", selected)]
         data_repr = result.data
         if isinstance(data_repr, dict):
             for k, v in list(data_repr.items())[:8]:
                 summary_fields.append((str(k), str(v)))
-        return ActionOutcome(status=StatusLevel.PASS, title=label, fields=summary_fields,
+        return ActionOutcome(status=StatusLevel.READY, title=label, fields=summary_fields,
                               structured_data={"result": data_repr if isinstance(data_repr, (dict, list, str, int, float)) else str(data_repr)})
     return run_timed(body)
 
@@ -70,7 +70,7 @@ def _visualization_status(ctx: TerminalContext) -> ActionOutcome:
     def body() -> ActionOutcome:
         try:
             import matplotlib  # noqa: F401
-            return ActionOutcome(status=StatusLevel.AVAILABLE, title="Visualization",
+            return ActionOutcome(status=StatusLevel.READY, title="Visualization",
                                   fields=[("matplotlib", "AVAILABLE")])
         except ImportError:
             return ActionOutcome(status=StatusLevel.LIMITED, title="Visualization",
@@ -93,7 +93,7 @@ def _backend_status(ctx: TerminalContext) -> ActionOutcome:
             ("Visualization", viz.status.value),
             ("Selected Dataset", selected),
         ]
-        status = StatusLevel.AVAILABLE if svc_ok else StatusLevel.ERROR
+        status = StatusLevel.READY if svc_ok else StatusLevel.ERROR
         return ActionOutcome(status=status, title="Analysis Backend Status", fields=fields)
     return run_timed(body)
 

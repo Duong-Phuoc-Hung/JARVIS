@@ -47,7 +47,7 @@ def test_print_lines_calls_out_for_each_line():
 
 def test_no_color_theme_returns_plain_text():
     theme = TerminalTheme(color_enabled=False)
-    assert theme.status(StatusLevel.PASS) == "PASS"
+    assert theme.status(StatusLevel.READY) == "READY"
     assert Ansi.BRIGHT_CYAN not in theme.logo("J.A.R.V.I.S.")
 
 
@@ -60,7 +60,7 @@ def test_color_enabled_theme_wraps_ansi_codes():
 
 def test_unknown_status_level_falls_back_to_unknown_not_a_crash():
     theme = TerminalTheme(color_enabled=False)
-    assert theme.status("not_a_real_status") == "UNKNOWN"
+    assert theme.status("not_a_real_status") == "UNAVAILABLE"
 
 
 def test_terminal_width_has_a_sane_floor():

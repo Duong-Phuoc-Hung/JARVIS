@@ -39,7 +39,7 @@ class ActionOutcome:
 
     @property
     def ok(self) -> bool:
-        return self.status in (StatusLevel.READY, StatusLevel.AVAILABLE, StatusLevel.PASS)
+        return self.status == StatusLevel.READY
 
 
 @dataclass

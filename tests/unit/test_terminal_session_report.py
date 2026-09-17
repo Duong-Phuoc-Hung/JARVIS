@@ -62,7 +62,7 @@ def test_no_biometric_embedding_leaks_through_redaction():
 
 def test_session_history_records_and_redacts():
     history = SessionHistory()
-    outcome = ActionOutcome(status=StatusLevel.PASS, title="X", duration_s=0.1,
+    outcome = ActionOutcome(status=StatusLevel.READY, title="X", duration_s=0.1,
                              structured_data={"api_key": "leak-me"})
     history.record("HARDWARE", "System Snapshot", outcome)
     recs = history.all()
@@ -72,8 +72,8 @@ def test_session_history_records_and_redacts():
 
 def test_session_history_for_module_filters_correctly():
     history = SessionHistory()
-    history.record("HARDWARE", "A", ActionOutcome(status=StatusLevel.PASS, title="A"))
-    history.record("INFOSEC", "B", ActionOutcome(status=StatusLevel.PASS, title="B"))
+    history.record("HARDWARE", "A", ActionOutcome(status=StatusLevel.READY, title="A"))
+    history.record("INFOSEC", "B", ActionOutcome(status=StatusLevel.READY, title="B"))
     assert len(history.for_module("HARDWARE")) == 1
     assert len(history.for_module("INFOSEC")) == 1
     assert len(history.for_module("MISSING")) == 0
@@ -83,13 +83,13 @@ def test_session_history_is_bounded():
     history = SessionHistory()
     history.MAX_RECORDS = 5
     for i in range(10):
-        history.record("HARDWARE", f"action_{i}", ActionOutcome(status=StatusLevel.PASS, title=str(i)))
+        history.record("HARDWARE", f"action_{i}", ActionOutcome(status=StatusLevel.READY, title=str(i)))
     assert len(history.all()) == 5
 
 
 # -- ReportWriter ----------------------------------------------------------
 
-def _outcome(status=StatusLevel.PASS, fields=None) -> ActionOutcome:
+def _outcome(status=StatusLevel.READY, fields=None) -> ActionOutcome:
     return ActionOutcome(status=status, title="System Snapshot", fields=fields or [("CPU", "10 %")],
                           duration_s=0.25, started_at=time.time())
 
@@ -110,7 +110,7 @@ def test_saved_report_contains_truthful_fields_and_version():
     content = result.path.read_text(encoding="utf-8")
     assert __version__ in content
     assert "System Snapshot" in content
-    assert "PASS" in content
+    assert "READY" in content
     assert "CPU" in content
 
 
@@ -153,14 +153,14 @@ def test_save_write_failure_is_reported_truthfully(monkeypatch, tmp_path):
 def test_save_batch_result_includes_truthful_summary_counts():
     writer = ReportWriter()
     items = [
-        BatchItemResult(action=MenuAction(id="a", key="1", label="A"), outcome=_outcome(StatusLevel.PASS)),
+        BatchItemResult(action=MenuAction(id="a", key="1", label="A"), outcome=_outcome(StatusLevel.READY)),
         BatchItemResult(action=MenuAction(id="b", key="2", label="B"), outcome=_outcome(StatusLevel.LIMITED)),
-        BatchItemResult(action=MenuAction(id="c", key="3", label="C"), outcome=_outcome(StatusLevel.FAILED)),
+        BatchItemResult(action=MenuAction(id="c", key="3", label="C"), outcome=_outcome(StatusLevel.ERROR)),
     ]
     batch = BatchResult(module="HARDWARE", operation="Run All Checks", items=items, duration_s=1.23)
     result = writer.save_batch_result(batch)
     content = result.path.read_text(encoding="utf-8")
-    assert "PASS" in content and "LIMITED" in content and "FAILED" in content
+    assert "READY" in content and "LIMITED" in content and "ERROR" in content
     assert "1.23" in content
 
 

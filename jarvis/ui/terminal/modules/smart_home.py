@@ -63,7 +63,7 @@ def _connection_status(ctx: TerminalContext) -> ActionOutcome:
     def body() -> ActionOutcome:
         enabled = bool(ctx.config.get("smart_home.home_assistant.enabled", False))
         if not enabled:
-            return ActionOutcome(status=StatusLevel.OFFLINE, title="Connection Status",
+            return ActionOutcome(status=StatusLevel.UNAVAILABLE, title="Connection Status",
                                   fields=[("Configured", "NO")],
                                   detail_lines=["Home Assistant is disabled in config "
                                                 "(smart_home.home_assistant.enabled=false)."])
@@ -71,11 +71,11 @@ def _connection_status(ctx: TerminalContext) -> ActionOutcome:
         assert client is not None
         state = client.get_state(_PROBE_ENTITY)
         if state is None:
-            return ActionOutcome(status=StatusLevel.OFFLINE, title="Connection Status",
+            return ActionOutcome(status=StatusLevel.UNAVAILABLE, title="Connection Status",
                                   fields=[("Configured", "YES"), ("Reachable", "NO")],
                                   detail_lines=["No response from Home Assistant (unreachable, "
                                                 "invalid token, or entity not found)."])
-        return ActionOutcome(status=StatusLevel.AVAILABLE, title="Connection Status",
+        return ActionOutcome(status=StatusLevel.READY, title="Connection Status",
                               fields=[("Configured", "YES"), ("Reachable", "YES")])
     return run_timed(body)
 
@@ -84,20 +84,20 @@ def _entity_state_prompt(ctx: TerminalContext) -> ActionOutcome:
     def body() -> ActionOutcome:
         client = _client(ctx)
         if client is None:
-            return ActionOutcome(status=StatusLevel.OFFLINE, title="Entity State",
+            return ActionOutcome(status=StatusLevel.UNAVAILABLE, title="Entity State",
                                   detail_lines=["Home Assistant is not configured/enabled."])
         entity = ctx.console.read_line("Enter entity id or configured alias: ")
         if not entity:
-            return ActionOutcome(status=StatusLevel.SKIPPED, title="Entity State",
+            return ActionOutcome(status=StatusLevel.BLOCKED, title="Entity State",
                                   detail_lines=["No entity entered."])
         resolved = client.resolve_entity(entity)
         state = client.get_state(resolved)
         if state is None:
-            return ActionOutcome(status=StatusLevel.OFFLINE, title="Entity State",
+            return ActionOutcome(status=StatusLevel.UNAVAILABLE, title="Entity State",
                                   fields=[("Entity", resolved)],
                                   detail_lines=["No state returned (unreachable or entity not found)."])
         fields = [("Entity", resolved), ("State", str(state.get("state", "unknown")))]
-        return ActionOutcome(status=StatusLevel.PASS, title="Entity State", fields=fields,
+        return ActionOutcome(status=StatusLevel.READY, title="Entity State", fields=fields,
                               structured_data={"entity": resolved, "state": state})
     return run_timed(body)
 
@@ -116,7 +116,7 @@ def _entity_aliases(ctx: TerminalContext) -> ActionOutcome:
             return ActionOutcome(status=StatusLevel.LIMITED, title="Entity Aliases",
                                   detail_lines=["No aliases configured."])
         fields = [(alias, entity_id) for alias, entity_id in aliases.items()]
-        return ActionOutcome(status=StatusLevel.PASS, title="Entity Aliases", fields=fields)
+        return ActionOutcome(status=StatusLevel.READY, title="Entity Aliases", fields=fields)
     return run_timed(body)
 
 

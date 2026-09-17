@@ -198,7 +198,7 @@ class TerminalApp:
         return [
             f"Version        : {JARVIS_VERSION}",
             f"Platform       : {'Windows' if sys.platform == 'win32' else sys.platform}",
-            f"Core           : {t.status(StatusLevel.AVAILABLE)}",
+            f"Core           : {t.status(StatusLevel.READY)}",
             f"Session        : {h:02d}:{m:02d}:{s:02d}",
         ]
 
@@ -301,7 +301,7 @@ class TerminalApp:
             c.print(t.error("WARNING"))
             c.print(f"This operation may have real effects: {action.label}")
             if not self._confirm("Confirmation required. Proceed"):
-                return ActionOutcome(status=StatusLevel.SKIPPED, title=action.label,
+                return ActionOutcome(status=StatusLevel.BLOCKED, title=action.label,
                                       detail_lines=["Cancelled by user."])
         assert action.handler is not None
         outcome = action.handler()

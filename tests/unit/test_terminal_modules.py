@@ -55,7 +55,7 @@ def test_infosec_allows_a_real_rfc1918_target():
     screen = infosec.build_menu(ctx)
     validate_action = next(a for a in screen.actions if a.id == "infosec_validate")
     outcome = validate_action.handler()
-    assert outcome.status == StatusLevel.PASS
+    assert outcome.status == StatusLevel.READY
     assert ctx.state["infosec_target"] == "192.168.1.0/24"
 
 
@@ -81,7 +81,7 @@ def test_infosec_lan_scan_is_skipped_without_a_validated_target():
     screen = infosec.build_menu(ctx)
     scan_action = next(a for a in screen.actions if a.id == "infosec_scan")
     outcome = scan_action.handler()
-    assert outcome.status == StatusLevel.SKIPPED
+    assert outcome.status == StatusLevel.BLOCKED
 
 
 def test_infosec_batch_excludes_scan_when_no_target_selected():
@@ -109,7 +109,7 @@ def test_infosec_security_report_skipped_without_prior_scan():
     screen = infosec.build_menu(ctx)
     report_action = next(a for a in screen.actions if a.id == "infosec_report")
     outcome = report_action.handler()
-    assert outcome.status == StatusLevel.SKIPPED
+    assert outcome.status == StatusLevel.BLOCKED
 
 
 # -- Smart Home: side-effecting actions excluded from [A] ---------------------
@@ -136,7 +136,7 @@ def test_smart_home_control_actions_are_unavailable_no_authoritative_path():
         assert action.available is False
         outcome = action.handler()
         assert outcome.status == StatusLevel.LIMITED
-        assert outcome.status != StatusLevel.PASS
+        assert outcome.status != StatusLevel.READY
 
 
 def test_smart_home_control_never_calls_the_real_ha_client():
@@ -158,7 +158,7 @@ def test_smart_home_connection_status_offline_when_not_configured():
     status_action = next(a for a in screen.actions if a.id == "sh_status")
     outcome = status_action.handler()
     # default_config.yaml ships smart_home.home_assistant.enabled: false
-    assert outcome.status == StatusLevel.OFFLINE
+    assert outcome.status == StatusLevel.UNAVAILABLE
 
 
 # -- Communications: send actions never fabricate delivery, never batch ------
@@ -177,7 +177,7 @@ def test_telegram_send_actions_never_fabricate_delivery():
         action = next(a for a in screen.actions if a.id == aid)
         assert action.safe_for_batch is False
         outcome = action.handler()
-        assert outcome.status != StatusLevel.PASS  # never claims "sent"
+        assert outcome.status != StatusLevel.READY  # never claims "sent"
 
 
 def test_discord_send_actions_never_fabricate_delivery():
@@ -187,7 +187,7 @@ def test_discord_send_actions_never_fabricate_delivery():
         action = next(a for a in screen.actions if a.id == aid)
         assert action.safe_for_batch is False
         outcome = action.handler()
-        assert outcome.status != StatusLevel.PASS
+        assert outcome.status != StatusLevel.READY
 
 
 def test_email_status_is_truthful_about_no_real_imap_connection():
@@ -223,7 +223,7 @@ def test_biometrics_enroll_never_fabricates_success_without_camera():
     screen = biometrics.build_menu(ctx)
     action = next(a for a in screen.actions if a.id == "bio_enroll")
     outcome = action.handler()
-    assert outcome.status != StatusLevel.PASS
+    assert outcome.status != StatusLevel.READY
 
 
 # -- Gesture: no camera loop from [A], recognition vs OS-wiring distinction ---
@@ -278,7 +278,7 @@ def test_healing_run_action_calls_real_engine_directly_no_private_dispatcher():
     screen = healing.build_menu(ctx)
     action = next(a for a in screen.actions if a.id == "heal_run")
     outcome = action.handler()
-    assert outcome.status == StatusLevel.FAILED
+    assert outcome.status == StatusLevel.ERROR
     assert outcome.error_reason == "PROTECTED_PROCESS"
 
 

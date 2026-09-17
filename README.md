@@ -13,7 +13,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt bằng Chromium do Playwright quản lý hoặc phiên Chromium được attach qua CDP, và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản chính thức (Product Beta v1, `jarvis.__version__`): 5.2.0** trên `main` — hoàn thiện toàn diện phân hệ Core / Backend / Integrations / Release (D-01..D-17) và Voice Pipeline Hardening (H-01..H-13): nghiệm thu giọng nói người thật live đạt 48/50 PASS (100% pass rate), fallback tự động WASAPI Exclusive capture cho tai nghe Bluetooth HFP (AirPods, LY-Z5202 đã kiểm chứng trên phần cứng thật), Telegram/Discord/Gmail kết nối API thật, pipeline ký số Authenticode CI tự động, bộ cài đặt Windows Installer 1-click, và 2250+ unit/e2e regression tests xanh 100%.</sub>
+<sub>**Phiên bản chính thức (Beta GO Release, `jarvis.__version__`): 5.2.0** trên `main` — hoàn thiện toàn diện phân hệ Core / Backend / Integrations / Release (D-01..D-17), Voice Pipeline Hardening (H-01..H-13), và giải quyết dứt điểm 4 technical blockers R1–R4: Planner Fail-Closed loại bỏ hoàn toàn simulated success, mô hình kết quả thống nhất `ActionResult` chuẩn 4 trường kèm dict emulation, hệ thống từ vựng sức khỏe chuẩn hóa 5 trạng thái (`READY`, `LIMITED`, `BLOCKED`, `ERROR`, `UNAVAILABLE`), và Safety Gate Interceptor bảo vệ các hành vi outbound (Email, Zalo, Discord) và Home Assistant với token xác nhận 30s. Toàn bộ 2360+ regression tests xanh 100%.</sub>
 
 
 </div>
@@ -71,6 +71,12 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 - Price comparison chỉ trả offer có nguồn JSON-LD/DOM quan sát được; không sinh giá 0, stock hoặc shipping giả khi scrape thất bại.
 - Phân tích ngữ cảnh màn hình tức thời qua Gemini Vision AI (`Ctrl+Shift+Space`).
 - Tự động hóa macro chuột/bàn phím, điều khiển âm lượng, màn hình, quản lý file và ứng dụng Windows.
+
+### 🛡️ Cơ Chế An Toàn & Chuẩn Hóa Hệ Thống (Beta GO Hardening)
+- **Planner Fail-Closed (R1):** Loại bỏ hoàn toàn mô phỏng thành công (`simulated: True`). Mọi action không tìm thấy handler đều lập tức trả về lỗi chính thức `HANDLER_NOT_FOUND`, bảo toàn trạng thái lỗi thực từ các handler cấp dưới.
+- **Chuẩn Hóa Kết Quả Thực Thi `ActionResult` (R2):** Thống nhất mô hình dữ liệu trả về trên toàn hệ thống gồm 4 trường chuẩn: `status` (`ActionStatus`), `code`, `message`, `retryable` cùng cơ chế mapping emulation (`__getitem__`, `get`, `__contains__`) và đồng bộ 2 chiều tương thích ngược cho Home Assistant, Mobile Bridge, VM Orchestrator.
+- **Từ Vựng Trạng Thái Hệ Thống 5 Cấp Chuẩn Hóa (R3):** Chuẩn hóa `StatusLevel` trên Terminal Control Center và tất cả 9 module adapters về đúng 5 trạng thái: `READY`, `LIMITED`, `BLOCKED`, `ERROR`, `UNAVAILABLE`, triệt tiêu hoàn toàn sự phân mảnh trạng thái phi chuẩn.
+- **Safety Interceptor & Xác Nhận Hành Động Rủi Ro Cao (R4):** Mở rộng nhóm `HIGH_RISK_ACTIONS` bao quát toàn bộ hành động gửi tin/email ra ngoài (Email, Zalo, Discord) và cơ cấu kích hoạt thiết bị Home Assistant (turn on/off, toggle, set temp). Bắt buộc người dùng phê duyệt qua token xác nhận 30s trước khi thực thi; các truy vấn chỉ đọc (read-only) được tự động phân tách an toàn và chạy không trễ.
 
 ---
 
