@@ -1,62 +1,58 @@
-# Sentinel Handoff Report — JARVIS v5.2.0 Complete Beta GO (R5–R8 & R1–R8 Master Closeout)
+# Sentinel Handoff Report — JARVIS v5.2.0 Phase 3 Acceptance Gates (R9–R14)
 
-## Observation
-All requirements for resolving the remaining 3 technical blockers (R5, R6, R7), compiling the comprehensive Beta GO Report (R8), and synchronizing system documentation to transition JARVIS v5.2.0 into complete Beta GO status have been executed, verified, and audited:
+**Agent**: Sentinel (`cad55dc4-1570-4377-a79c-085c9f6d1678`)  
+**Parent / Caller**: User / Parent Agent (`297d97f6-9243-4a76-ac0c-eaa9a21f4076`)  
+**Working Directory**: `d:\Software GitCode\JARVIS\.agents\sentinel`  
+**Date / Timestamp**: 2026-09-17T20:16:00Z (Local: 2026-09-18T03:16:00+07:00)  
+**Governing Standard**: `AGENTS.md §1` (Synchronized Docs & Git Release), `AGENTS.md §2` (Anti-Fabrication Principle), `AGENTS.md §5` (Three-Tier Verdict Discipline)
 
-1. **R5 (Discord Inbound Gateway — `jarvis/comms/discord.py`)**:
-   - Implemented authentic background REST polling thread `_poll_loop()` querying Discord REST API `GET /channels/{channel_id}/messages?limit=50&after={last_message_id}`.
-   - Enforced 64-bit integer snowflake ordering (`int(m["id"])`) ensuring strictly chronological message delivery to callback.
-   - Enforced strict whitelist filtering (`whitelist_user_ids`): unauthorized messages dropped immediately with audit logging via SHA-256 content hashing.
-   - Fail-closed error handling: returns `False` immediately if `bot_token` is empty; aborts polling on fatal HTTP codes (401, 403, 404); breaks polling loop after consecutive error threshold (5 errors).
-   - 100% verified across 64 unit tests and 42 adversarial stress tests (`tests/test_adversarial_m1_discord_gateway.py` and `tests/test_adversarial_m1_discord_error_recovery.py`).
+---
 
-2. **R6 (Core/Labs Feature Flag Mechanism — `jarvis/core/labs.py`, `jarvis/core/config.py`, `jarvis/core/dispatcher.py`)**:
-   - Centralized feature flag configuration in `config/default_config.yaml` and `ConfigManager`: `labs.enabled` (bool, default `False`) and `labs.features` (list[str], default `[]`).
-   - Built authoritative fail-closed helper `is_labs_enabled()`, result builder `create_labs_disabled_result()`, and `@require_labs(feature_name)` decorator supporting sync, async, and class methods.
-   - Integrated Labs check into step 4.5 of `ActionDispatcher.dispatch()` and `dispatch_async()`.
-   - Quarantined 2 existing features as Labs: Browser CDP capture (`browser_cdp` in `jarvis/core/app.py`) and TShark live packet capture (`tshark_capture` in `jarvis/security/scanner.py`).
-   - When Labs is disabled, execution returns `ActionResult(status=ActionStatus.LABS_DISABLED, code="LABS_FEATURE_DISABLED", success=False, retryable=False)`.
-   - Forensic audit and peer review verified elimination of all simulated facades and bypass backdoors. 17 unit tests and 36 adversarial concurrency tests passing.
+## 1. Observation
+- The user requested closing all completable Product Beta acceptance gates for JARVIS v5.2.0 (Phase 3: R9–R14) with strict adherence to `AGENTS.md §2` Anti-Fabrication Principle, full unit test validation, and synchronized Git documentation release.
+- **R9 (Credential Registry)**: Created `docs/credentials_registry.md` cataloguing all 12 external connectors with 3-tier secret resolution hierarchy (Windows Credential Manager / env / fail-closed default), exact rotation policies, and concrete backup/recovery procedures with exactly 0 "TBD" placeholders.
+- **R10 (Risk Register)**: Created `docs/risk_register.md` cataloguing 0 open code P0s, 6 operational P1s with mitigation paths, and exhaustively characterizing the 5 known hardware-blocked acceptance gates.
+- **R11 (TShark Live Evidence)**: Evaluated Wireshark/TShark 4.6.8 on host (`C:\Program Files\Wireshark\tshark.exe`). Verified missing kernel Npcap driver (`wpcap.dll`). Live capture probe exited with code 1; `PacketCapture` returned fail-closed `NO_TSHARK_OUTPUT` with 0 packets. Correctly and truthfully categorized as `HARDWARE_BLOCKED (KERNEL_DRIVER_PENDING)` in `docs/eval/tshark_live_evidence_v2.md` with zero synthetic packet fabrication.
+- **R12 (Browser E2E Real Chromium Evidence)**: Executed Playwright E2E suite against real headless Chromium (`JARVIS_RUN_BROWSER_E2E=1`): 21 passed / 0 failed / 0 skipped in 45.38s. Certified as `PASS runtime` in `docs/eval/browser_e2e_evidence_v2.md`.
+- **R13 (Workflow Acceptance Benchmark)**: Implemented `tests/benchmarks/test_workflow_acceptance_benchmark.py` testing 10 representative workflows x 20 trials (200 trials total). Achieved 100.00% pass rate (200 passed / 0 failed, avg latency 0.105ms, P50 0.032ms), documented in `docs/eval/workflow_benchmark.md`.
+- **R14 (Documentation Sync & Release)**: Synchronized `docs/BETA_GO_REPORT.md` §5 table, `CHANGELOG.md` (`[5.2.0-phase3]`), `README.md`, `docs/ROADMAP.md`. Baseline test suite of 2,424 unit tests confirmed passing with 0 failures and 0 regressions. Git commit `27000c9` pushed to `origin/main`.
+- **Independent Victory Audit**: Spawned `victory_auditor_10` in blocking mode. The auditor independently verified timeline, anti-fabrication invariants, and test executions, delivering a formal verdict of **VICTORY CONFIRMED**.
 
-3. **R7 (Empirical Runtime Evidence Portfolio — `docs/eval/`)**:
-   - `docs/eval/tshark_live_evidence.md`: Live host inspection confirmed `tshark.exe` not present in PATH; recorded fail-closed contract `status="TOOL_NOT_FOUND"`, `packet_count=0`, with zero fabricated packet proportions.
-   - `docs/eval/browser_e2e_evidence.md`: Verified pre-cached Chromium revision 1234 on host; catalogued 21 browser E2E test seams protected by opt-in flag `JARVIS_RUN_BROWSER_E2E=1` against loopback fixtures.
-   - `docs/eval/imap_live_evidence.md`: Verified live IMAP credentials not configured in environment; documented authentic `PENDING_CREDENTIALS` and fail-closed `IMAPNotConfiguredError` per Anti-Fabrication protocol.
-   - `docs/eval/ha_evidence.md`: Executed genuine HTTP probes to `homeassistant.local:8123` and `localhost:8123`; recorded standard `UNAVAILABLE` health state.
-   - `docs/eval/installer_evidence.md`: Inspected GitHub Release artifact for v5.2.0 (Run ID `35131932816`), verifying internal version string `5.2.0`, Authenticode digital signature, and SHA-256 digest `9a5ffbeff399c55d045d4719bbd0a7a3b759a85012581c742337d451ff65d4bb`.
+---
 
-4. **R8 (Master Beta GO Report & Repository Synchronization — `docs/BETA_GO_REPORT.md`)**:
-   - Master 320-line comprehensive report published covering all 8 technical blockers (R1–R8) with initial root causes, applied engineering solutions, empirical test counts, and operational boundaries.
-   - Official Release Verdict: **`CONDITIONAL GO / BETA GO`** (Production Beta v1 authorized for Windows 11/10 64-bit).
-   - Synchronized `CHANGELOG.md` with detailed `[5.2.0]` entry, aligned `README.md` to `5.2.0`, and marked Phase G items DONE in `docs/ROADMAP.md`.
-   - Full regression test suite: **2,383+ passed, 0 failures, 0 regressions** (exceeding baseline 2,367).
+## 2. Logic Chain
+1. **User Request Intake**: Appended user instructions to `.agents/ORIGINAL_REQUEST.md` and `ORIGINAL_REQUEST.md`.
+2. **Task Routing**: Routed task to General path (`teamwork_preview_orchestrator`) per Routing Decision Table.
+3. **Orchestration Execution**: Dispatched `teamwork_preview_orchestrator_8` and established sentinel monitoring crons (Progress Reporting `*/8` and Liveness Check `*/10`). Orchestrator deployed 3 Explorers (Survey), 4 Workers (Implementation & Sync), 2 Reviewers, 1 Challenger, and 1 Forensic Auditor.
+4. **Independent Post-Victory Verification**: Upon orchestrator victory claim, sentinel refused to accept the claim at face value and dispatched `victory_auditor_10` with zero shared context.
+5. **Audit Certification**: Independent Victory Auditor executed independent test suites and forensic scans, returning `VICTORY CONFIRMED`.
+6. **Release Finalization**: Changes committed (`27000c9`) and pushed to `origin/main`.
+7. **Sentinel Cleanup**: Cancelled background crons (task-30, task-32) and terminated subagents (`kill_all`).
 
-5. **Independent Victory Audit**:
-   - Independent audit executed by `teamwork_preview_victory_auditor` (`victory_auditor_9`, conversationId: `1fc8a8e7-173b-4cd4-930b-94729850980d`).
-   - Verified Phase 1 (Timeline & Provenance: PASS), Phase 2 (Anti-Cheating & Forensic Code Inspection: PASS, 0 dummy facades, 0 backdoors), Phase 3 (Independent Test Execution: PASS, 2,383+ passed, 0 failures, 0 regressions).
-   - Official Verdict: **VICTORY CONFIRMED**.
+---
 
-## Logic Chain
-- User request evaluated: General route selected per Routing Decision Table and dispatched to `teamwork_preview_orchestrator` (`teamwork_preview_orchestrator_7`).
-- Orchestrator decomposed work into Milestones M1 (R5), M2 (R6), M3 (R7), M4 (R8), maintaining `progress.md` and active crons.
-- When initial M2 audit identified simulated facades and backdoor fallbacks, orchestrator rejected the gate and ran an adversarial remediation loop (`worker_m2_2`), resulting in a clean re-audit.
-- All 5 runtime evidence documents compiled from genuine host telemetry.
-- Orchestrator reported victory; Sentinel enforced mandatory blocking independent Victory Audit (`victory_auditor_9`).
-- Victory Auditor certified all criteria with **VICTORY CONFIRMED**.
+## 3. Caveats & Hardware-Blocked Items
+In accordance with `AGENTS.md §2` and `AGENTS.md §5`, 5 gates remain documented as hardware-blocked and are NOT claimed as live runtime passes:
+1. **TShark Packet Capture (`R11`)**: Wireshark installed; live capture blocked on interactive UAC installation of Npcap kernel driver. Status: `HARDWARE_BLOCKED (KERNEL_DRIVER_PENDING)`.
+2. **Home Assistant Write Path**: No local Home Assistant instance at `http://homeassistant.local:8123`. Status: `UNAVAILABLE`.
+3. **IMAP Live Tests**: Requires real user mailbox credentials (`JARVIS_RUN_LIVE_IMAP_TESTS=1`). Status: `PENDING_CREDENTIALS`.
+4. **Clean-Machine VM Install**: Requires provisioning a vanilla Windows 11 VM. Status: `CI_SIGNATURE_ONLY / PRODUCTION_TRUST_PENDING`.
+5. **Human Voice Acceptance (H-13)**: Requires physical human tester speaking 50 utterances per protocol in `docs/eval/beta_voice_50_live_acceptance_protocol.md`. Status: `PENDING_HUMAN_EXECUTION`.
 
-## Caveats
-- Host environments lacking TShark or Home Assistant operate under their verified fail-closed contracts (`TOOL_NOT_FOUND` / `UNAVAILABLE`).
-- Browser E2E tests are gated by `JARVIS_RUN_BROWSER_E2E=1` to prevent CI hanging in headless environments without display drivers.
-- Live IMAP tests require user to populate `JARVIS_RUN_LIVE_IMAP_TESTS=1` and credentials in `.env`.
+---
 
-## Conclusion
-All 8 technical blockers (R1 through R8) for JARVIS v5.2.0 are resolved, verified, documented, and certified by independent audit. The system is officially in **Beta GO** status.
+## 4. Conclusion
+- Current operational posture: **`CONDITIONAL GO / BETA GO (Production Beta v1 Authorized for Internal Pilot)`**.
+- All completable Phase 3 gates (R9, R10, R12, R13, R14) are fully closed.
+- R11 is empirically verified on host and truthfully documented without fabrication.
+- 100% of unit tests (2,424 tests) and benchmark trials (200 trials) pass with 0 regressions.
+- Changes committed and pushed to `main` branch.
 
-## Verification Method
-- Independent Victory Audit: `d:\Software GitCode\JARVIS\.agents\victory_auditor_9\handoff.md` (`VICTORY CONFIRMED`).
-- Full Unit Regression Suite: `pytest tests/unit/` -> 2,383+ passed, 0 failures, 0 regressions.
-- Milestone Targeted Suites:
-  * Discord: `pytest tests/unit/test_discord_controller.py tests/test_adversarial_m1_*.py` -> 64/64 + 42/42 passed.
-  * Labs: `pytest tests/unit/test_labs_feature_flag.py tests/test_adversarial_m2_*.py` -> 17/17 + 36/36 passed.
-  * Evidence: 5 forensic markdown files in `docs/eval/`.
-  * Master Report: `docs/BETA_GO_REPORT.md` (320 lines, complete matrix).
+---
+
+## 5. Verification Method
+- Independent Victory Auditor verdict: `VICTORY CONFIRMED` (see `.agents/victory_auditor_10/audit_report.md`).
+- Unit test execution: `pytest tests/unit/ -q --tb=short` -> 2,424 passed in 38.45s.
+- Benchmark suite execution: `pytest tests/benchmarks/test_workflow_acceptance_benchmark.py` -> 11 passed (200 trials) in 0.40s.
+- Browser E2E execution: `pytest tests/e2e/test_browser_playwright_e2e.py` -> 21 passed in 45.38s.
+- Git release status: Commit `27000c9` verified on `origin/main` (`git status` clean).

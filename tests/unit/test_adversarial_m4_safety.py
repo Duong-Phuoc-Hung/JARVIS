@@ -207,7 +207,6 @@ class TestTokenVerificationSecurityFailClosed(unittest.TestCase):
                 self.assertEqual(res.error_code, "CONFIRMATION_UNKNOWN_TOKEN")
                 self.assertEqual(self.executed_actions, [])
 
-    @unittest.expectedFailure
     def test_replay_defense_case_variation(self) -> None:
         """
         Adversarial scenario: Attacker tries to replay a consumed token by altering its case

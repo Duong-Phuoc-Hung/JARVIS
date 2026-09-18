@@ -306,11 +306,12 @@ class SafetyGateInterceptor:
         "NOT_CONFIRMED", "ACTION_MISMATCH", "PAYLOAD_MISMATCH".
         """
         with self._verify_lock:
+            norm_token = token.strip().upper() if isinstance(token, str) else str(token)
             entry = self.safety_gate.get_pending(token)
             if not entry:
                 return False, "UNKNOWN_TOKEN"
 
-            if token in self._consumed_tokens:
+            if norm_token in self._consumed_tokens:
                 return False, "ALREADY_CONSUMED"
 
             if entry.is_expired and entry.status == "PENDING":
@@ -329,7 +330,7 @@ class SafetyGateInterceptor:
             if stored.get("parameters") != parameters:
                 return False, "PAYLOAD_MISMATCH"
 
-            self._consumed_tokens.add(token)
+            self._consumed_tokens.add(norm_token)
             return True, "OK"
 
     def confirm(self, token: str) -> bool:

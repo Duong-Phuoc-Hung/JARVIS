@@ -1018,3 +1018,232 @@ After R9–R13 are complete:
 
 ---
 *This is a full multi-part project (R9–R14 are distinct workstreams, some parallelizable). Voice H-13, HA live, and clean-machine are explicitly out of scope — document them precisely, do not attempt to fake them.*
+
+## 2026-09-17T20:37:06Z
+
+JARVIS v5.2.0 is a Windows desktop AI assistant at `CONDITIONAL GO — Internal Beta Pilot Only` (`HEAD` `7d15f97`, `origin/main`). Phase 3 acceptance gates (R9–R14) are complete. This session executes the remaining sprint items from `docs/ROADMAP.md` §BACKLOG (Sprint 2 + 3) to advance toward Product Beta GO.
+
+Working directory: `d:\Software GitCode\JARVIS`
+Integrity mode: benchmark
+
+**Anti-Fabrication Constraint (AGENTS.md §2, mandatory):**
+- Every evidence item must come from a real process on this host machine
+- `PENDING_CREDENTIALS` / `TOOL_NOT_FOUND` / `UNAVAILABLE` are valid truthful states — never overstate
+- Hardware-blocked items: document the exact error, do NOT fabricate success
+- Run actual commands and capture real stdout/stderr/exit codes
+
+**Current HEAD**: `7d15f97` — all 2,424 unit tests pass, 0 failures
+
+---
+
+## Requirements
+
+### R15. Npcap Install → Close TShark Gate (R-11)
+Attempt to install the Npcap kernel driver (`winget install Npcap.Npcap` or from Npcap's direct winget package). If install succeeds (exit code 0): run a real live capture test through `jarvis/security/scanner.py` and capture the output. Update `docs/eval/tshark_live_evidence_v2.md` with the real result — either `PASS runtime` (packets captured) or `HARDWARE_BLOCKED (UAC_REQUIRED)` if Npcap install requires interactive elevation. No fabricated packets.
+
+### R16. Home Assistant via Docker → Close HA Gate
+Check if Docker Desktop is installed and running (`docker info`). If yes: run `docker pull homeassistant/home-assistant:stable` and start a local HA instance (`docker run -d --name ha-test -p 8123:8123 homeassistant/home-assistant:stable`). Wait for readiness (poll `http://localhost:8123` until HTTP 200 or 200s timeout). If ready: run the HA write-path test in `jarvis/integrations/home_assistant.py` via ActionDispatcher, capture real output. Save evidence as `docs/eval/ha_docker_evidence.md`. If Docker not available: document `DOCKER_NOT_FOUND` truthfully.
+
+### R17. IMAP Live Test → Close IMAP Gate
+Check if IMAP credentials exist in Windows Credential Manager via `jarvis/core/secrets.py` or via config. Run `pytest tests/ -k "imap" --collect-only` to find existing IMAP tests. Set `JARVIS_RUN_LIVE_IMAP_TESTS=1` and run with the SMTP_USER/SMTP_PASSWORD known from D-09 (Gmail IMAP/SMTP). Capture real output. If credentials resolve: save real pytest output as `docs/eval/imap_live_evidence_v2.md` (`PASS runtime` or failure). If missing: document `PENDING_CREDENTIALS` with exact env var needed.
+
+### R18. v5.2.0 Release Build
+Build the `JARVIS_Setup_v5.2.0.exe` installer using the existing Inno Setup script (or PowerShell build script already in the repo). Sign it using the CI Authenticode pipeline (`signtool` or PowerShell `Set-AuthenticodeSignature`). Generate SHA-256 hash. Update `jarvis/__init__.py` version to `5.2.0` if not already. Commit with version bump. Create a git tag `v5.2.0`. Do NOT push the tag or create GitHub Release without verifying the build artifact exists and has a valid SHA-256 hash.
+
+### R19. Router LLM Live Test (P1-04)
+Run N=10 live intent routing tests using the real Gemini API (check if `GEMINI_API_KEY` or `GOOGLE_API_KEY` is configured via Windows Credential Manager or environment). Test 10 diverse Vietnamese intent utterances through `LLMIntentRouter`. Record actual LLM response, classified intent, and routing decision for each. Save as `docs/eval/router_llm_live_evidence.md`. If no API key: document `PENDING_CREDENTIALS`.
+
+### R20. TieredSTT WER Domain Measurement (P2-06)
+Using the existing STT infrastructure (TieredSTTEngine with Whisper Small/Large-v3), run WER (Word Error Rate) measurement across 3 domains: wake-word phrases (N≥30), command utterances (N≥30), free-form Vietnamese (N≥30). Use the existing audio evaluation framework in `tests/eval/` or `docs/eval/stt_eval_independent_summary.md` as a starting reference. Report WER per domain. Save as `docs/eval/tiered_stt_wer_domain.md`. If no audio hardware: use existing pre-recorded WAV files from prior eval runs (N=420 in `tests/eval/`).
+
+### R21. Documentation Sync + Tag + Commit
+After R15–R20:
+1. Update `docs/ROADMAP.md` Phase S status table with actual gate results
+2. Update `CHANGELOG.md` with `[5.2.0-sprint2]` entry
+3. Update `docs/BETA_GO_REPORT.md` §5 pending gates table with new statuses
+4. Run full unit suite: `pytest tests/unit/ -q --tb=short` — record exact count
+5. Commit: `git add -A && git commit -m "feat(release): Sprint 2+3 — R15 TShark, R16 HA Docker, R17 IMAP, R18 v5.2.0 build, R19 Router LLM live, R20 TieredSTT WER"`
+6. Push to `origin/main`
+7. If R18 build succeeded: `git tag v5.2.0 && git push origin v5.2.0`
+
+---
+
+## Acceptance Criteria
+
+### R15 — TShark/Npcap
+- [ ] `winget install Npcap.Npcap` attempted, exit code and output documented
+- [ ] `docs/eval/tshark_live_evidence_v2.md` updated with real result
+- [ ] If Npcap installed: real packet capture with `packet_count > 0` documented
+- [ ] If UAC-blocked: exact error and remediation steps documented
+- [ ] Zero fabricated packet counts
+
+### R16 — HA Docker
+- [ ] `docker info` output documented (available/not available)
+- [ ] If Docker available: HA container started, HTTP probe result documented
+- [ ] If HA ready: real write-path test result captured via ActionDispatcher
+- [ ] `docs/eval/ha_docker_evidence.md` created with real output
+- [ ] If Docker unavailable: `DOCKER_NOT_FOUND` documented with remediation
+
+### R17 — IMAP Live
+- [ ] Credential resolution attempt documented (Credential Manager + env)
+- [ ] `JARVIS_RUN_LIVE_IMAP_TESTS=1 pytest` attempted with real result
+- [ ] `docs/eval/imap_live_evidence_v2.md` created
+- [ ] If PASS: real email fetched, `em.sender` and `em.subject` logged (no body content)
+- [ ] If PENDING_CREDENTIALS: exact missing env vars documented
+
+### R18 — Release Build
+- [ ] `jarvis/__version__` is `5.2.0`
+- [ ] Installer build attempted (Inno Setup or equivalent)
+- [ ] SHA-256 hash of installer documented
+- [ ] Git tag `v5.2.0` created (if build succeeded)
+- [ ] If build fails: exact error documented, no fake artifact
+
+### R19 — Router LLM Live
+- [ ] API key resolution attempt documented
+- [ ] If key available: 10 real LLM routing results with intent + confidence
+- [ ] `docs/eval/router_llm_live_evidence.md` created
+- [ ] If no key: `PENDING_CREDENTIALS` documented
+
+### R20 — TieredSTT WER
+- [ ] WER measured for ≥3 domains using real audio files or recorded corpus
+- [ ] WER per domain reported (not estimated)
+- [ ] `docs/eval/tiered_stt_wer_domain.md` created with real numbers
+- [ ] Methodology documented (which model, which audio files, N count)
+
+### R21 — Docs + Release
+- [ ] `CHANGELOG.md` updated with Sprint 2+3 entry
+- [ ] `docs/ROADMAP.md` updated with real gate statuses
+- [ ] Full unit suite exit code 0, exact count documented
+- [ ] Git commit pushed to `origin/main`
+- [ ] If R18 build succeeded: `v5.2.0` tag pushed
+
+---
+
+## Verification Resources
+
+- Current `HEAD`: `7d15f97` on `main`
+- ROADMAP Sprint plan: `docs/ROADMAP.md` §BACKLOG P0–P3 + Sprint plan
+- Existing STT eval corpus: `tests/eval/` (WAV files from N=420 evaluation)
+- Existing HA client: `jarvis/integrations/home_assistant.py`
+- Existing IMAP client: `jarvis/comms/email_imap.py` (`fetch_unread()` → `list[EmailMessage]`)
+- Existing Router: check `jarvis/` for LLMIntentRouter implementation
+- AGENTS.md §2 Anti-Fabrication is the governing standard for all evidence
+- Hardware-blocked items (document honestly, do NOT fake): HA without Docker, IMAP without credentials, Npcap requiring UAC
+
+---
+*Full multi-part project with 7 requirements. Some may be hardware-blocked — document truthfully. Priority order: R21 docs sync must run last; R15–R20 can run in parallel.*
+
+## 2026-09-18T09:40:57Z
+
+<USER_REQUEST>
+JARVIS v5.2.0 is a Windows desktop AI assistant. The previous Phase 4 teamwork session was killed by a server restart before completing R21 (commit + docs sync). All Phase 4 evidence files exist on disk but are uncommitted. This session must:
+1. Complete R21 (commit all Phase 4 evidence + docs sync)
+2. Attempt to start Docker Desktop daemon and re-run HA test
+3. Check Windows Credential Manager for Gemini API key
+4. Create GitHub Release v5.2.0 with installer
+5. Update all docs with accurate final status
+
+Working directory: `d:\Software GitCode\JARVIS`
+Integrity mode: benchmark
+
+**Anti-Fabrication Constraint (AGENTS.md §2 + §5, mandatory):**
+- Every gate result must be from a real process on this host machine
+- PENDING_CREDENTIALS / HARDWARE_BLOCKED / DOCKER_NOT_RUNNING are valid truthful states
+- Never overstate or fabricate success
+- Run actual commands, capture real stdout/stderr/exit codes
+
+**Current HEAD**: `7d15f97` — Phase 4 work is uncommitted (git status shows ~10 untracked/modified files)
+
+---
+
+## Phase 4 Context (what was done before restart)
+
+The following files exist on disk but are NOT yet committed:
+- `docs/eval/ha_docker_evidence.md` — Docker CLI 29.5.3 present, daemon was NOT running: `HARDWARE_BLOCKED (DOCKER_NOT_RUNNING)`
+- `docs/eval/imap_live_evidence_v2.md` — **PASS runtime**: live Gmail IMAP auth succeeded, 2 real emails retrieved
+- `docs/eval/router_llm_live_evidence.md` — `PENDING_CREDENTIALS`: Gemini API key not found in env
+- `docs/eval/tiered_stt_wer_domain.md` — Real WER: Command 8.37%, Free-form Vietnamese 3.72%, Combined 5.84%
+- `docs/eval/tshark_live_evidence_v2.md` — modified: `HARDWARE_BLOCKED (UAC_REQUIRED)` for Npcap
+- `scripts/build_installer.py` — modified
+- `scripts/sign_installer_v520.py` — new signing script
+- `tests/eval/run_eval_worker3.py`, `tests/eval/test_wer_domain_challenge.py` — WER test helpers
+- `tests/test_live_infra_evidence.py` — live infra test
+- `docs/superpowers/` — new directory (unknown content from Phase 4)
+- `dist/installer/JARVIS_Setup_v5.2.0.exe` — real Inno Setup build (check if exists with `Test-Path`)
+
+## Requirements
+
+### R22. Complete R21 — Commit Phase 4 Evidence
+Commit all Phase 4 uncommitted work. Before committing:
+1. Run `pytest tests/unit/ -q --tb=short` — record exact pass/fail count. If any failures, fix them first.
+2. Run `git add -A` then commit: `git add -A && git commit -m "feat(sprint2+3): Phase 4 evidence — R15 TShark UAC, R16 HA Docker blocked, R17 IMAP PASS runtime, R18 v5.2.0 build, R19 LLM PENDING, R20 TieredSTT WER 8.37%/3.72%"`
+3. Push to `origin/main`
+
+### R23. Docker Desktop Daemon — Retry HA Gate
+Attempt to start the Docker Desktop service: `Start-Process 'C:\Program Files\Docker\Docker\Docker Desktop.exe' -WindowStyle Hidden`. Wait 60 seconds, then retry `docker info`. If daemon starts successfully: pull `homeassistant/home-assistant:stable`, start container on port 8123, probe `http://localhost:8123`, run the HA write-path test via ActionDispatcher. Update `docs/eval/ha_docker_evidence.md` with real result. If daemon still fails to start: document the exact error and keep `HARDWARE_BLOCKED`.
+
+### R24. Gemini API Key via Windows Credential Manager
+Check Windows Credential Manager for stored Gemini/Google API keys: run `cmdkey /list | Select-String -Pattern 'gemini|google|GOOGLE|GEMINI|API'`. Also check `jarvis/core/secrets.py` for how the app loads API keys. If found: run N=10 Router LLM live test with real Gemini API. Update `docs/eval/router_llm_live_evidence.md` with real routing results. If not found: document `PENDING_CREDENTIALS` with exact key name needed.
+
+### R25. GitHub Release v5.2.0
+If `dist/installer/JARVIS_Setup_v5.2.0.exe` exists (verify with `Test-Path`):
+1. Compute SHA-256: `(Get-FileHash 'dist\installer\JARVIS_Setup_v5.2.0.exe' -Algorithm SHA256).Hash`
+2. Create git tag: `git tag v5.2.0` (if not already exists: check with `git tag -l v5.2.0`)
+3. Push tag: `git push origin v5.2.0`
+4. Create GitHub Release using `gh release create v5.2.0 dist/installer/JARVIS_Setup_v5.2.0.exe --title "JARVIS v5.2.0 — Internal Beta" --notes "$(Get-Content docs/BETA_GO_REPORT.md | Select-Object -First 30 | Out-String)"`
+5. Document release URL and SHA-256 in `docs/eval/release_v520_evidence.md`
+If installer not found: document `BUILD_ARTIFACT_MISSING`.
+
+### R26. Final Documentation Sync
+After R22–R25:
+1. Update `docs/BETA_GO_REPORT.md` §5 Pending Acceptance Gates table with Phase 4 real results:
+   - R-11 TShark: `HARDWARE_BLOCKED (UAC_REQUIRED)` — Npcap driver requires interactive UAC elevation
+   - R-16 HA Docker: result from R23 (PASS runtime if Docker started, otherwise HARDWARE_BLOCKED)
+   - R-17 IMAP: `PASS runtime` — Gmail IMAP live, 2 emails retrieved
+   - R-18 v5.2.0 Build: `PASS` — Inno Setup + Authenticode + SHA-256 documented
+   - R-19 Router LLM: result from R24
+   - R-20 TieredSTT WER: `PASS runtime` — Command 8.37%, Free-form VN 3.72%
+2. Add `[5.2.0-phase4]` entry to `CHANGELOG.md`
+3. Update `docs/ROADMAP.md` Phase S status table
+4. Run full unit suite again after all changes: `pytest tests/unit/ -q --tb=short` — record exact count
+5. Commit final docs: `git add -A && git commit -m "docs(phase4): final sync — Phase 4 gate status, ROADMAP update, CHANGELOG 5.2.0-phase4"`
+6. Push to `origin/main`
+
+## Acceptance Criteria
+
+### R22 — Phase 4 Commit
+- [ ] `pytest tests/unit/ -q` exits 0 before commit
+- [ ] All Phase 4 evidence files committed (`git log --name-only HEAD` lists them)
+- [ ] Commit pushed to `origin/main`
+- [ ] Exact test count documented
+
+### R23 — HA Docker Retry
+- [ ] `Start-Process Docker Desktop` attempted, result documented
+- [ ] `docker info` output after 60s documented (running/not running)
+- [ ] `docs/eval/ha_docker_evidence.md` updated with real retry result
+- [ ] If HA ready: real ActionDispatcher write-path test result
+- [ ] Zero fabricated HA responses
+
+### R24 — Router LLM Credential Manager
+- [ ] `cmdkey /list` output documented
+- [ ] Credential Manager search result documented
+- [ ] `docs/eval/router_llm_live_evidence.md` updated with real result
+- [ ] If PASS: 10 real routing results with intent labels
+- [ ] If PENDING: exact credential name documented
+
+### R25 — GitHub Release
+- [ ] `dist/installer/JARVIS_Setup_v5.2.0.exe` existence verified with real `Test-Path`
+- [ ] SHA-256 computed with real `Get-FileHash`
+- [ ] Git tag `v5.2.0` created and pushed (or already exists — document)
+- [ ] `gh release create` attempted, URL documented
+- [ ] `docs/eval/release_v520_evidence.md` created
+
+### R26 — Final Docs
+- [ ] `docs/BETA_GO_REPORT.md` §5 updated with Phase 4 gate statuses
+- [ ] `CHANGELOG.md` updated with `[5.2.0-phase4]`
+- [ ] `docs/ROADMAP.md` updated
+- [ ] Full unit suite passes with exact count documented
+- [ ] Final commit pushed to `origin/main`
+</USER_REQUEST>
+
+

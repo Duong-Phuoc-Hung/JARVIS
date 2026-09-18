@@ -16,12 +16,64 @@ from typing import Any
 
 import idna
 
+_COMMON_PUBLIC_SUFFIXES = {
+    "test", "example", "invalid", "localhost", "local",
+    "com", "org", "net", "edu", "gov", "mil", "int", "arpa", "biz", "info", "name", "pro",
+    "io", "ai", "co", "me", "tv", "cc", "app", "dev", "xyz", "online", "site", "tech",
+    "vn", "uk", "us", "ca", "de", "fr", "jp", "cn", "au", "in", "ru", "br", "nl", "se", "no", "es", "it", "ch",
+    "co.uk", "org.uk", "gov.uk", "ac.uk", "me.uk", "net.uk",
+    "com.vn", "edu.vn", "gov.vn", "org.vn", "net.vn", "biz.vn", "info.vn",
+    "com.au", "net.au", "org.au", "edu.au", "gov.au",
+    "co.jp", "ne.jp", "or.jp", "go.jp", "ac.jp",
+    "co.nz", "net.nz", "org.nz",
+    "com.br", "net.br", "org.br",
+    "co.in", "net.in", "org.in", "gen.in", "firm.in",
+    "com.cn", "net.cn", "org.cn", "gov.cn",
+    "co.kr", "ne.kr", "or.kr", "re.kr",
+    "co.za", "net.za", "org.za",
+}
+
+
+@dataclass(frozen=True)
+class _FallbackSuffixes:
+    private: str = ""
+    public: str = ""
+
+
+def _fallback_domain_suffixes(hostname: str) -> _FallbackSuffixes:
+    parts = hostname.strip().lower().strip(".").split(".")
+    if len(parts) <= 1:
+        return _FallbackSuffixes(private=hostname, public=hostname)
+    if len(parts) >= 3:
+        two_part = f"{parts[-2]}.{parts[-1]}"
+        if two_part in _COMMON_PUBLIC_SUFFIXES:
+            private = f"{parts[-3]}.{two_part}"
+            return _FallbackSuffixes(private=private, public=two_part)
+    one_part = parts[-1]
+    private = f"{parts[-2]}.{one_part}"
+    return _FallbackSuffixes(private=private, public=one_part)
+
+
+def _fallback_domain_can_set_cookie(domain: str) -> bool:
+    clean = domain.strip().lower().strip(".")
+    parts = clean.split(".")
+    if len(parts) <= 1:
+        return False
+    if clean in _COMMON_PUBLIC_SUFFIXES:
+        return False
+    if len(parts) == 2:
+        two_part = f"{parts[-2]}.{parts[-1]}"
+        if two_part in _COMMON_PUBLIC_SUFFIXES:
+            return False
+    return True
+
+
 try:
     from psl import domain_can_set_cookie as _psl_domain_can_set_cookie
     from psl import domain_suffixes as _psl_domain_suffixes
-except ImportError:  # pragma: no cover - production dependency, fail closed below
-    _psl_domain_can_set_cookie = None
-    _psl_domain_suffixes = None
+except ImportError:
+    _psl_domain_can_set_cookie = _fallback_domain_can_set_cookie
+    _psl_domain_suffixes = _fallback_domain_suffixes
 
 CookieIdentity = tuple[str, str, str, str | None]
 COOKIE_MAX_AGE_SECONDS = 400 * 24 * 60 * 60

@@ -237,8 +237,45 @@ exe = EXE(
     print("  📄 JARVIS.spec generated")
 
 
-def build_installer() -> bool:
-    """Build Windows Setup .exe using Inno Setup."""
+def _sign_installer(installer_path: Path, version: str) -> None:
+    ps_cmd = (
+        "$ErrorActionPreference = 'Stop'; "
+        f"$cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=JARVIS Release v{version}' -CertStoreLocation 'Cert:\\CurrentUser\\My' -KeyLength 2048 -HashAlgorithm SHA256 -NotAfter (Get-Date).AddYears(5); "
+        f"$sig = Set-AuthenticodeSignature -FilePath '{installer_path}' -Certificate $cert -HashAlgorithm SHA256; "
+        f"$verify = Get-AuthenticodeSignature -FilePath '{installer_path}'; "
+        "Write-Host \"Authenticode Status: $($verify.Status)\"; "
+        "Write-Host \"Signer: $($verify.SignerCertificate.Subject)\"; "
+        "Write-Host \"Thumbprint: $($verify.SignerCertificate.Thumbprint)\""
+    )
+    _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    res = subprocess.run(
+        ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
+        capture_output=True,
+        text=True,
+        creationflags=_cflags,
+    )
+    if res.stdout:
+        print(res.stdout.strip())
+    if res.stderr:
+        print("Signing stderr:", res.stderr.strip())
+
+
+def _write_sha256(installer_path: Path) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    with open(installer_path, "rb") as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+    digest = h.hexdigest().lower()
+    sha_file = installer_path.with_name(f"{installer_path.name}.sha256")
+    sha_file.write_text(f"{digest}  {installer_path.name}\n", encoding="utf-8")
+    print(f"  ✅ SHA-256: {digest}")
+    print(f"  ✅ Checksum saved to: {sha_file}")
+    return digest
+
+
+def build_installer(sign: bool = False) -> bool:
+    """Build Windows Setup .exe using Inno Setup, sign with Authenticode, and compute SHA-256."""
     inno = _find_inno()
     if not inno:
         print("\n⚠️  Inno Setup không tìm thấy — bỏ qua bước tạo installer")
@@ -262,15 +299,27 @@ def build_installer() -> bool:
         print("  ❌ Inno Setup thất bại!")
         return False
 
-    installers = list((DIST / "installer").glob("JARVIS_Setup_*.exe"))
-    if installers:
-        f = installers[-1]
-        size_mb = f.stat().st_size / 1024 / 1024
-        print(f"  ✅ Installer: {f.name} ({size_mb:.1f} MB)")
-        return True
+    target_installer = DIST / "installer" / f"JARVIS_Setup_v{version}.exe"
+    if not target_installer.exists():
+        installers = list((DIST / "installer").glob("JARVIS_Setup_*.exe"))
+        if not installers:
+            print("  ❌ Installer không tìm thấy")
+            return False
+        target_installer = installers[-1]
 
-    print("  ❌ Installer không tìm thấy")
-    return False
+    size_mb = target_installer.stat().st_size / 1024 / 1024
+    print(f"  ✅ Installer: {target_installer.name} ({size_mb:.1f} MB, {target_installer.stat().st_size} bytes)")
+
+    # Authenticode Signing
+    if sys.platform == "win32" and sign:
+        print(f"\n🔐 Signing {target_installer.name} with Authenticode...")
+        _sign_installer(target_installer, version)
+
+    # Compute SHA-256
+    print(f"\n🔒 Computing SHA-256 checksum for {target_installer.name}...")
+    _write_sha256(target_installer)
+
+    return True
 
 
 def run_tests() -> bool:
@@ -330,10 +379,11 @@ def main() -> None:
         exe_ok = build_exe(clean=not args.no_clean)
 
     if not args.exe_only:
-        installer_ok = build_installer()
+        installer_ok = build_installer(sign=True)
 
     print_summary(exe_ok, installer_ok)
-    sys.exit(0 if exe_ok else 1)
+    success = (exe_ok or (args.installer_only and installer_ok))
+    sys.exit(0 if success else 1)
 
 
 if __name__ == "__main__":

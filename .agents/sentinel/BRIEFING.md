@@ -1,22 +1,22 @@
-# BRIEFING — 2026-09-17T19:21:38Z
+# BRIEFING — 2026-09-18T09:40:57Z
 
 ## Mission
-Advance JARVIS v5.2.0 from CONDITIONAL GO to closing all completable Product Beta acceptance gates (Phase 3: R9 Credential Registry, R10 Risk Register, R11 TShark Live Evidence, R12 Browser E2E Real Chromium Evidence, R13 Workflow Acceptance Benchmark, R14 Documentation Sync & Git push) while adhering strictly to AGENTS.md §2 Anti-Fabrication Principle, verifying with full unit test suite, and conducting independent Victory Audit.
+Execute Phase 4 Recovery and Completion (R22-R26): R22 (Commit Phase 4 uncommitted evidence after unit test verification), R23 (Attempt Docker Desktop daemon start and retry HA gate write-path test), R24 (Check Windows Credential Manager for Gemini API key & run router LLM test if present), R25 (Create GitHub Release v5.2.0 with installer & SHA-256), R26 (Final documentation sync across BETA_GO_REPORT.md, CHANGELOG.md, ROADMAP.md, final unit suite run, and git push), strictly enforcing AGENTS.md §2 & §5 anti-fabrication and obtaining independent Victory Audit certification.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: d:\Software GitCode\JARVIS\.agents\sentinel
-- Orchestrator: 06240ee2-3587-41a5-905b-0c7465df286b (teamwork_preview_orchestrator_8)
-- Victory Auditor: 49e35ae6-cf00-4872-967f-d3a8a694c8a6 (victory_auditor_10)
+- Orchestrator: 06240ee2-3587-41a5-905b-0c7465df286b (teamwork_preview_orchestrator_8, completed)
+- Victory Auditor: 49e35ae6-cf00-4872-967f-d3a8a694c8a6 (victory_auditor_10, completed)
 - Active Orchestrator (Beta v1): teamwork_preview_orchestrator_2 (retired)
 - Active Orchestrator (H-05 Large-v3 Noisy): teamwork_preview_orchestrator_3 (retired)
 - Active Orchestrator (D-14 Code Signing): teamwork_preview_orchestrator_4 (retired)
 - Active Orchestrator (H-10 WASAPI Fallback): teamwork_preview_orchestrator_5 (retired)
 - Active Orchestrator (Beta GO 4 Blockers): teamwork_preview_orchestrator_6 (retired)
 - Active Orchestrator (Beta GO Final R5-R8): teamwork_preview_orchestrator_7 (retired)
-- Active Orchestrator (Beta GO Phase 3 R9-R14): teamwork_preview_orchestrator_8
-- Cron 1 Task ID: cad55dc4-1570-4377-a79c-085c9f6d1678/task-30 (Progress Reporting)
-- Cron 2 Task ID: cad55dc4-1570-4377-a79c-085c9f6d1678/task-32 (Liveness Check)
+- Active Orchestrator (Beta GO Phase 3 R9-R14): teamwork_preview_orchestrator_8 (completed)
+- Active Orchestrator (Sprint 2+3 R15-R21): teamwork_preview_orchestrator_9 (killed by server restart)
+- Active Orchestrator (Phase 4 Recovery R22-R26): teamwork_preview_orchestrator_10 (dispatching)
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
@@ -31,30 +31,35 @@ Advance JARVIS v5.2.0 from CONDITIONAL GO to closing all completable Product Bet
 - Route to teamwork_preview_orchestrator per Routing Decision Table for Beta GO 4 Blockers
 - Route to teamwork_preview_orchestrator per Routing Decision Table for Beta GO Final (R5-R8)
 - Route to teamwork_preview_orchestrator per Routing Decision Table for Phase 3 Acceptance Gates (R9-R14)
+- Route to teamwork_preview_orchestrator per Routing Decision Table for Sprint 2+3 (R15-R21)
+- Route to teamwork_preview_orchestrator per Routing Decision Table for Phase 4 Recovery (R22-R26)
+- Anti-fabrication (AGENTS.md §2 + §5) strictly enforced: every gate result from real process, fail-closed honest reporting
 
 ## User Context
-- **Last user request**: Phase 3 acceptance gates (R9-R14):
-  1. R9: Credential Registry (`docs/credentials_registry.md`) cataloguing every external connector.
-  2. R10: P0/P1 Risk Register (`docs/risk_register.md`) documenting P0s, P1s, and hardware-blocked gates.
-  3. R11: TShark live evidence attempt via winget / verify binary, document real capture or exact blocker output (`docs/eval/tshark_live_evidence_v2.md`).
-  4. R12: Browser E2E real Chromium evidence with `JARVIS_RUN_BROWSER_E2E=1` (`docs/eval/browser_e2e_evidence_v2.md`).
-  5. R13: Workflow Acceptance Benchmark for 10 representative workflows, target >=95% pass rate (`docs/eval/workflow_benchmark.md`).
-  6. R14: Update `docs/BETA_GO_REPORT.md` §5, `CHANGELOG.md` [5.2.0-phase3], `docs/ROADMAP.md`, run unit suite, commit and push to `origin/main`.
+- **Last user request**: Phase 4 Recovery & Completion (R22-R26):
+  1. R22: Complete R21 — Commit Phase 4 uncommitted evidence (run `pytest tests/unit/ -q --tb=short`, git add -A, commit with specified message, push to origin/main).
+  2. R23: Docker Desktop Daemon — Retry HA Gate (Start-Process Docker Desktop, wait 60s, retry `docker info`, pull HA container if up, test write-path, update `docs/eval/ha_docker_evidence.md`).
+  3. R24: Gemini API Key via Windows Credential Manager (`cmdkey /list`, check `jarvis/core/secrets.py`, test router LLM if found, document in `docs/eval/router_llm_live_evidence.md`).
+  4. R25: GitHub Release v5.2.0 (Verify installer, compute SHA-256, create & push git tag `v5.2.0`, create GitHub Release with `gh release create`, document in `docs/eval/release_v520_evidence.md`).
+  5. R26: Final Documentation Sync (Update `docs/BETA_GO_REPORT.md` §5, `CHANGELOG.md` [5.2.0-phase4], `docs/ROADMAP.md`, run full unit suite, commit and push to origin/main).
 - **Pending clarifications**: none
 - **Delivered results**:
-  + Phase 1 (R1-R4) & Phase 2 (R5-R8) complete at commit `88eca25`.
-  + Starting Phase 3 (R9-R14).
+  + Phase 1 (R1-R4), Phase 2 (R5-R8), and Phase 3 (R9-R14) completed, certified, and committed.
+  + Phase 4 evidence files generated on disk prior to server restart.
+  + Phase 4 Recovery (R22-R26) starting.
 
 ## Project Status
-- **Phase**: auditing
+- **Phase**: in progress
 - **Route**: General (teamwork_preview_orchestrator)
-- **Active Orchestrator Dir**: d:\Software GitCode\JARVIS\.agents\teamwork_preview_orchestrator_8
-- **Orchestrator Conversation ID**: 06240ee2-3587-41a5-905b-0c7465df286b
-- **Victory Auditor Dir**: d:\Software GitCode\JARVIS\.agents\victory_auditor_10
-- **Victory Auditor**: 49e35ae6-cf00-4872-967f-d3a8a694c8a6
+- **Active Orchestrator Dir**: d:\Software GitCode\JARVIS\.agents\teamwork_preview_orchestrator_10
+- **Orchestrator Conversation ID**: bf06be1e-1301-4600-9ada-edf4e26549d0
+- **Cron 1 (Progress)**: task-46 (*/8 * * * *)
+- **Cron 2 (Liveness)**: task-48 (*/10 * * * *)
+- **Victory Auditor Dir**: pending
+- **Victory Auditor**: pending
 
 ## Victory Audit Status
-- **Triggered**: yes
+- **Triggered**: no
 - **Verdict**: pending
 - **Retry count**: 0
 
@@ -63,16 +68,13 @@ Advance JARVIS v5.2.0 from CONDITIONAL GO to closing all completable Product Bet
 - d:\Software GitCode\JARVIS\ORIGINAL_REQUEST.md — Authoritative record of user requests (root)
 - d:\Software GitCode\JARVIS\.agents\sentinel\BRIEFING.md — Sentinel persistent briefing
 - d:\Software GitCode\JARVIS\.agents\sentinel\handoff.md — Sentinel handoff report
-- d:\Software GitCode\JARVIS\docs\credentials_registry.md — Credential Registry (R9)
-- d:\Software GitCode\JARVIS\docs\risk_register.md — Risk Register (R10)
-- d:\Software GitCode\JARVIS\docs\eval\tshark_live_evidence_v2.md — TShark live evidence (R11)
-- d:\Software GitCode\JARVIS\docs\eval\browser_e2e_evidence_v2.md — Browser E2E evidence (R12)
-- d:\Software GitCode\JARVIS\docs\eval\workflow_benchmark.md — Workflow acceptance benchmark (R13)
-- d:\Software GitCode\JARVIS\jarvis\comms\discord.py — Discord inbound gateway (R5)
-- d:\Software GitCode\JARVIS\jarvis\core\labs.py — Core/Labs feature flag mechanism (R6)
-- d:\Software GitCode\JARVIS\jarvis\core\config.py — Config manager for Core/Labs (R6)
-- d:\Software GitCode\JARVIS\docs\eval\ — Runtime evidence documents (R7)
-- d:\Software GitCode\JARVIS\docs\BETA_GO_REPORT.md — Comprehensive Beta GO Report (R8)
+- d:\Software GitCode\JARVIS\docs\eval\ha_docker_evidence.md — HA Docker evidence
+- d:\Software GitCode\JARVIS\docs\eval\imap_live_evidence_v2.md — IMAP live evidence
+- d:\Software GitCode\JARVIS\docs\eval\router_llm_live_evidence.md — Router LLM live evidence
+- d:\Software GitCode\JARVIS\docs\eval\tiered_stt_wer_domain.md — Tiered STT WER evidence
+- d:\Software GitCode\JARVIS\docs\eval\tshark_live_evidence_v2.md — TShark live evidence
+- d:\Software GitCode\JARVIS\docs\eval\release_v520_evidence.md — Release v5.2.0 evidence (to be created)
+- d:\Software GitCode\JARVIS\docs\BETA_GO_REPORT.md — Comprehensive Beta GO Report
 - d:\Software GitCode\JARVIS\CHANGELOG.md — Release changelog
-- d:\Software GitCode\JARVIS\README.md — System documentation
 - d:\Software GitCode\JARVIS\docs\ROADMAP.md — Project roadmap
+
