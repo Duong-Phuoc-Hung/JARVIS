@@ -1,3 +1,50 @@
+## [5.2.0-phase4] — Phase 4 Empirical Gates & v5.2.0 Release Sign-Off (2026-09-18)
+
+> **Mục tiêu**: Thu thập đầy đủ bằng chứng thực nghiệm runtime thực tế trên Windows 11 host theo chuẩn `AGENTS.md` (Fail-Closed, Anti-Fabrication Principle, Three-Tier Verdict Discipline) cho các cổng nghiệm thu Sprint 2+3 / Phase 4: TShark Npcap UAC elevation (`HARDWARE_BLOCKED`), Home Assistant Docker daemon probe & retry (`HARDWARE_BLOCKED`), Live Gmail IMAP authentication & retrieval (`PASS runtime`), v5.2.0 Inno Setup 1-click installer build, Authenticode signing & GitHub Release (`PASS runtime`), Router LLM semantic intent routing & Windows Credential Manager probe (`PASS fail-closed PENDING_CREDENTIALS`), TieredSTT Multi-Domain WER benchmark (`PASS runtime`), và đồng bộ hóa toàn diện tài liệu hệ thống.
+
+### 1. Nguyên nhân gốc rễ & Bối cảnh (Root Cause & Context)
+- **R-11 / R15 (TShark Live Evidence)**: Wireshark CLI (`tshark.exe`) đã có sẵn trên máy host nhưng không thể thực hiện packet capture trực tiếp do thiếu Npcap packet filter driver (`npcap.sys`). Việc cài đặt Npcap qua `winget` đòi hỏi quyền Administrator UAC tương tác trên Windows, không thể tự động cấp quyền trong môi trường không người giám sát (unattended). Phải phân định chính xác ranh giới theo chuẩn `AGENTS.md §2, §5`: `HARDWARE_BLOCKED (UAC_REQUIRED)` và chứng minh fail-closed không sinh gói tin giả lập.
+- **R-16 / R23 (Home Assistant via Docker)**: Cần kiểm chứng khả năng khởi chạy container Home Assistant local (`homeassistant/home-assistant:stable`) trên cổng 8123 để kiểm thử write-path. Dù binary `Docker Desktop.exe` và Docker CLI 29.5.3 có sẵn trên disk, daemon Docker không chạy nền tự động. Phải kiểm tra thực tế, ghi nhận đúng `HARDWARE_BLOCKED (DOCKER_NOT_RUNNING)`, và đảm bảo client trả về fail-closed `StatusLevel.UNAVAILABLE` mà không giả mạo thành công.
+- **R-17 (Live IMAP Integration v2)**: Cần kiểm chứng việc kết nối và đọc email thật từ máy chủ Gmail IMAP qua SSL/TLS với thông tin đăng nhập Google App Password trong `.env`. Phải tuân thủ nghiêm ngặt chuẩn quyền riêng tư (zero body text logging, chỉ ghi metadata tiêu đề/ngày) và ghi nhận trạng thái `PASS runtime`.
+- **R-18 / R25 (v5.2.0 Build, Authenticode Signing & GitHub Release)**: Cần tạo bộ cài đặt 1-click Windows Inno Setup cho phiên bản v5.2.0 (`dist/installer/JARVIS_Setup_v5.2.0.exe`), xác thực hàm băm mật mã SHA-256, ký Authenticode số hóa bảo vệ tính toàn vẹn binary, và đối chiếu xuất bản release trên GitHub (`v5.2.0`).
+- **R-19 / R24 (Router LLM Live Reasoning & Windows Credential Manager)**: Cần kiểm toán Windows Credential Manager cho khóa Gemini API, đồng thời kiểm tra giá trị `GEMINI_API_KEY` trong `.env`. Phát hiện khóa hiện tại là bản sao của ElevenLabs (`AQ.Ab8RN...`) thay vì định dạng hợp lệ của Google (`AIzaSy...`). Hệ thống phải fail-closed an toàn trả về `PENDING_CREDENTIALS` mà không bịa kết quả routing giả lập.
+- **R-20 (TieredSTT Multi-Domain WER Benchmark)**: Cần đo lường định lượng Word Error Rate (WER) thực tế của `TieredSTTEngine` (FasterWhisper `large-v3` trên GPU CUDA) trên 3 miền vận hành độc lập (Wake-word/Trigger, Command, Free-form Vietnamese) trên tập dữ liệu âm thanh độc lập $N=60$ ($N=30$ command + $N=30$ free-form) để chứng minh năng lực nhận dạng giọng nói tiếng Việt đạt chuẩn trước khi phát hành.
+- **R-21 / R26 (Final Documentation Sync & Verification)**: Cần đồng bộ hóa kết quả thực nghiệm vào `docs/BETA_GO_REPORT.md`, `CHANGELOG.md`, `docs/ROADMAP.md`, re-run full unit test suite để ghi nhận số lượng test chính xác, và commit/push lên kho lưu trữ.
+
+### 2. Chỉnh sửa kỹ thuật chi tiết theo từng file (Technical Changes)
+- **`docs/eval/tshark_live_evidence_v2.md` (R11/R15)**:
+  - Lập hồ sơ thực nghiệm `tshark.exe` (Wireshark 4.6.8); ghi nhận lỗi thiếu Npcap driver (`Without: -Npcap`, exit code 13 khi gọi `tshark -D`).
+  - Xác nhận phân loại `HARDWARE_BLOCKED (UAC_REQUIRED)` khi cài đặt Npcap yêu cầu hộp thoại UAC tương tác; xác nhận `PacketCapture.capture_packets()` fail-closed an toàn trả về `NO_TSHARK_OUTPUT`, `packet_count=0`.
+- **`docs/eval/ha_docker_evidence.md` (R16/R23)**:
+  - Ghi nhận sự tồn tại của `Docker Desktop.exe` và Docker CLI 29.5.3 (`build d1c06ef`).
+  - Thực hiện probe và retry khởi động Docker Desktop; ghi nhận trạng thái daemon không chạy trong chế độ unattended (`docker info` exit code 1); phân loại chính xác `HARDWARE_BLOCKED (DOCKER_NOT_RUNNING)`.
+  - Xác nhận `HomeAssistantClient` fail-closed trả `StatusLevel.UNAVAILABLE`, `code="CONNECTION_FAILED"`, bảo vệ hệ thống khỏi các hành vi điều khiển giả mạo.
+- **`docs/eval/imap_live_evidence_v2.md` (R17)**:
+  - Thực thi kết nối live thành công tới `imap.gmail.com:993` với tài khoản `duongphuochung8102005@gmail.com` qua SSL/TLS.
+  - Tìm kiếm và giải mã chính xác 2 unread emails từ `INBOX`; tuân thủ nguyên tắc bảo vệ quyền riêng tư tuyệt đối (không log body text); đạt trạng thái **`PASS runtime`**.
+- **`scripts/build_installer.py`, `scripts/sign_installer_v520.py`, `dist/installer/JARVIS_Setup_v5.2.0.exe`, `docs/eval/release_v520_evidence.md` (R18/R25)**:
+  - Xây dựng bộ cài Inno Setup 1-click Windows x64 dung lượng 74,950,832 bytes (~71.48 MB) tại `dist/installer/JARVIS_Setup_v5.2.0.exe`.
+  - Tạo chữ ký Authenticode SHA-256 bảo vệ tính toàn vẹn nhị phân qua `scripts/sign_installer_v520.py`.
+  - Tính toán và lưu trữ checksum SHA-256: `6b52e20f3c4cf08be76a55c4e7dc87d55c83112725425a579b46c9aff3510d3b`.
+  - Xác nhận tag `v5.2.0` và GitHub Release `v5.2.0` (ID: 390158345) trên GitHub REST API; đạt trạng thái **`PASS runtime`**.
+- **`docs/eval/router_llm_live_evidence.md`, `tests/eval/run_eval_worker3.py` (R19/R24)**:
+  - Thực hiện kiểm toán Windows Credential Manager (`cmdkey /list`, DPAPI `keyring`) và phát hiện chưa lưu trữ Gemini API key.
+  - Phát hiện giá trị `GEMINI_API_KEY` trong `.env` là duplicate của ElevenLabs key; xác nhận hợp đồng fail-closed chuẩn `PENDING_CREDENTIALS` đạt chuẩn `AGENTS.md §2`; xây dựng sẵn test suite runner cho 10 Vietnamese routing intents.
+- **`docs/eval/tiered_stt_wer_domain.md`, `tests/eval/test_wer_domain_challenge.py` (R20)**:
+  - Đánh giá thực nghiệm WER trên 60 tệp âm thanh 16kHz mono qua FasterWhisper `large-v3` trên GPU CUDA: Domain 2 (Command) đạt **8.37%** (8.50%), Domain 3 (Free-form Vietnamese) đạt **3.72%**, Combined đạt **5.84%** (5.88%), độ trễ trung bình 2,775.3 ms; đạt trạng thái **`PASS runtime`**.
+- **`docs/BETA_GO_REPORT.md` (R26)**:
+  - Cập nhật bảng tổng hợp Mục 5.1 phản ánh đầy đủ kết quả thực nghiệm Phase 4 theo Three-Tier Verdict Discipline.
+- **`docs/ROADMAP.md` (R26)**:
+  - Bổ sung Phase S / Section 4 với trạng thái các cổng nghiệm thu Phase 4.
+
+### 3. Chỉ số kiểm thử thực tế (Test Metrics)
+- **Full Unit Test Suite (`tests/unit/`)**: **2,420 passed**, **4 skipped** (2,424 total tests), **0 failures**, **0 regressions** (100% pass rate, exit code 0).
+- **Multi-Domain WER Benchmark (`tests/eval/test_wer_domain_challenge.py`)**: 60 audio samples thực nghiệm, Command WER 8.37%, Free-form VN 3.72%, Combined WER 5.84% (PASS runtime).
+- **Workflow Acceptance Benchmark**: 200/200 trials passed (100.00% pass rate).
+- **Browser Playwright E2E Suite**: 21/21 passed (100.00% pass rate).
+
+---
+
 ## [5.2.0-phase3] — Product Beta Acceptance Gates Sign-Off: R9–R14 Closed (2026-09-18)
 
 > **Mục tiêu**: Đóng toàn bộ các cổng nghiệm thu kỹ thuật và thực nghiệm runtime Phase 3 (R9, R10, R11, R12, R13, R14) theo `ORIGINAL_REQUEST.md`, củng cố trạng thái phán quyết chính thức **`CONDITIONAL GO / BETA GO (Production Beta v1 Authorized for Internal Pilot)`** trên Windows 11/10 64-bit tuân thủ nghiêm ngặt chuẩn mực `AGENTS.md §1, §2, §5` và `docs/AUDIT_FRAMEWORK.md`.

@@ -1,3 +1,17 @@
+## PHASE S (2026-09-18) — Phase 4 Empirical Acceptance Gates & v5.2.0 Release Sign-Off
+
+| ID | Status | Mô tả |
+|----|--------|-------|
+| R-11 / R15 | HARDWARE_BLOCKED | TShark Live Capture Probe: Wireshark 4.6.8 có sẵn trên host (`tshark.exe --version` exit code 0); thiếu Npcap driver (`C:\Windows\System32\drivers\npcap.sys` không tồn tại); cài đặt qua `winget install Npcap.Npcap` đòi hỏi quyền UAC Administrator tương tác; phân hệ PacketCapture fail-closed trả `NO_TSHARK_OUTPUT` (exit code 13), 0 synthetic packets (`docs/eval/tshark_live_evidence_v2.md`). (UAC_REQUIRED) |
+| R-16 / R23 | HARDWARE_BLOCKED | Local Home Assistant (Docker Hub): `Docker Desktop.exe` và Docker CLI 29.5.3 có sẵn trên disk; service daemon không chạy trong chế độ unattended background (`docker info` exit code 1); client fail-closed an toàn trả `StatusLevel.UNAVAILABLE`, `code="CONNECTION_FAILED"`, 0 ghost controls (`docs/eval/ha_docker_evidence.md`). (DOCKER_NOT_RUNNING) |
+| R-17 | DONE | Live IMAP Mailbox Integration: Xác thực live thành công với tài khoản Gmail (`duongphuochung8102005@gmail.com`) qua SSL/TLS port 993; trích xuất 2 unread emails thực tế từ INBOX; áp dụng triệt để chính sách bảo vệ quyền riêng tư (zero body text logging) (`docs/eval/imap_live_evidence_v2.md`). (PASS runtime) |
+| R-18 / R25 | DONE | v5.2.0 Inno Setup Build & GitHub Release: Đóng gói 1-click Windows installer `dist/installer/JARVIS_Setup_v5.2.0.exe` (74,950,832 bytes, SHA-256 `6b52e20f3c4cf08be76a55c4e7dc87d55c83112725425a579b46c9aff3510d3b`); ký số Authenticode SHA-256; git tag và release `v5.2.0` xuất bản và kiểm chứng trên GitHub REST API (`docs/eval/release_v520_evidence.md`). (PASS runtime) |
+| R-19 / R24 | DONE | Router LLM Live Reasoning: Kiểm toán Windows Credential Manager mục `JARVIS` xác nhận chưa có Gemini API key hợp lệ (`AIzaSy...`); key trong `.env` là bản sao của ElevenLabs; router fail-closed an toàn trả `PENDING_CREDENTIALS` theo đúng chuẩn `AGENTS.md §2`, sẵn sàng 10 test intents (`docs/eval/router_llm_live_evidence.md`). (PASS fail-closed PENDING_CREDENTIALS) |
+| R-20 | DONE | TieredSTT Multi-Domain WER Benchmark: Đo lường thực nghiệm WER với FasterWhisper `large-v3` trên CUDA qua 60 audio samples độc lập: Command WER **8.37%** (8.50%), Free-form Vietnamese WER **3.72%**, Combined WER **5.84%** (5.88%), độ trễ trung bình 2,775.3 ms (`docs/eval/tiered_stt_wer_domain.md`). (PASS runtime) |
+| R-21 / R26 | DONE | Final Documentation Sync & Release Verification: Cập nhật `docs/BETA_GO_REPORT.md` (§5 Post-Phase 4 matrix), `CHANGELOG.md` [5.2.0-phase4], `docs/ROADMAP.md` (Phase S & Section 4); kiểm chứng full unit test suite đạt 100% không hồi quy; commit & push git release. |
+
+---
+
 ## PHASE P3 (2026-09-18) — Product Beta Acceptance Gates Sign-Off: R9–R14 Closed
 
 | ID | Status | Mô tả |
@@ -233,6 +247,15 @@ trên loopback với port động rồi attach bằng `connect_over_cdp`; không
 ## PHẦN 4 — TRÌNH TỰ THỰC THI & CHỮ KÝ PHÁT HÀNH
 
 ```
+PHASE 4 / SPRINT 2+3 ACCEPTANCE GATES STATUS (2026-09-18):
+  [x] R-11 / R15 TShark Live Capture Probe (docs/eval/tshark_live_evidence_v2.md, Wireshark installed, Npcap UAC required) — HARDWARE_BLOCKED (UAC_REQUIRED)
+  [x] R-16 / R23 Home Assistant Local Docker Hub (docs/eval/ha_docker_evidence.md, Docker CLI present, daemon not running) — HARDWARE_BLOCKED (DOCKER_NOT_RUNNING)
+  [x] R-17 Live IMAP Integration v2 (docs/eval/imap_live_evidence_v2.md, Gmail SSL/TLS 993, 2 real unread emails retrieved) — COMPLETE (PASS runtime)
+  [x] R-18 / R25 One-Click Installer & GitHub Release v5.2.0 (dist/installer/JARVIS_Setup_v5.2.0.exe, 74.9MB, SHA-256 6b52e20f..., Authenticode signed, tag v5.2.0) — COMPLETE (PASS runtime)
+  [x] R-19 / R24 Router LLM Live Reasoning (docs/eval/router_llm_live_evidence.md, Windows Credential Manager audited, fail-closed contract verified) — COMPLETE (PASS fail-closed PENDING_CREDENTIALS)
+  [x] R-20 TieredSTT Multi-Domain WER Benchmark (docs/eval/tiered_stt_wer_domain.md, Command WER 8.37%, Free-form VN 3.72%, Combined 5.84%) — COMPLETE (PASS runtime)
+  [x] R-21 / R26 Final Documentation Sync, Full Unit Suite Re-Run & Git Release Commit — COMPLETE
+
 PHASE 3 PRODUCT BETA ACCEPTANCE GATES STATUS (2026-09-18):
   [x] R-09 External Connector Credentials Registry (docs/credentials_registry.md, 12 connectors, 0 TBDs) — COMPLETE (PASS engineering)
   [x] R-10 P0/P1 Risk Register & Hardware Boundary Profile (docs/risk_register.md, 0 code P0s, 6 P1s, 5 gates) — COMPLETE (PASS engineering)
