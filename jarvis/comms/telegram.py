@@ -74,6 +74,9 @@ class TelegramBotController:
             rate_limit_config or (config.rate_limit if config else RateLimitConfig(requests_per_minute=30, burst_limit=5)),
             channel_name="telegram",
         )
+        self.last_update_id: int = 0
+        self._session: Any | None = None
+        self.timeout_s: float = config.timeout_s if config else 30.0
 
     def is_user_authorized(self, user_id: int) -> bool:
         """Validates user against whitelist."""
@@ -266,20 +269,40 @@ class TelegramBotController:
         text: str,
         mock_http: Any | None = None,
     ) -> dict[str, Any]:
-        """Sends text message to specified chat ID.
-
-        Returns ok=False with error_code=NOT_CONFIGURED when no HTTP client is
-        available (fail-closed). Previously returned ok=True fabricating delivery.
-        """
+        """Sends text message to specified chat ID."""
+        if not self.bot_token:
+            return {
+                "ok": False,
+                "error_code": "NOT_CONFIGURED",
+                "description": "Telegram bot token is not configured.",
+            }
         client = mock_http or self.http_client
         if client and hasattr(client, "handle_telegram_send_message"):
             return client.handle_telegram_send_message(chat_id, text)
-        # Fail-closed: no client configured — do NOT fabricate successful delivery.
-        return {
-            "ok": False,
-            "error_code": "NOT_CONFIGURED",
-            "description": "No HTTP client configured. Message was NOT sent to Telegram.",
-        }
+
+        try:
+            import requests
+        except ImportError:
+            return {"ok": False, "error_code": "ERROR", "description": "requests module not installed"}
+            
+        if self._session is None:
+            self._session = requests.Session()
+
+        try:
+            url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+            resp = self._session.post(url, json={"chat_id": chat_id, "text": text}, timeout=self.timeout_s)
+            if resp.status_code == 200:
+                return {"ok": True, "result": resp.json().get("result")}
+            elif resp.status_code == 401:
+                return {"ok": False, "error_code": "AUTH_FAILED", "description": "Invalid Telegram bot token."}
+            elif resp.status_code == 429:
+                return {"ok": False, "error_code": "RATE_LIMITED", "retry_after": resp.json().get("parameters", {}).get("retry_after", 1)}
+            else:
+                return {"ok": False, "error_code": "ERROR", "description": f"HTTP {resp.status_code}: {resp.text}"}
+        except requests.exceptions.Timeout:
+            return {"ok": False, "error_code": "TIMEOUT", "description": "Telegram API timeout."}
+        except Exception as e:
+            return {"ok": False, "error_code": "ERROR", "description": str(e)}
 
     def send_photo(
         self,
@@ -288,20 +311,42 @@ class TelegramBotController:
         caption: str = "",
         mock_http: Any | None = None,
     ) -> dict[str, Any]:
-        """Dispatches photo (e.g. intruder alert snapshot) to whitelisted chat.
-
-        Returns ok=False with error_code=NOT_CONFIGURED when no HTTP client is
-        available (fail-closed). Previously returned ok=True fabricating delivery.
-        """
+        """Dispatches photo (e.g. intruder alert snapshot) to whitelisted chat."""
+        if not self.bot_token:
+            return {
+                "ok": False,
+                "error_code": "NOT_CONFIGURED",
+                "description": "Telegram bot token is not configured.",
+            }
         client = mock_http or self.http_client
         if client and hasattr(client, "handle_telegram_send_photo"):
             return client.handle_telegram_send_photo(chat_id, photo_bytes, caption)
-        # Fail-closed: no client configured — do NOT fabricate successful delivery.
-        return {
-            "ok": False,
-            "error_code": "NOT_CONFIGURED",
-            "description": "No HTTP client configured. Photo was NOT sent to Telegram.",
-        }
+            
+        try:
+            import requests
+        except ImportError:
+            return {"ok": False, "error_code": "ERROR", "description": "requests module not installed"}
+            
+        if self._session is None:
+            self._session = requests.Session()
+            
+        try:
+            url = f"https://api.telegram.org/bot{self.bot_token}/sendPhoto"
+            data = {"chat_id": chat_id, "caption": caption}
+            files = {"photo": photo_bytes}
+            resp = self._session.post(url, data=data, files=files, timeout=self.timeout_s)
+            if resp.status_code == 200:
+                return {"ok": True, "result": resp.json().get("result")}
+            elif resp.status_code == 401:
+                return {"ok": False, "error_code": "AUTH_FAILED", "description": "Invalid Telegram bot token."}
+            elif resp.status_code == 429:
+                return {"ok": False, "error_code": "RATE_LIMITED", "retry_after": resp.json().get("parameters", {}).get("retry_after", 1)}
+            else:
+                return {"ok": False, "error_code": "ERROR", "description": f"HTTP {resp.status_code}: {resp.text}"}
+        except requests.exceptions.Timeout:
+            return {"ok": False, "error_code": "TIMEOUT", "description": "Telegram API timeout."}
+        except Exception as e:
+            return {"ok": False, "error_code": "ERROR", "description": str(e)}
 
     def poll_once(self, mock_http: Any | None = None) -> list[dict[str, Any]]:
         """Processes pending updates from queue or HTTP API."""
@@ -315,6 +360,84 @@ class TelegramBotController:
                 text = msg.get("text", "")
                 chat_id = msg.get("chat", {}).get("id", user_id)
                 res = self.handle_inbound_message(user_id, text, chat_id)
+                if res and res.get("text") and chat_id:
+                    self.send_message(chat_id, res["text"], mock_http=mock_http)
                 updates.append(res)
             return updates
-        return []
+
+        if not self.bot_token:
+            return []
+            
+        try:
+            import requests
+        except ImportError:
+            return []
+            
+        if self._session is None:
+            self._session = requests.Session()
+            
+        try:
+            url = f"https://api.telegram.org/bot{self.bot_token}/getUpdates"
+            params = {"offset": self.last_update_id + 1, "timeout": int(self.timeout_s)}
+            resp = self._session.get(url, params=params, timeout=self.timeout_s + 5)
+            
+            if resp.status_code != 200:
+                if resp.status_code == 401:
+                    log.error("Telegram AUTH_FAILED: Invalid bot token.")
+                elif resp.status_code == 429:
+                    log.warning("Telegram RATE_LIMITED on getUpdates.")
+                else:
+                    log.error("Telegram getUpdates ERROR: HTTP %s", resp.status_code)
+                return []
+                
+            data = resp.json()
+            if not data.get("ok"):
+                return []
+                
+            results = data.get("result", [])
+            processed = []
+            for item in results:
+                update_id = item.get("update_id", 0)
+                if update_id > self.last_update_id:
+                    self.last_update_id = update_id
+                    
+                msg = item.get("message", {})
+                if not msg:
+                    continue
+                    
+                user_id = msg.get("from", {}).get("id", 0)
+                text = msg.get("text", "")
+                chat_id = msg.get("chat", {}).get("id", user_id)
+                
+                if text:
+                    res = self.handle_inbound_message(user_id, text, chat_id)
+                    if res and res.get("text") and chat_id:
+                        self.send_message(chat_id, res["text"])
+                    processed.append(res)
+                    
+            return processed
+            
+        except Exception as e:
+            log.debug("Telegram getUpdates error: %s", e)
+            return []
+
+    def start(self) -> None:
+        if self._is_polling:
+            return
+        self._is_polling = True
+        self._poll_thread = threading.Thread(target=self._loop, daemon=True, name="TelegramPollThread")
+        self._poll_thread.start()
+        log.info("Telegram polling thread started")
+        
+    def stop(self) -> None:
+        self._is_polling = False
+        if self._poll_thread and self._poll_thread.is_alive():
+            self._poll_thread.join(timeout=2.0)
+            
+    def _loop(self) -> None:
+        while self._is_polling:
+            try:
+                self.poll_once()
+            except Exception as e:
+                log.error("Telegram polling loop error: %s", e)
+            time.sleep(1.0)

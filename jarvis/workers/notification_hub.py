@@ -190,7 +190,10 @@ class NotificationHub:
                     return False
                 from jarvis.security.secrets import get_secret as _get_secret
                 tg = TelegramBotController(bot_token=_get_secret("TELEGRAM_BOT_TOKEN") or "")
-                tg.send_message(int(chat_id), full_text)
+                res = tg.send_message(int(chat_id), full_text)
+                if not res.get("ok"):
+                    log.debug("Telegram dispatch failed: %s", res)
+                    return False
                 return True
             except Exception as exc:
                 log.debug("Telegram dispatch error: %s", exc)
