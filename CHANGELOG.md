@@ -31,17 +31,17 @@
   - Thực hiện kiểm toán Windows Credential Manager (`cmdkey /list`, DPAPI `keyring`) và phát hiện chưa lưu trữ Gemini API key.
   - Phát hiện giá trị `GEMINI_API_KEY` trong `.env` là duplicate của ElevenLabs key; xác nhận hợp đồng fail-closed chuẩn `PENDING_CREDENTIALS` đạt chuẩn `AGENTS.md §2`; xây dựng sẵn test suite runner cho 10 Vietnamese routing intents.
 - **`docs/eval/tiered_stt_wer_domain.md`, `tests/eval/test_wer_domain_challenge.py` (R20)**:
-  - Đánh giá thực nghiệm WER trên 60 tệp âm thanh 16kHz mono qua FasterWhisper `large-v3` trên GPU CUDA: Domain 2 (Command) đạt **8.37%** (8.50%), Domain 3 (Free-form Vietnamese) đạt **3.72%**, Combined đạt **5.84%** (5.88%), độ trễ trung bình 2,775.3 ms; đạt trạng thái **`PASS runtime`**.
+  - Đánh giá thực nghiệm WER trên 60 tệp âm thanh 16kHz mono qua FasterWhisper `large-v3` trên GPU CUDA: Domain 2 (Command) đạt aggregate **8.50%** (mean utterance 8.37%), Domain 3 (Free-form Vietnamese) đạt **3.72%**, Combined aggregate **5.88%** (mean 6.21%), độ trễ trung bình 2,775.3 ms; đạt trạng thái **`PASS runtime`**. Lưu ý: Domain 1 (Wake-Word) chưa đo được (cần tương tác terminal); N=60 là cỡ mẫu nhỏ, cần tăng lên ≥200/domain trước khi dùng làm căn cứ quyết định sản phẩm.
 - **`docs/BETA_GO_REPORT.md` (R26)**:
   - Cập nhật bảng tổng hợp Mục 5.1 phản ánh đầy đủ kết quả thực nghiệm Phase 4 theo Three-Tier Verdict Discipline.
 - **`docs/ROADMAP.md` (R26)**:
   - Bổ sung Phase S / Section 4 với trạng thái các cổng nghiệm thu Phase 4.
 
 ### 3. Chỉ số kiểm thử thực tế (Test Metrics)
-- **Full Unit Test Suite (`tests/unit/`)**: **2,420 passed**, **4 skipped** (2,424 total tests), **0 failures**, **0 regressions** (100% pass rate, exit code 0).
-- **Multi-Domain WER Benchmark (`tests/eval/test_wer_domain_challenge.py`)**: 60 audio samples thực nghiệm, Command WER 8.37%, Free-form VN 3.72%, Combined WER 5.84% (PASS runtime).
-- **Workflow Acceptance Benchmark**: 200/200 trials passed (100.00% pass rate).
-- **Browser Playwright E2E Suite**: 21/21 passed (100.00% pass rate).
+- **Full Unit Test Suite (`tests/unit/`)**: **2,421 passed**, **3 skipped**, **268 subtests** (2,424 total tests), **0 failures**, **0 regressions** (re-run 2026-09-19; 3 skips = `matplotlib` không cài, `pytest.importorskip`).
+- **Multi-Domain WER Benchmark (R20)**: 60 audio samples thực nghiệm, Command aggregate WER **8.50%** (mean 8.37%), Free-form VN **3.72%**, Combined aggregate **5.88%** (PASS runtime, D2+D3; D1 chưa đo).
+- **Workflow Benchmark (R13)**: 200/200 trials passed — qua `ActionDispatcher + SafetyGateInterceptor` với mock STT và mock hardware (zero hardware dependencies). **Gate "10-workflow real OS execution" OPEN** — cần đo riêng với real voice → real OS action.
+- **Browser Playwright E2E Suite**: 21/21 passed (100.00% pass rate, 45.38s, real Chromium).
 
 ---
 
