@@ -1,7 +1,7 @@
-# BRIEFING — 2026-09-18T09:40:57Z
+# BRIEFING — 2026-09-19T07:05:40Z
 
 ## Mission
-Execute Phase 4 Recovery and Completion (R22-R26): R22 (Commit Phase 4 uncommitted evidence after unit test verification), R23 (Attempt Docker Desktop daemon start and retry HA gate write-path test), R24 (Check Windows Credential Manager for Gemini API key & run router LLM test if present), R25 (Create GitHub Release v5.2.0 with installer & SHA-256), R26 (Final documentation sync across BETA_GO_REPORT.md, CHANGELOG.md, ROADMAP.md, final unit suite run, and git push), strictly enforcing AGENTS.md §2 & §5 anti-fabrication and obtaining independent Victory Audit certification.
+Cập nhật và tạo mới 4 tài liệu trong repo JARVIS v5.2.0 (READINESS_DASHBOARD.md, PROJECT_STATE.md, TECHNICAL_AUDIT_REPORT.md, workflow_10_real_os_execution_protocol.md) phản ánh đúng trạng thái thực tế sau Phase G, Phase P3, Phase 4, và vòng peer-review. Tuân thủ nghiêm ngặt Anti-Fabrication Principle trong AGENTS.md §2 và Three-Tier Verdict Discipline trong AGENTS.md §5, kiểm tra unit test suite không hồi quy, commit và push lên origin/main, và chứng nhận độc lập qua Victory Audit.
 
 ## 🔒 My Identity
 - Archetype: sentinel
@@ -16,7 +16,8 @@ Execute Phase 4 Recovery and Completion (R22-R26): R22 (Commit Phase 4 uncommitt
 - Active Orchestrator (Beta GO Final R5-R8): teamwork_preview_orchestrator_7 (retired)
 - Active Orchestrator (Beta GO Phase 3 R9-R14): teamwork_preview_orchestrator_8 (completed)
 - Active Orchestrator (Sprint 2+3 R15-R21): teamwork_preview_orchestrator_9 (killed by server restart)
-- Active Orchestrator (Phase 4 Recovery R22-R26): teamwork_preview_orchestrator_10 (dispatching)
+- Active Orchestrator (Phase 4 Recovery R22-R26): teamwork_preview_orchestrator_10 (completed)
+- Active Orchestrator (v5.2.0 Docs & Protocol R1-R4): teamwork_preview_orchestrator_11 (running: b7028835-e82c-4f75-9486-a400ebaf56fa)
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
@@ -33,34 +34,35 @@ Execute Phase 4 Recovery and Completion (R22-R26): R22 (Commit Phase 4 uncommitt
 - Route to teamwork_preview_orchestrator per Routing Decision Table for Phase 3 Acceptance Gates (R9-R14)
 - Route to teamwork_preview_orchestrator per Routing Decision Table for Sprint 2+3 (R15-R21)
 - Route to teamwork_preview_orchestrator per Routing Decision Table for Phase 4 Recovery (R22-R26)
+- Route to teamwork_preview_orchestrator per Routing Decision Table for v5.2.0 Docs & Protocol R1-R4
 - Anti-fabrication (AGENTS.md §2 + §5) strictly enforced: every gate result from real process, fail-closed honest reporting
 
 ## User Context
-- **Last user request**: Phase 4 Recovery & Completion (R22-R26):
-  1. R22: Complete R21 — Commit Phase 4 uncommitted evidence (run `pytest tests/unit/ -q --tb=short`, git add -A, commit with specified message, push to origin/main).
-  2. R23: Docker Desktop Daemon — Retry HA Gate (Start-Process Docker Desktop, wait 60s, retry `docker info`, pull HA container if up, test write-path, update `docs/eval/ha_docker_evidence.md`).
-  3. R24: Gemini API Key via Windows Credential Manager (`cmdkey /list`, check `jarvis/core/secrets.py`, test router LLM if found, document in `docs/eval/router_llm_live_evidence.md`).
-  4. R25: GitHub Release v5.2.0 (Verify installer, compute SHA-256, create & push git tag `v5.2.0`, create GitHub Release with `gh release create`, document in `docs/eval/release_v520_evidence.md`).
-  5. R26: Final Documentation Sync (Update `docs/BETA_GO_REPORT.md` §5, `CHANGELOG.md` [5.2.0-phase4], `docs/ROADMAP.md`, run full unit suite, commit and push to origin/main).
+- **Last user request**: Cập nhật và tạo mới 4 tài liệu trong repo JARVIS v5.2.0:
+  1. R1: Cập nhật `docs/READINESS_DASHBOARD.md` (Section 1 summary, Section 2.1 Phase D updates, Section 2.2 Phase H updates, Sections 2.3-2.6 cho Phase G, P3, 4, S, Section 3 Open Gates).
+  2. R2: Cập nhật `docs/PROJECT_STATE.md` (Checkpoint 0A ở đầu file giữ nguyên lịch sử).
+  3. R3: Thêm addendum vào `docs/TECHNICAL_AUDIT_REPORT.md` (POST-AUDIT OVERRIDE Phase 4 + Peer Review ở đầu file).
+  4. R4: Tạo `docs/eval/workflow_10_real_os_execution_protocol.md` (10 workflow real voice -> real STT -> real OS action protocol).
+  5. Git: commit và push lên `origin/main`.
+  6. Không hồi quy: unit tests pass.
 - **Pending clarifications**: none
 - **Delivered results**:
-  + Phase 1 (R1-R4), Phase 2 (R5-R8), and Phase 3 (R9-R14) completed, certified, and committed.
-  + Phase 4 evidence files generated on disk prior to server restart.
-  + Phase 4 Recovery (R22-R26) starting.
+  + Phase 1-4 and Peer Review completed.
+  + Spawned teamwork_preview_orchestrator_11 (b7028835-e82c-4f75-9486-a400ebaf56fa) to execute R1-R4.
 
 ## Project Status
-- **Phase**: complete
+- **Phase**: in progress
 - **Route**: General (teamwork_preview_orchestrator)
-- **Active Orchestrator Dir**: d:\Software GitCode\JARVIS\.agents\teamwork_preview_orchestrator_10
-- **Orchestrator Conversation ID**: bf06be1e-1301-4600-9ada-edf4e26549d0
-- **Cron 1 (Progress)**: task-46 (killed on completion)
-- **Cron 2 (Liveness)**: task-48 (killed on completion)
-- **Victory Auditor Dir**: d:\Software GitCode\JARVIS\.agents\victory_auditor_11
-- **Victory Auditor**: c7a669c1-0e16-4921-8ccf-ebf3d9ede3ca (victory_auditor_11, completed)
+- **Active Orchestrator Dir**: d:\Software GitCode\JARVIS\.agents\teamwork_preview_orchestrator_11
+- **Orchestrator Conversation ID**: b7028835-e82c-4f75-9486-a400ebaf56fa
+- **Cron 1 (Progress)**: task-32
+- **Cron 2 (Liveness)**: task-34
+- **Victory Auditor Dir**: [TBD]
+- **Victory Auditor**: [TBD]
 
 ## Victory Audit Status
-- **Triggered**: yes
-- **Verdict**: VICTORY CONFIRMED
+- **Triggered**: no
+- **Verdict**: pending
 - **Retry count**: 0
 
 ## Artifact Index
@@ -68,13 +70,7 @@ Execute Phase 4 Recovery and Completion (R22-R26): R22 (Commit Phase 4 uncommitt
 - d:\Software GitCode\JARVIS\ORIGINAL_REQUEST.md — Authoritative record of user requests (root)
 - d:\Software GitCode\JARVIS\.agents\sentinel\BRIEFING.md — Sentinel persistent briefing
 - d:\Software GitCode\JARVIS\.agents\sentinel\handoff.md — Sentinel handoff report
-- d:\Software GitCode\JARVIS\docs\eval\ha_docker_evidence.md — HA Docker evidence
-- d:\Software GitCode\JARVIS\docs\eval\imap_live_evidence_v2.md — IMAP live evidence
-- d:\Software GitCode\JARVIS\docs\eval\router_llm_live_evidence.md — Router LLM live evidence
-- d:\Software GitCode\JARVIS\docs\eval\tiered_stt_wer_domain.md — Tiered STT WER evidence
-- d:\Software GitCode\JARVIS\docs\eval\tshark_live_evidence_v2.md — TShark live evidence
-- d:\Software GitCode\JARVIS\docs\eval\release_v520_evidence.md — Release v5.2.0 evidence (to be created)
-- d:\Software GitCode\JARVIS\docs\BETA_GO_REPORT.md — Comprehensive Beta GO Report
-- d:\Software GitCode\JARVIS\CHANGELOG.md — Release changelog
-- d:\Software GitCode\JARVIS\docs\ROADMAP.md — Project roadmap
-
+- d:\Software GitCode\JARVIS\docs\READINESS_DASHBOARD.md — Readiness dashboard to update
+- d:\Software GitCode\JARVIS\docs\PROJECT_STATE.md — Project state to update
+- d:\Software GitCode\JARVIS\docs\TECHNICAL_AUDIT_REPORT.md — Technical audit report to update
+- d:\Software GitCode\JARVIS\docs\eval\workflow_10_real_os_execution_protocol.md — New protocol file

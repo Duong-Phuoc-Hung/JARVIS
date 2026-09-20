@@ -1,0 +1,93 @@
+{
+  "run_time": "2026-09-20 23:21:30",
+  "model": "gemini-1.5-flash",
+  "sdk": "google-generativeai",
+  "gemini_key_valid": true,
+  "n_intents": 10,
+  "n_passed": 9,
+  "pass_rate": 90.0,
+  "avg_latency_ms": 978.6,
+  "verdict": "PASS runtime",
+  "results": [
+    {
+      "intent": "mở Chrome",
+      "expected": "open_app",
+      "routed": "open_app",
+      "latency_ms": 1815.3,
+      "pass": true,
+      "tier": "gemini_llm"
+    },
+    {
+      "intent": "tìm kiếm thời tiết hôm nay",
+      "expected": "web_search",
+      "routed": "weather_query",
+      "latency_ms": 727.6,
+      "pass": false,
+      "tier": "gemini_llm"
+    },
+    {
+      "intent": "tăng âm lượng lên 50%",
+      "expected": "volume_control",
+      "routed": "volume_control",
+      "latency_ms": 1045.3,
+      "pass": true,
+      "tier": "gemini_llm"
+    },
+    {
+      "intent": "đặt hẹn giờ 10 phút",
+      "expected": "set_timer",
+      "routed": "set_timer",
+      "latency_ms": 758.7,
+      "pass": true,
+      "tier": "gemini_llm"
+    },
+    {
+      "intent": "ghi chú mua sữa",
+      "expected": "note_taking",
+      "routed": "note_taking",
+      "latency_ms": 805.5,
+      "pass": true,
+      "tier": "gemini_llm"
+    },
+    {
+      "intent": "thời tiết Hà Nội",
+      "expected": "weather_query",
+      "routed": "weather_query",
+      "latency_ms": 869.7,
+      "pass": true,
+      "tier": "gemini_llm"
+    },
+    {
+      "intent": "bật nhạc",
+      "expected": "media_control",
+      "routed": "media_control",
+      "latency_ms": 962.0,
+      "pass": true,
+      "tier": "gemini_llm"
+    },
+    {
+      "intent": "chụp màn hình",
+      "expected": "screenshot",
+      "routed": "screenshot",
+      "latency_ms": 1139.0,
+      "pass": true,
+      "tier": "gemini_llm"
+    },
+    {
+      "intent": "nhắc tôi họp lúc 3 giờ",
+      "expected": "set_reminder",
+      "routed": "set_reminder",
+      "latency_ms": 949.0,
+      "pass": true,
+      "tier": "gemini_llm"
+    },
+    {
+      "intent": "mở cài đặt Windows",
+      "expected": "open_settings",
+      "routed": "open_settings",
+      "latency_ms": 713.5,
+      "pass": true,
+      "tier": "gemini_llm"
+    }
+  ]
+}

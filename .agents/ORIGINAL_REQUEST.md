@@ -1246,4 +1246,201 @@ After R22–R25:
 - [ ] Final commit pushed to `origin/main`
 </USER_REQUEST>
 
+## 2026-09-19T07:05:40Z
+
+<USER_REQUEST>
+Cập nhật và tạo mới 4 tài liệu trong repo JARVIS v5.2.0 để phản ánh đúng trạng thái hiện tại sau Phase G, Phase P3, Phase 4, và vòng peer-review. Tất cả tài liệu phải tuân thủ nghiêm ngặt Anti-Fabrication Principle trong `AGENTS.md §2` và Three-Tier Verdict Discipline trong `AGENTS.md §5`.
+
+Working directory: d:\Software GitCode\JARVIS
+Integrity mode: development
+
+## Tổng quan trạng thái hiện tại (phải đọc trước khi làm)
+
+**HEAD**: `3a7014f` | **Tag**: `v5.2.0` | **Branch**: `main`
+**Phán quyết**: `CONDITIONAL GO — Internal Beta Pilot Only` (NOT Product Release GO)
+
+### Số liệu thực tế đã xác nhận (không được thay đổi)
+- Unit suite: **2,421 passed, 3 skipped, 268 subtests, 0 failed** (re-run 2026-09-19)
+- 3 skipped = `test_data_analysis_service.py` lines 196/209/253 — `matplotlib` không cài, `pytest.importorskip`
+- Browser E2E: **21/21 PASS, 45.38s**, real Chromium
+- Workflow benchmark (R13): **200/200** — dispatcher+mock ONLY (`zero hardware dependencies`); **gate "10-workflow real OS execution" vẫn OPEN**
+- TieredSTT WER R20: Command aggregate **8.50%** (mean utterance 8.37%), Free-form VN **3.72%**, Combined aggregate **5.88%** (N=60, D2+D3; D1 chưa đo)
+- IMAP live: PASS runtime (imap.gmail.com:993, 2 emails)
+- TShark: HARDWARE_BLOCKED (UAC_REQUIRED, npcap.sys thiếu)
+- HA Docker: HARDWARE_BLOCKED (DOCKER_NOT_RUNNING)
+- Router LLM: PENDING_CREDENTIALS (key sai định dạng)
+- v5.2.0 installer: 74,950,832 bytes, SHA-256 `6b52e20f3c4cf08be76a55c4e7dc87d55c83112725425a579b46c9aff3510d3b`, Authenticode self-signed (commercial EV chưa có → SmartScreen warning)
+- D-06 Telegram: 1 live send/receive cycle (2026-09-12), không có bằng chứng mới
+- D-08 Discord: REST API auth confirmed (2026-09-12), không có round-trip command test mới
+- H-13: 48/50 PASS (96.0%) từ 2026-09-16 — cần re-verify sau Phase G code changes
+
+---
+
+## Requirements
+
+### R1. Cập nhật `docs/READINESS_DASHBOARD.md`
+
+File hiện tại (2026-09-17) không có Phase G (R1-R8), Phase P3 (R9-R14), Phase 4 (R15-R26), và phản ánh sai trạng thái D-06/D-08/D-14/H-06/H-10/H-11/H-13. Cần:
+
+1. **Cập nhật Section 1 (Executive Summary)**:
+   - Thêm Phase G completion (R1-R8, 2026-09-17)
+   - Thêm Phase P3 (R9-R14, 2026-09-18)
+   - Thêm Phase 4 (R15-R26, 2026-09-18)
+   - Thêm Phase S — Peer Review corrections (2026-09-19)
+   - Cập nhật unit test count: 2,421 passed, 3 skipped, 268 subtests (2026-09-19)
+   - Ghi rõ phán quyết 3 tầng: Engineering DONE / Internal Beta Pilot CONDITIONAL GO / Product Release NO-GO
+   - Thêm v5.2.0 installer: 74,950,832 bytes, SHA-256 `6b52e20f3c4cf08be76a55c4e7dc87d55c83112725425a579b46c9aff3510d3b`
+
+2. **Cập nhật bảng Phase D (Section 2.1)**:
+   - D-06: Đổi từ `PENDING_CREDENTIALS` → `DONE (scope hạn chế)` với note: "1 live send/receive cycle 2026-09-12, không có bằng chứng mới"
+   - D-07: Giữ `PENDING_ZALO_OA_VERIFICATION`
+   - D-08: Đổi từ `PENDING_CREDENTIALS` → `DONE (scope hạn chế)` với note: "REST API auth 2026-09-12, không có round-trip command test mới"
+   - D-09: Đổi từ `PENDING_CREDENTIALS` → `DONE` với note: "SMTP login PASS + IMAP PASS runtime 2026-09-18"
+   - D-14: Thêm note rõ "self-signed CI ($0, ephemeral); commercial OV/EV cert chưa có → installer hiển thị SmartScreen warning trên máy sạch"
+   - D-12: Cập nhật lên v5.2.0 (74,950,832 bytes, SHA-256 `6b52e20f...`)
+
+3. **Cập nhật bảng Phase H (Section 2.2)**:
+   - H-06: Đổi từ `PENDING_IDLE_SOAK` → `DONE` với evidence `docs/eval/wake_word_idle_results.json` (3600.1s, 0.00 FP/hr)
+   - H-10: Đổi từ `BLOCKED_ON_HARDWARE` → `DONE (software 100%; 4/10 hardware configs có tín hiệu thật)`
+   - H-11: Đổi từ `PENDING_FIRST_RUN` → `DONE` với note "25 devices listed, step 1/5 confirmed"
+   - H-13: Đổi từ `PENDING_HUMAN_EXECUTION` → `DONE (48/50, 96.0%, 2026-09-16) — cần re-verify sau Phase G`
+
+4. **Thêm Section mới sau Phase H**:
+   - Section 2.3: Phase G — Engineering Hardening (R1-R8): bảng 8 items, tất cả DONE
+   - Section 2.4: Phase P3 — Product Beta Acceptance Gates (R9-R14): R9/R10 PASS engineering, R11 HARDWARE_BLOCKED, R12 PASS runtime, R13 PASS runtime (dispatcher+mock — gate real OS OPEN), R14 DONE
+   - Section 2.5: Phase 4 — Runtime Evidence Portfolio (R15-R26): R15 HARDWARE_BLOCKED, R16 HARDWARE_BLOCKED, R17 PASS runtime, R18/R25 PASS runtime, R19 PENDING_CREDENTIALS, R20 PASS runtime (D2+D3), R26 DONE
+   - Section 2.6: Phase S — Peer Review (2026-09-19): 5 corrections applied
+
+5. **Thêm Section 3: Open Gates**:
+   - Gate "10-workflow real OS execution": OPEN — 200/200 dispatcher+mock không đóng gate này
+   - Gate "TieredSTT Domain 1 Wake-Word WER": PENDING_INTERACTIVE_TERMINAL
+   - Gate "H-13 re-verify sau Phase G": PENDING_HUMAN_EXECUTION
+   - Gate "D-07 Zalo OA": PENDING_ZALO_OA_VERIFICATION
+   - Gate "Router LLM live": PENDING_CREDENTIALS
+   - Gate "HA Docker": HARDWARE_BLOCKED
+   - Gate "TShark Npcap": HARDWARE_BLOCKED
+
+---
+
+### R2. Cập nhật `docs/PROJECT_STATE.md`
+
+File hiện tại là snapshot T-01 (2026-09-16). Cần thêm checkpoint mới ở **đầu file** (sau dòng header, TRƯỚC phần content cũ, không xóa lịch sử):
+
+Thêm block `## 0A. Current checkpoint — v5.2.0 Phase 4 + Peer Review (2026-09-19) — READ THIS FIRST` với:
+- HEAD: `3a7014f`, Tag: `v5.2.0`, Branch: `main`
+- Phán quyết 3 tầng: Engineering DONE / Internal Beta Pilot CONDITIONAL GO / Product Release NO-GO
+- Summary phases: G (R1-R8 DONE) / P3 (R9-R14, R11 hardware-blocked) / Phase 4 (R17 IMAP PASS runtime, R18 installer, R19 PENDING_CREDENTIALS, R20 WER D2+D3, R25 release)
+- Số liệu: unit 2,421/3skip/268subtests, E2E 21/21, WER 8.50%/3.72%/5.88%
+- Pending: R11 Npcap UAC, R16 Docker daemon, R19 Gemini key, gate 10-workflow real OS
+- Note: checkpoint này không xóa lịch sử T-01 bên dưới
+
+---
+
+### R3. Thêm addendum vào `docs/TECHNICAL_AUDIT_REPORT.md`
+
+File hiện tại là tổng hợp 13 vòng audit lịch sử + POST-AUDIT OVERRIDE T-01. Cần thêm section mới ở **đầu file** sau POST-AUDIT OVERRIDE T-01 hiện có:
+
+Thêm `## POST-AUDIT OVERRIDE — Phase 4 + Peer Review (2026-09-19)` với:
+- 5 corrections từ peer review:
+  * R13: 200/200 là dispatcher+mock (STT mocked, HA mocked, IMAP mocked — `zero hardware dependencies`). Gate "10-workflow real OS execution" OPEN. Verdict: `PASS runtime (dispatcher+mock)`, không phải `PASS runtime` cho OS execution.
+  * D-06/D-08: Nhãn DONE copy từ Phase D 2026-09-12, không có bằng chứng mới. Verdict: `DONE (scope hạn chế)`.
+  * WER: Aggregate 8.50%/5.88%, không phải mean utterance 8.37%/5.84%. Domain 1 chưa đo. N=60 nhỏ (khuyến nghị ≥200/domain). Ngưỡng tier-switching hardcoded (không data-driven).
+  * D-14: Self-signed CI cert (DONE, $0). Commercial OV/EV cert chưa có → SmartScreen warning. P3-09 dài hạn.
+  * Unit suite re-run 2026-09-19: 2,421/3skip/268subtests (3 skips = matplotlib không cài).
+- Phán quyết 3 tầng hiện tại
+
+---
+
+### R4. Tạo `docs/eval/workflow_10_real_os_execution_protocol.md`
+
+Tạo file protocol mới cho gate "10-workflow real OS execution". Tham khảo cấu trúc của `docs/eval/beta_voice_50_live_acceptance_protocol.md` (H-13 protocol). File cần có:
+
+1. **Tiêu đề và mục đích**: Protocol đo 10 workflow với real voice → real STT → real OS action. Gate GO/NO-GO cho Internal Beta Pilot → Product Beta.
+
+2. **Gate definition**:
+   - Pass threshold: ≥95% per workflow
+   - Fail condition: BẤT KỲ workflow nào <90% → gate FAIL dù trung bình ≥95%
+   - N tối thiểu: 20 trials/workflow (200 total)
+
+3. **Điều kiện hợp lệ** (anti-bias, bắt buộc):
+   - STT: FasterWhisper `large-v3` CUDA — KHÔNG mock
+   - Action: OS call thật có bằng chứng (log, return code, screenshot)
+   - Log riêng từng workflow — không gộp chung
+   - Ghi điều kiện âm học mỗi trial: `QUIET` (phòng yên tĩnh) hoặc `AMBIENT` (có tiếng ồn thực tế)
+   - Ít nhất 20% trials trong điều kiện `AMBIENT`
+   - Người nói: nếu có thể, không dùng chính người đã derive router rules
+   - Chạy `AUDIT_FRAMEWORK.md` checklist trước khi submit kết quả
+
+4. **10 workflow** với: ID | Trigger phrase mẫu | Action target | Evidence format | Pass condition:
+   1. `WF-01` Mở ứng dụng: "mở Chrome" → `subprocess`/OS launch → process PID log
+   2. `WF-02` Settings: "mở cài đặt" → Settings app launch → window title confirmed
+   3. `WF-03` Tìm kiếm web: "tìm kiếm [topic]" → browser URL log
+   4. `WF-04` Media control: "bật nhạc" → Spotify/media API → playback state log
+   5. `WF-05` Âm lượng: "tăng âm lượng" → pycaw volume set → volume level before/after
+   6. `WF-06` Thời tiết: "thời tiết hôm nay" → API call → response JSON snippet
+   7. `WF-07` Hẹn giờ: "đặt hẹn giờ 5 phút" → timer registered → timer ID log
+   8. `WF-08` Nhắc nhở: "nhắc tôi lúc 3 giờ" → reminder registered → confirmation log
+   9. `WF-09` Ghi chú: "ghi chú [text]" → note saved → file/DB entry log
+   10. `WF-10` Chụp màn hình: "chụp màn hình" → screenshot saved → file path + size log
+
+5. **Template bảng kết quả** per-workflow:
+   ```
+   | Trial | Trigger | STT output | Action | Evidence | PASS/FAIL | Acoustic |
+   ```
+
+6. **Summary table** sau khi đo:
+   ```
+   | Workflow | N | Pass | Fail | Pass% | Gate |
+   ```
+
+7. **Checklist trước khi submit** (reference AUDIT_FRAMEWORK.md):
+   - N ghi rõ
+   - Log riêng từng workflow
+   - Acoustic condition ghi rõ mỗi trial
+   - Phát hiện nghiêm trọng ở đầu báo cáo
+   - Không module nào bị dán ✅ chưa audit
+
+---
+
+## Acceptance Criteria
+
+### Tính trung thực và nhất quán
+- [ ] Không có số liệu nào khác với danh sách "Số liệu thực tế đã xác nhận"
+- [ ] Không bất kỳ file nào tuyên bố "Product Release GO" hoặc "BETA GO" không có điều kiện
+- [ ] R13 trong READINESS_DASHBOARD.md ghi rõ "dispatcher+mock" và "gate real OS OPEN"
+- [ ] D-14 trong READINESS_DASHBOARD.md phân biệt self-signed vs commercial EV
+- [ ] D-06/D-08 ghi rõ "scope hạn chế" và ngày test cuối 2026-09-12
+
+### Đầy đủ nội dung
+- [ ] READINESS_DASHBOARD.md có Section cho Phase G, P3, Phase 4, Phase S
+- [ ] READINESS_DASHBOARD.md có Section "Open Gates" với ít nhất 7 gates
+- [ ] PROJECT_STATE.md có block checkpoint v5.2.0 ở đầu file
+- [ ] TECHNICAL_AUDIT_REPORT.md có addendum Phase 4 + Peer Review
+- [ ] `docs/eval/workflow_10_real_os_execution_protocol.md` tồn tại với 10 workflow + evidence format
+
+### Git và đồng bộ
+- [ ] Tất cả 4 file được `git add`, commit với message: `docs(v520): update readiness dashboard, project state, audit report, add 10-workflow real OS protocol`
+- [ ] `git push origin main` thành công
+- [ ] `git status` clean sau push
+
+### Kiểm tra không hồi quy
+- [ ] `pytest tests/unit/ -q --tb=no` vẫn pass (không test nào break)
+- [ ] `git diff --check` pass
+
+---
+
+## Tài liệu tham khảo (phải đọc để hiểu ngữ cảnh)
+
+- `AGENTS.md` — Anti-Fabrication Principle (§2), Three-Tier Verdict Discipline (§5)
+- `docs/BETA_GO_REPORT.md` — Phán quyết và gate matrix hiện tại (updated 2026-09-19)
+- `CHANGELOG.md` — Entry [5.2.0-phase4] với số liệu thực tế (fixed 2026-09-19)
+- `docs/eval/tiered_stt_wer_domain.md` — WER evidence (8.50%/3.72%/5.88%)
+- `docs/eval/beta_voice_50_live_acceptance_protocol.md` — Template cho R4
+- `tests/benchmarks/test_workflow_acceptance_benchmark.py` — Source xác nhận R13 là dispatcher+mock
+- `docs/READINESS_DASHBOARD.md` — File cần update (đọc toàn bộ trước)
+- `docs/PROJECT_STATE.md` — File cần update (đọc toàn bộ trước)
+- `docs/TECHNICAL_AUDIT_REPORT.md` — File cần update (đọc toàn bộ trước)
+</USER_REQUEST>
+
+
 

@@ -1,4 +1,72 @@
+## [5.2.1] Phase 5 — Gate Closure: Router LLM + Telegram + Discord Auth (2026-09-20)
+
+> **Mục tiêu**: Đóng GATE-05 (Router LLM Gemini API live), xác nhận D-06 Telegram live send, xác nhận D-08 Discord auth. Cập nhật `GEMINI_API_KEY` từ `GOOGLE_API_KEY` hợp lệ.
+
+### 1. Root Cause & Bối cảnh
+
+- `GEMINI_API_KEY` trong `.env` vẫn là key ElevenLabs (`AQ.Ab8RN...`, 53 chars) — sai format
+- `GOOGLE_API_KEY` trong `.env` chứa key Gemini hợp lệ (`AIzaSy...`, 39 chars) do user tạo mới
+- Telegram: `TELEGRAM_BOT_TOKEN` và `TELEGRAM_CHAT_ID` đã có nhưng live send chưa được xác nhận
+- Discord: `DISCORD_BOT_TOKEN` có sẵn nhưng bot chưa join server nào
+
+### 2. Các thay đổi kỹ thuật
+
+#### `.env` (runtime)
+- Cập nhật `GEMINI_API_KEY` ← `GOOGLE_API_KEY` (`AIzaSy...`, 39 chars) via `python-dotenv set_key`
+
+#### `scripts/test_router_llm_live.py` [NEW]
+- Benchmark N=10 Vietnamese routing intents với `gemini-flash-lite-latest` API thật
+- Rate limiting: 15s delay giữa requests (free tier 5 RPM)
+- Kết quả: **9/10 = 90%**, avg 979ms — **PASS runtime**
+
+#### `scripts/test_comms_live.py` [NEW]
+- Live roundtrip test cho Telegram + Discord + Gemini key check
+
+#### `docs/eval/router_llm_live_evidence_v2.md` [NEW]
+- Evidence GATE-05: 9/10 = 90%, `gemini-flash-lite-latest`, 2026-09-20
+
+#### `docs/eval/router_llm_live_evidence_v2.json` [NEW]
+- Raw JSON evidence cho benchmark
+
+#### `docs/eval/telegram_d06_live_evidence_v2.md` [NEW]
+- D-06: `@JARVISAssistantTest_bot`, HTTP 200, `message_id=3`, 2026-09-20
+
+#### `docs/eval/discord_d08_live_evidence_v2.md` [NEW]
+- D-08: bot auth HTTP 200, 0 guilds joined → PENDING_GUILD_INVITATION
+
+#### `docs/eval/comms_live_roundtrip_evidence.json` [NEW]
+- Combined comms evidence JSON
+
+#### `docs/READINESS_DASHBOARD.md` [MODIFIED]
+- R19/R24: `PASS fail-closed (PENDING_CREDENTIALS)` → `PASS runtime (9/10=90%, 2026-09-20)`
+- GATE-05: `PENDING_CREDENTIALS` → `CLOSED — PASS runtime (2026-09-20)`
+- D-06: `BLOCKED_FOR_LIVE_CERTIFICATION` → `PASS runtime (send path, 2026-09-20)`
+- D-08: `DONE (scope hạn chế)` → `PASS auth (token valid, 0 guilds, PENDING_GUILD_INVITATION)`
+- Executive Summary: cập nhật Phase 4 với R19 PASS runtime
+
+### 3. Chỉ số kiểm thử
+
+| Test | Kết quả |
+|---|---|
+| GATE-05 Router LLM (N=10) | **9/10 = 90.0%** PASS runtime |
+| D-06 Telegram sendMessage | HTTP 200, message_id=3 PASS runtime |
+| D-08 Discord /users/@me | HTTP 200, auth valid |
+| Unit suite (no regression) | Chưa re-run (code không thay đổi) |
+
+### 4. Trạng thái Open Gates sau Phase 5
+
+| Gate | Trạng thái |
+|---|---|
+| GATE-01 | User báo đã tự làm 10-workflow real voice |
+| GATE-02 | `PENDING_INTERACTIVE_TERMINAL` (WER D1) |
+| GATE-03 | `PENDING_HUMAN_EXECUTION` (H-13 re-verify) |
+| GATE-04 | `PENDING_ZALO_OA_VERIFICATION` (external) |
+| **GATE-05** | **`CLOSED — PASS runtime (2026-09-20)`** |
+| GATE-06 | `HARDWARE_BLOCKED (DOCKER_NOT_RUNNING)` — Docker Desktop cần user bật thủ công |
+| GATE-07 | `HARDWARE_BLOCKED (UAC_REQUIRED)` — Npcap |
+
 ## [5.1.10] T-03 Telegram real transport (2026-09-19)
+
 
 > **Mục tiêu**: Thay thế Telegram mock transport bằng real transport sử dụng `requests`, đảm bảo chuẩn Fail-Closed và cấu hình theo config, không phụ thuộc vào `fake http_client`.
 
