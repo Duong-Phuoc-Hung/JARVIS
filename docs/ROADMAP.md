@@ -137,7 +137,7 @@ trên loopback với port động rồi attach bằng `connect_over_cdp`; không
 - **P1-01: H-10 BT HFP WASAPI mode** — Implement WASAPI exclusive capture bypass cho LY-Z5202 / AirPods HFP. Hiện: 3/10 TIER1_PASS. Verify: BT device có peak > 1000.
 - **P1-02: H-10 remaining 7 devices** — Test Realtek HD Audio, BT 8-channel. Verify: matrix R4 >=7/10.
 - **P1-03: D-14 signed exe verify** — [ĐÃ GIẢI QUYẾT] Workflow release CI tự động xác thực chữ ký bằng `Get-AuthenticodeSignature` (Status != 'NotSigned', SignerCertificate != null). Cẩm nang kiểm tra thủ công tại `docs/signing/manual_signing_guide.md`.
-- **P1-04: Router LLM fallback live** — Test LLMIntentRouter với Gemini API key thật. Verify: N=10 câu intent routing qua LLM.
+- ~~**P1-04: Router LLM fallback live**~~ — **[DONE 2026-09-20]** `gemini-flash-lite-latest` API thật: 9/10 = 90%, avg 979ms. Evidence: `docs/eval/router_llm_live_evidence_v2.md`. `GEMINI_API_KEY=AIzaSy...` (39 chars) đã cấu hình đúng trong `.env`.
 - **P1-05: Release v5.2.0** — Tag, build, sign, publish GitHub Release. Verify: GitHub Release có signed JARVIS.exe.
 
 ### P2 — Trung bình (Next 2-4 weeks)
