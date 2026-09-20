@@ -16,7 +16,7 @@ JARVIS Beta v1 provides an autonomous, privacy-conscious AI desktop assistant ta
 Theo chuẩn mực phân tầng bắt buộc tại `AGENTS.md §5` và `docs/AUDIT_FRAMEWORK.md`:
 - **Tầng 1 — Kỹ thuật & Kiểm thử đơn vị (Engineering / Unit)**: **`DONE`** (`PASS engineering`). Toàn bộ 8 technical blockers ban đầu (R1–R8) đã giải quyết triệt để; hợp đồng `ActionResult` và từ vựng canonical 5 trạng thái được chuẩn hóa 100%; unit test suite đạt **2,421 passed, 3 skipped, 268 subtests, 0 failed** trên Windows 11.
 - **Tầng 2 — Thử nghiệm nội bộ (Internal Beta Pilot)**: **`CONDITIONAL GO`**. Hệ thống được phép vận hành trong môi trường giám sát trực tiếp trên máy trạm của nhà phát triển chính (`Duong-Phuoc-Hung`). Toàn bộ hợp đồng fail-closed khi thiếu phần cứng/khóa truy cập được xác minh nghiêm ngặt.
-- **Tầng 3 — Phát hành thương mại rộng rãi (Product Release)**: **`NO-GO`**. Tiếp tục giữ trạng thái NO-GO do còn **7 cổng nghiệm thu mở (Open Gates)** phụ thuộc vào phần cứng thực tế, người dùng tương tác và chứng thư số thương mại (chi tiết tại Mục 3).
+- **Tầng 3 — Phát hành thương mại rộng rãi (Product Release)**: **`NO-GO`**. Tiếp tục giữ trạng thái NO-GO do còn **6 cổng nghiệm thu mở (Open Gates)** phụ thuộc vào phần cứng thực tế, người dùng tương tác và chứng thư số thương mại (chi tiết tại Mục 3). GATE-05 Router LLM đã CLOSED 2026-09-20.
 
 ### Tổng Hợp Tiến Độ Các Pha Phát Triển
 1. **Phase D (Core & Backend Subsystems)**: **14/17 tasks `DONE`** (bao gồm D-06 và D-08 ở scope hạn chế 2026-09-12, D-09 live IMAP pass, D-14 CI Authenticode signing), **1 task `PENDING_ZALO_OA_VERIFICATION`** (D-07), và **2 tasks cập nhật v5.2.0** (D-12 installer, D-17 release management).
