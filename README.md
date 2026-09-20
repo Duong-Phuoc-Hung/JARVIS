@@ -4,7 +4,7 @@
 
 [![CI Status](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/workflows/ci.yml/badge.svg)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
 [![Tests](https://img.shields.io/badge/tests-passing-00ff88?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
-[![Source Version](https://img.shields.io/badge/source%20version-5.2.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
+[![Source Version](https://img.shields.io/badge/source%20version-5.1.10-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
 [![Releases](https://img.shields.io/badge/releases-GitHub-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?style=flat-square)](https://python.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%2064--bit-0078D4?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS)
@@ -13,7 +13,8 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt bằng Chromium do Playwright quản lý hoặc phiên Chromium được attach qua CDP, và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản chính thức (Beta GO Release, `jarvis.__version__`): 5.2.0** trên `main` — hoàn thiện toàn diện phân hệ Core / Backend / Integrations / Release (D-01..D-17), Voice Pipeline Hardening (H-01..H-13), giải quyết dứt điểm 8 technical blockers R1–R8, và đóng các cổng nghiệm thu Phase 3 (R9–R14): Credential Registry tập trung 12 connectors (`docs/credentials_registry.md`), Risk Register P0/P1 & 5 hardware gates (`docs/risk_register.md`), Browser E2E suite chạy thực tế trên Chromium 21/21 passed (`docs/eval/browser_e2e_evidence_v2.md`), Workflow Acceptance Benchmark 10 workflows đạt 200/200 trials 100% (`docs/eval/workflow_benchmark.md`), và báo cáo Beta GO toàn diện (`docs/BETA_GO_REPORT.md`). Toàn bộ 2,424 unit tests và 200 benchmark trials xanh 100%.</sub>
+<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.1.10** trên `main` — hoàn thiện mã nguồn kỹ thuật phân hệ Core / Backend / Integrations / Release (D-01..D-17) và Voice Pipeline Hardening (H-01..H-13, H-05 DONE). T-01 browser là **DONE** với 301/301 test scoped, 21/21 deterministic local E2E trên Chromium thật (gồm CDP attach), và full unit release gate 2267 passed / 4 skipped; xem `reports/evidence/T-01/`. T-03 Telegram real transport là **DONE**.</sub>
+
 
 </div>
 
@@ -42,8 +43,7 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 ### 🎙️ Nhận Diện Giọng Nói Offline & Voice Pipeline (v5.1.3 Beta v1)
 - **Wake Word:** Nhận diện từ khóa *"Hey JARVIS"* tức thì với độ trễ cực thấp.
 - **Barge-in (Ngắt lời tức thời):** Khi JARVIS đang nói, bạn có thể nói chèn vào — hệ thống lập tức tắt âm thanh TTS và chuyển sang nghe lệnh mới.
-- **VAD (Voice Activity Detection):** Thuật toán phát phát hiện giọng nói thông minh bằng năng lượng RMS hoặc WebRTC VAD — xử lý offline, độ trễ <10ms.
-- **WASAPI Exclusive Capture Fallback (Windows):** Tự động kích hoạt cơ chế WASAPI Exclusive mode khi thiết bị Bluetooth HFP (AirPods, tai nghe đàm thoại) gặp lỗi chiếm dụng phiên độc quyền Windows OS (`PaError -9999`), ghi âm trực tiếp tại tầng kernel ở tần số 16kHz native.
+- **VAD (Voice Activity Detection):** Thuật toán phát hiện giọng nói thông minh bằng năng lượng RMS hoặc WebRTC VAD — xử lý offline, độ trễ <10ms.
 - **STT (Speech-to-Text) & Safe Diacritic Normalization:** Faster-Whisper (CTranslate2) chạy offline với bộ chuẩn hóa bỏ dấu đa âm an toàn (`strip_vietnamese_diacritics`) bảo vệ nguyên vẹn từ đơn, triệt tiêu 100% va chạm homophone (`nhạc` vs `nhắc`, `dừng` vs `dụng`, `dán` vs `dẫn`, `tắt` vs `tắc`).
 - **Kháng Lệch Ngữ Âm (Phonetic Drift Robustness):** Tích hợp 15 alias ngữ âm chọn lọc cho các lỗi nghe nhầm đặc thù của Faster-Whisper (`tắc máy`, `tập máy tính`, `cái đặt`, `đặt time`, `tắc tính`, `tắt tính`, `ghi chú`), nâng độ chính xác thực tế trên 90 audio test lên 63.3% và đạt 100% trên tập held-out mới.
 - **Tiered STT Coordinator (v5.1.0 Phase 5):** Tự động điều phối phân tầng nhận diện đa cấp giữa Faster-Whisper Local (Tier 1), OpenAI Whisper Cloud (Tier 2) và Windows SAPI (Tier 3) dựa trên ước tính chất lượng tín hiệu SNR (>10dB) và thời hạn deadline; tích hợp VAD silence bypass (<1ms, 0 GPU inference).
@@ -66,24 +66,10 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 ### 🌐 Tự Động Hóa Trình Duyệt & Hệ Thống
 - Mở Chromium thật do Playwright quản lý hoặc attach một Chromium đang chạy qua Chrome DevTools Protocol (`connect_over_cdp`).
 - Thực hiện và xác minh navigate, click, clear-first typing, selector wait, scroll, DOM/title/URL read và screenshot thật; timeout, browser đóng và CDP mất kết nối trả status/error code fail-closed.
-- **Xác Minh Thực Nghiệm Browser E2E (R12):** Bộ 21 test seams chạy trên Chromium thật do Playwright quản lý trên test site loopback hermetic đạt 21/21 PASS trong 45.38s (`docs/eval/browser_e2e_evidence_v2.md`).
 - HTTP fallback chỉ đọc HTML và luôn báo đúng `driver_type=http_scraper`; nó không thể biến click/type/wait/scroll/screenshot thành success. Mock chỉ dùng khi caller chọn rõ `driver_type=mock` và không được tính là E2E.
 - Price comparison chỉ trả offer có nguồn JSON-LD/DOM quan sát được; không sinh giá 0, stock hoặc shipping giả khi scrape thất bại.
 - Phân tích ngữ cảnh màn hình tức thời qua Gemini Vision AI (`Ctrl+Shift+Space`).
 - Tự động hóa macro chuột/bàn phím, điều khiển âm lượng, màn hình, quản lý file và ứng dụng Windows.
-
-### 🛡️ Cơ Chế An Toàn & Chuẩn Hóa Hệ Thống (Beta GO Hardening)
-- **Planner Fail-Closed (R1):** Loại bỏ hoàn toàn mô phỏng thành công (`simulated: True`). Mọi action không tìm thấy handler đều lập tức trả về lỗi chính thức `HANDLER_NOT_FOUND`, bảo toàn trạng thái lỗi thực từ các handler cấp dưới.
-- **Chuẩn Hóa Kết Quả Thực Thi `ActionResult` (R2):** Thống nhất mô hình dữ liệu trả về trên toàn hệ thống gồm 4 trường chuẩn: `status` (`ActionStatus`), `code`, `message`, `retryable` cùng cơ chế mapping emulation (`__getitem__`, `get`, `__contains__`) và đồng bộ 2 chiều tương thích ngược cho Home Assistant, Mobile Bridge, VM Orchestrator.
-- **Từ Vựng Trạng Thái Hệ Thống 5 Cấp Chuẩn Hóa (R3):** Chuẩn hóa `StatusLevel` trên Terminal Control Center và tất cả 9 module adapters về đúng 5 trạng thái: `READY`, `LIMITED`, `BLOCKED`, `ERROR`, `UNAVAILABLE`, triệt tiêu hoàn toàn sự phân mảnh trạng thái phi chuẩn.
-- **Safety Interceptor & Xác Nhận Hành Động Rủi Ro Cao (R4):** Mở rộng nhóm `HIGH_RISK_ACTIONS` bao quát toàn bộ hành động gửi tin/email ra ngoài (Email, Zalo, Discord) và cơ cấu kích hoạt thiết bị Home Assistant (turn on/off, toggle, set temp). Bắt buộc người dùng phê duyệt qua token xác nhận 30s trước khi thực thi; các truy vấn chỉ đọc (read-only) được tự động phân tách an toàn và chạy không trễ.
-- **Discord Inbound Gateway (R5):** Tiếp nhận lệnh từ xa qua cơ chế REST polling với channel snowflake tracking (`&after=`), tự động dừng an toàn khi gặp mã lỗi HTTP chí mạng (401, 403, 404) hoặc đạt ngưỡng lỗi liên tiếp, enforce danh sách trắng `whitelist_user_ids` và ghi nhật ký kiểm toán băm SHA-256.
-- **Cơ Chế Feature Flag Core/Labs (R6):** Tách bạch chặt chẽ giữa tính năng lõi ổn định và tính năng thử nghiệm (browser CDP, TShark packet capture) qua cấu hình `labs.enabled` và `labs.features`. Mọi lệnh gọi tới tính năng Labs chưa kích hoạt bị từ chối fail-closed với `ActionResult(status=LABS_DISABLED)`.
-- **Hồ Sơ Bằng Chứng Thực Nghiệm Runtime (R7 & R11):** Bộ tài liệu kiểm toán thực tế độc lập tại `docs/eval/` cho TShark (`HARDWARE_BLOCKED (KERNEL_DRIVER_PENDING)`), Browser E2E (`PASS runtime`), IMAP (`PENDING_CREDENTIALS`), Home Assistant (`UNAVAILABLE`), và Authenticode Installer v5.2.0, tuân thủ 100% nguyên tắc trung thực (Anti-Fabrication).
-- **Quản Trị Thông Tin Xác Thực Tập Trung (R9 - Credential Registry):** Thiết lập ma trận quản trị tập trung tại `docs/credentials_registry.md` cho 12 external connectors, phân cấp 3 tầng lưu trữ an toàn (Windows Credential Manager DPAPI `keyring`, biến môi trường, cấu hình rỗng fail-closed) với quy trình sao lưu và xoay vòng khóa bảo mật chi tiết (0 TBD).
-- **Sổ Đăng Ký Rủi Ro P0/P1 & Ranh Giới Phần Cứng (R10 - Risk Register):** Xác thực 0 technical P0s trong mã nguồn, xây dựng kế hoạch kiểm soát 6 rủi ro P1, và định danh minh bạch 5 cổng phụ thuộc phần cứng bên ngoài (Local HA, Clean-Machine VM, Voice H-13, Bluetooth HFP, TShark Npcap driver) được phê duyệt chấp nhận rủi ro cho giai đoạn Internal Beta Pilot (`docs/risk_register.md`).
-- **Benchmark Nghiệm Thu 10 Workflows Cốt Lõi (R13 - Workflow Benchmark):** Thiết kế và thực thi kiểm chuẩn định lượng trên 10 quy trình làm việc độc lập qua ActionDispatcher và SafetyGateInterceptor đạt 200/200 trials thành công (100.00% pass rate, độ trễ trung bình ~0.105ms) tại `docs/eval/workflow_benchmark.md`.
-- **Báo Cáo Beta GO Toàn Diện & Phán Quyết Phát Hành (R8 & R14):** Tổng hợp kiểm toán toàn diện tại `docs/BETA_GO_REPORT.md` với phán quyết chính thức `CONDITIONAL GO / BETA GO (Production Beta v1 Authorized for Internal Pilot)`.
 
 ---
 
@@ -97,7 +83,7 @@ Trước khi cài đặt, vui lòng đảm bảo máy tính của bạn đáp �
 | **Python** | **Python 3.13+ (64-bit)** | Tải tại: [Python 3.13.2 64-bit](https://www.python.org/downloads/release/python-3132/)<br>⚠️ **Bắt buộc:** Tích chọn ✅ **"Add python.exe to PATH"** trong màn hình cài đặt đầu tiên. |
 | **Git** | Git for Windows | Tải tại: [Git for Windows Official](https://git-scm.com/download/win) |
 | **Visual C++ Runtime** | VC++ 2015–2022 Redistributable (x64) | Tải tại: [vc_redist.x64.exe (Microsoft)](https://aka.ms/vs/17/release/vc_redist.x64.exe)<br>*(Bắt buộc cho Pillow, sounddevice, CTranslate2, faster-whisper)* |
-| **Phần cứng âm thanh** | Microphone & Loa / Tai nghe | Đảm bảo micro và loa hoạt động bình thường trong Windows Settings. Hỗ trợ tự động WASAPI Exclusive fallback cho tai nghe Bluetooth HFP (AirPods, v.v.). |
+| **Phần cứng âm thanh** | Microphone & Loa / Tai nghe | Đảm bảo micro và loa hoạt động bình thường trong Windows Settings |
 | **API Key** | Google Gemini API Key | Lấy miễn phí tại: [Google AI Studio](https://aistudio.google.com/apikey) |
 
 ---
@@ -368,7 +354,7 @@ python scripts/build_installer.py
 
 ## 🔧 Các Lỗi Thường Gặp & Cách Khắc Phục (Common Errors & Fixes)
 
-Dưới đây là 6 lỗi phổ biến nhất và giải pháp xử lý triệt để:
+Dưới đây là 5 lỗi phổ biến nhất và giải pháp xử lý triệt để:
 
 ### 1. ❌ SQLite database locked / Permission Denied
 - **Hiện tượng:** Gặp lỗi `sqlite3.OperationalError: database is locked` hoặc `PermissionError` khi khởi động hoặc lưu ghi chú.
@@ -445,16 +431,6 @@ Dưới đây là 6 lỗi phổ biến nhất và giải pháp xử lý triệt 
      ```powershell
      python -c "import os, dotenv, google.generativeai as genai; dotenv.load_dotenv(); genai.configure(api_key=os.getenv('GEMINI_API_KEY')); print(genai.GenerativeModel('gemini-1.5-flash').generate_content('ping').text)"
      ```
-
----
-
-### 6. ❌ Lỗi micro Bluetooth HFP / PaError -9999 (Windows Exclusive Session)
-- **Hiện tượng:** Tai nghe Bluetooth đàm thoại (AirPods, tai nghe HFP) không thu được âm thanh hoặc báo lỗi `PaError -9999` (`paDeviceUnavailable`).
-- **Nguyên nhân:** Windows OS Session Manager tự động chiếm giữ phiên đàm thoại Bluetooth HFP ở chế độ độc quyền, khiến PortAudio mặc định bị từ chối truy cập qua Shared mode.
-- **Cách khắc phục:**
-  1. JARVIS v5.1.10 đã tích hợp tự động cơ chế **WASAPI Exclusive Capture Fallback**: hệ thống tự động nhận biết lỗi PortAudio và mở luồng ghi âm kernel WASAPI Exclusive trực tiếp tại tần số 16kHz mono.
-  2. Đảm bảo cấu hình `audio.use_wasapi_exclusive = True` trong config (mặc định đã bật).
-  3. Nếu tai nghe vẫn không thu âm được, kiểm tra kết nối Bluetooth trong Windows Settings và đảm bảo tai nghe đang ở profile *Hands-free AG Audio*.
 
 ---
 

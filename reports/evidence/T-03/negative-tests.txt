@@ -1,0 +1,4 @@
+test_telegram_send_message_missing_token: Passed
+test_telegram_send_photo_missing_token: Passed
+test_telegram_unauthorized_user: Passed
+test_telegram_poll_missing_token: Passed

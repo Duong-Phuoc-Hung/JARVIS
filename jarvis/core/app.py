@@ -581,10 +581,25 @@ class JarvisApp:
         self.react_planner = self.planner_engine
 
         # 21. Sub-Agent Worker Pool & Notifications (M1 / Requirement R5)
+        from jarvis.comms.telegram import TelegramBotController
+        telegram_token = get_secret("TELEGRAM_BOT_TOKEN")
+        if telegram_token:
+            whitelist_cfg = self.config.get("comms", {}).get("telegram", {}).get("whitelist_user_ids", [])
+            allowed_ids = set(whitelist_cfg) if isinstance(whitelist_cfg, list) else set()
+            self.telegram_controller = TelegramBotController(
+                bot_token=telegram_token,
+                allowed_user_ids=allowed_ids,
+                dispatcher=self.dispatcher,
+                stt_engine=self.stt_engine,
+            )
+            self.telegram_controller.start()
+        else:
+            self.telegram_controller = None
+
         self.worker_notifications = WorkerNotificationDispatcher(
             tts_manager=self.tts_manager,
             overlay=self.overlay,
-            telegram_controller=getattr(self, "telegram_controller", None),
+            telegram_controller=self.telegram_controller,
             event_bus=self.event_bus,
         )
         self.subagent_manager = SubAgentManager(
@@ -3055,6 +3070,8 @@ class JarvisApp:
             except Exception as e:
                 log.debug("Error stopping browser agent: %s", e)
 
+        if getattr(self, "telegram_controller", None):
+            self.telegram_controller.stop()
         if self.proactive_engine:
             self.proactive_engine.stop()
         if self.overlay:

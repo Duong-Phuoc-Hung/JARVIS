@@ -1,0 +1,6 @@
+{
+  "os": "Windows",
+  "python_version": "3.14",
+  "mock_used": false,
+  "live_credentials_present": false
+}
