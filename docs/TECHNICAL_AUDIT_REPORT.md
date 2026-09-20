@@ -15,6 +15,86 @@ không được hiểu là đã được T-01 tái chứng nhận.
 
 ---
 
+## POST-AUDIT OVERRIDE — Phase 4 + Peer Review (2026-09-19)
+
+> **Cảnh báo tính hiệu lực**: Báo cáo kiểm toán kỹ thuật 13 vòng phía dưới (thực hiện đầu tháng 09/2026)
+> và override T-01 (2026-09-16) phản ánh các giai đoạn phát triển lịch sử. Override này cập nhật
+> toàn diện hiện trạng hệ thống sau các giai đoạn Phase G (Engineering Hardening), Phase P3 (Product
+> Beta Acceptance Gates), Phase 4 (Empirical Runtime Evidence Portfolio), và vòng Peer Review độc lập
+> ngày 2026-09-19 theo các nguyên tắc nghiêm ngặt của `AGENTS.md` (Anti-Fabrication Principle §2 và
+> Three-Tier Verdict Discipline §5).
+
+### 1. Phán Quyết Hệ Thống 3 Tầng Hiện Tại (Three-Tier Verdict)
+
+| Tầng Đánh Giá | Nhãn Phán Quyết | Điều Kiện & Phạm Vi Hiệu Lực |
+|---|:---:|---|
+| **1. Kỹ thuật & Mã nguồn (Engineering Gate)** | **`DONE / PASS engineering`** | 100% blockers (R1–R8) đã giải quyết triệt để; không còn đường code trả kết quả giả lập (`{"simulated": True}`); 0 technical P0s; 2,421 unit tests xanh. |
+| **2. Vận hành Thử nghiệm (Internal Beta Pilot)** | **`CONDITIONAL GO`** | Đủ điều kiện vận hành nội bộ trên máy trạm phát triển chính (`Duong-Phuoc-Hung`) dưới sự giám sát trực tiếp của Terminal Control Center; các ranh giới phần cứng được lập hồ sơ minh bạch và chấp thuận rủi ro. |
+| **3. Phát hành Thương mại (Product Release)** | **`NO-GO`** | Nghiêm cấm phát hành thương mại rộng rãi hoặc gỡ bỏ cảnh báo Beta Pilot do 7 cổng nghiệm thu thực địa vẫn đang mở (open hardware/human gates). |
+
+---
+
+### 2. Năm (05) Đính Chính Trọng Yếu Từ Vòng Peer Review (Peer Review Corrections)
+
+Vòng rà soát đối kháng độc lập (Peer Review) ngày 2026-09-19 đã chỉ ra 5 điểm thiếu sót và ngộ nhận trong các tài liệu bàn giao trước, và thiết lập các hiệu chỉnh bắt buộc sau:
+
+#### Correction 1: R13 Workflow Benchmark — Phân định rõ Dispatcher+Mock với Real OS Execution
+- **Phát hiện**: Việc gán nhãn `PASS runtime` đơn thuần cho R13 dễ gây hiểu nhầm rằng toàn bộ 10 workflows đã được kích hoạt bằng giọng nói người thật và thực thi tác động thật trên hệ điều hành Windows.
+- **Sự thật kỹ thuật**: Mã nguồn `tests/benchmarks/test_workflow_acceptance_benchmark.py` (200/200 trials pass, latency 0.105ms) được thiết kế và thực thi với **zero hardware dependencies**: STT được mock bằng chuỗi text xác định, Home Assistant client được mock bằng MagicMock, và IMAP client được mock bằng danh sách email mẫu.
+- **Hiệu chỉnh chuẩn xác**:
+  * Trạng thái của R13 được chuẩn hóa thành: **`PASS runtime (dispatcher+mock)`**.
+  * Cổng nghiệm thu **"10-workflow real OS execution" (real voice → real STT → real OS action) vẫn HOÀN TOÀN OPEN**.
+  * Quy trình kiểm thử thực tế trên hệ điều hành phải tuân thủ riêng theo protocol tại `docs/eval/workflow_10_real_os_execution_protocol.md` với tiêu chí $\ge 95\%$ pass rate per workflow trên ít nhất 20 trials/workflow.
+
+#### Correction 2: D-06 (Telegram) & D-08 (Discord) — Phân loại "Scope hạn chế"
+- **Phát hiện**: Nhãn `DONE` cho D-06 và D-08 được sao chép nguyên trạng từ Phase D (2026-09-12), tạo ấn tượng rằng các kênh này đã có bằng chứng runtime mới trong Phase 4.
+- **Sự thật kỹ thuật**:
+  * D-06 (Telegram): Chỉ có 1 chu kỳ live send/receive duy nhất được ghi nhận vào ngày 2026-09-12, chưa có bằng chứng kiểm thử tương tác mới trong Phase 4.
+  * D-08 (Discord): Chỉ mới xác nhận xác thực REST API vào ngày 2026-09-12; chưa từng có bài test gửi-nhận lệnh hai chiều (round-trip command execution) qua Inbound Gateway trên môi trường production.
+- **Hiệu chỉnh chuẩn xác**:
+  * Phân loại D-06 và D-08 thành **`DONE (scope hạn chế)`** kèm trích dẫn ngày kiểm thử gốc (2026-09-12) và ghi rõ giới hạn bằng chứng.
+
+#### Correction 3: TieredSTT WER — Công thức Aggregate, Phạm vi Domain và Cỡ Mẫu
+- **Phát hiện**: Báo cáo trước đây đã sử dụng nhầm giá trị trung bình cộng theo câu (Mean Utterance WER: 8.37% cho Command, 5.84% cho tổng thể) thay vì chỉ số chuẩn theo công thức xử lý ngôn ngữ là **Domain Aggregate WER** ($\frac{\sum \text{edit\_distance}}{\sum \text{ref\_tokens}}$). Đồng thời, việc thiếu vắng Domain 1 bị bỏ qua.
+- **Sự thật kỹ thuật (`docs/eval/tiered_stt_wer_domain.md`)**:
+  * **Domain 2 (Command Utterances, N=30)**: **Aggregate WER = 8.50%** (17 lỗi trên 200 tokens; Mean Utterance WER = 8.37%).
+  * **Domain 3 (Free-form Vietnamese, N=30)**: **Aggregate WER = 3.72%** (9 lỗi trên 242 tokens; Mean Utterance WER = 3.59%).
+  * **Combined Corpus (N=60)**: **Combined Aggregate WER = 5.88%** (26 lỗi trên 442 tokens; Mean Utterance WER = 6.21%).
+  * **Domain 1 (Wake-Word & Triggers)**: Chưa thể đo lường thực nghiệm do đòi hỏi terminal âm thanh tương tác trực tiếp (`PENDING_INTERACTIVE_TERMINAL`); trạng thái hiện tại là `PASS fail-closed`, **không phải `PASS runtime`**.
+  * **Hạn chế thống kê & thuật toán**: Cỡ mẫu $N=60$ ($N=30$/domain) là tương đối nhỏ; khuyến nghị mở rộng lên $\ge 200$ mẫu/domain kèm khoảng tin cậy (Confidence Interval) trước khi dùng làm căn cứ sản phẩm. Thuật toán chuyển tầng STT (tier-switching) hiện đang dùng ngưỡng tĩnh (hardcoded), chưa thích ứng động theo dữ liệu (data-driven).
+
+#### Correction 4: D-14 Code Signing — Phân định Chữ Ký CI Tự Ký ($0) và Chứng Chỉ Thương Mại EV
+- **Phát hiện**: Đánh giá D-14 là `DONE` mà không giải thích rõ loại chứng chỉ, gây hiểu lầm rằng ứng dụng không còn bị Windows Defender SmartScreen chặn.
+- **Sự thật kỹ thuật**:
+  * Installer `dist/installer/JARVIS_Setup_v5.2.0.exe` (74,950,832 bytes, SHA-256 `6b52e20f...`) đã được ký số Authenticode bằng chứng chỉ CI tự ký ($0, ephemeral self-signed cert qua `scripts/sign_installer_v520.py`). Chữ ký này hợp lệ về mặt toán học và chống giả mạo binary, nhưng Root CA không nằm trong Windows Trusted Root Store.
+  * Khi cài đặt trên máy tính Windows sạch, **Windows SmartScreen vẫn sẽ hiển thị cảnh báo bảo vệ** ("Windows protected your PC / Unknown Publisher").
+- **Hiệu chỉnh chuẩn xác**:
+  * Ghi nhận quy trình CI ký số đạt `DONE`, nhưng phân loại trạng thái sản phẩm là **`PENDING_COMMERCIAL_CERT`**.
+  * Việc tích hợp chứng chỉ thương mại (Commercial OV/EV Certificate từ DigiCert / Azure Code Signing) được chuyển thành hạng mục lộ trình dài hạn **P3-09** (`docs/signing/production_signing_upgrade.md`).
+
+#### Correction 5: Tái Đo Lường Test Suite Ngày 2026-09-19 (Test Metrics Precision)
+- **Phát hiện**: Sử dụng số liệu ước lượng hoặc không cập nhật ("2,383+" hoặc "2,424 tests pass") vi phạm nguyên tắc chống giả mạo số liệu của `AGENTS.md §2`.
+- **Sự thật kỹ thuật**: Toàn bộ unit test suite đã được thực thi lại vào ngày 2026-09-19 trên môi trường host Windows 11.
+- **Số liệu đo lường thực tế**:
+  * **Full Unit Test Suite (`tests/unit/`)**: **2,421 passed, 3 skipped, 268 subtests, 0 failed** (thời gian chạy ~189s, mã thoát 0).
+  * **Chi tiết 3 test skipped**: Nằm tại `tests/unit/test_data_analysis_service.py` (dòng 196, 209, 253), xuất phát từ cơ chế `pytest.importorskip("matplotlib")` khi môi trường kiểm thử không cài đặt gói `matplotlib`. Đây là hành vi fail-safe có chủ đích của module tùy chọn.
+  * **Browser Playwright E2E Suite**: **21/21 passed** trong 45.38s trên Chromium loopback thật.
+
+---
+
+### 3. Danh Mục Các Cổng Nghiệm Thu Mở Cần Theo Dõi (Open Gates Tracking)
+
+Mọi đánh giá phát hành tương lai bắt buộc phải đối chiếu trạng thái thực tế của 7 cổng sau:
+1. **Gate 10-Workflow Real OS Execution**: `OPEN` — Cần thực thi đo lường bằng giọng nói thật theo `docs/eval/workflow_10_real_os_execution_protocol.md`.
+2. **Gate TShark Npcap Driver**: `HARDWARE_BLOCKED (UAC_REQUIRED)` — Cần cấp quyền Windows UAC tương tác để cài đặt `npcap.sys`.
+3. **Gate Local Home Assistant Hub**: `HARDWARE_BLOCKED (DOCKER_NOT_RUNNING)` — Cần khởi chạy Docker Desktop daemon để chạy container trên cổng 8123.
+4. **Gate Router LLM Live Reasoning**: `PENDING_CREDENTIALS` — Cần lưu trữ khóa Google Gemini API hợp lệ (`AIzaSy...`) vào Windows Credential Manager.
+5. **Gate TieredSTT Domain 1 Wake-Word WER**: `PENDING_INTERACTIVE_TERMINAL` — Cần phiên làm việc tương tác thu âm live cho 30 wake-word phrases.
+6. **Gate Human Voice Acceptance (H-13)**: `PENDING_HUMAN_EXECUTION` — Cần người thật nói 50 câu lệnh tiếng Việt kiểm chứng lại sau khi đóng băng code Phase G.
+7. **Gate Clean-Machine VM Lifecycle**: `HARDWARE_BLOCKED (CI_SIGNATURE_ONLY)` — Cần máy ảo Windows sạch để kiểm thử toàn vẹn cài đặt, nâng cấp và gỡ cài đặt installer.
+
+---
+
 ## 0. TÓM TẮT ĐIỀU HÀNH (EXECUTIVE SUMMARY)
 
 Dự án JARVIS đã trải qua một quá trình audit đối kháng (adversarial audit) hiếm thấy về độ sâu: 13 vòng trao đổi, mỗi vòng phát hiện một lỗ hổng cụ thể trong mã nguồn hoặc trong chính lập luận bảo mật, và mỗi vòng đều được đội ngũ phát triển xử lý bằng bằng chứng thực nghiệm thay vì chỉ khẳng định suông. Đây là điểm khác biệt lớn nhất so với báo cáo tự đánh giá ban đầu.

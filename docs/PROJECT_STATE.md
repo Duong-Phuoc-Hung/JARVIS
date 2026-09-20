@@ -15,8 +15,92 @@
 > maintenance work; those remain attributable through Git history and pull
 > requests.
 > Durable current-state handoff for future sessions.
-> Snapshot: 2026-09-16 T-01 completion checkpoint; older sections retain their historical dates.
+> Snapshot: 2026-09-19 v5.2.0 Phase 4 + Peer Review completion checkpoint; older sections retain their historical dates.
 > Always verify Git state and current code before relying on this snapshot.
+
+## 0A. Current checkpoint — v5.2.0 Phase 4 + Peer Review (2026-09-19) — READ THIS FIRST
+
+This checkpoint supersedes older sections for JARVIS v5.2.0 Phase 4 and Peer Review status,
+without deleting historical checkpoints below (T-01, v5.0.0, PR #38, etc.). Always verify Git
+state and working tree before treating any recorded SHA as current.
+
+**Source & Version State:**
+- **Canonical Git State**: HEAD commit `3a7014f`, Annotated Git Tag `v5.2.0`, Branch `main`.
+- **Runtime Version**: `5.2.0` (`jarvis.__version__` in `jarvis/__init__.py`).
+- **Release Distribution Artifact**: One-click Windows Inno Setup installer `dist/installer/JARVIS_Setup_v5.2.0.exe`
+  (74,950,832 bytes, SHA-256 `6b52e20f3c4cf08be76a55c4e7dc87d55c83112725425a579b46c9aff3510d3b`,
+  Authenticode signed with 2048-bit RSA CI certificate + DigiCert RFC-3161 timestamp). GitHub Release `v5.2.0` published.
+
+**Three-Tier Verdict Discipline (`AGENTS.md §5`):**
+1. **Engineering Quality Gate**: **`DONE / PASS engineering`**
+   - 100% of architectural blockers (R1–R8) remediated with zero simulated fallbacks (`{"simulated": True}`)
+     and zero unhandled errors wrapped in false success.
+   - Unified `ActionResult` contract, 5-state health vocabulary (`READY`, `LIMITED`, `BLOCKED`, `ERROR`, `UNAVAILABLE`),
+     and 30-second token authorization for high-risk outbound operations enforced across 100% of modules.
+   - Zero architectural P0 blockers; 6 P1 risks actively mitigated (`docs/risk_register.md`).
+2. **Internal Beta Pilot Authorization**: **`CONDITIONAL GO`**
+   - Authorized exclusively for internal pilot operation on primary developer workstation (`Duong-Phuoc-Hung`)
+     under supervised monitoring via Terminal Control Center.
+   - External hardware/credential constraints are truthfully classified and accepted as bounded pilot risks.
+3. **Commercial / General Product Release**: **`NO-GO`**
+   - Strictly unauthorized for general commercial distribution until all open physical hardware gates,
+     live human voice testing, and clean-machine verification are closed.
+
+**Phases Progression Summary:**
+- **Phase G — Engineering Hardening (R1–R8)**: **`DONE`**
+  - R1 (Planner fail-closed), R2 (Unified ActionResult), R3 (StatusLevel standardization),
+    R4 (High-risk safety expansion & 30s token confirmation), R5 (Discord inbound polling gateway),
+    R6 (Core/Labs feature gating), R7 (Runtime evidence portfolio in `docs/eval/`), R8 (Beta GO report & doc sync).
+- **Phase P3 — Product Beta Acceptance Gates (R9–R14)**:
+  - R9 (Credentials Registry: 12 connectors, 0 TBDs): `PASS engineering`.
+  - R10 (P0/P1 Risk Register: 0 code P0s, 6 P1s, 5 hardware gates profiled): `PASS engineering`.
+  - R11 (TShark packet capture): `HARDWARE_BLOCKED (UAC_REQUIRED)` — Wireshark 4.6.8 CLI present, `npcap.sys` absent.
+  - R12 (Browser Playwright E2E 21 seams): `PASS runtime` (45.38s on real Chromium loopback).
+  - R13 (Workflow Acceptance Benchmark 200/200 trials): `PASS runtime (dispatcher+mock)` — Note: dispatcher+mock
+    execution with zero hardware dependencies; gate "10-workflow real OS execution" remains OPEN.
+  - R14 (Documentation sync & release report): `DONE`.
+- **Phase 4 — Runtime Evidence Portfolio (R15–R26)**:
+  - R15/R11 (TShark live probe): `HARDWARE_BLOCKED (UAC_REQUIRED)` — fail-closed `NO_TSHARK_OUTPUT`, 0 fake packets.
+  - R16/R23 (Local Home Assistant Docker retry): `HARDWARE_BLOCKED (DOCKER_NOT_RUNNING)` — Docker daemon offline;
+    client reports `StatusLevel.UNAVAILABLE`, `code="CONNECTION_FAILED"`.
+  - R17 (Live IMAP Mailbox Integration): `PASS runtime` — live SSL/TLS connection to `imap.gmail.com:993`,
+    2 unread emails retrieved, zero body text logged.
+  - R18/R25 (v5.2.0 Build, Authenticode Signing & GitHub Release): `PASS runtime` — standalone installer verified
+    with SHA-256 and Authenticode CI signature; GitHub Release `v5.2.0` verified.
+  - R19/R24 (Router LLM Live Reasoning & Credential Manager): `PASS fail-closed (PENDING_CREDENTIALS)` — key in `.env`
+    is duplicate of ElevenLabs (`AQ.Ab8RN...`), Windows Credential Manager has no `AIzaSy...` key; fail-closed verified.
+  - R20 (TieredSTT Multi-Domain WER Benchmark): `PASS runtime (D2+D3)` — FasterWhisper `large-v3` on CUDA:
+    Command aggregate WER **8.50%**, Free-form Vietnamese WER **3.72%**, Combined aggregate WER **5.88%** (N=60);
+    Domain 1 (Wake-Word) pending interactive terminal.
+  - R26 (Final documentation sync): `DONE`.
+- **Phase S — Peer Review Corrections (2026-09-19)**:
+  - Codified 5 critical corrections across R13 mock scope, D-06/D-08 limited scope status, WER aggregate formulation,
+    D-14 self-signed vs commercial cert distinction, and exact unit test suite re-run metrics.
+
+**Confirmed Measured Metrics (2026-09-19):**
+- **Repository Unit Test Suite**: **2,421 passed, 3 skipped, 268 subtests, 0 failed** in ~189s
+  (3 skipped tests located in `tests/unit/test_data_analysis_service.py` due to uninstalled optional dependency `matplotlib`).
+- **Browser Playwright E2E Suite**: **21/21 passed** in 45.38s on real Chromium loopback seams.
+- **Workflow Acceptance Benchmark**: **200/200 trials passed (100.00%)** in 0.40s across 10 core workflows
+  (dispatcher + safety interceptor pipeline, zero hardware dependencies).
+- **TieredSTT Acoustic Accuracy (WER)**:
+  * Domain 2 (Command Utterances, N=30): **8.50% aggregate WER** (mean utterance 8.37%).
+  * Domain 3 (Free-form Vietnamese, N=30): **3.72% aggregate WER** (mean utterance 3.59%).
+  * Combined Corpus (N=60): **5.88% aggregate WER** (mean utterance 6.21%).
+
+**Open Operational Gates & Hardware Blocks:**
+1. **Gate "10-Workflow Real OS Execution"**: `OPEN` — R13 proves dispatcher+mock logic; real voice → real STT → real OS execution protocol (`docs/eval/workflow_10_real_os_execution_protocol.md`) must be executed.
+2. **Gate "TShark Live Packet Capture"**: `HARDWARE_BLOCKED (UAC_REQUIRED)` — Requires interactive Windows UAC elevation to install Npcap kernel driver (`npcap.sys`).
+3. **Gate "Local Home Assistant Hub"**: `HARDWARE_BLOCKED (DOCKER_NOT_RUNNING)` — Requires starting Docker Desktop daemon service to host local container on port 8123.
+4. **Gate "Router LLM Live Semantic Routing"**: `PENDING_CREDENTIALS` — Requires configuring a valid Google Gemini API key (`AIzaSy...`) in Windows Credential Manager or `.env`.
+5. **Gate "TieredSTT Domain 1 Wake-Word WER"**: `PENDING_INTERACTIVE_TERMINAL` — Audio capture for wake-word activations requires interactive terminal session.
+6. **Gate "Human Voice Acceptance (H-13)"**: `PENDING_HUMAN_EXECUTION` — 48/50 PASS (96.0%) from 2026-09-16 requires re-verification with live human speakers post-Phase G code freeze.
+7. **Gate "Commercial Code Signing (D-14 / P3-09)"**: `PENDING_COMMERCIAL_CERT` — Current self-signed CI signature triggers SmartScreen warning on clean Windows machines; commercial OV/EV certificate needed for production distribution.
+8. **Gate "Zalo Official Account (D-07)"**: `PENDING_ZALO_OA_VERIFICATION` — Pending VNG business enterprise verification.
+
+*(Note: This checkpoint records current system state as of 2026-09-19 and preserves the historical T-01 checkpoint and prior release provenance below without deletion).*
+
+---
 
 ## 0. Current checkpoint — T-01 real Playwright/CDP browser, DONE (2026-09-16) — READ THIS FIRST
 
