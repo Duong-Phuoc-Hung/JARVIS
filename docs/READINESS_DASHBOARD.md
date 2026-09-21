@@ -4,7 +4,11 @@
 **Date**: 2026-09-19 (v5.2.0 Phase 4 + Peer Review Checkpoint)<br>
 **Auditor / Author**: Teamwork Engineering Swarm & Peer Review Audit<br>
 **Integrity Standards**: `AGENTS.md` (Fail-Closed Default, Anti-Fabrication Principle, Windows Atomic Persistence, Three-Tier Verdict Discipline)<br>
-**Architecture Specification**: `PROJECT.md` & `docs/AUDIT_FRAMEWORK.md`
+**Architecture Specification**: `PROJECT.md` & `docs/AUDIT_FRAMEWORK.md`<br>
+**Last Peer-Reviewed**: 2026-09-21 — Reviewer: Duong Phuoc Hung (project owner) — Kết quả: 6 lỗi phát hiện và sửa (GATE-03 ngưỡng 80%→95%, section 5 thanh % vi phạm AUDIT_FRAMEWORK.md §106, UP-11 thiếu ghi chú nguồn ngành, D-06 thiếu caveat send-only, nhãn (engineering) không nhất quán, TieredSTT tier sai) — commit `9842fb9`
+
+> [!WARNING]
+> **Cảnh báo tự kiểm tra**: File này là nguồn chính cho trạng thái dự án, nhưng không miễn nhiễm với sai sót — như đã chứng minh bởi lỗi GATE-03 (2026-09-19→2026-09-21). Mọi cập nhật nội dung quan trọng (gate status, verdict, ngưỡng) phải được peer review độc lập trước khi commit. Không tin claim tĩnh trong file này khi chưa đối chiếu với file protocol gốc trong `docs/eval/`.
 
 ---
 
