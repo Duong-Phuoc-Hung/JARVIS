@@ -1,67 +1,74 @@
-# Project: JARVIS Codebase Scan, Verification, and Bug Remediation Sprint
+# Project: JARVIS Comprehensive Security Audit, Hardening & Tooling Sprint
 
 ## Architecture
 JARVIS is an autonomous AI voice assistant and desktop automation platform for Windows 11 (Python 3.13).
-- **Core Orchestration (`jarvis/core/`)**: EventBus, ActionDispatcher, JarvisApp lifecycle, ConfigManager, Logger, and RunawayGuard.
-- **Automation Subsystem (`jarvis/automation/`)**: ComputerController, SafetyGate, VMOrchestrator, WorkspaceManager, ShellAssistant, and AppLauncher.
-- **LLM & Intent Routing (`jarvis/llm/`)**: LLMIntentRouter, Gemini/OpenAI/Ollama clients, Tool calling schema generator, diacritic normalization, and parameter extraction.
+- **Core Subsystems (`jarvis/core/`)**: EventBus, ActionDispatcher, JarvisApp lifecycle, ConfigManager, Logger, RunawayGuard.
+- **Security & Safety (`jarvis/security/`, `jarvis/automation/safety_gate.py`, `jarvis/planner/safety_interceptor.py`)**: SafetyInterceptor, AccessControl, TokenSecurity, JobObject sandbox, AST validation.
+- **Automation & OS Control (`jarvis/automation/`, `jarvis/browser/`, `jarvis/os_control/`)**: ComputerController, ShellAssistant, BrowserController, DesktopAutomation.
+- **Communications & Web (`jarvis/comms/`, `jarvis/web/`)**: TelegramBot, DiscordBot, Zalo, IMAP, WebSearch, TTLCache.
+- **LLM & Speech (`jarvis/llm/`, `jarvis/stt/`, `jarvis/tts/`)**: Intent routing, Tool calling schemas, Whisper STT, TTS manager.
 
-## Feature Inventory & Bug Registry
-| # | Defect ID | Description | Module / File | Milestone | Source |
-|---|-----------|-------------|---------------|:---------:|--------|
-| 1 | BUG-CORE-01 | Deadlock in `EventBus.publish` and `dispatch_action` when called from active async event loop | `jarvis/core/dispatcher.py:148-158, 584-594` | M1 | Survey (Core Explorer) |
-| 2 | BUG-CORE-02 | `ActionStatus` enum demoted to `ActionStatus.FAILED` due to `'ACTIONSTATUS.BLOCKED'` str formatting | `jarvis/core/dispatcher.py:608-612, 746-750` | M1 | Survey (Core Explorer) |
-| 3 | BUG-CORE-03 | `ActionStatus.RATE_LIMITED` and `LABS_DISABLED` normalized as `success=True` | `jarvis/core/dispatcher.py:268-270` | M1 | Survey (Core Explorer) |
-| 4 | BUG-CORE-04 | Hotkey argument splatting mismatch in `_handle_new_tab` (`"ctrl+t"` string instead of splatted args) | `jarvis/core/app.py:1756` | M1 | Survey (Core Explorer) |
-| 5 | BUG-CORE-05 | Inverted error/message contract in `_handle_system_brightness` leaking internal codes to TTS | `jarvis/core/app.py:1674, 1679` | M1 | Survey (Core Explorer) |
-| 6 | BUG-CORE-06 | Grammatical sign bug in `_handle_system_volume` stating volume was adjusted up on negative delta | `jarvis/core/app.py:1666` | M1 | Survey (Core Explorer) |
-| 7 | BUG-CORE-07 | Race condition in `JarvisApp.initialize()` allowing duplicate subsystem initialization | `jarvis/core/app.py:325-330` | M1 | Survey (Core Explorer) |
-| 8 | BUG-CORE-08 | Fragile teardown in `JarvisApp.stop()` where one subsystem exception halts remaining cleanup | `jarvis/core/app.py:3127-3153` | M1 | Survey (Core Explorer) |
-| 9 | BUG-AUTO-01 | `set_brightness` mutates internal state before hardware call and returns int on failure instead of `None` | `jarvis/automation/control.py:511-537` | M2 | Survey (Auto Explorer) |
-| 10 | BUG-AUTO-02 | CRITICAL: `SafetyGate` confirms destructive action on negation (`"không đồng ý"`, `"không được"`, `"không ok"`) | `jarvis/automation/safety_gate.py:209-218` | M2 | Survey (Auto Explorer) |
-| 11 | BUG-AUTO-03 | `SafetyGate` voice response fails on trailing punctuation (`"đồng ý."`, `"có!"`) | `jarvis/automation/safety_gate.py:177-196` | M2 | Survey (Auto Explorer) |
-| 12 | BUG-AUTO-04 | Memory leak in `SafetyGate._pending` tokens never pruned upon confirmation or cancellation | `jarvis/automation/safety_gate.py:166-175` | M2 | Survey (Auto Explorer) |
-| 13 | BUG-AUTO-05 | `VMOrchestrator` start/stop returns `success=True` when hypervisor binaries are missing | `jarvis/automation/vm.py:66-81, 130-145` | M2 | Survey (Auto Explorer) |
-| 14 | BUG-AUTO-06 | `WorkspaceRecipe` AttributeError & recipe execution stub returning fake success | `jarvis/automation/workspace.py:68-94` | M2 | Survey (Auto Explorer) |
-| 15 | BUG-AUTO-07 | Windows `cmd.exe` shell command syntax errors (`docker restart $(...)` and PowerShell cmdlets in cmd) | `jarvis/automation/shell_assistant.py:459-466, 219` | M2 | Survey (Auto Explorer) |
-| 16 | BUG-AUTO-08 | `take_screenshot` returns destination path even when capture fails | `jarvis/automation/control.py:636-663` | M2 | Survey (Auto Explorer) |
-| 17 | BUG-LLM-01 | Non-diacritic duration parsing unit collapse (`30 giay` -> 1800s, `2 gio` -> 120s) | `jarvis/llm/router.py:121-130` | M3 | Survey (LLM Explorer) |
-| 18 | BUG-LLM-02 | Negation bypass on Spotify & Claude targets (`đừng mở spotify` triggers launch) | `jarvis/llm/router.py:2316-2340` | M3 | Survey (LLM Explorer) |
-| 19 | BUG-LLM-03 | Gemini tool schema generator omits required `items` field on array parameters (HTTP 400) | `jarvis/llm/router.py:180-194` | M3 | Survey (LLM Explorer) |
-| 20 | BUG-LLM-04 | Router emits action names unregistered in `JarvisApp.dispatcher` (`hardware_telemetry_check`, `reminder`, etc.) | `jarvis/llm/router.py` vs `jarvis/core/app.py` | M3 | Survey (LLM Explorer) |
-| 21 | BUG-LLM-05 | Positional argument & key mismatch in `_handle_proactive_reminder` (`message`, `delay_s`) | `jarvis/core/app.py:1799` & `jarvis/llm/router.py:1520` | M3 | Survey (LLM Explorer) |
-| 22 | BUG-LLM-06 | Gemini safety filter candidate with null content crashes with `AttributeError` | `jarvis/llm/client.py:560` | M3 | Survey (LLM Explorer) |
-| 23 | BUG-LLM-07 | Missing standard vendor API key environment variable fallbacks (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) | `jarvis/llm/client.py:201-208` | M3 | Survey (LLM Explorer) |
-| 24 | M4-DOC-01 | CHANGELOG.md and ROADMAP.md sync, full regression test execution, git commits and push | Repository Root | M4 | Original Request |
+## Feature Inventory & Vulnerability Catalog
+| # | Defect ID | Severity | Description | Module / File | Milestone | Status |
+|---|-----------|:--------:|-------------|---------------|:---------:|:------:|
+| 1 | VULN-CAT1-01 | Critical | Shell Injection via `shell=True` fallback in `ShellAssistant` | `jarvis/automation/shell_assistant.py` | M1 | RESOLVED |
+| 2 | VULN-CAT1-02 | Critical | Unrestricted Shell Execution Sink (`shell_exec` missing from `HIGH_RISK_ACTIONS`) | `jarvis/plugins/shell.py`, `jarvis/planner/safety_interceptor.py` | M1 | RESOLVED |
+| 3 | VULN-CAT1-03 | High | Path traversal in `BrowserActionExecutor.download_file` | `jarvis/browser/actions.py` | M1 | RESOLVED |
+| 4 | VULN-CAT1-04 | High | Arbitrary directory deletion without canonical boundary check | `jarvis/automation/shell_assistant.py` | M1 | RESOLVED |
+| 5 | VULN-CAT1-05 | Medium | Rate limiter state explosion / memory leak (uncalled `cleanup_idle`) | `jarvis/comms/rate_limiter.py` | M1 | RESOLVED |
+| 6 | VULN-CAT2-01 | Critical | Unauthenticated Web Dashboard with Wildcard CORS (`*`) leaking `/api/config` and `/api/logs` | `jarvis/ui/dashboard.py` | M1 | RESOLVED |
+| 7 | VULN-CAT2-02 | High | Hardcoded DEBUG level in rotating file handler on disk | `jarvis/core/logger.py` | M1 | RESOLVED |
+| 8 | VULN-CAT2-03 | High | API keys in URL query params leaking into `RequestException` messages | `jarvis/web/weather.py`, `jarvis/vision/screen.py` | M1 | RESOLVED |
+| 9 | VULN-CAT2-04 | Medium | Plaintext credentials in env override warning and `ConfigNode.__repr__` | `jarvis/core/config.py` | M1 | RESOLVED |
+| 10 | VULN-CAT3-01 | Critical | LIFO race condition and pending confirmation hijacking in `_handle_safety_gate_confirm` | `jarvis/core/app.py`, `jarvis/automation/safety_gate.py` | M1 | RESOLVED |
+| 11 | VULN-CAT3-02 | High | Safety gate token replay and lifecycle gap | `jarvis/automation/safety_gate.py` | M1 | RESOLVED |
+| 12 | VULN-CAT3-03 | Critical | Unauthenticated remote skill execution (`!exec`) & screenshot exfiltration | `jarvis/comms/discord.py` | M1 | RESOLVED |
+| 13 | VULN-CAT3-04 | High | Ambient privilege escalation via unauthenticated system and voice contexts | `jarvis/core/app.py`, `jarvis/core/models.py` | M1 | RESOLVED |
+| 14 | VULN-CAT3-05 | High | Missing safety interception for VM termination, subagent spawning, sandbox code | `jarvis/planner/safety_interceptor.py`, `jarvis/automation/vm.py` | M1 | RESOLVED |
+| 15 | VULN-CAT4-01 | High | `idna==2.10` vulnerable to CVE-2024-3651 & CVE-2026-45409 DoS | `requirements.txt:33`, `pyproject.toml:34` | M1 | RESOLVED |
+| 16 | VULN-CAT4-02 | High | Missing `keyring` in `requirements.txt` bypassing Windows Credential Manager | `requirements.txt:34`, `jarvis/security/secrets.py:48-54` | M1 | RESOLVED |
+| 17 | VULN-CAT4-03 | Medium | Outdated dependency bounds in requirements | `requirements.txt`, `pyproject.toml` | M1 | RESOLVED |
+| 18 | VULN-CAT5-01 | Medium | Raw exception interpolation leaking paths & internals to voice/chat users | `jarvis/vision/screen.py`, `jarvis/comms/zalo.py`, `jarvis/comms/discord.py` | M1 | RESOLVED |
+| 19 | VULN-CAT5-02 | Medium | Action handlers returning raw exception strings | `jarvis/core/dispatcher.py` | M1 | RESOLVED |
+| 20 | VULN-CAT5-03 | High | PromptGuard `wrap_untrusted_context` unescaped XML breakout | `jarvis/security/prompt_guard.py` | M1 | RESOLVED |
+| 21 | VULN-CAT5-04 | High | Sandbox AST validator omitting `importlib` and `builtins` | `jarvis/sandbox/validator.py` | M1 | RESOLVED |
+| 22 | VULN-CAT5-05 | Low | Package exports missing `secrets.py` in `jarvis/security/__init__.py` | `jarvis/security/__init__.py` | M1 | RESOLVED |
+| 23 | SEC-TEST-01 | N/A | Add 21+ new security-focused tests in `tests/unit/test_security_hardening.py` | `tests/unit/test_security_hardening.py` | M2 | DONE |
+| 24 | SEC-TOOL-01 | N/A | Build standalone security scanner with `--help`, AST/regex rules, exit code 0 | `tools/security_scanner.py` | M3 | DONE |
+| 25 | SEC-DOC-01 | N/A | Update `AUDIT_FRAMEWORK.md`, `CHANGELOG.md`, `docs/ROADMAP.md`, 3+ commits, push | Repository root & docs/ | M4 | DONE |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|:------:|
-| M1 | Core Subsystem Remediation | Bugs 1 to 8: `dispatcher.py`, `app.py`, lifecycle, fail-closed & concurrency | none | DONE |
-| M2 | Automation & Safety Gate Remediation | Bugs 9 to 16: `safety_gate.py`, `control.py`, `vm.py`, `workspace.py`, `shell_assistant.py` | M1 | DONE |
-| M3 | LLM Router & Integration Remediation | Bugs 17 to 23: `router.py`, `client.py`, dispatcher action registrations | M1, M2 | DONE |
-| M4 | Verification, Documentation & Release | Full pytest suite (>=2,200 tests), CHANGELOG, ROADMAP, >=3 commits, push origin/main | M1, M2, M3 | DONE |
+| M0 | Survey & 5-Category Security Audit | 3 parallel Explorers scanning all 200 source files, dependencies, security modules | none | DONE |
+| M1 | Vulnerability Remediation & Patching | Clean minimal fixes for all 22 discovered vulnerabilities, no cheat workarounds, tests pass | M0 | DONE |
+| M2 | Security Test Suite Upgrade | 21+ new security unit tests added in tests/unit/, maintain ≥2,694 passing tests | M1 | DONE |
+| M3 | Automated Security Scanner Tool | Build standalone security scanner in `tools/security_scanner.py` with docs & tests | M0, M1 | DONE |
+| M4 | Documentation, Verification & Git Push | Update AUDIT_FRAMEWORK, CHANGELOG, ROADMAP, ≥3 commits after 7e973e4, push to origin/main | M1, M2, M3 | DONE |
 
-## Interface Contracts
-### Dispatcher & Action Execution Contract (`jarvis/core/dispatcher.py`)
-- `dispatch_action(action_name, payload)` must not block active asyncio loops or deadlock when called from an async thread.
-- `_normalize_handler_outcome` must preserve `ActionStatus.RATE_LIMITED` and `ActionStatus.LABS_DISABLED` with `success=False`.
-- `ActionStatus` enum string serialization must correctly map back to enum members without falling back to `FAILED`.
+## Interface & Security Contracts
+### Safety Interceptor & Action Confirmation Contract
+- High-risk and destructive actions (`shell_exec`, `shell_execute`, `shell_command`, `sandbox_execute_code`, `sandbox_python_exec`, file deletion, shutdown, reboot, VM destruction) MUST trigger confirmation requests.
+- Confirmation tokens MUST enforce a strictly monotonic TTL expiration and cannot be reused or bypassed via parameter injection.
+- Fail-closed semantics: Any invalid or expired token must result in denial.
 
-### Safety Gate Verification Contract (`jarvis/automation/safety_gate.py`)
-- Negated phrases (`"không đồng ý"`, `"không được"`, `"không ok"`, `"huỷ"`, `"dừng lại"`) MUST be evaluated before affirmative phrases.
-- Voice response text must be sanitized (strip punctuation, trim whitespace, normalize lowercase) before matching word boundaries.
-- Confirmed, cancelled, or expired requests MUST be purged from `_pending` dictionary.
+### Sanitization & Shell Safety Contract
+- No user/STT/LLM supplied strings may be passed directly to shell command execution without strict tokenization, allowlisting, and rejection of chaining operators (`&`, `|`, `;`, `>`, `<`, `^`).
+- Path operations must resolve canonical paths and ensure they do not traverse outside designated workspace/cache boundaries.
 
-### LLM Intent Router & Schema Contract (`jarvis/llm/router.py`, `jarvis/llm/client.py`)
-- Duration parsing regex must correctly match non-diacritic `"giay"`, `"phut"`, `"gio"` without colliding with wrong unit multipliers.
-- Negation prefixes (`"đừng"`, `"không"`, `"chớ"`, `"never"`, `"don't"`) must not be stripped or ignored when routing app launch targets.
-- Tool schema generation for `type: "array"` must provide a valid `items: {"type": "string"}` schema dictionary for Gemini API.
+### Information Disclosure & Logging Contract
+- Logging calls and exception handlers must mask credentials, tokens, passwords, and sensitive system internals.
+- Debug mode must default to False in production configuration.
+- Local web dashboard endpoints (`/api/config`, `/api/logs`) must NOT use wildcard CORS and must redact secrets. Origin strictly limited to loopback addresses.
 
 ## Code Layout
 - `jarvis/core/`: Application orchestrator, event bus, action dispatcher, configuration, and logging.
-- `jarvis/automation/`: Desktop automation, safety gate, virtual machine control, workspace recipes, shell assistance.
-- `jarvis/llm/`: Intent routing, LLM clients, tool schema definition, diacritic normalization.
-- `tests/unit/`: Pytest unit and regression test suite.
+- `jarvis/security/`: Safety interceptor, credential manager, sandbox, AST validator.
+- `jarvis/automation/`: Desktop automation, safety gate, shell assistant.
+- `jarvis/comms/`: Communication adapters (Telegram, Discord, Zalo, Email).
+- `jarvis/web/`: Web search, scraping, cache.
+- `tools/`: Standalone developer and security tools (`tools/security_scanner.py`).
+- `tests/unit/`: Pytest unit and security test suite.
+- `docs/AUDIT_FRAMEWORK.md`: Security audit criteria and results.
 - `CHANGELOG.md`: Project change log.
 - `docs/ROADMAP.md`: Master project roadmap.

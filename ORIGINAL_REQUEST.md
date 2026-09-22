@@ -967,4 +967,112 @@ Tạo file protocol mới cho gate "10-workflow real OS execution". Tham khảo 
 - `docs/TECHNICAL_AUDIT_REPORT.md` — File cần update (đọc toàn bộ trước)
 </USER_REQUEST>
 
+## 2026-09-22T15:00:08Z
 
+<USER_REQUEST>
+Kiểm tra toàn diện hệ thống JARVIS (Python 3.13, Windows 11) về mọi loại lỗ hổng bảo mật,
+vá dứt điểm mọi điểm yếu phát hiện được, đồng thời nâng cấp hệ thống kiểm thử hiện tại
+và xây dựng thêm công cụ kiểm tra bảo mật tự động mới.
+
+Working directory: d:\Software GitCode\JARVIS
+Integrity mode: benchmark
+
+## Context
+
+- Python 3.13, Windows 11, PowerShell
+- HEAD commit: `7e973e4` (sau sprint bug-fix toàn diện — 2,694 tests passed)
+- Test suite: `tests/unit/` — 125+ test files, 2,694 passing
+- Lệnh chạy test: `python -m pytest tests/unit/ -x --tb=short -q`
+- Encoding: luôn dùng `$env:PYTHONIOENCODING="utf-8"` khi chạy Python
+- Tài liệu bảo mật hiện tại: `docs/AUDIT_FRAMEWORK.md`, `docs/eval/`
+- Known security module: `jarvis/security/safety_interceptor.py`
+- Known risks documented: S-01..S-08 trong progress_report (một số đã fix, một số pending)
+
+## Requirements
+
+### R1. Audit toàn diện lỗ hổng bảo mật
+
+Quét 200 source files trong `jarvis/` cho TẤT CẢ 5 loại lỗ hổng:
+
+**1. Lỗ hổng trong code:**
+- Path traversal: user input được dùng để tạo đường dẫn file mà không validate
+- Shell injection: string interpolation không được sanitize trong `subprocess`, `os.system`
+- Token không expire: CONFIRMED tokens, session tokens, rate-limit tokens không có TTL check tại execution time
+- Input không sanitize: command text từ STT/LLM được truyền thẳng vào hàm nguy hiểm
+
+**2. Leak thông tin nhạy cảm:**
+- API key, token, password xuất hiện trong log messages, exception messages, hoặc console output
+- Stack trace chứa credential
+- Debug mode bật mặc định trong production code
+
+**3. Quyền hạn quá rộng:**
+- Action nguy hiểm (xóa file, shutdown, gửi message) không yêu cầu xác nhận từ safety interceptor
+- Bypass safety interceptor qua parameter manipulation
+- Privilege escalation qua unexpected code path
+
+**4. Dependency vulnerabilities:**
+- Chạy `pip index versions` hoặc equivalent để kiểm tra các dependency trong `requirements.txt` / `pyproject.toml` có CVE đã biết
+- Phiên bản lỗi thời có security patch available
+
+**5. Information disclosure:**
+- Error responses trả về internal path, module structure, hoặc system info cho caller
+- Exception objects với sensitive attributes được serialize ra JSON
+
+### R2. Vá mọi lỗ hổng tìm được
+
+Với mỗi lỗ hổng phát hiện:
+1. Phân loại severity: Critical / High / Medium / Low
+2. Ghi rõ file + line number + attack vector cụ thể
+3. Viết fix tối thiểu — không refactor code không liên quan
+4. Nếu fix thay đổi behavioral contract: cập nhật test tương ứng
+5. Chạy `python -m pytest tests/unit/ -x --tb=short -q` sau mỗi fix (exit code 0 mới commit)
+
+### R3. Nâng cấp test suite hiện tại với security-focused tests
+
+Bổ sung vào `tests/unit/` các test mới tập trung vào bảo mật:
+- Fuzzing tests: gửi input ngẫu nhiên/malformed vào các API public, verify không crash và fail-closed
+- Boundary tests: empty string, None, unicode đặc biệt, chuỗi rất dài (>10,000 chars)
+- Injection tests: chuỗi chứa shell metachar (`; & | $ \``), path traversal (`../../../etc/passwd`)
+- Token security tests: verify token TTL, verify token không reusable sau expiry
+- Permission tests: verify safety interceptor không thể bypass bằng parameter tricks
+
+### R4. Xây dựng công cụ kiểm tra bảo mật tự động mới
+
+Tạo ít nhất một trong các công cụ sau trong `scripts/` hoặc `tools/`:
+- **Security scanner**: script tự động scan codebase tìm các pattern nguy hiểm (regex trên source code)
+- **Bandit integration**: chạy `bandit -r jarvis/ -f json` và parse kết quả thành báo cáo có cấu trúc
+- **Property-based tests**: dùng `hypothesis` để generate test cases tự động cho các hàm parse/validate
+
+### R5. Cập nhật tài liệu bảo mật
+
+- Cập nhật `docs/AUDIT_FRAMEWORK.md` với kết quả audit thực tế
+- Cập nhật `CHANGELOG.md` với danh sách lỗ hổng đã vá + severity
+- Cập nhật `docs/ROADMAP.md` đánh dấu security items hoàn thành
+- Push tất cả commits lên `origin/main`
+
+## Acceptance Criteria
+
+### Test suite
+- [ ] `python -m pytest tests/unit/ --tb=short -q` kết thúc với exit code 0
+- [ ] Tổng test function ≥ 2,694 (không xóa test hiện có)
+- [ ] Ít nhất 20 security-focused tests mới được thêm vào
+
+### Security coverage
+- [ ] Mỗi file trong `jarvis/security/` được audit và có nhận xét cụ thể
+- [ ] Mỗi điểm trong `jarvis/core/app.py` xử lý user input được kiểm tra
+- [ ] Danh sách lỗ hổng tìm được ghi vào một file report có cấu trúc (JSON hoặc Markdown)
+- [ ] Không còn API key hoặc secret nào xuất hiện trong log calls (grep verify)
+
+### Fix quality
+- [ ] Mỗi lỗ hổng được fix phải có: severity + attack vector + file:line + fix description
+- [ ] Không có fix nào dùng `# type: ignore`, `except: pass`, hoặc `# noqa` để che lỗi
+- [ ] Safety interceptor: tất cả `action_risk="high"` phải đi qua confirmation flow
+
+### Tooling
+- [ ] Ít nhất một script/tool bảo mật mới chạy được standalone (exit code 0 khi không tìm thấy issue)
+- [ ] Script mới có `--help` và documentation rõ ràng
+
+### Documentation
+- [ ] `CHANGELOG.md` có entry mới liệt kê từng lỗ hổng đã vá với severity
+- [ ] `git log --oneline -10` hiển thị ít nhất 3 commit mới sau `7e973e4`
+</USER_REQUEST>

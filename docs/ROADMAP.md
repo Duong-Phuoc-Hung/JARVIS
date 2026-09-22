@@ -1,3 +1,26 @@
+## Comprehensive Security Audit, Hardening & Tooling Sprint (2026-09-22)
+
+- [x] **5-Category Security Audit & Vulnerability Remediation (22/22 Resolved)**:
+  - **Category 1 (Code Vulnerabilities)**: Shell injection eliminated in `ShellAssistant` (shell=False, tokenized shlex allowlist); `shell_exec` gated under `HIGH_RISK_ACTIONS`; path traversal neutralized in `download_file`; canonical root deletion boundaries enforced (`Path.resolve()`); rate limiter memory explosion capped (idle cleanup + 10k capacity limit).
+  - **Category 2 (Information Disclosure & Credential Leaking)**: Web Dashboard Wildcard CORS restricted to loopback (`localhost`, `127.0.0.1`) with secret redaction; disk file logging synchronized with `numeric_level`; API keys masked in HTTP query strings / exceptions (`weather.py`, `screen.py`); plaintext credentials redacted in env override warnings and `ConfigNode.__repr__`.
+  - **Category 3 (Excessive Permissions & Safety Bypass)**: Safety gate LIFO race condition eliminated (explicit token disambiguation required for ambiguous pending confirmations); one-shot token consumption (`consume()`) deployed preventing replay attacks; Discord bot administrative commands (`!exec`, `!macro`, `!screenshot`) protected by `admin_user_ids` whitelist (HTTP 403 Forbidden); ambient privilege escalation blocked (`bypass_security` disallowed in production); VM termination and sandbox code actions classified as high risk.
+  - **Category 4 (Vulnerable Dependencies)**: `idna` upgraded to `>=3.15,<4` fixing CVE-2024-3651 & CVE-2026-45409; `keyring>=24` added to `requirements.txt` to enforce Windows Credential Manager / DPAPI integration; dependency bounds modernized.
+  - **Category 5 (Sensitive Serialization & Exceptions)**: Internal path and exception leakage suppressed across voice and chat responses; PromptGuard script stripping and XML tag escaping (`wrap_untrusted_context`) implemented; sandbox AST validator hardened with `importlib`, `_imp`, and `builtins`; `jarvis/security/__init__.py` exports standardized.
+- [x] **Security Hardening Test Suite (21/21 Tests Passed)**:
+  - Fuzzing tests (dispatcher payloads, safety classifier, prompt guard unicode mutations, scan targets).
+  - Boundary tests (empty parameters, 100k ReDoS defense, null bytes, multilingual homoglyphs).
+  - Injection tests (shell metacharacters, path traversal, SQL injection, format strings, voice prompt overrides).
+  - Token lifecycle tests (exact TTL expiration, replay prevention, payload tampering, concurrent races).
+  - Permission tests (unauthenticated admin escalation, safe suffix tricks, parameter smuggling, production bypass lock).
+- [x] **Automated Security Scanner (`tools/security_scanner.py`)**:
+  - Pure Python stdlib AST and regex scanner with 10 comprehensive security rules (SEC-001 to SEC-010).
+  - Full CLI options (`--path`, `--format`, `--severity-threshold`, `--rules`, `--output`, `--exit-code`).
+  - Verified clean scan across all 201 source files in `jarvis/` (66,681 lines): 0 findings, exit code 0.
+  - 9 automated tool unit tests in `tests/unit/test_security_scanner_tool.py`.
+- [x] **Full Test Suite & Release Verification**:
+  - Full unit test suite passed: **2,724 passed, 3 skipped, 0 failures** (Python 3.13, Windows 11).
+  - Exit code 0, 100% GREEN across all 2,727 test items.
+
 ## Codebase Scan & Bug Remediation Sprint (2026-09-22)
 
 - [x] **Core Subsystem Hardening**:

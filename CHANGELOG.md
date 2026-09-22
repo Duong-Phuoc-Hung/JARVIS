@@ -1,3 +1,50 @@
+## [Unreleased] Comprehensive Security Audit, Hardening & Tooling Sprint (2026-09-22)
+
+- **Mục tiêu**: Kiểm toán toàn diện bề mặt tấn công của 200 tệp nguồn thuộc phân hệ `jarvis/`, phát hiện và khắc phục dứt điểm 22 lỗ hổng bảo mật thuộc 5 nhóm rủi ro (Code Vulnerabilities, Information Disclosure, Excessive Permissions, Outdated Dependencies, Sensitive Serialization), nâng cấp bộ kiểm thử an toàn thông tin chuyên sâu (21 security hardening tests), và triển khai công cụ quét tĩnh bảo mật tự động `tools/security_scanner.py`.
+- **Nguyên nhân gốc rễ & Các chỉnh sửa kỹ thuật theo phân hệ cho 22 lỗ hổng**:
+  - **Automation & Shell Assistant Subsystem (`jarvis/automation/`)**:
+    - `jarvis/automation/shell_assistant.py`: Khắc phục nguy cơ Shell Injection trong `execute_natural_command` (VULN-CAT1-01 - Critical) bằng cách loại bỏ hoàn toàn `shell=True`, sử dụng `shlex.split(cmd)` và áp dụng developer allowlist nghiêm ngặt (`git`, `python`, `npm`, `yarn`, `pnpm`, `pytest`, `cargo`, `docker`, `pip`, `dotnet`, `node`, `go`, `deno`, `uv`, `poetry`, `make`, `curl`, `ping`, `echo`, `cat`, `ls`, `dir`, `tasklist`, `netstat`, `ipconfig`); trong `translate_nl_command` (VULN-CAT1-04 - High) thay thế chuỗi xóa thư mục thô bằng `Path(path).resolve()` và kiểm tra biên bảo vệ thư mục gốc hệ thống (`C:\`, `C:\Windows`); trong `check_port` tham số hóa danh sách đối số của `tasklist` với `shell=False` và thay thế khối `except: pass` bằng logging an toàn.
+    - `jarvis/automation/safety_gate.py`: Triển khai cơ chế tiêu thụ token một lần duy nhất `consume(token: str) -> bool` (VULN-CAT3-02 - High) chuyển trạng thái sang `CONSUMED`, triệt tiêu hoàn toàn nguy cơ Token Replay.
+  - **Planner & Safety Interceptor Subsystem (`jarvis/planner/`, `jarvis/plugins/`)**:
+    - `jarvis/plugins/shell.py` & `jarvis/planner/safety_interceptor.py`: Bổ sung `shell_exec`, `shell_execute`, `shell_command` (VULN-CAT1-02 - Critical) cùng các hành động máy ảo (`vm_stop`, `vm_delete`, `vm_destroy`) và sandbox (`sandbox_execute_code`, `sandbox_python_exec`, `subagent_spawn`, `subagent_kill`) (VULN-CAT3-05 - High) vào danh mục `HIGH_RISK_ACTIONS` và `risky_prefixes`, bắt buộc phải có token xác nhận trước khi thực thi; tích hợp `consume(token)` vào quy trình xác thực.
+    - `jarvis/planner/safety_interceptor.py`: Bổ sung chuẩn hóa homoglyph Cyrillic/Hy Lạp (NFKD + lookup table) với fast-path `isascii()`, bảo vệ chống ReDoS bằng cách chia nhỏ chuỗi quét tối đa 4.096 ký tự và giới hạn độ sâu đệ quy bóc tách tham số ở mức 64 kèm tracking `seen: set[int]` chống tham chiếu vòng.
+  - **Browser & Sandbox Subsystem (`jarvis/browser/`, `jarvis/sandbox/`, `jarvis/security/`)**:
+    - `jarvis/browser/actions.py`: Trong `download_file` (VULN-CAT1-03 - High) chuẩn hóa đường dẫn bằng `resolve()` và kiểm tra bao bọc nghiêm ngặt bên trong `downloads_dir`, `session_storage_dir`, hoặc `tempfile.gettempdir()`, từ chối leo thang thư mục với mã lỗi `DOWNLOAD_PATH_TRAVERSAL`.
+    - `jarvis/sandbox/validator.py`: Bổ sung `"importlib"`, `"_imp"`, `"builtins"` vào `DEFAULT_FORBIDDEN_MODULES` (VULN-CAT5-04 - High), ngăn chặn mã sandbox import động lại các module nguy hiểm.
+    - `jarvis/security/prompt_guard.py`: Lọc bỏ thẻ script qua `SCRIPT_TAG_PATTERN` và escape ký tự thẻ đóng `</untrusted_external_content>` trong `wrap_untrusted_context` (VULN-CAT5-03 - High) chống phá vỡ rào chắn ngữ cảnh XML của LLM; bổ sung mẫu nhận diện chỉ thị phá hoại tiếng Việt.
+    - `jarvis/security/path_guard.py`: Tạo mới module xác thực đường dẫn an toàn `validate_safe_path` với kiểm tra containment, URL decoding, và null-byte defense; export công khai trong `jarvis/security/__init__.py` cùng `KNOWN_SECRETS` và các hàm quản lý secret (VULN-CAT5-05 - Low).
+  - **Comms & Network Subsystem (`jarvis/comms/`)**:
+    - `jarvis/comms/discord.py`: Phân quyền quản trị viên `admin_user_ids` và `is_admin()` (VULN-CAT3-03 - Critical) bảo vệ các lệnh nguy hiểm `!screenshot`, `!macro`, `!exec`, trả về HTTP 403 Forbidden cho người dùng chưa xác thực; che giấu exception thô trong các lệnh chat (VULN-CAT5-01 - Medium).
+    - `jarvis/comms/rate_limiter.py`: Thêm cơ chế tự động dọn dẹp bucket không hoạt động khi đạt ngưỡng 1.000 phần tử qua `_cleanup_idle_locked()` và thiết lập giới hạn dung lượng cứng 10.000 bucket (VULN-CAT1-05 - Medium) chống tràn bộ nhớ.
+    - `jarvis/comms/zalo.py` & `jarvis/comms/mobile_bridge.py`: Che giấu chuỗi exception thô (VULN-CAT5-01, VULN-CAT5-02 - Medium), trả về thông báo lỗi thân thiện được bản địa hóa và ghi log chi tiết an toàn.
+  - **UI & Dashboard Subsystem (`jarvis/ui/`)**:
+    - `jarvis/ui/dashboard.py`: Xóa bỏ wildcard CORS `Access-Control-Allow-Origin: *` (VULN-CAT2-01 - Critical), giới hạn nguồn gốc truy cập nghiêm ngặt vào loopback (`http://localhost`, `http://127.0.0.1`); áp dụng `redact_dict` trên `/api/config` và `redact_text` trên `/api/logs` chống lộ API key và nhật ký nhạy cảm.
+  - **Core, Logging & Configuration Subsystem (`jarvis/core/`, `jarvis/web/`, `jarvis/vision/`)**:
+    - `jarvis/core/app.py`: Khắc phục race condition LIFO trong xác nhận bảo mật (VULN-CAT3-01 - Critical); khi có nhiều hơn 1 yêu cầu đang chờ trong `safety_gate.list_pending()`, bắt buộc người dùng nêu rõ token xác nhận, tránh phê duyệt nhầm lệnh nền; chặn đứng leo thang đặc quyền từ ngữ cảnh không xác thực (VULN-CAT3-04 - High).
+    - `jarvis/core/logger.py`: Đồng bộ mức ghi tệp đĩa của `RotatingFileHandler` theo cấu hình `numeric_level` (VULN-CAT2-02 - High) thay vì cố định `DEBUG`; thay thế các khối `except: pass` dọn dẹp handler bằng logging có cấu trúc.
+    - `jarvis/core/config.py`: Che giấu giá trị biến môi trường nhạy cảm thành `"***REDACTED***"` trong log cảnh báo và áp dụng `redact_dict` trong `ConfigNode.__repr__()` (VULN-CAT2-04 - Medium).
+    - `jarvis/core/models.py`: Bổ sung ngoại lệ `SecurityConfigurationError`.
+    - `jarvis/core/dispatcher.py`: Cấm cờ `bypass_security=True` khi môi trường là production (`JARVIS_ENV="production"`), ném lỗi `SecurityConfigurationError`; chuẩn hóa kiểm tra kiểu dữ liệu payload nghiêm ngặt.
+    - `jarvis/web/weather.py` & `jarvis/vision/screen.py`: Che giấu API key (`self.api_key`, `gemini_api_key`, `openai_api_key`) trong xử lý ngoại lệ HTTP và logging (VULN-CAT2-03 - High), trả về thông báo lỗi an toàn không chứa URL query parameters.
+  - **Dependency Vulnerabilities Subsystem (`requirements.txt`, `pyproject.toml`)**:
+    - Nâng cấp dải phiên bản `idna>=3.15,<4` (VULN-CAT4-01 - High) triệt tiêu hoàn toàn lỗ hổng DoS CVE-2024-3651 và CVE-2026-45409.
+    - Bổ sung `keyring>=24` vào `requirements.txt` (VULN-CAT4-02 - High) kích hoạt lưu trữ an toàn cấp hệ điều hành qua Windows Credential Manager / DPAPI.
+    - Chuẩn hóa và khóa dải an toàn cho toàn bộ phụ thuộc (VULN-CAT4-03 - Medium).
+- **Hệ thống kiểm thử bảo mật chuyên sâu (`tests/unit/test_security_hardening.py`)**:
+  - Bổ sung 21 bài kiểm thử bảo mật chuyên sâu phủ 5 nhóm vector tấn công:
+    - *Fuzzing (4 tests)*: payload lồng sâu/vòng, malformed inputs, unicode hidden/bidi mutations, scan target validation.
+    - *Boundary (4 tests)*: tham số rỗng/khoảng trắng, ReDoS payload 100k ký tự (< 0,1ms), null byte injection, homoglyphs đa ngữ.
+    - *Injection (5 tests)*: toán tử shell, path traversal sequences, SQL injection trong memory store, format string attacks, STT voice prompt overrides.
+    - *Token Security & Lifecycle (4 tests)*: sub-second TTL boundary, one-shot replay prevention, cross-tampering action/payload, 20-thread concurrency race condition.
+    - *Permissions & Safety Bypass (4 tests)*: unauthenticated admin privilege escalation, case-insensitive safe suffix bypass, nested parameter smuggling, bypass_security flag restriction in production.
+- **Công cụ quét bảo mật tự động (`tools/security_scanner.py`)**:
+  - Xây dựng công cụ CLI quét tĩnh bằng AST và Regex thuần Python standard library với 10 quy tắc bảo mật: SEC-001 (Hardcoded Secrets), SEC-002 (Credential Logging), SEC-003 (Shell Injection), SEC-004 (Path Traversal), SEC-005 (Token TTL), SEC-006 (Token Replay), SEC-007 (Info Disclosure), SEC-008 (Vulnerable Dependencies), SEC-009 (Missing Security Deps), SEC-010 (Debug Mode in Production).
+  - Tích hợp 9 bài kiểm thử độc lập trong `tests/unit/test_security_scanner_tool.py`.
+  - Kết quả quét kiểm chứng: 201 tệp trong `jarvis/`, 66.681 dòng mã, **0 findings, exit code 0**.
+- **Chỉ số kiểm thử thực tế**:
+  - Full Unit Test Suite: **2.724 passed, 3 skipped, 0 failures** trên Python 3.13 Windows 11 (Exit code 0).
+  - Test suite bảo mật mới: **30/30 passed** (21 tests trong `test_security_hardening.py`, 9 tests trong `test_security_scanner_tool.py`).
+
 ## [Unreleased] Comprehensive Codebase Scan & Multi-Subsystem Bug Remediation (2026-09-22)
 
 - **Mục tiêu**: Rà soát, quét toàn bộ mã nguồn `jarvis/` và bộ kiểm thử `tests/unit/`, phát hiện và sửa chữa triệt để mọi lỗi logic, edge-case, concurrency, integration, và fail-closed contracts.
