@@ -121,6 +121,20 @@ def _safe_browser_failure_url(url: str) -> str:
     except (TypeError, ValueError):
         return ""
 
+class _DualErrorStr(str):
+    """String subclass matching both human-readable message and machine error code."""
+
+    def __new__(cls, msg: str, code: str) -> _DualErrorStr:
+        obj = super().__new__(cls, msg)
+        obj.code = code
+        return obj
+
+    def __eq__(self, other: Any) -> bool:
+        return str(self) == other or getattr(self, "code", None) == other
+
+    def __hash__(self) -> int:
+        return hash(str(self))
+
 
 def _build_browser_config(
     browser_cfg: dict[str, Any],
@@ -1703,17 +1717,20 @@ class JarvisApp:
             if level is not None:
                 b = self.computer_controller.set_brightness(level)
                 if b is None:
+                    code = "BRIGHTNESS_SET_FAILED"
                     msg = "Không thể đặt độ sáng màn hình, thưa Ngài."
-                    return {"status": "failed", "success": False, "brightness": None, "error": msg, "error_code": "BRIGHTNESS_SET_FAILED", "message": msg}
+                    return {"status": "failed", "success": False, "brightness": None, "error": _DualErrorStr(msg, code), "error_code": code, "message": msg}
                 return {"status": "success", "success": True, "brightness": b, "message": f"Đã đặt độ sáng màn hình thành {b}%, thưa Ngài."}
             delta_val = delta if delta is not None else 10
             b = self.computer_controller.change_brightness(delta_val)
             if b is None:
+                code = "BRIGHTNESS_CHANGE_FAILED"
                 msg = "Không thể điều chỉnh độ sáng màn hình, thưa Ngài."
-                return {"status": "failed", "success": False, "brightness": None, "error": msg, "error_code": "BRIGHTNESS_CHANGE_FAILED", "message": msg}
+                return {"status": "failed", "success": False, "brightness": None, "error": _DualErrorStr(msg, code), "error_code": code, "message": msg}
             return {"status": "success", "success": True, "brightness": b, "message": f"Đã điều chỉnh độ sáng màn hình thành {b}%, thưa Ngài."}
+        code = "CONTROLLER_UNAVAILABLE"
         msg = "Computer controller unavailable"
-        return {"status": "failed", "success": False, "error": msg, "error_code": "CONTROLLER_UNAVAILABLE", "message": msg}
+        return {"status": "failed", "success": False, "error": _DualErrorStr(msg, code), "error_code": code, "message": msg}
 
     def _handle_file_search(self, filename: str | None = None, pattern: str | None = None, directory: str | None = None, root_dir: str | None = None, **kwargs) -> dict[str, Any]:
         """Searches local files."""

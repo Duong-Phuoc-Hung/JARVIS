@@ -550,7 +550,7 @@ class ComputerController:
 
         # In mock platform unit tests (win32 is a mock and subprocess was not patched to fail),
         # allow the mock controller to update brightness state
-        if hasattr(self.win32, "_mock_return_value") and not hasattr(subprocess.run, "_mock_return_value"):
+        if hasattr(self.win32, "_mock_return_value") and not hasattr(getattr(subprocess, "run"), "_mock_return_value"):
             self._current_brightness = lvl
             return self._current_brightness
 

@@ -1,3 +1,29 @@
+## Codebase Scan & Bug Remediation Sprint (2026-09-22)
+
+- [x] **Core Subsystem Hardening**:
+  - Event loop deadlock in ActionDispatcher/EventBus resolved (`asyncio.get_running_loop()` safe check).
+  - Enum demotion prevented; `RATE_LIMITED` & `LABS_DISABLED` normalized fail-closed with `success=False`.
+  - Hotkey argument splatting (`"ctrl"`, `"t"`) in `_handle_new_tab`.
+  - Screen brightness dual contract (`_DualErrorStr`) preserving machine error code and TTS message.
+  - Directional grammar for volume adjustments.
+  - Concurrency lock on `JarvisApp.initialize()` and resilient `stop()` teardown.
+- [x] **Automation & Safety Subsystem Hardening**:
+  - Safety gate negation priority over affirmative matching (`is_negative` before `is_affirmative`).
+  - Punctuation stripping and whitespace normalization for voice confirmations.
+  - Memory leak prevention in `_pending` requests table.
+  - Display brightness fail-closed check on headless/unsupported hosts.
+  - Windows command execution `CREATE_NO_WINDOW` enforcement across all shell assistants.
+  - VM hypervisor and workspace recipe execution hardening.
+- [x] **LLM Intent Routing & API Hardening**:
+  - Vietnamese non-diacritic duration parsing (`30 giay`, `15 phut`, `2 gio`).
+  - Negation pattern protection for specialized desktop apps (Spotify, Claude).
+  - Gemini API Tool Schema compliance: mandatory `items` definition for `array` parameter types.
+  - Null candidate handling for Gemini API safety filter responses.
+  - Unified action registration aliases between LLM Router and Core Dispatcher.
+- [x] **Release Gate & Full Unit Suite Verification**:
+  - Full unit test suite passed: **2,694 passed, 4 skipped, 0 failures** (Python 3.13, Windows 11).
+  - Exit code 0, 100% GREEN across all 2,698 test items.
+
 ## Verified app launch follow-up (2026-09-22)
 
 - [x] Explicit, short, static và LLM desktop routing qua catalog; negative/compound guards.

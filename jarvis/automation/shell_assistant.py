@@ -474,7 +474,7 @@ class ShellAssistant:
             restart_proc = subprocess.run(
                 ["docker", "restart", *container_ids],
                 capture_output=True, text=True, encoding="utf-8",
-                timeout=45, creationflags=_cflags,
+                timeout=45, creationflags=_cflags,  # CREATE_NO_WINDOW
             )
             if restart_proc.returncode == 0:
                 return f"Đã khởi động lại {len(container_ids)} container Docker thành công, thưa Ngài."

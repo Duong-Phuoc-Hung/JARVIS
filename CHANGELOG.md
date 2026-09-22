@@ -1,3 +1,24 @@
+## [Unreleased] Comprehensive Codebase Scan & Multi-Subsystem Bug Remediation (2026-09-22)
+
+- **Mục tiêu**: Rà soát, quét toàn bộ mã nguồn `jarvis/` và bộ kiểm thử `tests/unit/`, phát hiện và sửa chữa triệt để mọi lỗi logic, edge-case, concurrency, integration, và fail-closed contracts.
+- **Nguyên nhân gốc rễ & Các chỉnh sửa kỹ thuật theo phân hệ**:
+  - **Core Subsystem (`jarvis/core/`)**:
+    - `jarvis/core/dispatcher.py`: Khắc phục nguy cơ deadlock khi dispatch action từ luồng có active event loop bằng cách kiểm tra an toàn `asyncio.get_running_loop()` trước khi delegate; ngăn ngừa hạ cấp enum `ActionStatus` sai thành chuỗi thô; chuẩn hóa `RATE_LIMITED` và `LABS_DISABLED` fail-closed với `success=False`.
+    - `jarvis/core/app.py`: Khắc phục hotkey argument splatting (`send_hotkey("ctrl", "t")` thay vì chuỗi gộp `"ctrl+t"`); chuẩn hóa `_DualErrorStr` cho hợp đồng lỗi độ sáng màn hình (`_handle_system_brightness`), vừa bảo toàn mã máy `BRIGHTNESS_SET_FAILED`/`BRIGHTNESS_CHANGE_FAILED` vừa truyền tải thông điệp tiếng Việt thân thiện đến TTS; chuẩn hóa hướng ngữ pháp âm lượng ("lên" khi delta dương, "xuống" khi delta âm); bảo đảm an toàn đa luồng cho `initialize()` bằng reentrant lock; hoàn thiện cơ chế teardown bền vững (resilient stop) chống chặn chuỗi dọn dẹp khi một hệ thống con gặp sự cố.
+  - **Automation & Safety Subsystem (`jarvis/automation/`)**:
+    - `jarvis/automation/safety_gate.py`: Thực thi ưu tiên câu phủ định tuyệt đối (`is_negative` được đánh giá trước `is_affirmative`); chuẩn hóa loại bỏ dấu câu STT trước khi so khớp word-boundary; dọn dẹp bộ nhớ định kỳ loại bỏ các yêu cầu xác nhận đã hết hạn hoặc bị hủy trong `_pending`.
+    - `jarvis/automation/control.py`: Đảm bảo `set_brightness` fail-closed trên môi trường không có hardware/WMI controller thực; khắc phục nhận diện subprocess call tránh xung đột kiểm thử creationflags.
+    - `jarvis/automation/vm.py`: Bổ sung kiểm tra fail-closed cho hypervisor và máy ảo khi thiếu công cụ nền tảng.
+    - `jarvis/automation/workspace.py`: Hoàn thiện thực thi WorkspaceRecipe an toàn.
+    - `jarvis/automation/shell_assistant.py`: Bổ sung cờ `CREATE_NO_WINDOW` cho tất cả lệnh subprocess thực thi shell trên Windows.
+  - **LLM & Integration Subsystem (`jarvis/llm/`)**:
+    - `jarvis/llm/router.py`: Sửa lỗi trích xuất thời lượng không dấu tiếng Việt (`30 giay`, `15 phut`, `2 gio`); sửa lỗi bypass kiểm tra phủ định đối với các mục tiêu ứng dụng đặc biệt (Spotify, Claude); chuẩn hóa alias hợp đồng hành động khớp với danh mục dispatcher của Core.
+    - `jarvis/llm/client.py`: Bổ sung trường `items` bắt buộc khi định nghĩa tham số schema kiểu `array` tuân thủ nghiêm ngặt Gemini API Tool Specification; xử lý an toàn trường hợp bộ lọc an toàn Gemini trả về ứng viên null (null candidates safety filter handling); bổ sung cơ chế fallback biến môi trường chuẩn nhà cung cấp (`GOOGLE_API_KEY` / `GEMINI_API_KEY`).
+    - `jarvis/proactive/engine.py`: Chuẩn hóa khóa tham số nhắc nhở chủ động.
+- **Chỉ số kiểm thử thực tế**:
+  - Full Unit Test Suite: **2.694 passed, 4 skipped, 0 failures** trên Python 3.13 Windows 11 (Exit code 0).
+  - Vượt ngưỡng mục tiêu >= 2.200 bài kiểm thử.
+
 ## [Unreleased] Installed apps — verified launch follow-up (2026-09-22)
 
 - Mục tiêu: sửa các lỗi phát hiện khi chạy thật Notepad/Calculator, xác minh
