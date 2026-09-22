@@ -6,6 +6,7 @@ interception, and synchronous/asynchronous action execution.
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import fnmatch
 import functools
 import inspect
@@ -151,8 +152,8 @@ class EventBus:
                         loop = None
 
                     if loop and loop.is_running():
-                        future = asyncio.run_coroutine_threadsafe(sub.handler(**payload), loop)
-                        res = future.result(timeout=10.0)
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                            res = executor.submit(lambda: asyncio.run(sub.handler(**payload))).result(timeout=10.0)
                     else:
                         res = asyncio.run(sub.handler(**payload))
                 else:
@@ -265,11 +266,15 @@ def _normalize_handler_outcome(raw: Any) -> tuple[bool, Any, str | None, str | N
     if isinstance(raw, dict):
         # Canonical unavailable/blocked states cannot become successful data.
         status = raw.get("status")
-        if isinstance(status, str) and status.strip().upper() in (
-            "BLOCKED", "UNAVAILABLE", "NOT_CONFIGURED", "TIMEOUT",
-        ):
-            return (False, raw, raw.get("error") or raw.get("message"),
-                    raw.get("error_code") or raw.get("code") or status.strip().upper())
+        if isinstance(status, (str, ActionStatus)):
+            status_str = status.value.upper() if isinstance(status, ActionStatus) else status.strip().upper()
+            if "." in status_str:
+                status_str = status_str.split(".")[-1]
+            if status_str in (
+                "BLOCKED", "UNAVAILABLE", "NOT_CONFIGURED", "TIMEOUT", "RATE_LIMITED", "LABS_DISABLED"
+            ):
+                return (False, raw, raw.get("error") or raw.get("message"),
+                        raw.get("error_code") or raw.get("code") or status_str)
         success_flag = raw.get("success")
         if isinstance(success_flag, bool):
             if success_flag:
@@ -279,10 +284,14 @@ def _normalize_handler_outcome(raw: Any) -> tuple[bool, Any, str | None, str | N
             return False, raw, error, error_code
 
         status = raw.get("status")
-        if isinstance(status, str) and status.lower() in ("failed", "error"):
-            error = raw.get("error") or raw.get("message")
-            error_code = raw.get("error_code") or raw.get("code")
-            return False, raw, error, error_code
+        if isinstance(status, (str, ActionStatus)):
+            status_lower = status.value.lower() if isinstance(status, ActionStatus) else status.strip().lower()
+            if "." in status_lower:
+                status_lower = status_lower.split(".")[-1]
+            if status_lower in ("failed", "error"):
+                error = raw.get("error") or raw.get("message")
+                error_code = raw.get("error_code") or raw.get("code")
+                return False, raw, error, error_code
 
     return True, raw, None, None
 
@@ -587,8 +596,8 @@ class ActionDispatcher:
                     loop = None
 
                 if loop and loop.is_running():
-                    future = asyncio.run_coroutine_threadsafe(action_def.handler(**payload), loop)
-                    data = future.result(timeout=effective_timeout)
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                        data = executor.submit(lambda: asyncio.run(action_def.handler(**payload))).result(timeout=effective_timeout)
                 else:
                     data = asyncio.run(action_def.handler(**payload))
             else:
@@ -605,11 +614,19 @@ class ActionDispatcher:
                 return replace(data, action_name=action_name, execution_time_ms=elapsed,
                                requester=context.requester_id)
             handler_status = norm_data.get("status") if isinstance(norm_data, dict) else None
-            status_arg = (
-                handler_status
-                if (handler_status and str(handler_status).upper() in ActionStatus.__members__)
-                else (ActionStatus.SUCCESS if success else ActionStatus.FAILED)
-            )
+            if isinstance(handler_status, ActionStatus):
+                status_arg = handler_status
+            elif isinstance(handler_status, str):
+                clean_status = handler_status.strip().upper()
+                if "." in clean_status:
+                    clean_status = clean_status.split(".")[-1]
+                status_arg = (
+                    ActionStatus[clean_status]
+                    if clean_status in ActionStatus.__members__
+                    else (ActionStatus.SUCCESS if success else ActionStatus.FAILED)
+                )
+            else:
+                status_arg = ActionStatus.SUCCESS if success else ActionStatus.FAILED
             return ActionResult(
                 action_name=action_name,
                 success=success,
@@ -742,11 +759,19 @@ class ActionDispatcher:
                 return replace(data, action_name=action_name, execution_time_ms=elapsed,
                                requester=context.requester_id)
             handler_status = norm_data.get("status") if isinstance(norm_data, dict) else None
-            status_arg = (
-                handler_status
-                if (handler_status and str(handler_status).upper() in ActionStatus.__members__)
-                else (ActionStatus.SUCCESS if success else ActionStatus.FAILED)
-            )
+            if isinstance(handler_status, ActionStatus):
+                status_arg = handler_status
+            elif isinstance(handler_status, str):
+                clean_status = handler_status.strip().upper()
+                if "." in clean_status:
+                    clean_status = clean_status.split(".")[-1]
+                status_arg = (
+                    ActionStatus[clean_status]
+                    if clean_status in ActionStatus.__members__
+                    else (ActionStatus.SUCCESS if success else ActionStatus.FAILED)
+                )
+            else:
+                status_arg = ActionStatus.SUCCESS if success else ActionStatus.FAILED
             return ActionResult(
                 action_name=action_name,
                 success=success,

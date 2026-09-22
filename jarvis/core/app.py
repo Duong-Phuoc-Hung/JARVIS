@@ -324,343 +324,344 @@ class JarvisApp:
 
     def initialize(self) -> JarvisApp:
         """Bootstraps all JARVIS subsystems in deterministic order."""
-        if self._initialized:
-            return self
+        with self._lock:
+            if self._initialized:
+                return self
 
-        log.info("Initializing JARVIS Core Subsystems...")
-        self.config.load()
+            log.info("Initializing JARVIS Core Subsystems...")
+            self.config.load()
 
-        # P0 runaway-hardening, pre-commit review correction: apply the REAL
-        # loaded safety.passive_trigger_guard.*/safety.launch_dedupe_cooldown_s
-        # values now that self.config.load() has actually run (see the
-        # constructor comment above -- reading them any earlier, in
-        # __init__(), always saw the pre-load empty config and silently used
-        # the hardcoded fallback default instead of a real custom value).
-        # Also register for hot-reload so a later edit to these settings
-        # takes effect too, without ever reconstructing the guard objects
-        # (which would silently discard any in-flight trigger history/active
-        # lockout) -- see _apply_safety_guard_config().
-        self._apply_safety_guard_config()
-        self.config.register_reload_callback(self._on_safety_config_reloaded)
+            # P0 runaway-hardening, pre-commit review correction: apply the REAL
+            # loaded safety.passive_trigger_guard.*/safety.launch_dedupe_cooldown_s
+            # values now that self.config.load() has actually run (see the
+            # constructor comment above -- reading them any earlier, in
+            # __init__(), always saw the pre-load empty config and silently used
+            # the hardcoded fallback default instead of a real custom value).
+            # Also register for hot-reload so a later edit to these settings
+            # takes effect too, without ever reconstructing the guard objects
+            # (which would silently discard any in-flight trigger history/active
+            # lockout) -- see _apply_safety_guard_config().
+            self._apply_safety_guard_config()
+            self.config.register_reload_callback(self._on_safety_config_reloaded)
 
-        # 1. Config Hot Reload Watcher
-        if not self.no_hot_reload:
-            self.config.start_watcher(interval_seconds=2.0)
+            # 1. Config Hot Reload Watcher
+            if not self.no_hot_reload:
+                self.config.start_watcher(interval_seconds=2.0)
 
-        # 2. TTS Subsystem Initialization
-        tts_cfg = self.config.get("tts", {})
-        self.tts_manager = TTSManager(config=tts_cfg)
+            # 2. TTS Subsystem Initialization
+            tts_cfg = self.config.get("tts", {})
+            self.tts_manager = TTSManager(config=tts_cfg)
 
-        # Register built-in system actions
-        self._register_core_actions()
+            # Register built-in system actions
+            self._register_core_actions()
 
-        # 3. Action Plugins Registration
-        self.plugin_registry.register_plugin(SpotifyPlugin)
-        self.plugin_registry.register_plugin(ChromeMultiMonitorPlugin)
-        self.plugin_registry.register_plugin(CursorPlugin)
-        self.plugin_registry.register_plugin(ShellPlugin)
-        self.plugin_registry.register_plugin(WebhookPlugin)
+            # 3. Action Plugins Registration
+            self.plugin_registry.register_plugin(SpotifyPlugin)
+            self.plugin_registry.register_plugin(ChromeMultiMonitorPlugin)
+            self.plugin_registry.register_plugin(CursorPlugin)
+            self.plugin_registry.register_plugin(ShellPlugin)
+            self.plugin_registry.register_plugin(WebhookPlugin)
 
-        plugin_configs = self.config.get("plugins", {})
-        self.plugin_registry.initialize_all(plugin_configs)
+            plugin_configs = self.config.get("plugins", {})
+            self.plugin_registry.initialize_all(plugin_configs)
 
-        # 4. Persistent Memory Subsystem (R2 & R6)
-        mem_db = self.config.get("memory.db_path") or str(get_jarvis_data_dir() / "memory.db")
-        max_turns = int(self.config.get("memory.max_session_turns", 10))
-        self.memory_manager = MemoryManager(db_path=mem_db, max_session_turns=max_turns)
+            # 4. Persistent Memory Subsystem (R2 & R6)
+            mem_db = self.config.get("memory.db_path") or str(get_jarvis_data_dir() / "memory.db")
+            max_turns = int(self.config.get("memory.max_session_turns", 10))
+            self.memory_manager = MemoryManager(db_path=mem_db, max_session_turns=max_turns)
 
-        # 5. STT Engine Initialization (F-14)
-        stt_cfg = self.config.get("stt", {})
-        self.stt_engine = STTEngine(
-            config=stt_cfg,
-            provider=stt_cfg.get("provider", "whisper_api"),
-            event_bus=self.event_bus,
-            config_manager=self.config,
-        )
+            # 5. STT Engine Initialization (F-14)
+            stt_cfg = self.config.get("stt", {})
+            self.stt_engine = STTEngine(
+                config=stt_cfg,
+                provider=stt_cfg.get("provider", "whisper_api"),
+                event_bus=self.event_bus,
+                config_manager=self.config,
+            )
 
-        # 6. Screen Vision Subsystem (R3)
-        vis_cfg = self.config.get("vision", {})
-        self.vision_manager = ScreenVisionManager(
-            gemini_api_key=vis_cfg.get("gemini_api_key") or get_secret("GEMINI_API_KEY") or "",
-            openai_api_key=vis_cfg.get("openai_api_key") or get_secret("OPENAI_API_KEY") or "",
-            default_provider=vis_cfg.get("provider", "gemini"),
-            gemini_model=vis_cfg.get("gemini_model", "gemini-1.5-flash"),
-            openai_model=vis_cfg.get("openai_model", "gpt-4o"),
-            timeout_seconds=float(vis_cfg.get("timeout_s", 10.0)),
-        )
+            # 6. Screen Vision Subsystem (R3)
+            vis_cfg = self.config.get("vision", {})
+            self.vision_manager = ScreenVisionManager(
+                gemini_api_key=vis_cfg.get("gemini_api_key") or get_secret("GEMINI_API_KEY") or "",
+                openai_api_key=vis_cfg.get("openai_api_key") or get_secret("OPENAI_API_KEY") or "",
+                default_provider=vis_cfg.get("provider", "gemini"),
+                gemini_model=vis_cfg.get("gemini_model", "gemini-1.5-flash"),
+                openai_model=vis_cfg.get("openai_model", "gpt-4o"),
+                timeout_seconds=float(vis_cfg.get("timeout_s", 10.0)),
+            )
 
-        # 7. Web Intelligence Hub (R5)
-        web_cfg = self.config.get("web", {})
-        self.web_hub = WebIntelligenceHub(
-            cache_ttl_seconds=float(web_cfg.get("cache_ttl_s", 600.0)),
-            weather_api_key=web_cfg.get("weather_api_key") or get_secret("WEATHER_API_KEY") or "",
-            default_city=web_cfg.get("default_city", "Hà Nội"),
-        )
+            # 7. Web Intelligence Hub (R5)
+            web_cfg = self.config.get("web", {})
+            self.web_hub = WebIntelligenceHub(
+                cache_ttl_seconds=float(web_cfg.get("cache_ttl_s", 600.0)),
+                weather_api_key=web_cfg.get("weather_api_key") or get_secret("WEATHER_API_KEY") or "",
+                default_city=web_cfg.get("default_city", "Hà Nội"),
+            )
 
-        # 8. OS Automation & Dev Shell Subsystems (R4 & R7)
-        auto_cfg = self.config.get("automation", {})
-        self.safety_gate = SafetyGate(timeout_seconds=float(auto_cfg.get("safety_gate_timeout_s", 30.0)))
-        self.computer_controller = ComputerController()
-        self.shell_assistant = ShellAssistant(
-            default_cwd=os.getcwd(),
-            safety_gate=self.safety_gate,
-            dispatcher=self.dispatcher,
-            config=auto_cfg if isinstance(auto_cfg, dict) else {},
-        )
+            # 8. OS Automation & Dev Shell Subsystems (R4 & R7)
+            auto_cfg = self.config.get("automation", {})
+            self.safety_gate = SafetyGate(timeout_seconds=float(auto_cfg.get("safety_gate_timeout_s", 30.0)))
+            self.computer_controller = ComputerController()
+            self.shell_assistant = ShellAssistant(
+                default_cwd=os.getcwd(),
+                safety_gate=self.safety_gate,
+                dispatcher=self.dispatcher,
+                config=auto_cfg if isinstance(auto_cfg, dict) else {},
+            )
 
-        # 9. LLM Client & Intent Router (F-15 & R2)
-        llm_cfg = self.config.get("llm", {})
-        _llm_provider = llm_cfg.get("provider", "openai")
-        _llm_secret_key = (
-            "GEMINI_API_KEY" if "gemini" in _llm_provider.lower() else "OPENAI_API_KEY"
-        )
-        self.llm_client = LLMClient(
-            provider=_llm_provider,
-            api_key=llm_cfg.get("api_key") or get_secret(_llm_secret_key) or "",
-            model=llm_cfg.get("model", "gpt-4o"),
-        )
-        self.llm_router = LLMIntentRouter(
-            llm_client=self.llm_client,
-            dispatcher=self.dispatcher,
-            memory_manager=self.memory_manager,
-        )
+            # 9. LLM Client & Intent Router (F-15 & R2)
+            llm_cfg = self.config.get("llm", {})
+            _llm_provider = llm_cfg.get("provider", "openai")
+            _llm_secret_key = (
+                "GEMINI_API_KEY" if "gemini" in _llm_provider.lower() else "OPENAI_API_KEY"
+            )
+            self.llm_client = LLMClient(
+                provider=_llm_provider,
+                api_key=llm_cfg.get("api_key") or get_secret(_llm_secret_key) or "",
+                model=llm_cfg.get("model", "gpt-4o"),
+            )
+            self.llm_router = LLMIntentRouter(
+                llm_client=self.llm_client,
+                dispatcher=self.dispatcher,
+                memory_manager=self.memory_manager,
+            )
 
-        # 10. Hardware Reporter Subsystem (F-20, F-21, F-22)
-        hw_cfg = self.config.get("hardware", {})
-        self.hardware_reporter = HardwareReporter(
-            tts_manager=self.tts_manager,
-            dispatcher=self.dispatcher,
-            config={"hardware": hw_cfg} if isinstance(hw_cfg, dict) else {},
-        )
+            # 10. Hardware Reporter Subsystem (F-20, F-21, F-22)
+            hw_cfg = self.config.get("hardware", {})
+            self.hardware_reporter = HardwareReporter(
+                tts_manager=self.tts_manager,
+                dispatcher=self.dispatcher,
+                config={"hardware": hw_cfg} if isinstance(hw_cfg, dict) else {},
+            )
 
-        # 11. Proactive Intelligence Engine (R6)
-        proactive_cfg = self.config.get("proactive", {})
-        self.proactive_engine = ProactiveEngine(
-            app_context=self,
-            config=proactive_cfg if isinstance(proactive_cfg, dict) else {},
-            web_hub=self.web_hub,
-            hardware_monitor=self.hardware_reporter.monitor if self.hardware_reporter else None,
-        )
+            # 11. Proactive Intelligence Engine (R6)
+            proactive_cfg = self.config.get("proactive", {})
+            self.proactive_engine = ProactiveEngine(
+                app_context=self,
+                config=proactive_cfg if isinstance(proactive_cfg, dict) else {},
+                web_hub=self.web_hub,
+                hardware_monitor=self.hardware_reporter.monitor if self.hardware_reporter else None,
+            )
 
-        # 12. Wake Word Detector Subsystem (R1)
-        ww_cfg = self.config.get("audio.wake_word", self.config.get("wake_word", {}))
-        self.wake_word_detector = WakeWordDetector(
-            callback=self._on_wake_word_triggered,
-            on_wake_word=self._on_wake_word_event,
-            sensitivity=float(ww_cfg.get("sensitivity", 0.5)),
-            enabled=bool(ww_cfg.get("enabled", True)),
-            sample_rate=int(self.config.get("audio.sample_rate", 44100)),
-            cooldown_s=float(ww_cfg.get("cooldown_s", 1.5)),
-            config=ww_cfg if isinstance(ww_cfg, dict) else {},
-        )
+            # 12. Wake Word Detector Subsystem (R1)
+            ww_cfg = self.config.get("audio.wake_word", self.config.get("wake_word", {}))
+            self.wake_word_detector = WakeWordDetector(
+                callback=self._on_wake_word_triggered,
+                on_wake_word=self._on_wake_word_event,
+                sensitivity=float(ww_cfg.get("sensitivity", 0.5)),
+                enabled=bool(ww_cfg.get("enabled", True)),
+                sample_rate=int(self.config.get("audio.sample_rate", 44100)),
+                cooldown_s=float(ww_cfg.get("cooldown_s", 1.5)),
+                config=ww_cfg if isinstance(ww_cfg, dict) else {},
+            )
 
-        # 13. GestureDetector Initialization (F-05, F-06, F-07)
-        gesture_cfg = self.config.get("gesture", {})
-        self.gesture_detector = GestureDetector(
-            config=gesture_cfg,
-            dispatcher=None,
-            event_bus=self.event_bus,
-            on_gesture=self._on_gesture_event,
-        )
+            # 13. GestureDetector Initialization (F-05, F-06, F-07)
+            gesture_cfg = self.config.get("gesture", {})
+            self.gesture_detector = GestureDetector(
+                config=gesture_cfg,
+                dispatcher=None,
+                event_bus=self.event_bus,
+                on_gesture=self._on_gesture_event,
+            )
 
-        # 14. AudioEngine with Multi-Subscriber Dispatch
-        def _on_audio_blocks_dispatch(block: np.ndarray, timestamp: float | None = None) -> None:
-            now = timestamp if timestamp is not None else time.monotonic()
-            if self.tts_manager and self.tts_manager.is_in_echo_window(current_time=now, cooldown_s=2.5):
-                # Acoustic Echo Suppression: drop incoming microphone frames while TTS is speaking or in cooldown
+            # 14. AudioEngine with Multi-Subscriber Dispatch
+            def _on_audio_blocks_dispatch(block: np.ndarray, timestamp: float | None = None) -> None:
+                now = timestamp if timestamp is not None else time.monotonic()
+                if self.tts_manager and self.tts_manager.is_in_echo_window(current_time=now, cooldown_s=2.5):
+                    # Acoustic Echo Suppression: drop incoming microphone frames while TTS is speaking or in cooldown
+                    if self.wake_word_detector:
+                        try:
+                            self.wake_word_detector.suppress_until(now + 0.1)
+                        except Exception:
+                            pass
+                    return
+
+                if self.gesture_detector:
+                    try:
+                        self.gesture_detector.feed_audio_block(block, timestamp=timestamp)
+                    except Exception as e:
+                        log.debug("Gesture detector audio feed exception: %s", e)
                 if self.wake_word_detector:
                     try:
-                        self.wake_word_detector.suppress_until(now + 0.1)
-                    except Exception:
-                        pass
-                return
+                        self.wake_word_detector.feed_audio_block(block, timestamp=timestamp)
+                    except Exception as e:
+                        log.debug("Wake word detector audio feed exception: %s", e)
 
-            if self.gesture_detector:
-                try:
-                    self.gesture_detector.feed_audio_block(block, timestamp=timestamp)
-                except Exception as e:
-                    log.debug("Gesture detector audio feed exception: %s", e)
-            if self.wake_word_detector:
-                try:
-                    self.wake_word_detector.feed_audio_block(block, timestamp=timestamp)
-                except Exception as e:
-                    log.debug("Wake word detector audio feed exception: %s", e)
-
-        self.audio_engine = AudioEngine(
-            sample_rate=int(self.config.get("audio.sample_rate", 44100)),
-            block_ms=int(self.config.get("audio.block_ms", 40)),
-            input_device=self.config.get("audio.input_device"),
-            probe_seconds=float(self.config.get("audio.probe_seconds", 0.5)),
-            silent_rms_threshold=float(self.config.get("audio.silent_rms_threshold", 0.001)),
-            event_bus=self.event_bus,
-            config_manager=self.config,
-            on_audio_block=_on_audio_blocks_dispatch,
-        )
-
-        # 15. Always-On Overlay HUD UI (R8 & R6)
-        overlay_cfg = self.config.get("ui.overlay", {})
-        self.overlay = AlwaysOnOverlay(
-            sidebar_mode=bool(overlay_cfg.get("sidebar_mode", True)),
-            sidebar_width=int(overlay_cfg.get("sidebar_width", 380)),
-            auto_hide_s=float(overlay_cfg.get("auto_hide_s", 8.0)),
-            on_action=self._on_overlay_quick_action,
-            headless=self.headless,
-            config=overlay_cfg if isinstance(overlay_cfg, dict) else {},
-        )
-        if self.memory_manager:
-            facts = self.memory_manager.list_facts(limit=3)
-            if facts:
-                self.overlay.set_memory_facts([f"{f.get('key')}: {f.get('value')}" for f in facts])
-
-        # 16. Code Interpreter Sandbox (M2 / Requirement R2)
-        sandbox_cfg = self.config.get("sandbox", {})
-        self.sandbox = CodeInterpreterSandbox(
-            base_scratch_dir=sandbox_cfg.get("scratch_dir") or str(get_jarvis_data_dir() / "sandbox"),
-            max_execution_seconds=float(sandbox_cfg.get("timeout_s", 15.0)),
-        )
-
-        # 17. Persistent Skill Library & Synthesizer (M2 / Requirement R2)
-        skills_cfg = self.config.get("skills", {})
-        skills_dir = skills_cfg.get("dir", "jarvis/skills")
-        self.skill_registry = SkillRegistry(
-            skills_dir=skills_dir,
-            dispatcher=self.dispatcher,
-        )
-        self.skill_synthesizer = DynamicSkillSynthesizer(
-            skills_dir=skills_dir,
-            registry=self.skill_registry,
-        )
-
-        # 18. Browser Automation Agent & Session Manager (M3 / Requirement R3)
-        browser_cfg = self.config.get("browser", {})
-        browser_session_dir = browser_cfg.get("session_dir") or str(
-            get_jarvis_data_dir() / "browser_sessions"
-        )
-        self.browser_session_manager = BrowserSessionManager(
-            storage_dir=browser_session_dir,
-            db_path=mem_db,
-        )
-        canonical_browser_config = _build_browser_config(
-            browser_cfg,
-            session_dir=browser_session_dir,
-            app_headless=self.headless,
-        )
-        self.browser_agent = BrowserAgent(
-            config=canonical_browser_config,
-            session_manager=self.browser_session_manager,
-        )
-
-        # 19. Computer-Use Vision & GUI Actor (M4 / Requirement R4)
-        self.computer_use_vision = ComputerUseVision()
-        self.visual_verifier = VisualVerifier()
-        self.gui_actor = GUIActor(
-            vision=self.computer_use_vision,
-            verifier=self.visual_verifier,
-            controller=self.computer_controller,
-            safety_gate=self.safety_gate,
-        )
-
-        # 20. Autonomous ReAct Planner Subsystem (M1 / Requirement R1)
-        self.safety_interceptor = SafetyGateInterceptor(
-            safety_gate=self.safety_gate,
-            timeout_seconds=float(auto_cfg.get("safety_gate_timeout_s", 30.0)),
-        )
-        # Share this same interceptor/SafetyGate with ActionDispatcher so
-        # planner-issued and dispatcher-issued confirmation tokens are
-        # resolved against one authoritative pending-confirmation store
-        # (see jarvis/core/dispatcher.py's destructive-action safety gate).
-        self.dispatcher.set_safety_interceptor(self.safety_interceptor)
-        self.reflection_engine = SelfReflectionEngine()
-        self.planner_engine = ReActTaskEngine(
-            dispatcher=self.dispatcher,
-            safety_interceptor=self.safety_interceptor,
-            reflection_engine=self.reflection_engine,
-            event_bus=self.event_bus,
-            max_parallel_workers=int(self.config.get("planner.max_parallel_workers", 4)),
-        )
-        self.react_planner = self.planner_engine
-
-        # 21. Sub-Agent Worker Pool & Notifications (M1 / Requirement R5)
-        from jarvis.comms.telegram import TelegramBotController
-        telegram_token = get_secret("TELEGRAM_BOT_TOKEN")
-        if telegram_token:
-            whitelist_cfg = self.config.get("comms", {}).get("telegram", {}).get("whitelist_user_ids", [])
-            allowed_ids = set(whitelist_cfg) if isinstance(whitelist_cfg, list) else set()
-            self.telegram_controller = TelegramBotController(
-                bot_token=telegram_token,
-                allowed_user_ids=allowed_ids,
-                dispatcher=self.dispatcher,
-                stt_engine=self.stt_engine,
-            )
-            self.telegram_controller.start()
-        else:
-            self.telegram_controller = None
-
-        self.worker_notifications = WorkerNotificationDispatcher(
-            tts_manager=self.tts_manager,
-            overlay=self.overlay,
-            telegram_controller=self.telegram_controller,
-            event_bus=self.event_bus,
-        )
-        self.subagent_manager = SubAgentManager(
-            max_workers=int(self.config.get("workers.max_workers", 4)),
-            event_bus=self.event_bus,
-            notification_dispatcher=self.worker_notifications,
-        )
-        self.worker_pool = self.subagent_manager
-
-        # 22. Real-Time Dashboard Server (F-17)
-        dash_cfg = self.config.get("ui.dashboard", {})
-        if dash_cfg.get("enabled", True):
-            self.dashboard_server = DashboardServer(
-                host=dash_cfg.get("host", "127.0.0.1"),
-                port=dash_cfg.get("port", 8080),
-                ws_port=dash_cfg.get("ws_port", 8765),
-                app=self,
-                config_manager=self.config,
-                dispatcher=self.dispatcher,
-            )
-
-        # 23. System Tray Controller (F-16 & R1)
-        if not self.headless and self.config.get("ui.tray.enabled", True):
-            self.tray_controller = SystemTrayController(
-                app=self,
-                config_manager=self.config,
+            self.audio_engine = AudioEngine(
+                sample_rate=int(self.config.get("audio.sample_rate", 44100)),
+                block_ms=int(self.config.get("audio.block_ms", 40)),
+                input_device=self.config.get("audio.input_device"),
+                probe_seconds=float(self.config.get("audio.probe_seconds", 0.5)),
+                silent_rms_threshold=float(self.config.get("audio.silent_rms_threshold", 0.001)),
                 event_bus=self.event_bus,
-                tooltip=self.config.get("ui.tray.tooltip", "JARVIS Desktop Assistant"),
-                dashboard_url=f"http://{dash_cfg.get('host', '127.0.0.1')}:{dash_cfg.get('port', 8080)}",
+                config_manager=self.config,
+                on_audio_block=_on_audio_blocks_dispatch,
             )
-            if hasattr(self.tray_controller, "wake_word_detector"):
-                self.tray_controller.wake_word_detector = self.wake_word_detector
 
-        # 24. Global Keyboard Hotkey Manager
-        hotkey_cfg = self.config.get("hotkeys", {})
-        if hotkey_cfg.get("enabled", True):
-            self.hotkey_manager = GlobalHotkeyManager(is_mock=self.headless)
-            self._register_default_hotkeys()
+            # 15. Always-On Overlay HUD UI (R8 & R6)
+            overlay_cfg = self.config.get("ui.overlay", {})
+            self.overlay = AlwaysOnOverlay(
+                sidebar_mode=bool(overlay_cfg.get("sidebar_mode", True)),
+                sidebar_width=int(overlay_cfg.get("sidebar_width", 380)),
+                auto_hide_s=float(overlay_cfg.get("auto_hide_s", 8.0)),
+                on_action=self._on_overlay_quick_action,
+                headless=self.headless,
+                config=overlay_cfg if isinstance(overlay_cfg, dict) else {},
+            )
+            if self.memory_manager:
+                facts = self.memory_manager.list_facts(limit=3)
+                if facts:
+                    self.overlay.set_memory_facts([f"{f.get('key')}: {f.get('value')}" for f in facts])
 
-        # 25. Smart Home / Home Assistant Integration (D-10 / F-26)
-        ha_cfg = self.config.get("smart_home.home_assistant", {})
-        if not isinstance(ha_cfg, dict):
-            ha_cfg = {}
-        ha_token = ha_cfg.get("token") or get_secret("HASS_TOKEN")
-        self.ha_client = HomeAssistantClient(
-            base_url=ha_cfg.get("url", "http://homeassistant.local:8123"),
-            access_token=ha_token,
-            entity_aliases=ha_cfg.get("entities"),
-        )
+            # 16. Code Interpreter Sandbox (M2 / Requirement R2)
+            sandbox_cfg = self.config.get("sandbox", {})
+            self.sandbox = CodeInterpreterSandbox(
+                base_scratch_dir=sandbox_cfg.get("scratch_dir") or str(get_jarvis_data_dir() / "sandbox"),
+                max_execution_seconds=float(sandbox_cfg.get("timeout_s", 15.0)),
+            )
 
-        # 26. Signal Handlers
-        if threading.current_thread() is threading.main_thread():
-            try:
-                signal.signal(signal.SIGINT, self._handle_signal)
-                signal.signal(signal.SIGTERM, self._handle_signal)
-            except (ValueError, AttributeError):
-                pass
+            # 17. Persistent Skill Library & Synthesizer (M2 / Requirement R2)
+            skills_cfg = self.config.get("skills", {})
+            skills_dir = skills_cfg.get("dir", "jarvis/skills")
+            self.skill_registry = SkillRegistry(
+                skills_dir=skills_dir,
+                dispatcher=self.dispatcher,
+            )
+            self.skill_synthesizer = DynamicSkillSynthesizer(
+                skills_dir=skills_dir,
+                registry=self.skill_registry,
+            )
 
-        log.info("All JARVIS Core & Autonomous Agentic Subsystems successfully initialized.")
-        self._initialized = True
-        return self
+            # 18. Browser Automation Agent & Session Manager (M3 / Requirement R3)
+            browser_cfg = self.config.get("browser", {})
+            browser_session_dir = browser_cfg.get("session_dir") or str(
+                get_jarvis_data_dir() / "browser_sessions"
+            )
+            self.browser_session_manager = BrowserSessionManager(
+                storage_dir=browser_session_dir,
+                db_path=mem_db,
+            )
+            canonical_browser_config = _build_browser_config(
+                browser_cfg,
+                session_dir=browser_session_dir,
+                app_headless=self.headless,
+            )
+            self.browser_agent = BrowserAgent(
+                config=canonical_browser_config,
+                session_manager=self.browser_session_manager,
+            )
+
+            # 19. Computer-Use Vision & GUI Actor (M4 / Requirement R4)
+            self.computer_use_vision = ComputerUseVision()
+            self.visual_verifier = VisualVerifier()
+            self.gui_actor = GUIActor(
+                vision=self.computer_use_vision,
+                verifier=self.visual_verifier,
+                controller=self.computer_controller,
+                safety_gate=self.safety_gate,
+            )
+
+            # 20. Autonomous ReAct Planner Subsystem (M1 / Requirement R1)
+            self.safety_interceptor = SafetyGateInterceptor(
+                safety_gate=self.safety_gate,
+                timeout_seconds=float(auto_cfg.get("safety_gate_timeout_s", 30.0)),
+            )
+            # Share this same interceptor/SafetyGate with ActionDispatcher so
+            # planner-issued and dispatcher-issued confirmation tokens are
+            # resolved against one authoritative pending-confirmation store
+            # (see jarvis/core/dispatcher.py's destructive-action safety gate).
+            self.dispatcher.set_safety_interceptor(self.safety_interceptor)
+            self.reflection_engine = SelfReflectionEngine()
+            self.planner_engine = ReActTaskEngine(
+                dispatcher=self.dispatcher,
+                safety_interceptor=self.safety_interceptor,
+                reflection_engine=self.reflection_engine,
+                event_bus=self.event_bus,
+                max_parallel_workers=int(self.config.get("planner.max_parallel_workers", 4)),
+            )
+            self.react_planner = self.planner_engine
+
+            # 21. Sub-Agent Worker Pool & Notifications (M1 / Requirement R5)
+            from jarvis.comms.telegram import TelegramBotController
+            telegram_token = get_secret("TELEGRAM_BOT_TOKEN")
+            if telegram_token:
+                whitelist_cfg = self.config.get("comms", {}).get("telegram", {}).get("whitelist_user_ids", [])
+                allowed_ids = set(whitelist_cfg) if isinstance(whitelist_cfg, list) else set()
+                self.telegram_controller = TelegramBotController(
+                    bot_token=telegram_token,
+                    allowed_user_ids=allowed_ids,
+                    dispatcher=self.dispatcher,
+                    stt_engine=self.stt_engine,
+                )
+                self.telegram_controller.start()
+            else:
+                self.telegram_controller = None
+
+            self.worker_notifications = WorkerNotificationDispatcher(
+                tts_manager=self.tts_manager,
+                overlay=self.overlay,
+                telegram_controller=self.telegram_controller,
+                event_bus=self.event_bus,
+            )
+            self.subagent_manager = SubAgentManager(
+                max_workers=int(self.config.get("workers.max_workers", 4)),
+                event_bus=self.event_bus,
+                notification_dispatcher=self.worker_notifications,
+            )
+            self.worker_pool = self.subagent_manager
+
+            # 22. Real-Time Dashboard Server (F-17)
+            dash_cfg = self.config.get("ui.dashboard", {})
+            if dash_cfg.get("enabled", True):
+                self.dashboard_server = DashboardServer(
+                    host=dash_cfg.get("host", "127.0.0.1"),
+                    port=dash_cfg.get("port", 8080),
+                    ws_port=dash_cfg.get("ws_port", 8765),
+                    app=self,
+                    config_manager=self.config,
+                    dispatcher=self.dispatcher,
+                )
+
+            # 23. System Tray Controller (F-16 & R1)
+            if not self.headless and self.config.get("ui.tray.enabled", True):
+                self.tray_controller = SystemTrayController(
+                    app=self,
+                    config_manager=self.config,
+                    event_bus=self.event_bus,
+                    tooltip=self.config.get("ui.tray.tooltip", "JARVIS Desktop Assistant"),
+                    dashboard_url=f"http://{dash_cfg.get('host', '127.0.0.1')}:{dash_cfg.get('port', 8080)}",
+                )
+                if hasattr(self.tray_controller, "wake_word_detector"):
+                    self.tray_controller.wake_word_detector = self.wake_word_detector
+
+            # 24. Global Keyboard Hotkey Manager
+            hotkey_cfg = self.config.get("hotkeys", {})
+            if hotkey_cfg.get("enabled", True):
+                self.hotkey_manager = GlobalHotkeyManager(is_mock=self.headless)
+                self._register_default_hotkeys()
+
+            # 25. Smart Home / Home Assistant Integration (D-10 / F-26)
+            ha_cfg = self.config.get("smart_home.home_assistant", {})
+            if not isinstance(ha_cfg, dict):
+                ha_cfg = {}
+            ha_token = ha_cfg.get("token") or get_secret("HASS_TOKEN")
+            self.ha_client = HomeAssistantClient(
+                base_url=ha_cfg.get("url", "http://homeassistant.local:8123"),
+                access_token=ha_token,
+                entity_aliases=ha_cfg.get("entities"),
+            )
+
+            # 26. Signal Handlers
+            if threading.current_thread() is threading.main_thread():
+                try:
+                    signal.signal(signal.SIGINT, self._handle_signal)
+                    signal.signal(signal.SIGTERM, self._handle_signal)
+                except (ValueError, AttributeError):
+                    pass
+
+            log.info("All JARVIS Core & Autonomous Agentic Subsystems successfully initialized.")
+            self._initialized = True
+            return self
 
     def _register_default_hotkeys(self) -> None:
         """Register default system-wide keyboard shortcuts."""
@@ -1663,7 +1664,8 @@ class JarvisApp:
         if vol is None:
             msg = "Không thể điều chỉnh âm lượng phần cứng, thưa Ngài."
             return {"status": "failed", "success": False, "volume": None, "error": msg, "error_code": "VOLUME_CHANGE_FAILED"}
-        return {"status": "success", "success": True, "volume": vol, "message": f"Đã điều chỉnh âm lượng lên {vol}%, thưa Ngài."}
+        direction = "lên" if delta_val >= 0 else "xuống"
+        return {"status": "success", "success": True, "volume": vol, "message": f"Đã điều chỉnh âm lượng {direction} {vol}%, thưa Ngài."}
 
     def _handle_system_brightness(self, delta: int | None = None, level: int | None = None, **kwargs) -> dict[str, Any]:
         """Adjusts or sets screen brightness (fail-closed if monitor unavailable)."""
@@ -1671,14 +1673,17 @@ class JarvisApp:
             if level is not None:
                 b = self.computer_controller.set_brightness(level)
                 if b is None:
-                    return {"status": "failed", "success": False, "brightness": None, "error": "BRIGHTNESS_SET_FAILED", "message": "Không thể đặt độ sáng màn hình, thưa Ngài."}
+                    msg = "Không thể đặt độ sáng màn hình, thưa Ngài."
+                    return {"status": "failed", "success": False, "brightness": None, "error": msg, "error_code": "BRIGHTNESS_SET_FAILED", "message": msg}
                 return {"status": "success", "success": True, "brightness": b, "message": f"Đã đặt độ sáng màn hình thành {b}%, thưa Ngài."}
             delta_val = delta if delta is not None else 10
             b = self.computer_controller.change_brightness(delta_val)
             if b is None:
-                return {"status": "failed", "success": False, "brightness": None, "error": "BRIGHTNESS_CHANGE_FAILED", "message": "Không thể điều chỉnh độ sáng màn hình, thưa Ngài."}
+                msg = "Không thể điều chỉnh độ sáng màn hình, thưa Ngài."
+                return {"status": "failed", "success": False, "brightness": None, "error": msg, "error_code": "BRIGHTNESS_CHANGE_FAILED", "message": msg}
             return {"status": "success", "success": True, "brightness": b, "message": f"Đã điều chỉnh độ sáng màn hình thành {b}%, thưa Ngài."}
-        return {"status": "failed", "success": False, "message": "Computer controller unavailable"}
+        msg = "Computer controller unavailable"
+        return {"status": "failed", "success": False, "error": msg, "error_code": "CONTROLLER_UNAVAILABLE", "message": msg}
 
     def _handle_file_search(self, filename: str | None = None, pattern: str | None = None, directory: str | None = None, root_dir: str | None = None, **kwargs) -> dict[str, Any]:
         """Searches local files."""
@@ -1753,7 +1758,7 @@ class JarvisApp:
             pass
         # Fallback: use computer controller's keyboard shortcut if available
         if self.computer_controller and hasattr(self.computer_controller, "send_hotkey"):
-            ok = self.computer_controller.send_hotkey("ctrl+t")
+            ok = self.computer_controller.send_hotkey("ctrl", "t")
             return {"success": bool(ok), "status": "success" if ok else "failed",
                     "message": "Da mo tab moi, thua Ngai." if ok else "Khong the mo tab moi."}
         return {"success": False, "status": "failed", "error_code": "KEYBOARD_UNAVAILABLE",
@@ -3125,30 +3130,57 @@ class JarvisApp:
                 log.debug("Error stopping browser agent: %s", e)
 
         if getattr(self, "telegram_controller", None):
-            self.telegram_controller.stop()
+            try:
+                self.telegram_controller.stop()
+            except Exception as e:
+                log.warning("Error stopping telegram controller: %s", e)
         if self.proactive_engine:
-            self.proactive_engine.stop()
+            try:
+                self.proactive_engine.stop()
+            except Exception as e:
+                log.warning("Error stopping proactive engine: %s", e)
         if self.overlay:
-            self.overlay.destroy()
+            try:
+                self.overlay.destroy()
+            except Exception as e:
+                log.warning("Error destroying overlay: %s", e)
         if self.tray_controller:
-            self.tray_controller.stop()
+            try:
+                self.tray_controller.stop()
+            except Exception as e:
+                log.warning("Error stopping tray controller: %s", e)
         if self.hotkey_manager:
             try:
                 self.hotkey_manager.stop()
             except Exception as e:
                 log.debug("Error stopping hotkey manager: %s", e)
         if self.dashboard_server:
-            self.dashboard_server.stop()
+            try:
+                self.dashboard_server.stop()
+            except Exception as e:
+                log.warning("Error stopping dashboard server: %s", e)
         if self.audio_engine:
-            self.audio_engine.stop_stream()
+            try:
+                self.audio_engine.stop_stream()
+            except Exception as e:
+                log.warning("Error stopping audio engine stream: %s", e)
         if self.wake_word_detector:
             try:
                 self.wake_word_detector.shutdown()
             except Exception as e:
                 log.debug("Error shutting down wake word detector: %s", e)
         if self.tts_manager:
-            self.tts_manager.stop()
+            try:
+                self.tts_manager.stop()
+            except Exception as e:
+                log.warning("Error stopping TTS manager: %s", e)
         if not self.no_hot_reload:
-            self.config.stop_watcher()
-        self.plugin_registry.stop_all()
+            try:
+                self.config.stop_watcher()
+            except Exception as e:
+                log.warning("Error stopping config watcher: %s", e)
+        try:
+            self.plugin_registry.stop_all()
+        except Exception as e:
+            log.warning("Error stopping plugin registry: %s", e)
         log.info("JARVIS shutdown cleanly completed.")

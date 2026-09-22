@@ -128,6 +128,10 @@ class PassiveTriggerGuard:
             lockout_until = self._lockout_until.get(key, 0.0)
             if t < lockout_until:
                 return TriggerDecision(False, "LOCKOUT_ACTIVE", lockout_until - t)
+            elif lockout_until > 0.0:
+                self._lockout_until.pop(key, None)
+                if key in self._history:
+                    self._history[key].clear()
 
             last = self._last_trigger.get(key, -1e9)
             gap = t - last
