@@ -734,6 +734,11 @@ class JarvisApp:
             description="Alias for system_status (router emits this intent name for hardware/status voice queries)",
         )
         self.dispatcher.register_action(
+            name="hardware_telemetry_check",
+            handler=self._handle_system_status,
+            description="Reports system health summary and hardware component telemetry",
+        )
+        self.dispatcher.register_action(
             name="system_power",
             handler=self._handle_system_power,
             description="Handles system power actions (shutdown, restart, lock, sleep)",
@@ -892,6 +897,11 @@ class JarvisApp:
             description="Schedules a proactive timed reminder",
         )
         self.dispatcher.register_action(
+            name="reminder",
+            handler=self._handle_proactive_reminder,
+            description="Alias for proactive_reminder to satisfy router intent emissions",
+        )
+        self.dispatcher.register_action(
             name="proactive_pomodoro_start",
             handler=self._handle_proactive_pomodoro_start,
             description="Starts a Pomodoro focus mode timer",
@@ -921,6 +931,26 @@ class JarvisApp:
             name="generic_task",
             handler=self._handle_generic_task,
             description="Generic autonomous task execution fallback",
+        )
+        self.dispatcher.register_action(
+            name="workspace_prepare",
+            handler=self._handle_generic_task,
+            description="Prepares developer workspace for project",
+        )
+        self.dispatcher.register_action(
+            name="project_create",
+            handler=self._handle_generic_task,
+            description="Creates new project directory structure",
+        )
+        self.dispatcher.register_action(
+            name="project_list",
+            handler=self._handle_generic_task,
+            description="Lists existing projects",
+        )
+        self.dispatcher.register_action(
+            name="skill_git_assistant",
+            handler=self._handle_generic_task,
+            description="Git assistant for project version control",
         )
         self.dispatcher.register_action(
             name="planner_execute_task",
@@ -1801,13 +1831,29 @@ class JarvisApp:
             return {"status": "success" if ok else "failed", "message": msg}
         return {"status": "failed", "message": "Safety gate unavailable"}
 
-    def _handle_proactive_reminder(self, message: str, delay_seconds: float | None = None, delay_minutes: float | None = None, **kwargs) -> dict[str, Any]:
-        """Schedules timed reminder."""
-        sec = float(delay_seconds if delay_seconds is not None else ((delay_minutes or 5.0) * 60.0))
+    def _handle_proactive_reminder(
+        self,
+        message: str = "",
+        delay_seconds: float | None = None,
+        delay_minutes: float | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Schedules timed reminder with robust fallback for parameter alias keys."""
+        msg = message or kwargs.get("text") or kwargs.get("action") or "nhắc nhở chung"
+        if delay_seconds is None and "delay_s" in kwargs:
+            delay_seconds = float(kwargs["delay_s"])
+
+        if delay_seconds is not None:
+            sec = float(delay_seconds)
+        elif delay_minutes is not None:
+            sec = float(delay_minutes) * 60.0
+        else:
+            sec = 300.0
+
         if self.proactive_engine:
-            r_id = self.proactive_engine.add_reminder(text=message, delay_seconds=sec)
-            msg = f"Đã đặt lời nhắc '{message}' sau {int(sec)} giây cho Ngài."
-            return {"status": "success", "reminder_id": r_id, "message": msg}
+            r_id = self.proactive_engine.add_reminder(text=str(msg), delay_seconds=sec)
+            resp_msg = f"Đã đặt lời nhắc '{msg}' sau {int(sec)} giây cho Ngài."
+            return {"status": "success", "reminder_id": r_id, "message": resp_msg}
         return {"status": "failed", "message": "Proactive engine unavailable"}
 
     def _handle_proactive_pomodoro_start(self, work_minutes: float = 25.0, break_minutes: float = 5.0, **kwargs) -> dict[str, Any]:

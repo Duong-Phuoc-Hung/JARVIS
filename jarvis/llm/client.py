@@ -198,14 +198,23 @@ class LLMClient:
         else:
             self.provider = provider
 
-        self.api_key = (
-            api_key
-            if api_key is not None
-            else (
-                os.environ.get(f"JARVIS_{self.provider.value.upper()}_API_KEY")
-                or os.environ.get(f"{self.provider.value.upper()}_API_KEY", "")
-            )
-        )
+        if api_key is not None:
+            self.api_key = api_key
+        else:
+            p_val = self.provider.value.upper()
+            env_candidates = [f"JARVIS_{p_val}_API_KEY", f"{p_val}_API_KEY"]
+            if self.provider == LLMProvider.GEMINI:
+                env_candidates.extend(["GOOGLE_API_KEY", "JARVIS_GOOGLE_API_KEY"])
+            elif self.provider == LLMProvider.CLAUDE:
+                env_candidates.extend(["ANTHROPIC_API_KEY", "JARVIS_ANTHROPIC_API_KEY"])
+
+            resolved_key = ""
+            for env_var in env_candidates:
+                val = os.environ.get(env_var)
+                if val:
+                    resolved_key = val
+                    break
+            self.api_key = resolved_key
         self.model = model or self.DEFAULT_MODELS.get(self.provider, "default-model")
         self.base_url = base_url
         self.timeout = timeout
@@ -557,7 +566,10 @@ class LLMClient:
         tool_calls: list[ToolCall] = []
         candidates = data.get("candidates", [])
         if candidates:
-            parts = candidates[0].get("content", {}).get("parts", [])
+            cand = candidates[0]
+            finish_reason = cand.get("finishReason", "")
+            content_obj = cand.get("content") or {}
+            parts = content_obj.get("parts") or []
             for p in parts:
                 if "text" in p:
                     content += p["text"]
@@ -569,6 +581,8 @@ class LLMClient:
                         arguments=fc.get("args", {}),
                         raw_arguments=json.dumps(fc.get("args", {})),
                     ))
+            if not content and not tool_calls and finish_reason == "SAFETY":
+                content = "Yêu cầu bị từ chối do bộ lọc an toàn của mô hình Gemini."
 
         meta = data.get("usageMetadata", {})
         usage = TokenUsage(
@@ -683,11 +697,13 @@ class LLMClient:
         if "tool_calls" in msg:
             for tc in msg["tool_calls"]:
                 fn = tc.get("function", {})
+                raw_args = fn.get("arguments", {})
+                parsed_args = self._clean_and_parse_json(raw_args) if isinstance(raw_args, str) else (raw_args or {})
                 tool_calls.append(ToolCall(
                     id=str(uuid.uuid4())[:8],
                     name=fn.get("name", ""),
-                    arguments=fn.get("arguments", {}),
-                    raw_arguments=json.dumps(fn.get("arguments", {})),
+                    arguments=parsed_args,
+                    raw_arguments=json.dumps(parsed_args) if not isinstance(raw_args, str) else raw_args,
                 ))
 
         prompt_eval = data.get("prompt_eval_count", 0)

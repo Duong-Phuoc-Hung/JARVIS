@@ -121,11 +121,11 @@ class IntentResult:
 def _parse_duration_seconds(amount: int, unit_str: str) -> int:
     """Converts quantity and time unit into duration seconds."""
     u = unit_str.lower().strip()
-    if u in ("giờ", "tiếng", "h", "hour", "hours"):
+    if u in ("giờ", "tiếng", "h", "hour", "hours", "gio", "tieng"):
         return amount * 3600
-    elif u in ("phút", "m", "min", "mins", "minute", "minutes"):
+    elif u in ("phút", "m", "min", "mins", "minute", "minutes", "phut"):
         return amount * 60
-    elif u in ("giây", "s", "sec", "secs", "second", "seconds"):
+    elif u in ("giây", "s", "sec", "secs", "second", "seconds", "giay"):
         return amount
     return amount * 60
 
@@ -177,8 +177,27 @@ def generate_tool_schema_from_dispatcher(
                         param_type = "number"
                     elif ann == bool or ann_str in ("bool", "boolean"):
                         param_type = "boolean"
-                    elif origin in (list, tuple, set, list, tuple) or ann in (list, list) or ann_str.startswith("list") or ann_str.startswith("typing.list"):
+                    inner_schema: dict[str, str] = {"type": "string"}
+                    if origin in (list, tuple, set) or ann in (list, tuple, set) or ann_str.startswith(("list", "tuple", "set", "typing.list")):
                         param_type = "array"
+                        type_args = get_args(ann)
+                        if type_args:
+                            elem_type = type_args[0]
+                            elem_str = getattr(elem_type, "__name__", str(elem_type)).lower()
+                            if elem_type == int or elem_str in ("int", "integer"):
+                                inner_schema = {"type": "integer"}
+                            elif elem_type == float or elem_str in ("float", "number"):
+                                inner_schema = {"type": "number"}
+                            elif elem_type == bool or elem_str in ("bool", "boolean"):
+                                inner_schema = {"type": "boolean"}
+                        elif "[" in ann_str and ann_str.endswith("]"):
+                            inner_name = ann_str[ann_str.index("[") + 1 : -1].strip().lower()
+                            if inner_name in ("int", "integer"):
+                                inner_schema = {"type": "integer"}
+                            elif inner_name in ("float", "number"):
+                                inner_schema = {"type": "number"}
+                            elif inner_name in ("bool", "boolean"):
+                                inner_schema = {"type": "boolean"}
                     elif origin in (dict, dict) or ann in (dict, dict) or ann_str.startswith("dict") or ann_str.startswith("typing.dict"):
                         param_type = "object"
                     elif "list" in ann_str and "dict" not in ann_str:
@@ -186,10 +205,14 @@ def generate_tool_schema_from_dispatcher(
                     elif "dict" in ann_str:
                         param_type = "object"
 
-                    properties[param_name] = {
+                    prop_def: dict[str, Any] = {
                         "type": param_type,
                         "description": f"Parameter {param_name}",
                     }
+                    if param_type == "array":
+                        prop_def["items"] = inner_schema
+
+                    properties[param_name] = prop_def
                     if param.default == inspect.Parameter.empty:
                         required.append(param_name)
             except Exception as e:
@@ -2332,8 +2355,11 @@ class LLMIntentRouter:
             return True
         if clean_lower_stripped and "khong muon" in clean_lower_stripped:
             return True
-        if action_name in ("app_open", "open_app") and re.search(
-            r"\b(?:đừng|do\s+not|don't|never)\b", clean_lower
+        if re.search(r"\b(?:đừng|do\s+not|don't|dont|never|chớ)\b", clean_lower):
+            return True
+        if clean_lower_stripped and re.search(
+            r"\b(?:dung\s+(?:mo|bat|chay|phat|nghe|choi|open|start|launch)|khong\s+(?:mo|bat|chay|phat|nghe|choi|open)|never|dont)\b",
+            clean_lower_stripped,
         ):
             return True
         return False
