@@ -479,10 +479,22 @@ class TestJarvisAppAutonomousIntegration(unittest.TestCase):
             self.assertIn(act, actions, f"Action {act} must be registered in ActionDispatcher")
 
     def test_app_sandbox_action_dispatch(self) -> None:
-        """Verify sandbox_execute_code action runs Python and returns stdout/data."""
+        """Verify sandbox_execute_code action runs Python and returns stdout/data after confirmation."""
+        # sandbox_execute_code is high-risk, so it must gate initially
+        res_gated = self.app.dispatcher.dispatch_action(
+            action_name="sandbox_execute_code",
+            payload={"code": "x = 40 + 2\nprint(f'ANSWER:{x}')", "language": "python"},
+        )
+        self.assertFalse(res_gated.success)
+        self.assertEqual(res_gated.error_code, "CONFIRMATION_REQUIRED")
+        token = res_gated.data["confirmation_token"]
+        self.app.safety_interceptor.confirm(token)
+
+        # Dispatch with confirmation token
         res = self.app.dispatcher.dispatch_action(
             action_name="sandbox_execute_code",
             payload={"code": "x = 40 + 2\nprint(f'ANSWER:{x}')", "language": "python"},
+            confirmation_token=token,
         )
         self.assertTrue(res.success)
         self.assertIn("ANSWER:42", res.data["stdout"])
