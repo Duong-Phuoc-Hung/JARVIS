@@ -4,6 +4,7 @@ Provides a 30-second tokenized state machine protecting against unintended OS op
 """
 from __future__ import annotations
 
+import re
 import threading
 import time
 import uuid
@@ -163,34 +164,57 @@ class SafetyGate:
                 if item.status == "PENDING" and not item.is_expired
             ]
 
-    def cleanup_expired(self) -> int:
-        """Marks expired pending entries and removes old records."""
+    def cleanup_expired(self, max_history_age_seconds: float = 3600.0) -> int:
+        """Marks expired pending entries and removes old finished records (> 1 hour old)."""
         with self._lock:
             now = time.time()
             expired_count = 0
-            for entry in list(self._pending.values()):
+            tokens_to_delete: list[str] = []
+            for token, entry in self._pending.items():
                 if entry.status == "PENDING" and now > entry.expires_at:
                     entry.status = "EXPIRED"
                     expired_count += 1
+                elif entry.status in ("CONFIRMED", "REJECTED", "EXPIRED"):
+                    if now - entry.created_at > max_history_age_seconds:
+                        tokens_to_delete.append(token)
+            for token in tokens_to_delete:
+                del self._pending[token]
             return expired_count
 
-    def is_affirmative(self, phrase: str) -> bool:
-        """Checks if a voice/text response indicates affirmative confirmation."""
+    @staticmethod
+    def _normalize_phrase(phrase: str) -> str:
+        """Strip punctuation and whitespace for reliable voice recognition matching."""
         p = phrase.strip().lower()
-        if p in self.AFFIRMATIVE_PHRASES:
-            return True
-        for aff in self.AFFIRMATIVE_PHRASES:
-            if f" {aff} " in f" {p} ":
-                return True
-        return False
+        p = re.sub(r"[.,!?;:\"'()\[\]{}]", " ", p)
+        return " ".join(p.split())
 
     def is_negative(self, phrase: str) -> bool:
         """Checks if a voice/text response indicates cancellation or rejection."""
-        p = phrase.strip().lower()
+        p = self._normalize_phrase(phrase)
+        if not p:
+            return False
         if p in self.NEGATIVE_PHRASES:
             return True
         for neg in self.NEGATIVE_PHRASES:
             if f" {neg} " in f" {p} ":
+                return True
+        # Common Vietnamese negation prefixes before affirmative words
+        if p.startswith(("không ", "khong ", "đừng ", "dung ", "chớ ", "cho ")):
+            return True
+        return False
+
+    def is_affirmative(self, phrase: str) -> bool:
+        """Checks if a voice/text response indicates affirmative confirmation."""
+        p = self._normalize_phrase(phrase)
+        if not p:
+            return False
+        # If any negation is present, it is NEVER affirmative
+        if self.is_negative(phrase):
+            return False
+        if p in self.AFFIRMATIVE_PHRASES:
+            return True
+        for aff in self.AFFIRMATIVE_PHRASES:
+            if f" {aff} " in f" {p} ":
                 return True
         return False
 
@@ -206,14 +230,15 @@ class SafetyGate:
             if not target:
                 return False, "Không có yêu cầu xác nhận nào đang chờ hoặc yêu cầu đã hết hạn."
 
+            # NEGATION CHECK MUST PRECEDE AFFIRMATIVE CHECK
+            if self.is_negative(phrase):
+                self.reject(target.token)
+                return False, f"Đã hủy thao tác '{target.action_desc}' theo yêu cầu của Ngài."
+
             if self.is_affirmative(phrase):
                 success = self.confirm(target.token)
                 if success:
                     return True, f"Đã xác nhận và thực thi thao tác '{target.action_desc}', thưa Ngài."
                 return False, "Yêu cầu xác nhận đã hết hạn hoặc không hợp lệ."
-
-            if self.is_negative(phrase):
-                self.reject(target.token)
-                return False, f"Đã hủy thao tác '{target.action_desc}' theo yêu cầu của Ngài."
 
             return False, f"Không nhận diện được phản hồi. Vui lòng nói 'đồng ý' hoặc 'hủy' để xử lý yêu cầu '{target.action_desc}'."

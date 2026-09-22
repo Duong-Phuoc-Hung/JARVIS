@@ -8,7 +8,11 @@ Covers Feature:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+import os
+import subprocess
+import sys
+import webbrowser
+from dataclasses import asdict, dataclass, field, is_dataclass
 from typing import Any
 
 log = logging.getLogger("jarvis.automation.workspace")
@@ -61,34 +65,85 @@ class WorkspaceRecipeManager:
             },
         }
 
-    def register_recipe(self, name: str, recipe_dict: dict[str, Any]) -> None:
+    def register_recipe(self, name: str, recipe_dict: dict[str, Any] | WorkspaceRecipe) -> None:
         """Registers or updates a workspace recipe."""
-        self.recipes[name] = recipe_dict
+        if is_dataclass(recipe_dict) and not isinstance(recipe_dict, type):
+            self.recipes[name] = asdict(recipe_dict)
+        else:
+            self.recipes[name] = recipe_dict  # type: ignore
 
-    def prepare_workspace(self, recipe: str = "ai_development") -> dict[str, Any]:
+    def prepare_workspace(
+        self, recipe: str | WorkspaceRecipe | dict[str, Any] = "ai_development"
+    ) -> dict[str, Any]:
         """Launches configured IDE, terminal tabs, browser pages, and optional VM."""
-        cfg = self.recipes.get(
-            recipe,
-            {
-                "name": recipe,
-                "launched_apps": ["cursor.exe", "wt.exe", "spotify.exe"],
-            },
-        )
+        if isinstance(recipe, WorkspaceRecipe) or (is_dataclass(recipe) and not isinstance(recipe, type)):
+            recipe_dict = asdict(recipe)
+            recipe_name = getattr(recipe, "name", "custom")
+            apps: list[str] = []
+            if getattr(recipe, "ide", None):
+                apps.append(recipe.ide)
+            if hasattr(recipe, "background_apps") and recipe.background_apps:
+                apps.extend(recipe.background_apps)
+            urls: list[str] = []
+            if hasattr(recipe, "browser_urls") and recipe.browser_urls:
+                for u in recipe.browser_urls:
+                    if isinstance(u, dict):
+                        urls.append(u.get("url", ""))
+                    elif isinstance(u, str):
+                        urls.append(u)
+            vm_name = getattr(recipe, "vm_to_start", None) or recipe_dict.get("vm")
+        elif isinstance(recipe, dict):
+            recipe_dict = recipe
+            recipe_name = str(recipe_dict.get("name", "custom"))
+            apps = recipe_dict.get("launched_apps", ["cursor.exe", "wt.exe", "spotify.exe"])
+            urls = recipe_dict.get("urls", [])
+            vm_name = recipe_dict.get("vm")
+        else:
+            recipe_name = str(recipe)
+            cfg = self.recipes.get(
+                recipe_name,
+                {
+                    "name": recipe_name,
+                    "launched_apps": ["cursor.exe", "wt.exe", "spotify.exe"],
+                },
+            )
+            apps = cfg.get("launched_apps", ["cursor.exe", "wt.exe", "spotify.exe"])
+            urls = cfg.get("urls", [])
+            vm_name = cfg.get("vm")
 
-        launched_apps = cfg.get("launched_apps", ["cursor.exe", "wt.exe", "spotify.exe"])
+        # Launch apps
+        for app in apps:
+            if not app:
+                continue
+            try:
+                if hasattr(os, "startfile") and sys.platform == "win32":
+                    os.startfile(app)  # type: ignore
+                else:
+                    _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                    subprocess.Popen([app], creationflags=_cflags)
+            except Exception as exc:
+                log.debug("App launch attempted for '%s': %s", app, exc)
+
+        # Open URLs
+        for url in urls:
+            if not url:
+                continue
+            try:
+                webbrowser.open(url)
+            except Exception as exc:
+                log.debug("Browser open attempted for '%s': %s", url, exc)
 
         # Optional VM start
-        vm_name = cfg.get("vm")
         if vm_name and self.vm and hasattr(self.vm, "start_vm"):
             try:
                 self.vm.start_vm(vm_name)
             except Exception as exc:
                 log.warning("Could not auto-start VM '%s': %s", vm_name, exc)
 
-        log.info("Workspace recipe '%s' prepared with apps: %s", recipe, launched_apps)
+        log.info("Workspace recipe '%s' prepared with apps: %s", recipe_name, apps)
         return {
             "success": True,
-            "recipe": recipe,
-            "launched_apps": launched_apps,
-            "urls": cfg.get("urls", []),
+            "recipe": recipe_name,
+            "launched_apps": apps,
+            "urls": urls,
         }

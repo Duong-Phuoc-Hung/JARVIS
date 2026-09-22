@@ -216,7 +216,9 @@ class ShellAssistant:
 
         # 8. Clear Temp Triggers
         if any(kw in q_lower for kw in ["dọn dẹp temp", "don dep temp", "clear temp", "xóa file tạm", "xoa file tam"]):
-            return "Remove-Item -Path $env:TEMP\\* -Recurse -Force", "clear_temp"
+            if sys.platform == "win32":
+                return 'powershell -NoProfile -NonInteractive -Command "Remove-Item -Path $env:TEMP\\* -Recurse -Force -ErrorAction SilentlyContinue"', "clear_temp"
+            return "rm -rf /tmp/*", "clear_temp"
 
         # Fallback to literal command
         return q, "custom"
@@ -453,20 +455,30 @@ class ShellAssistant:
             return f"Không thể kiểm tra trạng thái Docker: {e}"
 
     def docker_restart(self) -> str:
-        """Restarts Docker containers."""
+        """Restarts Docker containers cleanly without relying on bash substitution."""
         try:
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            res = subprocess.run(
-                "docker restart $(docker ps -q)",
-                shell=True,
-                capture_output=True,
-                text=True, encoding='utf-8', errors='replace',
-                timeout=30,
-                creationflags=_cflags,
+            # 1. Query running container IDs
+            ps_proc = subprocess.run(
+                ["docker", "ps", "-q"],
+                capture_output=True, text=True, encoding="utf-8",
+                timeout=10, creationflags=_cflags,
             )
-            if res.returncode == 0:
-                return "Đã khởi động lại toàn bộ các container Docker đang chạy, thưa Ngài."
-            return "Không thể khởi động lại Docker containers hoặc không có container nào đang chạy."
+            if ps_proc.returncode != 0:
+                return "Docker daemon hiện không hoạt động hoặc không kết nối được, thưa Ngài."
+            container_ids = ps_proc.stdout.strip().split()
+            if not container_ids:
+                return "Hiện không có container Docker nào đang chạy để khởi động lại, thưa Ngài."
+
+            # 2. Restart container IDs explicitly
+            restart_proc = subprocess.run(
+                ["docker", "restart", *container_ids],
+                capture_output=True, text=True, encoding="utf-8",
+                timeout=45, creationflags=_cflags,
+            )
+            if restart_proc.returncode == 0:
+                return f"Đã khởi động lại {len(container_ids)} container Docker thành công, thưa Ngài."
+            return f"Không thể khởi động lại Docker containers: {restart_proc.stderr.strip()}"
         except Exception as e:
             return f"Lỗi khi khởi động lại Docker: {e}"
 
