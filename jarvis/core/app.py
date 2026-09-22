@@ -854,6 +854,11 @@ class JarvisApp:
             description="Alias for app_open",
         )
         self.dispatcher.register_action(
+            name="new_tab",
+            handler=self._handle_new_tab,
+            description="Opens a new browser tab in the foreground window (Ctrl+T)",
+        )
+        self.dispatcher.register_action(
             name="web_open",
             handler=self._handle_web_open,
             description="Opens target website or search query in browser",
@@ -1696,17 +1701,63 @@ class JarvisApp:
             return {"status": "success" if ok else "failed", "message": msg}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
+    # Short-name aliases not discoverable by catalog exact match → map to catalog query
+    _APP_SHORT_ALIASES: dict[str, str] = {
+        "edge": "microsoft edge",
+        "word": "winword",
+        "vs code": "visual studio code",
+        "vscode": "visual studio code",
+        "ms edge": "microsoft edge",
+        "explorer": "file explorer",
+    }
+
     def _handle_app_open(self, app_name: str | None = None, name: str | None = None, app: str | None = None, **kwargs) -> dict[str, Any]:
-        """Opens desktop application by name or alias."""
-        target = app_name or name or app or kwargs.get("query") or ""
+        """Opens desktop application by name or alias.
+
+        Resolution order:
+        1. Catalog lookup (open_installed_app) with short-alias normalization.
+        2. Fallback to legacy open_app() (APP_MAP + shutil.which) when catalog
+           returns APP_NOT_FOUND, APP_AMBIGUOUS, or APP_DISCOVERY_UNAVAILABLE.
+           This ensures apps not in the Windows registry (Spotify, Firefox, etc.)
+           still open via the known-executable path.
+        """
+        target: str = app_name or name or app or kwargs.get("query") or ""
         if self.computer_controller:
-            use_catalog = (kwargs.get("installed_only") is True or
-                           target.strip().casefold() not in {"settings", "cài đặt", "cai dat", "ms-settings:"})
-            res = (self.computer_controller.open_installed_app(target)
-                   if use_catalog else self.computer_controller.open_app(target))
+            settings_names = {"settings", "cài đặt", "cai dat", "ms-settings:"}
+            use_catalog = target.strip().casefold() not in settings_names
+            if use_catalog:
+                # Resolve common short names that catalog won't match exactly
+                catalog_query = self._APP_SHORT_ALIASES.get(target.strip().casefold(), target)
+                res = self.computer_controller.open_installed_app(catalog_query)
+                # Fallback: catalog miss → try legacy APP_MAP / shutil.which path
+                if res.get("error_code") in ("APP_NOT_FOUND", "APP_AMBIGUOUS", "APP_DISCOVERY_UNAVAILABLE"):
+                    res = self.computer_controller.open_app(target)
+            else:
+                res = self.computer_controller.open_app(target)
             msg = res.get("message") or (f"Đã khởi chạy {target}, thưa Ngài." if res.get("success") else res.get("error") or f"Không thể mở {target}.")
             return {"success": bool(res.get("success")), "status": "success" if res.get("success") else res.get("status", "failed"), "result": res, "message": msg, "error_code": res.get("error_code")}
         return {"status": "failed", "message": "Computer controller unavailable"}
+
+
+    def _handle_new_tab(self, **kwargs) -> dict[str, Any]:
+        """Opens a new browser tab in the foreground browser window (Ctrl+T).
+
+        Fail-closed: returns success=False if pyautogui or keyboard control
+        is unavailable; never claims success without dispatching the keystroke.
+        """
+        try:
+            import pyautogui  # type: ignore
+            pyautogui.hotkey("ctrl", "t")
+            return {"success": True, "status": "success", "message": "Da mo tab moi trong trinh duyet, thua Ngai."}
+        except ImportError:
+            pass
+        # Fallback: use computer controller's keyboard shortcut if available
+        if self.computer_controller and hasattr(self.computer_controller, "send_hotkey"):
+            ok = self.computer_controller.send_hotkey("ctrl+t")
+            return {"success": bool(ok), "status": "success" if ok else "failed",
+                    "message": "Da mo tab moi, thua Ngai." if ok else "Khong the mo tab moi."}
+        return {"success": False, "status": "failed", "error_code": "KEYBOARD_UNAVAILABLE",
+                "message": "Khong the dieu khien ban phim de mo tab moi, thua Ngai."}
 
     def _handle_web_open(self, url: str | None = None, target: str | None = None, query: str | None = None, site: str | None = None, **kwargs) -> dict[str, Any]:
         """Opens target website or search query in browser."""

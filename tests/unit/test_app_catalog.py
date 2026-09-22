@@ -88,6 +88,12 @@ def test_catalog_shares_launch_cooldown_with_existing_app_path():
 
 
 def test_store_launch_acknowledgement_is_not_verified_success(monkeypatch):
+    """APP_LAUNCH_UNVERIFIED: launch WAS dispatched but HWND unconfirmed within timeout.
+
+    Fix 2 (2026-09-22): success=True because os.startfile() was called and the
+    app IS opening — reporting success=False misleads the user into thinking the
+    app failed to open. error_code=APP_LAUNCH_UNVERIFIED is still set for diagnostics.
+    """
     from jarvis.automation.control import ComputerController
     from jarvis.core.runaway_guard import launch_dedupe_guard
     launch_dedupe_guard.reset()
@@ -102,14 +108,24 @@ def test_store_launch_acknowledgement_is_not_verified_success(monkeypatch):
     launched = []
     monkeypatch.setattr("os.startfile", launched.append, raising=False)
     result = controller.open_installed_app("Editor")
+    # Launch was dispatched to the OS
     assert launched == [r"shell:AppsFolder\X!One"]
-    assert result["success"] is False
+    # Fix 2: success=True because the app launch request WAS sent —
+    # HWND timeout ≠ app failure; user should see "launching" not "failed".
+    assert result["success"] is True
+    assert result["status"] == "launched"
     assert result["error_code"] == "APP_LAUNCH_UNVERIFIED"
     launch_dedupe_guard.reset()
 
 
 @pytest.mark.parametrize("window_pid,verified", [(123, True), (999, False)])
 def test_executable_requires_matching_visible_window(monkeypatch, tmp_path, window_pid, verified):
+    """Test exe launch verification via HWND + process identity.
+
+    window_pid=123 → process_identity matches executable → verified success (window_executable).
+    window_pid=999 → process_identity mismatch → unverified: subprocess.Popen still ran,
+    so Fix 2 (2026-09-22) returns success=True with error_code=APP_LAUNCH_UNVERIFIED.
+    """
     import subprocess
     from types import SimpleNamespace
     from unittest.mock import MagicMock
@@ -131,7 +147,14 @@ def test_executable_requires_matching_visible_window(monkeypatch, tmp_path, wind
     process.wait.side_effect = subprocess.TimeoutExpired("Example", 0.5)
     monkeypatch.setattr("subprocess.Popen", lambda argv, **kwargs: process)
     result = controller.open_installed_app("Example")
-    assert result["success"] is verified
     if verified:
+        # window_pid=123 matches executable PID → confirmed success via HWND
+        assert result["success"] is True
         assert result["verification"] == "window_executable"
+    else:
+        # window_pid=999 doesn't match our exe — subprocess.Popen still ran.
+        # Fix 2: success=True because the launch request WAS sent; HWND mismatch
+        # ≠ app failure (app may still be initializing). error_code marks unverified.
+        assert result["success"] is True
+        assert result["error_code"] == "APP_LAUNCH_UNVERIFIED"
     launch_dedupe_guard.reset()

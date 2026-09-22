@@ -1148,6 +1148,12 @@ class LLMIntentRouter:
             "bật vscode": IntentResult(action_name="app_open", parameters={"app_name": "vscode"}, source="rule_fallback", response_text="Đang mở VS Code cho Ngài."),
             "mở vscode": IntentResult(action_name="app_open", parameters={"app_name": "vscode"}, source="rule_fallback", response_text="Đang mở VS Code cho Ngài."),
             "bật chrome": IntentResult(action_name="app_open", parameters={"app_name": "chrome"}, source="rule_fallback", response_text="Đang mở Google Chrome cho Ngài."),
+            # Browser tab control
+            "mo tab moi": IntentResult(action_name="new_tab", parameters={}, source="rule_fallback", response_text="Dang mo tab moi, thua Ngai."),
+            "tab moi": IntentResult(action_name="new_tab", parameters={}, source="rule_fallback", response_text="Dang mo tab moi, thua Ngai."),
+            "open new tab": IntentResult(action_name="new_tab", parameters={}, source="rule_fallback", response_text="Opening new tab."),
+            "new tab": IntentResult(action_name="new_tab", parameters={}, source="rule_fallback", response_text="Opening new tab."),
+            "mo them tab": IntentResult(action_name="new_tab", parameters={}, source="rule_fallback", response_text="Dang mo tab moi, thua Ngai."),
             "mở chrome": IntentResult(action_name="app_open", parameters={"app_name": "chrome"}, source="rule_fallback", response_text="Đang mở Google Chrome cho Ngài."),
             "bật edge": IntentResult(action_name="app_open", parameters={"app_name": "edge"}, source="rule_fallback", response_text="Đang mở Microsoft Edge cho Ngài."),
             "mở edge": IntentResult(action_name="app_open", parameters={"app_name": "edge"}, source="rule_fallback", response_text="Đang mở Microsoft Edge cho Ngài."),

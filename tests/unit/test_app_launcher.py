@@ -72,13 +72,17 @@ def test_launch_waits_for_verified_window(monkeypatch):
 
 
 def test_acknowledgement_without_window_times_out(monkeypatch):
+    """Fix 2 (2026-09-22): HWND timeout → success=True because os.startfile() was called.
+    The app IS launching; 'launched' status means request dispatched but HWND unconfirmed.
+    """
     probe = MagicMock()
     probe.find.return_value = None
     monkeypatch.setattr("os.startfile", lambda target: None, raising=False)
     result = app_launcher.WindowsApplicationLauncher(probe=probe, timeout=0).open(InstalledApp("Calculator", "Vendor!App", "app_id"))
-    assert result["success"] is False
+    # Fix 2: launch dispatched → success=True; HWND unconfirmed → error_code for diagnostics
+    assert result["success"] is True
     assert result["error_code"] == "APP_LAUNCH_UNVERIFIED"
-    assert result["status"] == "timeout"
+    assert result["status"] == "launched"
 
 
 def test_launch_os_error_is_reported(monkeypatch):
@@ -241,27 +245,34 @@ def test_live_probe_requires_opt_in_before_importing_app():
 
 
 @pytest.mark.parametrize("extra", [{}, {"installed_only": False}])
-def test_handler_cannot_bypass_catalog_for_desktop_app(extra):
+def test_catalog_miss_falls_back_to_legacy_open_app(extra):
+    """Fix 1 (2026-09-22): APP_NOT_FOUND in catalog → fallback to open_app.
+    Previously this test asserted catalog was authoritative. Now fallback is intended behavior
+    so apps not in Windows Registry (Spotify, Firefox, etc.) still open via APP_MAP/PATH.
+    """
     from jarvis.core.app import JarvisApp
     app = object.__new__(JarvisApp)
     app.computer_controller = MagicMock()
-    app.computer_controller.open_app.return_value = {"success": True, "message": "unverified"}
+    app.computer_controller.open_app.return_value = {"success": True, "message": "opened via legacy path"}
     app.computer_controller.open_installed_app.return_value = {"success": False, "error_code": "APP_NOT_FOUND"}
     result = app._handle_app_open(app_name="Example", **extra)
-    assert result["success"] is False
-    assert result["error_code"] == "APP_NOT_FOUND"
+    # Fix 1: catalog miss → fallback to open_app → returns open_app success
+    assert result["success"] is True
+    app.computer_controller.open_installed_app.assert_called_once()
+    app.computer_controller.open_app.assert_called_once_with("Example")
 
 
-@pytest.mark.parametrize("installed_only", [False, True])
-def test_settings_uri_preserves_specialized_route_unless_explicit_catalog(installed_only):
+def test_settings_uri_always_uses_specialized_route():
+    """Fix 3 (2026-09-22): ms-settings: always routes to open_app, never to catalog.
+    The installed_only override has been removed — settings URIs are always specialized.
+    Catalog lookup for shell URIs is semantically wrong (registry has no ms-settings entries).
+    """
     from jarvis.core.app import JarvisApp
     app = object.__new__(JarvisApp)
     app.computer_controller = MagicMock()
     app.computer_controller.open_app.return_value = {"success": True}
     app.computer_controller.open_installed_app.return_value = {"success": False, "error_code": "APP_NOT_FOUND"}
-    result = app._handle_app_open(app="ms-settings:", installed_only=installed_only)
-    assert result["success"] is (not installed_only)
-    if installed_only:
-        app.computer_controller.open_app.assert_not_called()
-    else:
-        app.computer_controller.open_installed_app.assert_not_called()
+    result = app._handle_app_open(app="ms-settings:")
+    assert result["success"] is True
+    app.computer_controller.open_installed_app.assert_not_called()
+    app.computer_controller.open_app.assert_called_once_with("ms-settings:")
