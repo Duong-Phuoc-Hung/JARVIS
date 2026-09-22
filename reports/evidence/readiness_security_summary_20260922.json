@@ -1,0 +1,168 @@
+{
+  "base_commit": "a11c5e6d073ed8cf26f0725e05b99e16838bf746",
+  "source_version": "5.2.1",
+  "date": "2026-09-22",
+  "python": "3.13.13",
+  "pytest": "9.1.1",
+  "product_release": "NO-GO",
+  "committed": false,
+  "notes": [
+    "Unit and fail-fast runs began before final repeated-pytest.main singleton adjustment; production code unchanged. Final singleton guard verified with scoped suite and two in-process pytest sessions with fake DNS.",
+    "Concurrent suites: timing failures require isolated remeasurement.",
+    "Fail-fast run stops at 20 failures, not an exhaustive full-suite result.",
+    "Sandbox compat enabled; no Low Integrity runtime certification."
+  ],
+  "runs": {
+    "scoped": {
+      "artifact": "reports/evidence/readiness_security_scoped_20260922.xml",
+      "sha256": "b7bc36bcf59b7451c074382c37af74b1f0c30d69c2c134a67780520247af6e71",
+      "scope_completed": true,
+      "passed": 125,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "subtests_passed": 34,
+      "console_seconds": 13.51,
+      "junit_seconds": 12.292,
+      "failures": []
+    },
+    "unit": {
+      "artifact": "reports/evidence/readiness_security_unit_20260922.xml",
+      "sha256": "5f12a5912c0fb435217584b4c90c144c0ed94e623ac8c8ddea62277a26b53f7f",
+      "scope_completed": true,
+      "passed": 2458,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 4,
+      "subtests_passed": 268,
+      "console_seconds": 411.72,
+      "junit_seconds": 411.215,
+      "failures": []
+    },
+    "full": {
+      "artifact": "reports/evidence/readiness_security_full_20260922.xml",
+      "sha256": "45536b9d32050395e527efeb6799be1d0f7365dffe7095a3a4984d8c609f06d6",
+      "scope_completed": false,
+      "passed": 1031,
+      "failed": 20,
+      "errors": 0,
+      "skipped": 35,
+      "subtests_passed": 0,
+      "console_seconds": 281.86,
+      "junit_seconds": 281.277,
+      "failures": [
+        {
+          "class": "tests.e2e.test_tiers_1_to_4",
+          "name": "test_r2_r3_vision_zero_size_roi_or_corrupt_bytes",
+          "reason": "ValueError: cannot write empty image"
+        },
+        {
+          "class": "tests.test_adversarial_m1_diacritic_homophones.TestAdversarialStressAndReDoS",
+          "name": "test_massive_string_dos_rejection_sla",
+          "reason": "AssertionError: assert 'system_volume' == 'unknown_intent'\n  \n  - unknown_intent\n  + system_volume"
+        },
+        {
+          "class": "tests.test_adversarial_m4_challenger1",
+          "name": "test_security_scanner_unauthenticated_biometric_rejection",
+          "reason": "AssertionError: assert <ActionStatus...ABS_DISABLED'> == 'PERMISSION_DENIED'\n  \n  - PERMISSION_DENIED\n  + LABS_DISABLED"
+        },
+        {
+          "class": "tests.test_adversarial_sprint2_challenger1.TestAdversarialR2TTSCOMSafety",
+          "name": "test_rapid_queue_flood_and_task_callback_exception_resilience",
+          "reason": "AssertionError: Expected 50 tasks processed, got 1\nassert 1 == 50"
+        },
+        {
+          "class": "tests.test_adversarial_sprint2_challenger2.TestIntentRoutingAndReDoS",
+          "name": "test_extensive_hardware_query_permutations_accented_and_unaccented",
+          "reason": "AssertionError: Failed routing utterance 'kiểm tra bộ nhớ': got generic_llm_response, expected hardware_telemetry_check\nassert False"
+        },
+        {
+          "class": "tests.test_challenger2_autonomous_stress.TestR4ComputerUseVisionAndGUIActorAdversarial",
+          "name": "test_negative_and_zero_screen_dimensions",
+          "reason": "AssertionError: Tuples differ: (260, 463) != (0, 0)\n\nFirst differing element 0:\n260\n0\n\n- (260, 463)\n+ (0, 0)"
+        },
+        {
+          "class": "tests.test_challenger2_stress.TestR5WebIntelligenceAdversarial",
+          "name": "test_malformed_rss_and_atom_xml_feeds",
+          "reason": "AssertionError: 'Tiêu đề Test' not found in 'Tiêu đề <b>Test</b>'"
+        },
+        {
+          "class": "tests.test_challenger2_stress.TestR5WebIntelligenceAdversarial",
+          "name": "test_offline_network_failure_recovery_full_hub",
+          "reason": "AssertionError: 'speech_text' not found in {'city': 'Hà Nội', 'weather': {'city': 'Hà Nội', 'temp_c': 27.0, 'feels_like_c': 29.0, 'condition': 'Nhiều mây', 'humidity': 75, 'wind_kph': 12.0, 'uv_index'"
+        },
+        {
+          "class": "tests.test_challenger2_stress.TestR8OverlayHUDAdversarial",
+          "name": "test_long_text_truncation_and_turn_recording",
+          "reason": "AssertionError: 'AAAA[228 chars]AAAAA...' != 'AAAA[228 chars]AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA[9718 chars]AAAA'\nDiff is 10247 characters long. Set self.maxDiff to None to see it."
+        },
+        {
+          "class": "tests.test_challenger_m1_2_empirical",
+          "name": "test_record_audio_exception_resilience_when_sounddevice_fails",
+          "reason": "AssertionError: Fallback buffer generation took too long: 5.0069s\nassert 5.006922800000211 < 0.1"
+        },
+        {
+          "class": "tests.test_challenger_m4_2_security",
+          "name": "test_scanner_and_capture_reject_unauthenticated_contexts",
+          "reason": "AssertionError: assert <ActionStatus...ABS_DISABLED'> == 'PERMISSION_DENIED'\n  \n  - PERMISSION_DENIED\n  + LABS_DISABLED"
+        },
+        {
+          "class": "tests.test_challenger_m4_2_security",
+          "name": "test_packet_capture_injection_resilience[tcp and port 80; calc.exe]",
+          "reason": "assert 0 == 1\n +  where 0 = len([])"
+        },
+        {
+          "class": "tests.test_challenger_m4_2_security",
+          "name": "test_packet_capture_injection_resilience[udp | whoami]",
+          "reason": "assert 0 == 1\n +  where 0 = len([])"
+        },
+        {
+          "class": "tests.test_challenger_m4_2_security",
+          "name": "test_packet_capture_injection_resilience[host 10.0.0.1 && dir C:\\\\]",
+          "reason": "assert 0 == 1\n +  where 0 = len([])"
+        },
+        {
+          "class": "tests.test_challenger_m4_2_security",
+          "name": "test_packet_capture_injection_resilience[`calc.exe`]",
+          "reason": "assert 0 == 1\n +  where 0 = len([])"
+        },
+        {
+          "class": "tests.test_challenger_m4_2_security",
+          "name": "test_tshark_subprocess_timeout_or_error_handling",
+          "reason": "AttributeError: 'ActionResult' object has no attribute 'packet_count'"
+        },
+        {
+          "class": "tests.test_comms_hub",
+          "name": "test_comms_telegram_photo_dispatch_tier1",
+          "reason": "assert False is True"
+        },
+        {
+          "class": "tests.test_e2e_scenarios",
+          "name": "test_e2e_tier3_unresponsive_app_healing_flow",
+          "reason": "assert 93.0 < 80.0\n +  where 93.0 = <tests.conftest.MockHardwareProvider object at 0x000002CC98B85250>.ram_percent"
+        },
+        {
+          "class": "tests.test_e2e_scenarios",
+          "name": "test_e2e_tier4_system_crisis_self_healing_workflow",
+          "reason": "assert 96.0 < 75.0\n +  where 96.0 = <tests.conftest.MockHardwareProvider object at 0x000002CC9CCEE300>.ram_percent"
+        },
+        {
+          "class": "tests.test_empirical_challenger_m2",
+          "name": "test_stress_cache_hit_miss_speed_benchmark",
+          "reason": "AssertionError: Average cache hit too slow: 2.450ms\nassert 2.450004000006629 < 2.0"
+        }
+      ]
+    }
+  },
+  "source_sha256": {
+    "jarvis/core/models.py": "7b4636a4b54e21f435049adc6c326515425f9e60984908298472908618475ed8",
+    "jarvis/core/dispatcher.py": "d812382d83da27bce7a2c77c755449da3ebcd90b5df681f8530e187f607f0462",
+    "jarvis/planner/safety_interceptor.py": "353d7162fc9663f7a395872a65088b420b42d95cede41254b8ae909dadf7b9f4",
+    "jarvis/skills/synthesizer.py": "130eda9c3a0e083e8662309731fef26389189d1383cd2af4c628db7c81e53643",
+    "jarvis/skills/skill_synthesizer/__init__.py": "9b5e4d39c124c255324a11039c00f7b8e5aeff2b711a7d109b0cc8144269709d",
+    "jarvis/skills/skill_synthesizer/metadata.json": "f6caaee1c41dcd322adbd9a159daf5df7a7e101d673637783100e67f9ab04046",
+    "tests/conftest.py": "9da7c62f8b7e82d96e2281d9f7bf4da8e1eee8005db39d0ec465b036828eb465",
+    "tests/test_live_infra_evidence.py": "b1a41f830089760eca59593a8d020edc2d5aed81b5e632324cb471bf5eba9061",
+    "tests/unit/test_readiness_security_regressions.py": "fcdb642776f1fd51405c860f6a4580a6b205c4b9fce943c6c3a885a7fefda918"
+  }
+}

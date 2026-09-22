@@ -1,3 +1,94 @@
+## [Unreleased] Installed apps — verified launch follow-up (2026-09-22)
+
+- Mục tiêu: sửa các lỗi phát hiện khi chạy thật Notepad/Calculator, xác minh
+  ứng dụng đích thay vì chỉ chấp nhận yêu cầu khởi chạy.
+- `jarvis/llm/router.py`: ưu tiên yêu cầu catalog, không cắt tên lệnh, short/static/
+  LLM desktop paths dùng installed_only; chặn LLM mở app từ câu phủ định.
+- `jarvis/automation/app_catalog.py`: manifest/Shell metadata theo exact AppID,
+  gộp cùng executable khi không nhập nhằng, aliases, cờ shared executable,
+  giới hạn nguồn dữ liệu và kiểm tra target an toàn.
+- `jarvis/automation/app_launcher.py`: xác minh AUMID/EXE qua PID cửa sổ và child
+  windows; reuse/focus; polling bounded, không auto-retry. EXE người dùng yêu cầu
+  có startup policy hiển thị, không ẩn console/nuốt output như helper chạy nền.
+- `jarvis/platform/window_identity.py`: đọc AUMID từ property store của cửa sổ;
+  sửa lỗi thật Calculator minimized tách content child khỏi ApplicationFrameHost.
+  Native COM có cleanup/reference balancing, không cài thêm dependency.
+- `jarvis/automation/control.py`, `jarvis/core/app.py`: nối verified launcher,
+  alias lookup, bảo toàn timeout/success=false, giữ route Settings URI và chống
+  bypass ở app handler.
+- Bốn suite regression mới + `scripts/verify_installed_apps_live.py` opt-in.
+- Scoped cuối: **244 passed + 25 subtests / 7,48s**. Quét thật: **175 catalog entries**,
+  không phải 175 live launch passes. Root causes, phạm vi runtime và kết quả
+  kiểm thử tổng thể tại `docs/eval/app_catalog_verified_20260922.md`.
+- Live cuối: **8/8 checks** (6 dispatched + 2 parse-only), gồm mở mới hai app và
+  khôi phục đúng cửa sổ Calculator đã thu nhỏ; artifact timestamp `044913513558Z`.
+  Giữ cả artifact live/unit thất bại trước khi sửa để đối chiếu.
+- Source version giữ **5.2.1**, chưa tạo installer/tag/release mới.
+
+## [Unreleased] Installed application catalog — stage 1 (2026-09-22)
+
+Mục tiêu: ứng dụng ngoài alias cố định có thể được tra cứu từ chính máy Windows.
+Root cause: bộ mở app cũ dựa APP_MAP/PATH, không có danh mục ứng dụng máy hiện tại.
+
+- `jarvis/automation/app_catalog.py`: Get-StartApps và HKCU/HKLM App Paths 32/64-bit;
+  timeout, local-only, memory TTL cache/lock, Unicode casefold, exact lookup,
+  dedupe cùng identity, loại tên maintenance và báo lỗi discovery rõ ràng.
+- `jarvis/automation/control.py`: đường catalog riêng, ambiguity fail-closed,
+  dùng chung cooldown tên canonical với đường cũ; executable chỉ success khi
+  thấy cửa sổ cùng PID; AppID/launcher chưa verify trả APP_LAUNCH_UNVERIFIED.
+- `jarvis/llm/router.py`, `jarvis/core/app.py`: câu `mở ứng dụng <tên>` dùng
+  app_open qua handler hiện có với installed_only, không thêm bypass dispatcher.
+- `tests/unit/test_app_catalog.py`: 14 ca kiểm thử. Scoped cùng bốn file app/web
+  hiện có: **90 passed + 25 subtests / 6,29s**. Không phải live launch evidence.
+- Quét read-only máy hiện tại: **235 bản ghi**, 189 AppID + 46 executable,
+  errors rỗng. Không phải 235 ứng dụng duy nhất, không chứng minh chạy trên mọi máy.
+- Kế hoạch tại `docs/superpowers/plans/2026-09-22-installed-apps.md`; trạng thái
+  và các phần chưa hoàn thiện tại `docs/eval/app_catalog_20260922.md`.
+- Version giữ 5.2.1. Chưa commit/push: full-suite gate chưa xanh.
+
+## [Unreleased] Windows app/web target correctness (2026-09-22)
+
+Mục tiêu: ưu tiên chức năng Windows, chưa mở rộng thiết bị ngoài/Home Assistant.
+Root causes: URL bị lowercase/prefix sai, query chưa encode, bỏ qua browser boolean,
+handler dùng thông báo thành công cho lỗi, app alias khớp chuỗi con.
+
+- `jarvis/automation/control.py`: giữ case path/query, encode Google/YouTube query,
+  kiểm tra HTTP(S)/port/credentials; nhận bare domain có port; không báo thành công
+  khi browser từ chối; bỏ shell fallback; chỉ khớp alias ứng dụng chính xác.
+- `jarvis/core/app.py`: giữ error_code và thông báo thất bại cho app/web handlers.
+- `jarvis/llm/router.py`: nhận lệnh mở URL HTTP(S) đầy đủ, encode hai rule tìm kiếm.
+- `tests/unit/test_windows_command_targets.py`: 17 regressions, có đường router→handler.
+- Kiểm thử scoped: **76 passed, 25 subtests passed / 10,15s**. OS launch boundaries
+  được mock, không phải PASS runtime. Full-suite verdict và evidence xem báo cáo mới.
+- `README.md`, `docs/ROADMAP.md`, `docs/eval/windows_command_execution_20260922.md`:
+  cập nhật phạm vi và giới hạn. Giữ source version 5.2.1; chưa commit/push/release.
+
+## [Unreleased] Readiness/security corrective audit (2026-09-22)
+
+Mục tiêu: sửa lỗi false-success, confirmation và thao tác skill có nguy cơ mất
+dữ liệu; thay claim tiến độ tĩnh bằng kiểm thử có phạm vi rõ ràng. Source version
+giữ 5.2.1; không tạo release/tag hay tuyên bố GO.
+
+- `jarvis/core/models.py`: thêm BLOCKED/UNAVAILABLE/NOT_CONFIGURED, đồng bộ success=false.
+- `jarvis/core/dispatcher.py`: nhận diện trạng thái không khả dụng; giữ status/code/message/retryable của kết quả handler thay vì làm mất metadata khi bọc lại.
+- `jarvis/planner/safety_interceptor.py`: token confirmed vẫn hết hạn, snapshot payload; bỏ miễn trừ nguy hiểm theo hậu tố read/status.
+- `jarvis/skills/skill_synthesizer/__init__.py`: chặn path traversal/xóa built-in/ghi đè; parse trước tạo file; docstring dùng string literal; template thiếu backend/lỗi trả false; bỏ metrics 0 giả.
+- `jarvis/skills/skill_synthesizer/metadata.json`: bỏ quảng cáo đã test/đăng ký runtime ngay lập tức.
+- `jarvis/skills/synthesizer.py`: không xóa skill cũ trước validation/dry-run; overwrite cần explicit; chặn destination/child links; lock + atomic replace từng tệp, retry PermissionError 5 lần và cleanup finally. Chưa transactional cả package.
+- `tests/unit/test_readiness_security_regressions.py`: regression cho các lỗi trên và network policy.
+- `tests/conftest.py`: test mặc định không kết nối TCP/DNS ra ngoài; loopback được phép; live marker + opt-in mới được dùng external network.
+- `tests/test_live_infra_evidence.py`: opt-in trước load .env và trước live probes ghi evidence.
+- `README.md`, `docs/ROADMAP.md`, `docs/eval/readiness_security_audit_20260922.md`: trạng thái, giới hạn, root causes và kế hoạch nghiệm thu còn lại.
+
+Kiểm thử ghi nhận: unit **2.458 passed, 4 skipped, 268 subtests passed / 411,72s**;
+scoped **125 passed, 34 subtests passed / 13,51s**; kiểm tra mở rộng fail-fast
+**1.031 passed, 20 failed, 35 skipped / 281,86s** (`--maxfail=20`, chưa chạy hết).
+Unit/fail-fast bắt đầu trước chỉnh guard singleton cho repeated pytest.main;
+chỉnh guard cuối được xác minh bằng scoped suite và harness hai phiên pytest.
+Chi tiết phạm vi và SHA-256: mục 4 báo cáo audit và summary JSON trong reports/evidence.
+Không dùng tổng lịch sử 2.421 để chứng nhận thay đổi hiện tại. Chưa commit/push vì
+full-suite chưa xanh; không có release GO từ các kết quả này.
+
 ## [5.2.1] Phase 5 — Gate Closure: Router LLM + Telegram + Discord Auth (2026-09-20)
 
 > **Mục tiêu**: Đóng GATE-05 (Router LLM Gemini API live), xác nhận D-06 Telegram live send, xác nhận D-08 Discord auth. Cập nhật `GEMINI_API_KEY` từ `GOOGLE_API_KEY` hợp lệ.

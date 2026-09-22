@@ -23,6 +23,14 @@ import urllib.request
 from pathlib import Path
 
 import pytest
+
+# These probes use real accounts/devices and overwrite tracked evidence files.
+# Never load .env or opt into live services merely by collecting the test suite.
+if os.environ.get("JARVIS_RUN_LIVE_INFRA_TESTS") != "1":
+    pytest.skip("Live infrastructure probes require explicit opt-in", allow_module_level=True)
+
+pytestmark = pytest.mark.live_network
+
 from dotenv import load_dotenv
 
 from jarvis.comms.email_imap import IMAPEmailReader, EmailMessage

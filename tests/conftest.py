@@ -15,10 +15,12 @@ from __future__ import annotations
 import ctypes
 import hashlib
 import io
+import ipaddress
 import json
 import math
 import os
 import queue
+import socket
 import sys
 import threading
 import time
@@ -37,6 +39,77 @@ def pytest_configure(config):
         "markers",
         "live_network: mark test as executing live unmocked HTTP requests to external APIs (brittle by nature)"
     )
+
+
+def pytest_runtest_setup(item):
+    item.config._jarvis_live_network_allowed = (
+        item.get_closest_marker("live_network") is not None
+        and os.environ.get("JARVIS_RUN_LIVE_NETWORK_TESTS") == "1"
+    )
+
+
+def pytest_runtest_teardown(item):
+    item.config._jarvis_live_network_allowed = False
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _isolate_external_network(request):
+    """No accidental live accounts during tests; loopback E2E remains available.
+
+    Live tests require BOTH the live_network marker and an explicit opt-in.
+    This is a test-process guard, not a sandbox for child processes.
+    """
+    # Keep the guard between tests as well: leaked worker threads can continue
+    # polling after their owning test's function-scoped fixtures are torn down.
+    state = getattr(socket, "_jarvis_pytest_network_guard", None)
+    if state is not None:
+        # pytest.main() may run again in this process. Reuse wrappers rather
+        # than nesting guards that retain a previous session's permissions.
+        state["config"] = request.config
+        return
+    state = {"config": request.config}
+    monkeypatch = pytest.MonkeyPatch()
+
+    def require_loopback(host):
+        if getattr(state["config"], "_jarvis_live_network_allowed", False):
+            return
+        if host is None:
+            return
+        if isinstance(host, bytes):
+            host = host.decode("ascii")
+        if str(host).lower().rstrip(".") == "localhost":
+            return
+        try:
+            if ipaddress.ip_address(host).is_loopback:
+                return
+        except ValueError:
+            pass
+        raise OSError("External network disabled in tests; use live_network and explicit opt-in")
+
+    original_connect = socket.socket.connect
+    original_connect_ex = socket.socket.connect_ex
+    original_getaddrinfo = socket.getaddrinfo
+
+    def connect(sock, address):
+        if sock.family in (socket.AF_INET, socket.AF_INET6):
+            require_loopback(address[0])
+        return original_connect(sock, address)
+
+    def connect_ex(sock, address):
+        if sock.family in (socket.AF_INET, socket.AF_INET6):
+            require_loopback(address[0])
+        return original_connect_ex(sock, address)
+
+    def getaddrinfo(host, *args, **kwargs):
+        require_loopback(host)
+        return original_getaddrinfo(host, *args, **kwargs)
+
+    monkeypatch.setattr(socket.socket, "connect", connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", connect_ex)
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
+    socket._jarvis_pytest_network_guard = state
+    # Intentionally process-lifetime, including final teardown: daemon threads
+    # left by a failed test must not regain access to real services at shutdown.
 
 
 @pytest.fixture(autouse=True)

@@ -16,6 +16,7 @@ import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Union, get_args, get_origin
+from urllib.parse import urlencode
 
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import ActionResult, RequesterContext
@@ -1472,6 +1473,9 @@ class LLMIntentRouter:
             ),
         }
 
+        for intent in self.rule_engine.values():
+            intent.parameters = self._catalog_app_parameters(intent.action_name, intent.parameters)
+
         # Pre-sort rule dictionary keys by descending length for greedy exact match
         self._sorted_rule_keys: list[str] = sorted(self.rule_engine.keys(), key=len, reverse=True)
         self._stripped_rule_keys: dict[str, str] = {
@@ -1883,6 +1887,10 @@ class LLMIntentRouter:
             ),
             # 8. Universal Website & Online Service Launchers (bật/mở/vào/truy cập)
             (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:mở|mo|vào|vao|truy\s*cập|open|visit|go\s*to)\s+(https?://\S+)$", re.IGNORECASE),
+                lambda m: self._make_web_intent(m.group(1), None),
+            ),
+            (
                 re.compile(r"^(?:jarvis[,\s]*)?(?:mở|bật|vào|truy\s*cập|mo|bat|vao|truy\s*cap|open|visit|go\s*to|launch|start)(?:\s+(?:trang\s*web|web|website|trang))?\s*(youtube|yt|google|gg|facebook|fb|github|gh|chatgpt|gpt|chat\s*gpt|claude|claude\s*ai|anthropic|binance|zalo\s*web|gmail|mail|email|hòm\s*thư|vnexpress|báo|dantri|dân\s*trí|shopee|tiki|lazada|reddit|twitter|maps|bản\s*đồ|dịch|translate|google\s*dịch|notion|figma|canva|trello|jira|confluence|[\w\-]+(?:\.com|\.vn|\.net|\.org|\.io|\.edu))(?:\s+(.*))?$", re.IGNORECASE),
                 lambda m: self._make_web_intent(m.group(1), m.group(2)),
             ),
@@ -1902,7 +1910,7 @@ class LLMIntentRouter:
                 re.compile(r"^(?:jarvis[,\s]*)?(?:tìm\s*kiếm|search|tra\s*cứu|tìm|tim\s*kiem|tim)\s+(.+?)(?:\s+(?:trên|ở|qua)\s+(?:google|web|mạng|internet|youtube))?$", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="web_open",
-                    parameters={"query": m.group(1).strip(), "target": f"https://www.google.com/search?q={m.group(1).strip()}"},
+                    parameters={"query": m.group(1).strip(), "target": "https://www.google.com/search?" + urlencode({"q": m.group(1).strip()})},
                     source="rule_fallback",
                     response_text=f"Đang tìm kiếm '{m.group(1).strip()}' trên Google cho Ngài.",
                 ),
@@ -1911,7 +1919,7 @@ class LLMIntentRouter:
                 re.compile(r"^(?:jarvis[,\s]*)?google\s+(.+)$", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="web_open",
-                    parameters={"query": m.group(1).strip(), "target": f"https://www.google.com/search?q={m.group(1).strip()}"},
+                    parameters={"query": m.group(1).strip(), "target": "https://www.google.com/search?" + urlencode({"q": m.group(1).strip()})},
                     source="rule_fallback",
                     response_text=f"Đang tìm kiếm '{m.group(1).strip()}' trên Google cho Ngài.",
                 ),
@@ -2295,14 +2303,8 @@ class LLMIntentRouter:
             response_text=f"Đã ghi nhận lời nhắc '{clean}' của Ngài.",
         )
 
-    # H-07: a small, explicit negation-marker list -- deliberately NOT a
-    # general sentiment/negation parser -- that suppresses an otherwise-
-    # matched Settings/Spotify/Claude LAUNCH intent when the utterance is
-    # actually declining the action (e.g. "tôi không muốn mở spotify" must
-    # not launch Spotify). Kept to the one unambiguous marker the H-07
-    # contract requires; deliberately excludes broader/ambiguous markers
-    # like bare "đừng"/"dung" (diacritic-folds identically with "dùng",
-    # "to use", which would risk suppressing a legitimate command).
+    # Preserve the H-07 guard and cover every desktop app launch. Keep the
+    # accented "đừng" intact: folded "dung" also means "dùng" (to use).
     _H07_NEGATION_MARKERS = ("không muốn", "khong muon")
 
     def _is_negated_h07_launch_target(
@@ -2312,21 +2314,10 @@ class LLMIntentRouter:
         clean_lower: str,
         clean_lower_stripped: str | None,
     ) -> bool:
-        """
-        Returns True only when BOTH: (1) the already-matched rule resolves
-        to one of the three H-07 canonical launch targets (Spotify /
-        canonical Settings / Claude via web_open), and (2) the utterance
-        contains an explicit negation marker -- so a rule match that would
-        otherwise launch one of these three targets is treated as a
-        non-match and routing continues (to the next candidate rule, then
-        Tier 2/3, then unknown_intent) instead of firing the launch.
-        Deliberately scoped to only these three targets so it cannot alter
-        routing behavior for any other action domain (weather, reminders,
-        smart home, etc.) -- those are out of H-07's scope.
-        """
+        """Prevent negated app requests from matching a legacy substring rule."""
         is_h07_target = (
             action_name == "spotify"
-            or (action_name == "app_open" and parameters.get("app_name") == "Settings")
+            or action_name in ("app_open", "open_app")
             or (action_name == "web_open" and parameters.get("site") == "claude")
         )
         if not is_h07_target:
@@ -2335,7 +2326,80 @@ class LLMIntentRouter:
             return True
         if clean_lower_stripped and "khong muon" in clean_lower_stripped:
             return True
+        if action_name in ("app_open", "open_app") and re.search(
+            r"\b(?:đừng|do\s+not|don't|never)\b", clean_lower
+        ):
+            return True
         return False
+
+    @staticmethod
+    def _catalog_app_parameters(action_name: str, parameters: dict[str, Any]) -> dict[str, Any]:
+        """Keep desktop launches verified across static rules and LLM tools."""
+        params = dict(parameters)
+        if action_name in ("app_open", "open_app"):
+            target = params.get("app_name") or params.get("name") or params.get("app") or params.get("query") or ""
+            normalized = strip_vietnamese_diacritics(str(target).strip().casefold())
+            if normalized not in ("settings", "cai dat", "ms-settings:"):
+                params["installed_only"] = True
+        return params
+
+    _APP_COMMAND_PREFIX = re.compile(
+        r"^(?:jarvis[,\s]*)?(?:mở|mo|open|bật|bat|chạy|chay|launch|start|"
+        r"khởi\s+động|khoi\s+dong)\b\s*", re.IGNORECASE,
+    )
+    _APP_QUALIFIER = re.compile(
+        r"^(?:ứng\s+dụng|ung\s+dung|app|application|phần\s+mềm|phan\s+mem|"
+        r"chương\s+trình|chuong\s+trinh)(?:\s+|$)", re.IGNORECASE,
+    )
+
+    def _match_installed_app_request(
+        self, text: str, *, explicit_only: bool = False
+    ) -> IntentResult | None:
+        """Parse one complete app name without discovering or launching anything.
+
+        Explicit app requests precede legacy aliases. Short requests are only
+        considered after specific regex routes; exact static commands retain
+        their established behavior. Always inspect the complete input so the
+        regex length limit cannot turn a truncated prefix into a launch.
+        """
+        clean = text.strip()
+        prefix = self._APP_COMMAND_PREFIX.match(clean)
+        if prefix is None:
+            return None
+        target = clean[prefix.end():]
+        qualifier = self._APP_QUALIFIER.match(target)
+        if qualifier:
+            target = target[qualifier.end():]
+        if explicit_only and qualifier is None and len(clean) <= 512:
+            return None
+        if not qualifier and len(clean) <= 512:
+            target_rule = self.rule_engine.get(target.lower())
+            if (target_rule is not None and target_rule.action_name == "app_open"
+                    and target_rule.parameters.get("app_name") == "Settings"):
+                return None
+            command = re.sub(r"^jarvis[,\s]*", "", clean, flags=re.IGNORECASE).lower()
+            if (command in self.rule_engine
+                    or strip_vietnamese_diacritics(command) in self._stripped_rule_keys.values()):
+                return None
+        target = target.strip()
+        compound = re.search(r"\b(?:và|va|and|hoặc|hoac|or|rồi|roi|then)\b", target, re.IGNORECASE)
+        if (len(clean) > 512 or not 1 <= len(target) <= 120 or compound
+                or any(char in clean for char in ";\r\n|`$")):
+            return IntentResult(
+                action_name="unknown_intent",
+                parameters={"raw_text": text, "clarify": True},
+                confidence=0.0,
+                source="rule_fallback",
+                raw_text=text,
+                response_text="Ngài vui lòng nói tên một ứng dụng cần mở trong một lệnh ngắn.",
+            )
+        return IntentResult(
+            action_name="app_open",
+            parameters={"app_name": target, "installed_only": True},
+            source="rule_fallback",
+            raw_text=text,
+            response_text="Đang tìm ứng dụng trên máy.",
+        )
 
     def _make_app_intent(self, app_name: str) -> IntentResult:
         clean = (app_name or "").strip().lower()
@@ -2366,7 +2430,7 @@ class LLMIntentRouter:
                 source="rule_fallback",
                 response_text="Đang mở cài đặt hệ thống cho Ngài.",  # consistent with rule_engine entry
             )
-        params = {"app_name": clean, "name": clean}
+        params = {"app_name": clean, "name": clean, "installed_only": True}
         return IntentResult(
             action_name="app_open",
             parameters=params,
@@ -2876,6 +2940,9 @@ class LLMIntentRouter:
 
         # 1. TIER 1: Fast Rule Check (Sub-millisecond)
         if not force_llm and self.fast_path_enabled:
+            installed_intent = self._match_installed_app_request(text, explicit_only=True)
+            if installed_intent is not None:
+                return installed_intent
             # Memory Fast Commands Check
             if self.memory_manager:
                 if self.memory_manager.is_remember_command(clean_for_regex):
@@ -2912,6 +2979,10 @@ class LLMIntentRouter:
                     if not res.response_text:
                         res.response_text = self.get_natural_response(res.action_name, res.parameters, text)
                     return res
+
+            installed_intent = self._match_installed_app_request(text)
+            if installed_intent is not None:
+                return installed_intent
 
             # Then check sorted rule dictionary keys — full text, O(n) substring checks are fast
             for key in self._sorted_rule_keys:
@@ -2974,6 +3045,18 @@ class LLMIntentRouter:
                             params = {"raw": params}
                     elif not isinstance(params, dict):
                         params = {}
+                    if self._is_negated_h07_launch_target(
+                        top_tool.name, params, clean_lower, clean_lower_stripped
+                    ):
+                        return IntentResult(
+                            action_name="unknown_intent",
+                            parameters={"raw_text": text},
+                            confidence=0.0,
+                            source="rule_fallback",
+                            raw_text=text,
+                            response_text="Tôi sẽ không thực hiện lệnh mở đã bị phủ định, thưa Ngài.",
+                        )
+                    params = self._catalog_app_parameters(top_tool.name, params)
                     res = IntentResult(
                         action_name=top_tool.name,
                         parameters=params,
@@ -3010,6 +3093,11 @@ class LLMIntentRouter:
             logger.warning("LLM intent routing encountered exception: %s. Initiating rule fallback.", exc)
 
             # 3. TIER 3: Graceful Rule Fallback on Error
+            installed_intent = self._match_installed_app_request(text, explicit_only=True)
+            if installed_intent is not None:
+                if installed_intent.action_name == "app_open":
+                    installed_intent.confidence = 0.85
+                return installed_intent
             for pattern, extractor in self._regex_rules:
                 m = pattern.search(clean_for_regex)
                 if m:
@@ -3023,6 +3111,12 @@ class LLMIntentRouter:
                     if not res.response_text:
                         res.response_text = self.get_natural_response(res.action_name, res.parameters, text)
                     return res
+
+            installed_intent = self._match_installed_app_request(text)
+            if installed_intent is not None:
+                if installed_intent.action_name == "app_open":
+                    installed_intent.confidence = 0.85
+                return installed_intent
 
             for key in self._sorted_rule_keys:
                 if self._match_rule_key(key, clean_lower, clean_lower_stripped):

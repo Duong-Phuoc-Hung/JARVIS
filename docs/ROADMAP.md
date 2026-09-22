@@ -1,3 +1,59 @@
+## Verified app launch follow-up (2026-09-22)
+
+- [x] Explicit, short, static và LLM desktop routing qua catalog; negative/compound guards.
+- [x] Gộp AppID/EXE theo metadata thật, không gộp các app khác nhau chỉ vì trùng tên.
+- [x] Xác minh Store qua AUMID của window/child PID hoặc window property; desktop qua exact executable.
+- [x] Reuse/focus cửa sổ hiện có, không bỏ sót chỉ vì minimized; timeout không false-success.
+- [x] Opt-in live probe: 8/8 checks, gồm Calculator minimized reuse đúng HWND.
+- [x] Regression tests: 244 passed + 25 subtests scoped; không đồng nghĩa full suite/CI xanh.
+- [ ] Interactive choice/default persistence, portable onboarding, background/disk cache.
+- [ ] Shared launcher/profile verification, full-suite green và multi-machine acceptance.
+
+[Evidence mới](eval/app_catalog_verified_20260922.md). Các checklist stage-1 bên
+dưới là lịch sử, không thay bằng chứng của revision mới.
+
+## Installed applications — staged delivery (2026-09-22)
+
+- [x] Stage 1: local StartApps/App Paths discovery, memory TTL, exact lookup,
+  ambiguity/error handling, explicit installed-app command, shared cooldown.
+- [x] Engineering: EXE window/PID check; unverified Store/launcher fail-closed.
+- [ ] Reconcile AppID vs EXE duplicates, user choice UI and remembered defaults.
+- [ ] Short natural commands for arbitrary discovered names; portable folder opt-in.
+- [ ] Startup/background refresh, atomic disk cache, timeout/window correlation for launchers.
+- [ ] Cross-machine runtime launch matrix and full-suite release gate.
+
+Read-only discovery this machine: 235 records; scoped 90 tests + 25 subtests
+passed / 6,29s. **Not full feature completion, not GO**.
+Details: [Catalog evidence](eval/app_catalog_20260922.md).
+
+## Windows-first follow-up (2026-09-22)
+
+- [x] Scoped engineering: URL/query chính xác, browser refusal fail-closed,
+  error metadata app/web, bỏ substring app alias, nhận explicit HTTP(S) command.
+- [ ] Runtime Windows: xác nhận cửa sổ ứng dụng và trang đích thực tế từ câu lệnh.
+- [ ] Hoàn thiện negation/ambiguity/long-input routing và 10-workflow acceptance.
+- [ ] Thiết bị ngoài qua ứng dụng, sau đó Home Assistant (chưa triển khai đợt này).
+
+Evidence: [Windows command execution](eval/windows_command_execution_20260922.md).
+Scoped 76 passed + 25 subtests / 10,15s; không nâng thành PASS runtime hay GO.
+Số unit tổng trong audit bên dưới là lịch sử trước bản vá Windows, không tái chứng nhận revision mới.
+
+## Corrective audit (2026-09-22) — Trạng thái hiện tại, không phải release
+
+| Hạng mục | Trạng thái | Giới hạn nghiệm thu |
+|---|---|---|
+| Safety TTL/payload/destructive suffix | PASS engineering / PASS fail-closed (scoped) | Không thay bằng chứng end-to-end của mọi entry point |
+| Skill path/overwrite/false-success | PASS engineering / PASS fail-closed (scoped) | Atomic từng tệp, chưa atomic transaction cả package; template thiếu backend vẫn NOT_IMPLEMENTED |
+| Result model + dispatcher metadata | PARTIAL MIGRATION | Đã vá trạng thái không khả dụng; chưa migration mọi backend/status legacy |
+| Test network/live-probe isolation | PASS engineering (scoped) | Guard process-lifetime và opt-in; không phải sandbox network cho subprocess |
+| Unit suite | PASS engineering | 2.458 passed, 4 skipped, 268 subtests; giới hạn revision/guard ghi trong audit |
+| Full suite / CI / runtime gates | NOT PASSED / PENDING | Fail-fast phát hiện 20 failures; CI remote và runtime gates chưa tái chứng nhận |
+| Product release | NO-GO | 6 gate mở theo dashboard và nghĩa vụ clean-machine/trust cần evidence |
+
+Báo cáo, root causes, số kiểm thử và việc còn thiếu:
+[Readiness/security audit 2026-09-22](eval/readiness_security_audit_20260922.md).
+Các milestone bên dưới là lịch sử, không tự chứng nhận bản vá hiện tại.
+
 ## PHASE T (2026-09-16) — Browser truthfulness và real end-to-end
 
 | ID | Status | Mô tả |

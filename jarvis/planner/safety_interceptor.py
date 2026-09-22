@@ -6,6 +6,7 @@ enforcing a 30-second tokenized confirmation state machine integrated with Safet
 from __future__ import annotations
 
 import logging
+from copy import deepcopy
 import re
 import threading
 from typing import Any
@@ -130,8 +131,10 @@ class SafetyGateInterceptor:
                 return True
 
         # Explicitly exclude read-only suffixes/actions from high-risk classification
-        safe_suffixes = ("_get_state", "_status", "_query", "_read", "_get_temperature")
-        if action_clean == "smart_home_get_state" or any(action_clean.endswith(s) for s in safe_suffixes):
+        safe_actions = {"smart_home_get_state", "home_assistant_get_state",
+                        "home_assistant_status", "home_assistant_query",
+                        "home_assistant_read", "home_assistant_get_temperature"}
+        if action_clean in safe_actions:
             return False
 
         # Check action prefixes
@@ -199,7 +202,7 @@ class SafetyGateInterceptor:
             payload={
                 "step_id": node.step_id,
                 "action_name": node.action_name,
-                "parameters": node.parameters,
+                "parameters": deepcopy(node.parameters),
             },
         )
         node.confirmation_token = token
@@ -238,7 +241,7 @@ class SafetyGateInterceptor:
         if not entry:
             return False, "UNKNOWN"
 
-        if entry.is_expired and entry.status == "PENDING":
+        if entry.is_expired:
             entry.status = "EXPIRED"
 
         is_confirmed = (entry.status == "CONFIRMED")
@@ -263,7 +266,7 @@ class SafetyGateInterceptor:
         desc = description or f"Thực thi hành động rủi ro cao: {action_name}"
         token = self.safety_gate.request_confirmation(
             action_desc=desc,
-            payload={"action_name": action_name, "parameters": parameters},
+            payload={"action_name": action_name, "parameters": deepcopy(parameters)},
         )
         logger.info("Action '%s' gated by SafetyGate. Token: %s", action_name, token)
 
@@ -314,7 +317,7 @@ class SafetyGateInterceptor:
             if norm_token in self._consumed_tokens:
                 return False, "ALREADY_CONSUMED"
 
-            if entry.is_expired and entry.status == "PENDING":
+            if entry.is_expired:
                 entry.status = "EXPIRED"
 
             if entry.status == "EXPIRED":

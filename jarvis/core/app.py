@@ -1700,9 +1700,12 @@ class JarvisApp:
         """Opens desktop application by name or alias."""
         target = app_name or name or app or kwargs.get("query") or ""
         if self.computer_controller:
-            res = self.computer_controller.open_app(target)
-            msg = res.get("message") or f"Đã khởi chạy {target}, thưa Ngài."
-            return {"status": "success" if res.get("success") else "failed", "result": res, "message": msg}
+            use_catalog = (kwargs.get("installed_only") is True or
+                           target.strip().casefold() not in {"settings", "cài đặt", "cai dat", "ms-settings:"})
+            res = (self.computer_controller.open_installed_app(target)
+                   if use_catalog else self.computer_controller.open_app(target))
+            msg = res.get("message") or (f"Đã khởi chạy {target}, thưa Ngài." if res.get("success") else res.get("error") or f"Không thể mở {target}.")
+            return {"success": bool(res.get("success")), "status": "success" if res.get("success") else res.get("status", "failed"), "result": res, "message": msg, "error_code": res.get("error_code")}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
     def _handle_web_open(self, url: str | None = None, target: str | None = None, query: str | None = None, site: str | None = None, **kwargs) -> dict[str, Any]:
@@ -1710,8 +1713,8 @@ class JarvisApp:
         dest = url or target or site or query or kwargs.get("website") or ""
         if self.computer_controller:
             res = self.computer_controller.open_website(dest)
-            msg = res.get("message") or f"Đã mở {dest} cho Ngài."
-            return {"status": "success" if res.get("success") else "failed", "result": res, "message": msg}
+            msg = res.get("message") or (f"Đã gửi yêu cầu mở {dest} tới trình duyệt." if res.get("success") else res.get("error") or f"Không thể mở {dest}.")
+            return {"status": "success" if res.get("success") else "failed", "result": res, "message": msg, "error_code": res.get("error_code")}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
     def _handle_shell_execute(self, query: str, cwd: str | None = None, **kwargs) -> dict[str, Any]:

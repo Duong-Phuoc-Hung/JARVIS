@@ -15,6 +15,7 @@ import time
 from collections import deque
 from datetime import datetime
 from typing import Any, Union
+from urllib.parse import urlencode, urlsplit
 
 from jarvis.core.runaway_guard import canonical_app_key, canonical_url_key, launch_dedupe_guard
 from jarvis.platform.windows import WindowsPlatformAPI, platform_win32
@@ -67,7 +68,11 @@ class ComputerController:
     }
 
     def __init__(self, win32: WindowsPlatformAPI | None = None) -> None:
+        from jarvis.automation.app_catalog import ApplicationCatalog
+        self.app_catalog = ApplicationCatalog()
         self.win32 = win32 or platform_win32
+        from jarvis.automation.app_launcher import WindowsApplicationLauncher, WindowsWindowProbe
+        self.app_launcher = WindowsApplicationLauncher(probe=WindowsWindowProbe(self.win32))
         self._current_volume: int = 50
         self._is_muted: bool = False
         self._current_brightness: int = 70
@@ -760,6 +765,38 @@ class ComputerController:
         "translate": "https://translate.google.com",
     }
 
+    def open_installed_app(self, app_name: str) -> dict[str, Any]:
+        """Launch an exact catalog match; never guess or claim unverified UI success."""
+        matches = self.app_catalog.resolve(app_name)
+        if not matches and not self.app_catalog.errors:
+            # Fixed aliases remain useful, but resolve them back into the
+            # discovered catalog; never launch an unchecked guessed path.
+            import ntpath
+            mapped = self.APP_MAP.get(app_name.strip().casefold(), [])
+            aliases = mapped if isinstance(mapped, list) else [mapped]
+            resolved_matches = []
+            for alias in aliases:
+                if not isinstance(alias, str) or " --" in alias or alias.endswith(":"):
+                    continue
+                for entry in self.app_catalog.resolve(ntpath.splitext(ntpath.basename(alias))[0]):
+                    if entry not in resolved_matches:
+                        resolved_matches.append(entry)
+            matches = tuple(resolved_matches)
+        if self.app_catalog.errors:
+            return {"success": False, "error_code": "APP_DISCOVERY_UNAVAILABLE", "message": "Không đọc được danh mục ứng dụng Windows."}
+        if not matches:
+            return {"success": False, "error_code": "APP_NOT_FOUND", "message": f"Không tìm thấy ứng dụng '{app_name}' trong danh mục Windows."}
+        if len(matches) != 1:
+            return {"success": False, "error_code": "APP_AMBIGUOUS", "message": "Có nhiều ứng dụng cùng tên; cần chọn ứng dụng trước khi mở.",
+                    "candidates": [{"name": app.name, "kind": app.kind, "target": app.target} for app in matches]}
+        app = matches[0]
+        if not launch_dedupe_guard.should_allow("app_launch", canonical_app_key(app.name)):
+            return {"success": False, "error_code": "LAUNCH_RATE_LIMITED", "message": "Yêu cầu mở ứng dụng lặp lại quá nhanh."}
+        result = self.app_launcher.open(app)
+        if result.get("error_code") == "APP_NOT_FOUND":
+            self.app_catalog.refresh()
+        return result
+
     def open_app(self, app_name: str) -> dict[str, Any]:
         """Launches target application by friendly name, alias, or executable path."""
         if not app_name:
@@ -804,12 +841,8 @@ class ComputerController:
             mapped = self.APP_MAP[clean_name]
             candidates = mapped if isinstance(mapped, list) else [mapped]
         else:
-            for k, v in self.APP_MAP.items():
-                if k in clean_name or clean_name in k:
-                    candidates = v if isinstance(v, list) else [v]
-                    break
-            if not candidates:
-                candidates = [clean_name, f"{clean_name}.exe"]
+            # Unknown names must not silently launch a different known app.
+            candidates = [clean_name, f"{clean_name}.exe"]
 
         for cand in candidates:
             expanded = os.path.expandvars(os.path.expanduser(cand))
@@ -873,26 +906,37 @@ class ComputerController:
         if not target:
             return {"success": False, "error": "Website target is empty"}
 
-        clean = target.strip().lower()
-        clean = re.sub(r"^(?:mở|truy cập|vào|open|go to|visit)\s+", "", clean).strip()
+        clean = re.sub(r"^(?:mở|truy cập|vào|open|go to|visit)\s+", "", target.strip(), flags=re.IGNORECASE).strip()
+        if not clean or any(ord(char) < 32 for char in clean):
+            return {"success": False, "error_code": "INVALID_URL", "error": "Invalid website target"}
 
         url = ""
-        yt_search = re.search(r"(?:youtube|yt)\s+(?:xem|nghe|tìm|bài)?\s*(.+)", clean)
+        yt_search = re.fullmatch(r"(?:youtube|yt)\s+(?:(?:xem|nghe|tìm|bài)\s+)?(.+)", clean, re.IGNORECASE)
         if yt_search:
             q = yt_search.group(1).strip()
-            _q_encoded = subprocess.list2cmdline([q]).strip('"')
-            url = f"https://www.youtube.com/results?search_query={_q_encoded}"
-        elif clean.startswith(("tìm kiếm ", "search ", "tra cứu ")):
-            q = re.sub(r"^(?:tìm kiếm|search|tra cứu)\s+", "", clean).strip()
-            url = f"https://www.google.com/search?q={q}"
-        elif clean in self.WEBSITE_MAP:
-            url = self.WEBSITE_MAP[clean]
-        elif any(clean.startswith(p) for p in ("http://", "https://")):
-            url = target.strip()
-        elif any(clean.endswith(ext) or ext in clean for ext in (".com", ".vn", ".net", ".org", ".io", ".edu", ".gov")):
-            url = f"https://{clean}" if not clean.startswith("http") else clean
+            url = "https://www.youtube.com/results?" + urlencode({"search_query": q})
+        elif clean.lower().startswith(("tìm kiếm ", "search ", "tra cứu ")):
+            q = re.sub(r"^(?:tìm kiếm|search|tra cứu)\s+", "", clean, flags=re.IGNORECASE).strip()
+            url = "https://www.google.com/search?" + urlencode({"q": q})
+        elif clean.lower() in self.WEBSITE_MAP:
+            url = self.WEBSITE_MAP[clean.lower()]
+        elif re.fullmatch(r"[\w-]+(?:\.[\w-]+)+(?::\d+)?(?:[/?#][^\s]*)?", clean):
+            url = f"https://{clean}"
+        elif re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", clean):
+            url = clean
         else:
-            url = f"https://www.google.com/search?q={clean}"
+            url = "https://www.google.com/search?" + urlencode({"q": clean})
+
+        try:
+            parsed = urlsplit(url)
+            valid = (parsed.scheme in {"http", "https"} and parsed.hostname
+                     and not parsed.username and not parsed.password
+                     and not any(char.isspace() for char in url) and "\\" not in url)
+            parsed.port  # Validate malformed/out-of-range ports before launching.
+        except ValueError:
+            valid = False
+        if not valid:
+            return {"success": False, "error_code": "INVALID_URL", "error": "Only valid HTTP(S) URLs without credentials are supported"}
 
         # P0 runaway-hardening: every prior call unconditionally re-opened the
         # target URL -- a repeated/runaway dispatch (e.g. a passive
@@ -913,20 +957,13 @@ class ComputerController:
 
         try:
             import webbrowser
-            webbrowser.open(url)
-            domain_name = clean.split()[0] if clean else "trang web"
+            if not webbrowser.open(url):
+                return {"success": False, "url": url, "error_code": "BROWSER_OPEN_FAILED", "error": "Trình duyệt không chấp nhận yêu cầu mở trang web."}
             return {
                 "success": True,
                 "url": url,
-                "message": f"Đã mở {domain_name} ({url}) cho Ngài.",
+                "message": f"Đã gửi yêu cầu mở {url} tới trình duyệt; chưa xác minh trang đã tải.",
+                "verification": "browser_launch_acknowledged",
             }
-        except Exception:
-            try:
-                if sys.platform == "win32" and hasattr(os, "startfile"):
-                    os.startfile(url)  # type: ignore
-                    return {"success": True, "url": url, "message": f"Đã mở {url} cho Ngài."}
-                _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-                subprocess.Popen(f"start {url}", shell=True, creationflags=_cflags)
-                return {"success": True, "url": url, "message": f"Đã mở {url} cho Ngài."}
-            except Exception as exc:
-                return {"success": False, "url": url, "error": str(exc), "message": f"Không thể mở trang web: {exc}"}
+        except Exception as exc:
+            return {"success": False, "url": url, "error_code": "BROWSER_OPEN_FAILED", "error": str(exc), "message": f"Không thể mở trang web: {exc}"}

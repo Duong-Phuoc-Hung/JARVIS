@@ -1,10 +1,32 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
+Verified app launch follow-up (2026-09-22, unreleased **5.2.1**): câu mở desktop
+app đi qua danh mục cục bộ và xác minh cửa sổ theo AUMID/đường dẫn executable;
+không dùng tên gần giống làm bằng chứng. Notepad/Calculator được gộp đúng định danh.
+Scoped **244 tests + 25 subtests passed**. Kiểm tra thật **8/8 ca** trên máy này
+(6 thao tác qua dispatcher + 2 ca chỉ phân tích lệnh), gồm khôi phục Calculator
+thu nhỏ đúng cửa sổ. Quét **175 mục**, không phải 175 ứng dụng đã được thử mở.
+Còn giới hạn shared launcher/profile, portable, lựa chọn mặc định và nghiệm thu máy khác.
+[Báo cáo hiện tại](docs/eval/app_catalog_verified_20260922.md).
+
+Các mục stage 1 dưới đây là lịch sử; xem báo cáo trên để biết trạng thái mới.
+
+Installed-app discovery **stage 1**, unreleased, source version **5.2.1**:
+`mở ứng dụng <tên chính xác>` tra cứu danh mục Windows hiện tại thay vì chỉ alias
+cố định. Trùng tên cần chọn; AppID/launcher chưa xác minh cửa sổ không báo success.
+Chưa có UI chọn/lưu mặc định, portable-folder setup hay nghiệm thu nhiều máy.
+[Evidence và giới hạn](docs/eval/app_catalog_20260922.md).
+
+Windows app/web patch (2026-09-22, source `jarvis.__version__` **5.2.1**, unreleased):
+giữ nguyên URL đích, encode search, không báo mở thành công khi browser từ chối,
+không đoán app bằng chuỗi con. **76 scoped tests + 25 subtests passed**; chưa xác
+minh cửa sổ/trang tải thật. [Phạm vi và evidence mới](docs/eval/windows_command_execution_20260922.md).
+
 <div align="center">
 
 [![CI Status](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/workflows/ci.yml/badge.svg)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
-[![Tests](https://img.shields.io/badge/tests-passing-00ff88?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
-[![Source Version](https://img.shields.io/badge/source%20version-5.1.10-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
+[![Tests](https://img.shields.io/badge/tests-see_current_audit-orange?style=flat-square)](docs/eval/readiness_security_audit_20260922.md)
+[![Source Version](https://img.shields.io/badge/source%20version-5.2.1-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
 [![Releases](https://img.shields.io/badge/releases-GitHub-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?style=flat-square)](https://python.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%2064--bit-0078D4?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS)
@@ -13,7 +35,7 @@
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt bằng Chromium do Playwright quản lý hoặc phiên Chromium được attach qua CDP, và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (source/runtime, `jarvis.__version__`): 5.2.1** trên `main` — hoàn thiện mã nguồn kỹ thuật phân hệ Core / Backend / Integrations / Release (D-01..D-17) và Voice Pipeline Hardening (H-01..H-13, H-05 DONE). T-01 browser là **DONE** với 301/301 test scoped, 21/21 deterministic local E2E trên Chromium thật (gồm CDP attach). T-03 Telegram real transport là **DONE** (`@JARVISAssistantTest_bot`, live send PASS runtime 2026-09-20). GATE-05 Router LLM là **PASS runtime** — `gemini-flash-lite-latest` 9/10=90%, avg 979ms. D-06 Telegram send path: **PASS runtime**. Unit suite: 2,421 passed, 3 skipped, 268 subtests.</sub>
+<sub>**Phiên bản mã nguồn / phát triển (`jarvis.__version__`): 5.2.1.** Bản vá readiness/security ngày 2026-09-22 xử lý token TTL/payload, phân loại safety, bảo vệ skill và trạng thái Result/dispatcher. **Product release: NO-GO**; chưa đóng các gate runtime hoặc nghiệm thu máy sạch. Xem [kiểm toán hiện tại và số liệu kiểm thử](docs/eval/readiness_security_audit_20260922.md). Các số liệu T-01, Telegram, Router và 2.421 unit tests ở tài liệu cũ là evidence lịch sử, không phải kết quả tái nghiệm thu của bản vá này.</sub>
 
 
 </div>

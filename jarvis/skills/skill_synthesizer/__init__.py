@@ -2,7 +2,7 @@
 jarvis/skills/skill_synthesizer/__init__.py
 ============================================
 Self-Coding Skill Synthesizer: generates new JARVIS skills from Vietnamese
-natural language descriptions, creates files, and registers them dynamically.
+natural language descriptions and creates files. Runtime registration is separate.
 """
 from __future__ import annotations
 
@@ -63,24 +63,23 @@ def _generate_skill_code(
                 content = req.read().decode('utf-8', errors='replace')[:2000]
                 text = f'Đã lấy nội dung từ {url}: {content[:200]}...'
             except Exception as e:
+                success = False
                 text = f'Lỗi lấy dữ liệu: {e}'""")
     elif template == "monitor":
         logic = textwrap.dedent("""\
-            import psutil, time
-            cpu = psutil.cpu_percent(interval=0.5) if hasattr(psutil, 'cpu_percent') else 0
-            ram = psutil.virtual_memory().percent if hasattr(psutil, 'virtual_memory') else 0
+            import psutil
+            cpu = psutil.cpu_percent(interval=0.5)
+            ram = psutil.virtual_memory().percent
             text = f'Theo dõi hệ thống: CPU {cpu:.1f}%, RAM {ram:.1f}%'""")
     elif template == "notifier":
         logic = textwrap.dedent("""\
-            import time
-            delay = float(kwargs.get('delay_seconds', 60))
-            message = kwargs.get('message', query or 'Thông báo từ JARVIS')
-            text = f'Đã ghi nhận lời nhắc: \"{message}\" (sau {delay:.0f}s)'""")
+            success = False
+            text = 'NOT_IMPLEMENTED: notification scheduling requires a connected backend.'""")
     elif template == "file_writer":
         logic = textwrap.dedent("""\
             from pathlib import Path
             content = kwargs.get('content', query)
-            filepath = Path(kwargs.get('path', f'logs/{skill_name}_output.txt'))
+            filepath = Path(kwargs.get('path', 'logs/skill_output.txt'))
             filepath.parent.mkdir(parents=True, exist_ok=True)
             filepath.write_text(content, encoding='utf-8')
             text = f'Đã ghi dữ liệu vào {filepath}'""")
@@ -91,26 +90,27 @@ def _generate_skill_code(
             try:
                 _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
                 result = subprocess.run(['ping', '-n', '1', target], capture_output=True, text=True, timeout=5, creationflags=_cflags)
+                success = result.returncode == 0
                 status = 'OK' if result.returncode == 0 else 'Timeout/Không phản hồi'
             except Exception as e:
+                success = False
                 status = f'Lỗi: {e}'
             text = f'Kết quả kiểm tra [{target}]: {status}'""")
     else:
         logic = textwrap.dedent("""\
-            # TODO: Implement skill logic here
-            text = f'Skill [{skill_name}] đã nhận lệnh: {action} với tham số: {query or str(kwargs)}'""")
+            success = False
+            text = 'NOT_IMPLEMENTED: this template has no execution backend.'""")
 
     # Pre-compute indented logic block (avoid double-indent in f-string)
     logic_indented = "\n".join("        " + ln for ln in logic.strip().splitlines())
 
-    return f'''"""
-jarvis/skills/{skill_name}/__init__.py
-{'=' * (len(skill_name) + 28)}
-Auto-generated skill: {description}
-Created: {created_at}
-Template: {template}
-[synthesized=true]
-"""
+    # Descriptions/actions are user data, never source-code fragments.
+    module_doc = repr(
+        f"Auto-generated skill: {description}\nCreated: {created_at}\n"
+        f"Template: {template}\n[synthesized=true]"
+    )
+    function_doc = repr(f"{description}\nActions: {actions_str}")
+    return f'''{module_doc}
 from __future__ import annotations
 import logging, urllib.parse
 from typing import Any, Dict
@@ -123,15 +123,7 @@ def execute(
     query: str = "",
     **kwargs: Any,
 ) -> Dict[str, Any]:
-    """
-    {description}
-
-    Args:
-        action: One of {actions_str}
-        query: Main input query or target
-    Returns:
-        dict with keys: data (dict with text + success), output (str)
-    """
+    {function_doc}
     act = action.lower().strip()
     text = ""
     success = True
@@ -151,10 +143,13 @@ def _validate_skill_name(name: str) -> str | None:
     """Return error message or None if name is valid."""
     if not name:
         return "Vui lòng cung cấp skill_name."
-    if not re.match(r"^[a-z][a-z0-9_]{2,29}$", name):
+    if not re.fullmatch(r"[a-z][a-z0-9_]{2,29}", name):
         return "Tên skill phải: chữ thường, số, dấu gạch dưới, 3-30 ký tự, bắt đầu bằng chữ cái."
-    if (_SKILLS_ROOT / name).exists() and not (_SKILLS_ROOT / name / "metadata.json").read_text().find('"synthesized": true') == -1:
-        return f"Skill '{name}' đã tồn tại (không phải synthesized)."
+    target = _SKILLS_ROOT / name
+    if target.is_symlink() or target.resolve().parent != _SKILLS_ROOT.resolve():
+        return "Skill path nằm ngoài thư mục skills hoặc là liên kết."
+    if target.exists():
+        return f"Skill '{name}' đã tồn tại; không ghi đè."
     return None
 
 
@@ -208,19 +203,16 @@ def execute(
         # Create
         skill_dir = _SKILLS_ROOT / skill_name
         try:
-            skill_dir.mkdir(parents=True, exist_ok=True)
+            ast.parse(code)
+            skill_dir.mkdir(parents=True, exist_ok=False)
             (skill_dir / "metadata.json").write_text(
                 json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8"
             )
             (skill_dir / "__init__.py").write_text(code, encoding="utf-8")
-            # Validate syntax
-            ast.parse(code)
-            msg = f"✅ Kỹ năng '{skill_name}' (template={template}) đã được tạo và đăng ký vào hệ thống!"
+            msg = f"Đã tạo tệp kỹ năng '{skill_name}' (template={template}); chưa xác minh thực thi hoặc đăng ký runtime."
             log.info("Synthesized skill: %s", skill_name)
         except SyntaxError as exc:
-            import shutil
-            shutil.rmtree(skill_dir, ignore_errors=True)
-            msg = f"Lỗi cú pháp khi sinh code: {exc}. Đã rollback."
+            msg = f"Lỗi cú pháp khi sinh code: {exc}. Không ghi tệp."
             return {"data": {"text": msg, "success": False}, "output": msg}
         except Exception as exc:
             msg = f"Lỗi tạo kỹ năng '{skill_name}': {exc}"
@@ -250,16 +242,24 @@ def execute(
         return {"data": {"skills": synthesized, "text": msg, "success": True}, "output": msg}
 
     elif act == "delete":
+        if not re.fullmatch(r"[a-z][a-z0-9_]{2,29}", skill_name):
+            msg = "Tên skill không hợp lệ; không xóa."
+            return {"data": {"text": msg, "success": False}, "output": msg}
         skill_dir = _SKILLS_ROOT / skill_name
+        if skill_dir.is_symlink() or skill_dir.resolve().parent != _SKILLS_ROOT.resolve():
+            msg = "Skill path nằm ngoài thư mục skills hoặc là liên kết; không xóa."
+            return {"data": {"text": msg, "success": False}, "output": msg}
         if not skill_dir.exists():
             msg = f"Kỹ năng '{skill_name}' không tồn tại."
             return {"data": {"text": msg, "success": False}, "output": msg}
         meta_file = skill_dir / "metadata.json"
-        if meta_file.exists():
+        try:
             meta = json.loads(meta_file.read_text(encoding="utf-8"))
-            if not meta.get("synthesized"):
-                msg = f"Kỹ năng '{skill_name}' là built-in, không thể xóa qua synthesizer."
-                return {"data": {"text": msg, "success": False}, "output": msg}
+        except (OSError, ValueError):
+            meta = None
+        if not isinstance(meta, dict) or meta.get("synthesized") is not True:
+            msg = f"Kỹ năng '{skill_name}' không có metadata synthesized hợp lệ; không xóa."
+            return {"data": {"text": msg, "success": False}, "output": msg}
         import shutil
         shutil.rmtree(skill_dir)
         msg = f"🗑️ Đã xóa kỹ năng tổng hợp '{skill_name}'."

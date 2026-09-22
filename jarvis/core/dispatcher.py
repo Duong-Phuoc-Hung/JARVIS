@@ -14,6 +14,7 @@ import threading
 import time
 import uuid
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Any
 
 from jarvis.core.models import (
@@ -262,6 +263,13 @@ def _normalize_handler_outcome(raw: Any) -> tuple[bool, Any, str | None, str | N
         return raw.success, raw.data, raw.error, raw.error_code
 
     if isinstance(raw, dict):
+        # Canonical unavailable/blocked states cannot become successful data.
+        status = raw.get("status")
+        if isinstance(status, str) and status.strip().upper() in (
+            "BLOCKED", "UNAVAILABLE", "NOT_CONFIGURED", "TIMEOUT",
+        ):
+            return (False, raw, raw.get("error") or raw.get("message"),
+                    raw.get("error_code") or raw.get("code") or status.strip().upper())
         success_flag = raw.get("success")
         if isinstance(success_flag, bool):
             if success_flag:
@@ -593,6 +601,9 @@ class ActionDispatcher:
                 logger.warning(
                     "Action '%s' handler reported failure: %s", action_name, error or "(no error detail)"
                 )
+            if isinstance(data, ActionResult):
+                return replace(data, action_name=action_name, execution_time_ms=elapsed,
+                               requester=context.requester_id)
             handler_status = norm_data.get("status") if isinstance(norm_data, dict) else None
             status_arg = (
                 handler_status
@@ -603,6 +614,8 @@ class ActionDispatcher:
                 action_name=action_name,
                 success=success,
                 status=status_arg,
+                message=str(norm_data.get("message") or "") if isinstance(norm_data, dict) else "",
+                retryable=norm_data.get("retryable") is True if isinstance(norm_data, dict) else False,
                 code=(
                     norm_data.get("code") or error_code or ("OK" if success else "ACTION_FAILED")
                     if isinstance(norm_data, dict)
@@ -725,6 +738,9 @@ class ActionDispatcher:
                 logger.warning(
                     "Action '%s' handler reported failure (async): %s", action_name, error or "(no error detail)"
                 )
+            if isinstance(data, ActionResult):
+                return replace(data, action_name=action_name, execution_time_ms=elapsed,
+                               requester=context.requester_id)
             handler_status = norm_data.get("status") if isinstance(norm_data, dict) else None
             status_arg = (
                 handler_status
@@ -735,6 +751,8 @@ class ActionDispatcher:
                 action_name=action_name,
                 success=success,
                 status=status_arg,
+                message=str(norm_data.get("message") or "") if isinstance(norm_data, dict) else "",
+                retryable=norm_data.get("retryable") is True if isinstance(norm_data, dict) else False,
                 code=(
                     norm_data.get("code") or error_code or ("OK" if success else "ACTION_FAILED")
                     if isinstance(norm_data, dict)

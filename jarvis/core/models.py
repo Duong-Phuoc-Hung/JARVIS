@@ -75,6 +75,9 @@ class ActionStatus(str, Enum):
     ERROR = "ERROR"
     FAILED = "FAILED"
     TIMEOUT = "TIMEOUT"
+    BLOCKED = "BLOCKED"
+    UNAVAILABLE = "UNAVAILABLE"
+    NOT_CONFIGURED = "NOT_CONFIGURED"
     RATE_LIMITED = "RATE_LIMITED"
     LABS_DISABLED = "LABS_DISABLED"
 
@@ -111,8 +114,15 @@ class ActionResult:
         # 2. Harmonize status and success
         if not self.success and self.status == ActionStatus.SUCCESS:
             self.status = ActionStatus.ERROR
-        elif self.status in (ActionStatus.ERROR, ActionStatus.FAILED, ActionStatus.TIMEOUT, ActionStatus.RATE_LIMITED, ActionStatus.LABS_DISABLED):
+        elif self.status in (ActionStatus.ERROR, ActionStatus.FAILED, ActionStatus.TIMEOUT,
+                              ActionStatus.BLOCKED, ActionStatus.UNAVAILABLE,
+                              ActionStatus.NOT_CONFIGURED, ActionStatus.RATE_LIMITED,
+                              ActionStatus.LABS_DISABLED):
             self.success = False
+            if (self.status in (ActionStatus.BLOCKED, ActionStatus.UNAVAILABLE,
+                                ActionStatus.NOT_CONFIGURED)
+                    and self.code in ("OK", "SUCCESS") and not self.error_code):
+                self.code = self.status.value
             if self.status == ActionStatus.LABS_DISABLED:
                 if self.code in ("OK", "SUCCESS"):
                     self.code = "LABS_FEATURE_DISABLED"

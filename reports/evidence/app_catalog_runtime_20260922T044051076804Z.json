@@ -1,0 +1,124 @@
+{
+  "started_utc": "2026-09-22T04:40:43.402374+00:00",
+  "scope": "text router -> real dispatcher -> real app handler -> Windows; not microphone/full startup/installer",
+  "inventory": {
+    "entries": 175,
+    "errors": [],
+    "elapsed_seconds": 3.091
+  },
+  "cases": [
+    {
+      "command": "mở ứng dụng Calculator",
+      "action": "app_open",
+      "installed_only": true,
+      "success": true,
+      "status": "SUCCESS",
+      "code": null,
+      "observed_windows": [
+        {
+          "pid": 9052,
+          "hwnd": 2884458,
+          "verification": "window_app_id"
+        }
+      ],
+      "elapsed_seconds": 0.864,
+      "passed": true,
+      "backend_verification": "window_app_id",
+      "already_running": false
+    },
+    {
+      "command": "mở Calculator",
+      "action": "app_open",
+      "installed_only": true,
+      "success": false,
+      "status": "FAILED",
+      "code": "LAUNCH_RATE_LIMITED",
+      "observed_windows": [
+        {
+          "pid": 9052,
+          "hwnd": 2884458,
+          "verification": "window_app_id"
+        }
+      ],
+      "elapsed_seconds": 0.003,
+      "passed": true,
+      "backend_verification": null,
+      "already_running": null
+    },
+    {
+      "command": "mở ứng dụng Notepad",
+      "action": "app_open",
+      "installed_only": true,
+      "success": true,
+      "status": "SUCCESS",
+      "code": null,
+      "observed_windows": [
+        {
+          "pid": 2944,
+          "hwnd": 6818272,
+          "verification": "window_app_id"
+        }
+      ],
+      "elapsed_seconds": 0.755,
+      "passed": true,
+      "backend_verification": "window_app_id",
+      "already_running": false
+    },
+    {
+      "command": "mở Notepad",
+      "action": "app_open",
+      "installed_only": true,
+      "success": false,
+      "status": "FAILED",
+      "code": "LAUNCH_RATE_LIMITED",
+      "observed_windows": [
+        {
+          "pid": 2944,
+          "hwnd": 6818272,
+          "verification": "window_app_id"
+        }
+      ],
+      "elapsed_seconds": 0.003,
+      "passed": true,
+      "backend_verification": null,
+      "already_running": null
+    },
+    {
+      "command": "mở ứng dụng JarvisMissingApp_LiveProbe_20260922",
+      "action": "app_open",
+      "installed_only": true,
+      "success": false,
+      "status": "FAILED",
+      "code": "APP_NOT_FOUND",
+      "observed_windows": [],
+      "elapsed_seconds": 0.0,
+      "passed": true,
+      "backend_verification": null,
+      "already_running": null
+    },
+    {
+      "command": "đừng mở ứng dụng Calculator",
+      "parse_only": true,
+      "action": "unknown_intent",
+      "passed": true
+    },
+    {
+      "command": "mở ứng dụng Notepad và Calculator",
+      "parse_only": true,
+      "action": "unknown_intent",
+      "passed": true
+    },
+    {
+      "command": "mở Calculator (existing minimized window)",
+      "passed": false,
+      "minimized_before": true,
+      "success": true,
+      "already_running": false,
+      "same_hwnd": false,
+      "restored": false,
+      "backend_verification": "window_app_id"
+    }
+  ],
+  "passed": false,
+  "finished_utc": "2026-09-22T04:40:51.075346+00:00"
+}

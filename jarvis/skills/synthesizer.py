@@ -9,6 +9,7 @@ import ast
 import json
 import logging
 import re
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -68,6 +69,7 @@ class DynamicSkillSynthesizer:
         **kwargs: Any,
     ) -> None:
         self.registry = registry
+        self._save_lock = threading.Lock()
         if skills_dir:
             self.skills_dir = Path(skills_dir).resolve()
         elif registry and hasattr(registry, "skills_dir"):
@@ -273,13 +275,13 @@ logger = logging.getLogger("jarvis.skills.{name}")
         if not clean_name:
             clean_name = f"skill_{int(time.time())}"
 
-        # Handle overwrite: delete existing skill dir if requested
-        if overwrite:
-            base_dir = Path(target_dir).resolve() if target_dir else self.skills_dir
-            existing = base_dir / clean_name
-            if existing.exists():
-                import shutil
-                shutil.rmtree(existing, ignore_errors=True)
+        # Never remove the working version before validation and sandbox checks.
+        base_dir = Path(target_dir).resolve() if target_dir else self.skills_dir
+        existing = base_dir / clean_name
+        if existing.is_symlink() or existing.resolve().parent != base_dir.resolve():
+            raise ValueError("Skill destination must remain inside the skills directory")
+        if existing.exists() and not overwrite:
+            raise ValueError(f"Skill '{clean_name}' already exists; overwrite was not requested")
 
         # Extract schema if not provided
         schema = parameters_schema or self.extract_parameters_schema_from_code(code, entrypoint_function)
@@ -385,21 +387,7 @@ logger = logging.getLogger("jarvis.skills.{name}")
         """
         base_dir = Path(target_dir).resolve() if target_dir else self.skills_dir
         skill_dir = base_dir / skill_def.metadata.name
-        skill_dir.mkdir(parents=True, exist_ok=True)
-
-        # 1. Write Python module: __init__.py
         module_file = skill_dir / "__init__.py"
-        module_file.write_text(skill_def.entrypoint_code, encoding="utf-8")
-
-        # 2. Write metadata.json
-        meta_file = skill_dir / "metadata.json"
-        meta_file.write_text(
-            json.dumps(skill_def.metadata.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
-
-        # 3. Write human-readable SKILL.md
-        skill_md = skill_dir / "SKILL.md"
         md_content = f"""# Skill: {skill_def.metadata.name}
 
 ## Description
@@ -414,9 +402,48 @@ logger = logging.getLogger("jarvis.skills.{name}")
 {json.dumps(skill_def.metadata.parameters_schema, indent=2)}
 ```
 """
-        skill_md.write_text(md_content, encoding="utf-8")
+        with self._save_lock:
+            if skill_dir.is_symlink() or skill_dir.resolve().parent != base_dir.resolve():
+                raise ValueError("Skill destination must remain inside the skills directory")
+            contents = {
+                "__init__.py": skill_def.entrypoint_code,
+                "metadata.json": json.dumps(skill_def.metadata.to_dict(), indent=2, ensure_ascii=False),
+                "SKILL.md": md_content,
+            }
+            # Validate every child before writing any of them. Replacing each file
+            # also avoids truncating linked targets if a child is swapped later.
+            for filename in contents:
+                child = skill_dir / filename
+                if child.is_symlink() or (child.exists() and child.stat().st_nlink > 1):
+                    raise ValueError(f"Refusing linked skill package file: {filename}")
+                if child.exists() and not child.is_file():
+                    raise ValueError(f"Skill package output is not a file: {filename}")
+            skill_dir.mkdir(parents=True, exist_ok=True)
+            for filename, content in contents.items():
+                self._write_atomic(skill_dir / filename, content)
 
         return module_file
+
+    @staticmethod
+    def _write_atomic(path: Path, content: str) -> None:
+        """Atomic per-file replacement; not a transaction across the package."""
+        temp = path.with_name(f"{path.name}.tmp.{threading.get_ident()}.{time.time_ns()}")
+        created = False
+        try:
+            with temp.open("x", encoding="utf-8") as stream:
+                created = True
+                stream.write(content)
+            for attempt in range(1, 6):
+                try:
+                    temp.replace(path)
+                    break
+                except PermissionError:
+                    if attempt == 5:
+                        raise
+                    time.sleep(0.02 * attempt)
+        finally:
+            if created:
+                temp.unlink(missing_ok=True)
 
     def _dry_run_skill_in_sandbox(
         self,
