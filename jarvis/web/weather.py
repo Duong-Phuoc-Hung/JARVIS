@@ -186,7 +186,8 @@ class WeatherProvider:
             try:
                 weather_data = self._fetch_openweathermap(norm_city)
             except Exception as exc:
-                logger.debug("OpenWeatherMap API failed: %s, falling back to wttr.in", exc)
+                clean_msg = str(exc).replace(self.api_key, "***REDACTED***") if self.api_key else str(exc)
+                logger.debug("OpenWeatherMap API failed: %s, falling back to wttr.in", clean_msg)
 
         # 2. Tier 2: wttr.in JSON API fallback
         if weather_data is None:
@@ -251,14 +252,19 @@ class WeatherProvider:
             f"https://api.openweathermap.org/data/2.5/weather"
             f"?q={encoded_city}&appid={self.api_key}&units=metric&lang=vi"
         )
-        if REQUESTS_AVAILABLE and requests is not None:
-            resp = requests.get(url, timeout=self.timeout_seconds)
-            resp.raise_for_status()
-            data = resp.json()
-        else:
-            req = urllib.request.Request(url)
-            with urllib.request.urlopen(req, timeout=self.timeout_seconds) as response:
-                data = json.loads(response.read().decode("utf-8"))
+        try:
+            if REQUESTS_AVAILABLE and requests is not None:
+                resp = requests.get(url, timeout=self.timeout_seconds)
+                resp.raise_for_status()
+                data = resp.json()
+            else:
+                req = urllib.request.Request(url)
+                with urllib.request.urlopen(req, timeout=self.timeout_seconds) as response:
+                    data = json.loads(response.read().decode("utf-8"))
+        except Exception as exc:
+            if self.api_key and self.api_key in str(exc):
+                raise RuntimeError(str(exc).replace(self.api_key, "***REDACTED***")) from None
+            raise
 
         main = data.get("main", {})
         weather_list = data.get("weather", [{}])

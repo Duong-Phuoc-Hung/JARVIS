@@ -30,8 +30,9 @@ python-telegram-bot>=21,<23         # Telegram Bot API
 # discord.py>=2.3,<3               # Discord Bot (tuỳ chọn — nặng)
 requests>=2.31,<3                    # HTTP requests chung
 urllib3>=2.0,<3                      # HTTP thấp hơn
-idna>=3.7,<4                         # UTS-46/IDNA2008 hostname canonicalization
+idna>=3.15,<4                        # UTS-46/IDNA2008 hostname canonicalization
 psl>=2025.5.26                       # Public Suffix List cho cookie-domain an toàn
+keyring>=24                          # Windows Credential Manager storage backend
 
 # ── Browser Automation ───────────────────────────────────────
 # playwright>=1.40                   # Chrome CDP (cài riêng: playwright install chromium)

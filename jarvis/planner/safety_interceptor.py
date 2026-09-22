@@ -13,6 +13,23 @@ from typing import Any
 
 from jarvis.automation.safety_gate import SafetyGate
 from jarvis.planner.models import StepStatus, TaskNode
+import unicodedata
+
+_HOMOGLYPH_TABLE = str.maketrans({
+    "а": "a", "с": "c", "е": "e", "о": "o", "р": "p", "ѕ": "s", "і": "i", "ј": "j",
+    "у": "y", "х": "x", "ԁ": "d", "ԛ": "q", "ԝ": "w", "А": "A", "В": "B", "С": "C",
+    "Е": "E", "Н": "H", "І": "I", "Ј": "J", "К": "K", "М": "M", "О": "O", "Р": "P",
+    "Ѕ": "S", "Т": "T", "Х": "X", "Ү": "Y", "α": "a", "ο": "o", "ρ": "p", "κ": "k",
+})
+
+
+def normalize_homoglyphs(text: str) -> str:
+    """Normalizes Unicode text via NFKD and collapses common Cyrillic/Greek homoglyphs."""
+    if not text or text.isascii():
+        return text
+    norm = unicodedata.normalize("NFKD", text)
+    return norm.translate(_HOMOGLYPH_TABLE)
+
 
 logger = logging.getLogger("jarvis.planner.safety_interceptor")
 
@@ -41,6 +58,15 @@ class SafetyGateInterceptor:
         "smart_home_set_temp", "smart_home_toggle", "home_assistant_turn_on",
         "home_assistant_turn_off", "home_assistant_toggle", "home_assistant_set_temp",
         "home_assistant_set_temperature",
+        # Shell Execution
+        "shell_exec", "shell_execute", "shell_command",
+        # VM lifecycle destructive
+        "vm_stop", "vm_delete", "vm_destroy",
+        "vm.vmware.stop", "vm.virtualbox.stop",
+        "vm.vmware.delete", "vm.virtualbox.delete",
+        # Sandbox execution & Subagent lifecycle
+        "sandbox_execute_code", "sandbox_python_exec",
+        "subagent_spawn", "subagent_kill",
     }
 
     DANGEROUS_PATTERNS: list[re.Pattern] = [
@@ -60,6 +86,15 @@ class SafetyGateInterceptor:
         re.compile(r"\bdiskpart\b", re.IGNORECASE),
         re.compile(r"\bRemove-Item\b.*-Recurse", re.IGNORECASE),
         re.compile(r"\bshutil\.rmtree\b", re.IGNORECASE),
+        re.compile(r"[;&|`]\s*(?:rm|del|dir|format|calc|cmd|powershell|bash|sh|net\s+user|whoami|curl|wget)\b", re.IGNORECASE),
+        re.compile(r"\$\((?:whoami|id|cat|ls|dir|rm|del|net|curl|wget)[^\)]*\)", re.IGNORECASE),
+        re.compile(r"`(?:whoami|id|cat|ls|dir|rm|del|net|curl|wget)[^`]*`", re.IGNORECASE),
+        re.compile(r"\|\s*calc(?:\.exe)?\b", re.IGNORECASE),
+        re.compile(r"\bdelete\s+all\b", re.IGNORECASE),
+        re.compile(r"\bxóa\s+(?:toàn\s+bộ|hết|sạch)\b", re.IGNORECASE),
+        re.compile(r"\bxoa\s+(?:toan\s+bo|het|sach)\b", re.IGNORECASE),
+        re.compile(r"\bformat\s+(?:ổ|o)\b", re.IGNORECASE),
+        re.compile(r"\b(?:bỏ\s+qua|disregard|ignore)\s+.*(?:chỉ\s+thị|hướng\s+dẫn|instruction|command)", re.IGNORECASE),
     ]
 
     # Deterministic, authoritative recognition of OS power actions. This is
@@ -119,7 +154,13 @@ class SafetyGateInterceptor:
         if explicit_flag:
             return True
 
-        action_clean = (action_name or "").strip().lower()
+        if not isinstance(action_name, str):
+            action_clean = str(action_name or "").strip().lower()
+        else:
+            action_clean = action_name.strip().lower()
+        action_clean_norm = normalize_homoglyphs(action_clean)
+        if action_clean_norm in self.high_risk_actions:
+            return True
         if action_clean in self.high_risk_actions:
             return True
 
@@ -137,23 +178,48 @@ class SafetyGateInterceptor:
         if action_clean in safe_actions:
             return False
 
+        # Sandbox code execution safety gate: gate if code contains destructive patterns
+        if action_clean in ("sandbox_execute_code", "sandbox_python_exec"):
+            code_str = ""
+            if isinstance(parameters, dict):
+                code_str = str(parameters.get("code") or parameters.get("script") or "")
+                if parameters.get("is_high_risk"):
+                    return True
+            elif isinstance(parameters, str):
+                code_str = str(parameters)
+            if any(pattern.search(code_str) for pattern in self.DANGEROUS_PATTERNS):
+                return True
+            if any(term in code_str for term in ("os.remove", "os.unlink", "os.system", "subprocess", "shutil.rmtree", "winreg", "format ", "rmdir ")):
+                return True
+            return False
+
         # Check action prefixes
         risky_prefixes = (
             "delete_", "remove_", "drop_", "truncate_", "format_", "destroy_",
+            "system_shutdown", "system_reboot", "shutdown_", "reboot_",
             "email_send", "send_email",
             "zalo_send", "send_zalo",
             "discord_send", "send_discord",
             "home_assistant_", "smart_home_turn_", "smart_home_set_", "smart_home_toggle",
+            "vm_stop", "vm_delete", "vm_destroy", "subagent_",
         )
         if any(action_clean.startswith(prefix) for prefix in risky_prefixes):
             return True
 
         # Scan string parameters for destructive CLI patterns
         param_strings = self._extract_strings_from_params(parameters)
+        _MAX_SCAN_LEN = 4096
         for text in param_strings:
-            for pattern in self.DANGEROUS_PATTERNS:
-                if pattern.search(text):
-                    return True
+            # ReDoS defense: cap scanning chunks to prevent exponential regex backtracking
+            scan_chunks = [text[:_MAX_SCAN_LEN]]
+            if len(text) > _MAX_SCAN_LEN:
+                scan_chunks.append(text[-_MAX_SCAN_LEN:])
+            for chunk in scan_chunks:
+                norm_chunk = normalize_homoglyphs(chunk)
+                is_same = (norm_chunk is chunk)
+                for pattern in self.DANGEROUS_PATTERNS:
+                    if pattern.search(chunk) or (not is_same and pattern.search(norm_chunk)):
+                        return True
 
         return False
 
@@ -165,19 +231,40 @@ class SafetyGateInterceptor:
         """
         return self.is_high_risk(node.action_name, node.parameters, explicit_flag=node.is_high_risk)
 
-    def _extract_strings_from_params(self, params: Any) -> list[str]:
-        """Recursively extracts all string values from parameter objects."""
+    def _extract_strings_from_params(
+        self,
+        params: Any,
+        seen: set[int] | None = None,
+        depth: int = 0,
+        max_depth: int = 64,
+    ) -> list[str]:
+        """Recursively extracts all string values from parameter objects with cycle and depth guards."""
+        if depth > max_depth:
+            return []
+        if seen is None:
+            seen = set()
+        obj_id = id(params)
+        if isinstance(params, (dict, list, tuple, set)):
+            if obj_id in seen:
+                return []
+            seen.add(obj_id)
+
         strings: list[str] = []
         if isinstance(params, str):
             strings.append(params)
+        elif isinstance(params, (bytes, bytearray)):
+            try:
+                strings.append(params.decode("utf-8", errors="replace"))
+            except Exception:
+                pass
         elif isinstance(params, dict):
             for k, v in params.items():
                 if isinstance(k, str):
                     strings.append(k)
-                strings.extend(self._extract_strings_from_params(v))
+                strings.extend(self._extract_strings_from_params(v, seen=seen, depth=depth + 1, max_depth=max_depth))
         elif isinstance(params, (list, tuple, set)):
             for item in params:
-                strings.extend(self._extract_strings_from_params(item))
+                strings.extend(self._extract_strings_from_params(item, seen=seen, depth=depth + 1, max_depth=max_depth))
         return strings
 
     def intercept_node(
@@ -255,6 +342,10 @@ class SafetyGateInterceptor:
         description: str | None = None,
         event_bus: Any | None = None,
     ) -> str:
+        if not action_name or not isinstance(action_name, str) or not action_name.strip():
+            raise ValueError("EMPTY_ACTION: Action name must be a non-empty string.")
+        if "\x00" in action_name:
+            raise ValueError("INVALID_CHARACTERS: Action name contains null bytes.")
         """
         Generic (non-TaskNode) counterpart to `intercept_node()`, used by
         callers -- primarily `ActionDispatcher` -- that gate a raw
@@ -334,6 +425,8 @@ class SafetyGateInterceptor:
                 return False, "PAYLOAD_MISMATCH"
 
             self._consumed_tokens.add(norm_token)
+            if hasattr(self.safety_gate, "consume"):
+                self.safety_gate.consume(token)
             return True, "OK"
 
     def confirm(self, token: str) -> bool:

@@ -111,8 +111,7 @@ class PromptGuard:
         # Vietnamese instruction override & goal hijacking
         re.compile(
             r"(?i)\b(?:bỏ qua|hủy bỏ|quên|vượt qua|xóa)\s+(?:tất cả\s+)?"
-            r"(?:chỉ dẫn|hướng dẫn|lệnh|mệnh lệnh|quy tắc|ràng buộc)\s+"
-            r"(?:trước|trước đó|hệ thống|cũ|ban đầu)\b"
+            r"(?:chỉ dẫn|hướng dẫn|lệnh|mệnh lệnh|quy tắc|ràng buộc|chỉ thị)(?:\s+(?:trước|trước đó|hệ thống|cũ|ban đầu))?\b"
         ),
         # Vietnamese persona hijacking & jailbreaks
         re.compile(
@@ -132,6 +131,22 @@ class PromptGuard:
             re.IGNORECASE,
         ),
     ]
+
+    QUARANTINE_CLOSING_TAG_PATTERN = re.compile(
+        r"</\s*untrusted_external_content\s*>",
+        re.IGNORECASE,
+    )
+    QUARANTINE_OPENING_TAG_PATTERN = re.compile(
+        r"<\s*untrusted_external_content(?:\s+[^>]*)?>?",
+        re.IGNORECASE,
+    )
+
+    @classmethod
+    def _escape_quarantine_tags(cls, text: str) -> str:
+        """Escapes any existing untrusted_external_content XML tags case-insensitively and whitespace-tolerantly."""
+        text = cls.QUARANTINE_CLOSING_TAG_PATTERN.sub("&lt;/untrusted_external_content&gt;", text)
+        text = cls.QUARANTINE_OPENING_TAG_PATTERN.sub("&lt;untrusted_external_content", text)
+        return text
 
     @classmethod
     def sanitize(cls, content: str | None, source: str = "web") -> SanitizationResult:
@@ -166,7 +181,7 @@ class PromptGuard:
         # 3. Strip <script>...</script> tags entirely from untrusted text
         if cls.SCRIPT_TAG_PATTERN.search(normalized):
             detected.append("SCRIPT_TAG")
-            normalized = cls.SCRIPT_TAG_PATTERN.sub(r"\1", normalized)
+            normalized = cls.SCRIPT_TAG_PATTERN.sub("", normalized)
 
         # 4. Neutralize template and chat delimiters
         for pat in cls.DELIMITER_PATTERNS:
@@ -189,11 +204,12 @@ class PromptGuard:
         # Clean any remaining redundant whitespace created by redactions
         normalized = re.sub(r"[ \t]+", " ", normalized).strip()
 
-        # Neutralize any existing raw untrusted_external_content tags to prevent XML escaping
-        normalized_escaped = (
-            normalized.replace("</untrusted_external_content>", "&lt;/untrusted_external_content&gt;")
-            .replace("<untrusted_external_content", "&lt;untrusted_external_content")
-        )
+        # Check for quarantine tag breakout injection
+        if cls.QUARANTINE_CLOSING_TAG_PATTERN.search(normalized) or cls.QUARANTINE_OPENING_TAG_PATTERN.search(normalized):
+            detected.append("QUARANTINE_TAG_INJECTION")
+
+        # Neutralize any existing raw untrusted_external_content tags case-insensitively
+        escaped_text = cls._escape_quarantine_tags(normalized)
 
         is_suspicious = len(detected) > 0
         risk = "HIGH" if is_suspicious else "LOW"
@@ -207,15 +223,15 @@ class PromptGuard:
 
         wrapped = (
             f'<untrusted_external_content source="{source}">\n'
-            f"{normalized_escaped}\n"
+            f"{escaped_text}\n"
             f"</untrusted_external_content>"
         )
 
         return SanitizationResult(
             wrapped_text=wrapped,
-            clean_text=normalized,
+            clean_text=escaped_text,
             original_length=orig_len,
-            cleaned_length=len(normalized),
+            cleaned_length=len(escaped_text),
             is_suspicious=is_suspicious,
             detected_patterns=detected,
             risk_level=risk,
@@ -272,9 +288,10 @@ class PromptGuard:
         </untrusted_external_content>
         """
         sanitized = cls.sanitize(content, source=source)
+        escaped_content = cls._escape_quarantine_tags(sanitized.clean_text)
         return (
             f'<untrusted_external_content source="{source}" risk="{sanitized.risk_level}">\n'
-            f"{sanitized.clean_text}\n"
+            f"{escaped_content}\n"
             f"</untrusted_external_content>"
         )
 

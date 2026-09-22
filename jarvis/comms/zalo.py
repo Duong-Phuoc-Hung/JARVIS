@@ -251,7 +251,8 @@ class ZaloBotController:
             result = briefing_exec(action="run")
             return result.get("output", "Không thể lấy briefing.")
         except Exception as exc:
-            return f"⚠️ Lỗi lấy briefing: {exc}"
+            log.warning("Briefing failed: %s", exc)
+            return "⚠️ Không thể tải thông tin briefing vào lúc này."
 
     def _cmd_note(self, text: str) -> str:
         if not text:
@@ -269,7 +270,8 @@ class ZaloBotController:
             result = calc_exec(action="calculate", expression=expr)
             return result.get("output", "Không tính được.")
         except Exception as exc:
-            return f"⚠️ Lỗi tính toán: {exc}"
+            log.warning("Calc failed: %s", exc)
+            return "⚠️ Biểu thức không hợp lệ hoặc xảy ra lỗi trong quá trình tính toán."
 
     def _cmd_weather(self) -> str:
         return "🌤️ Dịch vụ thời tiết chưa được cấu hình hoặc chưa khả dụng."
@@ -280,7 +282,8 @@ class ZaloBotController:
             result = sys_exec(action="screenshot")
             return result.get("output", "📸 Đã chụp màn hình.")
         except Exception as exc:
-            return f"⚠️ Lỗi chụp màn hình: {exc}"
+            log.warning("Screenshot failed: %s", exc)
+            return "⚠️ Không thể chụp màn hình vào lúc này."
 
     def _cmd_skills(self) -> str:
         try:

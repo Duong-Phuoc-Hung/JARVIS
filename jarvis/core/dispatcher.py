@@ -19,6 +19,7 @@ from dataclasses import replace
 from typing import Any
 
 from jarvis.core.models import (
+    SecurityConfigurationError,
     ActionDefinition,
     ActionResult,
     ActionStatus,
@@ -324,6 +325,13 @@ class ActionDispatcher:
         self._actions: dict[str, ActionDefinition] = {}
         self._privilege_interceptor = privilege_interceptor or default_privilege_interceptor
         self.bypass_security = bypass_security
+        if bypass_security:
+            import os
+            env = os.environ.get("JARVIS_ENV", "").strip().lower()
+            if env in ("production", "prod"):
+                raise SecurityConfigurationError(
+                    "Security bypass (bypass_security=True) is forbidden in production environment."
+                )
         self._lock = threading.RLock()
         self.config = config
         # Destructive-action safety gate (SafetyGateInterceptor). Imported
@@ -521,7 +529,6 @@ class ActionDispatcher:
                 context = RequesterContext(requester_id=requester, granted_privilege=PrivilegeLevel.NORMAL)
         else:
             context = requester
-
         # 1. Action Existence Check
         action_def = self.get_action(action_name)
         if not action_def:
@@ -533,6 +540,17 @@ class ActionDispatcher:
                 error_code="ACTION_NOT_FOUND",
                 execution_time_ms=elapsed,
                 requester=context.requester_id
+            )
+
+        if payload is not None and not isinstance(payload, dict):
+            elapsed = (time.perf_counter() - t0) * 1000.0
+            return ActionResult(
+                action_name=action_name,
+                success=False,
+                error="Payload must be a dictionary.",
+                error_code="INVALID_PAYLOAD",
+                execution_time_ms=elapsed,
+                requester=context.requester_id,
             )
 
         # 2. Privilege Interception

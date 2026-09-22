@@ -151,8 +151,8 @@ def setup_logging(
         for handler in list(root_logger.handlers):
             try:
                 handler.close()
-            except Exception:
-                pass
+            except Exception as e:
+                root_logger.debug("Failed closing logging handler during setup: %s", e)
             root_logger.removeHandler(handler)
 
         # 1. Console Handler
@@ -174,7 +174,7 @@ def setup_logging(
             backupCount=backup_count,
             encoding="utf-8",
         )
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(numeric_level)
         file_handler.setFormatter(StructuredFileFormatter())
         root_logger.addHandler(file_handler)
 
@@ -191,8 +191,8 @@ def shutdown_logging() -> None:
         for handler in list(root_logger.handlers):
             try:
                 handler.close()
-            except Exception:
-                pass
+            except Exception as e:
+                root_logger.debug("Failed closing logging handler during shutdown: %s", e)
             root_logger.removeHandler(handler)
         _LOGGING_INITIALIZED = False
 

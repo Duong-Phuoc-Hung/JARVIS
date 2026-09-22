@@ -124,6 +124,25 @@ class SafetyGate:
         """Alias for reject."""
         return self.reject(token)
 
+    def consume(self, token: str) -> bool:
+        """
+        One-shot consumption of a confirmed token to prevent replay attacks.
+        Sets token status to 'CONSUMED' and returns True if it was previously
+        'CONFIRMED' and not expired. Returns False otherwise.
+        """
+        with self._lock:
+            token_clean = token.strip().upper()
+            entry = self._pending.get(token_clean)
+            if not entry:
+                return False
+            if entry.is_expired:
+                entry.status = "EXPIRED"
+                return False
+            if entry.status == "CONFIRMED":
+                entry.status = "CONSUMED"
+                return True
+            return False
+
     def is_pending(self, token: str) -> bool:
         """Returns True if the token is active, unexpired, and pending."""
         with self._lock:

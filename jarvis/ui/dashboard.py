@@ -14,6 +14,7 @@ import collections
 import http.server
 import json
 import logging
+import re
 import threading
 import time
 import urllib.parse
@@ -31,7 +32,7 @@ try:
     import websockets
     WEBSOCKETS_AVAILABLE = True
 except ImportError:
-    websockets = None  # type: ignore[assignment]
+    websockets: Any = None
     WEBSOCKETS_AVAILABLE = False
 
 
@@ -369,12 +370,25 @@ class DashboardHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         """Suppress default stdout logging or route to debug."""
         logger.debug("%s - - [%s] %s", self.address_string(), self.log_date_time_string(), format % args)
 
+    CORS_ALLOWED_ORIGIN_PATTERN = re.compile(
+        r"^https?://(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$",
+        re.IGNORECASE,
+    )
+
+    def _get_allowed_origin(self) -> str | None:
+        origin = (self.headers.get("Origin") or "").strip()
+        if origin and self.CORS_ALLOWED_ORIGIN_PATTERN.match(origin):
+            return origin
+        return None
+
     def _send_json(self, data: Any, status_code: int = 200) -> None:
         body = json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        allowed_origin = self._get_allowed_origin()
+        if allowed_origin:
+            self.send_header("Access-Control-Allow-Origin", allowed_origin)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -390,7 +404,9 @@ class DashboardHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_OPTIONS(self) -> None:
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        allowed_origin = self._get_allowed_origin()
+        if allowed_origin:
+            self.send_header("Access-Control-Allow-Origin", allowed_origin)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -650,9 +666,10 @@ class DashboardServer:
         ]
 
     def get_config_dict(self) -> dict[str, Any]:
+        from jarvis.support.diagnostics import redact_dict
         cfg_mgr = self.config_manager or (self.app and getattr(self.app, "config", None))
         if cfg_mgr and hasattr(cfg_mgr, "to_dict"):
-            return cfg_mgr.to_dict()
+            return redact_dict(cfg_mgr.to_dict())
         return {}
 
     def update_config_dict(self, new_cfg: dict[str, Any]) -> dict[str, Any]:
@@ -664,6 +681,7 @@ class DashboardServer:
         return {"success": False, "error": "ConfigManager unavailable."}
 
     def get_recent_logs(self, max_lines: int = 50) -> list[str]:
+        from jarvis.support.diagnostics import redact_text
         import os as _osd
         _apd = _osd.environ.get("LOCALAPPDATA") or _osd.environ.get("APPDATA")
         log_path = (Path(_apd) / "JARVIS" / "logs" / "jarvis.log") if _apd else Path.home() / ".jarvis" / "logs" / "jarvis.log"
@@ -672,7 +690,7 @@ class DashboardServer:
         try:
             with open(log_path, encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
-                return [line.strip() for line in lines[-max_lines:]]
+                return [redact_text(line.strip()) for line in lines[-max_lines:]]
         except Exception as e:
             return [f"[ERROR] Could not read log file: {e}"]
 

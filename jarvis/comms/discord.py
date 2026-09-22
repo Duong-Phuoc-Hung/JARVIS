@@ -78,6 +78,7 @@ class DiscordBotController:
         poll_interval_s: float = 2.0,
         consecutive_error_threshold: int = 5,
         message_handler: Callable | None = None,
+        admin_user_ids: list[int] | None = None,
     ) -> None:
         self.bot_token = bot_token or (config.bot_token if config else "")
         raw_whitelist = whitelist_user_ids or (config.whitelist_user_ids if config else [])
@@ -89,6 +90,16 @@ class DiscordBotController:
                     self.whitelist.append(u_int)
             except (ValueError, TypeError):
                 pass
+        raw_admins = admin_user_ids if admin_user_ids is not None else (getattr(config, "admin_user_ids", None) if config else None)
+        self.admin_user_ids: list[int] = []
+        if raw_admins is not None:
+            for uid in raw_admins:
+                try:
+                    u_int = int(uid)
+                    if u_int > 0:
+                        self.admin_user_ids.append(u_int)
+                except (ValueError, TypeError):
+                    pass
         self.guild_id = guild_id or (config.guild_id if config else None)
         self.default_channel_id = channel_id or (config.default_channel_id if config else None)
         self.dispatcher = dispatcher
@@ -133,6 +144,16 @@ class DiscordBotController:
             log.warning("Discord security rejection: whitelist is unconfigured or empty.")
             return False
         return u_int in self.whitelist
+
+    def is_admin(self, user_id: int) -> bool:
+        """Validate if user has admin privileges for sensitive commands."""
+        try:
+            u_int = int(user_id) if user_id is not None else 0
+        except (ValueError, TypeError):
+            return False
+        if self.admin_user_ids:
+            return u_int in self.admin_user_ids
+        return self.is_user_authorized(u_int)
 
     # ------------------------------------------------------------------
     # Message Handling
@@ -198,10 +219,16 @@ class DiscordBotController:
             if cmd_name == "calc":
                 return self._cmd_calc(cmd_args)
             if cmd_name == "screenshot":
+                if not self.is_admin(user_id):
+                    return {"status": 403, "text": "⛔ Bạn không có quyền chụp màn hình.", "embed": None}
                 return self._cmd_screenshot(channel_id)
             if cmd_name == "macro":
+                if not self.is_admin(user_id):
+                    return {"status": 403, "text": "⛔ Bạn không có quyền chạy macro.", "embed": None}
                 return self._cmd_macro(cmd_args)
             if cmd_name == "exec":
+                if not self.is_admin(user_id):
+                    return {"status": 403, "text": "⛔ Bạn không có quyền thực thi lệnh này.", "embed": None}
                 return self._cmd_exec(cmd_args, username)
 
         # Natural language fallback
@@ -250,7 +277,8 @@ class DiscordBotController:
             result = reg.invoke_skill("briefing", action="full")
             text = result.get("output", "Không thể tải briefing.") if isinstance(result, dict) else str(result)
         except Exception as exc:
-            text = f"Briefing không khả dụng: {exc}"
+            log.warning("Briefing command failed: %s", exc)
+            text = "Briefing hiện tại không khả dụng."
         return {"status": 200, "text": f"📰 {text[:1800]}", "embed": None}
 
     def _cmd_skills(self) -> dict[str, Any]:
@@ -261,7 +289,8 @@ class DiscordBotController:
             names = [s.name for s in skills]
             text = "🧰 **Kỹ năng:** " + ", ".join(f"`{n}`" for n in names)
         except Exception as exc:
-            text = f"Lỗi lấy danh sách kỹ năng: {exc}"
+            log.warning("Skills command failed: %s", exc)
+            text = "Không thể lấy danh sách kỹ năng vào lúc này."
         return {"status": 200, "text": text[:1800], "embed": None}
 
     def _cmd_note(self, note_text: str) -> dict[str, Any]:
@@ -285,7 +314,8 @@ class DiscordBotController:
             result = reg.invoke_skill("calculator", expression=expr)
             text = result.get("output", str(result)) if isinstance(result, dict) else str(result)
         except Exception as exc:
-            text = f"Lỗi tính toán: {exc}"
+            log.warning("Calc command failed: %s", exc)
+            text = "Biểu thức không hợp lệ hoặc xảy ra lỗi tính toán."
         return {"status": 200, "text": f"🔢 {text}", "embed": None}
 
     def _cmd_screenshot(self, channel_id: int) -> dict[str, Any]:
@@ -302,7 +332,8 @@ class DiscordBotController:
             result = reg.invoke_skill("macro_recorder", action="play", macro_name=macro_name)
             text = result.get("output", str(result)) if isinstance(result, dict) else str(result)
         except Exception as exc:
-            text = f"Lỗi chạy macro '{macro_name}': {exc}"
+            log.warning("Macro command failed: %s", exc)
+            text = f"Không thể thực thi macro '{macro_name}'."
         return {"status": 200, "text": text[:1800], "embed": None}
 
     def _cmd_exec(self, command: str, username: str) -> dict[str, Any]:
@@ -318,7 +349,8 @@ class DiscordBotController:
             result = reg.invoke_skill(skill_name, **kwargs)
             text = result.get("output", str(result)) if isinstance(result, dict) else str(result)
         except Exception as exc:
-            text = f"Lỗi exec '{skill_name}': {exc}"
+            log.warning("Exec command failed: %s", exc)
+            text = f"Không thể thực thi lệnh '{skill_name}'."
         return {"status": 200, "text": f"⚙️ {text[:1800]}", "embed": None}
 
     def summarize_channel(self, channel_name: str, messages: list[str]) -> str:

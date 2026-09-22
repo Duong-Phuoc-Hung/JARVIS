@@ -10,6 +10,7 @@ import base64
 import logging
 import math
 import os
+import tempfile
 import threading
 import time
 import urllib.parse
@@ -659,17 +660,32 @@ class BrowserActionExecutor:
         try:
             import requests
 
-            downloads_dir = Path(self.driver.config.downloads_dir)
+            downloads_dir = Path(self.driver.config.downloads_dir).resolve()
             downloads_dir.mkdir(parents=True, exist_ok=True)
 
             # Determine destination path
             if not target_path:
                 parsed_url = urllib.parse.urlparse(url)
-                filename = os.path.basename(parsed_url.path) or f"download_{int(time.time())}.bin"
-                dest_path = downloads_dir / filename
+                raw_name = os.path.basename(parsed_url.path) or f"download_{int(time.time())}.bin"
+                safe_filename = Path(raw_name).name
+                dest_path = (downloads_dir / safe_filename).resolve()
             else:
-                dest_path = Path(target_path)
-                dest_path.parent.mkdir(parents=True, exist_ok=True)
+                candidate = Path(target_path)
+                if not candidate.is_absolute():
+                    dest_path = (downloads_dir / candidate).resolve()
+                else:
+                    dest_path = candidate.resolve()
+
+            # Enforce that destination path cannot escape allowed download directory boundaries
+            allowed_dirs = [downloads_dir]
+            if getattr(self.driver.config, "session_storage_dir", None):
+                allowed_dirs.append(Path(self.driver.config.session_storage_dir).resolve())
+            allowed_dirs.append(Path(tempfile.gettempdir()).resolve())
+
+            if not any(dest_path == b or dest_path.is_relative_to(b) for b in allowed_dirs):
+                raise PermissionError(f"Target download path '{target_path}' is outside allowed directories.")
+
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
 
             browser_cookies = self.driver.get_cookies()
             if self.driver.last_error_status is not None:

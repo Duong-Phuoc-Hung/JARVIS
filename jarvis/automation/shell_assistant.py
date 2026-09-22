@@ -7,13 +7,17 @@ and protects system integrity with an adversarial destructive command safety gat
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
+import shlex
 import subprocess
 import sys
 from typing import Any
 
 from jarvis.automation.safety_gate import SafetyGate
+
+log = logging.getLogger("jarvis.automation.shell_assistant")
 
 
 class ShellAssistant:
@@ -211,8 +215,19 @@ class ShellAssistant:
             re.IGNORECASE,
         )
         if del_dir_match:
-            path_arg = del_dir_match.group(1).strip()
-            return f"rmdir /s /q {path_arg}", "destructive_delete"
+            path_arg = del_dir_match.group(1).strip().strip('"').strip("'")
+            if any(ch in path_arg for ch in (";", "&", "|", ">", "<", "`", "$", "\n")):
+                raise ValueError("Thao tác bị từ chối: Đường dẫn chứa ký tự điều khiển không hợp lệ.")
+            target_path = os.path.abspath(os.path.join(target_dir, path_arg))
+            protected_roots = [os.path.abspath(os.sep)]
+            if sys.platform == "win32":
+                protected_roots.extend([f"{d}:\\" for d in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"])
+                sys_root = os.environ.get("SystemRoot", "C:\\Windows")
+                prog_files = os.environ.get("ProgramFiles", "C:\\Program Files")
+                protected_roots.extend([os.path.abspath(sys_root), os.path.abspath(prog_files)])
+            if target_path in protected_roots or target_path == os.path.dirname(target_path):
+                raise ValueError(f"Thao tác bị từ chối: Không được phép xóa thư mục gốc hoặc hệ thống '{target_path}'.")
+            return f'rmdir /s /q "{target_path}"', "destructive_delete"
 
         # 8. Clear Temp Triggers
         if any(kw in q_lower for kw in ["dọn dẹp temp", "don dep temp", "clear temp", "xóa file tạm", "xoa file tam"]):
@@ -340,11 +355,13 @@ class ShellAssistant:
     # -----------------------------------------------------------------------
     # Port Inspector
     # -----------------------------------------------------------------------
-    def check_port(self, port: int) -> str:
+    def check_port(self, port: int | str) -> str:
         """Inspects network port binding and identifies holding process."""
-        port_num = int(port)
-        cmd = "netstat -ano"
         try:
+            port_num = int(port)
+            if not (1 <= port_num <= 65535):
+                return f"Không thể kiểm tra port {port}: Giá trị port không hợp lệ (phải từ 1 đến 65535)."
+            cmd = "netstat -ano"
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             res = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=10, creationflags=_cflags)
             lines = res.stdout.splitlines() if res.stdout else []
@@ -378,9 +395,10 @@ class ShellAssistant:
             if pid.isdigit() and int(pid) > 0:
                 try:
                     _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                    task_cmd = ["tasklist", "/fi", f"PID eq {int(pid)}", "/fo", "csv", "/nh"] if sys.platform == "win32" else ["ps", "-p", str(int(pid)), "-o", "comm="]
                     task_res = subprocess.run(
-                        f"tasklist /fi \"PID eq {pid}\" /fo csv /nh",
-                        shell=True,
+                        task_cmd,
+                        shell=False,
                         capture_output=True,
                         text=True, encoding='utf-8', errors='replace',
                         timeout=5,
@@ -388,12 +406,12 @@ class ShellAssistant:
                     )
                     if task_res.stdout and '"' in task_res.stdout:
                         proc_name = task_res.stdout.split(",")[0].replace('"', "").strip()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    log.debug("Process name resolution failed for PID %s: %s", pid, exc)
 
             return f"Port {port_num} đang mở ở trạng thái {state}, được sử dụng bởi tiến trình {proc_name} (PID {pid}), thưa Ngài."
         except Exception as e:
-            return f"Không thể kiểm tra port {port_num}: {e}"
+            return f"Không thể kiểm tra port {port}: {e}"
 
     # -----------------------------------------------------------------------
     # Package Installer
@@ -574,15 +592,98 @@ class ShellAssistant:
         # Safe Execution
         try:
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            proc = subprocess.run(
-                cmd,
-                shell=True,
-                capture_output=True,
-                text=True, encoding='utf-8', errors='replace',
-                timeout=60,
-                cwd=target_dir,
-                creationflags=_cflags,
-            )
+            if category == "custom":
+                cmd_tokens = shlex.split(cmd, posix=(sys.platform != "win32"))
+                if not cmd_tokens:
+                    return {
+                        "success": False,
+                        "requires_confirmation": False,
+                        "command": cmd,
+                        "category": category,
+                        "exit_code": -1,
+                        "stdout": "",
+                        "stderr": "Lệnh rỗng không thể thực thi.",
+                        "summary": "Lệnh rỗng không hợp lệ, thưa Ngài.",
+                    }
+                base_exec = os.path.basename(cmd_tokens[0]).lower().removesuffix(".exe")
+                allowed_custom_execs = {
+                    "python", "python3", "node", "npm", "npx", "git", "pip", "pip3",
+                    "pytest", "cargo", "go", "docker", "docker-compose", "deno", "pnpm", "yarn",
+                    "dotnet", "java", "javac", "mvn", "gradle", "dir", "echo", "type", "cat",
+                    "ls", "ping", "netstat", "ipconfig", "hostname", "whoami", "powershell"
+                }
+                if base_exec not in allowed_custom_execs:
+                    return {
+                        "success": False,
+                        "requires_confirmation": False,
+                        "command": cmd,
+                        "category": category,
+                        "exit_code": -1,
+                        "stdout": "",
+                        "stderr": f"Lệnh '{base_exec}' không nằm trong danh mục công cụ được phép thực thi.",
+                        "summary": f"Từ chối thực thi lệnh '{base_exec}' vì lý do an toàn hệ thống, thưa Ngài.",
+                    }
+                if sys.platform == "win32" and base_exec in ("dir", "echo", "type"):
+                    shell_chain_ops = ("&", "|", ";", ">", "<", "^", "$(", "`")
+                    raw_args = cmd[len(cmd_tokens[0]):]
+                    if any(op in raw_args for op in shell_chain_ops) or any(any(op in tok for op in shell_chain_ops) for tok in cmd_tokens[1:]):
+                        return {
+                            "success": False,
+                            "requires_confirmation": False,
+                            "command": cmd,
+                            "category": category,
+                            "exit_code": -1,
+                            "stdout": "",
+                            "stderr": f"Lệnh chứa toán tử shell hoặc ký tự điều khiển không an toàn: '{cmd}'.",
+                            "summary": "Từ chối thực thi do chứa toán tử shell không an toàn, thưa Ngài.",
+                        }
+                    cmd_tokens = ["cmd.exe", "/c", *cmd_tokens]
+                proc = subprocess.run(
+                    cmd_tokens,
+                    creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+                    shell=False,
+                    capture_output=True,
+                    text=True, encoding='utf-8', errors='replace',
+                    timeout=60,
+                    cwd=target_dir,
+                )
+            else:
+                if not any(c in cmd for c in ("|", ">", "<", "&", "&&", "||")):
+                    cmd_tokens = shlex.split(cmd, posix=(sys.platform != "win32"))
+                    if sys.platform == "win32" and cmd_tokens and os.path.basename(cmd_tokens[0]).lower().removesuffix(".exe") in ("dir", "echo", "type"):
+                        shell_chain_ops = ("&", "|", ";", ">", "<", "^", "$(", "`")
+                        raw_args = cmd[len(cmd_tokens[0]):]
+                        if any(op in raw_args for op in shell_chain_ops) or any(any(op in tok for op in shell_chain_ops) for tok in cmd_tokens[1:]):
+                            return {
+                                "success": False,
+                                "requires_confirmation": False,
+                                "command": cmd,
+                                "category": category,
+                                "exit_code": -1,
+                                "stdout": "",
+                                "stderr": f"Lệnh chứa toán tử shell hoặc ký tự điều khiển không an toàn: '{cmd}'.",
+                                "summary": "Từ chối thực thi do chứa toán tử shell không an toàn, thưa Ngài.",
+                            }
+                        cmd_tokens = ["cmd.exe", "/c", *cmd_tokens]
+                    proc = subprocess.run(
+                        cmd_tokens,
+                        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+                        shell=False,
+                        capture_output=True,
+                        text=True, encoding='utf-8', errors='replace',
+                        timeout=60,
+                        cwd=target_dir,
+                    )
+                else:
+                    proc = subprocess.run(
+                        cmd,
+                        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+                        shell=True,
+                        capture_output=True,
+                        text=True, encoding='utf-8', errors='replace',
+                        timeout=60,
+                        cwd=target_dir,
+                    )
             raw_out = proc.stdout if proc.returncode == 0 else (proc.stderr or proc.stdout)
             summary = self.summarize_output(cmd, raw_out, proc.returncode)
 

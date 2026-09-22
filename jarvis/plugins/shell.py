@@ -5,6 +5,7 @@ CLI shell execution plugin with ADMIN privilege enforcement and timeout protecti
 """
 from __future__ import annotations
 
+import logging
 import subprocess
 import sys
 from typing import Any
@@ -14,6 +15,10 @@ import psutil
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import PluginMetadata, PrivilegeLevel
 from jarvis.core.plugin import BasePlugin
+
+log = logging.getLogger("jarvis.plugins.shell")
+
+HIGH_RISK_ACTIONS: set[str] = {"shell_exec", "shell_execute", "shell_command"}
 
 
 class ShellPlugin(BasePlugin):
@@ -77,8 +82,8 @@ class ShellPlugin(BasePlugin):
             # timeout result rather than blocking again on a lingering handle.
             try:
                 proc.communicate(timeout=2.0)
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug("Process communicate error on timeout cleanup: %s", exc)
             # Fail closed unconditionally: a timeout is always reported as a
             # timeout, regardless of whether cleanup above fully succeeded.
             raise TimeoutError(f"Command timed out after {timeout}s")
@@ -106,27 +111,27 @@ class ShellPlugin(BasePlugin):
                 for child in reversed(descendants):
                     try:
                         child.kill()
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        pass
+                    except (psutil.NoSuchProcess, psutil.AccessDenied) as exc:
+                        log.debug("Child kill error: %s", exc)
                 try:
                     root.kill()
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    pass
+                except (psutil.NoSuchProcess, psutil.AccessDenied) as exc:
+                    log.debug("Root process kill error: %s", exc)
                 _, survivors = psutil.wait_procs([*descendants, root], timeout=0.5)
                 for survivor in survivors:
                     try:
                         survivor.kill()
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        pass
+                    except (psutil.NoSuchProcess, psutil.AccessDenied) as exc:
+                        log.debug("Survivor kill error: %s", exc)
                 if survivors:
                     psutil.wait_procs(survivors, timeout=0.5)
-            except Exception:
+            except Exception as exc:
                 # The wrapper may have exited between communicate() timing
                 # out and this snapshot, or OS policy may deny inspection.
                 # Cleanup errors must not replace the truthful TimeoutError;
                 # the Popen handle is still killed below as a final fallback.
-                pass
+                log.debug("Process tree inspection error: %s", exc)
         try:
             proc.kill()
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug("Direct proc kill error: %s", exc)

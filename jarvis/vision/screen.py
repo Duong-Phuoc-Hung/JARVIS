@@ -300,8 +300,13 @@ class ScreenVisionManager:
             else:
                 return self.DEFAULT_FALLBACK_MESSAGE
         except Exception as exc:
-            logger.error("Vision LLM analysis failed: %s", exc, exc_info=True)
-            return f"Xin lỗi Ngài, đã xảy ra lỗi khi phân tích hình ảnh màn hình: {exc}"
+            clean_err = str(exc)
+            if self.gemini_api_key:
+                clean_err = clean_err.replace(self.gemini_api_key, "***REDACTED***")
+            if self.openai_api_key:
+                clean_err = clean_err.replace(self.openai_api_key, "***REDACTED***")
+            logger.error("Vision LLM analysis failed: %s", clean_err, exc_info=True)
+            return f"Xin lỗi Ngài, đã xảy ra lỗi khi phân tích hình ảnh màn hình: {clean_err}"
 
     def _call_gemini_vision(self, prompt: str, b64_data: str) -> str:
         """Calls Google Gemini Vision REST API via requests."""

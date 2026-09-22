@@ -306,7 +306,9 @@ class ConfigNode:
         return copy.deepcopy(self._data)
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self._data!r})"
+        from jarvis.support.diagnostics import redact_dict
+        sanitized = redact_dict(self._data)
+        return f"{type(self).__name__}({sanitized!r})"
 
 
 class AudioConfig(ConfigNode):
@@ -721,7 +723,8 @@ class ConfigManager:
                         win_key = dot_key.replace("plugins.chrome.", "windows.")
                         self._set_dot_key(target, win_key, typed_val)
                 except (ValueError, TypeError) as e:
-                    log.warning("Invalid env override for '%s'=%r (expected %s): %s", env_key, val_str, expected_type.__name__, e)
+                    val_display = "***REDACTED***" if any(k in env_key.upper() for k in ("KEY", "TOKEN", "SECRET", "PASS", "AUTH", "PWD")) else val_str
+                    log.warning("Invalid env override for '%s'=%r (expected %s): %s", env_key, val_display, expected_type.__name__, e)
 
         # Generic JARVIS__SECTION__KEY pattern (e.g. JARVIS__AUDIO__SAMPLE_RATE=48000)
         for key, val in os.environ.items():

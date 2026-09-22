@@ -133,7 +133,7 @@ class MobileFileBridge:
                 success=False,
                 status=ActionStatus.ERROR,
                 code="FILE_SAVE_ERROR",
-                message=str(exc),
+                message="Lỗi lưu tệp tin.",
                 retryable=False,
             )
 
@@ -183,7 +183,7 @@ class MobileFileBridge:
                     success=False,
                     status=ActionStatus.ERROR,
                     code="TELEGRAM_SEND_FAILED",
-                    message=str(exc),
+                    message="Không thể gửi clipboard qua Telegram.",
                     retryable=True,
                     data={"text": preview, "length": len(text)},
                 )
@@ -259,7 +259,7 @@ class MobileFileBridge:
                     success=False,
                     status=ActionStatus.ERROR,
                     code="TELEGRAM_SEND_FAILED",
-                    message=str(exc),
+                    message="Không thể gửi ảnh chụp màn hình qua Telegram.",
                     retryable=True,
                     data={"saved_path": str(temp_path), "size_kb": size_kb},
                 )

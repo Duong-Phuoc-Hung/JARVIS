@@ -19,6 +19,11 @@ class PrivilegeLevel(IntEnum):
 
 
 
+class SecurityConfigurationError(Exception):
+    """Raised when an insecure configuration or unauthorized security bypass is attempted."""
+    pass
+
+
 class PluginStatus(str, Enum):
     """Plugin runtime lifecycle states."""
     UNINITIALIZED = "uninitialized"

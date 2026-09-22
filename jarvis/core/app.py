@@ -1831,8 +1831,17 @@ class JarvisApp:
     def _handle_safety_gate_confirm(self, token: str | None = None, **kwargs) -> dict[str, Any]:
         """Confirms pending high-risk action."""
         if self.safety_gate:
-            pending = self.safety_gate.get_latest_pending()
-            t = token or (pending.token if pending else "")
+            pending_list = self.safety_gate.list_pending()
+            if not token:
+                if len(pending_list) > 1:
+                    return {
+                        "status": "failed",
+                        "message": f"Có {len(pending_list)} thao tác đang chờ xác nhận. Vui lòng cung cấp mã token cụ thể để xác nhận.",
+                    }
+                pending = pending_list[0] if pending_list else None
+                t = pending.token if pending else ""
+            else:
+                t = token
             ok = self.safety_gate.confirm(t) if t else False
             msg = f"Đã xác nhận và thực thi thao tác (Token {t}), thưa Ngài." if ok else "Không có thao tác nào đang chờ xác nhận hoặc token đã hết hạn."
             return {"status": "success" if ok else "failed", "message": msg}
@@ -1841,8 +1850,17 @@ class JarvisApp:
     def _handle_safety_gate_reject(self, token: str | None = None, **kwargs) -> dict[str, Any]:
         """Rejects pending high-risk action."""
         if self.safety_gate:
-            pending = self.safety_gate.get_latest_pending()
-            t = token or (pending.token if pending else "")
+            pending_list = self.safety_gate.list_pending()
+            if not token:
+                if len(pending_list) > 1:
+                    return {
+                        "status": "failed",
+                        "message": f"Có {len(pending_list)} thao tác đang chờ xác nhận. Vui lòng cung cấp mã token cụ thể để hủy bỏ.",
+                    }
+                pending = pending_list[0] if pending_list else None
+                t = pending.token if pending else ""
+            else:
+                t = token
             ok = self.safety_gate.reject(t) if t else False
             msg = f"Đã hủy thao tác (Token {t}), thưa Ngài." if ok else "Không có thao tác nào đang chờ xác nhận."
             return {"status": "success" if ok else "failed", "message": msg}

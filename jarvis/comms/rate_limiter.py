@@ -82,6 +82,7 @@ class TokenBucketRateLimiter:
             burst = burst_limit if burst_limit is not None else 5
             self.config = RateLimitConfig(requests_per_minute=float(rpm), burst_limit=int(burst))
         self.channel_name = channel_name
+        self.max_buckets: int = int(kwargs.get("max_buckets", 10000))
         self._buckets: dict[str, TokenBucket] = {}
         self._lock = threading.Lock()
 
@@ -116,6 +117,13 @@ class TokenBucketRateLimiter:
             # and move ``last_updated`` backwards, double-counting refill time.
             now = time.monotonic()
             if uid not in self._buckets:
+                if len(self._buckets) >= self.max_buckets or len(self._buckets) >= 1000:
+                    self._cleanup_idle_locked(now, max_idle_s=3600.0)
+                    if len(self._buckets) >= self.max_buckets:
+                        oldest = sorted(self._buckets.items(), key=lambda item: item[1].last_updated)
+                        for k, _ in oldest[: len(self._buckets) - self.max_buckets + 1]:
+                            del self._buckets[k]
+
                 self._buckets[uid] = TokenBucket(
                     tokens=self.capacity,
                     last_updated=now,
@@ -172,16 +180,19 @@ class TokenBucketRateLimiter:
             else:
                 self._buckets.pop(str(user_id), None)
 
+    def _cleanup_idle_locked(self, now: float, max_idle_s: float = 3600.0) -> int:
+        evicted = 0
+        for uid in list(self._buckets.keys()):
+            if now - self._buckets[uid].last_updated > max_idle_s:
+                del self._buckets[uid]
+                evicted += 1
+        return evicted
+
     def cleanup_idle(self, max_idle_s: float = 3600.0) -> int:
         """Evict buckets that haven't been accessed for max_idle_s to reclaim memory."""
         now = time.monotonic()
-        evicted = 0
         with self._lock:
-            for uid in list(self._buckets.keys()):
-                if now - self._buckets[uid].last_updated > max_idle_s:
-                    del self._buckets[uid]
-                    evicted += 1
-        return evicted
+            return self._cleanup_idle_locked(now, max_idle_s)
 
     def get_token_count(self, user_id: str | int) -> float:
         """Inspect current available tokens for user_id without consuming."""

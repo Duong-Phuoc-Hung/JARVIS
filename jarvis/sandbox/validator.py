@@ -82,6 +82,37 @@ class _PythonASTSafetyVisitor(ast.NodeVisitor):
                         )
         self.generic_visit(node)
 
+    def _is_sys_modules(self, node: ast.AST) -> bool:
+        if isinstance(node, ast.Attribute):
+            return (
+                isinstance(node.value, ast.Name)
+                and node.value.id == "sys"
+                and node.attr == "modules"
+            )
+        if isinstance(node, ast.Name) and node.id == "modules":
+            return True
+        return False
+
+    def visit_Subscript(self, node: ast.Subscript) -> None:
+        if self._is_sys_modules(node.value):
+            target_mod: str | None = None
+            if isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str):
+                target_mod = node.slice.value.split(".")[0]
+            elif hasattr(ast, "Str") and isinstance(node.slice, getattr(ast, "Str")):
+                target_mod = getattr(node.slice, "s").split(".")[0]
+
+            forbidden_mods = self.forbidden_modules | {"os", "sys", "subprocess", "importlib", "_imp", "builtins"}
+            if target_mod is not None:
+                if target_mod in forbidden_mods:
+                    self.violations.append(
+                        f"Forbidden access to module '{target_mod}' via sys.modules at line {node.lineno}"
+                    )
+            else:
+                self.violations.append(
+                    f"Forbidden dynamic access to sys.modules at line {node.lineno}"
+                )
+        self.generic_visit(node)
+
     def visit_Call(self, node: ast.Call) -> None:
         # Check direct call by name (e.g. eval(...), exec(...))
         if isinstance(node.func, ast.Name):
@@ -100,6 +131,24 @@ class _PythonASTSafetyVisitor(ast.NodeVisitor):
                 self.violations.append(
                     f"Forbidden reflection call '{attr_name}()' at line {node.lineno}"
                 )
+            if attr_name == "get" and self._is_sys_modules(node.func.value):
+                target_mod: str | None = None
+                if node.args:
+                    arg0 = node.args[0]
+                    if isinstance(arg0, ast.Constant) and isinstance(arg0.value, str):
+                        target_mod = arg0.value.split(".")[0]
+                    elif hasattr(ast, "Str") and isinstance(arg0, getattr(ast, "Str")):
+                        target_mod = getattr(arg0, "s").split(".")[0]
+                forbidden_mods = self.forbidden_modules | {"os", "sys", "subprocess", "importlib", "_imp", "builtins"}
+                if target_mod is not None:
+                    if target_mod in forbidden_mods:
+                        self.violations.append(
+                            f"Forbidden access to module '{target_mod}' via sys.modules.get() at line {node.lineno}"
+                        )
+                else:
+                    self.violations.append(
+                        f"Forbidden dynamic access to sys.modules.get() at line {node.lineno}"
+                    )
         self.generic_visit(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
@@ -112,6 +161,12 @@ class _PythonASTSafetyVisitor(ast.NodeVisitor):
             self.violations.append(
                 f"Forbidden sys attribute access '{attr_name}' at line {node.lineno}"
             )
+        if self._is_sys_modules(node.value):
+            forbidden_mods = self.forbidden_modules | {"os", "sys", "subprocess", "importlib", "_imp", "builtins"}
+            if attr_name in forbidden_mods:
+                self.violations.append(
+                    f"Forbidden access to module '{attr_name}' via sys.modules attribute at line {node.lineno}"
+                )
         if isinstance(node.value, ast.Name):
             if node.value.id == "os" and attr_name in self.forbidden_os_attributes:
                 self.violations.append(
@@ -148,6 +203,9 @@ class ASTCodeValidator:
         "posix",
         "resource",
         "signal",
+        "importlib",
+        "_imp",
+        "builtins",
     }
 
     # Forbidden Python built-in functions
