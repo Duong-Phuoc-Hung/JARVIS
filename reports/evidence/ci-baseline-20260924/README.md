@@ -8,4 +8,4 @@ Current gates: unit 2723 passed/4 skipped/exit 0; browser 21 passed/exit 0; scop
 
 `unit-baseline` is the deliberately stopped Temp-permission attempt; its exit -1 is not a suite result. `unit` is the completed in-repo-interpreter diagnostic (14 failures due to sandbox path filtering). Final named runs use Python outside the repository. `browser` is the earlier browser run; `browser-final` is the final browser evidence and screenshots.
 
-Original DOCX assignment unavailable: exact acceptance cross-check PENDING. See `../../../docs/eval/ci_baseline_20260924.md` for scope and handoff.
+Original DOCX assignment has now been read: see `docx-acceptance.md` and `docx-acceptance.json` for verified T-01 criteria and D-01/D-02 remote-CI blockers. The immutable ZIP predates DOCX receipt; this addendum supersedes its DOCX-pending statements only. After extracting the ZIP, restore the tracked README from Git to retain this update. See `../../../docs/eval/ci_baseline_20260924.md` for scope and handoff.

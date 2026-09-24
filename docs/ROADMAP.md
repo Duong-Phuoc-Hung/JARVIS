@@ -8,7 +8,7 @@
 - [x] Phân loại và rerun 46 node: **45 failed, 1 passed**, 42.36s, exit 1; build prerequisite được xác minh RED → GREEN.
 - [ ] Full baseline xanh: còn 45 assertion tái hiện và native teardown cần điều tra; không nới safety gates/test assertions.
 - [ ] Remote CI trên revision tích hợp mới (task này không push/merge main).
-- [ ] Đối chiếu DOCX phân công gốc: chờ đường dẫn file từ người giao việc.
+- [x] Đã đọc DOCX từ đường dẫn tuyệt đối người giao việc cung cấp; T-01 khớp evidence hiện tại. D-01/D-02 vẫn PENDING remote CI, chưa DONE.
 
 [Evidence hiện tại](eval/ci_baseline_20260924.md). **PASS engineering** chỉ cho local CI contract;
 T-01 **PASS fail-closed / PASS runtime (loopback)**. Không nâng thành Product GO.

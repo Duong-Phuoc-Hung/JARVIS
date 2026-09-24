@@ -7,7 +7,7 @@ khai báo trong `pyproject.toml`. Kết quả mới: **2.723 unit passed / 4 ski
 **4.189 passed / 46 failed / 41 skipped**, process exit **-1073740940** sau summary.
 Sau bổ sung build prerequisite: rerun 46 node cho **45 failed / 1 passed**.
 **Local CI-contract PASS engineering; remote CI PENDING; full baseline NOT GREEN.**
-T-01 đạt PASS runtime trên loopback; đối chiếu DOCX phân công còn PENDING.
+T-01 đạt PASS engineering / PASS fail-closed / PASS runtime trên loopback; đã đối chiếu đủ tiêu chí DOCX gốc (xem addendum trong báo cáo).
 [Số liệu, lệnh và giới hạn hiện tại](docs/eval/ci_baseline_20260924.md).
 Các số test trong những mục cũ bên dưới là snapshot lịch sử, không chứng nhận revision mới.
 

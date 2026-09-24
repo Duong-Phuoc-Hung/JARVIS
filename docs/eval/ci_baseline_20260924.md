@@ -11,7 +11,7 @@ Production Python and existing tests are unchanged. Source version remains 5.2.1
 - Execute full `tests/` without fail-fast; report failures and skips without upgrading them to success.
 - Revalidate T-01 through BrowserAgent/Playwright/CDP plus browser-scoped tests; use only loopback sites.
 - No live account/device opt-ins. No main push/merge. Hand off branch, commit, logs, JUnit and screenshots.
-- The named assignment DOCX is absent from tracked files and was not found under D:/JAVIS. Its path has been requested. Exact original DOCX acceptance cross-check remains PENDING; the checked-in T-01 traceability matrix is the provisional reference.
+- The original assignment DOCX was supplied after the initial handoff and read from its external absolute path. Its D-01/D-02/T-01 rows are now cross-checked in the [DOCX acceptance addendum](../../reports/evidence/ci-baseline-20260924/docx-acceptance.md), with source SHA-256, exact criteria and test/artifact mapping. All 981 source-manifest hashes still match. The document-only follow-up does not constitute a new pytest run.
 
 ## Confirmed CI root cause
 
@@ -57,7 +57,7 @@ Chromium 153.0.8010.12 (Playwright 1.63.0) executed on loopback. Screenshot and 
 ## Verdict
 
 Workflow validation: PASS engineering, locally verified. Remote CI after integration: PENDING (no push/PR/run performed by this task).
-CI-contract local syntax/import/unit/browser gates: **PASS engineering**. T-01: **PASS engineering**, **PASS fail-closed**, **PASS runtime (loopback Chromium/CDP)** for the available executable seams. Original DOCX cross-check: **PENDING**.
+CI-contract local syntax/import/unit/browser gates: **PASS engineering**. T-01: **PASS engineering**, **PASS fail-closed**, **PASS runtime (loopback Chromium/CDP)** for the available executable seams. Original DOCX cross-check: **complete**, T-01 criteria covered by the recorded evidence. D-01/D-02 remain **PENDING** their required remote CI/main gates.
 Full repository baseline: **NOT GREEN** (45 reproducible residual assertions after prerequisite remediation, plus unresolved native shutdown in the full run). Internal pilot **CONDITIONAL GO** is not newly assessed or granted. Product release: **NO-GO**; no **GO** assertion is made.
 
 ## Reproduction commands
@@ -107,4 +107,4 @@ Skip inventory for full tests: 21 opt-in browser cases (separately passed), 6 in
 
 The integration agent should review the workflow diff, preserve the existing failure inventory, and create a new remote CI run on its integration/PR revision. The run at 9d3c591 remains a historical failure; local validation does not alter it. No main push/merge or remote run was performed here.
 
-Before claiming a repository-wide green baseline, resolve the product/test-owner items above and investigate the full-process shutdown exit. Before closing the original assigned T-01 acceptance, obtain and check the named DOCX; only the checked-in traceability and current executable browser seams were available for this task.
+Before claiming a repository-wide green baseline, resolve the product/test-owner items above and investigate the full-process shutdown exit. The original T-01 DOCX criteria have now been checked against current executable evidence (see addendum). D-01/D-02 cannot be marked DONE until the required CI gates pass on the integration/main revision. The immutable ZIP predates DOCX receipt; the addendum supersedes its DOCX-pending statements only.

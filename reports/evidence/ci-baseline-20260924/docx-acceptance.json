@@ -1,0 +1,122 @@
+{
+  "source": "D:\\JAVIS\\JARVIS-main\\JARVIS-main\\docs\\JARVIS_Phan_cong_3_thanh_vien_Hoa_Hung_Thai.docx",
+  "source_sha256": "8ddf67c448c05ced363080e9a55a52a716ad7ed9453353a2deaacf68405616ac",
+  "read_at_utc": "2026-09-24T09:52:14.910337+00:00",
+  "docx_planning_base": "75ae962fcafa2a02561dd4e2efd25e598afafe7d",
+  "review_head": "26b257551f83167f13be3a8b8cf7a6f987d5ad57",
+  "tested_base_head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "source_manifest_files_verified": 981,
+  "source_mismatches": [],
+  "assignment_rows": {
+    "D-01": {
+      "id": "D-01",
+      "priority": "P0",
+      "task": "Sửa CI #200 đang đỏ",
+      "existing_gap": "Main 75ae962f... hiện Syntax/Import pass nhưng Unit Tests và Pipeline Summary fail.",
+      "required_work": "Reproduce đúng GitHub Windows runner; lấy danh sách failing tests; sửa root cause/source/test/dependency parity; không skip để che lỗi.",
+      "done_when": "CI Syntax + Unit + Import + Pipeline Summary đều green trên main."
+    },
+    "D-02": {
+      "id": "D-02",
+      "priority": "P0",
+      "task": "Sửa Phase 9 clean-environment parity",
+      "existing_gap": "Phase 9 local báo full unit pass nhưng CI vẫn fail; có thể khác dependency/Windows/Python environment.",
+      "required_work": "Tạo clean venv gần CI; chạy IMAP/TTS/volume + full unit; chỉnh dependency contract hoặc implementation đúng production.",
+      "done_when": "Clean-env pass và CI pass; không cần state còn sót từ máy dev."
+    },
+    "T-01": {
+      "id": "T-01",
+      "priority": "P0",
+      "task": "Hoàn thiện Browser CDP/Playwright action thật",
+      "existing_gap": "Browser audit từng phát hiện click/type ghost success; hiện đã fail-closed nhưng real E2E chưa đủ.",
+      "required_work": "Dựng test browser; validate navigate, click, type, wait selector, timeout, disconnected session bằng browser thật.",
+      "done_when": "Có E2E browser flow thật; no-session/disconnect luôn fail; không ghost success."
+    }
+  },
+  "verified_junit_cases": [
+    {
+      "junit": "browser-final.xml",
+      "classname": "tests.e2e.test_browser_playwright_e2e",
+      "name": "test_real_browser_full_action_and_dom_flow",
+      "status": "passed"
+    },
+    {
+      "junit": "browser-final.xml",
+      "classname": "tests.e2e.test_browser_playwright_e2e",
+      "name": "test_real_cdp_attach_navigates_and_interacts",
+      "status": "passed"
+    },
+    {
+      "junit": "browser-final.xml",
+      "classname": "tests.e2e.test_browser_playwright_e2e",
+      "name": "test_wait_timeout_has_stable_timeout_result",
+      "status": "passed"
+    },
+    {
+      "junit": "browser-final.xml",
+      "classname": "tests.e2e.test_browser_playwright_e2e",
+      "name": "test_navigation_timeout_fails_closed",
+      "status": "passed"
+    },
+    {
+      "junit": "browser-final.xml",
+      "classname": "tests.e2e.test_browser_playwright_e2e",
+      "name": "test_action_after_session_close_reports_disconnected",
+      "status": "passed"
+    },
+    {
+      "junit": "browser-final.xml",
+      "classname": "tests.e2e.test_browser_playwright_e2e",
+      "name": "test_real_cdp_disconnect_fails_closed",
+      "status": "passed"
+    },
+    {
+      "junit": "browser-final.xml",
+      "classname": "tests.e2e.test_browser_playwright_e2e",
+      "name": "test_legacy_controller_delegates_to_real_canonical_browser",
+      "status": "passed"
+    },
+    {
+      "junit": "t01-scoped.xml",
+      "classname": "tests.unit.test_browser_control.TestBrowserSkillContract",
+      "name": "test_close_without_active_session_is_disconnected",
+      "status": "passed"
+    }
+  ],
+  "evidence_sha256": {
+    "source-manifest.json": "979da1e2909f69ffe95a121fe9bd410e6d8a6d14996738e3cc57e23b761b89c5",
+    "browser-final.xml": "4a9f0aec6d0338489e1c53fdf1b11076631420f61bc09ce5c21d0e26b6c142cc",
+    "browser-final.meta.json": "cc8a9f55140477e599a42d3ef60203294f8e385fb04df65eacdb66d8af4b212b",
+    "t01-scoped.xml": "718b0a1d8fb1c6c8eab54a41284f3ff38e1dc6450e9874256729f647955b0d03",
+    "t01-scoped.meta.json": "8e8bf2529973ab337a66bd8f1424aa0b9d2839a006c190e550dbba679531ff46",
+    "browser-artifacts/cdp-action-flow.png": "6ed577375a3a18ab217d225cbd6c2a0077dcc1944fd7a8937ef0ad0a3f7b90c1",
+    "browser-artifacts/cdp-disconnect.json": "8e91f8f3e395c905f22ea436d34158fe5dc4c05cdfc3a1ea9981c98c0310597c",
+    "browser-artifacts/legacy-action-flow.png": "f450b60cf03285ab7daf4b4d7401bdbdef712b4695e453394f3b329f8a60c8e8",
+    "browser-artifacts/navigation-timeout.json": "de064de3c4eec863e51bea5115ec30a505fc3122220505e54aa08a9aa8090204",
+    "browser-artifacts/playwright-action-flow.png": "6cf836655a25048ebed912776e87cc5e48246c8cd991659201853e4c92d204c3",
+    "browser-artifacts/session-close.json": "bd8ba5aaddd663dc8e4f8427a581d734f56ef769ea1027d1cfb4203d83e278d9",
+    "browser-artifacts/wait-timeout.json": "91b7ba1fb053ff0a243a7ce4d32af2ff4a5d4a3a5b42fd2de4d19f049be3d809"
+  },
+  "immutable_archive": {
+    "path": "reports/evidence/ci-baseline-20260924.zip",
+    "sha256": "0f015b73a4bf52c997523bc0d27ed60fc3783e5ebbf4009bb23f8a8f43b32592",
+    "bytes": 576913
+  },
+  "verdicts": {
+    "T-01": "PASS engineering; PASS fail-closed; PASS runtime (loopback Chromium/CDP), DOCX criteria cross-check complete",
+    "D-01": "PENDING remote Syntax/Unit/Import/Pipeline Summary on main after integration",
+    "D-02": "PASS local dedicated-venv unit; PENDING hosted-runner CI parity; not DONE",
+    "full_baseline": "NOT GREEN"
+  },
+  "validation_command": "bundled Python -X utf8 .baseline-tools/docx-acceptance-followup.py",
+  "validation_wall_seconds": 0.236509,
+  "validation_exit_code": 0,
+  "note": "Document/evidence validation only; no pytest rerun or production/test/workflow change in this follow-up.",
+  "replay_validation": {
+    "command": "python -X utf8 reports/evidence/ci-baseline-20260924/verify-docx-acceptance.py",
+    "python": "C:/Users/MSI/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe",
+    "script_wall_seconds": 0.205557,
+    "process_wall_seconds": 1.6280681,
+    "exit_code": 0
+  }
+}
