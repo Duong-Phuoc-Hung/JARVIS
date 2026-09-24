@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="6" time="0.412" timestamp="2026-09-24T17:29:05.833160+07:00" hostname="DESKTOP-OCR9N3Q"><testcase classname="tests.unit.test_telegram_transport_contract" name="test_http_200_api_failure_is_not_a_send_success" time="0.006" /><testcase classname="tests.unit.test_telegram_transport_contract" name="test_duplicate_update_is_not_dispatched_or_replied_twice" time="0.002" /><testcase classname="tests.unit.test_telegram_transport_contract" name="test_sender_allowlist_does_not_authorize_other_chats" time="0.003"><failure message="assert 200 == 403">tests\unit\test_telegram_transport_contract.py:43: in test_sender_allowlist_does_not_authorize_other_chats
+    assert result["status"] == 403
+E   assert 200 == 403</failure></testcase><testcase classname="tests.unit.test_telegram_transport_contract" name="test_poll_failure_has_truthful_status_and_no_secret_echo" time="0.002"><failure message="AttributeError: 'TelegramBotController' object has no attribute 'poll_updates'">tests\unit\test_telegram_transport_contract.py:52: in test_poll_failure_has_truthful_status_and_no_secret_echo
+    result = bot.poll_updates()
+             ^^^^^^^^^^^^^^^^
+E   AttributeError: 'TelegramBotController' object has no attribute 'poll_updates'</failure></testcase><testcase classname="tests.unit.test_telegram_transport_contract" name="test_send_network_error_is_redacted" time="0.002"><failure message="AssertionError: assert (not False and 'ERROR' == 'OFFLINE'&#10;  &#10;  - OFFLINE&#10;  + ERROR)">tests\unit\test_telegram_transport_contract.py:63: in test_send_network_error_is_redacted
+    assert not result["ok"] and result["error_code"] == "OFFLINE"
+E   AssertionError: assert (not False and 'ERROR' == 'OFFLINE'
+E     
+E     - OFFLINE
+E     + ERROR)</failure></testcase><testcase classname="tests.unit.test_telegram_transport_contract" name="test_send_refuses_recipient_outside_scope_without_http" time="0.002"><failure message="KeyError: 'error_code'">tests\unit\test_telegram_transport_contract.py:70: in test_send_refuses_recipient_outside_scope_without_http
+    assert configured().send_message(99, "test")["error_code"] == "CHAT_NOT_ALLOWED"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'error_code'</failure></testcase></testsuite></testsuites>

@@ -1,0 +1,32 @@
+[
+  {
+    "run": "unit-final-acceptance",
+    "passed": 2751,
+    "failed": 0,
+    "skipped": 4,
+    "pytest_seconds": 222.23,
+    "wall_seconds": 224.8401176929474,
+    "exit_code": 0,
+    "summary": "2751 passed, 4 skipped, 268 subtests passed in 222.23s (0:03:42)"
+  },
+  {
+    "run": "browser-acceptance",
+    "passed": 51,
+    "failed": 0,
+    "skipped": 0,
+    "pytest_seconds": 99.51,
+    "wall_seconds": 100.92417597770691,
+    "exit_code": 0,
+    "summary": "51 passed in 99.51s (0:01:39)"
+  },
+  {
+    "run": "full-handoff",
+    "passed": 4278,
+    "failed": 45,
+    "skipped": 20,
+    "pytest_seconds": 700.1,
+    "wall_seconds": 703.4721293449402,
+    "exit_code": 1,
+    "summary": "45 failed, 4278 passed, 20 skipped, 268 subtests passed in 700.10s (0:11:40)"
+  }
+]

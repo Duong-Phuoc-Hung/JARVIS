@@ -1,0 +1,11 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+____________ test_browser_text_cannot_be_a_dispatcher_action_name _____________
+tests\e2e\test_browser_authority_e2e.py:381: in test_browser_text_cannot_be_a_dispatcher_action_name
+    assert not result.success and result.error_code == "UNTRUSTED_ACTION_BLOCKED"
+E   AssertionError: assert (not True)
+E    +  where True = ActionResult(action_name='upload', success=True, status=<ActionStatus.SUCCESS: 'SUCCESS'>, code='OK', message='', retr...e, error=None, error_code=None, execution_time_ms=0.04430001717992127, requester='system', timestamp=1790248081.371776).success
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\action-name-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/e2e/test_browser_authority_e2e.py::test_browser_text_cannot_be_a_dispatcher_action_name
+1 failed, 29 deselected in 2.48s

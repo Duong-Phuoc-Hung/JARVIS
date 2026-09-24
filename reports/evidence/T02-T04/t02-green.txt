@@ -1,0 +1,4 @@
+........................................................... [ 98%]
+.                                                                      [100%]
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\t02-green.xml -
+60 passed, 15 subtests passed in 6.62s

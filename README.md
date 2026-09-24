@@ -1,5 +1,14 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
+T-02/T-03/T-04 hardening (2026-09-24, source `jarvis.__version__` **5.2.1**, unreleased):
+Browser observations now pass through an explicit action-authority boundary, with real loopback Chromium adversarial tests.
+Telegram and Zalo OA have stricter transport/error, sender and replay checks. **Telegram and Zalo live round-trip: PENDING**
+(test resources/authorization required); no old send-only result is reused. **Product release: NO-GO**.
+[Current task evidence, test counts and limitations](docs/eval/t02_t04_trust_transports_20260924.md).
+Fresh local results: unit **2751 pass / 4 skip**; real browser **51 pass**; full **4278 pass / 45 fail / 20 skip** (exit 1).
+Earlier counts and status statements below remain historical evidence.
+
+
 Verified app launch follow-up (2026-09-22, unreleased **5.2.1**): câu mở desktop
 app đi qua danh mục cục bộ và xác minh cửa sổ theo AUMID/đường dẫn executable;
 không dùng tên gần giống làm bằng chứng. Notepad/Calculator được gộp đúng định danh.

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="1.401" timestamp="2026-09-24T17:42:32.212451+07:00" hostname="DESKTOP-OCR9N3Q"><testcase classname="tests.unit.test_telegram_transport_contract" name="test_missing_resources_do_not_start_ghost_polling" time="1.006"><failure message="assert None is False&#10; +  where None = start()&#10; +    where start = &lt;jarvis.comms.telegram.TelegramBotController object at 0x000001C87FF86F90&gt;.start">tests\unit\test_telegram_transport_contract.py:126: in test_missing_resources_do_not_start_ghost_polling
+    try:assert bot.start() is False
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert None is False
+E    +  where None = start()
+E    +    where start = &lt;jarvis.comms.telegram.TelegramBotController object at 0x000001C87FF86F90&gt;.start</failure></testcase></testsuite></testsuites>

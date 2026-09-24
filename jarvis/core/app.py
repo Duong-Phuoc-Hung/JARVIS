@@ -596,14 +596,18 @@ class JarvisApp:
             self.react_planner = self.planner_engine
 
             # 21. Sub-Agent Worker Pool & Notifications (M1 / Requirement R5)
-            from jarvis.comms.telegram import TelegramBotController
+            from jarvis.comms.telegram import TelegramBotController, TelegramConfig
             telegram_token = get_secret("TELEGRAM_BOT_TOKEN")
             if telegram_token:
                 whitelist_cfg = self.config.get("comms", {}).get("telegram", {}).get("whitelist_user_ids", [])
                 allowed_ids = set(whitelist_cfg) if isinstance(whitelist_cfg, list) else set()
                 self.telegram_controller = TelegramBotController(
-                    bot_token=telegram_token,
-                    allowed_user_ids=allowed_ids,
+                    config=TelegramConfig(
+                        bot_token=telegram_token,
+                        whitelist_user_ids=allowed_ids,
+                        whitelist_chat_ids=set(self.config.get("comms", {}).get("telegram", {}).get("whitelist_chat_ids", [])),
+                        checkpoint_path=str(get_jarvis_data_dir() / "telegram_updates.json"),
+                    ),
                     dispatcher=self.dispatcher,
                     stt_engine=self.stt_engine,
                 )
@@ -2923,6 +2927,10 @@ class JarvisApp:
         Inactivity Reset -> Short-Term Memory Turn -> Intent Parsing / Multi-step ReAct Planning -> Action Dispatch ->
         Long-Term / Episodic Memory Persistence -> Overlay Cards & Preview -> TTS Vocalization -> Interaction Log.
         """
+        from jarvis.security.external_content import contains_external
+        if contains_external(text):
+            return {"success": False, "error_code": "UNTRUSTED_ACTION_BLOCKED",
+                    "error": "Browser observations are not user commands."}
         clean_text = text.strip()
         trigger_name = requester.upper() if requester else "USER"
         if not clean_text:

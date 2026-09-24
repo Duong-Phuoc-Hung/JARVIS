@@ -1,0 +1,266 @@
+[
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 59,
+      "row": 38
+    },
+    "filename": "C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\jarvis\\browser\\cdp_controller.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from __future__ import annotations\n\nimport base64\nimport importlib.util\nimport logging\nimport os\nimport tempfile\nimport threading\nimport time\nimport urllib.parse\nfrom dataclasses import dataclass, field\nfrom pathlib import Path\n\nfrom jarvis.browser.actions import BrowserActionExecutor\nfrom jarvis.browser.agent import BrowserAgent\nfrom jarvis.browser.driver import (\n    BaseBrowserDriver,\n    CDPBrowserDriver,\n    MockBrowserDriver,\n    PlaywrightBrowserDriver,\n)\nfrom jarvis.browser.models import (\n    BrowserActionResult,\n    BrowserDriverType,\n    BrowserResultStatus,\n)\nfrom jarvis.browser.models import (\n    BrowserConfig as CanonicalBrowserConfig,\n)\nfrom jarvis.security.external_content import mark_external\nfrom jarvis.security.prompt_guard import PromptGuard\n\n",
+          "end_location": {
+            "column": 1,
+            "row": 40
+          },
+          "location": {
+            "column": 1,
+            "row": 8
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 1,
+      "row": 8
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "name": "unsorted-imports",
+    "noqa_row": 8,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 2,
+      "row": 30
+    },
+    "filename": "C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\jarvis\\core\\dispatcher.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from __future__ import annotations\r\n\r\nimport asyncio\r\nimport concurrent.futures\r\nimport fnmatch\r\nimport functools\r\nimport inspect\r\nimport logging\r\nimport threading\r\nimport time\r\nimport uuid\r\nfrom collections.abc import Callable\r\nfrom dataclasses import replace\r\nfrom typing import Any\r\n\r\nfrom jarvis.core.models import (\r\n    ActionDefinition,\r\n    ActionResult,\r\n    ActionStatus,\r\n    HandlerResult,\r\n    PrivilegeLevel,\r\n    RequesterContext,\r\n    SecurityConfigurationError,\r\n    SubscriptionRecord,\r\n)\r\n\r\n",
+          "end_location": {
+            "column": 1,
+            "row": 32
+          },
+          "location": {
+            "column": 1,
+            "row": 6
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 1,
+      "row": 6
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "name": "unsorted-imports",
+    "noqa_row": 6,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "B023",
+    "end_location": {
+      "column": 74,
+      "row": 157
+    },
+    "filename": "C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\jarvis\\core\\dispatcher.py",
+    "fix": null,
+    "location": {
+      "column": 71,
+      "row": 157
+    },
+    "message": "Function definition does not bind loop variable `sub`",
+    "name": "function-uses-loop-variable",
+    "noqa_row": 157,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/function-uses-loop-variable"
+  },
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 86,
+      "row": 600
+    },
+    "filename": "C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\jarvis\\core\\dispatcher.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "            from jarvis.core.labs import create_labs_disabled_result, is_labs_enabled\r\n",
+          "end_location": {
+            "column": 1,
+            "row": 601
+          },
+          "location": {
+            "column": 1,
+            "row": 600
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 13,
+      "row": 600
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "name": "unsorted-imports",
+    "noqa_row": 600,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 86,
+      "row": 745
+    },
+    "filename": "C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\jarvis\\core\\dispatcher.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "            from jarvis.core.labs import create_labs_disabled_result, is_labs_enabled\r\n",
+          "end_location": {
+            "column": 1,
+            "row": 746
+          },
+          "location": {
+            "column": 1,
+            "row": 745
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 13,
+      "row": 745
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "name": "unsorted-imports",
+    "noqa_row": 745,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 19,
+      "row": 16
+    },
+    "filename": "C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\jarvis\\planner\\safety_interceptor.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from __future__ import annotations\r\n\r\nimport logging\r\nimport re\r\nimport threading\r\nimport unicodedata\r\nfrom copy import deepcopy\r\nfrom typing import Any\r\n\r\nfrom jarvis.automation.safety_gate import SafetyGate\r\nfrom jarvis.planner.models import StepStatus, TaskNode\r\n\r\n",
+          "end_location": {
+            "column": 1,
+            "row": 18
+          },
+          "location": {
+            "column": 1,
+            "row": 6
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 1,
+      "row": 6
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "name": "unsorted-imports",
+    "noqa_row": 6,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "E401",
+    "end_location": {
+      "column": 29,
+      "row": 50
+    },
+    "filename": "C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\tests\\unit\\test_zalo_bot.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "        import hashlib\n        import hmac",
+          "end_location": {
+            "column": 29,
+            "row": 50
+          },
+          "location": {
+            "column": 1,
+            "row": 50
+          }
+        }
+      ],
+      "message": "Split imports"
+    },
+    "location": {
+      "column": 9,
+      "row": 50
+    },
+    "message": "Multiple imports on one line",
+    "name": "multiple-imports-on-one-line",
+    "noqa_row": 50,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/multiple-imports-on-one-line"
+  },
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 29,
+      "row": 50
+    },
+    "filename": "C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\tests\\unit\\test_zalo_bot.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "        import hashlib\n        import hmac\n",
+          "end_location": {
+            "column": 1,
+            "row": 51
+          },
+          "location": {
+            "column": 1,
+            "row": 50
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 9,
+      "row": 50
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "name": "unsorted-imports",
+    "noqa_row": 50,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  }
+]

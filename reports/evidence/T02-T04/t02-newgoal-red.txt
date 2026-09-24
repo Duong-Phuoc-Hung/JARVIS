@@ -1,0 +1,13 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+____________ test_browser_content_cannot_become_a_fresh_agent_goal ____________
+tests\e2e\test_browser_authority_e2e.py:179: in test_browser_content_cannot_become_a_fresh_agent_goal
+    assert effects==[]
+E   AssertionError: assert ['sent'] == []
+E     
+E     Left contains one more item: 'sent'
+E     Use -v to get more diff
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\t02-newgoal-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/e2e/test_browser_authority_e2e.py::test_browser_content_cannot_become_a_fresh_agent_goal
+1 failed, 24 deselected in 2.60s

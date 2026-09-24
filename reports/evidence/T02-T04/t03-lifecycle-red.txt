@@ -1,0 +1,13 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+______________ test_missing_resources_do_not_start_ghost_polling ______________
+tests\unit\test_telegram_transport_contract.py:126: in test_missing_resources_do_not_start_ghost_polling
+    try:assert bot.start() is False
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert None is False
+E    +  where None = start()
+E    +    where start = <jarvis.comms.telegram.TelegramBotController object at 0x000001C87FF86F90>.start
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\t03-lifecycle-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_telegram_transport_contract.py::test_missing_resources_do_not_start_ghost_polling
+1 failed, 15 deselected in 1.44s

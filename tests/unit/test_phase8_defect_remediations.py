@@ -62,8 +62,10 @@ class TestZaloAntiFabricationRemediation:
 
         res = bot._cmd_status()
         assert "Memory: OK | TTS: OK" not in res
-        assert "JARVIS Online" in res
-        assert "Zalo Bot: Active" in res or "Zalo Bot: Connected" in res
+        assert "CPU:" in res and "RAM:" in res
+        assert "Webhook: NOT_LISTENING" in res
+        assert "Zalo server round-trip: NOT_VERIFIED" in res
+        assert "Online" not in res and "Active" not in res
 
 
 # ==============================================================================

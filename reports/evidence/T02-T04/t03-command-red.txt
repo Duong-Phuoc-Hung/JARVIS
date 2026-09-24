@@ -1,0 +1,10 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+________________ test_safe_calc_uses_public_dispatcher_payload ________________
+tests\unit\test_telegram_transport_contract.py:121: in test_safe_calc_uses_public_dispatcher_payload
+    assert result["status"]==200 and "4" in result["text"]
+E   assert (500 == 200)
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\t03-command-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_telegram_transport_contract.py::test_safe_calc_uses_public_dispatcher_payload
+1 failed, 13 deselected in 0.60s

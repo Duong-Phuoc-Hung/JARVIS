@@ -43,7 +43,7 @@ def test_comms_telegram_photo_dispatch_tier1(mock_http_server):
     """
     [F-38] Validate Telegram bot photo dispatch sending snapshots.
     """
-    bot = TelegramBotController(allowed_user_ids={12345}, http_client=mock_http_server)
+    bot = TelegramBotController(bot_token="test-token", allowed_user_ids={12345}, http_client=mock_http_server)
     res = bot.send_photo(chat_id=12345, photo_bytes=b"intruder_jpeg", caption="Cảnh báo", mock_http=mock_http_server)
     assert res["ok"] is True
     assert len(mock_http_server.telegram_sent_photos) == 1

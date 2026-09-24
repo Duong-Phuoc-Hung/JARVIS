@@ -1,0 +1,4 @@
+{
+  "run": "full-release-candidate",
+  "reason": "Stopped owned pytest child after completed intermediate full run revealed Telegram error-prefix compatibility regression. No complete result claimed. Raw partial log and wrapper metadata retained."
+}

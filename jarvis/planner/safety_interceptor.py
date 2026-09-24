@@ -60,6 +60,7 @@ class SafetyGateInterceptor:
         "home_assistant_set_temperature",
         # Shell Execution
         "shell_exec", "shell_execute", "shell_command",
+        "run_python", "write_file", "send_telegram", "telegram_send_message",
         # VM lifecycle destructive
         "vm_stop", "vm_delete", "vm_destroy",
         "vm.vmware.stop", "vm.virtualbox.stop",

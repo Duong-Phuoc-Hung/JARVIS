@@ -1,0 +1,43 @@
+...........FF..FFF                                                       [100%]
+================================== FAILURES ===================================
+___________________ test_checkpoint_prevents_restart_replay ___________________
+tests\unit\test_telegram_transport_contract.py:102: in test_checkpoint_prevents_restart_replay
+    assert TelegramBotController(config=config).poll_once()==[]
+E   AssertionError: assert [{'status': 2...hị trợ giúp'}] == []
+E     
+E     Left contains one more item: {'status': 200, 'text': 'JARVIS Telegram Commands:\n/status - Kiểm tra trạng thái\n/briefing - Báo cáo tổng hợp sáng\n...óa máy trạm Windows\n/exec <action> - Thực thi hành động\n/healing - Kích hoạt tự phục hồi\n/help - Hiển thị trợ giúp'}
+E     Use -v to get more diff
+________ test_dispatcher_denial_cannot_be_reported_as_command_success _________
+tests\unit\test_telegram_transport_contract.py:112: in test_dispatcher_denial_cannot_be_reported_as_command_success
+    assert result["status"]!=200 and result["error_code"]=="CONFIRMATION_REQUIRED"
+E   assert (200 != 200)
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.core.dispatcher:dispatcher.py:477 Action 'shell_exec' gated pending confirmation (requester=telegram:1, token=521A19A9)
+________________ test_webhook_rejects_forgery_before_dispatch _________________
+tests\unit\test_zalo_transport_contract.py:48: in test_webhook_rejects_forgery_before_dispatch
+    assert controller.handle_webhook(body,"mac="+"0"*64)["status"]==403
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'ZaloBotController' object has no attribute 'handle_webhook'
+________________ test_webhook_is_bound_to_oa_and_deduplicates _________________
+tests\unit\test_zalo_transport_contract.py:55: in test_webhook_is_bound_to_oa_and_deduplicates
+    assert controller.handle_webhook(body,sig)["status"]==403
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'ZaloBotController' object has no attribute 'handle_webhook'
+______________ test_outbound_network_error_never_echoes_payload _______________
+tests\unit\test_zalo_transport_contract.py:69: in test_outbound_network_error_never_echoes_payload
+    assert not result.success and result.error=="OFFLINE"
+E   AssertionError: assert (not False and '<urlopen err...vate-content>' == 'OFFLINE'
+E    +  where False = ZaloSendResult(success=False, error='<urlopen error test-token private-content>', message_id='').success
+E     
+E     - OFFLINE
+E     + <urlopen error test-token private-content>)
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.comms.zalo:zalo.py:340 Zalo API unavailable: <urlopen error test-token private-content>
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\transports-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_telegram_transport_contract.py::test_checkpoint_prevents_restart_replay
+FAILED tests/unit/test_telegram_transport_contract.py::test_dispatcher_denial_cannot_be_reported_as_command_success
+FAILED tests/unit/test_zalo_transport_contract.py::test_webhook_rejects_forgery_before_dispatch
+FAILED tests/unit/test_zalo_transport_contract.py::test_webhook_is_bound_to_oa_and_deduplicates
+FAILED tests/unit/test_zalo_transport_contract.py::test_outbound_network_error_never_echoes_payload
+5 failed, 13 passed in 0.71s

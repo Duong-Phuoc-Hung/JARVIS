@@ -22,10 +22,14 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
+from jarvis.security.external_content import UntrustedText
+
 log = logging.getLogger("jarvis.security.prompt_guard")
 
 
-class SanitizationResult(str):
+
+
+class SanitizationResult(UntrustedText):
     """
     String subclass representing sanitized untrusted content enclosed in XML isolation boundaries.
     Acts identically to a standard Python `str` while providing metadata attributes
@@ -51,7 +55,7 @@ class SanitizationResult(str):
         source: str = "web",
     ) -> SanitizationResult:
         obj = super().__new__(cls, wrapped_text)
-        obj.clean_text = clean_text or wrapped_text
+        obj.clean_text = UntrustedText(clean_text or wrapped_text)
         obj.original_length = original_length
         obj.cleaned_length = cleaned_length
         obj.is_suspicious = is_suspicious

@@ -1,0 +1,362 @@
+[
+  {
+    "node": "tests/e2e/test_tiers_1_to_4.py::test_r4_volume_and_brightness_adjustment",
+    "current_failure": "assert None == 75",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Brightness backend is unavailable in this headless setup; assertion requires 75 instead of fail-closed None.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/e2e/test_tiers_1_to_4.py::test_r2_r3_vision_zero_size_roi_or_corrupt_bytes",
+    "current_failure": "ValueError: cannot write empty image as JPEG",
+    "matches_base_failure": true,
+    "category": "CONFIRMED_CODE",
+    "baseline_note": "Zero-area ROI reaches JPEG encoder and raises ValueError; no zero-area guard before encoding.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/e2e/test_v460_e2e.py::TestTier4RealWorldWorkflows::test_tier4_daily_routine_morning_to_focus_workflow",
+    "current_failure": "AssertionError: assert False is True\n +  where False = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE..._code='CONFIRMATION_REQUIRED', execution_time_ms=0.22759998682886362, requester='system', timestamp=1790249849.7682126).success",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "shell_exec now requires SafetyGate confirmation; test expects immediate success.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_adversarial_challenger_1.py::test_r4_adversarial_volume_and_brightness_boundary_clamping",
+    "current_failure": "assert None == 0\n +  where None = set_brightness(-50)\n +    where set_brightness = <jarvis.automation.control.ComputerController object at 0x000001DF206AE430>.set_brightness",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Same unavailable brightness backend as #1; test expects clamp result without mocking a successful device write.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_adversarial_m1_diacritic_homophones.py::TestAdversarialStressAndReDoS::test_massive_string_dos_rejection_sla",
+    "current_failure": "AssertionError: assert 'system_volume' == 'unknown_intent'\n  \n  - unknown_intent\n  + system_volume",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Long-input routing returns system_volume while this test expects unknown_intent. Reproduced; reconcile with contradictory long-input acceptance in #8.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_adversarial_m1_intent_router.py::TestAdversarialPunctuation::test_punctuation_tolerance[Jarvis, m\\u1edf d\\u1ef1 \\xe1n: 'JARVIS-PRO'-workspace_prepare]",
+    "current_failure": "AssertionError: Failed on noisy input: 'Jarvis, mở dự án: 'JARVIS-PRO'' -> got app_open\nassert 'app_open' == 'workspace_prepare'\n  \n  - workspace_prepare\n  + app_open",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Project-opening phrase resolves app_open instead of workspace_prepare; routing owner must reconcile current catalog precedence.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_adversarial_m1_intent_router.py::TestExtremeEdgeCases::test_huge_input_redos_resistance",
+    "current_failure": "AssertionError: assert 'unknown_intent' == 'workspace_prepare'\n  \n  - workspace_prepare\n  + unknown_intent",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Long input is rejected as unknown_intent but this test expects workspace_prepare; do not blindly relax input guards.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_adversarial_m2_llm_router.py::test_pipeline_integration_category4_weather",
+    "current_failure": "assert False is True",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Weather pipeline assertion expects success; requires fixture/dispatcher tracing, not live credential use.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_adversarial_m3_challenger1.py::test_dashboard_cors_options_and_404_resilience",
+    "current_failure": "AssertionError: assert None == '*'\n +  where None = get('Access-Control-Allow-Origin')\n +    where get = <http.client.HTTPMessage object at 0x000001DF21136C10>.get\n +      where <http.client.HTTPMessage object at 0x000001DF21136C10> = <http.client.HTTPResponse object at 0x000001DF211386D0>.headers",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Expects wildcard CORS despite current loopback origin policy.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_adversarial_m3_ui_app.py::test_dashboard_cors_and_options_and_404",
+    "current_failure": "AssertionError: assert None == '*'\n +  where None = get('Access-Control-Allow-Origin')\n +    where get = <http.client.HTTPMessage object at 0x000001DF20749130>.get\n +      where <http.client.HTTPMessage object at 0x000001DF20749130> = <http.client.HTTPResponse object at 0x000001DF2245CAC0>.headers",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Expects wildcard CORS despite current loopback origin policy.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_adversarial_m4_challenger1.py::test_security_scanner_unauthenticated_biometric_rejection",
+    "current_failure": "AssertionError: assert <ActionStatus...ABS_DISABLED'> == 'PERMISSION_DENIED'\n  \n  - PERMISSION_DENIED\n  + LABS_DISABLED",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Labs gate rejects before biometric permission gate; fixture does not enable Labs.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_adversarial_sprint2_challenger1.py::TestAdversarialR2TTSCOMSafety::test_rapid_queue_flood_and_task_callback_exception_resilience",
+    "current_failure": "AssertionError: Expected 50 tasks processed, got 1\nassert 1 == 50",
+    "matches_base_failure": true,
+    "category": "CONFIRMED_CODE",
+    "baseline_note": "TTS worker calls buggy callback a second time from except without guarding it; worker exits after 1/50 tasks.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_adversarial_sprint2_challenger2.py::TestIntentRoutingAndReDoS::test_extensive_hardware_query_permutations_accented_and_unaccented",
+    "current_failure": "AssertionError: Failed routing utterance 'kiểm tra bộ nhớ': got generic_llm_response, expected hardware_telemetry_check\nassert False",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Vietnamese memory query resolves generic_llm_response instead of hardware_telemetry_check.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_challenger2_autonomous_stress.py::TestR4ComputerUseVisionAndGUIActorAdversarial::test_negative_and_zero_screen_dimensions",
+    "current_failure": "AssertionError: Tuples differ: (260, 463) != (0, 0)\n\nFirst differing element 0:\n260\n0\n\n- (260, 463)\n+ (0, 0)",
+    "matches_base_failure": true,
+    "category": "CONFIRMED_CODE",
+    "baseline_note": "CoordinateMapper.pixel_to_norm uses truthiness for explicit zero dimensions and falls back to default screen size.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_challenger2_stress.py::TestR5WebIntelligenceAdversarial::test_malformed_rss_and_atom_xml_feeds",
+    "current_failure": "AssertionError: 'Tiêu đề Test' not found in 'Tiêu đề <b>Test</b>'",
+    "matches_base_failure": true,
+    "category": "CONFIRMED_CODE",
+    "baseline_note": "RSS title passes through _clean_text (entity/whitespace only), retaining HTML markup that the plain-title assertion rejects.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_challenger2_stress.py::TestR5WebIntelligenceAdversarial::test_offline_network_failure_recovery_full_hub",
+    "current_failure": "AssertionError: 'speech_text' not found in {'city': 'Hà Nội', 'weather': {'city': 'Hà Nội', 'temp_c': 27.0, 'feels_like_c': 29.0, 'condition': 'Nhiều mây', 'humidity': 75, 'wind_kph': 12.0, 'uv_index': None, 'pressure_hpa': None, 'visibility_km': None, 'source': 'offline_fallback', 'timestamp': 1790250030.2879817}, 'weather_speech': 'Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như 29°C), nhiều mây. Độ ẩm 75%, sức gió 12.0 km/h, thưa Ngài.', 'news': ['Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing (VnExpress)', 'Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu (TechCrunch)', 'Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở (VnExpress)'], 'news_articles': [{'title': 'Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing', 'link': 'https://vnexpress.net/so-hoa', 'description': 'Các công nghệ trí tuệ nhân tạo thế hệ mới đang được tối ưu hóa cho thiết bị biên.', 'published_at': '', 'source': 'VnExpress'}, {'title': 'Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu', 'link': 'https://techcrunch.com', 'description': 'Thị trường chip bán dẫn tiếp tục ghi nhận nhu cầu mạnh mẽ.', 'published_at': '', 'source': 'TechCrunch'}, {'title': 'Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở', 'link': 'https://vnexpress.net', 'description': 'Hệ sinh thái open-source phát triển mạnh mẽ cho desktop assistant.', 'published_at': '', 'source': 'VnExpress'}], 'crypto': {'BTC': 64500.0, 'ETH': 3450.0}, 'usd_vnd_rate': 25450.0, 'crypto_speec",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Briefing test expects speech_text; returned payload exposes weather_speech/news_speech. No live network was authorized.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_challenger2_stress.py::TestR8OverlayHUDAdversarial::test_long_text_truncation_and_turn_recording",
+    "current_failure": "AssertionError: 'AAAA[228 chars]AAAAA...' != 'AAAA[228 chars]AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA[9718 chars]AAAA'\nDiff is 10247 characters long. Set self.maxDiff to None to see it.",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Test expects full 10k-character overlay text after production truncation.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_challenger_m1_2_empirical.py::test_record_audio_exception_resilience_when_sounddevice_fails",
+    "current_failure": "AssertionError: Fallback buffer generation took too long: 5.5513s\nassert 5.551267800008645 < 0.1",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Patches sounddevice.rec, but current capture path uses AudioEngine; 5-second capture is not proof of flaky timing.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_challenger_m4_2_security.py::test_scanner_and_capture_reject_unauthenticated_contexts",
+    "current_failure": "AssertionError: assert <ActionStatus...ABS_DISABLED'> == 'PERMISSION_DENIED'\n  \n  - PERMISSION_DENIED\n  + LABS_DISABLED",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Labs disabled preempts permission assertion.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_challenger_m4_2_security.py::test_packet_capture_injection_resilience[tcp and port 80; calc.exe]",
+    "current_failure": "assert 0 == 1\n +  where 0 = len([])",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Labs disabled prevents the subprocess call expected by the injection fixture.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_challenger_m4_2_security.py::test_packet_capture_injection_resilience[udp | whoami]",
+    "current_failure": "assert 0 == 1\n +  where 0 = len([])",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Labs disabled prevents the subprocess call expected by the injection fixture.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_challenger_m4_2_security.py::test_packet_capture_injection_resilience[host 10.0.0.1 && dir C:\\\\]",
+    "current_failure": "assert 0 == 1\n +  where 0 = len([])",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Labs disabled prevents the subprocess call expected by the injection fixture.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_challenger_m4_2_security.py::test_packet_capture_injection_resilience[`calc.exe`]",
+    "current_failure": "assert 0 == 1\n +  where 0 = len([])",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Labs disabled prevents the subprocess call expected by the injection fixture.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_challenger_m4_2_security.py::test_tshark_subprocess_timeout_or_error_handling",
+    "current_failure": "AttributeError: 'ActionResult' object has no attribute 'packet_count'",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Fixture expects packet_count on legacy capture result but receives gated ActionResult.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_e2e_scenarios.py::test_e2e_tier3_unresponsive_app_healing_flow",
+    "current_failure": "assert 93.0 < 80.0\n +  where 93.0 = <tests.conftest.MockHardwareProvider object at 0x000001DF2573DA50>.ram_percent",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Healing workflow expects MockHardwareProvider RAM mutation that is not observed.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_e2e_scenarios.py::test_e2e_tier4_system_crisis_self_healing_workflow",
+    "current_failure": "assert 96.0 < 75.0\n +  where 96.0 = <tests.conftest.MockHardwareProvider object at 0x000001DF28023E30>.ram_percent",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Crisis workflow expects MockHardwareProvider RAM mutation that is not observed.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_empirical_challenger_m2.py::test_stress_cache_corruption_resilience_matrix[garbage_binary_200b]",
+    "current_failure": "assert True is False",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "JARVIS_MOCK_AUDIO=1 deliberately bypasses WAV decoding/playback; corruption assertion is incompatible with that test environment.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_empirical_challenger_m2.py::test_stress_spotify_plugin_empty_and_corrupt_uris",
+    "current_failure": "AssertionError: assert False is True\n +  where False = ActionResult(action_name='spotify_play', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='ACTION_FAILED', me...', error_code='ACTION_FAILED', execution_time_ms=0.03500000457279384, requester='system', timestamp=1790250113.3252425).success",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Spotify fixture expects success for empty/corrupt URI with no verified application result. Do not make runtime failure return success.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_empirical_challenger_m2.py::test_stress_shell_plugin_timeout_and_privilege_enforcement",
+    "current_failure": "assert ('timed out' in \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: 3d944420)\" or 'CONFIRMATION_REQUIRED' == 'HANDLER_EXCEPTION'\n +  where \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: 3d944420)\" = <built-in method lower of str object at 0x000001DF22411E90>()\n +    where <built-in method lower of str object at 0x000001DF22411E90> = \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: 3D944420)\".lower\n +      where \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: 3D944420)\" = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE...r_code='CONFIRMATION_REQUIRED', execution_time_ms=0.2159999858122319, requester='system', timestamp=1790250113.3381684).error\n  \n  - HANDLER_EXCEPTION\n  + CONFIRMATION_REQUIRED)",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "SafetyGate confirmation preempts the expected shell timeout.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_empirical_challenger_m2_e2e_stress.py::test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue",
+    "current_failure": "AssertionError: assert 'clap_pause_clap' in ['action:spotify', 'action:chrome_claude', 'action:chrome_binance', 'double_clap', 'action:tts_welcome', 'action:cursor', ...]",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Audio-to-gesture pipeline does not emit expected clap_pause_clap event; requires audio owner investigation.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_empirical_challenger_m3_2.py::test_app_log_interaction_delegation_and_custom_config",
+    "current_failure": "AssertionError: assert False\n +  where False = exists()\n +    where exists = WindowsPath('C:/Users/MSI/.codex/worktrees/t02-t04-trust-transports/JARVIS/.task-tools/temp/pytest-of-MSI/pytest-33/test_app_log_interaction_deleg0/custom_app_interactions.log').exists",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Custom interaction log file is not created at the asserted path.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_empirical_challenger_m3_2.py::test_welcome_pool_empty_and_whitespace_fallback",
+    "current_failure": "IndexError: Cannot choose from an empty sequence",
+    "matches_base_failure": true,
+    "category": "CONFIRMED_CODE",
+    "baseline_note": "Whitespace-only configured welcome list filters to an empty list, then random.choice raises IndexError.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_empirical_challenger_m3_2.py::test_startup_intro_with_mocked_tts_queues_expected_phrase",
+    "current_failure": "AssertionError: assert 2 == 1\n +  where 2 = len([('Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như...n máy tính cá nhân thu hút cộng đồng mã nguồn mở.', False), ('Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.', False)])",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Startup emits briefing plus introduction; test expects one call. Confirm current startup contract.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_empirical_challenger_m3_2.py::test_startup_intro_custom_configured_phrase",
+    "current_failure": "AssertionError: assert 2 == 1\n +  where 2 = len([('Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như...n máy tính cá nhân thu hút cộng đồng mã nguồn mở.', False), ('Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.', False)])",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Startup emits two calls and test stops before validating configured startup phrase; requires separate contract review.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_m3_ux.py::test_startup_vocal_introduction",
+    "current_failure": "AssertionError: assert 'Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.' in 'Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như 2...bán dẫn và trung tâm dữ liệu. Thứ 3: Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở.'",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "First startup utterance is the briefing, while test expects the introduction as first utterance.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_plugins.py::test_plugin_shell_command_execution_tier1",
+    "current_failure": "AssertionError: assert False is True\n +  where False = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE..._code='CONFIRMATION_REQUIRED', execution_time_ms=0.15209999401122332, requester='system', timestamp=1790250153.9472275).success",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "shell_exec now requires confirmation; test expects immediate execution.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_plugins.py::test_plugin_shell_timeout_error_handling_tier2",
+    "current_failure": "assert 'timed out' in \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: b4d87c37)\"\n +  where \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: b4d87c37)\" = <built-in method lower of str object at 0x000001DF20077BD0>()\n +    where <built-in method lower of str object at 0x000001DF20077BD0> = \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: B4D87C37)\".lower\n +      where \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: B4D87C37)\" = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE...r_code='CONFIRMATION_REQUIRED', execution_time_ms=0.1427999814040959, requester='system', timestamp=1790250153.9696896).error",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "shell_exec confirmation preempts timeout assertion.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_tier5_adversarial_sec_iot_comms_data.py::test_security_tshark_cli_parameters_and_bpf_injection",
+    "current_failure": "assert 0 == 1\n +  where 0 = len([])",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "Labs gate prevents expected TShark subprocess invocation.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_user_simulation.py::test_sim_05_second_double_clap_triggers_ai_voice_loop",
+    "current_failure": "assert False\n +  where False = _wait_for_condition(<function test_sim_05_second_double_clap_triggers_ai_voice_loop.<locals>.<lambda> at 0x000001DF2782EFC0>, timeout=3.0)",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Voice-loop fixture returns ndarray although production now requests CapturedAudio; no expected dispatched action is observed.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_user_simulation.py::test_sim_06_voice_loop_smart_keyword_home_assistant",
+    "current_failure": "assert False\n +  where False = _wait_for_condition(<function test_sim_06_voice_loop_smart_keyword_home_assistant.<locals>.<lambda> at 0x000001DF283D28E0>, timeout=3.0)",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Voice-loop fixture returns ndarray although production now requests CapturedAudio; no expected HA action is observed.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_user_simulation.py::test_sim_07_voice_loop_smart_keyword_hardware_telemetry",
+    "current_failure": "assert False\n +  where False = _wait_for_condition(<function test_sim_07_voice_loop_smart_keyword_hardware_telemetry.<locals>.<lambda> at 0x000001DF24629580>, timeout=3.0)",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Voice-loop fixture returns ndarray although production now requests CapturedAudio; no expected telemetry action is observed.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_user_simulation.py::test_sim_16_vietnamese_smart_keyword_router_7_categories[kh\\xf3a m\\xe0n h\\xecnh-system_power-action-lock-\\u0110\\xe3 kh\\xf3a m\\xe0n h\\xecnh]",
+    "current_failure": "AssertionError: assert 'đã khóa màn hình' in 'đang tắt màn hình cho ngài.'\n +  where 'đã khóa màn hình' = <built-in method lower of str object at 0x000001DF1D76B130>()\n +    where <built-in method lower of str object at 0x000001DF1D76B130> = 'Đã khóa màn hình'.lower\n +  and   'đang tắt màn hình cho ngài.' = <built-in method lower of str object at 0x000001DF1C4B2830>()\n +    where <built-in method lower of str object at 0x000001DF1C4B2830> = 'Đang tắt màn hình cho Ngài.'.lower\n +      where 'Đang tắt màn hình cho Ngài.' = IntentResult(action_name='system_power', parameters={'action': 'screen_off'}, confidence=1.0, source='rule_fallback', ... response_text='Đang tắt màn hình cho Ngài.', requires_confirmation=False, confirmation_prompt=None, danger_level=None).response_text",
+    "matches_base_failure": true,
+    "category": "CONTRACT_REVIEW",
+    "baseline_note": "Lock-screen phrase gets display-off response, differing from expected lock response.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/test_user_simulation.py::test_sim_18_cli_health_check_verification",
+    "current_failure": "AssertionError: assert 'Operating System:' in '=================================================================\\n JARVIS System Health Diagnostics (v5.2.1)\\n======...==========================\\n Diagnostics completed. Browser automation is READY; review each subsystem result above.\\n'",
+    "matches_base_failure": true,
+    "category": "TEST_CONTRACT",
+    "baseline_note": "CLI output assertion expects old Operating System label; current health report format differs.",
+    "scope": "Existing failure at unchanged base test; outside T-02/T-03/T-04"
+  },
+  {
+    "node": "tests/unit/test_runaway_hardening.py::TestDoubleClapFanoutOptIn::test_false_positive_repeated_double_clap_cannot_repeatedly_launch_fanout",
+    "current_failure": "IndexError: pop from empty list",
+    "matches_base_failure": false,
+    "category": "ORDER_TIMING_VARIABILITY",
+    "baseline_note": "Global monotonic mock exhausted a finite timestamp list in the shared full-suite process.",
+    "scope": "Outside T-02/T-03/T-04: full-suite failure, isolated rerun passed (handoff-order-rerun). Root cause not closed."
+  },
+  {
+    "node": "tests/unit/test_sandbox_compat_fallback.py::TestCompatFallbackExplicitOptIn::test_unexpected_launcher_exception_never_falls_back_even_when_enabled",
+    "current_failure": "AssertionError: Expected 'Popen' to not have been called. Called 1 times.\nCalls: [call(['powershell', '-NoProfile', '-NonInteractive', '-Command', \"Get-CimInstance -Namespace 'root\\\\wmi' -ClassName 'MSStorageDriver_FailurePredictStatus' -ErrorAction SilentlyContinue | Select-Object InstanceName, Active, PredictFailure | ConvertTo-Json\"], text=True, encoding='utf-8', errors='replace', creationflags=134217728, stdout=-1, stderr=-1),\n call().__enter__(),\n call().__enter__().communicate(None, timeout=2.0),\n call().__enter__().communicate().__iter__(),\n call().__enter__().kill(),\n call().__exit__(<class 'ValueError'>, ValueError('not enough values to unpack (expected 2, got 0)'), <traceback object at 0x000001DF284D17C0>)].",
+    "matches_base_failure": false,
+    "category": "ORDER_TIMING_VARIABILITY",
+    "baseline_note": "Global Popen mock captured an unrelated PowerShell SMART-health query, not the expected sandbox launch. Shared-process background-work interference is evidenced by the captured call.",
+    "scope": "Outside T-02/T-03/T-04: full-suite failure, isolated rerun passed (handoff-order-rerun). Root cause not closed."
+  }
+]

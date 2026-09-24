@@ -1,0 +1,16 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+__________ test_app_entrypoint_does_not_promote_page_to_user_command __________
+tests\e2e\test_browser_authority_e2e.py:317: in test_app_entrypoint_does_not_promote_page_to_user_command
+    assert not outcome["success"] and outcome["error_code"] == "UNTRUSTED_ACTION_BLOCKED"
+E   assert (not True)
+_________ test_planner_direct_handler_cannot_execute_browser_payload __________
+tests\e2e\test_browser_authority_e2e.py:331: in test_planner_direct_handler_cannot_execute_browser_payload
+    assert not outcome.success and outcome.error_code == "UNTRUSTED_ACTION_BLOCKED"
+E   AssertionError: assert (not True)
+E    +  where True = ActionResult(action_name='upload', success=True, status=<ActionStatus.SUCCESS: 'SUCCESS'>, code='OK', message='', retr...False, data=None, error=None, error_code=None, execution_time_ms=0.0, requester='system', timestamp=1790247430.7274158).success
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\host-boundaries-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/e2e/test_browser_authority_e2e.py::test_app_entrypoint_does_not_promote_page_to_user_command
+FAILED tests/e2e/test_browser_authority_e2e.py::test_planner_direct_handler_cannot_execute_browser_payload
+2 failed, 27 deselected in 3.61s

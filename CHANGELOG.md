@@ -1,3 +1,42 @@
+## [Unreleased 5.2.1] T-02/T-03/T-04 trust and transport hardening (2026-09-24)
+
+Goal: prevent webpage data from authorizing actions and make Telegram/Zalo transport outcomes truthful.
+Root causes: ReAct executed model tools outside the dispatcher; browser provenance was lost at old adapters/context/app paths;
+Telegram trusted incomplete HTTP envelopes and repeated updates; Zalo used the wrong webhook MAC/header contract and accepted
+success without a message ID. Missing backend/status information could still produce success-flavored responses.
+
+Changes by file:
+
+- `jarvis/security/external_content.py`: external-data provenance, cycle-safe detection, exact one-use host grants and nested scopes.
+- `jarvis/browser/models.py`: mark canonical page/scrape result data; `jarvis/browser/cdp_controller.py`: preserve provenance on legacy payloads, URLs and links.
+- `jarvis/security/prompt_guard.py`: retain provenance on cleaned text; sanitization remains risk reduction.
+- `jarvis/agent/graph.py`: model actions use dispatcher, observations are data, host grants bound subsequent tool calls.
+- `jarvis/llm/router.py`: isolate context and explicit external data; enforce scope when executing model-selected intents.
+- `jarvis/core/dispatcher.py`: reject untrusted action authority before confirmation/handler execution.
+- `jarvis/planner/engine.py`: guard direct handlers; `jarvis/planner/safety_interceptor.py`: classify agent write/Python/send aliases high-risk.
+- `jarvis/core/app.py`: reject browser text before command normalization; configure Telegram chat whitelist and durable offset.
+- `jarvis/comms/telegram.py`: API envelope/message-ID validation, authorized chat/sender, redacted failures/evidence, cooldown,
+  serialized polling, atomic checkpoint, truthful dispatcher/lock/lifecycle outcomes and no fictional skills list.
+- `jarvis/comms/zalo.py`: OA v3 text sending, official raw-body MAC verification, app/OA/sender/time binding, replay/rate checks,
+  real fail-closed HTTP listener, redacted metadata and honest metrics/listener status.
+- `tests/e2e/test_browser_authority_e2e.py`: real Chromium adversarial/positive/30-second tests at the production action boundary.
+- `tests/unit/test_telegram_transport_contract.py`, `tests/unit/test_zalo_transport_contract.py`: transport/replay/error contracts.
+- `tests/integration/test_zalo_webhook_http.py`: actual local HTTP ingress/reply wiring and forged-webhook rejection.
+- `tests/test_comms_hub.py`: supply explicit test-only credentials to the mock photo fixture.
+- `tests/test_tier5_adversarial_sec_iot_comms_data.py`: require 503/DISPATCHER_UNAVAILABLE for an attempted command with no dispatcher.
+- `tests/unit/test_phase8_defect_remediations.py`: replace obsolete Online/Active expectations with measured metrics and explicit unverified listener/server state.
+- `tests/unit/test_zalo_bot.py`: reject the previous non-OA HMAC format; explicit mock behavior remains a test adapter.
+- `README.md`, `docs/ROADMAP.md`, `docs/eval/t02_t04_trust_transports_20260924.md` and `reports/evidence/T02-T04/`: current scope,
+  commands, RED/GREEN records, final metrics, revision fingerprints and operator-dependent runtime gates.
+
+Telegram/Zalo **runtime PENDING**. No real account traffic is claimed. Product release **NO-GO**.
+Final measured results: see the table in [the task audit](docs/eval/t02_t04_trust_transports_20260924.md)
+and the appended final-results line below; intermediate runs are clearly distinguished.
+
+Owner-confirmed live gates: Telegram **PENDING_CREDENTIALS**; Zalo **PENDING_ZALO_OA_VERIFICATION**.
+
+Final measurements: unit **2751 passed, 0 failed, 4 skipped + 268 subtests**, 222.23s (wall 224.84s), exit 0; browser **51 passed, 0 failed, 0 skipped**, 99.51s (wall 100.92s), exit 0; full **4278 passed, 45 failed, 20 skipped + 268 subtests**, 700.10s (wall 703.47s), exit 1. Remaining failures: 43 baseline issues outside this task and 2 observed order/background-interference failures (isolated rerun passes). The two in-scope old Telegram assertions are fixed. Hosted CI NOT_RUN; overall NO-GO.
+
 ## [Unreleased] Comprehensive Security Audit, Hardening & Tooling Sprint (2026-09-22)
 
 - **Mục tiêu**: Kiểm toán toàn diện bề mặt tấn công của 200 tệp nguồn thuộc phân hệ `jarvis/`, phát hiện và khắc phục dứt điểm 22 lỗ hổng bảo mật thuộc 5 nhóm rủi ro (Code Vulnerabilities, Information Disclosure, Excessive Permissions, Outdated Dependencies, Sensitive Serialization), nâng cấp bộ kiểm thử an toàn thông tin chuyên sâu (21 security hardening tests), và triển khai công cụ quét tĩnh bảo mật tự động `tools/security_scanner.py`.

@@ -1,0 +1,11 @@
+{
+  "collection skipped": 2,
+  "wttr.in is unreachable (DNS or TCP connect failed) — skipping live test.": 1,
+  "vnexpress.net is unreachable — skipping live test.": 1,
+  "Internet endpoints unreachable — skipping live briefing test.": 1,
+  "opencv-python not installed; skip vision tests": 5,
+  "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run": 6,
+  "could not import 'matplotlib': No module named 'matplotlib'": 2,
+  "could not import 'matplotlib.pyplot': No module named 'matplotlib'": 1,
+  "vosk not installed — test requires vosk package to mock vosk.Model": 1
+}

@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.554" timestamp="2026-09-24T17:37:49.552580+07:00" hostname="DESKTOP-OCR9N3Q"><testcase classname="tests.unit.test_telegram_transport_contract" name="test_safe_calc_uses_public_dispatcher_payload" time="0.150"><failure message="assert (500 == 200)">tests\unit\test_telegram_transport_contract.py:121: in test_safe_calc_uses_public_dispatcher_payload
+    assert result["status"]==200 and "4" in result["text"]
+E   assert (500 == 200)</failure></testcase></testsuite></testsuites>
