@@ -21,6 +21,7 @@ IMAP client (added v5.1.0):
     falls back to mock_emails list when provided (for testing).
   - Fail-closed: missing host/username/password -> raises IMAPNotConfiguredError.
 """
+
 from __future__ import annotations
 
 import email as email_lib
@@ -28,7 +29,9 @@ import html
 import imaplib
 import logging
 import re
+import ssl
 from dataclasses import dataclass, field
+from email import policy
 from typing import Any
 
 log = logging.getLogger("jarvis.comms.email")
@@ -53,6 +56,14 @@ class IMAPNotConfiguredError(RuntimeError):
     """Raised when IMAP credentials are missing — fail-closed contract."""
 
 
+class IMAPTransportError(imaplib.IMAP4.error):
+    """Redacted transport failure; never an empty-mailbox success."""
+
+    def __init__(self, code: str):
+        self.code = code
+        super().__init__(code)
+
+
 @dataclass
 class EmailMessage:
     sender: str
@@ -69,7 +80,7 @@ class EmailSummaryResult:
     priority_count: int
     voice_summary: str
     priority_emails: list[EmailMessage] = field(default_factory=list)
-    dropped_count: int = 0          # emails dropped by security filters
+    dropped_count: int = 0  # emails dropped by security filters
 
 
 class IMAPEmailReader:
@@ -94,6 +105,8 @@ class IMAPEmailReader:
         port: int = 993,
         username: str = "",
         password: str = "",
+        timeout: float = 10.0,
+        ssl_context: ssl.SSLContext | None = None,
     ):
         # Normalise to lowercase once at init time
         self.priority_senders: list[str] = [s.lower().strip() for s in (priority_senders or [])]
@@ -101,6 +114,10 @@ class IMAPEmailReader:
         self.port = port
         self.username = username
         self.password = password
+        self.timeout = timeout
+        self.ssl_context = ssl_context or ssl.create_default_context()
+        if not self.ssl_context.check_hostname or self.ssl_context.verify_mode != ssl.CERT_REQUIRED:
+            raise ValueError("TLS_VERIFICATION_REQUIRED")
         self._conn: imaplib.IMAP4_SSL | None = None
 
     # ── IMAP Connection Lifecycle ─────────────────────────────────────────────
@@ -115,115 +132,109 @@ class IMAPEmailReader:
             OSError: on network failure.
         """
         if not self.host or not self.username or not self.password:
-            log.error(
-                "email: IMAP NOT_CONFIGURED — host=%r username=%r password=<empty=%s>",
-                self.host,
-                self.username,
-                not self.password,
+            raise IMAPNotConfiguredError("NOT_CONFIGURED")
+        self.disconnect()
+        try:
+            self._conn = imaplib.IMAP4_SSL(
+                self.host, self.port, timeout=self.timeout, ssl_context=self.ssl_context
             )
-            raise IMAPNotConfiguredError(
-                "IMAPEmailReader: host, username, and password are all required. "
-                "Set them via SecretsManager or environment variables. Status: NOT_CONFIGURED"
-            )
-        log.info("email: connecting to IMAP server %s:%d as %s", self.host, self.port, self.username)
-        self._conn = imaplib.IMAP4_SSL(self.host, self.port)
-        self._conn.login(self.username, self.password)
-        log.info("email: IMAP login successful")
+            self._command("login", self.username, self.password)
+        except IMAPTransportError:
+            raise
+        except Exception as exc:
+            self._fail(exc)
+
+    def _fail(self, exc: Exception, stage: str = "connect") -> None:
+        code = (
+            "TIMEOUT"
+            if isinstance(exc, TimeoutError)
+            else "DISCONNECTED"
+            if isinstance(exc, (imaplib.IMAP4.abort, EOFError))
+            else "AUTH_FAILED"
+            if stage == "login"
+            else "PROTOCOL_ERROR"
+            if isinstance(exc, imaplib.IMAP4.error)
+            else "CONNECTION_FAILED"
+        )
+        conn, self._conn = self._conn, None
+        if conn is not None:
+            try:
+                conn.shutdown()
+            except Exception:
+                pass
+        raise IMAPTransportError(code) from None
+
+    def _command(self, name: str, *args, **kwargs):
+        try:
+            status, data = getattr(self._conn, name)(*args, **kwargs)
+            if status != "OK":
+                raise imaplib.IMAP4.error("PROTOCOL_ERROR")
+            return data
+        except Exception as exc:
+            self._fail(exc, name)
 
     def disconnect(self) -> None:
-        """Safely log out and close the IMAP connection. Idempotent."""
-        if self._conn is not None:
+        """Idempotent logout without expunging or logging server response/body."""
+        conn, self._conn = self._conn, None
+        if conn is not None:
             try:
-                self._conn.logout()
-            except Exception as exc:  # noqa: BLE001
-                log.debug("email: IMAP logout exception (ignored): %s", exc)
-            finally:
-                self._conn = None
+                conn.logout()
+            except Exception:
+                try:
+                    conn.shutdown()
+                except Exception:
+                    pass
 
     def fetch_unread(self, mailbox: str = "INBOX") -> list[EmailMessage]:
-        """
-        Fetch all UNSEEN emails from ``mailbox``.
+        """Read allowed UNSEEN messages over verified TLS without changing Seen.
 
-        Must call connect() first. Returns empty list when no unread emails exist.
-        Fail-closed: any parse error on an individual message is logged and that
-        message is skipped (never crashes the whole fetch).
-
-        Returns:
-            list[EmailMessage]: parsed unread emails (may be empty).
-
-        Raises:
-            RuntimeError: if not connected (connect() not called).
+        Transport/protocol errors raise IMAPTransportError and invalidate the
+        session; reconnect explicitly or use fetch_and_summarize on the next poll.
+        The sender header allowlist is filtering, not cryptographic sender identity.
+        Returned email is untrusted data, never an instruction or authorization.
         """
         if self._conn is None:
-            raise RuntimeError(
-                "IMAPEmailReader.fetch_unread() called before connect(). "
-                "Call connect() first."
+            raise RuntimeError("NOT_CONNECTED: Call connect() first")
+        self._command("select", mailbox, readonly=True)
+        ids = self._command("search", None, "UNSEEN")
+        if not ids or not ids[0]:
+            return []
+        results = []
+        for mid in ids[0].split():
+            data = self._command("fetch", mid, "(BODY.PEEK[])")
+            raw = next(
+                (
+                    item[1]
+                    for item in data or []
+                    if isinstance(item, tuple) and len(item) > 1 and isinstance(item[1], bytes)
+                ),
+                None,
             )
-
-        status, _data = self._conn.select(mailbox, readonly=True)
-        if status != "OK":
-            log.warning("email: IMAP SELECT %r failed: %s", mailbox, _data)
-            return []
-
-        status, msg_ids_raw = self._conn.search(None, "UNSEEN")
-        if status != "OK" or not msg_ids_raw or not msg_ids_raw[0]:
-            log.info("email: no UNSEEN messages in %r", mailbox)
-            return []
-
-        msg_ids: list[bytes] = msg_ids_raw[0].split()
-        log.info("email: found %d UNSEEN messages", len(msg_ids))
-
-        results: list[EmailMessage] = []
-        for mid in msg_ids:
+            if raw is None:
+                self._fail(imaplib.IMAP4.error("MALFORMED_FETCH"), "fetch")
             try:
-                status, msg_data = self._conn.fetch(mid, "(RFC822)")
-                if status != "OK" or not msg_data or msg_data[0] is None:
-                    log.warning("email: FETCH failed for msg %r", mid)
+                msg = email_lib.message_from_bytes(raw, policy=policy.default)
+                sender = str(msg.get("From", ""))
+                subject = str(msg.get("Subject", ""))
+                if not self._is_sender_allowed(sender) or self._has_injection_subject(subject):
                     continue
-
-                raw_bytes = msg_data[0][1]  # type: ignore[index]
-                if not isinstance(raw_bytes, bytes):
+                part = msg.get_body(preferencelist=("plain", "html")) if msg.is_multipart() else msg
+                body = part.get_content() if part is not None else ""
+                if not isinstance(body, str):
                     continue
-
-                msg = email_lib.message_from_bytes(raw_bytes)
-                sender = msg.get("From", "")
-                subject = msg.get("Subject", "")
-                date_str = msg.get("Date", "")
-                message_id = msg.get("Message-ID", "")
-
-                # Extract plain-text body (fail-closed per message)
-                body_text = ""
-                if msg.is_multipart():
-                    for part in msg.walk():
-                        ctype = part.get_content_type()
-                        if ctype == "text/plain":
-                            try:
-                                body_text = part.get_payload(decode=True).decode(  # type: ignore[union-attr]
-                                    part.get_content_charset() or "utf-8", errors="replace"
-                                )
-                                break
-                            except Exception:
-                                pass
-                else:
-                    try:
-                        payload = msg.get_payload(decode=True)
-                        if isinstance(payload, bytes):
-                            body_text = payload.decode(
-                                msg.get_content_charset() or "utf-8", errors="replace"
-                            )
-                    except Exception:
-                        pass
-
-                results.append(EmailMessage(
-                    sender=sender,
-                    subject=subject,
-                    body_text=body_text,
-                    date_str=date_str,
-                    message_id=message_id,
-                ))
-            except Exception as exc:  # noqa: BLE001
-                log.warning("email: error parsing message %r — skipped: %s", mid, exc)
-
+                if part.get_content_type() == "text/html":
+                    body = self._strip_html(body)
+                results.append(
+                    EmailMessage(
+                        sender,
+                        subject,
+                        body,
+                        date_str=str(msg.get("Date", "")),
+                        message_id=str(msg.get("Message-ID", "")),
+                    )
+                )
+            except Exception:
+                log.warning("email: malformed MIME dropped")
         return results
 
     # ── Private helpers ───────────────────────────────────────────────────────
@@ -246,13 +257,15 @@ class IMAPEmailReader:
         if not self.priority_senders:
             log.debug("email: empty allowlist — all senders rejected (fail-close)")
             return False
-        s = sender.lower().strip()
-        # Extract domain from "Display Name <addr@domain.com>" format
-        match = re.search(r"<([^>]+)>", s)
-        addr = match.group(1) if match else s
-        domain = addr.split("@")[-1] if "@" in addr else ""
+        addresses = email_lib.utils.getaddresses([sender])
+        if len(addresses) != 1:
+            return False
+        addr = addresses[0][1].lower().strip()
+        if addr.count("@") != 1:
+            return False
+        domain = addr.rsplit("@", 1)[1]
         return any(
-            allowed in addr or (domain and allowed in domain)
+            addr == allowed if "@" in allowed else domain == allowed
             for allowed in self.priority_senders
         )
 
@@ -260,10 +273,7 @@ class IMAPEmailReader:
         """Returns True if subject matches any known injection pattern."""
         for pattern in _INJECTION_SUBJECT_PATTERNS:
             if pattern.search(subject):
-                log.warning(
-                    "email: injection pattern in subject — email dropped: %r",
-                    subject[:80],
-                )
+                log.warning("email: injection subject dropped")
                 return True
         return False
 
@@ -274,15 +284,12 @@ class IMAPEmailReader:
         """
         try:
             from jarvis.security.prompt_guard import PromptGuard
+
             result = PromptGuard().sanitize(text)
             sanitized = str(result)
-        except ImportError:
-            # PromptGuard not available — fall back to basic stripping
-            sanitized = re.sub(r"(ignore|disregard|forget)\s+(all|previous|prior)", "",
-                               text, flags=re.IGNORECASE)
-        except Exception as exc:
-            log.warning("email: PromptGuard failed (%s) — using raw text", exc)
-            sanitized = text
+        except Exception:
+            log.warning("email: sanitizer unavailable; body withheld")
+            sanitized = ""
 
         return sanitized[:_MAX_BODY_LEN].strip()
 
@@ -297,7 +304,7 @@ class IMAPEmailReader:
             try:
                 # Step 1: sender allowlist (fail-close)
                 if not self._is_sender_allowed(em.sender):
-                    log.info("email: sender not in allowlist — dropped: %r", em.sender[:60])
+                    log.info("email: sender not in allowlist — dropped")
                     dropped += 1
                     continue
 
@@ -309,8 +316,7 @@ class IMAPEmailReader:
                 accepted.append(em)
 
             except Exception as exc:
-                log.warning("email: error during filter for %r — dropped: %s",
-                            getattr(em, "sender", "?"), exc)
+                log.warning("email: invalid message dropped")
                 dropped += 1
 
         summaries: list[str] = []
@@ -323,17 +329,19 @@ class IMAPEmailReader:
                 safe_body = self._sanitize_for_llm(body)
 
                 summary_text = (
-                    f"Email mới từ {em.sender} về tiêu đề {em.subject}. "
-                    f"Tóm tắt: {safe_body}."
+                    f"Email mới từ {em.sender} về tiêu đề {em.subject}. Tóm tắt: {safe_body}."
                 )
                 summaries.append(summary_text)
             except Exception as exc:
-                log.warning("email: summary generation failed for %r: %s",
-                            em.sender[:40], exc)
+                log.warning("email: summary unavailable")
 
         combined_voice = " ".join(summaries) if summaries else "Không có email ưu tiên mới."
-        log.info("email: processed %d/%d emails (%d dropped by security filters)",
-                 len(accepted), len(emails), dropped)
+        log.info(
+            "email: processed %d/%d emails (%d dropped by security filters)",
+            len(accepted),
+            len(emails),
+            dropped,
+        )
 
         return {
             "total_unread": len(emails),

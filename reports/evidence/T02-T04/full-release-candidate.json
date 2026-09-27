@@ -1,0 +1,18 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\reports\\evidence\\T02-T04\\full-release-candidate.xml"
+  ],
+  "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "started_utc": "2026-09-24T11:17:07Z",
+  "wall_seconds": 143.97197198867798,
+  "exit_code": 4294967295
+}

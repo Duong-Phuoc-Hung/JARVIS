@@ -1,0 +1,20 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/e2e/test_browser_authority_e2e.py",
+    "-k",
+    "app_entrypoint or planner_direct",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\reports\\evidence\\T02-T04\\host-boundaries-red.xml"
+  ],
+  "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "started_utc": "2026-09-24T10:57:06Z",
+  "wall_seconds": 5.242627382278442,
+  "exit_code": 1
+}

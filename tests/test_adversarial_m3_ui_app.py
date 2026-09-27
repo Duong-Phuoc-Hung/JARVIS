@@ -437,10 +437,10 @@ def test_dashboard_cors_and_options_and_404(running_dashboard_server):
     base_url = f"http://127.0.0.1:{running_dashboard_server.port}"
 
     # 1. OPTIONS request
-    req_options = urllib.request.Request(f"{base_url}/api/status", method="OPTIONS")
+    req_options = urllib.request.Request(f"{base_url}/api/status", method="OPTIONS", headers={"Origin": base_url})
     with urllib.request.urlopen(req_options) as res:
         assert res.status == 204
-        assert res.headers.get("Access-Control-Allow-Origin") == "*"
+        assert res.headers.get("Access-Control-Allow-Origin") == base_url
 
     # 2. 404 Not Found GET
     req_404 = urllib.request.Request(f"{base_url}/api/non_existent_route")

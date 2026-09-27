@@ -1,0 +1,29 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/e2e/test_browser_playwright_e2e.py",
+    "tests/e2e/test_browser_authority_e2e.py",
+    "tests/unit/test_telegram_transport_contract.py",
+    "tests/unit/test_zalo_transport_contract.py",
+    "tests/unit/test_discord_acceptance_contract.py",
+    "tests/unit/test_imap_acceptance_contract.py",
+    "tests/unit/test_ha_acceptance_contract.py",
+    "tests/integration/test_zalo_webhook_http.py",
+    "tests/integration/test_discord_http_contract.py",
+    "tests/integration/test_imap_tls_contract.py",
+    "tests/integration/test_ha_http_contract.py",
+    "tests/unit/test_transport_command_fail_closed.py",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\reports\\evidence\\T01-T07-integration\\final-scoped-2.xml"
+  ],
+  "head": "92d62cdbdf1e5d5d2fbaa044a941ad06ba5e65e1",
+  "started_utc": "2026-09-27T08:09:02Z",
+  "wall_seconds": 115.4008378982544,
+  "exit_code": 0
+}

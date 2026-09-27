@@ -15,8 +15,10 @@ Commands:
   !help         — Command reference
   !exec <cmd>   — Execute skill/action (advanced)
 """
+
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
@@ -33,11 +35,14 @@ log = logging.getLogger("jarvis.comms.discord")
 class DiscordConfig:
     bot_token: str = ""
     whitelist_user_ids: list[int] = field(default_factory=list)
+    admin_user_ids: list[int] = field(default_factory=list)
     guild_id: int | None = None
     default_channel_id: int | None = None
     enabled: bool = True
     rate_limit_s: float = 1.0
-    rate_limit: RateLimitConfig = field(default_factory=lambda: RateLimitConfig(requests_per_minute=30, burst_limit=10))
+    rate_limit: RateLimitConfig = field(
+        default_factory=lambda: RateLimitConfig(requests_per_minute=30, burst_limit=10)
+    )
     poll_interval_s: float = 2.0
     consecutive_error_threshold: int = 5
 
@@ -46,7 +51,7 @@ class DiscordConfig:
 class DiscordEmbed:
     title: str = ""
     description: str = ""
-    color: int = 0x00FF88   # JARVIS green
+    color: int = 0x00FF88  # JARVIS green
     fields: list[dict[str, Any]] = field(default_factory=list)
 
     def add_field(self, name: str, value: str, inline: bool = False) -> DiscordEmbed:
@@ -54,8 +59,12 @@ class DiscordEmbed:
         return self
 
     def to_dict(self) -> dict[str, Any]:
-        return {"title": self.title, "description": self.description,
-                "color": self.color, "fields": self.fields}
+        return {
+            "title": self.title,
+            "description": self.description,
+            "color": self.color,
+            "fields": self.fields,
+        }
 
 
 class DiscordBotController:
@@ -80,6 +89,7 @@ class DiscordBotController:
         message_handler: Callable | None = None,
         admin_user_ids: list[int] | None = None,
     ) -> None:
+        self.enabled = config.enabled if config else True
         self.bot_token = bot_token or (config.bot_token if config else "")
         raw_whitelist = whitelist_user_ids or (config.whitelist_user_ids if config else [])
         self.whitelist: list[int] = []
@@ -90,7 +100,11 @@ class DiscordBotController:
                     self.whitelist.append(u_int)
             except (ValueError, TypeError):
                 pass
-        raw_admins = admin_user_ids if admin_user_ids is not None else (getattr(config, "admin_user_ids", None) if config else None)
+        raw_admins = (
+            admin_user_ids
+            if admin_user_ids is not None
+            else (getattr(config, "admin_user_ids", None) if config else None)
+        )
         self.admin_user_ids: list[int] = []
         if raw_admins is not None:
             for uid in raw_admins:
@@ -105,25 +119,49 @@ class DiscordBotController:
         self.dispatcher = dispatcher
         self._http = http_client
         self.rate_limiter = rate_limiter or TokenBucketRateLimiter(
-            rate_limit_config or (config.rate_limit if config else RateLimitConfig(requests_per_minute=30, burst_limit=10)),
+            rate_limit_config
+            or (
+                config.rate_limit
+                if config
+                else RateLimitConfig(requests_per_minute=30, burst_limit=10)
+            ),
             channel_name="discord",
         )
+        self._transport_lock = threading.RLock()
+        self._poll_lock = threading.Lock()
+        self._lifecycle_lock = threading.Lock()
+        self._retry_at = 0.0
+        self._channel_verified = False
+        self._bootstrapped = False
+        self.last_poll_status = {"success": False, "error_code": "NOT_STARTED"}
         self.sent_messages: list[dict[str, Any]] = []
         self.security_violations: list[dict[str, Any]] = []
         self._running = False
         self._poll_thread: threading.Thread | None = None
         self._last_message_id: str | None = None
         self.poll_interval_s: float = float(
-            poll_interval_s if poll_interval_s is not None else (config.poll_interval_s if config and config.poll_interval_s is not None else 2.0)
+            poll_interval_s
+            if poll_interval_s is not None
+            else (config.poll_interval_s if config and config.poll_interval_s is not None else 2.0)
         )
         self.consecutive_error_threshold: int = int(
-            consecutive_error_threshold if consecutive_error_threshold is not None else (config.consecutive_error_threshold if config and config.consecutive_error_threshold is not None else 5)
+            consecutive_error_threshold
+            if consecutive_error_threshold is not None
+            else (
+                config.consecutive_error_threshold
+                if config and config.consecutive_error_threshold is not None
+                else 5
+            )
         )
         self.consecutive_errors: int = 0
         self._stop_event: threading.Event = threading.Event()
         self.message_handler: Callable | None = message_handler
-        log.info("DiscordBotController initialized (token=%s, whitelist=%d users, rate_limiter=%s)",
-                 "set" if bot_token else "not_set", len(self.whitelist), "set" if rate_limiter else "none")
+        log.info(
+            "DiscordBotController initialized (token=%s, whitelist=%d users, rate_limiter=%s)",
+            "set" if bot_token else "not_set",
+            len(self.whitelist),
+            "set" if rate_limiter else "none",
+        )
 
     # ------------------------------------------------------------------
     # Security (Fail-Close Model)
@@ -153,7 +191,7 @@ class DiscordBotController:
             return False
         if self.admin_user_ids:
             return u_int in self.admin_user_ids
-        return self.is_user_authorized(u_int)
+        return False
 
     # ------------------------------------------------------------------
     # Message Handling
@@ -170,9 +208,14 @@ class DiscordBotController:
         Process an incoming Discord message and return a response dict.
         Response: {"status": 200, "text": str, "embed": dict|None}
         """
+        if self.default_channel_id and str(channel_id) != str(self.default_channel_id):
+            return {"status": 403, "text": "CHANNEL_NOT_ALLOWED", "embed": None}
         if not self.is_user_authorized(user_id):
             import hashlib
-            sha256_prefix = hashlib.sha256(content.encode("utf-8", errors="replace")).hexdigest()[:12]
+
+            sha256_prefix = hashlib.sha256(content.encode("utf-8", errors="replace")).hexdigest()[
+                :12
+            ]
             audit_entry = {
                 "event": "UNAUTHORIZED_DISCORD_ACCESS",
                 "user_id": user_id,
@@ -182,9 +225,18 @@ class DiscordBotController:
                 "timestamp": time.time(),
             }
             self.security_violations.append(audit_entry)
-            log.warning("Unauthorized Discord user rejected: %s (ID=%d, len=%d, hash_prefix=%s)",
-                        username, user_id, len(content), sha256_prefix)
-            return {"status": 403, "text": "⛔ Bạn không có quyền điều khiển JARVIS.", "embed": None}
+            log.warning(
+                "Unauthorized Discord user rejected: %s (ID=%d, len=%d, hash_prefix=%s)",
+                username,
+                user_id,
+                len(content),
+                sha256_prefix,
+            )
+            return {
+                "status": 403,
+                "text": "⛔ Bạn không có quyền điều khiển JARVIS.",
+                "embed": None,
+            }
 
         # Rate Limiting check per user_id
         if self.rate_limiter is not None:
@@ -214,39 +266,73 @@ class DiscordBotController:
                 return self._cmd_briefing()
             if cmd_name in ("skills", "kynang"):
                 return self._cmd_skills()
-            if cmd_name == "note":
-                return self._cmd_note(cmd_args)
             if cmd_name == "calc":
                 return self._cmd_calc(cmd_args)
-            if cmd_name == "screenshot":
+            if cmd_name in ("exec", "macro", "screenshot", "note"):
                 if not self.is_admin(user_id):
-                    return {"status": 403, "text": "⛔ Bạn không có quyền chụp màn hình.", "embed": None}
-                return self._cmd_screenshot(channel_id)
-            if cmd_name == "macro":
-                if not self.is_admin(user_id):
-                    return {"status": 403, "text": "⛔ Bạn không có quyền chạy macro.", "embed": None}
-                return self._cmd_macro(cmd_args)
-            if cmd_name == "exec":
-                if not self.is_admin(user_id):
-                    return {"status": 403, "text": "⛔ Bạn không có quyền thực thi lệnh này.", "embed": None}
-                return self._cmd_exec(cmd_args, username)
+                    return {"status": 403, "text": "PERMISSION_DENIED", "embed": None}
+                if cmd_name == "exec":
+                    parts = cmd_args.split(None, 1)
+                    try:
+                        action = parts[0]
+                        payload = json.loads(parts[1]) if len(parts) > 1 else {}
+                        if not isinstance(payload, dict):
+                            raise ValueError()
+                    except (ValueError, IndexError):
+                        return {"status": 400, "text": "INVALID_COMMAND", "embed": None}
+                elif cmd_name == "macro":
+                    action, payload = "macro_play", {"name": cmd_args}
+                elif cmd_name == "screenshot":
+                    action, payload = "screenshot", {}
+                else:
+                    if not cmd_args:
+                        return {"status": 400, "text": "EMPTY_NOTE", "embed": None}
+                    action, payload = "note_add", {"content": cmd_args}
+                return self._dispatch_command(user_id, action, payload)
 
-        # Natural language fallback
-        if self.dispatcher:
-            try:
-                response = self.dispatcher(content)
-                return {"status": 200, "text": str(response), "embed": None}
-            except Exception as exc:
-                log.warning("Dispatcher error: %s", exc)
+        # Arbitrary callbacks/natural-language routes lack a verifiable safety contract.
+        return {"status": 403, "text": "EXPLICIT_COMMAND_REQUIRED", "embed": None}
 
-        return {"status": 200, "text": f"💬 Nhận được: '{content[:100]}' — Dùng `/help` hoặc `!help` để xem lệnh.", "embed": None}
+    def _dispatch_command(self, user_id: int, action: str, payload: dict) -> dict:
+        from jarvis.core.dispatcher import ActionDispatcher
+        from jarvis.core.models import RequesterContext
+
+        dispatcher = self.dispatcher
+        if not isinstance(dispatcher, ActionDispatcher):
+            dispatcher = getattr(dispatcher, "__self__", None)
+        if not isinstance(dispatcher, ActionDispatcher):
+            return {
+                "status": 503,
+                "text": "DISPATCHER_UNAVAILABLE",
+                "error_code": "DISPATCHER_UNAVAILABLE",
+                "embed": None,
+            }
+        try:
+            result = dispatcher.dispatch_action(
+                action,
+                payload,
+                requester=RequesterContext.user(f"discord:{user_id}", authenticated=True),
+            )
+        except Exception:
+            return {"status": 500, "text": "DISPATCH_FAILED", "embed": None}
+        # Confirmation stays on the trusted local host. Never echo tokens, arbitrary
+        # action results (screenshots/secrets), or handler exceptions to the channel.
+        code = result.error_code or result.code
+        return {
+            "status": 200 if result.success else 409 if code == "CONFIRMATION_REQUIRED" else 503,
+            "text": "ACTION_COMPLETED" if result.success else code,
+            "error_code": None if result.success else code,
+            "embed": None,
+        }
 
     # ------------------------------------------------------------------
     # Commands
     # ------------------------------------------------------------------
 
     def _cmd_help(self) -> dict[str, Any]:
-        embed = DiscordEmbed(title="🤖 JARVIS Discord Controller", description="Danh sách lệnh điều khiển:")
+        embed = DiscordEmbed(
+            title="🤖 JARVIS Discord Controller", description="Danh sách lệnh điều khiển:"
+        )
         embed.add_field("/status, !status", "Kiểm tra sức khỏe hệ thống", True)
         embed.add_field("/briefing, !briefing", "Báo cáo sáng tổng hợp", True)
         embed.add_field("/skills, !skills", "Danh sách kỹ năng", True)
@@ -260,6 +346,7 @@ class DiscordBotController:
     def _cmd_status(self) -> dict[str, Any]:
         try:
             from jarvis.core.health import HealthChecker
+
             checker = HealthChecker()
             results = checker.run_checks()
             ready = sum(1 for r in results.values() if r.get("status") == "ready")
@@ -273,85 +360,49 @@ class DiscordBotController:
     def _cmd_briefing(self) -> dict[str, Any]:
         try:
             from jarvis.skills import registry
+
             reg = registry.SkillRegistry()
             result = reg.invoke_skill("briefing", action="full")
-            text = result.get("output", "Không thể tải briefing.") if isinstance(result, dict) else str(result)
+            text = (
+                result.get("output", "Không thể tải briefing.")
+                if isinstance(result, dict)
+                else str(result)
+            )
         except Exception as exc:
-            log.warning("Briefing command failed: %s", exc)
+            log.warning("Briefing command failed")
             text = "Briefing hiện tại không khả dụng."
         return {"status": 200, "text": f"📰 {text[:1800]}", "embed": None}
 
     def _cmd_skills(self) -> dict[str, Any]:
         try:
             from jarvis.skills import registry
+
             reg = registry.SkillRegistry()
             skills = reg.list_skills()
             names = [s.name for s in skills]
             text = "🧰 **Kỹ năng:** " + ", ".join(f"`{n}`" for n in names)
         except Exception as exc:
-            log.warning("Skills command failed: %s", exc)
+            log.warning("Skills command failed")
             text = "Không thể lấy danh sách kỹ năng vào lúc này."
         return {"status": 200, "text": text[:1800], "embed": None}
 
-    def _cmd_note(self, note_text: str) -> dict[str, Any]:
-        if not note_text:
-            return {"status": 400, "text": "⚠️ Vui lòng nhập nội dung ghi chú sau `/note` hoặc `!note`.", "embed": None}
-        try:
-            from jarvis.skills import registry
-            reg = registry.SkillRegistry()
-            reg.invoke_skill("note_taker", action="add", content=note_text)
-            text = f"📝 Đã lưu ghi chú: {note_text[:100]}"
-        except Exception:
-            text = f"📝 Ghi chú đã ghi nhận: {note_text[:100]}"
-        return {"status": 200, "text": text, "embed": None}
-
     def _cmd_calc(self, expr: str) -> dict[str, Any]:
         if not expr:
-            return {"status": 400, "text": "⚠️ Nhập biểu thức sau `/calc` hoặc `!calc`.", "embed": None}
+            return {
+                "status": 400,
+                "text": "⚠️ Nhập biểu thức sau `/calc` hoặc `!calc`.",
+                "embed": None,
+            }
         try:
             from jarvis.skills import registry
+
             reg = registry.SkillRegistry()
             result = reg.invoke_skill("calculator", expression=expr)
             text = result.get("output", str(result)) if isinstance(result, dict) else str(result)
         except Exception as exc:
-            log.warning("Calc command failed: %s", exc)
+            log.warning("Calc command failed")
             text = "Biểu thức không hợp lệ hoặc xảy ra lỗi tính toán."
         return {"status": 200, "text": f"🔢 {text}", "embed": None}
-
-    def _cmd_screenshot(self, channel_id: int) -> dict[str, Any]:
-        png_bytes = self._capture_screenshot()
-        if png_bytes:
-            self.send_file(channel_id, png_bytes, "screenshot.png", "📸 Màn hình hiện tại")
-            return {"status": 200, "text": "📸 Đã chụp và gửi màn hình!", "embed": None}
-        return {"status": 500, "text": "❌ Không thể chụp màn hình.", "embed": None}
-
-    def _cmd_macro(self, macro_name: str) -> dict[str, Any]:
-        try:
-            from jarvis.skills import registry
-            reg = registry.SkillRegistry()
-            result = reg.invoke_skill("macro_recorder", action="play", macro_name=macro_name)
-            text = result.get("output", str(result)) if isinstance(result, dict) else str(result)
-        except Exception as exc:
-            log.warning("Macro command failed: %s", exc)
-            text = f"Không thể thực thi macro '{macro_name}'."
-        return {"status": 200, "text": text[:1800], "embed": None}
-
-    def _cmd_exec(self, command: str, username: str) -> dict[str, Any]:
-        parts = command.split(None, 1)
-        skill_name = parts[0] if parts else ""
-        params_str = parts[1] if len(parts) > 1 else ""
-        try:
-            from jarvis.skills import registry
-            reg = registry.SkillRegistry()
-            kwargs = {}
-            if params_str:
-                kwargs["query"] = params_str
-            result = reg.invoke_skill(skill_name, **kwargs)
-            text = result.get("output", str(result)) if isinstance(result, dict) else str(result)
-        except Exception as exc:
-            log.warning("Exec command failed: %s", exc)
-            text = f"Không thể thực thi lệnh '{skill_name}'."
-        return {"status": 200, "text": f"⚙️ {text[:1800]}", "embed": None}
 
     def summarize_channel(self, channel_name: str, messages: list[str]) -> str:
         """Summarize activity from a Discord channel."""
@@ -365,64 +416,111 @@ class DiscordBotController:
     # Sending
     # ------------------------------------------------------------------
 
-    def send_message(self, channel_id: int, content: str) -> dict[str, Any]:
-        record = {"channel_id": channel_id, "content": content, "timestamp": time.time()}
-        self.sent_messages.append(record)
-        if self._http and self.bot_token:
-            try:
-                import json as _json
-                import urllib.error
-                import urllib.request
-                payload = _json.dumps({"content": content}).encode()
-                req = urllib.request.Request(
-                    f"https://discord.com/api/v10/channels/{channel_id}/messages",
-                    data=payload,
-                    headers={"Authorization": f"Bot {self.bot_token}", "Content-Type": "application/json"},
-                    method="POST",
-                )
-                urllib.request.urlopen(req, timeout=10)
-                return {"success": True, "data": record}
-            except Exception as exc:
-                log.warning("Discord send_message API error: %s", exc)
-                return {"success": False, "error": str(exc), "data": record}
-        # Fail-closed: no bot_token or http_client — do NOT fabricate successful delivery.
-        # Previously returned success=True here regardless — that was fabrication (2026-09-04).
-        return {
-            "success": False,
-            "error_code": "NOT_CONFIGURED",
-            "description": "No bot_token configured. Message was NOT sent to Discord.",
-            "data": record,
-        }
+    @staticmethod
+    def _snowflake(value) -> bool:
+        text = str(value)
+        return text.isascii() and text.isdigit() and 0 < len(text) <= 20 and 0 < int(text) < 2**64
 
-    def send_file(
-        self,
-        channel_id: int,
-        file_bytes: bytes,
-        filename: str,
-        caption: str = "",
-    ) -> dict[str, Any]:
-        record = {"channel_id": channel_id, "filename": filename, "size": len(file_bytes), "timestamp": time.time()}
-        self.sent_messages.append(record)
-        # Fail-closed: file upload via multipart API not yet implemented.
-        # Previously returned success=True regardless — that was fabrication (2026-09-04).
-        # When bot_token is present, log a warning that file upload is not implemented.
-        if self._http and self.bot_token:
-            log.warning(
-                "Discord send_file: file upload API (multipart/form-data) is not yet "
-                "implemented. File '%s' was NOT sent to channel %d.", filename, channel_id
-            )
-            return {
+    @staticmethod
+    def _failure(code: str, http_status: int | None = None) -> dict:
+        return {"success": False, "error_code": code, "http_status": http_status}
+
+    def _request(self, method: str, path: str, payload: dict | None = None) -> dict:
+        import requests
+
+        with self._transport_lock:
+            if not self.bot_token:
+                return self._failure("NOT_CONFIGURED")
+            if time.monotonic() < self._retry_at:
+                return self._failure("RATE_LIMITED", 429)
+            try:
+                client = self._http if self._http is not None else requests
+                response = client.request(
+                    method,
+                    "https://discord.com/api/v10" + path,
+                    headers={"Authorization": f"Bot {self.bot_token}"},
+                    json=payload,
+                    timeout=10,
+                    allow_redirects=False,
+                )
+                status = response.status_code
+                try:
+                    data = response.json()
+                except Exception:
+                    data = None
+                if status == 429:
+                    try:
+                        delay = float(data.get("retry_after", 1))
+                        if not 0 < delay < float("inf"):
+                            delay = 60.0
+                    except (ValueError, TypeError, AttributeError):
+                        delay = 60.0
+                    self._retry_at = time.monotonic() + max(1.0, delay)
+                if not 200 <= status < 300:
+                    return self._failure(
+                        "RATE_LIMITED" if status == 429 else f"HTTP_{status}", status
+                    )
+                return {"success": True, "http_status": status, "data": data}
+            except (requests.Timeout, TimeoutError):
+                return self._failure("TIMEOUT")
+            except Exception:
+                return self._failure("CONNECTION_FAILED")
+
+    def _ensure_channel(self, channel_id) -> dict:
+        if not self.enabled:
+            return self._failure("DISABLED")
+        if not self.bot_token:
+            return self._failure("NOT_CONFIGURED")
+        if not self.guild_id or not self.default_channel_id:
+            return self._failure("PENDING_GUILD_CHANNEL")
+        if str(channel_id) != str(self.default_channel_id) or not self._snowflake(channel_id):
+            return self._failure("CHANNEL_NOT_ALLOWED")
+        if not self._channel_verified:
+            result = self._request("GET", f"/channels/{channel_id}")
+            if not result["success"]:
+                return result
+            data = result["data"]
+            if (
+                not isinstance(data, dict)
+                or str(data.get("id")) != str(channel_id)
+                or str(data.get("guild_id")) != str(self.guild_id)
+            ):
+                return self._failure("GUILD_CHANNEL_MISMATCH")
+            self._channel_verified = True
+        return {"success": True}
+
+    def _send(self, channel_id, payload: dict) -> dict:
+        with self._transport_lock:
+            check = self._ensure_channel(channel_id)
+            if not check["success"]:
+                return check
+            payload["allowed_mentions"] = {"parse": []}
+            result = self._request("POST", f"/channels/{channel_id}/messages", payload)
+            record = {
+                "timestamp": time.time(),
+                "http_status": result.get("http_status"),
                 "success": False,
-                "error_code": "FILE_SEND_NOT_IMPLEMENTED",
-                "description": f"File '{filename}' was NOT uploaded — Discord multipart file upload is not yet implemented.",
-                "data": record,
+                "channel_id": str(channel_id),
             }
-        return {
-            "success": False,
-            "error_code": "NOT_CONFIGURED",
-            "description": f"No bot_token configured. File '{filename}' was NOT sent to Discord.",
-            "data": record,
-        }
+            if result["success"]:
+                data = result["data"]
+                if (
+                    not isinstance(data, dict)
+                    or not self._snowflake(data.get("id"))
+                    or str(data.get("channel_id")) != str(channel_id)
+                ):
+                    result = self._failure("INVALID_RESPONSE", result.get("http_status"))
+                else:
+                    record.update(success=True, message_id=str(data["id"]))
+                    result = dict(record)
+            if not result["success"]:
+                record["error_code"] = result["error_code"]
+            self.sent_messages.append(record)
+            del self.sent_messages[:-1000]
+            return result
+
+    def send_message(self, channel_id: int, content: str) -> dict[str, Any]:
+        return self._send(channel_id, {"content": content})
 
     def send_embed(
         self,
@@ -431,318 +529,154 @@ class DiscordBotController:
         description: str,
         fields: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        fields = fields or []
-        embed_dict = {"title": title, "description": description, "fields": fields, "color": 0x00FF88}
-        record = {
-            "channel_id": channel_id,
-            "content": f"**{title}**\n{description}",
-            "embed": embed_dict,
-            "timestamp": time.time(),
-        }
-        self.sent_messages.append(record)
-        if self._http and self.bot_token:
-            try:
-                import json as _json
-                import urllib.error
-                import urllib.request
-                payload = _json.dumps({
-                    "content": f"**{title}**\n{description}",
-                    "embeds": [embed_dict],
-                }).encode()
-                req = urllib.request.Request(
-                    f"https://discord.com/api/v10/channels/{channel_id}/messages",
-                    data=payload,
-                    headers={"Authorization": f"Bot {self.bot_token}", "Content-Type": "application/json"},
-                    method="POST",
-                )
-                urllib.request.urlopen(req, timeout=10)
-                return {"success": True, "data": record}
-            except Exception as exc:
-                log.warning("Discord send_embed API error: %s", exc)
-                return {"success": False, "error": str(exc), "data": record}
-        # Fail-closed: no bot_token or http_client — do NOT fabricate successful delivery.
-        # Previously returned success=True here regardless — that was fabrication (2026-09-04).
-        return {
-            "success": False,
-            "error_code": "NOT_CONFIGURED",
-            "description": "No bot_token configured. Embed was NOT sent to Discord.",
-            "data": record,
-        }
+        return self._send(
+            channel_id,
+            {
+                "embeds": [
+                    {
+                        "title": title,
+                        "description": description,
+                        "fields": fields or [],
+                        "color": 0x00FF88,
+                    }
+                ]
+            },
+        )
 
-    def _capture_screenshot(self) -> bytes | None:
-        try:
-            import mss
-            import mss.tools
-            with mss.mss() as sct:
-                img = sct.grab(sct.monitors[1])
-                return mss.tools.to_png(img.rgb, img.size)
-        except Exception:
-            pass
-        try:
-            import io
+    def send_file(
+        self, channel_id: int, file_bytes: bytes, filename: str, caption: str = ""
+    ) -> dict:
+        return self._failure("FILE_SEND_NOT_IMPLEMENTED" if self.bot_token else "NOT_CONFIGURED")
 
-            from PIL import ImageGrab
-            buf = io.BytesIO()
-            ImageGrab.grab().save(buf, format="PNG")
-            return buf.getvalue()
-        except Exception:
-            return None
+    def register_handler(self, handler: Callable) -> None:
+        """Legacy callback is not a command execution authority.
 
-    # ------------------------------------------------------------------
-    # Polling & Inbound Gateway
-    # ------------------------------------------------------------------
-
-    def register_handler(self, handler: Callable[[dict[str, Any]], None]) -> None:
-        """Register callback handler for inbound Discord messages."""
+        Inbound commands always use handle_message/ActionDispatcher. Raw callback
+        execution was removed because it bypassed permissions and safety.
+        """
         self.message_handler = handler
 
-    def start_polling(self, channel_id: str | int | None = None) -> None:
-        """
-        Start background polling loop.
-        Fail-closed: If not self.bot_token or not (channel_id or self.default_channel_id):
-        log warning/info and return immediately. Ensure self._running = False and self._poll_thread is None.
-        """
-        target_channel = channel_id or self.default_channel_id
-        if not self.bot_token or not target_channel:
-            log.warning("Discord polling skipped (missing bot_token or channel_id)")
+    def start_polling(self, channel_id: str | int | None = None) -> dict:
+        with self._lifecycle_lock:
+            if self._poll_thread and self._poll_thread.is_alive():
+                return self._failure("ALREADY_RUNNING" if self._running else "STOPPING")
+            channel = channel_id or self.default_channel_id
+            check = self._ensure_channel(channel)
+            if not check["success"]:
+                self.last_poll_status = check
+                return check
+            if not self.whitelist:
+                return self._failure("WHITELIST_REQUIRED")
+            self._stop_event.clear()
+            self._running = True
+            self.consecutive_errors = 0
+            self._poll_thread = threading.Thread(
+                target=self._poll_loop, args=(channel,), name="DiscordPollThread", daemon=True
+            )
+            self._poll_thread.start()
+            return {"success": True, "status": "STARTING"}
+
+    def stop_polling(self, timeout: float = 2.0) -> dict:
+        with self._lifecycle_lock:
             self._running = False
+            self._stop_event.set()
+            thread = self._poll_thread
+            if thread and thread is not threading.current_thread():
+                thread.join(timeout=timeout)
+            if thread and thread.is_alive():
+                return self._failure("STOP_TIMEOUT")
             self._poll_thread = None
-            return
+            return {"success": True, "status": "STOPPED"}
 
-        if self._running:
-            log.info("Discord polling is already running.")
-            return
-
-        self._running = True
-        self._stop_event.clear()
-        self.consecutive_errors = 0
-        self._poll_thread = threading.Thread(
-            target=self._poll_loop,
-            args=(str(target_channel),),
-            name="DiscordPollThread",
-            daemon=True,
-        )
-        self._poll_thread.start()
-        log.info("Discord polling started on channel %s", target_channel)
-
-    def stop_polling(self, timeout: float = 2.0) -> None:
-        """Stop background polling loop gracefully."""
-        self._running = False
-        self._stop_event.set()
-        if self._poll_thread and self._poll_thread.is_alive():
-            self._poll_thread.join(timeout=timeout)
-        self._poll_thread = None
-        log.info("Discord polling stopped.")
-
-    def _poll_loop(self, channel_id: str | int | None = None) -> None:
-        """Background polling worker loop."""
-        target_channel = str(channel_id or self.default_channel_id or "")
-        if not self.bot_token or not target_channel:
-            self._running = False
-            return
-
+    def _poll_loop(self, channel_id=None) -> None:
         try:
             while self._running and not self._stop_event.is_set():
-                try:
-                    should_continue = self.poll_once(target_channel)
-                except Exception as exc:
-                    log.error("Unexpected error in Discord poll_once: %s", exc)
-                    should_continue = True
-                    self._stop_event.wait(timeout=min(self.poll_interval_s, 1.0))
-                if not should_continue:
+                if not self.poll_once(channel_id):
                     break
-                self._stop_event.wait(timeout=self.poll_interval_s)
+                self._stop_event.wait(
+                    max(0.05, self.poll_interval_s, self._retry_at - time.monotonic())
+                )
         finally:
             self._running = False
 
-    def poll_once(self, channel_id: str | int | None = None, mock_http: Any | None = None) -> bool:
+    def poll_once(self, channel_id=None, mock_http=None) -> bool:
+        """REST poll (not WebSocket Gateway). Bool means continue, not success.
+
+        Read last_poll_status for actual outcome. First poll establishes a cursor
+        without executing historical commands. Cursor is in-memory; restarting a
+        new controller deliberately skips offline history. No automatic send retry.
         """
-        Execute a single polling pass on the specified channel.
-        Queries GET /channels/{channel_id}/messages?limit=50 (&after={_last_message_id} if set).
-        Enforces user authorization whitelist, filters bot messages, and dispatches to handler.
-        Returns True to continue polling, False to terminate polling loop.
-        """
-        target_channel = str(channel_id or self.default_channel_id or "")
-        if not self.bot_token or not target_channel:
-            log.warning("Discord poll_once skipped: missing bot_token or channel_id")
+        if mock_http is not None:
+            self.last_poll_status = self._failure("UNSUPPORTED_LEGACY_ADAPTER")
             return False
-
-        url = f"https://discord.com/api/v10/channels/{target_channel}/messages?limit=50"
-        if self._last_message_id:
-            url += f"&after={self._last_message_id}"
-
-        headers = {
-            "Authorization": f"Bot {self.bot_token}",
-            "User-Agent": "JARVIS-Assistant/5.2.0",
-        }
-
-        client = mock_http if mock_http is not None else self._http
-        raw_messages: list[dict[str, Any]] = []
-
-        try:
-            if client is not None:
-                if hasattr(client, "get"):
-                    resp = client.get(url, headers=headers)
-                    status_code = getattr(resp, "status_code", 200)
-                    if status_code in (401, 403, 404):
-                        log.critical("Fatal Discord HTTP %d error on channel %s. Terminating polling loop.", status_code, target_channel)
-                        self._running = False
-                        return False
-                    if status_code >= 400:
-                        raise RuntimeError(f"HTTP {status_code}: {getattr(resp, 'text', '')}")
-                    if hasattr(resp, "json"):
-                        raw_messages = resp.json()
-                    else:
-                        import json as _json
-                        raw_messages = _json.loads(getattr(resp, "text", "[]"))
-                elif hasattr(client, "urlopen"):
-                    import json as _json
-                    import urllib.request
-                    req = urllib.request.Request(url, headers=headers, method="GET")
-                    with client.urlopen(req, timeout=10) as resp:
-                        raw_messages = _json.loads(resp.read().decode("utf-8"))
-                elif callable(client):
-                    resp = client(url, headers=headers)
-                    status_code = getattr(resp, "status_code", 200)
-                    if status_code in (401, 403, 404):
-                        log.critical("Fatal Discord HTTP %d error on channel %s. Terminating polling loop.", status_code, target_channel)
-                        self._running = False
-                        return False
-                    if status_code >= 400:
-                        raise RuntimeError(f"HTTP {status_code}: {getattr(resp, 'text', '')}")
-                    if hasattr(resp, "json"):
-                        raw_messages = resp.json()
-                    else:
-                        import json as _json
-                        raw_messages = _json.loads(getattr(resp, "text", "[]"))
-            else:
-                import json as _json
-                import urllib.request
-                req = urllib.request.Request(url, headers=headers, method="GET")
-                with urllib.request.urlopen(req, timeout=10) as resp:
-                    raw_messages = _json.loads(resp.read().decode("utf-8"))
-
+        with self._poll_lock:
+            channel = channel_id or self.default_channel_id
+            check = self._ensure_channel(channel)
+            if not check["success"]:
+                self.last_poll_status = check
+                return False
+            path = f"/channels/{channel}/messages?limit=50"
+            if self._last_message_id:
+                path += f"&after={self._last_message_id}"
+            result = self._request("GET", path)
+            self.last_poll_status = {k: v for k, v in result.items() if k != "data"}
+            if not result["success"]:
+                if result.get("http_status") == 429:
+                    return True
+                self.consecutive_errors += 1
+                return (
+                    result.get("http_status") not in (401, 403, 404)
+                    and self.consecutive_errors < self.consecutive_error_threshold
+                )
+            raw = result["data"]
+            if not isinstance(raw, list):
+                self.last_poll_status = self._failure("INVALID_RESPONSE", result["http_status"])
+                return False
             self.consecutive_errors = 0
-
-        except Exception as exc:
-            status_code = getattr(exc, "code", getattr(getattr(exc, "response", None), "status_code", None))
-            if status_code in (401, 403, 404):
-                log.critical("Fatal Discord HTTP %d error on channel %s: %s. Terminating polling loop.", status_code, target_channel, exc)
-                self._running = False
-                return False
-
-            self.consecutive_errors += 1
-            if self.consecutive_errors >= self.consecutive_error_threshold:
-                log.critical(
-                    "Discord polling reached consecutive error threshold (%d >= %d): %s. Terminating polling loop.",
-                    self.consecutive_errors,
-                    self.consecutive_error_threshold,
-                    exc,
+            messages = sorted(
+                (m for m in raw if isinstance(m, dict) and self._snowflake(m.get("id"))),
+                key=lambda m: int(m["id"]),
+            )
+            bootstrap = not self._bootstrapped
+            self._bootstrapped = True
+            for msg in messages:
+                mid = str(msg["id"])
+                if self._last_message_id and int(mid) <= int(self._last_message_id):
+                    continue
+                self._last_message_id = mid  # at-most-once; no replay after failed reply
+                if bootstrap or self._stop_event.is_set():
+                    continue
+                if str(msg.get("channel_id")) != str(channel) or msg.get("webhook_id"):
+                    continue
+                author = msg.get("author")
+                if not isinstance(author, dict) or author.get("bot"):
+                    continue
+                uid = author.get("id")
+                if not self.is_user_authorized(uid):
+                    continue
+                reply = self.handle_message(
+                    int(uid), "remote-user", str(msg.get("content", "")), int(channel)
                 )
-                self._running = False
-                return False
-            else:
-                log.warning(
-                    "Discord polling network/request error (%d/%d): %s",
-                    self.consecutive_errors,
-                    self.consecutive_error_threshold,
-                    exc,
+                delivery = (
+                    self.send_embed(
+                        int(channel),
+                        reply["embed"]["title"],
+                        reply["embed"].get("description", ""),
+                        reply["embed"].get("fields"),
+                    )
+                    if reply.get("embed")
+                    else self.send_message(int(channel), reply["text"])
                 )
-                return True
-
-        if not raw_messages or not isinstance(raw_messages, list):
-            return True
-
-        # Filter raw_messages to only dict elements before sorting
-        raw_messages = [m for m in raw_messages if isinstance(m, dict)]
-        if not raw_messages:
-            return True
-
-        # Sort messages ascending by numeric snowflake ID: int(msg["id"])
-        try:
-            sorted_messages = sorted(raw_messages, key=lambda m: int(m.get("id", 0)))
-        except (ValueError, TypeError, AttributeError):
-            sorted_messages = raw_messages
-
-        # Update self._last_message_id to the max snowflake string (strictly numeric)
-        if sorted_messages:
-            max_id = str(sorted_messages[-1].get("id", "") or "")
-            if max_id.isdigit():
-                try:
-                    if self._last_message_id is None or int(max_id) > int(self._last_message_id):
-                        self._last_message_id = max_id
-                except (ValueError, TypeError):
-                    pass
-
-        for msg in sorted_messages:
-            if not isinstance(msg, dict):
-                continue
-
-            author = msg.get("author", {})
-            if not isinstance(author, dict):
-                author = {}
-
-            # If author.get("bot", False) is True: skip
-            if author.get("bot", False) is True:
-                continue
-
-            # Author ID: author_id_int = int(author["id"])
-            author_id_raw = author.get("id")
-            try:
-                author_id_int = int(author_id_raw) if author_id_raw is not None else 0
-            except (ValueError, TypeError):
-                author_id_int = 0
-
-            username = str(author.get("username", "unknown"))
-            content = str(msg.get("content", ""))
-
-            # If not self.is_user_authorized(author_id_int): log security drop with SHA-256 hash prefix, record in self.security_violations, do NOT dispatch
-            if not self.is_user_authorized(author_id_int):
-                import hashlib
-                sha256_prefix = hashlib.sha256(content.encode("utf-8", errors="replace")).hexdigest()[:12]
-                audit_entry = {
-                    "event": "UNAUTHORIZED_DISCORD_ACCESS",
-                    "user_id": author_id_int,
-                    "username": username,
-                    "payload_sha256_prefix": sha256_prefix,
-                    "payload_length": len(content),
+                self.last_poll_status = {
+                    "success": delivery["success"],
+                    "http_status": delivery.get("http_status"),
+                    "message_id": mid,
+                    "reply_message_id": delivery.get("message_id"),
+                    "command_status": reply["status"],
                     "timestamp": time.time(),
+                    "error_code": delivery.get("error_code"),
                 }
-                self.security_violations.append(audit_entry)
-                log.warning(
-                    "Unauthorized Discord message dropped: user %s (ID=%d, len=%d, hash_prefix=%s)",
-                    username,
-                    author_id_int,
-                    len(content),
-                    sha256_prefix,
-                )
-                continue
-
-            # If authorized: dispatch to self.message_handler(msg) if callable, else self.handle_message(msg)
-            if callable(self.message_handler):
-                try:
-                    self.message_handler(msg)
-                except Exception as exc:
-                    log.error("Error in Discord message_handler for message %s: %s", msg.get("id"), exc)
-            else:
-                try:
-                    cid = int(target_channel)
-                except (ValueError, TypeError):
-                    cid = 0
-                try:
-                    try:
-                        self.handle_message(
-                            user_id=author_id_int,
-                            username=username,
-                            content=content,
-                            channel_id=cid,
-                        )
-                    except TypeError:
-                        self.handle_message(msg)
-                except Exception as exc:
-                    log.error("Error in Discord handle_message for message %s: %s", msg.get("id"), exc)
-
-        return True
+            return True
 
 
 # Backward compatibility

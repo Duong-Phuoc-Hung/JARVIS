@@ -46,14 +46,14 @@ class TestAuthorization:
         """Verify Fail-Close: Missing secret rejects all webhooks."""
         assert bot_unconfigured.verify_webhook_signature(b"payload", "sig") is False
 
-    def test_real_webhook_signature_validates_correctly(self):
+    def test_non_oa_hmac_signature_is_rejected(self):
         import hashlib, hmac
         secret = "super_secret_key"
         cfg = ZaloConfig(webhook_secret=secret, whitelist_user_ids=["u1"])
         controller = ZaloBotController(config=cfg, is_mock=False)
         payload = b'{"event":"test"}'
         valid_sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
-        assert controller.verify_webhook_signature(payload, valid_sig) is True
+        assert controller.verify_webhook_signature(payload, valid_sig) is False
         assert controller.verify_webhook_signature(payload, "invalid_signature_hex") is False
 
 
@@ -70,7 +70,8 @@ class TestCommandDispatch:
 
     def test_note_command(self, bot):
         result = bot.handle_message("u1", "Tester", "/note nhớ họp lúc 3h")
-        assert result["status"] == 200
+        assert result["status"] == 503
+        assert result["error_code"] == "DISPATCHER_UNAVAILABLE"
         assert result["text"] != ""
 
     def test_unauthorized_user_blocked(self, bot_whitelist):
@@ -80,7 +81,8 @@ class TestCommandDispatch:
 
     def test_natural_language_handled(self, bot):
         result = bot.handle_message("u1", "Tester", "JARVIS ơi làm ơn")
-        assert result["status"] == 200
+        assert result["status"] == 503
+        assert result["error_code"] == "LLM_UNAVAILABLE"
 
 
 class TestSendMessage:

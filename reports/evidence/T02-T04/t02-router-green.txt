@@ -1,0 +1,4 @@
+........................................................................ [ 84%]
+............s                                                            [100%]
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\t02-router-green.xml -
+84 passed, 1 skipped in 5.87s

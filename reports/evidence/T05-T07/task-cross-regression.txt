@@ -1,0 +1,109 @@
+........................................................................ [ 36%]
+.........................F......Fs.sF..Fs.F...F....F........F...F....... [ 72%]
+........................................................                 [100%]
+================================== FAILURES ===================================
+__________________ test_comms_telegram_photo_dispatch_tier1 ___________________
+tests\test_comms_hub.py:48: in test_comms_telegram_photo_dispatch_tier1
+    assert res["ok"] is True
+E   assert False is True
+_____________ test_e2e_tier3_voice_command_to_smart_home_with_tts _____________
+tests\test_e2e_scenarios.py:105: in test_e2e_tier3_voice_command_to_smart_home_with_tts
+    assert res["success"] is True
+E   assert False is True
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+________________ test_e2e_tier3_unresponsive_app_healing_flow _________________
+tests\test_e2e_scenarios.py:174: in test_e2e_tier3_unresponsive_app_healing_flow
+    assert mock_hardware_provider.ram_percent < 80.0
+E   assert 93.0 < 80.0
+E    +  where 93.0 = <tests.conftest.MockHardwareProvider object at 0x000001D3E1ED7C50>.ram_percent
+_____________ test_e2e_tier4_system_crisis_self_healing_workflow ______________
+tests\test_e2e_scenarios.py:250: in test_e2e_tier4_system_crisis_self_healing_workflow
+    assert mock_hardware_provider.ram_percent < 75.0
+E   assert 96.0 < 75.0
+E    +  where 96.0 = <tests.conftest.MockHardwareProvider object at 0x000001D3E21AE5D0>.ram_percent
+___________________ test_smart_home_ha_turn_on_light_tier1 ____________________
+tests\test_smart_home.py:32: in test_smart_home_ha_turn_on_light_tier1
+    assert res["success"] is True
+E   assert False is True
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+_____________ test_smart_home_ha_server_unreachable_timeout_tier2 _____________
+tests\test_smart_home.py:88: in test_smart_home_ha_server_unreachable_timeout_tier2
+    assert "unreachable" in res["error"].lower()
+E   AssertionError: assert 'unreachable' in 'not_configured'
+E    +  where 'not_configured' = <built-in method lower of str object at 0x000001D3DDF37870>()
+E    +    where <built-in method lower of str object at 0x000001D3DDF37870> = 'NOT_CONFIGURED'.lower
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+____________ test_security_tshark_cli_parameters_and_bpf_injection ____________
+tests\test_tier5_adversarial_sec_iot_comms_data.py:269: in test_security_tshark_cli_parameters_and_bpf_injection
+    assert len(captured_cmds) == 1
+E   assert 0 == 1
+E    +  where 0 = len([])
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_VOICE_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_MODEL_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_OUTPUT_FORMAT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_PCM_SAMPLE_RATE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_DIR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_INPUT_DEVICE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_SPIKE_RATIO not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CODE_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_BTC_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_NEW_WINDOW_WAIT_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_WIDTH not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_HEIGHT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: SONG_URI not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_PHRASE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_AFTER_SONG_DELAY_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: FOCUS_EXISTING_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_NEW_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CURSOR_OPEN_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CLAUDE_CODE_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_BINANCE_BTC_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CHROME_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_SEPARATE_SITE_PROFILES not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENWEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: DISCORD_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ZALO_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_MEMORY_DB not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: PORCUPINE_ACCESS_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_VOSK_MODEL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_LABS_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.core.labs:labs.py:151 Blocked execution of Labs feature 'tshark_capture' (capture_packets): Labs flag disabled.
+__________ test_home_assistant_rest_http_errors_and_connection_drop ___________
+tests\test_tier5_adversarial_sec_iot_comms_data.py:594: in test_home_assistant_rest_http_errors_and_connection_drop
+    assert "unreachable" in svc_res["error"].lower() or "connection" in svc_res["error"].lower()
+E   AssertionError: assert ('unreachable' in 'entity_not_allowed' or 'connection' in 'entity_not_allowed')
+E    +  where 'entity_not_allowed' = <built-in method lower of str object at 0x000001D3DE693130>()
+E    +    where <built-in method lower of str object at 0x000001D3DE693130> = 'ENTITY_NOT_ALLOWED'.lower
+E    +  and   'entity_not_allowed' = <built-in method lower of str object at 0x000001D3DE693130>()
+E    +    where <built-in method lower of str object at 0x000001D3DE693130> = 'ENTITY_NOT_ALLOWED'.lower
+____________ test_telegram_unauthorized_user_and_injection_defense ____________
+tests\test_tier5_adversarial_sec_iot_comms_data.py:704: in test_telegram_unauthorized_user_and_injection_defense
+    assert exec_res["status"] == 200
+E   assert 503 == 200
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.comms.telegram:telegram.py:97 Unauthorized Telegram access attempt by user_id: 999999
+- generated xml file: C:\Users\MSI\.codex\worktrees\t05-t07-runtime-contracts\JARVIS\reports\evidence\T05-T07\task-cross-regression.xml -
+=========================== short test summary info ===========================
+FAILED tests/test_comms_hub.py::test_comms_telegram_photo_dispatch_tier1 - as...
+FAILED tests/test_e2e_scenarios.py::test_e2e_tier3_voice_command_to_smart_home_with_tts
+FAILED tests/test_e2e_scenarios.py::test_e2e_tier3_unresponsive_app_healing_flow
+FAILED tests/test_e2e_scenarios.py::test_e2e_tier4_system_crisis_self_healing_workflow
+FAILED tests/test_smart_home.py::test_smart_home_ha_turn_on_light_tier1 - ass...
+FAILED tests/test_smart_home.py::test_smart_home_ha_server_unreachable_timeout_tier2
+FAILED tests/test_tier5_adversarial_sec_iot_comms_data.py::test_security_tshark_cli_parameters_and_bpf_injection
+FAILED tests/test_tier5_adversarial_sec_iot_comms_data.py::test_home_assistant_rest_http_errors_and_connection_drop
+FAILED tests/test_tier5_adversarial_sec_iot_comms_data.py::test_telegram_unauthorized_user_and_injection_defense
+9 failed, 188 passed, 4 skipped in 13.03s

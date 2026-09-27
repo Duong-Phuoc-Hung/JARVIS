@@ -453,11 +453,15 @@ def test_r3_adversarial_dialog_detector_complex_trees():
 # R4: COMPUTER CONTROL ADVERSARIAL STRESS TESTS
 # ============================================================================
 
-def test_r4_adversarial_volume_and_brightness_boundary_clamping():
+def test_r4_adversarial_volume_and_brightness_boundary_clamping(monkeypatch):
     """
     Stress: Test extreme volume and brightness values: negative numbers, >100,
     and boundary deltas. Verifies strict [0, 100] clamping.
     """
+    import sys
+    from types import SimpleNamespace
+    levels = []
+    monkeypatch.setitem(sys.modules, "screen_brightness_control", SimpleNamespace(set_brightness=levels.append))
     controller = ComputerController()
 
     # 1. Volume clamping

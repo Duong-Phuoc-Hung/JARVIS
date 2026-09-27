@@ -1,0 +1,135 @@
+.........................FF....           [100%]
+================================== FAILURES ===================================
+__ TestJarvisAppHomeAssistantIntegration.test_dispatcher_smart_home_set_temp __
+tests\unit\test_home_assistant_authoritative.py:230: in test_dispatcher_smart_home_set_temp
+    self.assertTrue(result.success)
+E   AssertionError: False is not true
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_VOICE_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_MODEL_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_OUTPUT_FORMAT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_PCM_SAMPLE_RATE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_DIR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_INPUT_DEVICE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_SPIKE_RATIO not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CODE_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_BTC_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_NEW_WINDOW_WAIT_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_WIDTH not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_HEIGHT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: SONG_URI not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_PHRASE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_AFTER_SONG_DELAY_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: FOCUS_EXISTING_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_NEW_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CURSOR_OPEN_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CLAUDE_CODE_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_BINANCE_BTC_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CHROME_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_SEPARATE_SITE_PROFILES not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENWEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: DISCORD_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ZALO_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_MEMORY_DB not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: PORCUPINE_ACCESS_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_VOSK_MODEL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_LABS_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.stt.engine:engine.py:568 faster-whisper: requested device='cuda' but CUDA unavailable — falling back to device='cpu'. Install 'nvidia-cublas-cu12' or CUDA Toolkit 12.x to use GPU.
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'skill_git_assistant' is being overwritten in ActionDispatcher.
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'home_assistant_call' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_turn_on' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_turn_off' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_set_temp' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:470 Action 'smart_home_set_temp' gated pending confirmation (requester=system, token=DA720154)
+WARNING  jarvis.core.dispatcher:dispatcher.py:628 Action 'smart_home_set_temp' handler reported failure: SECURITY_REFUSAL
+_ TestJarvisAppHomeAssistantIntegration.test_dispatcher_smart_home_turn_on_and_off _
+tests\unit\test_home_assistant_authoritative.py:224: in test_dispatcher_smart_home_turn_on_and_off
+    self.assertTrue(self.execute_confirmed("smart_home_turn_on", {"entity":"đèn phòng khách", "brightness":150}).success)
+E   AssertionError: False is not true
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_VOICE_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_MODEL_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_OUTPUT_FORMAT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_PCM_SAMPLE_RATE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_DIR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_INPUT_DEVICE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_SPIKE_RATIO not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CODE_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_BTC_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_NEW_WINDOW_WAIT_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_WIDTH not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_HEIGHT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: SONG_URI not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_PHRASE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_AFTER_SONG_DELAY_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: FOCUS_EXISTING_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_NEW_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CURSOR_OPEN_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CLAUDE_CODE_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_BINANCE_BTC_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CHROME_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_SEPARATE_SITE_PROFILES not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENWEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: DISCORD_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ZALO_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_MEMORY_DB not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: PORCUPINE_ACCESS_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_VOSK_MODEL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_LABS_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.stt.engine:engine.py:568 faster-whisper: requested device='cuda' but CUDA unavailable — falling back to device='cpu'. Install 'nvidia-cublas-cu12' or CUDA Toolkit 12.x to use GPU.
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'skill_git_assistant' is being overwritten in ActionDispatcher.
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'home_assistant_call' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_turn_on' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_turn_off' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_set_temp' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:470 Action 'smart_home_turn_on' gated pending confirmation (requester=system, token=C5068E71)
+WARNING  jarvis.core.dispatcher:dispatcher.py:628 Action 'smart_home_turn_on' handler reported failure: SECURITY_REFUSAL
+- generated xml file: C:\Users\MSI\.codex\worktrees\t05-t07-runtime-contracts\JARVIS\reports\evidence\T05-T07\ha-regression.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_home_assistant_authoritative.py::TestJarvisAppHomeAssistantIntegration::test_dispatcher_smart_home_set_temp
+FAILED tests/unit/test_home_assistant_authoritative.py::TestJarvisAppHomeAssistantIntegration::test_dispatcher_smart_home_turn_on_and_off
+2 failed, 29 passed, 31 subtests passed in 8.52s

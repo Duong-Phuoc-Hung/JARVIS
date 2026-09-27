@@ -210,4 +210,5 @@ def test_large_input_string_throughput(mock_router):
     # under load). This is a ReDoS catastrophic-backtracking guard (seconds),
     # not a micro-benchmark.
     assert elapsed_ms < 40.0, f"ReDoS guard: 50KB input took {elapsed_ms:.1f}ms (limit 40ms, P95x2.0)"
-    assert res.action_name == "home_assistant_call"
+    assert res.action_name == "unknown_intent"
+    assert res.response_text == "INPUT_TOO_LONG"

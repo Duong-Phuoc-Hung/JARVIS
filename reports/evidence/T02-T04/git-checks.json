@@ -1,0 +1,31 @@
+[
+  {
+    "command": [
+      "git",
+      "diff",
+      "--cached",
+      "--check"
+    ],
+    "exit_code": 2,
+    "note": "Raw pytest evidence whitespace retained",
+    "output_lines": 128
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--cached",
+      "--check",
+      "--",
+      "CHANGELOG.md",
+      "README.md",
+      "docs/ROADMAP.md",
+      "docs/eval/t02_t04_trust_transports_20260924.md",
+      "jarvis",
+      "tests"
+    ],
+    "exit_code": 0,
+    "note": "Source/test/document whitespace check",
+    "output_lines": 0
+  }
+]

@@ -1,0 +1,16 @@
+F..                                                                      [100%]
+================================== FAILURES ===================================
+_ test_dispatcher_write_before_after_and_restore[light.test-smart_home_turn_on-payload0-restore0] _
+tests\integration\test_ha_http_contract.py:64: in test_dispatcher_write_before_after_and_restore
+    assert result.success
+E   AssertionError: assert False
+E    +  where False = ActionResult(action_name='smart_home_turn_on', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='SECURITY_REF...error_code='SECURITY_REFUSAL', execution_time_ms=0.03850000211969018, requester='system', timestamp=1790488543.8462431).success
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.core.dispatcher:dispatcher.py:470 Action 'smart_home_turn_on' gated pending confirmation (requester=system, token=1E5C9934)
+WARNING  jarvis.core.dispatcher:dispatcher.py:470 Action 'smart_home_turn_on' gated pending confirmation (requester=system, token=94CAB88F)
+WARNING  jarvis.core.dispatcher:dispatcher.py:628 Action 'smart_home_turn_on' handler reported failure: SECURITY_REFUSAL
+WARNING  jarvis.core.dispatcher:dispatcher.py:448 Confirmation rejected for action 'smart_home_turn_on' (requester=system): ALREADY_CONSUMED
+- generated xml file: C:\Users\MSI\.codex\worktrees\t05-t07-runtime-contracts\JARVIS\reports\evidence\T05-T07\ha-http-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/integration/test_ha_http_contract.py::test_dispatcher_write_before_after_and_restore[light.test-smart_home_turn_on-payload0-restore0]
+1 failed, 2 passed in 2.02s

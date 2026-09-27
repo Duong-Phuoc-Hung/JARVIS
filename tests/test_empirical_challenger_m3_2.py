@@ -184,8 +184,8 @@ def test_app_log_interaction_delegation_and_custom_config(tmp_path: Path):
     """Verify JarvisApp.log_interaction() uses configured log file path and writes atomically."""
     custom_log = tmp_path / "custom_app_interactions.log"
     app = JarvisApp(headless=True, no_hot_reload=True)
-    app.config.set("logging.file", str(custom_log))
     app.initialize()
+    app.config.set("logging.file", str(custom_log))
 
     entry = app.log_interaction(
         trigger="TEST_VOICE",
@@ -434,6 +434,7 @@ def test_startup_intro_with_mocked_tts_queues_expected_phrase(monkeypatch):
     """
     app = JarvisApp(headless=True, no_hot_reload=True)
     app.initialize()
+    app.proactive_engine.config.enabled = False
 
     spoken_calls: List[tuple] = []
     if app.tts_manager:
@@ -456,8 +457,9 @@ def test_startup_intro_with_mocked_tts_queues_expected_phrase(monkeypatch):
 def test_startup_intro_custom_configured_phrase(monkeypatch):
     """Verify custom startup phrase in config (tts.welcome.startup_phrase) is respected."""
     app = JarvisApp(headless=True, no_hot_reload=True)
-    app.config.set("tts.welcome.startup_phrase", "Chào buổi sáng sếp. JARVIS trực tuyến.")
     app.initialize()
+    app.config.set("tts.welcome.startup_phrase", "Chào buổi sáng sếp. JARVIS trực tuyến.")
+    app.proactive_engine.config.enabled = False
 
     spoken_calls: List[tuple] = []
     if app.tts_manager:

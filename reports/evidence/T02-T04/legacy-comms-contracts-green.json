@@ -1,0 +1,21 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/test_comms_hub.py",
+    "tests/test_tier5_adversarial_sec_iot_comms_data.py",
+    "-k",
+    "telegram",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\reports\\evidence\\T02-T04\\legacy-comms-contracts-green.xml"
+  ],
+  "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "started_utc": "2026-09-24T11:34:45Z",
+  "wall_seconds": 2.907966136932373,
+  "exit_code": 0
+}

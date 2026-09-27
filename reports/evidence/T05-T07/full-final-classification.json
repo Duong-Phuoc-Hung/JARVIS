@@ -1,0 +1,232 @@
+[
+  {
+    "case": "tests.e2e.test_tiers_1_to_4::test_r4_volume_and_brightness_adjustment",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert None == 75"
+  },
+  {
+    "case": "tests.e2e.test_tiers_1_to_4::test_r2_r3_vision_zero_size_roi_or_corrupt_bytes",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "ValueError: cannot write empty image as JPEG"
+  },
+  {
+    "case": "tests.e2e.test_v460_e2e.TestTier4RealWorldWorkflows::test_tier4_daily_routine_morning_to_focus_workflow",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert False is True\n +  where False = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE..._code='CONFIRMATION_REQUIRED', execution_time_ms=0.16610001330263913, requester='system', timestamp=1790489829.9390192).success"
+  },
+  {
+    "case": "tests.test_adversarial_challenger_1::test_r4_adversarial_volume_and_brightness_boundary_clamping",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert None == 0\n +  where None = set_brightness(-50)\n +    where set_brightness = <jarvis.automation.control.ComputerController object at 0x000002920DD1FA10>.set_brightness"
+  },
+  {
+    "case": "tests.test_adversarial_m1_diacritic_homophones.TestAdversarialStressAndReDoS::test_massive_string_dos_rejection_sla",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert 'system_volume' == 'unknown_intent'\n  \n  - unknown_intent\n  + system_volume"
+  },
+  {
+    "case": "tests.test_adversarial_m1_intent_router.TestAdversarialPunctuation::test_punctuation_tolerance[Jarvis, m\\u1edf d\\u1ef1 \\xe1n: 'JARVIS-PRO'-workspace_prepare]",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: Failed on noisy input: 'Jarvis, mở dự án: 'JARVIS-PRO'' -> got app_open\nassert 'app_open' == 'workspace_prepare'\n  \n  - workspace_prepare\n  + app_open"
+  },
+  {
+    "case": "tests.test_adversarial_m1_intent_router.TestExtremeEdgeCases::test_huge_input_redos_resistance",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert 'unknown_intent' == 'workspace_prepare'\n  \n  - workspace_prepare\n  + unknown_intent"
+  },
+  {
+    "case": "tests.test_adversarial_m2_llm_router::test_pipeline_integration_category4_weather",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert False is True"
+  },
+  {
+    "case": "tests.test_adversarial_m3_challenger1::test_dashboard_cors_options_and_404_resilience",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert None == '*'\n +  where None = get('Access-Control-Allow-Origin')\n +    where get = <http.client.HTTPMessage object at 0x0000029210582D50>.get\n +      where <http.client.HTTPMessage object at 0x0000029210582D50> = <http.client.HTTPResponse object at 0x0000029211536410>.headers"
+  },
+  {
+    "case": "tests.test_adversarial_m3_ui_app::test_dashboard_cors_and_options_and_404",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert None == '*'\n +  where None = get('Access-Control-Allow-Origin')\n +    where get = <http.client.HTTPMessage object at 0x00000292105C25D0>.get\n +      where <http.client.HTTPMessage object at 0x00000292105C25D0> = <http.client.HTTPResponse object at 0x000002920C978A90>.headers"
+  },
+  {
+    "case": "tests.test_adversarial_m4_challenger1::test_security_scanner_unauthenticated_biometric_rejection",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert <ActionStatus...ABS_DISABLED'> == 'PERMISSION_DENIED'\n  \n  - PERMISSION_DENIED\n  + LABS_DISABLED"
+  },
+  {
+    "case": "tests.test_adversarial_sprint2_challenger1.TestAdversarialR2TTSCOMSafety::test_rapid_queue_flood_and_task_callback_exception_resilience",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: Expected 50 tasks processed, got 1\nassert 1 == 50"
+  },
+  {
+    "case": "tests.test_adversarial_sprint2_challenger2.TestIntentRoutingAndReDoS::test_extensive_hardware_query_permutations_accented_and_unaccented",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: Failed routing utterance 'kiểm tra bộ nhớ': got generic_llm_response, expected hardware_telemetry_check\nassert False"
+  },
+  {
+    "case": "tests.test_challenger2_autonomous_stress.TestR4ComputerUseVisionAndGUIActorAdversarial::test_negative_and_zero_screen_dimensions",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: Tuples differ: (260, 463) != (0, 0)\n\nFirst differing element 0:\n260\n0\n\n- (260, 463)\n+ (0, 0)"
+  },
+  {
+    "case": "tests.test_challenger2_stress.TestR5WebIntelligenceAdversarial::test_malformed_rss_and_atom_xml_feeds",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: 'Tiêu đề Test' not found in 'Tiêu đề <b>Test</b>'"
+  },
+  {
+    "case": "tests.test_challenger2_stress.TestR5WebIntelligenceAdversarial::test_offline_network_failure_recovery_full_hub",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: 'speech_text' not found in {'city': 'Hà Nội', 'weather': {'city': 'Hà Nội', 'temp_c': 27.0, 'feels_like_c': 29.0, 'condition': 'Nhiều mây', 'humidity': 75, 'wind_kph': 12.0, 'uv_index': None, 'pressure_hpa': None, 'visibility_km': None, 'source': 'offline_fallback', 'timestamp': 1790490019.9188027}, 'weather_speech': 'Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như 29°C), nhiều mây. Độ ẩm 75%, sức gió 12.0 km/h, thưa Ngài.', 'news': ['Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing (VnExpress)', 'Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu (TechCrunch)', 'Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở (VnExpress)'], 'news_articles': [{'title': 'Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing', 'link': 'https://vnexpress.net/so-hoa', 'description': 'Các công nghệ trí tuệ nhân tạo thế hệ mới đang được tối ưu hóa cho thiết bị biên.', 'published_at': '', 'source': 'VnExpress'}, {'title': 'Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu', 'link': 'https://techcrunch.com', 'description': 'Thị trường chip bán dẫn tiếp tục ghi nhận nhu cầu mạnh mẽ.', 'published_at': '', 'source': 'TechCrunch'}, {'title': 'Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở', 'link': 'https://vnexpress.net', 'description': 'Hệ sinh thái open-source phát triển mạnh mẽ cho desktop assistant.', 'published_at': '', 'source': 'VnExpress'}], 'crypto': {'BTC': 64500.0, 'ETH': 3450.0}, 'usd_vnd_rate': 25450.0, 'crypto_speech': 'Bitcoin hiện ở mức $64,500 (+0.5%), Ethereum đạt $3,450 (+0.5%).', 'spoken_summary': 'Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như 29°C), nhiều mây. Độ ẩm 75%, sức gió 12.0 km/h, thưa Ngài. Về thị trường tài chính: Bitcoin hiện ở mức $64,500 (+0.5%), Ethereum đạt $3,450 (+0.5%). Điểm qua 3 tin tức công nghệ nổi bật: Thứ 1: Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing. Thứ 2: Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu. Thứ 3: Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở.', 'overlay_bullets': ['#x1F324️ **Thời tiết Hà Nội**: 27.0°C, Nhiều mây (Độ ẩm 75%)', '#x1F4B0 **Thị trường**: BTC $64,500 | ETH $3,450 | USD/VND 25,450', '#x1F4F0 **Tin tức nổi bật**:', '  • Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing', '  • Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu', '  • Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở'], 'timestamp': '2026-09-27T13:20:19.919438'}"
+  },
+  {
+    "case": "tests.test_challenger2_stress.TestR8OverlayHUDAdversarial::test_long_text_truncation_and_turn_recording",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: 'AAAA[228 chars]AAAAA...' != 'AAAA[228 chars]AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA[9718 chars]AAAA'\nDiff is 10247 characters long. Set self.maxDiff to None to see it."
+  },
+  {
+    "case": "tests.test_challenger_m1_2_empirical::test_record_audio_exception_resilience_when_sounddevice_fails",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: Fallback buffer generation took too long: 4.8700s\nassert 4.870037899992894 < 0.1"
+  },
+  {
+    "case": "tests.test_challenger_m4_2_security::test_scanner_and_capture_reject_unauthenticated_contexts",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert <ActionStatus...ABS_DISABLED'> == 'PERMISSION_DENIED'\n  \n  - PERMISSION_DENIED\n  + LABS_DISABLED"
+  },
+  {
+    "case": "tests.test_challenger_m4_2_security::test_packet_capture_injection_resilience[tcp and port 80; calc.exe]",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert 0 == 1\n +  where 0 = len([])"
+  },
+  {
+    "case": "tests.test_challenger_m4_2_security::test_packet_capture_injection_resilience[udp | whoami]",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert 0 == 1\n +  where 0 = len([])"
+  },
+  {
+    "case": "tests.test_challenger_m4_2_security::test_packet_capture_injection_resilience[host 10.0.0.1 && dir C:\\\\]",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert 0 == 1\n +  where 0 = len([])"
+  },
+  {
+    "case": "tests.test_challenger_m4_2_security::test_packet_capture_injection_resilience[`calc.exe`]",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert 0 == 1\n +  where 0 = len([])"
+  },
+  {
+    "case": "tests.test_challenger_m4_2_security::test_tshark_subprocess_timeout_or_error_handling",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AttributeError: 'ActionResult' object has no attribute 'packet_count'"
+  },
+  {
+    "case": "tests.test_comms_hub::test_comms_telegram_photo_dispatch_tier1",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert False is True"
+  },
+  {
+    "case": "tests.test_e2e_scenarios::test_e2e_tier3_unresponsive_app_healing_flow",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert 93.0 < 80.0\n +  where 93.0 = <tests.conftest.MockHardwareProvider object at 0x000002921336E950>.ram_percent"
+  },
+  {
+    "case": "tests.test_e2e_scenarios::test_e2e_tier4_system_crisis_self_healing_workflow",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert 96.0 < 75.0\n +  where 96.0 = <tests.conftest.MockHardwareProvider object at 0x00000292130106E0>.ram_percent"
+  },
+  {
+    "case": "tests.test_empirical_challenger_m2::test_stress_cache_corruption_resilience_matrix[garbage_binary_200b]",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert True is False"
+  },
+  {
+    "case": "tests.test_empirical_challenger_m2::test_stress_spotify_plugin_empty_and_corrupt_uris",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert False is True\n +  where False = ActionResult(action_name='spotify_play', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='ACTION_FAILED', me..., error_code='ACTION_FAILED', execution_time_ms=0.039700011257082224, requester='system', timestamp=1790490109.8900278).success"
+  },
+  {
+    "case": "tests.test_empirical_challenger_m2::test_stress_shell_plugin_timeout_and_privilege_enforcement",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert ('timed out' in \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: b35f1b6f)\" or 'CONFIRMATION_REQUIRED' == 'HANDLER_EXCEPTION'\n +  where \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: b35f1b6f)\" = <built-in method lower of str object at 0x000002920B0D5C50>()\n +    where <built-in method lower of str object at 0x000002920B0D5C50> = \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: B35F1B6F)\".lower\n +      where \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: B35F1B6F)\" = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE...r_code='CONFIRMATION_REQUIRED', execution_time_ms=0.18730000010691583, requester='system', timestamp=1790490109.902247).error\n  \n  - HANDLER_EXCEPTION\n  + CONFIRMATION_REQUIRED)"
+  },
+  {
+    "case": "tests.test_empirical_challenger_m2_e2e_stress::test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert 'clap_pause_clap' in ['action:spotify', 'action:chrome_claude', 'action:chrome_binance', 'double_clap', 'action:tts_welcome', 'action:cursor', ...]"
+  },
+  {
+    "case": "tests.test_empirical_challenger_m3_2::test_app_log_interaction_delegation_and_custom_config",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert False\n +  where False = exists()\n +    where exists = WindowsPath('C:/Users/MSI/.codex/worktrees/t05-t07-runtime-contracts/JARVIS/.task-tools/temp/pytest-of-MSI/pytest-13/test_app_log_interaction_deleg0/custom_app_interactions.log').exists"
+  },
+  {
+    "case": "tests.test_empirical_challenger_m3_2::test_welcome_pool_empty_and_whitespace_fallback",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "IndexError: Cannot choose from an empty sequence"
+  },
+  {
+    "case": "tests.test_empirical_challenger_m3_2::test_startup_intro_with_mocked_tts_queues_expected_phrase",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert 2 == 1\n +  where 2 = len([('Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như...n máy tính cá nhân thu hút cộng đồng mã nguồn mở.', False), ('Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.', False)])"
+  },
+  {
+    "case": "tests.test_empirical_challenger_m3_2::test_startup_intro_custom_configured_phrase",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert 2 == 1\n +  where 2 = len([('Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như...n máy tính cá nhân thu hút cộng đồng mã nguồn mở.', False), ('Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.', False)])"
+  },
+  {
+    "case": "tests.test_m3_ux::test_startup_vocal_introduction",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert 'Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.' in 'Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như 2...bán dẫn và trung tâm dữ liệu. Thứ 3: Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở.'"
+  },
+  {
+    "case": "tests.test_plugins::test_plugin_shell_command_execution_tier1",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert False is True\n +  where False = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE...r_code='CONFIRMATION_REQUIRED', execution_time_ms=0.10010000551119447, requester='system', timestamp=1790490146.134424).success"
+  },
+  {
+    "case": "tests.test_plugins::test_plugin_shell_timeout_error_handling_tier2",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert 'timed out' in \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: f5cc3e6c)\"\n +  where \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: f5cc3e6c)\" = <built-in method lower of str object at 0x00000292118F6790>()\n +    where <built-in method lower of str object at 0x00000292118F6790> = \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: F5CC3E6C)\".lower\n +      where \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: F5CC3E6C)\" = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE..._code='CONFIRMATION_REQUIRED', execution_time_ms=0.16349999350495636, requester='system', timestamp=1790490146.1563187).error"
+  },
+  {
+    "case": "tests.test_tier5_adversarial_sec_iot_comms_data::test_security_tshark_cli_parameters_and_bpf_injection",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert 0 == 1\n +  where 0 = len([])"
+  },
+  {
+    "case": "tests.test_tier5_adversarial_sec_iot_comms_data::test_telegram_unauthorized_user_and_injection_defense",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert 503 == 200"
+  },
+  {
+    "case": "tests.test_user_simulation::test_sim_05_second_double_clap_triggers_ai_voice_loop",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert False\n +  where False = _wait_for_condition(<function test_sim_05_second_double_clap_triggers_ai_voice_loop.<locals>.<lambda> at 0x000002920FDF1080>, timeout=3.0)"
+  },
+  {
+    "case": "tests.test_user_simulation::test_sim_06_voice_loop_smart_keyword_home_assistant",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert False\n +  where False = _wait_for_condition(<function test_sim_06_voice_loop_smart_keyword_home_assistant.<locals>.<lambda> at 0x0000029216D42980>, timeout=3.0)"
+  },
+  {
+    "case": "tests.test_user_simulation::test_sim_07_voice_loop_smart_keyword_hardware_telemetry",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "assert False\n +  where False = _wait_for_condition(<function test_sim_07_voice_loop_smart_keyword_hardware_telemetry.<locals>.<lambda> at 0x0000029210EFDF80>, timeout=3.0)"
+  },
+  {
+    "case": "tests.test_user_simulation::test_sim_16_vietnamese_smart_keyword_router_7_categories[kh\\xf3a m\\xe0n h\\xecnh-system_power-action-lock-\\u0110\\xe3 kh\\xf3a m\\xe0n h\\xecnh]",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert 'đã khóa màn hình' in 'đang tắt màn hình cho ngài.'\n +  where 'đã khóa màn hình' = <built-in method lower of str object at 0x000002920899C1F0>()\n +    where <built-in method lower of str object at 0x000002920899C1F0> = 'Đã khóa màn hình'.lower\n +  and   'đang tắt màn hình cho ngài.' = <built-in method lower of str object at 0x000002927F964930>()\n +    where <built-in method lower of str object at 0x000002927F964930> = 'Đang tắt màn hình cho Ngài.'.lower\n +      where 'Đang tắt màn hình cho Ngài.' = IntentResult(action_name='system_power', parameters={'action': 'screen_off'}, confidence=1.0, source='rule_fallback', ... response_text='Đang tắt màn hình cho Ngài.', requires_confirmation=False, confirmation_prompt=None, danger_level=None).response_text"
+  },
+  {
+    "case": "tests.test_user_simulation::test_sim_18_cli_health_check_verification",
+    "classification": "reproduced on pristine base; outside task",
+    "failure_message": "AssertionError: assert 'Operating System:' in '=================================================================\\n JARVIS System Health Diagnostics (v5.2.1)\\n======...==========================\\n Diagnostics completed. Browser automation is READY; review each subsystem result above.\\n'"
+  },
+  {
+    "case": "tests.unit.test_runaway_hardening.TestGesturePassiveTriggerGuardWiring::test_repeated_triple_clap_triggers_are_bounded",
+    "classification": "suspected order/concurrency-sensitive; root cause unresolved; isolated current/base PASS",
+    "failure_message": "IndexError: pop from empty list"
+  }
+]

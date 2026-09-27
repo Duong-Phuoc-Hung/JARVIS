@@ -1,0 +1,30 @@
+..FFFF                                                                   [100%]
+================================== FAILURES ===================================
+____________ test_sender_allowlist_does_not_authorize_other_chats _____________
+tests\unit\test_telegram_transport_contract.py:43: in test_sender_allowlist_does_not_authorize_other_chats
+    assert result["status"] == 403
+E   assert 200 == 403
+__________ test_poll_failure_has_truthful_status_and_no_secret_echo ___________
+tests\unit\test_telegram_transport_contract.py:52: in test_poll_failure_has_truthful_status_and_no_secret_echo
+    result = bot.poll_updates()
+             ^^^^^^^^^^^^^^^^
+E   AttributeError: 'TelegramBotController' object has no attribute 'poll_updates'
+_____________________ test_send_network_error_is_redacted _____________________
+tests\unit\test_telegram_transport_contract.py:63: in test_send_network_error_is_redacted
+    assert not result["ok"] and result["error_code"] == "OFFLINE"
+E   AssertionError: assert (not False and 'ERROR' == 'OFFLINE'
+E     
+E     - OFFLINE
+E     + ERROR)
+___________ test_send_refuses_recipient_outside_scope_without_http ____________
+tests\unit\test_telegram_transport_contract.py:70: in test_send_refuses_recipient_outside_scope_without_http
+    assert configured().send_message(99, "test")["error_code"] == "CHAT_NOT_ALLOWED"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'error_code'
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\t03-boundary-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_telegram_transport_contract.py::test_sender_allowlist_does_not_authorize_other_chats
+FAILED tests/unit/test_telegram_transport_contract.py::test_poll_failure_has_truthful_status_and_no_secret_echo
+FAILED tests/unit/test_telegram_transport_contract.py::test_send_network_error_is_redacted
+FAILED tests/unit/test_telegram_transport_contract.py::test_send_refuses_recipient_outside_scope_without_http
+4 failed, 2 passed in 0.45s

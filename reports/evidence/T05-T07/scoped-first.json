@@ -1,0 +1,26 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/unit/test_imap_acceptance_contract.py",
+    "tests/unit/test_imap_reader.py",
+    "tests/unit/test_discord_acceptance_contract.py",
+    "tests/unit/test_ha_acceptance_contract.py",
+    "tests/unit/test_home_assistant_authoritative.py",
+    "tests/unit/test_discord_controller.py",
+    "tests/test_adversarial_m1_discord_gateway.py",
+    "tests/test_adversarial_m1_discord_error_recovery.py",
+    "tests/e2e/test_r6_discord_watchdog_e2e.py",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\reports\\evidence\\T05-T07\\scoped-first.xml"
+  ],
+  "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "started_utc": "2026-09-27T05:53:11Z",
+  "wall_seconds": 16.722490549087524,
+  "exit_code": 1
+}

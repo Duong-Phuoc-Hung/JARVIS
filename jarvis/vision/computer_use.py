@@ -227,7 +227,7 @@ class CoordinateMapper:
         self, x_norm: int, y_norm: int, screen_w: int | None = None, screen_h: int | None = None
     ) -> tuple[int, int]:
         """Converts normalized (0-1000) point to physical screen pixel coordinates (x_px, y_px)."""
-        w, h = (screen_w, screen_h) if screen_w and screen_h else self.get_screen_size()
+        w, h = (screen_w, screen_h) if screen_w is not None and screen_h is not None else self.get_screen_size()
         x_px = int(round(max(0, min(1000, x_norm)) * w / 1000.0))
         y_px = int(round(max(0, min(1000, y_norm)) * h / 1000.0))
         return max(0, min(w - 1, x_px)), max(0, min(h - 1, y_px))
@@ -236,7 +236,7 @@ class CoordinateMapper:
         self, x_px: int, y_px: int, screen_w: int | None = None, screen_h: int | None = None
     ) -> tuple[int, int]:
         """Converts physical screen pixel coordinates (x_px, y_px) to normalized (0-1000) point."""
-        w, h = (screen_w, screen_h) if screen_w and screen_h else self.get_screen_size()
+        w, h = (screen_w, screen_h) if screen_w is not None and screen_h is not None else self.get_screen_size()
         if w <= 0 or h <= 0:
             return 0, 0
         x_norm = int(round(max(0, min(w, x_px)) / w * 1000.0))

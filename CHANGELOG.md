@@ -1,3 +1,118 @@
+<!-- T01-T07 integration start -->
+## [5.2.1-unreleased] — T-01–T-07 integration and baseline recovery (2026-09-27)
+
+Goal: preserve and integrate all three specialist histories, restore honest regression/CI evidence and close engineering gaps without claiming provider runtime.
+
+Root causes and file-level repairs:
+- `.github/workflows/ci.yml`: preserve the runner-context parser fix; add T-02 browser and local transport contracts, explicit cryptography dependency.
+- `jarvis/comms/telegram.py`: chat scope before STT; missing/failing transcription returns 503 without raw exceptions.
+- `jarvis/comms/zalo.py`: dispatcher instead of direct skill/ghost-acknowledgement paths; require LLM success; truthful dependency errors, no confirmation token sent to channel.
+- `jarvis/planner/safety_interceptor.py`: note-write and system-control skill aliases retain central confirmation.
+- `jarvis/llm/router.py`: reject commands over 2048 characters before substring matching; correct existing workspace/telemetry/lock-screen rules.
+- `jarvis/tts/manager.py`, `jarvis/tts/cache.py`: isolate callback failures, restore welcome pool, reject corrupt WAV before mock-audio shortcut.
+- `jarvis/vision/computer_use.py`, `jarvis/vision/screen.py`, `jarvis/web/news.py`: explicit zero dimensions, minimum ROI policy and title markup cleanup.
+- `tests/confirmation_support.py`, new transport command tests and affected regression fixtures: actual confirmation protocol, explicit adapters, truthful errors/packet/RAM assertions, module-local clock patch and completed logging/voice/TTS lifecycle. No xfail or skip added to hide failures.
+- README, ROADMAP, integration audit/evidence: current version, exact source/command/exit/time provenance and resource gates. RED/interrupted evidence is retained.
+
+Unit at source commit 6af3509: **2809 pass / 0 fail / 4 skip**, 243.05 s pytest, 245.534 s wall, native exit 0. Full: **4394 pass / 0 fail / 20 skip**, 683.31 s pytest, 686.491 s wall, native exit 0. Scoped T-01–T-07: **164 pass / 0 fail / 0 skip**, 112.44 s pytest, 115.401 s wall, native exit 0.
+
+[Hosted CI](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/runs/36305486023) PASS at `6af3509`; all 5 jobs succeeded.
+
+T-01/T-02: PASS engineering / PASS fail-closed / PASS runtime for controlled real Chromium execution/enforcement. T-03–T-07: PASS engineering / PASS fail-closed / runtime PENDING authorized resources. No live messaging, mailbox access or HA write was performed. Optional/live skips are not passes. No CONDITIONAL GO or GO. Main remains 9d3c591, unchanged.
+
+[Detailed audit and resource checklist](docs/eval/t01_t07_integration_20260927.md).
+<!-- T01-T07 integration end -->
+
+<!-- T05-T07 changelog start -->
+## [5.2.1-unreleased] — T-05–T-07 transport and safety hardening (2026-09-27)
+
+Goal: complete engineering/fail-closed acceptance for Discord, IMAP and Home Assistant while keeping
+unauthorized/unavailable live resources PENDING.
+
+Root causes: Discord whitelist implicitly granted admin, sensitive commands invoked skills outside the
+safety gate, sends ignored the injected transport and did not verify delivery IDs; IMAP substring sender
+matching, unbounded connect and swallowed protocol errors; HA placeholder credential, unrestricted entity
+selection and public writes outside confirmation, plus HTTP acceptance mistaken for verified device state.
+
+- `jarvis/comms/discord.py`: explicit admin + real dispatcher, guild/channel-bound HTTP, redacted outcomes,
+  sent message IDs, response delivery, cooldown/reconnect, dedupe, real worker lifecycle and no raw callback bypass.
+- `jarvis/comms/email_imap.py`: exact allowlist, verified TLS/timeout, Unicode/PEEK, redacted protocol errors,
+  cleanup/reconnect and fail-closed sanitizer errors.
+- `jarvis/smart_home/home_assistant.py`, `jarvis/core/app.py`: explicit writable entity configuration,
+  shared dispatcher/safety gate, conservative service/parameter policy, truthful before/after and retry contracts.
+- `jarvis/planner/safety_interceptor.py`: classify screenshot, macro and note writes as high risk.
+- Scoped unit/adversarial and real loopback HTTP/TLS tests replace obsolete raw-callback/mock-success contracts.
+  Native run metrics are recorded in the linked audit; initial RED and intermediate failures are retained.
+
+Runtime: T-05 PENDING_GUILD_CHANNEL_AUTHORIZATION; T-06 PENDING_MAILBOX_AUTHORIZATION;
+T-07 PENDING_HA_INSTANCE_ENTITY. No provider round-trip or HA physical write was performed.
+Full regression and final verdict: see [current audit](docs/eval/t05_t07_runtime_contracts_20260927.md).
+Final validation: **PASS engineering / PASS fail-closed** for scoped T-05–T-07.
+Unit: 2764 pass / 4 skip, 287.81 s, exit 0. Scoped: 254 pass, 21.82 s, exit 0.
+Full: 4264 pass / 46 fail / 20 skip, 721.77 s, exit 1 (45 reproduced on base; one unresolved
+order-sensitive candidate). Hosted CI not rerun; runtime PENDING; no CONDITIONAL GO/GO.
+
+<!-- T05-T07 changelog end -->
+
+## [Unreleased 5.2.1] — 2026-09-24 — CI baseline assessment and workflow recovery
+
+- **Mục tiêu:** xác định lỗi CI không tạo job tại `9d3c591`, chạy lại baseline và T-01; không thêm tính năng.
+- **Root cause đã xác minh:** GitHub run `35763480258` annotation `(Line: 325, Col: 33): Unrecognized named-value: runner` tại `jobs.browser_e2e.env`. Actionlint 1.7.12 tái hiện exit 1 (0.0816881s); bản sửa exit 0 (0.0478398s).
+- **Thay đổi theo file:**
+  - `.github/workflows/ci.yml`: ghi `PLAYWRIGHT_BROWSERS_PATH` qua `$env:RUNNER_TEMP`/`GITHUB_ENV` trong step; unit cài `.[browser,dev]` + elevenlabs thay danh sách lệch pyproject, kiểm tra lỗi pip.
+  - `README.md`: mô tả source version 5.2.1 và giới hạn baseline hiện tại; giữ số cũ như lịch sử.
+  - `docs/ROADMAP.md`: đóng kiểm chứng workflow/unit/T-01 trong phạm vi local; để mở full-green, native teardown và remote CI; đã bổ sung đối chiếu DOCX gốc.
+  - `docs/eval/ci_baseline_20260924.md`: public seams, nguyên nhân, lệnh tái lập, môi trường, bảng kết quả và handoff.
+  - `reports/evidence/ci-baseline-20260924/`: metadata GitHub, RED/GREEN validator, console/JUnit/exit/time, package versions, screenshot/negative browser JSON và phân loại 46 failure.
+- **DOCX follow-up:** đọc file gốc ngoài repo do người giao việc cung cấp; thêm `docx-acceptance.md/json` + `verify-docx-acceptance.py` với trích nguyên văn D-01/D-02/T-01, SHA-256, mapping tiêu chí → test/JUnit/artifact. Xác minh 981/981 source hashes khớp; không chạy lại pytest cho thay đổi tài liệu này. Giữ ZIP gốc bất biến; D-01/D-02 chưa DONE vì remote CI chưa có.
+- **Kiểm thử thật (Python 3.13.15, pytest 8.4.2):**
+  - Unit: **2723 passed, 4 skipped, 268 subtests passed**, **261.12s**, exit **0**.
+  - Full `tests/`: **4189 passed, 46 failed, 41 skipped, 268 subtests passed**, **571.15s**; process exit **-1073740940 (0xC0000374)** sau summary/JUnit, teardown root cause PENDING.
+  - Browser E2E: **21 passed**, **35.54s**, exit **0**. Scoped browser: **286 passed**, **12.11s**, exit **0**.
+  - Wheel prerequisite: RED **1 failed / 0.99s / exit 1** → GREEN **1 passed / 8.54s / exit 0** sau cài setuptools/wheel cục bộ.
+  - Rerun đủ 46 failed nodes: **45 failed, 1 passed**, **42.36s**, exit **1**; không có assertion flaky được xác lập trong tập này.
+- **Phân loại/giới hạn:** 5 code defects ngoài workflow/T-01, 24 test-contract/environment mismatches, 16 ca cần owner review, 1 dependency đã khắc phục cục bộ. Không sửa production code/assertion để che lỗi. Runtime đặt trong đường dẫn chứa JARVIS gây lỗi sandbox stdlib; runtime riêng ngoài repo đã xác minh nhóm 30 tests pass. Skip do dependency/live opt-in không phải runtime pass.
+- **Verdict:** local CI contract **PASS engineering**; T-01 **PASS fail-closed / PASS runtime (loopback)**; full baseline **NOT GREEN**, remote CI **PENDING**, tiêu chí DOCX T-01 đã đối chiếu đủ; không Product GO. Bàn giao branch riêng, không push/merge main.
+
+## [Unreleased 5.2.1] T-02/T-03/T-04 trust and transport hardening (2026-09-24)
+
+Goal: prevent webpage data from authorizing actions and make Telegram/Zalo transport outcomes truthful.
+Root causes: ReAct executed model tools outside the dispatcher; browser provenance was lost at old adapters/context/app paths;
+Telegram trusted incomplete HTTP envelopes and repeated updates; Zalo used the wrong webhook MAC/header contract and accepted
+success without a message ID. Missing backend/status information could still produce success-flavored responses.
+
+Changes by file:
+
+- `jarvis/security/external_content.py`: external-data provenance, cycle-safe detection, exact one-use host grants and nested scopes.
+- `jarvis/browser/models.py`: mark canonical page/scrape result data; `jarvis/browser/cdp_controller.py`: preserve provenance on legacy payloads, URLs and links.
+- `jarvis/security/prompt_guard.py`: retain provenance on cleaned text; sanitization remains risk reduction.
+- `jarvis/agent/graph.py`: model actions use dispatcher, observations are data, host grants bound subsequent tool calls.
+- `jarvis/llm/router.py`: isolate context and explicit external data; enforce scope when executing model-selected intents.
+- `jarvis/core/dispatcher.py`: reject untrusted action authority before confirmation/handler execution.
+- `jarvis/planner/engine.py`: guard direct handlers; `jarvis/planner/safety_interceptor.py`: classify agent write/Python/send aliases high-risk.
+- `jarvis/core/app.py`: reject browser text before command normalization; configure Telegram chat whitelist and durable offset.
+- `jarvis/comms/telegram.py`: API envelope/message-ID validation, authorized chat/sender, redacted failures/evidence, cooldown,
+  serialized polling, atomic checkpoint, truthful dispatcher/lock/lifecycle outcomes and no fictional skills list.
+- `jarvis/comms/zalo.py`: OA v3 text sending, official raw-body MAC verification, app/OA/sender/time binding, replay/rate checks,
+  real fail-closed HTTP listener, redacted metadata and honest metrics/listener status.
+- `tests/e2e/test_browser_authority_e2e.py`: real Chromium adversarial/positive/30-second tests at the production action boundary.
+- `tests/unit/test_telegram_transport_contract.py`, `tests/unit/test_zalo_transport_contract.py`: transport/replay/error contracts.
+- `tests/integration/test_zalo_webhook_http.py`: actual local HTTP ingress/reply wiring and forged-webhook rejection.
+- `tests/test_comms_hub.py`: supply explicit test-only credentials to the mock photo fixture.
+- `tests/test_tier5_adversarial_sec_iot_comms_data.py`: require 503/DISPATCHER_UNAVAILABLE for an attempted command with no dispatcher.
+- `tests/unit/test_phase8_defect_remediations.py`: replace obsolete Online/Active expectations with measured metrics and explicit unverified listener/server state.
+- `tests/unit/test_zalo_bot.py`: reject the previous non-OA HMAC format; explicit mock behavior remains a test adapter.
+- `README.md`, `docs/ROADMAP.md`, `docs/eval/t02_t04_trust_transports_20260924.md` and `reports/evidence/T02-T04/`: current scope,
+  commands, RED/GREEN records, final metrics, revision fingerprints and operator-dependent runtime gates.
+
+Telegram/Zalo **runtime PENDING**. No real account traffic is claimed. Product release **NO-GO**.
+Final measured results: see the table in [the task audit](docs/eval/t02_t04_trust_transports_20260924.md)
+and the appended final-results line below; intermediate runs are clearly distinguished.
+
+Owner-confirmed live gates: Telegram **PENDING_CREDENTIALS**; Zalo **PENDING_ZALO_OA_VERIFICATION**.
+
+Final measurements: unit **2751 passed, 0 failed, 4 skipped + 268 subtests**, 222.23s (wall 224.84s), exit 0; browser **51 passed, 0 failed, 0 skipped**, 99.51s (wall 100.92s), exit 0; full **4278 passed, 45 failed, 20 skipped + 268 subtests**, 700.10s (wall 703.47s), exit 1. Remaining failures: 43 baseline issues outside this task and 2 observed order/background-interference failures (isolated rerun passes). The two in-scope old Telegram assertions are fixed. Hosted CI NOT_RUN; overall NO-GO.
+
 ## [Unreleased] Comprehensive Security Audit, Hardening & Tooling Sprint (2026-09-22)
 
 - **Mục tiêu**: Kiểm toán toàn diện bề mặt tấn công của 200 tệp nguồn thuộc phân hệ `jarvis/`, phát hiện và khắc phục dứt điểm 22 lỗ hổng bảo mật thuộc 5 nhóm rủi ro (Code Vulnerabilities, Information Disclosure, Excessive Permissions, Outdated Dependencies, Sensitive Serialization), nâng cấp bộ kiểm thử an toàn thông tin chuyên sâu (21 security hardening tests), và triển khai công cụ quét tĩnh bảo mật tự động `tools/security_scanner.py`.

@@ -1,0 +1,22 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/e2e/test_browser_authority_e2e.py",
+    "tests/unit/test_telegram_transport_contract.py",
+    "tests/unit/test_security_hardening.py",
+    "-k",
+    "context_cannot or legacy_browser_url or failed_windows_lock or fuzz_action_dispatcher",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\reports\\evidence\\T02-T04\\boundary-green.xml"
+  ],
+  "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "started_utc": "2026-09-24T10:53:11Z",
+  "wall_seconds": 6.403775691986084,
+  "exit_code": 0
+}

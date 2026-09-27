@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="3.529" timestamp="2026-09-24T17:19:12.481453+07:00" hostname="DESKTOP-OCR9N3Q"><testcase classname="tests.e2e.test_browser_authority_e2e" name="test_page_observation_cannot_authorize_outbound_tool" time="1.229"><failure message="AssertionError: Page-induced tool ran outside the trusted task scope&#10;assert not True&#10; +  where True = exists()&#10; +    where exists = WindowsPath('C:/Users/MSI/.codex/worktrees/t02-t04-trust-transports/JARVIS/.task-tools/temp/pytest-of-MSI/pytest-0/test_page_observation_cannot_a0/sent.txt').exists">tests\e2e\test_browser_authority_e2e.py:28: in test_page_observation_cannot_authorize_outbound_tool
+    assert not side_effect.exists(), "Page-induced tool ran outside the trusted task scope"
+E   AssertionError: Page-induced tool ran outside the trusted task scope
+E   assert not True
+E    +  where True = exists()
+E    +    where exists = WindowsPath('C:/Users/MSI/.codex/worktrees/t02-t04-trust-transports/JARVIS/.task-tools/temp/pytest-of-MSI/pytest-0/test_page_observation_cannot_a0/sent.txt').exists</failure></testcase></testsuite></testsuites>

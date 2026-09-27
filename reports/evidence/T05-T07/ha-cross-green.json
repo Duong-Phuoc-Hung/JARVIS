@@ -1,0 +1,20 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/test_smart_home.py",
+    "tests/test_e2e_scenarios.py::test_e2e_tier3_voice_command_to_smart_home_with_tts",
+    "tests/test_tier5_adversarial_sec_iot_comms_data.py::test_home_assistant_rest_http_errors_and_connection_drop",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\reports\\evidence\\T05-T07\\ha-cross-green.xml"
+  ],
+  "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "started_utc": "2026-09-27T06:13:35Z",
+  "wall_seconds": 2.8548004627227783,
+  "exit_code": 0
+}

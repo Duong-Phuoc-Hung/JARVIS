@@ -163,21 +163,8 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip --quiet
-          pip install `
-            "google-generativeai>=0.7" `
-            "python-dotenv" `
-            "numpy" `
-            "Pillow" `
-            "requests" `
-            "psutil" `
-            "pyperclip" `
-            "elevenlabs" `
-            "pytest>=8" `
-            "pytest-subtests" `
-            "pytest-timeout" `
-            "pytest-env" `
-            "pytest-asyncio>=0.23,<1" `
-            --quiet
+          python -m pip install ".[browser,dev]" elevenlabs --quiet
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Write-Host "Required packages installed"
 
       - name: Install optional Windows packages
@@ -322,7 +309,6 @@ jobs:
     env:
       JARVIS_RUN_BROWSER_E2E: "1"
       JARVIS_BROWSER_EVIDENCE_DIR: reports/browser-e2e/evidence
-      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}\ms-playwright
 
     steps:
       - uses: actions/checkout@v4
@@ -333,6 +319,10 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
+      - name: Configure isolated browser store
+        shell: pwsh
+        run: '"PLAYWRIGHT_BROWSERS_PATH=$env:RUNNER_TEMP\ms-playwright" >> $env:GITHUB_ENV'
+
       - name: Create browser test report directory
         shell: pwsh
         run: New-Item -ItemType Directory -Force -Path reports/browser-e2e | Out-Null
@@ -341,7 +331,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip --quiet
-          python -m pip install ".[browser,dev]" --quiet
+          python -m pip install ".[browser,dev]" cryptography --quiet
 
       - name: Install Playwright Chromium
         shell: pwsh
@@ -350,10 +340,15 @@ jobs:
             2>&1 | Tee-Object reports/browser-e2e/browser-install.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Run deterministic real-browser tests
+      - name: Run real-browser and local transport contract tests
         shell: pwsh
         run: |
           python -m pytest tests/e2e/test_browser_playwright_e2e.py `
+            tests/e2e/test_browser_authority_e2e.py `
+            tests/integration/test_zalo_webhook_http.py `
+            tests/integration/test_discord_http_contract.py `
+            tests/integration/test_imap_tls_contract.py `
+            tests/integration/test_ha_http_contract.py `
             -v `
             --tb=long `
             --timeout=120 `

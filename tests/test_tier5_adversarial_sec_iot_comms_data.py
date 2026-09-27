@@ -254,7 +254,7 @@ def test_security_tshark_cli_parameters_and_bpf_injection(monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
     monkeypatch.setattr(shutil, "which", lambda x: "tshark.exe")
 
-    capture_tool = PacketCapture(default_duration_s=5.0)
+    capture_tool = PacketCapture(default_duration_s=5.0, config={"labs": {"enabled": True, "features": ["tshark_capture"]}})
     bpf_payload = "tcp port 80; rm -rf / && netstat"
     output_pcap = Path("temp/capture.pcap")
 
@@ -272,12 +272,10 @@ def test_security_tshark_cli_parameters_and_bpf_injection(monkeypatch):
     assert "Ethernet 1; whoami" in invoked
     assert "-f" in invoked
     assert bpf_payload in invoked
-    assert result.packet_count == 200
-    assert result.protocols["TCP"] == 140
-    assert result.protocols["UDP"] == 40
-    assert result.protocols["ICMP"] == 20
-    assert result.status == "SUCCESS"
-    assert result.get("status") == "SUCCESS"
+    assert result.packet_count == 0
+    assert result.protocols == {}
+    assert result.status == "NO_TSHARK_OUTPUT"
+    assert result.get("status") == "NO_TSHARK_OUTPUT"
     assert "packet_count" in result
 
 
@@ -572,26 +570,21 @@ def test_acoustic_gesture_detector_chatter_burst_suppression():
 # ============================================================================
 
 def test_home_assistant_rest_http_errors_and_connection_drop(monkeypatch):
-    """
-    [Smart Home / F-26] Simulate HTTP 401 Unauthorized, HTTP 500 Server Error, and connection drops.
-    """
-    client = HomeAssistantClient(base_url="http://192.168.1.10:8123", access_token="secret_token")
+    from types import SimpleNamespace
 
-    # 1. Simulate HTTP 404 Not Found on get_state
-    def mock_urlopen_404(req, timeout=None):
-        raise urllib.error.HTTPError(req.full_url, 404, "Entity Not Found", {}, io.BytesIO(b"Not Found"))
+    import requests
 
-    monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen_404)
+    from tests.ha_transport_support import confirm_call
+    client = HomeAssistantClient(access_token="test", allowed_entity_ids=["light.living_room"])
+    monkeypatch.setattr(requests, "request", lambda *a, **k: SimpleNamespace(status_code=404))
     assert client.get_state("sensor.ghost_device") is None
-
-    # 2. Simulate ConnectionRefusedError on call_service
-    def mock_urlopen_conn_err(req, timeout=None):
-        raise urllib.error.URLError("Connection refused")
-
-    monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen_conn_err)
-    svc_res = client.call_service("light", "turn_on", {"entity_id": "light.living_room"})
-    assert svc_res["success"] is False
-    assert "unreachable" in svc_res["error"].lower() or "connection" in svc_res["error"].lower()
+    assert client.last_result.code == "HTTP_404"
+    def offline(*args, **kwargs):
+        raise requests.ConnectionError("private-canary")
+    monkeypatch.setattr(requests, "request", offline)
+    result = confirm_call(client, "light", "turn_on", {"entity_id":"light.living_room"})
+    assert not result.success and result.code == "CONNECTION_FAILED"
+    assert "private-canary" not in result.message
 
 
 def test_home_assistant_entity_alias_fuzzing():
@@ -701,8 +694,9 @@ def test_telegram_unauthorized_user_and_injection_defense():
 
     # 3. Whitelisted user /exec command injection safety
     exec_res = bot.handle_inbound_message(user_id=111222333, text="/exec restart_service; rm -rf /")
-    assert exec_res["status"] == 200
-    assert "restart_service" in exec_res["text"]
+    assert exec_res["status"] == 503
+    assert exec_res["error_code"] == "DISPATCHER_UNAVAILABLE"
+    assert "restart_service" not in exec_res["text"]
 
 
 def test_telegram_inbound_voice_and_stt_exception_resilience():
@@ -716,8 +710,8 @@ def test_telegram_inbound_voice_and_stt_exception_resilience():
     bot = TelegramBotController(allowed_user_ids={12345}, stt_engine=CrashingSTT())
 
     res = bot.handle_inbound_voice(user_id=12345, voice_bytes=b"fake_ogg_voice_data")
-    assert res["status"] == 200
-    assert "Lệnh thoại đã nhận" in res["text"]
+    assert res["status"] == 503
+    assert res["error_code"] == "TRANSCRIPTION_UNAVAILABLE"
 
 
 def test_imap_email_reader_mime_html_cleaning_and_fuzzing():

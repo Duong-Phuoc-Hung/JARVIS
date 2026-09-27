@@ -27,7 +27,8 @@ class TTSAudioCache:
             if not self.cache_dir.name == "jarvis_welcome" and not (self.cache_dir / "jarvis_welcome").exists():
                 self.cache_dir = self.cache_dir / "jarvis_welcome"
         else:
-            import os as _os, sys as _sys
+            import os as _os
+            import sys as _sys
             _appdata = _os.environ.get("LOCALAPPDATA") or _os.environ.get("APPDATA")
             _base = Path(_appdata) / "JARVIS" if (_appdata and _sys.platform == "win32") else Path.home() / ".jarvis"
             self.cache_dir = (_base / "cache" / "tts").resolve()
@@ -185,6 +186,15 @@ class TTSAudioCache:
         wav_path = Path(path)
         if not wav_path.is_file():
             log.warning("Cannot play missing audio file: %s", wav_path)
+            return False
+
+        # Validate the container even when physical audio output is disabled.
+        # A corrupt cache entry must trigger regeneration, not simulated success.
+        try:
+            with wave.open(str(wav_path), "rb") as wf:
+                if wf.getnchannels() <= 0 or wf.getframerate() <= 0:
+                    return False
+        except (wave.Error, EOFError, OSError):
             return False
 
         if os.environ.get("JARVIS_MOCK_AUDIO") == "1":

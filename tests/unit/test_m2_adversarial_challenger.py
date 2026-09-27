@@ -34,7 +34,6 @@ from jarvis.comms.rate_limiter import RateLimitConfig
 from jarvis.core.models import ActionResult, ActionStatus
 from jarvis.smart_home.home_assistant import HomeAssistantClient
 
-
 # ============================================================================
 # 1. HomeAssistantClient Adversarial Probes
 # ============================================================================
@@ -65,58 +64,29 @@ class TestHomeAssistantAdversarial:
         assert res["code"] == "NOT_CONFIGURED"
         assert res.get("code") == "NOT_CONFIGURED"
 
-    @pytest.mark.parametrize("method_name,args", [
-        ("turn_on", ("light.living_room",)),
-        ("turn_off", ("light.living_room",)),
-        ("toggle", ("light.living_room",)),
-        ("set_temperature", ("climate.ac_unit", 21.0)),
-    ])
-    def test_network_errors_return_connection_failed_and_retryable(self, method_name, args):
-        """Verify that network errors (URLError, timeout) return CONNECTION_FAILED with retryable=True."""
-        client = HomeAssistantClient(access_token="valid_token_123", base_url="http://127.0.0.1:9")
-        method = getattr(client, method_name)
+    @pytest.mark.parametrize("code,retryable", [(400,False),(401,False),(403,False),(404,False),(429,True),(500,True)])
+    def test_http_read_error_after_confirmation(self, code, retryable):
+        client = HomeAssistantClient(access_token="test", allowed_entity_ids=["light.test"])
+        pending = client.turn_on("light.test")
+        token = pending.data["confirmation_token"]
+        assert client.dispatcher.safety_interceptor.safety_gate.confirm(token)
+        response = MagicMock(status_code=code)
+        with patch("requests.request", return_value=response) as transport:
+            result = client.turn_on("light.test", confirmation_token=token)
+        assert not result.success and result.code == f"HTTP_{code}"
+        assert result.retryable is retryable
+        assert all(call.args[0] == "GET" for call in transport.call_args_list)
 
-        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("Connection refused")):
-            res = method(*args)
-
-        assert isinstance(res, ActionResult), f"{method_name} must return ActionResult"
-        assert res.success is False
-        assert res.status == ActionStatus.ERROR
-        assert res.code == "CONNECTION_FAILED"
-        assert res.retryable is True
-        assert "Connection failed" in res.message or "unreachable" in res.message
-        assert res["code"] == "CONNECTION_FAILED"
-        assert res["retryable"] is True
-
-    def test_http_server_error_500_is_retryable(self):
-        """Verify HTTP 500 returns HTTP_500 and is retryable."""
-        client = HomeAssistantClient(access_token="valid_token_123", base_url="http://ha.local:8123")
-        mock_resp = MagicMock()
-        mock_resp.status = 500
-
-        with patch("urllib.request.urlopen") as mock_urlopen:
-            mock_urlopen.return_value.__enter__.return_value = mock_resp
-            res = client.turn_on("light.living_room")
-
-        assert isinstance(res, ActionResult)
-        assert res.success is False
-        assert res.code == "HTTP_500"
-        assert res.retryable is True
-
-    def test_http_client_error_400_is_not_retryable(self):
-        """Verify HTTP 400 returns HTTP_400 and is NOT retryable."""
-        client = HomeAssistantClient(access_token="valid_token_123", base_url="http://ha.local:8123")
-        mock_resp = MagicMock()
-        mock_resp.status = 400
-
-        with patch("urllib.request.urlopen") as mock_urlopen:
-            mock_urlopen.return_value.__enter__.return_value = mock_resp
-            res = client.turn_on("light.living_room")
-
-        assert isinstance(res, ActionResult)
-        assert res.success is False
-        assert res.code == "HTTP_400"
-        assert res.retryable is False
+    def test_network_read_failure_after_confirmation(self):
+        import requests
+        client = HomeAssistantClient(access_token="test", allowed_entity_ids=["light.test"])
+        pending = client.turn_on("light.test")
+        token = pending.data["confirmation_token"]
+        assert client.dispatcher.safety_interceptor.safety_gate.confirm(token)
+        with patch("requests.request", side_effect=requests.ConnectionError("private-canary")):
+            result = client.turn_on("light.test", confirmation_token=token)
+        assert result.code == "CONNECTION_FAILED" and result.retryable
+        assert "private-canary" not in result.message
 
     def test_security_refusal_on_restricted_domains_and_injection(self):
         """Verify security-sensitive domains and injection attacks are refused before network dispatch."""

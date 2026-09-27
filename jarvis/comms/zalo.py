@@ -19,6 +19,7 @@ Lệnh chat Zalo:
   /screenshot — Chụp màn hình
   /help     — Danh sách lệnh
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -29,15 +30,26 @@ import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.error import URLError
-from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from jarvis.comms.rate_limiter import RateLimitConfig, TokenBucketRateLimiter
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def urlopen(req, timeout):
+    # Never forward the access_token header to a redirect destination.
+    return build_opener(_NoRedirect()).open(req, timeout=timeout)
+
 
 log = logging.getLogger("jarvis.comms.zalo")
 
 _ZALO_API_BASE = "https://openapi.zalo.me/v2.0/oa"
-_ZALO_MSG_URL = f"{_ZALO_API_BASE}/message"
+_ZALO_MSG_URL = "https://openapi.zalo.me/v3.0/oa/message/cs"
 
 
 @dataclass
@@ -45,10 +57,15 @@ class ZaloConfig:
     access_token: str = ""
     oa_id: str = ""
     webhook_secret: str = ""
+    app_id: str = ""
+    webhook_max_age_s: float = 300.0
+    timeout_s: float = 10.0
     whitelist_user_ids: list[str] = field(default_factory=list)
     webhook_port: int = 8765
     host: str = "127.0.0.1"
-    rate_limit: RateLimitConfig = field(default_factory=lambda: RateLimitConfig(requests_per_minute=20, burst_limit=5))
+    rate_limit: RateLimitConfig = field(
+        default_factory=lambda: RateLimitConfig(requests_per_minute=20, burst_limit=5)
+    )
 
 
 @dataclass
@@ -65,6 +82,9 @@ class ZaloSendResult:
     success: bool
     error: str = ""
     message_id: str = ""
+    http_status: int | None = None
+    provider_code: int | None = None
+    retry_after_s: float = 0.0
 
 
 class ZaloBotController:
@@ -79,16 +99,32 @@ class ZaloBotController:
         config: ZaloConfig | None = None,
         is_mock: bool = False,
         rate_limit_config: RateLimitConfig | None = None,
+        dispatcher: Any | None = None,
     ) -> None:
         self.config = config or ZaloConfig()
         self.is_mock = is_mock
+        self.dispatcher = dispatcher
         self._running = False
         self._webhook_thread: threading.Thread | None = None
         self.sent_messages: list[dict[str, Any]] = []
         self.received_messages: list[ZaloMessage] = []
+        self.evidence: list[dict[str, Any]] = []
+        self._seen_events: dict[tuple, float] = {}
+        self._webhook_lock = threading.Lock()
+        self._server = None
+        self.webhook_address = None
+        self._retry_at = 0.0
+        self.outbound_limiter = TokenBucketRateLimiter(
+            self.config.rate_limit, channel_name="zalo_outbound"
+        )
         self.security_violations: list[dict] = []
         self.rate_limiter = TokenBucketRateLimiter(
-            rate_limit_config or (self.config.rate_limit if hasattr(self.config, "rate_limit") else RateLimitConfig(requests_per_minute=20, burst_limit=5)),
+            rate_limit_config
+            or (
+                self.config.rate_limit
+                if hasattr(self.config, "rate_limit")
+                else RateLimitConfig(requests_per_minute=20, burst_limit=5)
+            ),
             channel_name="zalo",
         )
         log.info("ZaloBotController initialized (mock=%s)", is_mock)
@@ -110,47 +146,48 @@ class ZaloBotController:
         return user_id in self.config.whitelist_user_ids
 
     def verify_webhook_signature(self, payload: bytes, signature: str) -> bool:
+        """Verify Zalo's mac=SHA256(app_id + raw body + timestamp + OA secret).
+
+        No HMAC/base64 compatibility fallback: those are not OA signatures.
+        App identity and timestamp are bound before any message is processed.
         """
-        Verify Zalo webhook signature using constant-time comparison.
-        Enforces Fail-Close: If webhook_secret is empty or signature is missing, returns False.
-        Supports both hexadecimal and base64 digest representations.
-        """
-        import base64
         if self.is_mock:
-            return True
-        secret = (self.config.webhook_secret or "").strip()
-        if not secret:
-            log.error("Zalo webhook rejection: webhook_secret is not configured.")
+            return True  # Explicit unit-test adapter; never used by HTTP listener.
+        secret = self.config.webhook_secret.strip()
+        if (
+            not secret
+            or not self.config.app_id
+            or not isinstance(signature, str)
+            or not signature.startswith("mac=")
+        ):
             return False
-        if not signature:
-            return False
-
-        clean_sig = signature.strip()
         try:
-            raw_hmac = hmac.new(
-                secret.encode("utf-8"),
-                payload,
-                hashlib.sha256,
+            data = json.loads(payload)
+            if not isinstance(data, dict) or data.get("app_id") != self.config.app_id:
+                return False
+            timestamp = data.get("timestamp")
+            if not isinstance(timestamp, str) or not timestamp.isascii() or not timestamp.isdigit():
+                return False
+            age = time.time() - int(timestamp) / 1000.0
+            if not -30 <= age <= self.config.webhook_max_age_s:
+                return False
+            expected = (
+                "mac="
+                + hashlib.sha256(
+                    self.config.app_id.encode() + payload + timestamp.encode() + secret.encode()
+                ).hexdigest()
             )
-            expected_hex = raw_hmac.hexdigest()
-            expected_b64 = base64.b64encode(raw_hmac.digest()).decode("ascii")
-
-            # Check hex representation (case-insensitive for 0-9a-f)
-            if len(clean_sig) == 64 and hmac.compare_digest(expected_hex.lower(), clean_sig.lower()):
-                return True
-            # Check base64 representation (case-sensitive)
-            if hmac.compare_digest(expected_b64, clean_sig):
-                return True
-            return False
-        except Exception as exc:
-            log.error("Error during webhook signature verification: %s", exc)
+            return hmac.compare_digest(expected, signature)
+        except (ValueError, TypeError, OverflowError):
             return False
 
     # ------------------------------------------------------------------
     # Message Handling
     # ------------------------------------------------------------------
 
-    def handle_inbound_message(self, user_id: str, text: str, user_name: str = "User") -> dict[str, Any]:
+    def handle_inbound_message(
+        self, user_id: str, text: str, user_name: str = "User"
+    ) -> dict[str, Any]:
         """Convenience method for processing inbound webhook messages with standard user info."""
         return self.handle_message(user_id=user_id, user_name=user_name, text=text)
 
@@ -167,14 +204,22 @@ class ZaloBotController:
                 "timestamp": time.time(),
             }
             self.security_violations.append(audit_entry)
-            log.warning("Unauthorized Zalo access rejected: user_id=%s, len=%d, hash_prefix=%s",
-                        user_id, len(text), sha256_prefix)
+            log.warning(
+                "Unauthorized Zalo access rejected: user_id=%s, len=%d, hash_prefix=%s",
+                user_id,
+                len(text),
+                sha256_prefix,
+            )
             return {"status": 403, "text": "⛔ Bạn không có quyền sử dụng JARVIS qua Zalo."}
 
         # Token Bucket Rate Limiting per user_id
         rl = self.rate_limiter.acquire(user_id)
         if not rl.allowed:
-            log.warning("Zalo rate limit exceeded for user_id=%s, retry_after=%.2fs", user_id, rl.retry_after_s)
+            log.warning(
+                "Zalo rate limit exceeded for user_id=%s, retry_after=%.2fs",
+                user_id,
+                rl.retry_after_s,
+            )
             return {
                 "status": 429,
                 "text": f"⚠️ Yêu cầu quá nhanh. Vui lòng thử lại sau {rl.retry_after_s} giây.",
@@ -184,7 +229,15 @@ class ZaloBotController:
             }
 
         msg = ZaloMessage(user_id=user_id, user_name=user_name, text=text, timestamp=time.time())
-        self.received_messages.append(msg)
+        if self.is_mock:
+            self.received_messages.append(msg)
+        else:
+            self.received_messages.append(
+                ZaloMessage(
+                    user_id="REDACTED", user_name="REDACTED", text="", timestamp=msg.timestamp
+                )
+            )
+        del self.received_messages[:-1000]
         cmd = text.strip()
 
         # ------ Command dispatch ------
@@ -192,22 +245,31 @@ class ZaloBotController:
             reply = self._cmd_help()
         elif cmd.startswith("/status") or "trạng thái" in cmd.lower():
             reply = self._cmd_status()
+            if reply is None:
+                return {
+                    "status": 503,
+                    "error_code": "STATUS_UNAVAILABLE",
+                    "text": "Không thể đo trạng thái hệ thống.",
+                    "user_id": user_id,
+                }
         elif cmd.startswith("/briefing") or "báo cáo" in cmd.lower():
-            reply = self._cmd_briefing()
+            return self._dispatch_command(user_id, "skill_briefing", {"action": "run"})
         elif cmd.startswith("/note "):
-            reply = self._cmd_note(cmd[6:].strip())
+            return self._dispatch_command(user_id, "skill_note_taker", {"action": "add", "text": cmd[6:].strip()})
         elif cmd.startswith("/calc ") or cmd.startswith("/tinh "):
             expr = cmd.split(" ", 1)[-1].strip()
-            reply = self._cmd_calc(expr)
+            return self._dispatch_command(user_id, "skill_calculator", {"action": "calculate", "expression": expr})
         elif cmd.startswith("/weather") or "thời tiết" in cmd.lower():
-            reply = self._cmd_weather()
+            return {"status": 503, "error_code": "WEATHER_UNAVAILABLE", "text": self._cmd_weather()}
         elif cmd.startswith("/screenshot") or "chụp màn hình" in cmd.lower():
-            reply = self._cmd_screenshot()
+            return self._dispatch_command(user_id, "skill_system_control", {"action": "screenshot"})
         elif cmd.startswith("/skills") or "kỹ năng" in cmd.lower():
             reply = self._cmd_skills()
+            if reply is None:
+                return {"status": 503, "error_code": "SKILLS_UNAVAILABLE", "text": "Danh sách kỹ năng chưa khả dụng."}
         else:
             # Forward to JARVIS intent router
-            reply = self._cmd_jarvis(cmd)
+            return self._cmd_jarvis(cmd)
 
         return {"status": 200, "text": reply, "user_id": user_id}
 
@@ -227,130 +289,167 @@ class ZaloBotController:
             "Hoặc nhắn bất kỳ câu tiếng Việt tự nhiên!"
         )
 
-    def _cmd_status(self) -> str:
+    def _cmd_status(self) -> str | None:
         try:
             import psutil
+
             cpu = psutil.cpu_percent(interval=None)
             ram = psutil.virtual_memory().percent
+            listener = "LISTENING" if self.webhook_address else "NOT_LISTENING"
             return (
-                f"✅ *JARVIS Online*\n"
-                f"🕐 {time.strftime('%H:%M:%S %d/%m/%Y')}\n"
-                f"💻 CPU: {cpu:.1f}% | RAM: {ram:.1f}%\n"
-                f"📡 Zalo Bot: Active (Port {self.config.webhook_port})"
+                f"JARVIS CPU: {cpu:.1f}% | RAM: {ram:.1f}%\n"
+                f"Webhook: {listener}; Zalo server round-trip: NOT_VERIFIED"
             )
         except Exception:
-            return (
-                f"✅ *JARVIS Online*\n"
-                f"🕐 {time.strftime('%H:%M:%S %d/%m/%Y')}\n"
-                f"📡 Zalo Bot: Active"
-            )
+            return None
 
-    def _cmd_briefing(self) -> str:
-        try:
-            from jarvis.skills.briefing import execute as briefing_exec
-            result = briefing_exec(action="run")
-            return result.get("output", "Không thể lấy briefing.")
-        except Exception as exc:
-            log.warning("Briefing failed: %s", exc)
-            return "⚠️ Không thể tải thông tin briefing vào lúc này."
 
-    def _cmd_note(self, text: str) -> str:
-        if not text:
-            return "Vui lòng nhập nội dung ghi chú. VD: /note họp lúc 3h chiều"
-        try:
-            from jarvis.skills.note_taker import execute as note_exec
-            result = note_exec(action="add", text=text)
-            return result.get("output", f"✅ Đã ghi chú: {text}")
-        except Exception:
-            return f"✅ Đã nhận ghi chú: *{text}*"
 
-    def _cmd_calc(self, expr: str) -> str:
-        try:
-            from jarvis.skills.calculator import execute as calc_exec
-            result = calc_exec(action="calculate", expression=expr)
-            return result.get("output", "Không tính được.")
-        except Exception as exc:
-            log.warning("Calc failed: %s", exc)
-            return "⚠️ Biểu thức không hợp lệ hoặc xảy ra lỗi trong quá trình tính toán."
 
     def _cmd_weather(self) -> str:
         return "🌤️ Dịch vụ thời tiết chưa được cấu hình hoặc chưa khả dụng."
 
-    def _cmd_screenshot(self) -> str:
-        try:
-            from jarvis.skills.system_control import execute as sys_exec
-            result = sys_exec(action="screenshot")
-            return result.get("output", "📸 Đã chụp màn hình.")
-        except Exception as exc:
-            log.warning("Screenshot failed: %s", exc)
-            return "⚠️ Không thể chụp màn hình vào lúc này."
 
-    def _cmd_skills(self) -> str:
+    def _cmd_skills(self) -> str | None:
         try:
             from jarvis.skills.registry import SkillRegistry
+
             reg = SkillRegistry()
             names = [s.name for s in reg.list_skills()]
             return "🧰 *Kỹ năng hiện có:*\n" + "\n".join(f"• {n}" for n in names[:15])
         except Exception:
-            return "🧰 *Kỹ năng:* briefing, note_taker, calculator, system_control, browser_control..."
+            return None
 
-    def _cmd_jarvis(self, text: str) -> str:
+    def _dispatch_command(self, user_id: str, action: str, payload: dict) -> dict[str, Any]:
+        from jarvis.core.dispatcher import ActionDispatcher
+        from jarvis.core.models import RequesterContext
+
+        if not isinstance(self.dispatcher, ActionDispatcher):
+            return {"status": 503, "error_code": "DISPATCHER_UNAVAILABLE", "text": "DISPATCHER_UNAVAILABLE"}
+        try:
+            result = self.dispatcher.dispatch_action(
+                action, payload, requester=RequesterContext.user(f"zalo:{user_id}", authenticated=True)
+            )
+        except Exception:
+            return {"status": 503, "error_code": "DISPATCH_FAILED", "text": "DISPATCH_FAILED"}
+        code = result.error_code or result.code
+        # Never send local confirmation tokens or raw exception/action data to a channel.
+        if not result.success:
+            return {"status": 409 if code == "CONFIRMATION_REQUIRED" else 503,
+                    "error_code": code, "text": code}
+        text = "ACTION_COMPLETED"
+        if action in {"skill_calculator", "skill_briefing"} and isinstance(result.data, dict):
+            text = str(result.data.get("output") or result.data.get("text") or text)[:2000]
+        return {"status": 200, "text": text, "user_id": user_id}
+
+    def _cmd_jarvis(self, text: str) -> dict[str, Any]:
         try:
             from jarvis.llm.client import LLMClient
-            client = LLMClient()
-            result = client.generate(text)
-            return result.content or "JARVIS đã xử lý yêu cầu của bạn."
+
+            result = LLMClient().generate(text)
+            if result.success and result.content and not result.error:
+                return {"status": 200, "text": result.content}
         except Exception:
-            return f"🤖 JARVIS đã nhận: *{text[:100]}*\n_(Xử lý qua LLM pipeline)_"
+            pass
+        return {"status": 503, "error_code": "LLM_UNAVAILABLE", "text": "LLM_UNAVAILABLE"}
 
     # ------------------------------------------------------------------
     # Send API
     # ------------------------------------------------------------------
 
     def send_message(self, user_id: str, text: str) -> ZaloSendResult:
-        """Send text message to a Zalo user via OA API."""
-        entry = {"user_id": user_id, "text": text, "timestamp": time.time()}
-        self.sent_messages.append(entry)
-
         if self.is_mock:
-            log.info("Mock send to %s: %s", user_id, text[:60])
+            self.sent_messages.append({"user_id": user_id, "text": text, "timestamp": time.time()})
             return ZaloSendResult(success=True, message_id="mock_msg_id")
+        result = self._send_text(user_id, text)
+        evidence = {
+            "direction": "outbound",
+            "timestamp": time.time(),
+            "http_status": result.http_status,
+            "success": result.success,
+            "error_code": result.error,
+            "provider_code": result.provider_code,
+            "message_id": result.message_id,
+        }
+        self.sent_messages.append(evidence)
+        self.evidence.append(evidence)
+        del self.sent_messages[:-1000]
+        del self.evidence[:-1000]
+        return result
 
-        token = (self.config.access_token or "").strip()
+    def _send_text(self, user_id: str, text: str) -> ZaloSendResult:
+        token = self.config.access_token.strip()
         if not token:
-            log.warning("Zalo send rejected: access_token not configured")
-            return ZaloSendResult(success=False, error="NOT_CONFIGURED")
-
+            return ZaloSendResult(False, "NOT_CONFIGURED")
+        if not self.is_user_authorized(user_id):
+            return ZaloSendResult(False, "RECIPIENT_NOT_ALLOWED")
+        if not isinstance(text, str) or not text or len(text) > 2000:
+            return ZaloSendResult(False, "INVALID_TEXT")
+        if time.monotonic() < self._retry_at:
+            return ZaloSendResult(
+                False, "RATE_LIMITED", retry_after_s=self._retry_at - time.monotonic()
+            )
+        limit = self.outbound_limiter.acquire(user_id)
+        if not limit.allowed:
+            return ZaloSendResult(False, "RATE_LIMITED", retry_after_s=limit.retry_after_s)
+        status = None
         try:
-            payload = json.dumps({
-                "recipient": {"user_id": user_id},
-                "message": {"text": text[:2000]},
-            }).encode("utf-8")
+            payload = json.dumps(
+                {"recipient": {"user_id": user_id}, "message": {"text": text}}, ensure_ascii=False
+            ).encode("utf-8")
             req = Request(
                 _ZALO_MSG_URL,
                 data=payload,
-                headers={
-                    "Content-Type": "application/json",
-                    "access_token": token,
-                },
+                headers={"Content-Type": "application/json", "access_token": token},
             )
-            with urlopen(req, timeout=10) as resp:
+            with urlopen(req, timeout=self.config.timeout_s) as resp:
+                status = resp.status
                 data = json.loads(resp.read())
-            if data.get("error") == 0:
-                return ZaloSendResult(success=True, message_id=str(data.get("data", {}).get("message_id", "")))
-            return ZaloSendResult(success=False, error=data.get("message", "Unknown error"))
+            if status != 200 or not isinstance(data, dict) or type(data.get("error")) is not int:
+                return ZaloSendResult(False, "INVALID_RESPONSE", http_status=status)
+            code = data["error"]
+            if code != 0:
+                return ZaloSendResult(
+                    False,
+                    "AUTH_FAILED" if code == -124 else "API_ERROR",
+                    http_status=status,
+                    provider_code=code,
+                )
+            msg = data.get("data", {}).get("message_id")
+            if not isinstance(msg, str) or not msg.strip():
+                return ZaloSendResult(False, "INVALID_RESPONSE", http_status=status)
+            return ZaloSendResult(True, message_id=msg, http_status=status, provider_code=0)
+        except HTTPError as exc:
+            status = exc.code
+            if status == 429:
+                try:
+                    delay = max(1.0, min(float(exc.headers.get("Retry-After", 1)), 3600.0))
+                except (ValueError, TypeError, AttributeError):
+                    delay = 1.0
+                self._retry_at = time.monotonic() + delay
+                return ZaloSendResult(
+                    False, "RATE_LIMITED", http_status=status, retry_after_s=delay
+                )
+            return ZaloSendResult(
+                False, "AUTH_FAILED" if status in (401, 403) else "HTTP_ERROR", http_status=status
+            )
+        except TimeoutError:
+            return ZaloSendResult(False, "TIMEOUT", http_status=status)
         except URLError as exc:
-            log.warning("Zalo API unavailable: %s", exc)
-            return ZaloSendResult(success=False, error=str(exc))
-        except Exception as exc:
-            log.error("Zalo send error: %s", exc)
-            return ZaloSendResult(success=False, error=str(exc))
+            return ZaloSendResult(
+                False,
+                "TIMEOUT" if isinstance(exc.reason, TimeoutError) else "OFFLINE",
+                http_status=status,
+            )
+        except (ValueError, TypeError, AttributeError):
+            return ZaloSendResult(False, "INVALID_RESPONSE", http_status=status)
+        except Exception:
+            return ZaloSendResult(False, "TRANSPORT_ERROR", http_status=status)
 
     def send_image(self, user_id: str, image_path: str, caption: str = "") -> ZaloSendResult:
         """Send image file to user (mock: just logs)."""
-        log.info("Send image to %s: %s (%s)", user_id, image_path, caption)
-        self.sent_messages.append({"user_id": user_id, "image": image_path, "caption": caption})
         if self.is_mock:
+            self.sent_messages.append({"user_id": user_id, "image": image_path, "caption": caption})
             return ZaloSendResult(success=True, message_id="mock_img_id")
         token = (self.config.access_token or "").strip()
         if not token:
@@ -371,77 +470,136 @@ class ZaloBotController:
     # Webhook HTTP Server (lightweight, no Flask dependency)
     # ------------------------------------------------------------------
 
-    def start_webhook(self) -> None:
-        """Start a lightweight HTTP server to receive Zalo webhooks."""
-        self._running = True
-        self._webhook_thread = threading.Thread(
-            target=self._webhook_loop, daemon=True, name="ZaloWebhook"
-        )
-        self._webhook_thread.start()
-        log.info("Zalo webhook listener started on port %d", self.config.webhook_port)
+    def handle_webhook(self, payload: bytes, signature: str) -> dict[str, Any]:
+        """Authenticate before routing. Duplicate events never re-run commands."""
+        if len(payload) > 1_048_576:
+            return {"status": 413, "error_code": "PAYLOAD_TOO_LARGE"}
+        if self.is_mock or not self.verify_webhook_signature(payload, signature):
+            return {"status": 403, "error_code": "INVALID_SIGNATURE"}
+        data = json.loads(payload)
+        recipient = data.get("recipient") or {}
+        sender = data.get("sender") or {}
+        message = data.get("message") or {}
+        if not all(isinstance(v, dict) for v in (recipient, sender, message)):
+            return {"status": 400, "error_code": "INVALID_PAYLOAD"}
+        if not self.config.oa_id or recipient.get("id") != self.config.oa_id:
+            return {"status": 403, "error_code": "WRONG_OA"}
+        if data.get("event_name") != "user_send_text":
+            return {"status": 200, "ignored": True}
+        uid = sender.get("id")
+        text = message.get("text")
+        mid = message.get("msg_id")
+        if not self.is_user_authorized(uid):
+            return {"status": 403, "error_code": "SENDER_NOT_ALLOWED"}
+        if not isinstance(text, str) or not isinstance(mid, str) or not mid:
+            return {"status": 400, "error_code": "INVALID_MESSAGE"}
+        with self._webhook_lock:
+            now = time.time()
+            self._seen_events = {
+                k: v
+                for k, v in self._seen_events.items()
+                if now - v <= self.config.webhook_max_age_s + 30
+            }
+            key = (uid, mid)
+            if key in self._seen_events:
+                return {"status": 200, "duplicate": True}
+            if len(self._seen_events) >= 10000:
+                return {"status": 503, "error_code": "REPLAY_CACHE_FULL"}
+            self._seen_events[key] = now
+            outcome = self.handle_message(uid, "", text)
+            outcome["message_id"] = mid
+            self.evidence.append(
+                {
+                    "direction": "inbound",
+                    "timestamp": now,
+                    "http_status": outcome["status"],
+                    "message_id": mid,
+                    "processing_status": outcome["status"],
+                    "signature_verified": True,
+                }
+            )
+            del self.evidence[:-1000]
+            return outcome
 
-    def stop_webhook(self) -> None:
-        self._running = False
-
-    def _webhook_loop(self) -> None:
-        """Run a minimal HTTP server for Zalo webhook callbacks."""
+    def start_webhook(self) -> bool:
+        """Bind synchronously so READY is reported only for a listening socket."""
+        if self._running:
+            return True
         if self.is_mock:
-            log.info("Mock webhook loop running")
-            while self._running:
-                time.sleep(1)
-            return
-
-        from http.server import BaseHTTPRequestHandler, HTTPServer
+            self._running = True
+            return True  # No listening socket in explicit mock mode.
+        if (
+            not self.config.app_id
+            or not self.config.oa_id
+            or not self.config.webhook_secret.strip()
+        ):
+            return False
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
         controller = self
 
-        class ZaloWebhookHandler(BaseHTTPRequestHandler):
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
             def do_POST(self):
+                if self.path != "/zalo/webhook":
+                    self.send_error(404)
+                    return
                 try:
-                    length = int(self.headers.get("Content-Length", 0))
-                    body = self.rfile.read(length)
-                    sig = self.headers.get("X-Zalo-Signature", "")
-                    if not controller.verify_webhook_signature(body, sig):
-                        self.send_response(403)
-                        self.end_headers()
+                    self.connection.settimeout(5)
+                    length = int(self.headers.get("Content-Length", "0"))
+                    if not 0 < length <= 1_048_576:
+                        self.send_error(413)
                         return
-                    data = json.loads(body)
-                    event_type = data.get("event_name", "")
-                    if event_type == "follow":
-                        log.info("New follower: %s", data)
-                    elif event_type in ("user_send_text", "user_send_image"):
-                        msg = data.get("message", {})
-                        sender = data.get("sender", {})
-                        user_id = sender.get("id", "")
-                        user_name = sender.get("display_name", "")
-                        text = msg.get("text", "")
-                        reply = controller.handle_message(user_id, user_name, text)
-                        if reply.get("status") == 200 and reply.get("text"):
-                            controller.send_message(user_id, reply["text"])
-                    self.send_response(200)
+                    body = self.rfile.read(length)
+                    outcome = controller.handle_webhook(
+                        body, self.headers.get("X-ZEvent-Signature", "")
+                    )
+                    status = outcome["status"]
+                    if status == 200 and outcome.get("text"):
+                        sent = controller.send_message(outcome["user_id"], outcome["text"])
+                        if not sent.success:
+                            status = 503
+                    response = json.dumps(
+                        {
+                            "status": status,
+                            "duplicate": outcome.get("duplicate", False),
+                            "error_code": outcome.get("error_code"),
+                        }
+                    ).encode()
+                    self.send_response(status)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(response)))
                     self.end_headers()
-                    self.wfile.write(b'{"error": 0}')
-                except Exception as exc:
-                    log.error("Webhook handler error: %s", exc)
-                    self.send_response(500)
-                    self.end_headers()
-
-            def do_GET(self):
-                # Health check + Zalo verification
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b'{"status": "JARVIS Zalo Bot Online"}')
-
-            def log_message(self, format, *args):
-                pass  # Suppress default HTTP logs
+                    self.wfile.write(response)
+                except (ValueError, OSError, TypeError):
+                    self.send_error(400)
 
         try:
-            server = HTTPServer((controller.config.host, controller.config.webhook_port), ZaloWebhookHandler)
-            log.info("Zalo webhook server listening on http://%s:%d", controller.config.host, controller.config.webhook_port)
-            while controller._running:
-                server.handle_request()
-        except Exception as exc:
-            log.error("Webhook server error: %s", exc)
+            self._server = ThreadingHTTPServer(
+                (self.config.host, self.config.webhook_port), Handler
+            )
+            self.webhook_address = self._server.server_address
+            self._running = True
+            self._webhook_thread = threading.Thread(
+                target=self._server.serve_forever, daemon=True, name="ZaloWebhook"
+            )
+            self._webhook_thread.start()
+            return True
+        except OSError:
+            self._running = False
+            return False
+
+    def stop_webhook(self) -> None:
+        self._running = False
+        if self._server:
+            self._server.shutdown()
+            self._server.server_close()
+            self._server = None
+        if self._webhook_thread:
+            self._webhook_thread.join(timeout=2)
+        self.webhook_address = None
 
 
 __all__ = ["ZaloBotController", "ZaloConfig", "ZaloMessage", "ZaloSendResult"]

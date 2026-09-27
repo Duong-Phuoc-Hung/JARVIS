@@ -21,6 +21,8 @@ from urllib.parse import urlencode
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import ActionResult, RequesterContext
 from jarvis.llm.client import LLMClient, LLMResponse
+from jarvis.security.external_content import ActionScope, contains_external, external_action_scope
+from jarvis.security.prompt_guard import PromptGuard
 
 logger = logging.getLogger("jarvis.llm.router")
 
@@ -102,6 +104,7 @@ class IntentResult:
     requires_confirmation: bool = False
     confirmation_prompt: str | None = None
     danger_level: str | None = None
+    external_scope: Any = field(default=None, repr=False)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -448,6 +451,10 @@ class LLMIntentRouter:
             ),
 
             # 2. Hardware / Telemetry / System Status (Category 2)
+            "nhiệt độ hệ thống": IntentResult(
+                action_name="hardware_status_query", parameters={}, source="rule_fallback",
+                response_text="Đang kiểm tra thông số hệ thống cho Ngài.",
+            ),
             "kiểm tra nhiệt độ cpu": IntentResult(
                 action_name="hardware_telemetry_check",
                 parameters={"component": "cpu"},
@@ -1573,7 +1580,7 @@ class LLMIntentRouter:
             # Screen backlight / screen off
             (
                 re.compile(
-                    r"(?:tắt|ngắt|khóa)\s*(?:đèn\s*nền\s*màn\s*hình|hiển\s*thị\s*màn\s*hình|giao\s*diện\s*màn\s*hình|màn\s*hình(?:\s*làm\s*việc|\s*pc|\s*máy\s*tính)?)|"
+                    r"(?:tắt|ngắt)\s*(?:đèn\s*nền\s*màn\s*hình|hiển\s*thị\s*màn\s*hình|giao\s*diện\s*màn\s*hình|màn\s*hình(?:\s*làm\s*việc|\s*pc|\s*máy\s*tính)?)|"
                     r"(?:cho\s+)?màn\s*hình\s*(?:pc|máy\s*tính)?\s*(?:chuyển\s*sang\s*chế\s*độ\s*tối|nghỉ\s*ngơi|nghỉ(?:\s*một\s*lúc)?)",
                     re.IGNORECASE,
                 ),
@@ -1713,7 +1720,7 @@ class LLMIntentRouter:
                 lambda m: self._make_hw_intent((m.group(1) or m.group(2) or "cpu").lower()),
             ),
             (
-                re.compile(r"^(?:jarvis[,\s]*)?(?:kiểm\s*tra|kiem\s*tra|xem|check)\s+(cpu|gpu|ram|disk|ổ\s*cứng|o\s*cung|pin|battery)$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:kiểm\s*tra|kiem\s*tra|xem|check)\s+(cpu|gpu|ram|disk|ổ\s*cứng|o\s*cung|bộ\s*nhớ|bo\s*nho|pin|battery)$", re.IGNORECASE),
                 lambda m: self._make_hw_intent(m.group(1)),
             ),
             (
@@ -1874,7 +1881,7 @@ class LLMIntentRouter:
             # Project & Workspace Management
             (
                 re.compile(
-                    r"^(?:jarvis[,\s]*)?(?:mở|mo|chuyển\s*(?:sang)?|chuyen\s*(?:sang)?|switch\s*(?:to|sang)?|open)\s+(?:dự\s*án|du\s*an|project|workspace|không\s*gian\s*làm\s*việc)(?:\s+(.+))?$",
+                    r"^(?:jarvis[,\s]*)?(?:mở|mo|chuyển\s*(?:sang)?|chuyen\s*(?:sang)?|switch\s*(?:to|sang)?|open)\s+(?:dự\s*án|du\s*an|project|workspace|không\s*gian\s*làm\s*việc)\s*:?(?:\s+(.+))?$",
                     re.IGNORECASE,
                 ),
                 lambda m: self._make_workspace_intent("open", m.group(1)),
@@ -2267,9 +2274,9 @@ class LLMIntentRouter:
         c = comp_raw.lower().strip()
         if "gpu" in c or "card" in c:
             comp = "gpu"
-        elif "ram" in c or "bộ nhớ" in c:
+        elif "ram" in c or "bộ nhớ" in c or "bo nho" in c:
             comp = "ram"
-        elif "disk" in c or "ổ cứng" in c or "smart" in c:
+        elif "disk" in c or "ổ cứng" in c or "o cung" in c or "smart" in c:
             comp = "disk"
         elif "pin" in c or "battery" in c:
             comp = "battery"
@@ -2912,6 +2919,22 @@ class LLMIntentRouter:
         return "Tôi chưa hiểu lệnh này, vui lòng thử cách khác"
 
     def parse_intent(
+        self, text: str, available_actions=None, context=None, force_llm=False,
+    ) -> IntentResult:
+        # Context is observation data, including legacy serialized browser output.
+        # Only parse_external_content can supply separately authorized host grants.
+        if context:
+            import json
+            isolated = str(PromptGuard.sanitize(
+                json.dumps(context, ensure_ascii=False, default=str), source="context"
+            ))
+            intent = self._parse_intent(text, available_actions,
+                                        {"external_data": isolated}, force_llm)
+            intent.external_scope = ActionScope()
+            return intent
+        return self._parse_intent(text, available_actions, context, force_llm)
+
+    def _parse_intent(
         self,
         text: str,
         available_actions: list[str] | None = None,
@@ -2922,6 +2945,8 @@ class LLMIntentRouter:
         Parses user voice/text query into structured tool calling IntentResult.
         Executes Two-Tier pipeline: Fast Rules -> LLM Tool Call -> Fallback Rules.
         """
+        if contains_external(text):
+            return IntentResult(action_name="unknown_intent", source="untrusted_external", confidence=0.0)
         # Guard: None input (e.g. STT silence/timeout returning None)
         if text is None:
             return IntentResult(
@@ -2932,6 +2957,9 @@ class LLMIntentRouter:
                 raw_text="",
                 response_text="",  # Silence → no TTS; caller decides UX
             )
+        if len(text) > 2048:
+            return IntentResult(action_name="unknown_intent", confidence=0.0,
+                                source="input_limit", response_text="INPUT_TOO_LONG")
         clean = text.strip()
         clean_lower_full = clean.lower()  # Full text — safe for plain substring 'in' checks
         # Truncate for REGEX only to prevent ReDoS on long inputs (e.g. 50KB adversarial strings).
@@ -3178,7 +3206,28 @@ class LLMIntentRouter:
                 response_text="Tôi chưa hiểu lệnh này, vui lòng thử cách khác",
             )
 
-    def execute_intent(
+    def parse_external_content(self, user_instruction: str, content: Any, *, authorized_actions=()) -> IntentResult:
+        """Trusted instruction plus external data. Grants come only from the host/UI.
+
+        Use this seam after JSON/IPC serialization, where str provenance is lost.
+        The model's chosen action cannot extend these exact, one-use grants.
+        """
+        import json
+        isolated = str(PromptGuard.sanitize(json.dumps(content, ensure_ascii=False, default=str), source="browser"))
+        intent = self.parse_intent(user_instruction, context={"external_data": isolated}, force_llm=True)
+        intent.external_scope = ActionScope(authorized_actions)
+        return intent
+
+    def execute_intent(self, intent: IntentResult, requester="system") -> ActionResult:
+        if intent.source == "untrusted_external":
+            return ActionResult(action_name=intent.action_name, success=False,
+                                error="External text is not a user command.", error_code="UNTRUSTED_ACTION_BLOCKED")
+        if intent.external_scope is not None:
+            with external_action_scope(intent.external_scope):
+                return self._execute_intent(intent, requester)
+        return self._execute_intent(intent, requester)
+
+    def _execute_intent(
         self,
         intent: IntentResult,
         requester: str | RequesterContext = "system",

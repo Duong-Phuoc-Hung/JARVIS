@@ -1,0 +1,26 @@
+FF.F                                                                     [100%]
+================================== FAILURES ===================================
+__ test_sender_allowlist_is_exact_not_substring[boss@example.com.evil.test] ___
+tests\unit\test_imap_acceptance_contract.py:8: in test_sender_allowlist_is_exact_not_substring
+    assert result['priority_count'] == 0
+E   assert 1 == 0
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.prompt_guard:prompt_guard.py:218 PromptGuard detected suspicious injection patterns (1 matches) in content from 'web'
+______ test_sender_allowlist_is_exact_not_substring[notboss@example.com] ______
+tests\unit\test_imap_acceptance_contract.py:8: in test_sender_allowlist_is_exact_not_substring
+    assert result['priority_count'] == 0
+E   assert 1 == 0
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.prompt_guard:prompt_guard.py:218 PromptGuard detected suspicious injection patterns (1 matches) in content from 'web'
+_ test_sender_allowlist_is_exact_not_substring[boss@example.com, evil@attacker.test] _
+tests\unit\test_imap_acceptance_contract.py:8: in test_sender_allowlist_is_exact_not_substring
+    assert result['priority_count'] == 0
+E   assert 1 == 0
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.prompt_guard:prompt_guard.py:218 PromptGuard detected suspicious injection patterns (1 matches) in content from 'web'
+- generated xml file: C:\Users\MSI\.codex\worktrees\t05-t07-runtime-contracts\JARVIS\reports\evidence\T05-T07\imap-allowlist-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_imap_acceptance_contract.py::test_sender_allowlist_is_exact_not_substring[boss@example.com.evil.test]
+FAILED tests/unit/test_imap_acceptance_contract.py::test_sender_allowlist_is_exact_not_substring[notboss@example.com]
+FAILED tests/unit/test_imap_acceptance_contract.py::test_sender_allowlist_is_exact_not_substring[boss@example.com, evil@attacker.test]
+3 failed, 1 passed in 0.56s

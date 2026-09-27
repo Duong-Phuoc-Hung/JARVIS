@@ -468,7 +468,11 @@ class TestBetaV1Tier2Boundaries:
             whitelist_user_ids=["user_burst"],
             access_token="test_tok",
         )
-        zalo = ZaloBotController(config=cfg, is_mock=True)
+        from jarvis.core.dispatcher import ActionDispatcher
+        from jarvis.skills.calculator import execute
+        dispatcher = ActionDispatcher()
+        dispatcher.register_action("skill_calculator", execute)
+        zalo = ZaloBotController(config=cfg, is_mock=True, dispatcher=dispatcher)
 
         # Send 5 requests within burst limit (burst_limit=5)
         for i in range(5):

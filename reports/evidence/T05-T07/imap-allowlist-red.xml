@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="4" time="0.496" timestamp="2026-09-27T12:43:25.355710+07:00" hostname="DESKTOP-OCR9N3Q"><testcase classname="tests.unit.test_imap_acceptance_contract" name="test_sender_allowlist_is_exact_not_substring[boss@example.com.evil.test]" time="0.068"><failure message="assert 1 == 0">tests\unit\test_imap_acceptance_contract.py:8: in test_sender_allowlist_is_exact_not_substring
+    assert result['priority_count'] == 0
+E   assert 1 == 0</failure></testcase><testcase classname="tests.unit.test_imap_acceptance_contract" name="test_sender_allowlist_is_exact_not_substring[notboss@example.com]" time="0.002"><failure message="assert 1 == 0">tests\unit\test_imap_acceptance_contract.py:8: in test_sender_allowlist_is_exact_not_substring
+    assert result['priority_count'] == 0
+E   assert 1 == 0</failure></testcase><testcase classname="tests.unit.test_imap_acceptance_contract" name="test_sender_allowlist_is_exact_not_substring[boss@example.com &lt;evil@attacker.test&gt;]" time="0.002" /><testcase classname="tests.unit.test_imap_acceptance_contract" name="test_sender_allowlist_is_exact_not_substring[boss@example.com, evil@attacker.test]" time="0.003"><failure message="assert 1 == 0">tests\unit\test_imap_acceptance_contract.py:8: in test_sender_allowlist_is_exact_not_substring
+    assert result['priority_count'] == 0
+E   assert 1 == 0</failure></testcase></testsuite></testsuites>

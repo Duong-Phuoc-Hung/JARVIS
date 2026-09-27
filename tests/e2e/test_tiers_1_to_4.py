@@ -574,9 +574,13 @@ def test_r4_window_focus_and_close_tab(computer_controller):
     assert res_close is True
 
 
-def test_r4_volume_and_brightness_adjustment(computer_controller):
+def test_r4_volume_and_brightness_adjustment(computer_controller, monkeypatch):
     """[R4.3] Master volume (+/-10%) and display brightness manipulation."""
     v1 = computer_controller.set_volume(50)
+    import sys
+    from types import SimpleNamespace
+    levels = []
+    monkeypatch.setitem(sys.modules, "screen_brightness_control", SimpleNamespace(set_brightness=levels.append))
     assert v1 == 50
 
     v2 = computer_controller.change_volume(10)

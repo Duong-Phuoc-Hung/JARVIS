@@ -1,0 +1,20 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+__________ test_official_webhook_mac_is_verified_over_exact_raw_body __________
+tests\unit\test_zalo_transport_contract.py:16: in test_official_webhook_mac_is_verified_over_exact_raw_body
+    assert bot.verify_webhook_signature(body, signature)
+E   assert False
+E    +  where False = verify_webhook_signature(b'{"app_id": "app", "timestamp": "1790245888939", "event_name": "user_send_text", "recipient": {"id": "oa"}, "sender": {"id": "tester"}, "message": {"msg_id": "m1", "text": "/help"}}', 'mac=72a11f2f5b43eaf099e590d2ea9fcb1cb5d36e4d87dfef806de04235499cc303')
+E    +    where verify_webhook_signature = <jarvis.comms.zalo.ZaloBotController object at 0x00000207B8FF9160>.verify_webhook_signature
+____________________ test_outbound_needs_a_real_message_id ____________________
+tests\unit\test_zalo_transport_contract.py:29: in test_outbound_needs_a_real_message_id
+    assert bot.send_message("tester","test").success is False
+E   AssertionError: assert True is False
+E    +  where True = ZaloSendResult(success=True, error='', message_id='').success
+E    +    where ZaloSendResult(success=True, error='', message_id='') = send_message('tester', 'test')
+E    +      where send_message = <jarvis.comms.zalo.ZaloBotController object at 0x00000207B8F09A90>.send_message
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\t04-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_zalo_transport_contract.py::test_official_webhook_mac_is_verified_over_exact_raw_body
+FAILED tests/unit/test_zalo_transport_contract.py::test_outbound_needs_a_real_message_id
+2 failed in 0.36s

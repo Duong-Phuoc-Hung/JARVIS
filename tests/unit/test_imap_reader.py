@@ -15,6 +15,7 @@ Seams under test:
   9. fetch_and_summarize() with no credentials → IMAPNotConfiguredError (fail-closed)
   10. fetch_and_summarize() → calls connect/fetch_unread/disconnect in sequence on success
 """
+
 from __future__ import annotations
 
 import email
@@ -30,8 +31,8 @@ from jarvis.comms.email_imap import (
     IMAPNotConfiguredError,
 )
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 def _make_raw_email(
     sender: str = "boss@example.com",
@@ -63,6 +64,7 @@ def _make_reader(
 
 # ── Test: connect() fail-closed ───────────────────────────────────────────────
 
+
 class TestConnectFailClosed:
     def test_empty_host_raises_not_configured(self) -> None:
         """connect() with empty host → IMAPNotConfiguredError (NOT_CONFIGURED)."""
@@ -91,21 +93,26 @@ class TestConnectFailClosed:
 
 # ── Test: connect() happy path ────────────────────────────────────────────────
 
+
 class TestConnectHappyPath:
     def test_connect_constructs_imap4_ssl_and_calls_login(self) -> None:
         """connect() calls imaplib.IMAP4_SSL(host, port) and login(username, password)."""
         mock_imap = MagicMock()
+        mock_imap.login.return_value = ("OK", [b"authenticated"])
         reader = _make_reader()
         with patch("imaplib.IMAP4_SSL", return_value=mock_imap) as mock_cls:
             reader.connect()
 
-        mock_cls.assert_called_once_with("imap.example.com", 993)
+        mock_cls.assert_called_once_with(
+            "imap.example.com", 993, timeout=reader.timeout, ssl_context=reader.ssl_context
+        )
         mock_imap.login.assert_called_once_with("user@example.com", "secret")
         assert reader._conn is mock_imap
 
     def test_connect_stores_connection_on_success(self) -> None:
         """After connect(), _conn is set to the IMAP4_SSL instance."""
         mock_imap = MagicMock()
+        mock_imap.login.return_value = ("OK", [b"authenticated"])
         reader = _make_reader()
         with patch("imaplib.IMAP4_SSL", return_value=mock_imap):
             reader.connect()
@@ -114,10 +121,12 @@ class TestConnectHappyPath:
 
 # ── Test: disconnect() ────────────────────────────────────────────────────────
 
+
 class TestDisconnect:
     def test_disconnect_calls_logout(self) -> None:
         """disconnect() calls logout() on the IMAP connection."""
         mock_imap = MagicMock()
+        mock_imap.login.return_value = ("OK", [b"authenticated"])
         reader = _make_reader()
         reader._conn = mock_imap
         reader.disconnect()
@@ -133,6 +142,7 @@ class TestDisconnect:
     def test_disconnect_swallows_logout_exception(self) -> None:
         """disconnect() swallows logout errors — fail-safe cleanup."""
         mock_imap = MagicMock()
+        mock_imap.login.return_value = ("OK", [b"authenticated"])
         mock_imap.logout.side_effect = imaplib.IMAP4.error("Connection closed")
         reader = _make_reader()
         reader._conn = mock_imap
@@ -142,6 +152,7 @@ class TestDisconnect:
 
 # ── Test: fetch_unread() ──────────────────────────────────────────────────────
 
+
 class TestFetchUnread:
     def test_fetch_unread_without_connect_raises_runtime_error(self) -> None:
         """fetch_unread() before connect() → RuntimeError (not connected)."""
@@ -149,18 +160,20 @@ class TestFetchUnread:
         with pytest.raises(RuntimeError, match="connect\\(\\)"):
             reader.fetch_unread()
 
-    def test_fetch_unread_select_fails_returns_empty(self) -> None:
-        """If SELECT fails, fetch_unread() returns [] (fail-closed)."""
+    def test_fetch_unread_select_failure_raises_redacted_protocol_error(self) -> None:
+        """SELECT failure must not masquerade as an empty mailbox."""
         mock_imap = MagicMock()
+        mock_imap.login.return_value = ("OK", [b"authenticated"])
         mock_imap.select.return_value = ("NO", [b"mailbox not found"])
         reader = _make_reader()
         reader._conn = mock_imap
-        result = reader.fetch_unread()
-        assert result == []
+        with pytest.raises(imaplib.IMAP4.error, match="PROTOCOL_ERROR"):
+            reader.fetch_unread()
 
     def test_fetch_unread_no_unseen_returns_empty(self) -> None:
         """If SEARCH returns empty, fetch_unread() returns []."""
         mock_imap = MagicMock()
+        mock_imap.login.return_value = ("OK", [b"authenticated"])
         mock_imap.select.return_value = ("OK", [b"5"])
         mock_imap.search.return_value = ("OK", [b""])
         reader = _make_reader()
@@ -176,6 +189,7 @@ class TestFetchUnread:
             body="Please attend at 3pm.",
         )
         mock_imap = MagicMock()
+        mock_imap.login.return_value = ("OK", [b"authenticated"])
         mock_imap.select.return_value = ("OK", [b"1"])
         mock_imap.search.return_value = ("OK", [b"1"])
         mock_imap.fetch.return_value = ("OK", [(b"1 (RFC822 {123})", raw)])
@@ -192,6 +206,7 @@ class TestFetchUnread:
     def test_fetch_unread_skips_malformed_message(self) -> None:
         """Malformed RFC822 data is skipped (fail-closed, no crash)."""
         mock_imap = MagicMock()
+        mock_imap.login.return_value = ("OK", [b"authenticated"])
         mock_imap.select.return_value = ("OK", [b"2"])
         mock_imap.search.return_value = ("OK", [b"1 2"])
         # First message: bad data; second: good
@@ -210,6 +225,7 @@ class TestFetchUnread:
 
 
 # ── Test: fetch_and_summarize() ───────────────────────────────────────────────
+
 
 class TestFetchAndSummarize:
     def test_mock_emails_path_does_not_open_connection(self) -> None:
@@ -233,6 +249,7 @@ class TestFetchAndSummarize:
     def test_real_path_calls_connect_fetch_disconnect(self) -> None:
         """fetch_and_summarize() (no mock) calls connect→fetch_unread→disconnect."""
         mock_imap = MagicMock()
+        mock_imap.login.return_value = ("OK", [b"authenticated"])
         mock_imap.select.return_value = ("OK", [b"0"])
         mock_imap.search.return_value = ("OK", [b""])
 
@@ -249,7 +266,9 @@ class TestFetchAndSummarize:
     def test_security_pipeline_drops_non_allowlisted_sender(self) -> None:
         """Emails from non-whitelisted senders are dropped (fail-close allowlist)."""
         reader = IMAPEmailReader(
-            host="imap.example.com", username="u", password="p",
+            host="imap.example.com",
+            username="u",
+            password="p",
             priority_senders=["trusted.com"],
         )
         emails = [
@@ -277,7 +296,9 @@ class TestFetchAndSummarize:
     def test_empty_allowlist_drops_all_emails(self) -> None:
         """Empty priority_senders → ALL emails dropped (fail-closed default)."""
         reader = IMAPEmailReader(
-            host="imap.x.com", username="u", password="p",
+            host="imap.x.com",
+            username="u",
+            password="p",
             priority_senders=[],
         )
         emails = [EmailMessage(sender="anyone@anywhere.com", subject="Hi", body_text="Hey")]

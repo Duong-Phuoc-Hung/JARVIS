@@ -1,0 +1,20 @@
+[
+  {
+    "command": [
+      "git",
+      "-c",
+      "core.whitespace=cr-at-eol",
+      "diff",
+      "--check",
+      "--",
+      "jarvis",
+      "tests",
+      "README.md",
+      "CHANGELOG.md",
+      "docs/ROADMAP.md"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "warning: in the working copy of 'tests/test_adversarial_m1_discord_error_recovery.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/test_adversarial_m1_discord_gateway.py', LF will be replaced by CRLF the next time Git touches it\n"
+  }
+]

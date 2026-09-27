@@ -47,6 +47,7 @@ from jarvis.llm.client import LLMClient
 from jarvis.llm.router import IntentResult, LLMIntentRouter
 from jarvis.stt.engine import (
     BaseSTTEngine,
+    CapturedAudio,
     MockSTTEngine,
     OpenAIWhisperSTT,
     STTEngine,
@@ -87,6 +88,17 @@ def sim_app(tmp_path, monkeypatch):
     app.initialize()
     app.config.set("logging.file", str(log_file))
 
+    # Observe the public logging seam after its write completes, not an earlier UI update.
+    app.interaction_logged = threading.Event()
+    original_log_interaction = app.log_interaction
+
+    def observed_log_interaction(**kwargs):
+        result = original_log_interaction(**kwargs)
+        app.interaction_logged.set()
+        return result
+
+    monkeypatch.setattr(app, "log_interaction", observed_log_interaction)
+
     # Provide headless overlay for state inspection
     app.overlay = JarvisOverlay(headless=True)
     app.overlay.start()
@@ -105,6 +117,7 @@ def sim_app(tmp_path, monkeypatch):
 
     yield app
 
+    assert _wait_for_condition(lambda: not app._is_voice_interacting, timeout=5.0)
     if app.overlay:
         app.overlay.destroy()
     app.stop()
@@ -222,6 +235,7 @@ def test_sim_04_first_double_clap_welcome_sequence_once(sim_app):
     assert _wait_for_condition(lambda: len(executed) == 5, timeout=2.0)
 
     # Verify structured interaction log file
+    assert sim_app.interaction_logged.wait(3.0), "Interaction log was not completed"
     log_content = sim_app.log_file_path.read_text(encoding="utf-8")
     assert "[INTERACTION]" in log_content
     assert "TRIGGER: GESTURE:double_clap" in log_content
@@ -243,7 +257,7 @@ def test_sim_05_second_double_clap_triggers_ai_voice_loop(sim_app, monkeypatch):
 
     # Mock STT to return a specific command
     sim_app.stt_engine.primary_engine = MockSTTEngine(default_transcript="bật đèn phòng khách")
-    monkeypatch.setattr(sim_app, "record_audio", lambda **kw: np.zeros(1600, dtype=np.float32))
+    monkeypatch.setattr(sim_app, "record_audio", lambda **kw: CapturedAudio((np.sin(np.arange(1600) * 0.1) * 0.2).astype(np.float32), 16000))
 
     ha_calls: List[Dict[str, Any]] = []
     sim_app.dispatcher.register_action(
@@ -254,6 +268,10 @@ def test_sim_05_second_double_clap_triggers_ai_voice_loop(sim_app, monkeypatch):
     sim_app._on_gesture_event("double_clap")
 
     # Wait for AI-Voice-Loop thread to complete
+    from tests.confirmation_support import confirm_latest_pending
+    assert _wait_for_condition(lambda: sim_app.dispatcher.safety_interceptor.safety_gate.get_latest_pending() is not None)
+    assert ha_calls == [], "Voice command must not bypass the write confirmation gate"
+    assert confirm_latest_pending(sim_app.dispatcher).success
     assert _wait_for_condition(lambda: len(ha_calls) == 1, timeout=3.0)
     assert _wait_for_condition(lambda: len(sim_app.spoken_phrases) >= 2, timeout=3.0)
 
@@ -265,9 +283,11 @@ def test_sim_05_second_double_clap_triggers_ai_voice_loop(sim_app, monkeypatch):
     assert sim_app.overlay.state == OverlayState.RESPONSE
     assert "bật đèn phòng khách" in sim_app.overlay.user_text
 
-    # Verify interaction log
+    # Logging follows overlay/TTS updates on the command worker. Wait for that seam.
+    assert _wait_for_condition(lambda: sim_app.log_file_path.exists())
+    assert sim_app.interaction_logged.wait(3.0), "Interaction log was not completed"
     log_content = sim_app.log_file_path.read_text(encoding="utf-8")
-    assert "TRIGGER: VOICE" in log_content
+    assert "TRIGGER: GESTURE:DOUBLE_CLAP" in log_content
     assert "INPUT: bật đèn phòng khách" in log_content
 
 
@@ -284,16 +304,20 @@ def test_sim_06_voice_loop_smart_keyword_home_assistant(sim_app, monkeypatch):
     sim_app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
 
     sim_app.stt_engine.primary_engine = MockSTTEngine(default_transcript="bật đèn phòng khách")
-    monkeypatch.setattr(sim_app, "record_audio", lambda **kw: np.zeros(1600, dtype=np.float32))
+    monkeypatch.setattr(sim_app, "record_audio", lambda **kw: CapturedAudio((np.sin(np.arange(1600) * 0.1) * 0.2).astype(np.float32), 16000))
 
     received_payloads: List[Dict[str, Any]] = []
     sim_app.dispatcher.register_action(
         name="home_assistant_call",
-        handler=lambda payload=None, **kw: received_payloads.append(payload or {}) or {"status": "ok"},
+        handler=lambda **kw: received_payloads.append(kw) or {"status": "ok"},
     )
 
     sim_app._on_gesture_event("double_clap")
 
+    from tests.confirmation_support import confirm_latest_pending
+    assert _wait_for_condition(lambda: sim_app.dispatcher.safety_interceptor.safety_gate.get_latest_pending() is not None)
+    assert received_payloads == [], "Voice command must not bypass the write confirmation gate"
+    assert confirm_latest_pending(sim_app.dispatcher).success
     assert _wait_for_condition(lambda: len(received_payloads) == 1, timeout=3.0)
     payload = received_payloads[0]
     assert payload.get("domain") == "light"
@@ -314,7 +338,7 @@ def test_sim_07_voice_loop_smart_keyword_hardware_telemetry(sim_app, monkeypatch
     sim_app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
 
     sim_app.stt_engine.primary_engine = MockSTTEngine(default_transcript="nhiệt độ hệ thống")
-    monkeypatch.setattr(sim_app, "record_audio", lambda **kw: np.zeros(1600, dtype=np.float32))
+    monkeypatch.setattr(sim_app, "record_audio", lambda **kw: CapturedAudio((np.sin(np.arange(1600) * 0.1) * 0.2).astype(np.float32), 16000))
 
     status_calls: List[Dict[str, Any]] = []
     sim_app.dispatcher.register_action(
@@ -332,8 +356,7 @@ def test_sim_07_voice_loop_smart_keyword_hardware_telemetry(sim_app, monkeypatch
 
     sim_app._on_gesture_event("double_clap")
 
-    assert _wait_for_condition(lambda: len(status_calls) >= 1 or any("CPU" in p["text"] or "hệ thống" in p["text"] for p in sim_app.spoken_phrases), timeout=3.0)
-    assert sim_app.overlay.state == OverlayState.RESPONSE
+    assert _wait_for_condition(lambda: len(status_calls) >= 1 and sim_app.overlay.state == OverlayState.RESPONSE, timeout=3.0)
 
 
 # ============================================================================
@@ -349,7 +372,7 @@ def test_sim_08_voice_loop_silence_handling(sim_app, monkeypatch):
     sim_app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
 
     sim_app.stt_engine.primary_engine = MockSTTEngine(default_transcript="")
-    monkeypatch.setattr(sim_app, "record_audio", lambda **kw: np.zeros(1600, dtype=np.float32))
+    monkeypatch.setattr(sim_app, "record_audio", lambda **kw: CapturedAudio((np.sin(np.arange(1600) * 0.1) * 0.2).astype(np.float32), 16000))
 
     sim_app._on_gesture_event("double_clap")
 
@@ -357,6 +380,7 @@ def test_sim_08_voice_loop_silence_handling(sim_app, monkeypatch):
     assert sim_app.overlay.state == OverlayState.RESPONSE
     assert "(không nghe thấy)" in sim_app.overlay.user_text
 
+    assert sim_app.interaction_logged.wait(3.0), "Interaction log was not completed"
     log_content = sim_app.log_file_path.read_text(encoding="utf-8")
     assert "STATUS: failed" in log_content
 
@@ -377,7 +401,7 @@ def test_sim_09_voice_loop_exception_resilience(sim_app, monkeypatch):
         raise RuntimeError("Audio hardware stream disconnected")
 
     sim_app.stt_engine.transcribe = _failing_transcribe
-    monkeypatch.setattr(sim_app, "record_audio", lambda **kw: np.zeros(1600, dtype=np.float32))
+    monkeypatch.setattr(sim_app, "record_audio", lambda **kw: CapturedAudio((np.sin(np.arange(1600) * 0.1) * 0.2).astype(np.float32), 16000))
 
     sim_app._on_gesture_event("double_clap")
 
@@ -408,6 +432,7 @@ def test_sim_10_triple_clap_live_hardware_status(sim_app, mock_hardware_provider
     last_spoken = sim_app.spoken_phrases[-1]["text"]
     assert "Tình trạng hệ thống" in last_spoken or "CPU" in last_spoken or "RAM" in last_spoken or "JARVIS" in last_spoken
 
+    assert sim_app.interaction_logged.wait(3.0), "Interaction log was not completed"
     log_content = sim_app.log_file_path.read_text(encoding="utf-8")
     assert "TRIGGER: GESTURE:triple_clap" in log_content
     assert "ACTION: system_status" in log_content
@@ -427,6 +452,7 @@ def test_sim_11_clap_pause_clap_overlay_hud_activation(sim_app):
     assert sim_app.overlay.state == OverlayState.LISTENING
     assert sim_app.overlay.is_visible is True
 
+    assert sim_app.interaction_logged.wait(3.0), "Interaction log was not completed"
     log_content = sim_app.log_file_path.read_text(encoding="utf-8")
     assert "TRIGGER: GESTURE:clap_pause_clap" in log_content
     assert "ACTION: show_overlay" in log_content
@@ -723,7 +749,7 @@ def test_sim_17_e2e_full_session_simulation_and_performance(sim_app, monkeypatch
     # 3. Second double clap (Voice AI Loop)
     sim_app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
     sim_app.stt_engine.primary_engine = MockSTTEngine(default_transcript="nhiệt độ hệ thống")
-    monkeypatch.setattr(sim_app, "record_audio", lambda **kw: np.zeros(1600, dtype=np.float32))
+    monkeypatch.setattr(sim_app, "record_audio", lambda **kw: CapturedAudio((np.sin(np.arange(1600) * 0.1) * 0.2).astype(np.float32), 16000))
 
     sim_app._on_gesture_event("double_clap")
     assert _wait_for_condition(lambda: sim_app.overlay.state == OverlayState.RESPONSE, timeout=3.0)
@@ -748,6 +774,7 @@ def test_sim_17_e2e_full_session_simulation_and_performance(sim_app, monkeypatch
     assert elapsed_total < 10.0, f"Full session took {elapsed_total:.2f}s, exceeding 10.0s threshold!"
 
     # 7. Validate complete interaction log
+    assert sim_app.interaction_logged.wait(3.0), "Interaction log was not completed"
     log_content = sim_app.log_file_path.read_text(encoding="utf-8")
     lines = [l for l in log_content.splitlines() if "[INTERACTION]" in l]
     assert len(lines) >= 4
@@ -775,11 +802,10 @@ def test_sim_18_cli_health_check_verification(monkeypatch):
 
     assert exit_code == 0
     assert "JARVIS System Health Diagnostics" in output
-    assert "Operating System:" in output
     assert "Audio Subsystem:" in output
     assert "TTS Engine:" in output
     assert "Configuration:" in output
-    assert "Diagnostics completed successfully." in output
+    assert "Diagnostics completed. Browser automation is READY; review each subsystem result above." in output
 
     # Also verify through CLI main entrypoint
     with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout_main:
@@ -787,4 +813,4 @@ def test_sim_18_cli_health_check_verification(monkeypatch):
         main_output = mock_stdout_main.getvalue()
 
     assert main_exit_code == 0
-    assert "Diagnostics completed successfully." in main_output
+    assert "Diagnostics completed. Browser automation is READY; review each subsystem result above." in main_output

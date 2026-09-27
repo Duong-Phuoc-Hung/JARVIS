@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="0.433" timestamp="2026-09-27T13:07:32.017614+07:00" hostname="DESKTOP-OCR9N3Q"><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_provider_cooldown_does_not_exhaust_error_budget" time="0.009"><failure message="assert False&#10; +  where False = all(&lt;generator object test_provider_cooldown_does_not_exhaust_error_budget.&lt;locals&gt;.&lt;genexpr&gt; at 0x0000011E7E6A7510&gt;)">tests\unit\test_discord_acceptance_contract.py:136: in test_provider_cooldown_does_not_exhaust_error_budget
+    assert all(controller.poll_once() for _ in range(10))
+E   assert False
+E    +  where False = all(&lt;generator object test_provider_cooldown_does_not_exhaust_error_budget.&lt;locals&gt;.&lt;genexpr&gt; at 0x0000011E7E6A7510&gt;)</failure></testcase><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_disabled_config_never_starts_or_sends" time="0.003"><failure message="AssertionError: assert 'CONNECTION_FAILED' == 'DISABLED'&#10;  &#10;  - DISABLED&#10;  + CONNECTION_FAILED">tests\unit\test_discord_acceptance_contract.py:147: in test_disabled_config_never_starts_or_sends
+    assert controller.start_polling()['error_code'] == 'DISABLED'
+E   AssertionError: assert 'CONNECTION_FAILED' == 'DISABLED'
+E     
+E     - DISABLED
+E     + CONNECTION_FAILED</failure></testcase></testsuite></testsuites>

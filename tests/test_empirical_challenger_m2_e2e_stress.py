@@ -98,7 +98,7 @@ def generate_clap_sequence(gaps: List[float], sample_rate: int = 44100, lead_s: 
 # 1. FULL PIPELINE E2E STRESS: Audio -> DSP -> Gesture -> Bus -> Action -> TTS
 # ============================================================================
 
-def test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue(tmp_path, monkeypatch):
+def test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue(tmp_path, monkeypatch, request):
     """
     Stress-tests the entire unbroken event pipeline from continuous virtual audio injection
     to final TTS speech synthesis output.
@@ -151,9 +151,12 @@ def test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue(tmp_path, monkeypatc
     # Wire up JarvisApp manually with test configuration
     app = JarvisApp(headless=True, no_hot_reload=True)
     app.initialize()
+    request.addfinalizer(app.stop)
     # P0 runaway-hardening: fanout is opt-in by default now -- safe to opt in
     # here since every launch call below is monkeypatched to a fake handler.
     app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
+
+    app.config.set("tts.welcome.delay_after_song_s", 0.0)
 
     # Replace TTS manager with test instance
     if app.tts_manager:
@@ -171,7 +174,9 @@ def test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue(tmp_path, monkeypatc
     app.event_bus.subscribe("gesture.detected", lambda **kw: bus_events.append(kw.get("gesture_type", "")))
     app.event_bus.subscribe("action.post_dispatch", lambda **kw: bus_events.append(f"action:{kw.get('action_name')}"))
 
-    sample_rate = 44100
+    # Align accelerated synthetic audio timestamps with the real TTS monotonic epoch.
+    app.audio_engine._feed_virtual_time = time.monotonic()
+    sample_rate = app.audio_engine.sample_rate
 
     # 1. Feed Double Clap (gap = 0.15s, followed by 1.0s silence for disambiguation + cooldown)
     double_clap_pcm = generate_clap_sequence([0.15], sample_rate=sample_rate, lead_s=0.1, tail_s=1.0)
@@ -188,11 +193,18 @@ def test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue(tmp_path, monkeypatc
         assert "chrome_binance" in executed_actions
         assert "cursor" in executed_actions
 
+    app.tts_manager._queue.join()
+    app.audio_engine.feed_virtual_audio(np.zeros(sample_rate * 3, dtype=np.float32), virtual_time=True)
+
     # 2. Feed Triple Clap (gaps = 0.12s, 0.12s, followed by 1.0s cooldown)
     triple_clap_pcm = generate_clap_sequence([0.12, 0.12], sample_rate=sample_rate, lead_s=0.1, tail_s=1.0)
     app.audio_engine.feed_virtual_audio(triple_clap_pcm, virtual_time=True)
     time.sleep(0.2)
     assert "triple_clap" in bus_events
+
+    # Finish synthesized speech and advance beyond the production echo cooldown.
+    app.tts_manager._queue.join()
+    app.audio_engine.feed_virtual_audio(np.zeros(sample_rate * 3, dtype=np.float32), virtual_time=True)
 
     # 3. Feed Clap-Pause-Clap (gap = 0.70s, followed by 1.0s cooldown)
     pause_clap_pcm = generate_clap_sequence([0.70], sample_rate=sample_rate, lead_s=0.1, tail_s=1.0)

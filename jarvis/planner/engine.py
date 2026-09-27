@@ -369,6 +369,11 @@ class ReActTaskEngine:
 
         # 1. Check custom direct handlers
         if action_name in self._action_handlers:
+            from jarvis.security.external_content import external_action_allowed
+            if not external_action_allowed(action_name, params):
+                return ActionResult(action_name=action_name, success=False,
+                                    error_code="UNTRUSTED_ACTION_BLOCKED",
+                                    error="External data cannot authorize a planner handler.")
             try:
                 handler = self._action_handlers[action_name]
                 res = handler(**params) if isinstance(params, dict) else handler(params)

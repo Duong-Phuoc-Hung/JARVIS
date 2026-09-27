@@ -186,7 +186,8 @@ def test_adversarial_massive_strings_and_redos_resistance():
     duration_ms = (time.perf_counter() - t0) * 1000.0
 
     assert duration_ms < 10.0, f"10KB query parsing took {duration_ms:.2f}ms (> 10.0ms — possible ReDoS)"
-    assert res_10k.action_name == "hardware_status_query"
+    assert res_10k.action_name == "unknown_intent"
+    assert res_10k.response_text == "INPUT_TOO_LONG"
 
     # 2. 50KB adversarial nested pattern
     fifty_kb_adversarial = ("a" * 1000 + " bật đèn " + "b" * 1000) * 25  # ~50 KB
@@ -195,7 +196,8 @@ def test_adversarial_massive_strings_and_redos_resistance():
     duration_50k_ms = (time.perf_counter() - t1) * 1000.0
 
     assert duration_50k_ms < 20.0, f"50KB query parsing took {duration_50k_ms:.2f}ms (> 20.0ms)"
-    assert res_50k.action_name == "home_assistant_call"
+    assert res_50k.action_name == "unknown_intent"
+    assert res_50k.response_text == "INPUT_TOO_LONG"
 
 
 # ============================================================================
@@ -421,10 +423,11 @@ def test_pipeline_integration_category4_weather():
     app.initialize()
 
     res_hanoi = app.process_text_command("thời tiết hà nội")
-    assert res_hanoi["success"] is True
+    assert res_hanoi["success"] is False
+    assert "xác nhận" in res_hanoi["response_text"].lower()
     assert res_hanoi["intent"]["action_name"] == "shell_exec"
     assert res_hanoi["intent"]["parameters"]["location"] == "Hà Nội"
-    assert "Đang kiểm tra thông tin thời tiết tại Hà Nội cho Ngài." in res_hanoi["response_text"]
+    app.stop()
 
 
 @_SKIP_ENV

@@ -1,3 +1,76 @@
+<!-- T01-T07 integration start -->
+## T-01–T-07 integration gate — 2026-09-27
+
+- [x] Preserve and merge all three specialist histories on the separate integration branch.
+- [x] Reproduce/repair baseline and contract errors, including global-clock interference; retain safety gates.
+- [x] T-01 actual Chromium/CDP and T-02 adversarial browser enforcement, real 30-second expiry and side-effect canaries.
+- [x] T-03–T-07 scoped engineering/fail-closed contracts and latest full/scoped native exit 0.
+- [x] Hosted CI on final integrated source.
+- [ ] T-03: authorized Telegram bot/chat/sender/token + inbound nonce — PENDING_CREDENTIALS.
+- [ ] T-04: verified Zalo OA/app, recipient, callback/token/secret — PENDING_ZALO_OA_VERIFICATION.
+- [ ] T-05: authorized Discord guild/channel/users/admins/bot installation — PENDING_GUILD_CHANNEL_AUTHORIZATION.
+- [ ] T-06: authorized TLS mailbox/allowlist and fault-test scope — PENDING_MAILBOX_AUTHORIZATION.
+- [ ] T-07: HA test instance, safe light AND climate entities, confirmed write/restore — PENDING_HA_INSTANCE_ENTITY.
+- [ ] Product GO and any main change: all runtime gates/checks and explicit owner approval required.
+
+Unit at source commit 6af3509: **2809 pass / 0 fail / 4 skip**, 243.05 s pytest, 245.534 s wall, native exit 0. Full: **4394 pass / 0 fail / 20 skip**, 683.31 s pytest, 686.491 s wall, native exit 0. Scoped T-01–T-07: **164 pass / 0 fail / 0 skip**, 112.44 s pytest, 115.401 s wall, native exit 0.
+
+[Hosted CI](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/runs/36305486023) PASS at `6af3509`; all 5 jobs succeeded.
+
+T-01/T-02: PASS engineering / PASS fail-closed / PASS runtime for controlled real Chromium execution/enforcement. T-03–T-07: PASS engineering / PASS fail-closed / runtime PENDING authorized resources. No live messaging, mailbox access or HA write was performed. Optional/live skips are not passes. No CONDITIONAL GO or GO. Main remains 9d3c591, unchanged.
+
+[Current matrix and artifacts](eval/t01_t07_integration_20260927.md) supersede historical counts below.
+<!-- T01-T07 integration end -->
+
+<!-- T05-T07 roadmap start -->
+## T-05–T-07 scoped revalidation — 2026-09-27
+
+- T-05: engineering transport/permission/safety tests implemented; live guild command/reply and permitted
+  users/admins **PENDING_GUILD_CHANNEL_AUTHORIZATION**. REST polling is not WebSocket Gateway certification.
+- T-06: TLS/Unicode/read-only/allowlist/error/reconnect tests implemented; real mailbox DoD
+  **PENDING_MAILBOX_AUTHORIZATION**. Historical two-email read does not close this task.
+- T-07: authoritative entity allowlist + confirmation + before/after/restore tests implemented;
+  actual HA instance/entity **PENDING_HA_INSTANCE_ENTITY**. Docker engine probe exit 1, missing Linux engine pipe.
+- No task is marked runtime DONE. No CONDITIONAL GO/GO is issued by this work.
+
+[Revision-specific metrics and evidence](eval/t05_t07_runtime_contracts_20260927.md) supersede historical
+counts for this branch. Main and other agents' branches remain untouched; hand off commits to integration.
+Final validation: **PASS engineering / PASS fail-closed** for scoped T-05–T-07.
+Unit: 2764 pass / 4 skip, 287.81 s, exit 0. Scoped: 254 pass, 21.82 s, exit 0.
+Full: 4264 pass / 46 fail / 20 skip, 721.77 s, exit 1 (45 reproduced on base; one unresolved
+order-sensitive candidate). Hosted CI not rerun; runtime PENDING; no CONDITIONAL GO/GO.
+
+<!-- T05-T07 roadmap end -->
+
+## CI baseline recovery — 2026-09-24 (base 9d3c591)
+
+- [x] Xác minh GitHub run 35763480258: 0 jobs; annotation xác nhận `runner.temp` không hợp lệ ở job env.
+- [x] Workflow RED → GREEN bằng actionlint; chuyển browser store sang runner step, đồng bộ unit dependency theo pyproject.
+- [x] Re-run unit: **2723 passed, 4 skipped, 268 subtests**, 261.12s, exit 0.
+- [x] T-01 executable seams: **286 scoped passed / 12.11s**; **21 real browser passed / 35.54s**, exit 0.
+- [x] Full suite không fail-fast: **4189 passed, 46 failed, 41 skipped**, 571.15s; native exit **-1073740940** sau JUnit.
+- [x] Phân loại và rerun 46 node: **45 failed, 1 passed**, 42.36s, exit 1; build prerequisite được xác minh RED → GREEN.
+- [ ] Full baseline xanh: còn 45 assertion tái hiện và native teardown cần điều tra; không nới safety gates/test assertions.
+- [ ] Remote CI trên revision tích hợp mới (task này không push/merge main).
+- [x] Đã đọc DOCX từ đường dẫn tuyệt đối người giao việc cung cấp; T-01 khớp evidence hiện tại. D-01/D-02 vẫn PENDING remote CI, chưa DONE.
+
+[Evidence hiện tại](eval/ci_baseline_20260924.md). **PASS engineering** chỉ cho local CI contract;
+T-01 **PASS fail-closed / PASS runtime (loopback)**. Không nâng thành Product GO.
+Các số liệu/checklist bên dưới là lịch sử; không dùng để phủ định kết quả baseline mới.
+
+## T-02/T-03/T-04 task handoff — 2026-09-24
+
+- T-02: **PASS engineering / PASS fail-closed / PASS runtime (loopback enforcement)**; adversarial real-browser tests cover DOM/scrape/URL/metadata/results,
+  legacy adapters, app/router/planner/dispatcher paths and real 30-second confirmation expiry. Final verdict and fresh
+  test counts are in the [task audit](eval/t02_t04_trust_transports_20260924.md).
+- T-03: Telegram engineering/fail-closed verification delivered; **runtime PENDING** authorized bot/chat/sender/token and
+  human inbound interaction. Keep live certification open until a new two-way round trip succeeds.
+- T-04: OA outbound contract and authenticated real HTTP listener implemented; **runtime PENDING** verified OA/app,
+  allowed recipient, token/OA secret and authorized public HTTPS endpoint. Synthetic webhook/HTTP fixtures are not live OA evidence.
+- Fresh local regression: unit 2751 pass / 4 skip; browser 51 pass; full 4278 pass / 45 fail / 20 skip (exit 1).
+- Overall: **NO-GO** for product release. No integration/main push performed. Old completion/test claims below do not
+  certify this branch; final fresh full-suite failures and their scope are recorded in the audit.
+
 ## Comprehensive Security Audit, Hardening & Tooling Sprint (2026-09-22)
 
 - [x] **5-Category Security Audit & Vulnerability Remediation (22/22 Resolved)**:

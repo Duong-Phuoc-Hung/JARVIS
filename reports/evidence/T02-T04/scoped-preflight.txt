@@ -1,0 +1,5 @@
+......................................................... [ 38%]
+........................................................................ [ 87%]
+..................                                                       [100%]
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\scoped-preflight.xml -
+147 passed, 15 subtests passed in 11.41s

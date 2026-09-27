@@ -83,26 +83,17 @@ def test_record_audio_headless_zero_latency_and_non_blocking():
 
 
 def test_record_audio_exception_resilience_when_sounddevice_fails():
-    """
-    [CHALLENGE-1.2] Verify record_audio() when headless=False safely catches
-    sounddevice exceptions and returns a silent buffer without raising unhandled errors.
-    """
+    """Both device capture paths fail explicitly, never return synthetic silence."""
+    from jarvis.audio.engine import MicrophoneDeviceUnavailableError
     app = JarvisApp(headless=False, no_hot_reload=True)
     app.initialize()
-
-    # Simulate sounddevice raising PortAudioError or generic exception
-    with patch("sounddevice.rec", side_effect=RuntimeError("PortAudio device unavailable")):
-        t0 = time.perf_counter()
-        buffer = app.record_audio(duration_s=5.0, sample_rate=16000)
-        dt = time.perf_counter() - t0
-
-        assert dt < 0.1, f"Fallback buffer generation took too long: {dt:.4f}s"
-        assert isinstance(buffer, np.ndarray)
-        assert buffer.dtype == np.float32
-        assert len(buffer) == int(16000 * 0.1)
-        assert np.all(buffer == 0.0)
-
-    app.stop()
+    try:
+        with patch("sounddevice.InputStream", side_effect=RuntimeError("device unavailable")), \
+             patch("sounddevice.rec", side_effect=RuntimeError("device unavailable")):
+            with pytest.raises(MicrophoneDeviceUnavailableError):
+                app.record_audio(duration_s=5.0, sample_rate=16000)
+    finally:
+        app.stop()
 
 
 # ============================================================================

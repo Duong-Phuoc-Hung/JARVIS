@@ -1,4 +1,59 @@
+<!-- T01-T07 integration start -->
+## T-01–T-07 integration — 2026-09-27 · source v5.2.1, unreleased
+
+Branch `codex/t01-t07-integration`, [draft PR #50](https://github.com/Duong-Phuoc-Hung/JARVIS/pull/50).
+
+Unit at source commit 6af3509: **2809 pass / 0 fail / 4 skip**, 243.05 s pytest, 245.534 s wall, native exit 0. Full: **4394 pass / 0 fail / 20 skip**, 683.31 s pytest, 686.491 s wall, native exit 0. Scoped T-01–T-07: **164 pass / 0 fail / 0 skip**, 112.44 s pytest, 115.401 s wall, native exit 0.
+
+[Hosted CI](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/runs/36305486023) PASS at `6af3509`; all 5 jobs succeeded.
+
+T-01/T-02: PASS engineering / PASS fail-closed / PASS runtime for controlled real Chromium execution/enforcement. T-03–T-07: PASS engineering / PASS fail-closed / runtime PENDING authorized resources. No live messaging, mailbox access or HA write was performed. Optional/live skips are not passes. No CONDITIONAL GO or GO. Main remains 9d3c591, unchanged.
+
+[Current criteria, commands, evidence and operator checklist](docs/eval/t01_t07_integration_20260927.md) supersede the revision-specific historical sections below.
+<!-- T01-T07 integration end -->
+
+<!-- T05-T07 audit start -->
+## T-05–T-07 acceptance update — 2026-09-27 (v5.2.1, unreleased)
+
+Discord REST polling now binds guild/channel, requires explicit admin privileges for sensitive commands,
+and routes those actions through ActionDispatcher confirmation. IMAP uses verified TLS, timeout,
+read-only BODY.PEEK[], Unicode MIME decoding and an exact sender allowlist. Home Assistant write actions
+require an explicit entity allowlist plus confirmation and verified before/after state.
+
+Runtime remains **PENDING** for all three tasks: no authorized Discord guild/channel, no authorized current
+mailbox, and no running local Docker/HA test instance or designated safe entity. Historical bot authentication
+with zero guilds and two previously read emails do not close these acceptance gates. Loopback tests are
+engineering fixtures, not live provider evidence. No release GO is implied.
+
+[Task report, commands, evidence and limitations](docs/eval/t05_t07_runtime_contracts_20260927.md).
+Final validation: **PASS engineering / PASS fail-closed** for scoped T-05–T-07.
+Unit: 2764 pass / 4 skip, 287.81 s, exit 0. Scoped: 254 pass, 21.82 s, exit 0.
+Full: 4264 pass / 46 fail / 20 skip, 721.77 s, exit 1 (45 reproduced on base; one unresolved
+order-sensitive candidate). Hosted CI not rerun; runtime PENDING; no CONDITIONAL GO/GO.
+
+<!-- T05-T07 audit end -->
+
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
+
+CI baseline revalidation (2026-09-24), source `jarvis.__version__` **5.2.1**, unreleased:
+workflow validation lỗi `runner.temp` ở job env đã được sửa; unit CI dùng dependency
+khai báo trong `pyproject.toml`. Kết quả mới: **2.723 unit passed / 4 skipped**,
+**286 scoped browser passed**, **21 real Chromium/CDP passed**. Full `tests/`:
+**4.189 passed / 46 failed / 41 skipped**, process exit **-1073740940** sau summary.
+Sau bổ sung build prerequisite: rerun 46 node cho **45 failed / 1 passed**.
+**Local CI-contract PASS engineering; remote CI PENDING; full baseline NOT GREEN.**
+T-01 đạt PASS engineering / PASS fail-closed / PASS runtime trên loopback; đã đối chiếu đủ tiêu chí DOCX gốc (xem addendum trong báo cáo).
+[Số liệu, lệnh và giới hạn hiện tại](docs/eval/ci_baseline_20260924.md).
+Các số test trong những mục cũ bên dưới là snapshot lịch sử, không chứng nhận revision mới.
+
+T-02/T-03/T-04 hardening (2026-09-24, source `jarvis.__version__` **5.2.1**, unreleased):
+Browser observations now pass through an explicit action-authority boundary, with real loopback Chromium adversarial tests.
+Telegram and Zalo OA have stricter transport/error, sender and replay checks. **Telegram and Zalo live round-trip: PENDING**
+(test resources/authorization required); no old send-only result is reused. **Product release: NO-GO**.
+[Current task evidence, test counts and limitations](docs/eval/t02_t04_trust_transports_20260924.md).
+Fresh local results: unit **2751 pass / 4 skip**; real browser **51 pass**; full **4278 pass / 45 fail / 20 skip** (exit 1).
+Earlier counts and status statements below remain historical evidence.
+
 
 Verified app launch follow-up (2026-09-22, unreleased **5.2.1**): câu mở desktop
 app đi qua danh mục cục bộ và xác minh cửa sổ theo AUMID/đường dẫn executable;

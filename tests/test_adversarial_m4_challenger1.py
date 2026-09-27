@@ -470,7 +470,7 @@ def test_security_scanner_unauthenticated_biometric_rejection():
     assert scan_rep.total_hosts == 0
     assert 'Biometric' in str(scan_rep.error_message)
 
-    capture = PacketCapture()
+    capture = PacketCapture(config={"labs": {"enabled": True, "features": ["tshark_capture"]}})
     cap_rep = capture.capture_packets(interface='eth0', count=50, context=unauth_ctx)
     assert cap_rep['status'] == 'PERMISSION_DENIED'
     assert cap_rep['packet_count'] == 0

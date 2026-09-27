@@ -1,0 +1,40 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "ruff",
+    "check",
+    "--no-cache",
+    "--output-format",
+    "json",
+    "jarvis/agent/graph.py",
+    "jarvis/browser/cdp_controller.py",
+    "jarvis/browser/models.py",
+    "jarvis/comms/telegram.py",
+    "jarvis/comms/zalo.py",
+    "jarvis/core/app.py",
+    "jarvis/core/dispatcher.py",
+    "jarvis/llm/router.py",
+    "jarvis/planner/engine.py",
+    "jarvis/planner/safety_interceptor.py",
+    "jarvis/security/external_content.py",
+    "jarvis/security/prompt_guard.py",
+    "tests/e2e/test_browser_authority_e2e.py",
+    "tests/integration/test_zalo_webhook_http.py",
+    "tests/test_comms_hub.py",
+    "tests/test_tier5_adversarial_sec_iot_comms_data.py",
+    "tests/unit/test_phase8_defect_remediations.py",
+    "tests/unit/test_telegram_transport_contract.py",
+    "tests/unit/test_zalo_bot.py",
+    "tests/unit/test_zalo_transport_contract.py"
+  ],
+  "lint_exit_code": 1,
+  "ast_parsed_files": 20,
+  "wall_seconds": 3.7190000000118744,
+  "remaining_lint_matches_base": true,
+  "remaining_lint_counts": {
+    "I001": 6,
+    "B023": 1,
+    "E401": 1
+  }
+}

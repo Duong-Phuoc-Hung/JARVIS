@@ -1,0 +1,18 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\reports\\evidence\\T02-T04\\full-handoff.xml"
+  ],
+  "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "started_utc": "2026-09-24T11:35:22Z",
+  "wall_seconds": 703.4721293449402,
+  "exit_code": 1
+}

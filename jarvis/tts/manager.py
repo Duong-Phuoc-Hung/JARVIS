@@ -129,12 +129,14 @@ class TTSManager:
                 text, voice_id, callback, mock_http = task
                 try:
                     success = self._execute_speak(text, voice_id=voice_id, wait=True, mock_http=mock_http)
-                    if callback:
-                        callback(success)
                 except Exception as e:
                     log.error("TTS worker failed speaking: %s", e)
+                    success = False
+                try:
                     if callback:
-                        callback(False)
+                        callback(success)
+                except Exception:
+                    log.warning("TTS completion callback failed")
                 finally:
                     self._queue.task_done()
         finally:
@@ -305,6 +307,8 @@ class TTSManager:
                 # 3. Fallback to default pool
                 candidate_pool = list(WELCOME_PHRASES)
 
+        if not candidate_pool:
+            candidate_pool = list(WELCOME_PHRASES)
         with self._lock:
             if len(candidate_pool) > 1:
                 available = [p for p in candidate_pool if p != self._last_welcome_phrase]

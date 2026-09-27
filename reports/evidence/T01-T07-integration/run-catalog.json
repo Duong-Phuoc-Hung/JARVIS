@@ -1,0 +1,219 @@
+[
+  {
+    "run": "alias-red",
+    "command_file": "alias-red.json",
+    "exit_code": 1,
+    "wall_seconds": 1.867743968963623,
+    "interrupted": false
+  },
+  {
+    "run": "audio-green",
+    "command_file": "audio-green.json",
+    "exit_code": 0,
+    "wall_seconds": 4.612014532089233,
+    "interrupted": false
+  },
+  {
+    "run": "audio-trace",
+    "command_file": "audio-trace.json",
+    "exit_code": 1,
+    "wall_seconds": 4.560051202774048,
+    "interrupted": false
+  },
+  {
+    "run": "baseline-candidates-green-1",
+    "command_file": "baseline-candidates-green-1.json",
+    "exit_code": 1,
+    "wall_seconds": 42.58653712272644,
+    "interrupted": false
+  },
+  {
+    "run": "baseline-candidates-green-2",
+    "command_file": "baseline-candidates-green-2.json",
+    "exit_code": 1,
+    "wall_seconds": 35.81405711174011,
+    "interrupted": false
+  },
+  {
+    "run": "baseline-candidates-green-3",
+    "command_file": "baseline-candidates-green-3.json",
+    "exit_code": 1,
+    "wall_seconds": 27.589744329452515,
+    "interrupted": false
+  },
+  {
+    "run": "baseline-candidates-green-4",
+    "command_file": "baseline-candidates-green-4.json",
+    "exit_code": 1,
+    "wall_seconds": 27.148355960845947,
+    "interrupted": false
+  },
+  {
+    "run": "baseline-candidates-red",
+    "command_file": "baseline-candidates-red.json",
+    "exit_code": 1,
+    "wall_seconds": 44.88024568557739,
+    "interrupted": false
+  },
+  {
+    "run": "cache-corruption-green",
+    "command_file": "cache-corruption-green.json",
+    "exit_code": 0,
+    "wall_seconds": 2.76987361907959,
+    "interrupted": false
+  },
+  {
+    "run": "clock-interference-green",
+    "command_file": "clock-interference-green.json",
+    "exit_code": 0,
+    "wall_seconds": 14.644785642623901,
+    "interrupted": false
+  },
+  {
+    "run": "clock-interference-red",
+    "command_file": "clock-interference-red.json",
+    "exit_code": 1,
+    "wall_seconds": 4.044806957244873,
+    "interrupted": false
+  },
+  {
+    "run": "command-green-2",
+    "command_file": "command-green-2.json",
+    "exit_code": 1,
+    "wall_seconds": 30.742265224456787,
+    "interrupted": false
+  },
+  {
+    "run": "command-green-3",
+    "command_file": "command-green-3.json",
+    "exit_code": 0,
+    "wall_seconds": 47.133243799209595,
+    "interrupted": false
+  },
+  {
+    "run": "command-green",
+    "command_file": "command-green.json",
+    "exit_code": 1,
+    "wall_seconds": 31.36920738220215,
+    "interrupted": false
+  },
+  {
+    "run": "command-red",
+    "command_file": "command-red.json",
+    "exit_code": 1,
+    "wall_seconds": 2.727215528488159,
+    "interrupted": false
+  },
+  {
+    "run": "final-command-contracts",
+    "command_file": "final-command-contracts.json",
+    "exit_code": 0,
+    "wall_seconds": 4.279349088668823,
+    "interrupted": false
+  },
+  {
+    "run": "final-full-2",
+    "command_file": "final-full-2.json",
+    "exit_code": 0,
+    "wall_seconds": 686.491132736206,
+    "interrupted": false
+  },
+  {
+    "run": "final-full",
+    "command_file": "final-full.json",
+    "exit_code": 4294967295,
+    "wall_seconds": 169.3596305847168,
+    "interrupted": true
+  },
+  {
+    "run": "final-scoped-2",
+    "command_file": "final-scoped-2.json",
+    "exit_code": 0,
+    "wall_seconds": 115.4008378982544,
+    "interrupted": false
+  },
+  {
+    "run": "final-unit-2",
+    "command_file": "final-unit-2.json",
+    "exit_code": 0,
+    "wall_seconds": 245.5340621471405,
+    "interrupted": false
+  },
+  {
+    "run": "final-unit",
+    "command_file": "final-unit.json",
+    "exit_code": 0,
+    "wall_seconds": 251.66119980812073,
+    "interrupted": false
+  },
+  {
+    "run": "full-integrated-green",
+    "command_file": "full-integrated-green.json",
+    "exit_code": 1,
+    "wall_seconds": 772.3751044273376,
+    "interrupted": false
+  },
+  {
+    "run": "full-integrated-red",
+    "command_file": "full-integrated-red.json",
+    "exit_code": 1,
+    "wall_seconds": 791.8369207382202,
+    "interrupted": false
+  },
+  {
+    "run": "hosted-ci-check",
+    "command_file": "hosted-ci-check.json",
+    "exit_code": 0,
+    "wall_seconds": 1.1559999999881256,
+    "interrupted": false
+  },
+  {
+    "run": "llm-status-red",
+    "command_file": "llm-status-red.json",
+    "exit_code": 1,
+    "wall_seconds": 2.7497665882110596,
+    "interrupted": false
+  },
+  {
+    "run": "merge-scoped",
+    "command_file": "merge-scoped.json",
+    "exit_code": 0,
+    "wall_seconds": 117.87106513977051,
+    "interrupted": false
+  },
+  {
+    "run": "rate-contract-red",
+    "command_file": "rate-contract-red.json",
+    "exit_code": 1,
+    "wall_seconds": 3.2637863159179688,
+    "interrupted": false
+  },
+  {
+    "run": "voice-scope-red",
+    "command_file": "voice-scope-red.json",
+    "exit_code": 1,
+    "wall_seconds": 1.7488970756530762,
+    "interrupted": false
+  },
+  {
+    "run": "voice-trace",
+    "command_file": "voice-trace.json",
+    "exit_code": 1,
+    "wall_seconds": 6.704025745391846,
+    "interrupted": false
+  },
+  {
+    "run": "workflow-green",
+    "command_file": "workflow-green.json",
+    "exit_code": 0,
+    "wall_seconds": 0.09400000001187436,
+    "interrupted": false
+  },
+  {
+    "run": "workflow-red",
+    "command_file": "workflow-red.json",
+    "exit_code": 1,
+    "wall_seconds": 0.125,
+    "interrupted": false
+  }
+]

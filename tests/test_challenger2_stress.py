@@ -244,7 +244,8 @@ class TestR5WebIntelligenceAdversarial(unittest.TestCase):
             self.assertIn("weather", briefing)
             self.assertIn("news", briefing)
             self.assertIn("crypto", briefing)
-            self.assertIn("speech_text", briefing)
+            self.assertIn("spoken_summary", briefing)
+            self.assertEqual(briefing["weather"]["source"], "offline_fallback")
 
 
 class TestR6ProactiveIntelligenceAdversarial(unittest.TestCase):
@@ -643,7 +644,7 @@ class TestR8OverlayHUDAdversarial(unittest.TestCase):
 
         massive_text = "A" * 10000
         overlay.show_response("User question", massive_text)
-        self.assertEqual(overlay.jarvis_text, massive_text)
+        self.assertEqual(overlay.jarvis_text, "A" * 237 + "...")
 
         # Add 10 conversation turns -> History must clamp to max 5
         for i in range(10):

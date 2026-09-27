@@ -1,0 +1,17 @@
+{
+  "environment_presence_only": {
+    "DISCORD_BOT_TOKEN": false,
+    "DISCORD_GUILD_ID": false,
+    "DISCORD_CHANNEL_ID": false,
+    "IMAP_HOST": false,
+    "IMAP_USER": false,
+    "IMAP_PASSWORD": false,
+    "HASS_TOKEN": false
+  },
+  "authorization": {
+    "discord_guild_channel": "PENDING_USER_SCOPE",
+    "imap_mailbox": "PENDING_USER_SCOPE",
+    "ha_entity": "PENDING_USER_SCOPE"
+  },
+  "live_tests_run": false
+}

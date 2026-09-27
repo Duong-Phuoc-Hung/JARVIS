@@ -1,0 +1,11 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_________ test_existing_router_context_cannot_launder_serialized_page _________
+tests\e2e\test_browser_authority_e2e.py:276: in test_existing_router_context_cannot_launder_serialized_page
+    assert not result.success and result.error_code=="UNTRUSTED_ACTION_BLOCKED"
+E   AssertionError: assert (not True)
+E    +  where True = ActionResult(action_name='upload', success=True, status=<ActionStatus.SUCCESS: 'SUCCESS'>, code='OK', message='', retr..., error=None, error_code=None, execution_time_ms=0.05319999763742089, requester='system', timestamp=1790246752.6300478).success
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\t02-context-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/e2e/test_browser_authority_e2e.py::test_existing_router_context_cannot_launder_serialized_page
+1 failed, 25 deselected in 2.28s

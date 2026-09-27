@@ -6,14 +6,14 @@ enforcing a 30-second tokenized confirmation state machine integrated with Safet
 from __future__ import annotations
 
 import logging
-from copy import deepcopy
 import re
 import threading
+import unicodedata
+from copy import deepcopy
 from typing import Any
 
 from jarvis.automation.safety_gate import SafetyGate
 from jarvis.planner.models import StepStatus, TaskNode
-import unicodedata
 
 _HOMOGLYPH_TABLE = str.maketrans({
     "а": "a", "с": "c", "е": "e", "о": "o", "р": "p", "ѕ": "s", "і": "i", "ј": "j",
@@ -54,12 +54,14 @@ class SafetyGateInterceptor:
         # Outbound Discord
         "discord_send_message", "discord_send_file", "send_discord_message",
         # Home Assistant actuation
+        "macro_play", "screenshot", "note_add",
         "home_assistant_call", "smart_home_turn_on", "smart_home_turn_off",
         "smart_home_set_temp", "smart_home_toggle", "home_assistant_turn_on",
         "home_assistant_turn_off", "home_assistant_toggle", "home_assistant_set_temp",
         "home_assistant_set_temperature",
         # Shell Execution
         "shell_exec", "shell_execute", "shell_command",
+        "run_python", "write_file", "send_telegram", "telegram_send_message",
         # VM lifecycle destructive
         "vm_stop", "vm_delete", "vm_destroy",
         "vm.vmware.stop", "vm.virtualbox.stop",
@@ -163,6 +165,14 @@ class SafetyGateInterceptor:
             return True
         if action_clean in self.high_risk_actions:
             return True
+
+        # Skill aliases must preserve the same gate as their underlying write actions.
+        if isinstance(parameters, dict):
+            sub_action = str(parameters.get("action", "")).strip().lower()
+            if action_clean in {"skill_note_taker", "skill:note_taker"} and sub_action in {"add", "delete", "clear"}:
+                return True
+            if action_clean in {"skill_system_control", "skill:system_control"} and sub_action in {"screenshot", "shutdown", "restart", "sleep", "hibernate"}:
+                return True
 
         if action_clean in self.SYSTEM_POWER_ACTION_NAMES:
             sub_action = ""
