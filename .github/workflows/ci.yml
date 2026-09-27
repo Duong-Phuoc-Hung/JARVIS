@@ -331,7 +331,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip --quiet
-          python -m pip install ".[browser,dev]" --quiet
+          python -m pip install ".[browser,dev]" cryptography --quiet
 
       - name: Install Playwright Chromium
         shell: pwsh
@@ -340,10 +340,15 @@ jobs:
             2>&1 | Tee-Object reports/browser-e2e/browser-install.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Run deterministic real-browser tests
+      - name: Run real-browser and local transport contract tests
         shell: pwsh
         run: |
           python -m pytest tests/e2e/test_browser_playwright_e2e.py `
+            tests/e2e/test_browser_authority_e2e.py `
+            tests/integration/test_zalo_webhook_http.py `
+            tests/integration/test_discord_http_contract.py `
+            tests/integration/test_imap_tls_contract.py `
+            tests/integration/test_ha_http_contract.py `
             -v `
             --tb=long `
             --timeout=120 `

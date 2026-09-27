@@ -148,8 +148,8 @@ class TelegramBotController:
                         payload_length=len(text),
                         timestamp=time.time(),
                     )
-                except Exception as exc:
-                    log.debug("EventBus publish error: %s", exc)
+                except Exception:
+                    log.debug("EventBus publish error")
             return {
                 "status": 403,
                 "error": "Forbidden: Unauthorized User ID",
@@ -302,20 +302,16 @@ class TelegramBotController:
         chat_id: int | None = None,
     ) -> dict[str, Any]:
         """Transcribes inbound voice note via STT, routes intent, and returns response."""
-        if not self.is_user_authorized(user_id):
+        if not self.is_user_authorized(user_id) or (chat_id is not None and chat_id not in self.allowed_chat_ids):
             self.security_violations.append(user_id)
             return {"status": 403, "error": "Forbidden: Unauthorized User ID", "rejected": True}
 
-        transcribed_text = ""
-        if self.stt_engine and hasattr(self.stt_engine, "transcribe"):
-            try:
-                transcribed_text = self.stt_engine.transcribe(voice_bytes)
-            except Exception as exc:
-                log.error("Voice transcription failed: %s", exc)
-                transcribed_text = "Lệnh thoại đã nhận"
-        else:
-            transcribed_text = "Lệnh thoại đã nhận"
-
+        try:
+            transcribed_text = self.stt_engine.transcribe(voice_bytes) if self.stt_engine else None
+        except Exception:
+            transcribed_text = None
+        if not isinstance(transcribed_text, str) or not transcribed_text.strip():
+            return {"status": 503, "error_code": "TRANSCRIPTION_UNAVAILABLE", "text": "TRANSCRIPTION_UNAVAILABLE"}
         return self.handle_inbound_message(user_id=user_id, text=transcribed_text, chat_id=chat_id)
 
     def _audit(self, direction: str, response: dict, **ids) -> None:

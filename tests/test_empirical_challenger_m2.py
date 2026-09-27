@@ -489,7 +489,7 @@ def test_stress_spotify_plugin_empty_and_corrupt_uris(monkeypatch):
         monkeypatch.setattr(webbrowser, "open", mock_startfile_fail)
 
     res_err = dispatcher.dispatch_action("spotify_play", {"song_uri": "spotify:track:123"}, requester=RequesterContext.system())
-    assert res_err.success is True
+    assert res_err.success is False
     assert res_err.data["status"] == "error"
 
 
@@ -513,7 +513,8 @@ def test_stress_shell_plugin_timeout_and_privilege_enforcement():
     assert res_denied.error_code == "PERMISSION_DENIED"
 
     # 2. Timeout check: Command sleeping 2s with 0.1s timeout should trigger TimeoutError
-    res_timeout = dispatcher.dispatch_action(
+    from tests.confirmation_support import dispatch_confirmed
+    res_timeout = dispatch_confirmed(dispatcher,
         "shell_exec",
         {"command": "powershell -Command Start-Sleep -Seconds 2", "timeout": 0.1},
         requester=RequesterContext.system(),

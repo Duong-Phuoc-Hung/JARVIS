@@ -169,7 +169,8 @@ def test_e2e_tier3_unresponsive_app_healing_flow(mock_hardware_provider, mock_wi
 
     report = engine.heal_hung_process(hung[0].pid, hung[0].process_name)
     assert report["success"] is True
-    assert mock_hardware_provider.ram_percent < 80.0
+    assert mock_hardware_provider.ram_percent == 93.0
+    assert report["reclaimed_ram"] == 0.0
 
 
 def test_e2e_tier3_data_file_to_docx_and_voice(tmp_path):
@@ -245,7 +246,8 @@ def test_e2e_tier4_system_crisis_self_healing_workflow(mock_hardware_provider, m
 
     report = engine.heal_hung_process(hung_apps[0].pid, hung_apps[0].process_name)
     assert report["success"] is True
-    assert mock_hardware_provider.ram_percent < 75.0
+    assert mock_hardware_provider.ram_percent == 96.0
+    assert report["reclaimed_ram"] == 0.0
     assert "Hệ thống bị quá tải. Đã xử lý: chrome.exe" in report["spoken_message"]
 
 

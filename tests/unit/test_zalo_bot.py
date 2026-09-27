@@ -70,7 +70,8 @@ class TestCommandDispatch:
 
     def test_note_command(self, bot):
         result = bot.handle_message("u1", "Tester", "/note nhớ họp lúc 3h")
-        assert result["status"] == 200
+        assert result["status"] == 503
+        assert result["error_code"] == "DISPATCHER_UNAVAILABLE"
         assert result["text"] != ""
 
     def test_unauthorized_user_blocked(self, bot_whitelist):
@@ -80,7 +81,8 @@ class TestCommandDispatch:
 
     def test_natural_language_handled(self, bot):
         result = bot.handle_message("u1", "Tester", "JARVIS ơi làm ơn")
-        assert result["status"] == 200
+        assert result["status"] == 503
+        assert result["error_code"] == "LLM_UNAVAILABLE"
 
 
 class TestSendMessage:

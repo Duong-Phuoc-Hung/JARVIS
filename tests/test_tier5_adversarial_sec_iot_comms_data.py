@@ -254,7 +254,7 @@ def test_security_tshark_cli_parameters_and_bpf_injection(monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
     monkeypatch.setattr(shutil, "which", lambda x: "tshark.exe")
 
-    capture_tool = PacketCapture(default_duration_s=5.0)
+    capture_tool = PacketCapture(default_duration_s=5.0, config={"labs": {"enabled": True, "features": ["tshark_capture"]}})
     bpf_payload = "tcp port 80; rm -rf / && netstat"
     output_pcap = Path("temp/capture.pcap")
 
@@ -272,12 +272,10 @@ def test_security_tshark_cli_parameters_and_bpf_injection(monkeypatch):
     assert "Ethernet 1; whoami" in invoked
     assert "-f" in invoked
     assert bpf_payload in invoked
-    assert result.packet_count == 200
-    assert result.protocols["TCP"] == 140
-    assert result.protocols["UDP"] == 40
-    assert result.protocols["ICMP"] == 20
-    assert result.status == "SUCCESS"
-    assert result.get("status") == "SUCCESS"
+    assert result.packet_count == 0
+    assert result.protocols == {}
+    assert result.status == "NO_TSHARK_OUTPUT"
+    assert result.get("status") == "NO_TSHARK_OUTPUT"
     assert "packet_count" in result
 
 
@@ -712,8 +710,8 @@ def test_telegram_inbound_voice_and_stt_exception_resilience():
     bot = TelegramBotController(allowed_user_ids={12345}, stt_engine=CrashingSTT())
 
     res = bot.handle_inbound_voice(user_id=12345, voice_bytes=b"fake_ogg_voice_data")
-    assert res["status"] == 200
-    assert "Lệnh thoại đã nhận" in res["text"]
+    assert res["status"] == 503
+    assert res["error_code"] == "TRANSCRIPTION_UNAVAILABLE"
 
 
 def test_imap_email_reader_mime_html_cleaning_and_fuzzing():

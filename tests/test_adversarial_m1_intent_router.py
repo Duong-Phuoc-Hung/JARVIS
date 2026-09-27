@@ -251,7 +251,8 @@ class TestExtremeEdgeCases:
         res = router.parse_intent(huge_text, force_llm=False)
         duration = time.perf_counter() - t0
         assert duration < 0.5, f"ReDoS vulnerability detected: execution took {duration:.3f}s"
-        assert res.action_name == "workspace_prepare"
+        assert res.action_name == "unknown_intent"
+        assert res.response_text == "INPUT_TOO_LONG"
 
     def test_repetitive_nested_regex_stress(self, router: LLMIntentRouter):
         """Attempts pattern designed to trigger exponential regex backtracking."""

@@ -143,6 +143,10 @@ class ScreenVisionManager:
         Full screen capture pipeline returning telemetry metadata.
         """
         t0 = time.perf_counter()
+        # Match the existing minimum-one-pixel ROI policy before either backend.
+        if roi is not None:
+            left, top, right, bottom = roi
+            roi = (left, top, max(left + 1, right), max(top + 1, bottom))
         img: Any | None = None
 
         # 1. Primary Capture: mss

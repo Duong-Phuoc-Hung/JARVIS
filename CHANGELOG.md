@@ -1,3 +1,28 @@
+<!-- T01-T07 integration start -->
+## [5.2.1-unreleased] — T-01–T-07 integration and baseline recovery (2026-09-27)
+
+Goal: preserve and integrate all three specialist histories, restore honest regression/CI evidence and close engineering gaps without claiming provider runtime.
+
+Root causes and file-level repairs:
+- `.github/workflows/ci.yml`: preserve the runner-context parser fix; add T-02 browser and local transport contracts, explicit cryptography dependency.
+- `jarvis/comms/telegram.py`: chat scope before STT; missing/failing transcription returns 503 without raw exceptions.
+- `jarvis/comms/zalo.py`: dispatcher instead of direct skill/ghost-acknowledgement paths; require LLM success; truthful dependency errors, no confirmation token sent to channel.
+- `jarvis/planner/safety_interceptor.py`: note-write and system-control skill aliases retain central confirmation.
+- `jarvis/llm/router.py`: reject commands over 2048 characters before substring matching; correct existing workspace/telemetry/lock-screen rules.
+- `jarvis/tts/manager.py`, `jarvis/tts/cache.py`: isolate callback failures, restore welcome pool, reject corrupt WAV before mock-audio shortcut.
+- `jarvis/vision/computer_use.py`, `jarvis/vision/screen.py`, `jarvis/web/news.py`: explicit zero dimensions, minimum ROI policy and title markup cleanup.
+- `tests/confirmation_support.py`, new transport command tests and affected regression fixtures: actual confirmation protocol, explicit adapters, truthful errors/packet/RAM assertions, module-local clock patch and completed logging/voice/TTS lifecycle. No xfail or skip added to hide failures.
+- README, ROADMAP, integration audit/evidence: current version, exact source/command/exit/time provenance and resource gates. RED/interrupted evidence is retained.
+
+Full: **4394 pass / 0 fail / 20 skip**, 683.31 s pytest, 686.491 s wall, native exit 0. Scoped T-01–T-07: **164 pass / 0 fail / 0 skip**, 112.44 s pytest, 115.401 s wall, native exit 0.
+
+Hosted CI for this final source is PENDING the branch push; the earlier green merge run does not certify these changes.
+
+T-01/T-02: PASS engineering / PASS fail-closed / PASS runtime for controlled real Chromium execution/enforcement. T-03–T-07: PASS engineering / PASS fail-closed / runtime PENDING authorized resources. No live messaging, mailbox access or HA write was performed. Optional/live skips are not passes. No CONDITIONAL GO or GO. Main remains 9d3c591, unchanged.
+
+[Detailed audit and resource checklist](docs/eval/t01_t07_integration_20260927.md).
+<!-- T01-T07 integration end -->
+
 <!-- T05-T07 changelog start -->
 ## [5.2.1-unreleased] — T-05–T-07 transport and safety hardening (2026-09-27)
 

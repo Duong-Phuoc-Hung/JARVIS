@@ -1,0 +1,62 @@
+{
+  "source": "D:\\JAVIS\\JARVIS-main\\JARVIS-main\\docs\\JARVIS_Phan_cong_3_thanh_vien_Hoa_Hung_Thai.docx",
+  "sha256": "8ddf67c448c05ced363080e9a55a52a716ad7ed9453353a2deaacf68405616ac",
+  "rows": [
+    [
+      "T-01",
+      "P0",
+      "Hoàn thiện Browser CDP/Playwright action thật",
+      "Browser audit từng phát hiện click/type ghost success; hiện đã fail-closed nhưng real E2E chưa đủ.",
+      "Dựng test browser; validate navigate, click, type, wait selector, timeout, disconnected session bằng browser thật.",
+      "Có E2E browser flow thật; no-session/disconnect luôn fail; không ghost success."
+    ],
+    [
+      "T-02",
+      "P0",
+      "Chặn browser prompt injection",
+      "Nội dung webpage có thể chứa text cố dụ agent thực hiện tool/action ngoài ý user.",
+      "Tách untrusted page content khỏi trusted instruction; chặn webpage tự kích hoạt shell/file delete/system/sensitive action; confirmation khi cần.",
+      "Adversarial page không thể tự gọi high-risk tool; regression tests pass."
+    ],
+    [
+      "T-03",
+      "P0",
+      "Hoàn thiện Telegram transport thật",
+      "Telegram từng có silent fallback khi dispatcher thiếu; cần real-path validation.",
+      "Dùng bot/test account: auth whitelist, send/receive, safe commands, rate limit, network fail, missing token.",
+      "Mỗi request báo đúng success/fail; unauthorized bị chặn; real round-trip smoke pass."
+    ],
+    [
+      "T-04",
+      "P0",
+      "Hoàn thiện Zalo OA transport thật",
+      "Zalo từng fabricate send success/weather/status; Phase 8 đã fail-close nhưng chưa đủ real validation.",
+      "Dùng OA test credentials; test outbound/inbound, status thật, rate limit, token/network errors.",
+      "Không mock_msg_id ngoài explicit mock mode; real send có message/evidence thật."
+    ],
+    [
+      "T-05",
+      "P1",
+      "Hoàn thiện Discord transport thật",
+      "Discord ghost polling đã bị loại nhưng gateway/client real flow chưa được chứng minh đầy đủ.",
+      "Implement/wire gateway-client contract thật; test start/stop, inbound/outbound, reconnect, rate limit, auth.",
+      "Không thread ngủ vô nghĩa; real message round-trip pass hoặc feature hiển thị UNAVAILABLE đúng."
+    ],
+    [
+      "T-06",
+      "P1",
+      "IMAP real mailbox smoke test",
+      "Phase 9 đã có imaplib client + unit tests nhưng chủ yếu mock/focused.",
+      "Dùng mailbox test; fetch unread, Unicode subject/body, reconnect, auth fail, server timeout; không lộ password.",
+      "Real mailbox smoke pass; NOT_CONFIGURED/auth/network error đúng contract."
+    ],
+    [
+      "T-07",
+      "P1",
+      "Home Assistant read/write an toàn",
+      "HA integration chưa chứng minh full authoritative write path cho product use.",
+      "Dựng HA test instance; implement read entities và safe write actions qua public integration contract; không direct uncontrolled bypass.",
+      "Đọc entity + bật/tắt test light + set temp test entity pass; unknown/unauthorized entity fail."
+    ]
+  ]
+}

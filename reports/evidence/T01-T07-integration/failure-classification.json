@@ -1,0 +1,231 @@
+{
+  "revision": "92d62cd before remediation",
+  "current_red_failure_count": 45,
+  "cases": [
+    {
+      "node": "tests.e2e.test_tiers_1_to_4::test_r4_volume_and_brightness_adjustment",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.e2e.test_tiers_1_to_4::test_r2_r3_vision_zero_size_roi_or_corrupt_bytes",
+      "classification": "production_defect",
+      "root_cause": "Normalize minimum ROI before either capture backend"
+    },
+    {
+      "node": "tests.e2e.test_v460_e2e.TestTier4RealWorldWorkflows::test_tier4_daily_routine_morning_to_focus_workflow",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_adversarial_challenger_1::test_r4_adversarial_volume_and_brightness_boundary_clamping",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_adversarial_m1_diacritic_homophones.TestAdversarialStressAndReDoS::test_massive_string_dos_rejection_sla",
+      "classification": "production_defect",
+      "root_cause": "Reject oversized commands before substring matching"
+    },
+    {
+      "node": "tests.test_adversarial_m1_intent_router.TestAdversarialPunctuation::test_punctuation_tolerance[Jarvis, m\\u1edf d\\u1ef1 \\xe1n: 'JARVIS-PRO'-workspace_prepare]",
+      "classification": "production_defect",
+      "root_cause": "Colon between project noun and name bypassed workspace regex"
+    },
+    {
+      "node": "tests.test_adversarial_m1_intent_router.TestExtremeEdgeCases::test_huge_input_redos_resistance",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_adversarial_m2_llm_router::test_pipeline_integration_category4_weather",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_adversarial_m3_challenger1::test_dashboard_cors_options_and_404_resilience",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_adversarial_m3_ui_app::test_dashboard_cors_and_options_and_404",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_adversarial_m4_challenger1::test_security_scanner_unauthenticated_biometric_rejection",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_adversarial_sprint2_challenger1.TestAdversarialR2TTSCOMSafety::test_rapid_queue_flood_and_task_callback_exception_resilience",
+      "classification": "production_defect",
+      "root_cause": "Callback exception escaped and killed TTS worker"
+    },
+    {
+      "node": "tests.test_adversarial_sprint2_challenger2.TestIntentRoutingAndReDoS::test_extensive_hardware_query_permutations_accented_and_unaccented",
+      "classification": "production_defect",
+      "root_cause": "Missing exact Vietnamese/unaccented memory aliases"
+    },
+    {
+      "node": "tests.test_challenger2_autonomous_stress.TestR4ComputerUseVisionAndGUIActorAdversarial::test_negative_and_zero_screen_dimensions",
+      "classification": "production_defect",
+      "root_cause": "Explicit zero dimensions incorrectly fell back to physical display"
+    },
+    {
+      "node": "tests.test_challenger2_stress.TestR5WebIntelligenceAdversarial::test_malformed_rss_and_atom_xml_feeds",
+      "classification": "production_defect",
+      "root_cause": "RSS/Atom titles did not strip embedded HTML"
+    },
+    {
+      "node": "tests.test_challenger2_stress.TestR5WebIntelligenceAdversarial::test_offline_network_failure_recovery_full_hub",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_challenger2_stress.TestR8OverlayHUDAdversarial::test_long_text_truncation_and_turn_recording",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_challenger_m1_2_empirical::test_record_audio_exception_resilience_when_sounddevice_fails",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_challenger_m4_2_security::test_scanner_and_capture_reject_unauthenticated_contexts",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_challenger_m4_2_security::test_packet_capture_injection_resilience[tcp and port 80; calc.exe]",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_challenger_m4_2_security::test_packet_capture_injection_resilience[udp | whoami]",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_challenger_m4_2_security::test_packet_capture_injection_resilience[host 10.0.0.1 && dir C:\\\\]",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_challenger_m4_2_security::test_packet_capture_injection_resilience[`calc.exe`]",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_challenger_m4_2_security::test_tshark_subprocess_timeout_or_error_handling",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_e2e_scenarios::test_e2e_tier3_unresponsive_app_healing_flow",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_e2e_scenarios::test_e2e_tier4_system_crisis_self_healing_workflow",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_empirical_challenger_m2::test_stress_cache_corruption_resilience_matrix[garbage_binary_200b]",
+      "classification": "production_defect",
+      "root_cause": "Mock-audio early return skipped WAV validation"
+    },
+    {
+      "node": "tests.test_empirical_challenger_m2::test_stress_spotify_plugin_empty_and_corrupt_uris",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_empirical_challenger_m2::test_stress_shell_plugin_timeout_and_privilege_enforcement",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_empirical_challenger_m2_e2e_stress::test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue",
+      "classification": "fixture_clock_and_lifecycle",
+      "root_cause": "Synthetic PCM timestamps did not respect real TTS epoch/cooldown; wait queue and advance silence without disabling echo guard"
+    },
+    {
+      "node": "tests.test_empirical_challenger_m3_2::test_app_log_interaction_delegation_and_custom_config",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_empirical_challenger_m3_2::test_welcome_pool_empty_and_whitespace_fallback",
+      "classification": "production_defect",
+      "root_cause": "Filtered whitespace pool was empty with no default restoration"
+    },
+    {
+      "node": "tests.test_empirical_challenger_m3_2::test_startup_intro_with_mocked_tts_queues_expected_phrase",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_empirical_challenger_m3_2::test_startup_intro_custom_configured_phrase",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_m3_ux::test_startup_vocal_introduction",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_plugins::test_plugin_shell_command_execution_tier1",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_plugins::test_plugin_shell_timeout_error_handling_tier2",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_tier5_adversarial_sec_iot_comms_data::test_security_tshark_cli_parameters_and_bpf_injection",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_user_simulation::test_sim_05_second_double_clap_triggers_ai_voice_loop",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_user_simulation::test_sim_06_voice_loop_smart_keyword_home_assistant",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.test_user_simulation::test_sim_07_voice_loop_smart_keyword_hardware_telemetry",
+      "classification": "production_defect",
+      "root_cause": "Missing established system temperature routing alias; voice fixture also supplied silence"
+    },
+    {
+      "node": "tests.test_user_simulation::test_sim_16_vietnamese_smart_keyword_router_7_categories[kh\\xf3a m\\xe0n h\\xecnh-system_power-action-lock-\\u0110\\xe3 kh\\xf3a m\\xe0n h\\xecnh]",
+      "classification": "production_defect",
+      "root_cause": "Screen-off regex shadowed lock-screen intent"
+    },
+    {
+      "node": "tests.test_user_simulation::test_sim_18_cli_health_check_verification",
+      "classification": "obsolete_or_incomplete_test_contract",
+      "root_cause": "Fixture did not model current public contract; see integration audit and diff"
+    },
+    {
+      "node": "tests.unit.test_runaway_hardening.TestGesturePassiveTriggerGuardWiring::test_repeated_triple_clap_triggers_are_bounded",
+      "classification": "clock_patch_interference",
+      "root_cause": "Patching shared time.monotonic lets background consumers exhaust the finite test sequence; controlled probe reproduced RED then GREEN"
+    },
+    {
+      "node": "tests.unit.test_runaway_hardening.TestDoubleClapFanoutOptIn::test_false_positive_repeated_double_clap_cannot_repeatedly_launch_fanout",
+      "classification": "clock_patch_interference",
+      "root_cause": "Patching shared time.monotonic lets background consumers exhaust the finite test sequence; controlled probe reproduced RED then GREEN"
+    }
+  ]
+}

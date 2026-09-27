@@ -1,0 +1,374 @@
+{
+  "python": "Python 3.13.15",
+  "executable": "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "packages": [
+    {
+      "name": "annotated-types",
+      "version": "0.8.0"
+    },
+    {
+      "name": "anyio",
+      "version": "4.15.1"
+    },
+    {
+      "name": "ast_serialize",
+      "version": "0.11.2"
+    },
+    {
+      "name": "attrs",
+      "version": "26.1.0"
+    },
+    {
+      "name": "certifi",
+      "version": "2026.7.22"
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1"
+    },
+    {
+      "name": "cfgv",
+      "version": "3.5.0"
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.1"
+    },
+    {
+      "name": "colorama",
+      "version": "0.4.6"
+    },
+    {
+      "name": "coverage",
+      "version": "7.16.1"
+    },
+    {
+      "name": "cryptography",
+      "version": "50.0.1"
+    },
+    {
+      "name": "distlib",
+      "version": "0.4.3"
+    },
+    {
+      "name": "elevenlabs",
+      "version": "2.69.0"
+    },
+    {
+      "name": "filelock",
+      "version": "4.0.3"
+    },
+    {
+      "name": "google-ai-generativelanguage",
+      "version": "0.6.15"
+    },
+    {
+      "name": "google-api-core",
+      "version": "2.33.0"
+    },
+    {
+      "name": "google-api-python-client",
+      "version": "2.200.0"
+    },
+    {
+      "name": "google-auth",
+      "version": "2.58.0"
+    },
+    {
+      "name": "google-auth-httplib2",
+      "version": "0.4.2"
+    },
+    {
+      "name": "google-generativeai",
+      "version": "0.8.6"
+    },
+    {
+      "name": "googleapis-common-protos",
+      "version": "1.75.0"
+    },
+    {
+      "name": "greenlet",
+      "version": "3.5.6"
+    },
+    {
+      "name": "grpcio",
+      "version": "1.84.0"
+    },
+    {
+      "name": "grpcio-status",
+      "version": "1.71.2"
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0"
+    },
+    {
+      "name": "httpcore",
+      "version": "1.0.9"
+    },
+    {
+      "name": "httplib2",
+      "version": "0.32.0"
+    },
+    {
+      "name": "httpx",
+      "version": "0.28.1"
+    },
+    {
+      "name": "identify",
+      "version": "2.6.19"
+    },
+    {
+      "name": "idna",
+      "version": "3.20"
+    },
+    {
+      "name": "iniconfig",
+      "version": "2.3.0"
+    },
+    {
+      "name": "jaraco.classes",
+      "version": "3.4.0"
+    },
+    {
+      "name": "jaraco.context",
+      "version": "6.1.2"
+    },
+    {
+      "name": "jaraco.functools",
+      "version": "4.6.0"
+    },
+    {
+      "name": "jarvis-assistant",
+      "version": "5.2.1"
+    },
+    {
+      "name": "keyboard",
+      "version": "0.13.5"
+    },
+    {
+      "name": "keyring",
+      "version": "25.7.0"
+    },
+    {
+      "name": "librt",
+      "version": "0.15.0"
+    },
+    {
+      "name": "more-itertools",
+      "version": "11.1.0"
+    },
+    {
+      "name": "mypy",
+      "version": "2.3.1"
+    },
+    {
+      "name": "mypy_extensions",
+      "version": "1.1.0"
+    },
+    {
+      "name": "nodeenv",
+      "version": "1.10.0"
+    },
+    {
+      "name": "numpy",
+      "version": "2.5.3"
+    },
+    {
+      "name": "packaging",
+      "version": "26.3"
+    },
+    {
+      "name": "pathspec",
+      "version": "1.1.1"
+    },
+    {
+      "name": "pillow",
+      "version": "11.3.0"
+    },
+    {
+      "name": "pip",
+      "version": "26.2.1"
+    },
+    {
+      "name": "platformdirs",
+      "version": "4.11.12"
+    },
+    {
+      "name": "playwright",
+      "version": "1.63.0"
+    },
+    {
+      "name": "pluggy",
+      "version": "1.6.0"
+    },
+    {
+      "name": "pre_commit",
+      "version": "4.6.2"
+    },
+    {
+      "name": "proto-plus",
+      "version": "1.28.2"
+    },
+    {
+      "name": "protobuf",
+      "version": "5.29.6"
+    },
+    {
+      "name": "psl",
+      "version": "2025.5.26"
+    },
+    {
+      "name": "psutil",
+      "version": "7.2.2"
+    },
+    {
+      "name": "pyasn1",
+      "version": "0.6.4"
+    },
+    {
+      "name": "pyasn1_modules",
+      "version": "0.4.2"
+    },
+    {
+      "name": "pycparser",
+      "version": "3.0"
+    },
+    {
+      "name": "pydantic",
+      "version": "2.13.5"
+    },
+    {
+      "name": "pydantic_core",
+      "version": "2.46.5"
+    },
+    {
+      "name": "pyee",
+      "version": "13.0.1"
+    },
+    {
+      "name": "Pygments",
+      "version": "2.21.0"
+    },
+    {
+      "name": "pyparsing",
+      "version": "3.3.3"
+    },
+    {
+      "name": "pyperclip",
+      "version": "1.11.0"
+    },
+    {
+      "name": "pystray",
+      "version": "0.19.5"
+    },
+    {
+      "name": "pytest",
+      "version": "8.4.2"
+    },
+    {
+      "name": "pytest-asyncio",
+      "version": "0.26.0"
+    },
+    {
+      "name": "pytest-cov",
+      "version": "7.1.0"
+    },
+    {
+      "name": "pytest-env",
+      "version": "1.2.0"
+    },
+    {
+      "name": "pytest-subtests",
+      "version": "0.15.0"
+    },
+    {
+      "name": "pytest-timeout",
+      "version": "2.4.0"
+    },
+    {
+      "name": "python-discovery",
+      "version": "1.6.1"
+    },
+    {
+      "name": "python-dotenv",
+      "version": "1.2.3"
+    },
+    {
+      "name": "python-telegram-bot",
+      "version": "22.8"
+    },
+    {
+      "name": "pywin32",
+      "version": "312"
+    },
+    {
+      "name": "pywin32-ctypes",
+      "version": "0.2.3"
+    },
+    {
+      "name": "PyYAML",
+      "version": "6.0.3"
+    },
+    {
+      "name": "requests",
+      "version": "2.34.2"
+    },
+    {
+      "name": "ruff",
+      "version": "0.16.8"
+    },
+    {
+      "name": "setuptools",
+      "version": "84.0.0"
+    },
+    {
+      "name": "six",
+      "version": "1.17.0"
+    },
+    {
+      "name": "sounddevice",
+      "version": "0.5.6"
+    },
+    {
+      "name": "tqdm",
+      "version": "4.70.1"
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0"
+    },
+    {
+      "name": "typing-inspection",
+      "version": "0.4.4"
+    },
+    {
+      "name": "uritemplate",
+      "version": "4.2.0"
+    },
+    {
+      "name": "urllib3",
+      "version": "2.8.0"
+    },
+    {
+      "name": "virtualenv",
+      "version": "21.12.0"
+    },
+    {
+      "name": "websockets",
+      "version": "17.1"
+    },
+    {
+      "name": "wheel",
+      "version": "0.48.0"
+    }
+  ],
+  "browser_install_directories": [
+    ".links",
+    "chromium-1243",
+    "chromium_headless_shell-1243",
+    "ffmpeg-1011",
+    "winldd-1007"
+  ]
+}

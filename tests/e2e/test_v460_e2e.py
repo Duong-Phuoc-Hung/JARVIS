@@ -1057,7 +1057,8 @@ class TestTier4RealWorldWorkflows:
             tool_calls=[ToolCall(id="call_weather", name="weather", arguments={"location": "Đà Nẵng", "days": 1})],
         )
         weather_intent = router.parse_intent("thời tiết đà nẵng hôm nay", force_llm=False)
-        weather_res = router.execute_intent(weather_intent)
+        from tests.confirmation_support import dispatch_confirmed
+        weather_res = dispatch_confirmed(mock_dispatcher, weather_intent.action_name, weather_intent.parameters)
         assert weather_res.success is True
         assert ("Đà Nẵng" in weather_res.data.get("location", "") or "Đà Nẵng" in weather_res.data.get("output", ""))
 

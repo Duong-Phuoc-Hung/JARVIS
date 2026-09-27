@@ -1,3 +1,17 @@
+<!-- T01-T07 integration start -->
+## T-01–T-07 integration — 2026-09-27 · source v5.2.1, unreleased
+
+Branch `codex/t01-t07-integration`, [draft PR #50](https://github.com/Duong-Phuoc-Hung/JARVIS/pull/50).
+
+Full: **4394 pass / 0 fail / 20 skip**, 683.31 s pytest, 686.491 s wall, native exit 0. Scoped T-01–T-07: **164 pass / 0 fail / 0 skip**, 112.44 s pytest, 115.401 s wall, native exit 0.
+
+Hosted CI for this final source is PENDING the branch push; the earlier green merge run does not certify these changes.
+
+T-01/T-02: PASS engineering / PASS fail-closed / PASS runtime for controlled real Chromium execution/enforcement. T-03–T-07: PASS engineering / PASS fail-closed / runtime PENDING authorized resources. No live messaging, mailbox access or HA write was performed. Optional/live skips are not passes. No CONDITIONAL GO or GO. Main remains 9d3c591, unchanged.
+
+[Current criteria, commands, evidence and operator checklist](docs/eval/t01_t07_integration_20260927.md) supersede the revision-specific historical sections below.
+<!-- T01-T07 integration end -->
+
 <!-- T05-T07 audit start -->
 ## T-05–T-07 acceptance update — 2026-09-27 (v5.2.1, unreleased)
 

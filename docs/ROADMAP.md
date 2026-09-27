@@ -1,3 +1,27 @@
+<!-- T01-T07 integration start -->
+## T-01–T-07 integration gate — 2026-09-27
+
+- [x] Preserve and merge all three specialist histories on the separate integration branch.
+- [x] Reproduce/repair baseline and contract errors, including global-clock interference; retain safety gates.
+- [x] T-01 actual Chromium/CDP and T-02 adversarial browser enforcement, real 30-second expiry and side-effect canaries.
+- [x] T-03–T-07 scoped engineering/fail-closed contracts and latest full/scoped native exit 0.
+- [ ] Hosted CI on final integrated source.
+- [ ] T-03: authorized Telegram bot/chat/sender/token + inbound nonce — PENDING_CREDENTIALS.
+- [ ] T-04: verified Zalo OA/app, recipient, callback/token/secret — PENDING_ZALO_OA_VERIFICATION.
+- [ ] T-05: authorized Discord guild/channel/users/admins/bot installation — PENDING_GUILD_CHANNEL_AUTHORIZATION.
+- [ ] T-06: authorized TLS mailbox/allowlist and fault-test scope — PENDING_MAILBOX_AUTHORIZATION.
+- [ ] T-07: HA test instance, safe light AND climate entities, confirmed write/restore — PENDING_HA_INSTANCE_ENTITY.
+- [ ] Product GO and any main change: all runtime gates/checks and explicit owner approval required.
+
+Full: **4394 pass / 0 fail / 20 skip**, 683.31 s pytest, 686.491 s wall, native exit 0. Scoped T-01–T-07: **164 pass / 0 fail / 0 skip**, 112.44 s pytest, 115.401 s wall, native exit 0.
+
+Hosted CI for this final source is PENDING the branch push; the earlier green merge run does not certify these changes.
+
+T-01/T-02: PASS engineering / PASS fail-closed / PASS runtime for controlled real Chromium execution/enforcement. T-03–T-07: PASS engineering / PASS fail-closed / runtime PENDING authorized resources. No live messaging, mailbox access or HA write was performed. Optional/live skips are not passes. No CONDITIONAL GO or GO. Main remains 9d3c591, unchanged.
+
+[Current matrix and artifacts](eval/t01_t07_integration_20260927.md) supersede historical counts below.
+<!-- T01-T07 integration end -->
+
 <!-- T05-T07 roadmap start -->
 ## T-05–T-07 scoped revalidation — 2026-09-27
 

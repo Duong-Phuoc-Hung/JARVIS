@@ -62,6 +62,7 @@ def test_startup_vocal_introduction(monkeypatch):
     app = JarvisApp(headless=True, no_hot_reload=True)
     spoken: List[tuple] = []
     app.initialize()
+    app.proactive_engine.config.enabled = False
 
     if app.tts_manager:
         monkeypatch.setattr(

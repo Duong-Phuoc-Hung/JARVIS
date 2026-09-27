@@ -166,6 +166,14 @@ class SafetyGateInterceptor:
         if action_clean in self.high_risk_actions:
             return True
 
+        # Skill aliases must preserve the same gate as their underlying write actions.
+        if isinstance(parameters, dict):
+            sub_action = str(parameters.get("action", "")).strip().lower()
+            if action_clean in {"skill_note_taker", "skill:note_taker"} and sub_action in {"add", "delete", "clear"}:
+                return True
+            if action_clean in {"skill_system_control", "skill:system_control"} and sub_action in {"screenshot", "shutdown", "restart", "sleep", "hibernate"}:
+                return True
+
         if action_clean in self.SYSTEM_POWER_ACTION_NAMES:
             sub_action = ""
             if isinstance(parameters, dict):

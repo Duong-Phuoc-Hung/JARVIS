@@ -1,0 +1,21 @@
+[
+  {
+    "command": [
+      "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/JARVIS/.baseline-tools/actionlint/actionlint.exe",
+      ".github/workflows/ci.yml"
+    ],
+    "exit_code": 0,
+    "wall_seconds": 0.09400000001187436
+  },
+  {
+    "command": [
+      "git",
+      "-c",
+      "core.whitespace=cr-at-eol",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "wall_seconds": 0.29699999999138527
+  }
+]

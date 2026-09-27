@@ -94,7 +94,7 @@ def test_scanner_and_capture_reject_unauthenticated_contexts(monkeypatch):
     monkeypatch.setattr(shutil, "which", lambda cmd: "fake_tool.exe")
     
     scanner = NetworkScanner()
-    capture = PacketCapture()
+    capture = PacketCapture(config={"labs": {"enabled": True, "features": ["tshark_capture"]}})
 
     unauth_ctx = RequesterContext.user(requester_id="intruder_123", authenticated=False)
 
@@ -213,12 +213,13 @@ def test_packet_capture_injection_resilience(malicious_bpf, monkeypatch):
     monkeypatch.setattr(shutil, "which", lambda cmd: "C:\\Program Files\\Wireshark\\tshark.exe")
     monkeypatch.setattr(subprocess, "run", mock_subprocess_run)
 
-    capture = PacketCapture()
+    capture = PacketCapture(config={"labs": {"enabled": True, "features": ["tshark_capture"]}})
     res = capture.capture_packets(interface="Ethernet", count=10, bpf_filter=malicious_bpf)
 
     assert len(executed_commands) == 1
-    assert res.status == "SUCCESS"
-    assert res.packet_count == 10
+    assert res.status == "NO_TSHARK_OUTPUT"
+    assert res.packet_count == 0
+    assert res.protocols == {}
 
 
 # ============================================================================
@@ -254,12 +255,13 @@ def test_tshark_subprocess_timeout_or_error_handling(monkeypatch):
     monkeypatch.setattr(shutil, "which", lambda cmd: "tshark.exe")
     monkeypatch.setattr(subprocess, "run", mock_error)
 
-    capture = PacketCapture(default_duration_s=2.0)
+    capture = PacketCapture(default_duration_s=2.0, config={"labs": {"enabled": True, "features": ["tshark_capture"]}})
     res = capture.capture_packets(interface="eth0", count=50)
 
     assert res is not None
-    assert res.packet_count == 50
-    assert "TCP" in res.protocols
+    assert res.packet_count == 0
+    assert res.protocols == {}
+    assert res.status == "NO_TSHARK_OUTPUT"
 
 
 # ============================================================================

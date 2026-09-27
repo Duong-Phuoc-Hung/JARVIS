@@ -451,6 +451,10 @@ class LLMIntentRouter:
             ),
 
             # 2. Hardware / Telemetry / System Status (Category 2)
+            "nhiệt độ hệ thống": IntentResult(
+                action_name="hardware_status_query", parameters={}, source="rule_fallback",
+                response_text="Đang kiểm tra thông số hệ thống cho Ngài.",
+            ),
             "kiểm tra nhiệt độ cpu": IntentResult(
                 action_name="hardware_telemetry_check",
                 parameters={"component": "cpu"},
@@ -1576,7 +1580,7 @@ class LLMIntentRouter:
             # Screen backlight / screen off
             (
                 re.compile(
-                    r"(?:tắt|ngắt|khóa)\s*(?:đèn\s*nền\s*màn\s*hình|hiển\s*thị\s*màn\s*hình|giao\s*diện\s*màn\s*hình|màn\s*hình(?:\s*làm\s*việc|\s*pc|\s*máy\s*tính)?)|"
+                    r"(?:tắt|ngắt)\s*(?:đèn\s*nền\s*màn\s*hình|hiển\s*thị\s*màn\s*hình|giao\s*diện\s*màn\s*hình|màn\s*hình(?:\s*làm\s*việc|\s*pc|\s*máy\s*tính)?)|"
                     r"(?:cho\s+)?màn\s*hình\s*(?:pc|máy\s*tính)?\s*(?:chuyển\s*sang\s*chế\s*độ\s*tối|nghỉ\s*ngơi|nghỉ(?:\s*một\s*lúc)?)",
                     re.IGNORECASE,
                 ),
@@ -1716,7 +1720,7 @@ class LLMIntentRouter:
                 lambda m: self._make_hw_intent((m.group(1) or m.group(2) or "cpu").lower()),
             ),
             (
-                re.compile(r"^(?:jarvis[,\s]*)?(?:kiểm\s*tra|kiem\s*tra|xem|check)\s+(cpu|gpu|ram|disk|ổ\s*cứng|o\s*cung|pin|battery)$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:kiểm\s*tra|kiem\s*tra|xem|check)\s+(cpu|gpu|ram|disk|ổ\s*cứng|o\s*cung|bộ\s*nhớ|bo\s*nho|pin|battery)$", re.IGNORECASE),
                 lambda m: self._make_hw_intent(m.group(1)),
             ),
             (
@@ -1877,7 +1881,7 @@ class LLMIntentRouter:
             # Project & Workspace Management
             (
                 re.compile(
-                    r"^(?:jarvis[,\s]*)?(?:mở|mo|chuyển\s*(?:sang)?|chuyen\s*(?:sang)?|switch\s*(?:to|sang)?|open)\s+(?:dự\s*án|du\s*an|project|workspace|không\s*gian\s*làm\s*việc)(?:\s+(.+))?$",
+                    r"^(?:jarvis[,\s]*)?(?:mở|mo|chuyển\s*(?:sang)?|chuyen\s*(?:sang)?|switch\s*(?:to|sang)?|open)\s+(?:dự\s*án|du\s*an|project|workspace|không\s*gian\s*làm\s*việc)\s*:?(?:\s+(.+))?$",
                     re.IGNORECASE,
                 ),
                 lambda m: self._make_workspace_intent("open", m.group(1)),
@@ -2270,9 +2274,9 @@ class LLMIntentRouter:
         c = comp_raw.lower().strip()
         if "gpu" in c or "card" in c:
             comp = "gpu"
-        elif "ram" in c or "bộ nhớ" in c:
+        elif "ram" in c or "bộ nhớ" in c or "bo nho" in c:
             comp = "ram"
-        elif "disk" in c or "ổ cứng" in c or "smart" in c:
+        elif "disk" in c or "ổ cứng" in c or "o cung" in c or "smart" in c:
             comp = "disk"
         elif "pin" in c or "battery" in c:
             comp = "battery"
@@ -2953,6 +2957,9 @@ class LLMIntentRouter:
                 raw_text="",
                 response_text="",  # Silence → no TTS; caller decides UX
             )
+        if len(text) > 2048:
+            return IntentResult(action_name="unknown_intent", confidence=0.0,
+                                source="input_limit", response_text="INPUT_TOO_LONG")
         clean = text.strip()
         clean_lower_full = clean.lower()  # Full text — safe for plain substring 'in' checks
         # Truncate for REGEX only to prevent ReDoS on long inputs (e.g. 50KB adversarial strings).

@@ -498,10 +498,10 @@ def test_dashboard_cors_options_and_404_resilience():
     base_url = f"http://127.0.0.1:{port}"
     
     # 1. OPTIONS CORS request
-    req_options = urllib.request.Request(f"{base_url}/api/status", method="OPTIONS")
+    req_options = urllib.request.Request(f"{base_url}/api/status", method="OPTIONS", headers={"Origin": base_url})
     with urllib.request.urlopen(req_options) as res:
         assert res.status == 204
-        assert res.headers.get("Access-Control-Allow-Origin") == "*"
+        assert res.headers.get("Access-Control-Allow-Origin") == base_url
         
     # 2. 404 GET
     req_404 = urllib.request.Request(f"{base_url}/api/unknown_endpoint_route")

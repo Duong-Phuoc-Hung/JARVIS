@@ -247,7 +247,8 @@ def test_plugin_shell_command_execution_tier1():
     plugin = ShellPlugin()
     plugin.initialize({}, dispatcher)
 
-    res = dispatcher.dispatch_action(
+    from tests.confirmation_support import dispatch_confirmed
+    res = dispatch_confirmed(dispatcher,
         "shell_exec",
         {"command": "python -c \"print('JARVIS_TEST_OUTPUT')\""},
         requester=RequesterContext.system(),
@@ -331,7 +332,8 @@ def test_plugin_shell_timeout_error_handling_tier2():
     plugin = ShellPlugin()
     plugin.initialize({}, dispatcher)
 
-    res = dispatcher.dispatch_action(
+    from tests.confirmation_support import dispatch_confirmed
+    res = dispatch_confirmed(dispatcher,
         "shell_exec",
         {"command": "python -c \"import time; time.sleep(2.0)\"", "timeout": 0.2},
         requester=RequesterContext.system(),

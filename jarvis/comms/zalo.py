@@ -99,9 +99,11 @@ class ZaloBotController:
         config: ZaloConfig | None = None,
         is_mock: bool = False,
         rate_limit_config: RateLimitConfig | None = None,
+        dispatcher: Any | None = None,
     ) -> None:
         self.config = config or ZaloConfig()
         self.is_mock = is_mock
+        self.dispatcher = dispatcher
         self._running = False
         self._webhook_thread: threading.Thread | None = None
         self.sent_messages: list[dict[str, Any]] = []
@@ -251,21 +253,23 @@ class ZaloBotController:
                     "user_id": user_id,
                 }
         elif cmd.startswith("/briefing") or "báo cáo" in cmd.lower():
-            reply = self._cmd_briefing()
+            return self._dispatch_command(user_id, "skill_briefing", {"action": "run"})
         elif cmd.startswith("/note "):
-            reply = self._cmd_note(cmd[6:].strip())
+            return self._dispatch_command(user_id, "skill_note_taker", {"action": "add", "text": cmd[6:].strip()})
         elif cmd.startswith("/calc ") or cmd.startswith("/tinh "):
             expr = cmd.split(" ", 1)[-1].strip()
-            reply = self._cmd_calc(expr)
+            return self._dispatch_command(user_id, "skill_calculator", {"action": "calculate", "expression": expr})
         elif cmd.startswith("/weather") or "thời tiết" in cmd.lower():
-            reply = self._cmd_weather()
+            return {"status": 503, "error_code": "WEATHER_UNAVAILABLE", "text": self._cmd_weather()}
         elif cmd.startswith("/screenshot") or "chụp màn hình" in cmd.lower():
-            reply = self._cmd_screenshot()
+            return self._dispatch_command(user_id, "skill_system_control", {"action": "screenshot"})
         elif cmd.startswith("/skills") or "kỹ năng" in cmd.lower():
             reply = self._cmd_skills()
+            if reply is None:
+                return {"status": 503, "error_code": "SKILLS_UNAVAILABLE", "text": "Danh sách kỹ năng chưa khả dụng."}
         else:
             # Forward to JARVIS intent router
-            reply = self._cmd_jarvis(cmd)
+            return self._cmd_jarvis(cmd)
 
         return {"status": 200, "text": reply, "user_id": user_id}
 
@@ -299,51 +303,14 @@ class ZaloBotController:
         except Exception:
             return None
 
-    def _cmd_briefing(self) -> str:
-        try:
-            from jarvis.skills.briefing import execute as briefing_exec
 
-            result = briefing_exec(action="run")
-            return result.get("output", "Không thể lấy briefing.")
-        except Exception as exc:
-            log.warning("Briefing failed: %s", exc)
-            return "⚠️ Không thể tải thông tin briefing vào lúc này."
 
-    def _cmd_note(self, text: str) -> str:
-        if not text:
-            return "Vui lòng nhập nội dung ghi chú. VD: /note họp lúc 3h chiều"
-        try:
-            from jarvis.skills.note_taker import execute as note_exec
-
-            result = note_exec(action="add", text=text)
-            return result.get("output", f"✅ Đã ghi chú: {text}")
-        except Exception:
-            return f"✅ Đã nhận ghi chú: *{text}*"
-
-    def _cmd_calc(self, expr: str) -> str:
-        try:
-            from jarvis.skills.calculator import execute as calc_exec
-
-            result = calc_exec(action="calculate", expression=expr)
-            return result.get("output", "Không tính được.")
-        except Exception as exc:
-            log.warning("Calc failed: %s", exc)
-            return "⚠️ Biểu thức không hợp lệ hoặc xảy ra lỗi trong quá trình tính toán."
 
     def _cmd_weather(self) -> str:
         return "🌤️ Dịch vụ thời tiết chưa được cấu hình hoặc chưa khả dụng."
 
-    def _cmd_screenshot(self) -> str:
-        try:
-            from jarvis.skills.system_control import execute as sys_exec
 
-            result = sys_exec(action="screenshot")
-            return result.get("output", "📸 Đã chụp màn hình.")
-        except Exception as exc:
-            log.warning("Screenshot failed: %s", exc)
-            return "⚠️ Không thể chụp màn hình vào lúc này."
-
-    def _cmd_skills(self) -> str:
+    def _cmd_skills(self) -> str | None:
         try:
             from jarvis.skills.registry import SkillRegistry
 
@@ -351,19 +318,40 @@ class ZaloBotController:
             names = [s.name for s in reg.list_skills()]
             return "🧰 *Kỹ năng hiện có:*\n" + "\n".join(f"• {n}" for n in names[:15])
         except Exception:
-            return (
-                "🧰 *Kỹ năng:* briefing, note_taker, calculator, system_control, browser_control..."
-            )
+            return None
 
-    def _cmd_jarvis(self, text: str) -> str:
+    def _dispatch_command(self, user_id: str, action: str, payload: dict) -> dict[str, Any]:
+        from jarvis.core.dispatcher import ActionDispatcher
+        from jarvis.core.models import RequesterContext
+
+        if not isinstance(self.dispatcher, ActionDispatcher):
+            return {"status": 503, "error_code": "DISPATCHER_UNAVAILABLE", "text": "DISPATCHER_UNAVAILABLE"}
+        try:
+            result = self.dispatcher.dispatch_action(
+                action, payload, requester=RequesterContext.user(f"zalo:{user_id}", authenticated=True)
+            )
+        except Exception:
+            return {"status": 503, "error_code": "DISPATCH_FAILED", "text": "DISPATCH_FAILED"}
+        code = result.error_code or result.code
+        # Never send local confirmation tokens or raw exception/action data to a channel.
+        if not result.success:
+            return {"status": 409 if code == "CONFIRMATION_REQUIRED" else 503,
+                    "error_code": code, "text": code}
+        text = "ACTION_COMPLETED"
+        if action in {"skill_calculator", "skill_briefing"} and isinstance(result.data, dict):
+            text = str(result.data.get("output") or result.data.get("text") or text)[:2000]
+        return {"status": 200, "text": text, "user_id": user_id}
+
+    def _cmd_jarvis(self, text: str) -> dict[str, Any]:
         try:
             from jarvis.llm.client import LLMClient
 
-            client = LLMClient()
-            result = client.generate(text)
-            return result.content or "JARVIS đã xử lý yêu cầu của bạn."
+            result = LLMClient().generate(text)
+            if result.success and result.content and not result.error:
+                return {"status": 200, "text": result.content}
         except Exception:
-            return f"🤖 JARVIS đã nhận: *{text[:100]}*\n_(Xử lý qua LLM pipeline)_"
+            pass
+        return {"status": 503, "error_code": "LLM_UNAVAILABLE", "text": "LLM_UNAVAILABLE"}
 
     # ------------------------------------------------------------------
     # Send API
