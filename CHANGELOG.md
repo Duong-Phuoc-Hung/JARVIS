@@ -29,6 +29,26 @@ order-sensitive candidate). Hosted CI not rerun; runtime PENDING; no CONDITIONAL
 
 <!-- T05-T07 changelog end -->
 
+## [Unreleased 5.2.1] — 2026-09-24 — CI baseline assessment and workflow recovery
+
+- **Mục tiêu:** xác định lỗi CI không tạo job tại `9d3c591`, chạy lại baseline và T-01; không thêm tính năng.
+- **Root cause đã xác minh:** GitHub run `35763480258` annotation `(Line: 325, Col: 33): Unrecognized named-value: runner` tại `jobs.browser_e2e.env`. Actionlint 1.7.12 tái hiện exit 1 (0.0816881s); bản sửa exit 0 (0.0478398s).
+- **Thay đổi theo file:**
+  - `.github/workflows/ci.yml`: ghi `PLAYWRIGHT_BROWSERS_PATH` qua `$env:RUNNER_TEMP`/`GITHUB_ENV` trong step; unit cài `.[browser,dev]` + elevenlabs thay danh sách lệch pyproject, kiểm tra lỗi pip.
+  - `README.md`: mô tả source version 5.2.1 và giới hạn baseline hiện tại; giữ số cũ như lịch sử.
+  - `docs/ROADMAP.md`: đóng kiểm chứng workflow/unit/T-01 trong phạm vi local; để mở full-green, native teardown và remote CI; đã bổ sung đối chiếu DOCX gốc.
+  - `docs/eval/ci_baseline_20260924.md`: public seams, nguyên nhân, lệnh tái lập, môi trường, bảng kết quả và handoff.
+  - `reports/evidence/ci-baseline-20260924/`: metadata GitHub, RED/GREEN validator, console/JUnit/exit/time, package versions, screenshot/negative browser JSON và phân loại 46 failure.
+- **DOCX follow-up:** đọc file gốc ngoài repo do người giao việc cung cấp; thêm `docx-acceptance.md/json` + `verify-docx-acceptance.py` với trích nguyên văn D-01/D-02/T-01, SHA-256, mapping tiêu chí → test/JUnit/artifact. Xác minh 981/981 source hashes khớp; không chạy lại pytest cho thay đổi tài liệu này. Giữ ZIP gốc bất biến; D-01/D-02 chưa DONE vì remote CI chưa có.
+- **Kiểm thử thật (Python 3.13.15, pytest 8.4.2):**
+  - Unit: **2723 passed, 4 skipped, 268 subtests passed**, **261.12s**, exit **0**.
+  - Full `tests/`: **4189 passed, 46 failed, 41 skipped, 268 subtests passed**, **571.15s**; process exit **-1073740940 (0xC0000374)** sau summary/JUnit, teardown root cause PENDING.
+  - Browser E2E: **21 passed**, **35.54s**, exit **0**. Scoped browser: **286 passed**, **12.11s**, exit **0**.
+  - Wheel prerequisite: RED **1 failed / 0.99s / exit 1** → GREEN **1 passed / 8.54s / exit 0** sau cài setuptools/wheel cục bộ.
+  - Rerun đủ 46 failed nodes: **45 failed, 1 passed**, **42.36s**, exit **1**; không có assertion flaky được xác lập trong tập này.
+- **Phân loại/giới hạn:** 5 code defects ngoài workflow/T-01, 24 test-contract/environment mismatches, 16 ca cần owner review, 1 dependency đã khắc phục cục bộ. Không sửa production code/assertion để che lỗi. Runtime đặt trong đường dẫn chứa JARVIS gây lỗi sandbox stdlib; runtime riêng ngoài repo đã xác minh nhóm 30 tests pass. Skip do dependency/live opt-in không phải runtime pass.
+- **Verdict:** local CI contract **PASS engineering**; T-01 **PASS fail-closed / PASS runtime (loopback)**; full baseline **NOT GREEN**, remote CI **PENDING**, tiêu chí DOCX T-01 đã đối chiếu đủ; không Product GO. Bàn giao branch riêng, không push/merge main.
+
 ## [Unreleased] Comprehensive Security Audit, Hardening & Tooling Sprint (2026-09-22)
 
 - **Mục tiêu**: Kiểm toán toàn diện bề mặt tấn công của 200 tệp nguồn thuộc phân hệ `jarvis/`, phát hiện và khắc phục dứt điểm 22 lỗ hổng bảo mật thuộc 5 nhóm rủi ro (Code Vulnerabilities, Information Disclosure, Excessive Permissions, Outdated Dependencies, Sensitive Serialization), nâng cấp bộ kiểm thử an toàn thông tin chuyên sâu (21 security hardening tests), và triển khai công cụ quét tĩnh bảo mật tự động `tools/security_scanner.py`.

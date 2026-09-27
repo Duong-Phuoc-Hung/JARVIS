@@ -1,0 +1,416 @@
+[
+  {
+    "id": 1,
+    "node": "tests/e2e/test_tiers_1_to_4.py::test_r4_volume_and_brightness_adjustment",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Brightness backend is unavailable in this headless setup; assertion requires 75 instead of fail-closed None.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 2,
+    "node": "tests/e2e/test_tiers_1_to_4.py::test_r2_r3_vision_zero_size_roi_or_corrupt_bytes",
+    "category": "CONFIRMED_CODE",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Zero-area ROI reaches JPEG encoder and raises ValueError; no zero-area guard before encoding.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 3,
+    "node": "tests/e2e/test_v460_e2e.py::TestTier4RealWorldWorkflows::test_tier4_daily_routine_morning_to_focus_workflow",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "shell_exec now requires SafetyGate confirmation; test expects immediate success.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 4,
+    "node": "tests/integration/test_package_version_build.py::test_built_wheel_version_matches_runtime_version",
+    "category": "MISSING_DEPENDENCY_RESOLVED",
+    "full_result": "FAIL",
+    "rerun_result": "PASS",
+    "note": "No setuptools.build_meta in fresh venv for --no-build-isolation. Installing setuptools>=72 and wheel makes the real wheel test pass.",
+    "scope": "Baseline environment"
+  },
+  {
+    "id": 5,
+    "node": "tests/test_adversarial_challenger_1.py::test_r4_adversarial_volume_and_brightness_boundary_clamping",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Same unavailable brightness backend as #1; test expects clamp result without mocking a successful device write.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 6,
+    "node": "tests/test_adversarial_m1_diacritic_homophones.py::TestAdversarialStressAndReDoS::test_massive_string_dos_rejection_sla",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Long-input routing returns system_volume while this test expects unknown_intent. Reproduced; reconcile with contradictory long-input acceptance in #8.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 7,
+    "node": "tests/test_adversarial_m1_intent_router.py::TestAdversarialPunctuation::test_punctuation_tolerance[Jarvis, m\\u1edf d\\u1ef1 \\xe1n: 'JARVIS-PRO'-workspace_prepare]",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Project-opening phrase resolves app_open instead of workspace_prepare; routing owner must reconcile current catalog precedence.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 8,
+    "node": "tests/test_adversarial_m1_intent_router.py::TestExtremeEdgeCases::test_huge_input_redos_resistance",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Long input is rejected as unknown_intent but this test expects workspace_prepare; do not blindly relax input guards.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 9,
+    "node": "tests/test_adversarial_m2_llm_router.py::test_pipeline_integration_category4_weather",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Weather pipeline assertion expects success; requires fixture/dispatcher tracing, not live credential use.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 10,
+    "node": "tests/test_adversarial_m3_challenger1.py::test_dashboard_cors_options_and_404_resilience",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Expects wildcard CORS despite current loopback origin policy.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 11,
+    "node": "tests/test_adversarial_m3_ui_app.py::test_dashboard_cors_and_options_and_404",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Expects wildcard CORS despite current loopback origin policy.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 12,
+    "node": "tests/test_adversarial_m4_challenger1.py::test_security_scanner_unauthenticated_biometric_rejection",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Labs gate rejects before biometric permission gate; fixture does not enable Labs.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 13,
+    "node": "tests/test_adversarial_sprint2_challenger1.py::TestAdversarialR2TTSCOMSafety::test_rapid_queue_flood_and_task_callback_exception_resilience",
+    "category": "CONFIRMED_CODE",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "TTS worker calls buggy callback a second time from except without guarding it; worker exits after 1/50 tasks.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 14,
+    "node": "tests/test_adversarial_sprint2_challenger2.py::TestIntentRoutingAndReDoS::test_extensive_hardware_query_permutations_accented_and_unaccented",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Vietnamese memory query resolves generic_llm_response instead of hardware_telemetry_check.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 15,
+    "node": "tests/test_challenger2_autonomous_stress.py::TestR4ComputerUseVisionAndGUIActorAdversarial::test_negative_and_zero_screen_dimensions",
+    "category": "CONFIRMED_CODE",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "CoordinateMapper.pixel_to_norm uses truthiness for explicit zero dimensions and falls back to default screen size.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 16,
+    "node": "tests/test_challenger2_stress.py::TestR5WebIntelligenceAdversarial::test_malformed_rss_and_atom_xml_feeds",
+    "category": "CONFIRMED_CODE",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "RSS title passes through _clean_text (entity/whitespace only), retaining HTML markup that the plain-title assertion rejects.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 17,
+    "node": "tests/test_challenger2_stress.py::TestR5WebIntelligenceAdversarial::test_offline_network_failure_recovery_full_hub",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Briefing test expects speech_text; returned payload exposes weather_speech/news_speech. No live network was authorized.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 18,
+    "node": "tests/test_challenger2_stress.py::TestR8OverlayHUDAdversarial::test_long_text_truncation_and_turn_recording",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Test expects full 10k-character overlay text after production truncation.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 19,
+    "node": "tests/test_challenger_m1_2_empirical.py::test_record_audio_exception_resilience_when_sounddevice_fails",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Patches sounddevice.rec, but current capture path uses AudioEngine; 5-second capture is not proof of flaky timing.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 20,
+    "node": "tests/test_challenger_m4_2_security.py::test_scanner_and_capture_reject_unauthenticated_contexts",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Labs disabled preempts permission assertion.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 21,
+    "node": "tests/test_challenger_m4_2_security.py::test_packet_capture_injection_resilience[tcp and port 80; calc.exe]",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Labs disabled prevents the subprocess call expected by the injection fixture.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 22,
+    "node": "tests/test_challenger_m4_2_security.py::test_packet_capture_injection_resilience[udp | whoami]",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Labs disabled prevents the subprocess call expected by the injection fixture.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 23,
+    "node": "tests/test_challenger_m4_2_security.py::test_packet_capture_injection_resilience[host 10.0.0.1 && dir C:\\\\]",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Labs disabled prevents the subprocess call expected by the injection fixture.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 24,
+    "node": "tests/test_challenger_m4_2_security.py::test_packet_capture_injection_resilience[`calc.exe`]",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Labs disabled prevents the subprocess call expected by the injection fixture.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 25,
+    "node": "tests/test_challenger_m4_2_security.py::test_tshark_subprocess_timeout_or_error_handling",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Fixture expects packet_count on legacy capture result but receives gated ActionResult.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 26,
+    "node": "tests/test_comms_hub.py::test_comms_telegram_photo_dispatch_tier1",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Telegram photo fixture supplies no bot token; fail-closed result contradicts its success assertion.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 27,
+    "node": "tests/test_e2e_scenarios.py::test_e2e_tier3_unresponsive_app_healing_flow",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Healing workflow expects MockHardwareProvider RAM mutation that is not observed.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 28,
+    "node": "tests/test_e2e_scenarios.py::test_e2e_tier4_system_crisis_self_healing_workflow",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Crisis workflow expects MockHardwareProvider RAM mutation that is not observed.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 29,
+    "node": "tests/test_empirical_challenger_m2.py::test_stress_cache_corruption_resilience_matrix[garbage_binary_200b]",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "JARVIS_MOCK_AUDIO=1 deliberately bypasses WAV decoding/playback; corruption assertion is incompatible with that test environment.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 30,
+    "node": "tests/test_empirical_challenger_m2.py::test_stress_spotify_plugin_empty_and_corrupt_uris",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Spotify fixture expects success for empty/corrupt URI with no verified application result. Do not make runtime failure return success.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 31,
+    "node": "tests/test_empirical_challenger_m2.py::test_stress_shell_plugin_timeout_and_privilege_enforcement",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "SafetyGate confirmation preempts the expected shell timeout.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 32,
+    "node": "tests/test_empirical_challenger_m2_e2e_stress.py::test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Audio-to-gesture pipeline does not emit expected clap_pause_clap event; requires audio owner investigation.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 33,
+    "node": "tests/test_empirical_challenger_m3_2.py::test_app_log_interaction_delegation_and_custom_config",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Custom interaction log file is not created at the asserted path.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 34,
+    "node": "tests/test_empirical_challenger_m3_2.py::test_welcome_pool_empty_and_whitespace_fallback",
+    "category": "CONFIRMED_CODE",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Whitespace-only configured welcome list filters to an empty list, then random.choice raises IndexError.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 35,
+    "node": "tests/test_empirical_challenger_m3_2.py::test_startup_intro_with_mocked_tts_queues_expected_phrase",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Startup emits briefing plus introduction; test expects one call. Confirm current startup contract.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 36,
+    "node": "tests/test_empirical_challenger_m3_2.py::test_startup_intro_custom_configured_phrase",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Startup emits two calls and test stops before validating configured startup phrase; requires separate contract review.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 37,
+    "node": "tests/test_m3_ux.py::test_startup_vocal_introduction",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "First startup utterance is the briefing, while test expects the introduction as first utterance.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 38,
+    "node": "tests/test_plugins.py::test_plugin_shell_command_execution_tier1",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "shell_exec now requires confirmation; test expects immediate execution.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 39,
+    "node": "tests/test_plugins.py::test_plugin_shell_timeout_error_handling_tier2",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "shell_exec confirmation preempts timeout assertion.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 40,
+    "node": "tests/test_tier5_adversarial_sec_iot_comms_data.py::test_security_tshark_cli_parameters_and_bpf_injection",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Labs gate prevents expected TShark subprocess invocation.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 41,
+    "node": "tests/test_tier5_adversarial_sec_iot_comms_data.py::test_telegram_unauthorized_user_and_injection_defense",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Telegram /exec fixture supplies no ActionDispatcher and expects 200; the real handler correctly returns fail-closed 503.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 42,
+    "node": "tests/test_user_simulation.py::test_sim_05_second_double_clap_triggers_ai_voice_loop",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Voice-loop fixture returns ndarray although production now requests CapturedAudio; no expected dispatched action is observed.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 43,
+    "node": "tests/test_user_simulation.py::test_sim_06_voice_loop_smart_keyword_home_assistant",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Voice-loop fixture returns ndarray although production now requests CapturedAudio; no expected HA action is observed.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 44,
+    "node": "tests/test_user_simulation.py::test_sim_07_voice_loop_smart_keyword_hardware_telemetry",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Voice-loop fixture returns ndarray although production now requests CapturedAudio; no expected telemetry action is observed.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 45,
+    "node": "tests/test_user_simulation.py::test_sim_16_vietnamese_smart_keyword_router_7_categories[kh\\xf3a m\\xe0n h\\xecnh-system_power-action-lock-\\u0110\\xe3 kh\\xf3a m\\xe0n h\\xecnh]",
+    "category": "CONTRACT_REVIEW",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "Lock-screen phrase gets display-off response, differing from expected lock response.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  },
+  {
+    "id": 46,
+    "node": "tests/test_user_simulation.py::test_sim_18_cli_health_check_verification",
+    "category": "TEST_CONTRACT",
+    "full_result": "FAIL",
+    "rerun_result": "FAIL",
+    "note": "CLI output assertion expects old Operating System label; current health report format differs.",
+    "scope": "Existing product/test debt outside CI workflow and T-01 remediation"
+  }
+]

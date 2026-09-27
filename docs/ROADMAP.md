@@ -18,6 +18,22 @@ order-sensitive candidate). Hosted CI not rerun; runtime PENDING; no CONDITIONAL
 
 <!-- T05-T07 roadmap end -->
 
+## CI baseline recovery — 2026-09-24 (base 9d3c591)
+
+- [x] Xác minh GitHub run 35763480258: 0 jobs; annotation xác nhận `runner.temp` không hợp lệ ở job env.
+- [x] Workflow RED → GREEN bằng actionlint; chuyển browser store sang runner step, đồng bộ unit dependency theo pyproject.
+- [x] Re-run unit: **2723 passed, 4 skipped, 268 subtests**, 261.12s, exit 0.
+- [x] T-01 executable seams: **286 scoped passed / 12.11s**; **21 real browser passed / 35.54s**, exit 0.
+- [x] Full suite không fail-fast: **4189 passed, 46 failed, 41 skipped**, 571.15s; native exit **-1073740940** sau JUnit.
+- [x] Phân loại và rerun 46 node: **45 failed, 1 passed**, 42.36s, exit 1; build prerequisite được xác minh RED → GREEN.
+- [ ] Full baseline xanh: còn 45 assertion tái hiện và native teardown cần điều tra; không nới safety gates/test assertions.
+- [ ] Remote CI trên revision tích hợp mới (task này không push/merge main).
+- [x] Đã đọc DOCX từ đường dẫn tuyệt đối người giao việc cung cấp; T-01 khớp evidence hiện tại. D-01/D-02 vẫn PENDING remote CI, chưa DONE.
+
+[Evidence hiện tại](eval/ci_baseline_20260924.md). **PASS engineering** chỉ cho local CI contract;
+T-01 **PASS fail-closed / PASS runtime (loopback)**. Không nâng thành Product GO.
+Các số liệu/checklist bên dưới là lịch sử; không dùng để phủ định kết quả baseline mới.
+
 ## Comprehensive Security Audit, Hardening & Tooling Sprint (2026-09-22)
 
 - [x] **5-Category Security Audit & Vulnerability Remediation (22/22 Resolved)**:

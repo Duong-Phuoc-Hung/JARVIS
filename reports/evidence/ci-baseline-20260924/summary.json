@@ -1,0 +1,1079 @@
+[
+  {
+    "command": ".baseline-tools/actionlint/actionlint.exe -shellcheck=\"\" .github/workflows/ci.yml .github/workflows/release.yml",
+    "version": "1.7.12",
+    "exit_code": 0,
+    "wall_seconds": 0.0478398,
+    "name": "actionlint-green",
+    "console_summary": []
+  },
+  {
+    "command": ".baseline-tools/actionlint/actionlint.exe -shellcheck=\"\" .baseline-tools/original-ci.yml",
+    "source": "9d3c591:.github/workflows/ci.yml",
+    "version": "1.7.12",
+    "exit_code": 1,
+    "wall_seconds": 0.0816881,
+    "name": "actionlint-red",
+    "console_summary": []
+  },
+  {
+    "name": "browser-final",
+    "started_utc": "2026-09-24T09:33:23.8513343Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": "../runtime/venv/Scripts/python.exe -m pytest tests/e2e/test_browser_playwright_e2e.py -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/browser-final.xml",
+    "exit_code": 0,
+    "wall_seconds": 37.8319487,
+    "console_summary": [
+      "21 passed in 35.54s"
+    ],
+    "junit_suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "21",
+        "time": "35.533",
+        "timestamp": "2026-09-24T16:33:25.826849+07:00",
+        "hostname": "DESKTOP-OCR9N3Q"
+      }
+    ],
+    "failures": [],
+    "skips": []
+  },
+  {
+    "name": "browser",
+    "started_utc": "2026-09-24T09:12:36.9929846Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": ".venv/Scripts/python.exe -m pytest tests/e2e/test_browser_playwright_e2e.py -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/browser.xml",
+    "exit_code": 0,
+    "wall_seconds": 43.284156,
+    "console_summary": [
+      "21 passed in 41.13s"
+    ],
+    "junit_suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "21",
+        "time": "41.119",
+        "timestamp": "2026-09-24T16:12:38.777177+07:00",
+        "hostname": "DESKTOP-OCR9N3Q"
+      }
+    ],
+    "failures": [],
+    "skips": []
+  },
+  {
+    "name": "collect-full",
+    "started_utc": "2026-09-24T09:20:36.9176519Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": "../runtime/venv/Scripts/python.exe -m pytest tests/ --collect-only -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/collect-full.xml",
+    "exit_code": 0,
+    "wall_seconds": 16.5236004,
+    "console_summary": [],
+    "junit_suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "2",
+        "tests": "2",
+        "time": "13.186",
+        "timestamp": "2026-09-24T16:20:39.179271+07:00",
+        "hostname": "DESKTOP-OCR9N3Q"
+      }
+    ],
+    "failures": [],
+    "skips": [
+      {
+        "node": "::tests.test_biometrics",
+        "reason": "collection skipped"
+      },
+      {
+        "node": "::tests.test_live_infra_evidence",
+        "reason": "collection skipped"
+      }
+    ]
+  },
+  {
+    "name": "failures-rerun",
+    "started_utc": "2026-09-24T09:35:11.4919288Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": "../runtime/venv/Scripts/python.exe -m pytest tests/e2e/test_tiers_1_to_4.py::test_r4_volume_and_brightness_adjustment tests/e2e/test_tiers_1_to_4.py::test_r2_r3_vision_zero_size_roi_or_corrupt_bytes tests/e2e/test_v460_e2e.py::TestTier4RealWorldWorkflows::test_tier4_daily_routine_morning_to_focus_workflow tests/integration/test_package_version_build.py::test_built_wheel_version_matches_runtime_version tests/test_adversarial_challenger_1.py::test_r4_adversarial_volume_and_brightness_boundary_clamping tests/test_adversarial_m1_diacritic_homophones.py::TestAdversarialStressAndReDoS::test_massive_string_dos_rejection_sla tests/test_adversarial_m1_intent_router.py::TestAdversarialPunctuation::test_punctuation_tolerance[Jarvis, m\\u1edf d\\u1ef1 \\xe1n: 'JARVIS-PRO'-workspace_prepare] tests/test_adversarial_m1_intent_router.py::TestExtremeEdgeCases::test_huge_input_redos_resistance tests/test_adversarial_m2_llm_router.py::test_pipeline_integration_category4_weather tests/test_adversarial_m3_challenger1.py::test_dashboard_cors_options_and_404_resilience tests/test_adversarial_m3_ui_app.py::test_dashboard_cors_and_options_and_404 tests/test_adversarial_m4_challenger1.py::test_security_scanner_unauthenticated_biometric_rejection tests/test_adversarial_sprint2_challenger1.py::TestAdversarialR2TTSCOMSafety::test_rapid_queue_flood_and_task_callback_exception_resilience tests/test_adversarial_sprint2_challenger2.py::TestIntentRoutingAndReDoS::test_extensive_hardware_query_permutations_accented_and_unaccented tests/test_challenger2_autonomous_stress.py::TestR4ComputerUseVisionAndGUIActorAdversarial::test_negative_and_zero_screen_dimensions tests/test_challenger2_stress.py::TestR5WebIntelligenceAdversarial::test_malformed_rss_and_atom_xml_feeds tests/test_challenger2_stress.py::TestR5WebIntelligenceAdversarial::test_offline_network_failure_recovery_full_hub tests/test_challenger2_stress.py::TestR8OverlayHUDAdversarial::test_long_text_truncation_and_turn_recording tests/test_challenger_m1_2_empirical.py::test_record_audio_exception_resilience_when_sounddevice_fails tests/test_challenger_m4_2_security.py::test_scanner_and_capture_reject_unauthenticated_contexts tests/test_challenger_m4_2_security.py::test_packet_capture_injection_resilience[tcp and port 80; calc.exe] tests/test_challenger_m4_2_security.py::test_packet_capture_injection_resilience[udp | whoami] tests/test_challenger_m4_2_security.py::test_packet_capture_injection_resilience[host 10.0.0.1 && dir C:\\\\] tests/test_challenger_m4_2_security.py::test_packet_capture_injection_resilience[`calc.exe`] tests/test_challenger_m4_2_security.py::test_tshark_subprocess_timeout_or_error_handling tests/test_comms_hub.py::test_comms_telegram_photo_dispatch_tier1 tests/test_e2e_scenarios.py::test_e2e_tier3_unresponsive_app_healing_flow tests/test_e2e_scenarios.py::test_e2e_tier4_system_crisis_self_healing_workflow tests/test_empirical_challenger_m2.py::test_stress_cache_corruption_resilience_matrix[garbage_binary_200b] tests/test_empirical_challenger_m2.py::test_stress_spotify_plugin_empty_and_corrupt_uris tests/test_empirical_challenger_m2.py::test_stress_shell_plugin_timeout_and_privilege_enforcement tests/test_empirical_challenger_m2_e2e_stress.py::test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue tests/test_empirical_challenger_m3_2.py::test_app_log_interaction_delegation_and_custom_config tests/test_empirical_challenger_m3_2.py::test_welcome_pool_empty_and_whitespace_fallback tests/test_empirical_challenger_m3_2.py::test_startup_intro_with_mocked_tts_queues_expected_phrase tests/test_empirical_challenger_m3_2.py::test_startup_intro_custom_configured_phrase tests/test_m3_ux.py::test_startup_vocal_introduction tests/test_plugins.py::test_plugin_shell_command_execution_tier1 tests/test_plugins.py::test_plugin_shell_timeout_error_handling_tier2 tests/test_tier5_adversarial_sec_iot_comms_data.py::test_security_tshark_cli_parameters_and_bpf_injection tests/test_tier5_adversarial_sec_iot_comms_data.py::test_telegram_unauthorized_user_and_injection_defense tests/test_user_simulation.py::test_sim_05_second_double_clap_triggers_ai_voice_loop tests/test_user_simulation.py::test_sim_06_voice_loop_smart_keyword_home_assistant tests/test_user_simulation.py::test_sim_07_voice_loop_smart_keyword_hardware_telemetry tests/test_user_simulation.py::test_sim_16_vietnamese_smart_keyword_router_7_categories[kh\\xf3a m\\xe0n h\\xecnh-system_power-action-lock-\\u0110\\xe3 kh\\xf3a m\\xe0n h\\xecnh] tests/test_user_simulation.py::test_sim_18_cli_health_check_verification -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/failures-rerun.xml",
+    "exit_code": 1,
+    "wall_seconds": 45.4322819,
+    "console_summary": [
+      "45 failed, 1 passed in 42.36s"
+    ],
+    "junit_suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "45",
+        "skipped": "0",
+        "tests": "46",
+        "time": "42.346",
+        "timestamp": "2026-09-24T16:35:13.463447+07:00",
+        "hostname": "DESKTOP-OCR9N3Q"
+      }
+    ],
+    "failures": [
+      {
+        "node": "tests/e2e/test_tiers_1_to_4::test_r4_volume_and_brightness_adjustment",
+        "kind": "failure",
+        "message": "assert None == 75"
+      },
+      {
+        "node": "tests/e2e/test_tiers_1_to_4::test_r2_r3_vision_zero_size_roi_or_corrupt_bytes",
+        "kind": "failure",
+        "message": "ValueError: cannot write empty image as JPEG"
+      },
+      {
+        "node": "tests/e2e/test_v460_e2e/TestTier4RealWorldWorkflows::test_tier4_daily_routine_morning_to_focus_workflow",
+        "kind": "failure",
+        "message": "AssertionError: assert False is True\n +  where False = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE...or_code='CONFIRMATION_REQUIRED', execution_time_ms=0.215300009585917, requester='system', timestamp=1790242516.4367645).success"
+      },
+      {
+        "node": "tests/test_adversarial_challenger_1::test_r4_adversarial_volume_and_brightness_boundary_clamping",
+        "kind": "failure",
+        "message": "assert None == 0\n +  where None = set_brightness(-50)\n +    where set_brightness = <jarvis.automation.control.ComputerController object at 0x000002E0B941AAD0>.set_brightness"
+      },
+      {
+        "node": "tests/test_adversarial_m1_diacritic_homophones/TestAdversarialStressAndReDoS::test_massive_string_dos_rejection_sla",
+        "kind": "failure",
+        "message": "AssertionError: assert 'system_volume' == 'unknown_intent'\n  \n  - unknown_intent\n  + system_volume"
+      },
+      {
+        "node": "tests/test_adversarial_m1_intent_router/TestAdversarialPunctuation::test_punctuation_tolerance[Jarvis, m\\u1edf d\\u1ef1 \\xe1n: 'JARVIS-PRO'-workspace_prepare]",
+        "kind": "failure",
+        "message": "AssertionError: Failed on noisy input: 'Jarvis, mở dự án: 'JARVIS-PRO'' -> got app_open\nassert 'app_open' == 'workspace_prepare'\n  \n  - workspace_prepare\n  + app_open"
+      },
+      {
+        "node": "tests/test_adversarial_m1_intent_router/TestExtremeEdgeCases::test_huge_input_redos_resistance",
+        "kind": "failure",
+        "message": "AssertionError: assert 'unknown_intent' == 'workspace_prepare'\n  \n  - workspace_prepare\n  + unknown_intent"
+      },
+      {
+        "node": "tests/test_adversarial_m2_llm_router::test_pipeline_integration_category4_weather",
+        "kind": "failure",
+        "message": "assert False is True"
+      },
+      {
+        "node": "tests/test_adversarial_m3_challenger1::test_dashboard_cors_options_and_404_resilience",
+        "kind": "failure",
+        "message": "AssertionError: assert None == '*'\n +  where None = get('Access-Control-Allow-Origin')\n +    where get = <http.client.HTTPMessage object at 0x000002E0BAD66520>.get\n +      where <http.client.HTTPMessage object at 0x000002E0BAD66520> = <http.client.HTTPResponse object at 0x000002E0B95ED3F0>.headers"
+      },
+      {
+        "node": "tests/test_adversarial_m3_ui_app::test_dashboard_cors_and_options_and_404",
+        "kind": "failure",
+        "message": "AssertionError: assert None == '*'\n +  where None = get('Access-Control-Allow-Origin')\n +    where get = <http.client.HTTPMessage object at 0x000002E0BAC99150>.get\n +      where <http.client.HTTPMessage object at 0x000002E0BAC99150> = <http.client.HTTPResponse object at 0x000002E0B95EDC60>.headers"
+      },
+      {
+        "node": "tests/test_adversarial_m4_challenger1::test_security_scanner_unauthenticated_biometric_rejection",
+        "kind": "failure",
+        "message": "AssertionError: assert <ActionStatus...ABS_DISABLED'> == 'PERMISSION_DENIED'\n  \n  - PERMISSION_DENIED\n  + LABS_DISABLED"
+      },
+      {
+        "node": "tests/test_adversarial_sprint2_challenger1/TestAdversarialR2TTSCOMSafety::test_rapid_queue_flood_and_task_callback_exception_resilience",
+        "kind": "failure",
+        "message": "AssertionError: Expected 50 tasks processed, got 1\nassert 1 == 50"
+      },
+      {
+        "node": "tests/test_adversarial_sprint2_challenger2/TestIntentRoutingAndReDoS::test_extensive_hardware_query_permutations_accented_and_unaccented",
+        "kind": "failure",
+        "message": "AssertionError: Failed routing utterance 'kiểm tra bộ nhớ': got generic_llm_response, expected hardware_telemetry_check\nassert False"
+      },
+      {
+        "node": "tests/test_challenger2_autonomous_stress/TestR4ComputerUseVisionAndGUIActorAdversarial::test_negative_and_zero_screen_dimensions",
+        "kind": "failure",
+        "message": "AssertionError: Tuples differ: (260, 463) != (0, 0)\n\nFirst differing element 0:\n260\n0\n\n- (260, 463)\n+ (0, 0)"
+      },
+      {
+        "node": "tests/test_challenger2_stress/TestR5WebIntelligenceAdversarial::test_malformed_rss_and_atom_xml_feeds",
+        "kind": "failure",
+        "message": "AssertionError: 'Tiêu đề Test' not found in 'Tiêu đề <b>Test</b>'"
+      },
+      {
+        "node": "tests/test_challenger2_stress/TestR5WebIntelligenceAdversarial::test_offline_network_failure_recovery_full_hub",
+        "kind": "failure",
+        "message": "AssertionError: 'speech_text' not found in {'city': 'Hà Nội', 'weather': {'city': 'Hà Nội', 'temp_c': 27.0, 'feels_like_c': 29.0, 'condition': 'Nhiều mây', 'humidity': 75, 'wind_kph': 12.0, 'uv_index': None, 'pressure_hpa': None, 'visibility_km': None, 'source': 'offline_fallback', 'timestamp': 1790242532.147081}, 'weather_speech': 'Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như 29°C), nhiều mây. Độ ẩm 75%, sức gió 12.0 km/h, thưa Ngài.', 'news': ['Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing (VnExpress)', 'Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu (TechCrunch)', 'Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở (VnExpress)'], 'news_articles': [{'title': 'Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing', 'link': 'https://vnexpress.net/so-hoa', 'description': 'Các công nghệ trí tuệ nhân tạo thế hệ mới đang được tối ưu hóa cho thiết bị biên.', 'published_at': '', 'source': 'VnExpress'}, {'title': 'Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu', 'link': 'https://techcrunch.com', 'description': 'Thị trường chip bán dẫn tiếp tục ghi nhận nhu cầu mạnh mẽ.', 'published_at': '', 'source': 'TechCrunch'}, {'title': 'Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở', 'link': 'https://vnexpress.net', 'description': 'Hệ sinh thái open-source phát triển mạnh mẽ cho desktop assistant.', 'published_at': '', 'source': 'VnExpress'}], 'crypto': {'BTC': 64500.0, 'ETH': 3450.0}, 'usd_vnd_rate': 25450.0, 'crypto_speech': 'Bitcoin hiện ở mức $64,500 (+0.5%), Ethereum đạt $3,450 (+0.5%).', 'spoken_summary': 'Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như 29°C), nhiều mây. Độ ẩm 75%, sức gió 12.0 km/h, thưa Ngài. Về thị trường tài chính: Bitcoin hiện ở mức $64,500 (+0.5%), Ethereum đạt $3,450 (+0.5%). Điểm qua 3 tin tức công nghệ nổi bật: Thứ 1: Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing. Thứ 2: Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu. Thứ 3: Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở.', 'overlay_bullets': ['#x1F324️ **Thời tiết Hà Nội**: 27.0°C, Nhiều mây (Độ ẩm 75%)', '#x1F4B0 **Thị trường**: BTC $64,500 | ETH $3,450 | USD/VND 25,450', '#x1F4F0 **Tin tức nổi bật**:', '  • Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing', '  • Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu', '  • Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở'], 'timestamp': '2026-09-24T16:35:32.147435'}"
+      },
+      {
+        "node": "tests/test_challenger2_stress/TestR8OverlayHUDAdversarial::test_long_text_truncation_and_turn_recording",
+        "kind": "failure",
+        "message": "AssertionError: 'AAAA[228 chars]AAAAA...' != 'AAAA[228 chars]AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA[9718 chars]AAAA'\nDiff is 10247 characters long. Set self.maxDiff to None to see it."
+      },
+      {
+        "node": "tests/test_challenger_m1_2_empirical::test_record_audio_exception_resilience_when_sounddevice_fails",
+        "kind": "failure",
+        "message": "AssertionError: Fallback buffer generation took too long: 3.4102s\nassert 3.4101798000046983 < 0.1"
+      },
+      {
+        "node": "tests/test_challenger_m4_2_security::test_scanner_and_capture_reject_unauthenticated_contexts",
+        "kind": "failure",
+        "message": "AssertionError: assert <ActionStatus...ABS_DISABLED'> == 'PERMISSION_DENIED'\n  \n  - PERMISSION_DENIED\n  + LABS_DISABLED"
+      },
+      {
+        "node": "tests/test_challenger_m4_2_security::test_packet_capture_injection_resilience[tcp and port 80; calc.exe]",
+        "kind": "failure",
+        "message": "assert 0 == 1\n +  where 0 = len([])"
+      },
+      {
+        "node": "tests/test_challenger_m4_2_security::test_packet_capture_injection_resilience[udp | whoami]",
+        "kind": "failure",
+        "message": "assert 0 == 1\n +  where 0 = len([])"
+      },
+      {
+        "node": "tests/test_challenger_m4_2_security::test_packet_capture_injection_resilience[host 10.0.0.1 && dir C:\\\\]",
+        "kind": "failure",
+        "message": "assert 0 == 1\n +  where 0 = len([])"
+      },
+      {
+        "node": "tests/test_challenger_m4_2_security::test_packet_capture_injection_resilience[`calc.exe`]",
+        "kind": "failure",
+        "message": "assert 0 == 1\n +  where 0 = len([])"
+      },
+      {
+        "node": "tests/test_challenger_m4_2_security::test_tshark_subprocess_timeout_or_error_handling",
+        "kind": "failure",
+        "message": "AttributeError: 'ActionResult' object has no attribute 'packet_count'"
+      },
+      {
+        "node": "tests/test_comms_hub::test_comms_telegram_photo_dispatch_tier1",
+        "kind": "failure",
+        "message": "assert False is True"
+      },
+      {
+        "node": "tests/test_e2e_scenarios::test_e2e_tier3_unresponsive_app_healing_flow",
+        "kind": "failure",
+        "message": "assert 93.0 < 80.0\n +  where 93.0 = <tests.conftest.MockHardwareProvider object at 0x000002E0B9D1E120>.ram_percent"
+      },
+      {
+        "node": "tests/test_e2e_scenarios::test_e2e_tier4_system_crisis_self_healing_workflow",
+        "kind": "failure",
+        "message": "assert 96.0 < 75.0\n +  where 96.0 = <tests.conftest.MockHardwareProvider object at 0x000002E0B9D24E10>.ram_percent"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m2::test_stress_cache_corruption_resilience_matrix[garbage_binary_200b]",
+        "kind": "failure",
+        "message": "assert True is False"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m2::test_stress_spotify_plugin_empty_and_corrupt_uris",
+        "kind": "failure",
+        "message": "AssertionError: assert False is True\n +  where False = ActionResult(action_name='spotify_play', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='ACTION_FAILED', me...', error_code='ACTION_FAILED', execution_time_ms=0.03989998367615044, requester='system', timestamp=1790242536.8042326).success"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m2::test_stress_shell_plugin_timeout_and_privilege_enforcement",
+        "kind": "failure",
+        "message": "assert ('timed out' in \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: 92b2984a)\" or 'CONFIRMATION_REQUIRED' == 'HANDLER_EXCEPTION'\n +  where \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: 92b2984a)\" = <built-in method lower of str object at 0x000002E0B9E396B0>()\n +    where <built-in method lower of str object at 0x000002E0B9E396B0> = \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: 92B2984A)\".lower\n +      where \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: 92B2984A)\" = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE...or_code='CONFIRMATION_REQUIRED', execution_time_ms=0.08120000711642206, requester='system', timestamp=1790242536.81793).error\n  \n  - HANDLER_EXCEPTION\n  + CONFIRMATION_REQUIRED)"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m2_e2e_stress::test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue",
+        "kind": "failure",
+        "message": "AssertionError: assert 'clap_pause_clap' in ['action:spotify', 'action:chrome_claude', 'action:chrome_binance', 'double_clap', 'action:tts_welcome', 'action:cursor', ...]"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m3_2::test_app_log_interaction_delegation_and_custom_config",
+        "kind": "failure",
+        "message": "AssertionError: assert False\n +  where False = exists()\n +    where exists = WindowsPath('C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/JARVIS/.baseline-tools/pytest-temp/pytest-of-MSI/pytest-6/test_app_log_interaction_deleg0/custom_app_interactions.log').exists"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m3_2::test_welcome_pool_empty_and_whitespace_fallback",
+        "kind": "failure",
+        "message": "IndexError: Cannot choose from an empty sequence"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m3_2::test_startup_intro_with_mocked_tts_queues_expected_phrase",
+        "kind": "failure",
+        "message": "AssertionError: assert 2 == 1\n +  where 2 = len([('Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như...n máy tính cá nhân thu hút cộng đồng mã nguồn mở.', False), ('Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.', False)])"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m3_2::test_startup_intro_custom_configured_phrase",
+        "kind": "failure",
+        "message": "AssertionError: assert 2 == 1\n +  where 2 = len([('Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như...n máy tính cá nhân thu hút cộng đồng mã nguồn mở.', False), ('Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.', False)])"
+      },
+      {
+        "node": "tests/test_m3_ux::test_startup_vocal_introduction",
+        "kind": "failure",
+        "message": "AssertionError: assert 'Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.' in 'Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như 2...bán dẫn và trung tâm dữ liệu. Thứ 3: Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở.'"
+      },
+      {
+        "node": "tests/test_plugins::test_plugin_shell_command_execution_tier1",
+        "kind": "failure",
+        "message": "AssertionError: assert False is True\n +  where False = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE...r_code='CONFIRMATION_REQUIRED', execution_time_ms=0.1286999904550612, requester='system', timestamp=1790242543.7990751).success"
+      },
+      {
+        "node": "tests/test_plugins::test_plugin_shell_timeout_error_handling_tier2",
+        "kind": "failure",
+        "message": "assert 'timed out' in \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: 9fbb5ce1)\"\n +  where \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: 9fbb5ce1)\" = <built-in method lower of str object at 0x000002E0B9321470>()\n +    where <built-in method lower of str object at 0x000002E0B9321470> = \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: 9FBB5CE1)\".lower\n +      where \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: 9FBB5CE1)\" = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE..._code='CONFIRMATION_REQUIRED', execution_time_ms=0.12340000830590725, requester='system', timestamp=1790242543.8080604).error"
+      },
+      {
+        "node": "tests/test_tier5_adversarial_sec_iot_comms_data::test_security_tshark_cli_parameters_and_bpf_injection",
+        "kind": "failure",
+        "message": "assert 0 == 1\n +  where 0 = len([])"
+      },
+      {
+        "node": "tests/test_tier5_adversarial_sec_iot_comms_data::test_telegram_unauthorized_user_and_injection_defense",
+        "kind": "failure",
+        "message": "assert 503 == 200"
+      },
+      {
+        "node": "tests/test_user_simulation::test_sim_05_second_double_clap_triggers_ai_voice_loop",
+        "kind": "failure",
+        "message": "assert False\n +  where False = _wait_for_condition(<function test_sim_05_second_double_clap_triggers_ai_voice_loop.<locals>.<lambda> at 0x000002E0BA13B560>, timeout=3.0)"
+      },
+      {
+        "node": "tests/test_user_simulation::test_sim_06_voice_loop_smart_keyword_home_assistant",
+        "kind": "failure",
+        "message": "assert False\n +  where False = _wait_for_condition(<function test_sim_06_voice_loop_smart_keyword_home_assistant.<locals>.<lambda> at 0x000002E0BA13B7E0>, timeout=3.0)"
+      },
+      {
+        "node": "tests/test_user_simulation::test_sim_07_voice_loop_smart_keyword_hardware_telemetry",
+        "kind": "failure",
+        "message": "assert False\n +  where False = _wait_for_condition(<function test_sim_07_voice_loop_smart_keyword_hardware_telemetry.<locals>.<lambda> at 0x000002E0BA469080>, timeout=3.0)"
+      },
+      {
+        "node": "tests/test_user_simulation::test_sim_16_vietnamese_smart_keyword_router_7_categories[kh\\xf3a m\\xe0n h\\xecnh-system_power-action-lock-\\u0110\\xe3 kh\\xf3a m\\xe0n h\\xecnh]",
+        "kind": "failure",
+        "message": "AssertionError: assert 'đã khóa màn hình' in 'đang tắt màn hình cho ngài.'\n +  where 'đã khóa màn hình' = <built-in method lower of str object at 0x000002E0B8E6CF10>()\n +    where <built-in method lower of str object at 0x000002E0B8E6CF10> = 'Đã khóa màn hình'.lower\n +  and   'đang tắt màn hình cho ngài.' = <built-in method lower of str object at 0x000002E0B8128330>()\n +    where <built-in method lower of str object at 0x000002E0B8128330> = 'Đang tắt màn hình cho Ngài.'.lower\n +      where 'Đang tắt màn hình cho Ngài.' = IntentResult(action_name='system_power', parameters={'action': 'screen_off'}, confidence=1.0, source='rule_fallback', ... response_text='Đang tắt màn hình cho Ngài.', requires_confirmation=False, confirmation_prompt=None, danger_level=None).response_text"
+      },
+      {
+        "node": "tests/test_user_simulation::test_sim_18_cli_health_check_verification",
+        "kind": "failure",
+        "message": "AssertionError: assert 'Operating System:' in '=================================================================\\n JARVIS System Health Diagnostics (v5.2.1)\\n======...==========================\\n Diagnostics completed. Browser automation is READY; review each subsystem result above.\\n'"
+      }
+    ],
+    "skips": []
+  },
+  {
+    "name": "full-final",
+    "started_utc": "2026-09-24T09:23:48.9969763Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": "../runtime/venv/Scripts/python.exe -m pytest tests/ -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/full-final.xml",
+    "exit_code": -1073740940,
+    "wall_seconds": 574.695668,
+    "console_summary": [
+      "46 failed, 4189 passed, 41 skipped, 268 subtests passed in 571.15s (0:09:31)"
+    ],
+    "junit_suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "46",
+        "skipped": "41",
+        "tests": "4544",
+        "time": "570.885",
+        "timestamp": "2026-09-24T16:23:51.030734+07:00",
+        "hostname": "DESKTOP-OCR9N3Q"
+      }
+    ],
+    "failures": [
+      {
+        "node": "tests/e2e/test_tiers_1_to_4::test_r4_volume_and_brightness_adjustment",
+        "kind": "failure",
+        "message": "assert None == 75"
+      },
+      {
+        "node": "tests/e2e/test_tiers_1_to_4::test_r2_r3_vision_zero_size_roi_or_corrupt_bytes",
+        "kind": "failure",
+        "message": "ValueError: cannot write empty image as JPEG"
+      },
+      {
+        "node": "tests/e2e/test_v460_e2e/TestTier4RealWorldWorkflows::test_tier4_daily_routine_morning_to_focus_workflow",
+        "kind": "failure",
+        "message": "AssertionError: assert False is True\n +  where False = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE..._code='CONFIRMATION_REQUIRED', execution_time_ms=0.16280001727864146, requester='system', timestamp=1790241885.9078093).success"
+      },
+      {
+        "node": "tests/integration/test_package_version_build::test_built_wheel_version_matches_runtime_version",
+        "kind": "failure",
+        "message": "AssertionError: wheel build failed (exit 2):\n  stdout:\n  Processing .\\.\n    Preparing metadata (pyproject.toml): started\n    Preparing metadata (pyproject.toml): finished with status 'done'\n  \n  stderr:\n  ERROR: Exception:\n  Traceback (most recent call last):\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\cli\\base_command.py\", line 109, in _run_wrapper\n      status = _inner_run()\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\cli\\base_command.py\", line 102, in _inner_run\n      return self.run(options, args)\n             ~~~~~~~~^^^^^^^^^^^^^^^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\cli\\req_command.py\", line 106, in wrapper\n      return func(self, options, args)\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\commands\\wheel.py\", line 142, in run\n      requirement_set = resolver.resolve(reqs, check_supported_wheels=True)\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\resolver.py\", line 82, in resolve\n      collected = self.factory.collect_root_requirements(root_reqs)\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\factory.py\", line 563, in collect_root_requirements\n      reqs = list(\n          self._make_requirements_from_install_req(\n      ...<2 lines>...\n          )\n      )\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\factory.py\", line 519, in _make_requirements_from_install_req\n      cand = self._make_base_candidate_from_link(\n          ireq.link,\n      ...<2 lines>...\n          version=None,\n      )\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\factory.py\", line 227, in _make_base_candidate_from_link\n      self._link_candidate_cache[link] = LinkCandidate(\n                                         ~~~~~~~~~~~~~^\n          link,\n          ^^^^^\n      ...<3 lines>...\n          version=version,\n          ^^^^^^^^^^^^^^^^\n      )\n      ^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\candidates.py\", line 325, in __init__\n      super().__init__(\n      ~~~~~~~~~~~~~~~~^\n          link=link,\n          ^^^^^^^^^^\n      ...<4 lines>...\n          version=version,\n          ^^^^^^^^^^^^^^^^\n      )\n      ^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\candidates.py\", line 167, in __init__\n      self.dist = self._prepare()\n                  ~~~~~~~~~~~~~^^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\candidates.py\", line 245, in _prepare\n      dist = self._prepare_distribution()\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\candidates.py\", line 336, in _prepare_distribution\n      return preparer.prepare_linked_requirement(self._ireq, parallel_builds=True)\n             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\operations\\prepare.py\", line 664, in prepare_linked_requirement\n      return self._prepare_linked_requirement(req, parallel_builds)\n             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\operations\\prepare.py\", line 783, in _prepare_linked_requirement\n      dist = _get_prepared_distribution(\n          req,\n      ...<4 lines>...\n          self.allow_editables,\n      )\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\operations\\prepare.py\", line 82, in _get_prepared_distribution\n      abstract_dist.prepare_distribution_metadata(\n      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n          build_env_installer, build_isolation, check_build_deps, allow_editables\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n      )\n      ^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\distributions\\sdist.py\", line 81, in prepare_distribution_metadata\n      self.req.prepare_metadata(allow_editables)\n      ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\req\\req_install.py\", line 535, in prepare_metadata\n      self.metadata_directory = generate_metadata(\n                                ~~~~~~~~~~~~~~~~~^\n          build_env=self.build_env,\n          ^^^^^^^^^^^^^^^^^^^^^^^^^\n          backend=self.pep517_backend,\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n          details=details,\n          ^^^^^^^^^^^^^^^^\n      )\n      ^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\operations\\build\\metadata.py\", line 34, in generate_metadata\n      distinfo_dir = backend.prepare_metadata_for_build_wheel(metadata_dir)\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\utils\\misc.py\", line 755, in prepare_metadata_for_build_wheel\n      return super().prepare_metadata_for_build_wheel(\n             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n          metadata_directory=metadata_directory,\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n          config_settings=cs,\n          ^^^^^^^^^^^^^^^^^^^\n          _allow_fallback=_allow_fallback,\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n      )\n      ^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_vendor\\pyproject_hooks\\_impl.py\", line 224, in prepare_metadata_for_build_wheel\n      return self._call_hook(\n             ~~~~~~~~~~~~~~~^\n          \"prepare_metadata_for_build_wheel\",\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n      ...<4 lines>...\n          },\n          ^^\n      )\n      ^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_vendor\\pyproject_hooks\\_impl.py\", line 402, in _call_hook\n      raise BackendUnavailable(\n      ...<4 lines>...\n      )\n  pip._vendor.pyproject_hooks._impl.BackendUnavailable: Cannot import 'setuptools.build_meta'\n  \nassert 2 == 0\n +  where 2 = CompletedProcess(args=['C:\\\\Users\\\\MSI\\\\.codex\\\\worktrees\\\\ci-baseline-9d3c591\\\\runtime\\\\venv\\\\Scripts\\\\python.exe', '....<4 lines>...\\n    )\\npip._vendor.pyproject_hooks._impl.BackendUnavailable: Cannot import \\'setuptools.build_meta\\'\\n').returncode"
+      },
+      {
+        "node": "tests/test_adversarial_challenger_1::test_r4_adversarial_volume_and_brightness_boundary_clamping",
+        "kind": "failure",
+        "message": "assert None == 0\n +  where None = set_brightness(-50)\n +    where set_brightness = <jarvis.automation.control.ComputerController object at 0x000001B379D43070>.set_brightness"
+      },
+      {
+        "node": "tests/test_adversarial_m1_diacritic_homophones/TestAdversarialStressAndReDoS::test_massive_string_dos_rejection_sla",
+        "kind": "failure",
+        "message": "AssertionError: assert 'system_volume' == 'unknown_intent'\n  \n  - unknown_intent\n  + system_volume"
+      },
+      {
+        "node": "tests/test_adversarial_m1_intent_router/TestAdversarialPunctuation::test_punctuation_tolerance[Jarvis, m\\u1edf d\\u1ef1 \\xe1n: 'JARVIS-PRO'-workspace_prepare]",
+        "kind": "failure",
+        "message": "AssertionError: Failed on noisy input: 'Jarvis, mở dự án: 'JARVIS-PRO'' -> got app_open\nassert 'app_open' == 'workspace_prepare'\n  \n  - workspace_prepare\n  + app_open"
+      },
+      {
+        "node": "tests/test_adversarial_m1_intent_router/TestExtremeEdgeCases::test_huge_input_redos_resistance",
+        "kind": "failure",
+        "message": "AssertionError: assert 'unknown_intent' == 'workspace_prepare'\n  \n  - workspace_prepare\n  + unknown_intent"
+      },
+      {
+        "node": "tests/test_adversarial_m2_llm_router::test_pipeline_integration_category4_weather",
+        "kind": "failure",
+        "message": "assert False is True"
+      },
+      {
+        "node": "tests/test_adversarial_m3_challenger1::test_dashboard_cors_options_and_404_resilience",
+        "kind": "failure",
+        "message": "AssertionError: assert None == '*'\n +  where None = get('Access-Control-Allow-Origin')\n +    where get = <http.client.HTTPMessage object at 0x000001B3038E0230>.get\n +      where <http.client.HTTPMessage object at 0x000001B3038E0230> = <http.client.HTTPResponse object at 0x000001B303843F10>.headers"
+      },
+      {
+        "node": "tests/test_adversarial_m3_ui_app::test_dashboard_cors_and_options_and_404",
+        "kind": "failure",
+        "message": "AssertionError: assert None == '*'\n +  where None = get('Access-Control-Allow-Origin')\n +    where get = <http.client.HTTPMessage object at 0x000001B3013B7BB0>.get\n +      where <http.client.HTTPMessage object at 0x000001B3013B7BB0> = <http.client.HTTPResponse object at 0x000001B300CA3670>.headers"
+      },
+      {
+        "node": "tests/test_adversarial_m4_challenger1::test_security_scanner_unauthenticated_biometric_rejection",
+        "kind": "failure",
+        "message": "AssertionError: assert <ActionStatus...ABS_DISABLED'> == 'PERMISSION_DENIED'\n  \n  - PERMISSION_DENIED\n  + LABS_DISABLED"
+      },
+      {
+        "node": "tests/test_adversarial_sprint2_challenger1/TestAdversarialR2TTSCOMSafety::test_rapid_queue_flood_and_task_callback_exception_resilience",
+        "kind": "failure",
+        "message": "AssertionError: Expected 50 tasks processed, got 1\nassert 1 == 50"
+      },
+      {
+        "node": "tests/test_adversarial_sprint2_challenger2/TestIntentRoutingAndReDoS::test_extensive_hardware_query_permutations_accented_and_unaccented",
+        "kind": "failure",
+        "message": "AssertionError: Failed routing utterance 'kiểm tra bộ nhớ': got generic_llm_response, expected hardware_telemetry_check\nassert False"
+      },
+      {
+        "node": "tests/test_challenger2_autonomous_stress/TestR4ComputerUseVisionAndGUIActorAdversarial::test_negative_and_zero_screen_dimensions",
+        "kind": "failure",
+        "message": "AssertionError: Tuples differ: (260, 463) != (0, 0)\n\nFirst differing element 0:\n260\n0\n\n- (260, 463)\n+ (0, 0)"
+      },
+      {
+        "node": "tests/test_challenger2_stress/TestR5WebIntelligenceAdversarial::test_malformed_rss_and_atom_xml_feeds",
+        "kind": "failure",
+        "message": "AssertionError: 'Tiêu đề Test' not found in 'Tiêu đề <b>Test</b>'"
+      },
+      {
+        "node": "tests/test_challenger2_stress/TestR5WebIntelligenceAdversarial::test_offline_network_failure_recovery_full_hub",
+        "kind": "failure",
+        "message": "AssertionError: 'speech_text' not found in {'city': 'Hà Nội', 'weather': {'city': 'Hà Nội', 'temp_c': 27.0, 'feels_like_c': 29.0, 'condition': 'Nhiều mây', 'humidity': 75, 'wind_kph': 12.0, 'uv_index': None, 'pressure_hpa': None, 'visibility_km': None, 'source': 'offline_fallback', 'timestamp': 1790242039.430999}, 'weather_speech': 'Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như 29°C), nhiều mây. Độ ẩm 75%, sức gió 12.0 km/h, thưa Ngài.', 'news': ['Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing (VnExpress)', 'Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu (TechCrunch)', 'Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở (VnExpress)'], 'news_articles': [{'title': 'Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing', 'link': 'https://vnexpress.net/so-hoa', 'description': 'Các công nghệ trí tuệ nhân tạo thế hệ mới đang được tối ưu hóa cho thiết bị biên.', 'published_at': '', 'source': 'VnExpress'}, {'title': 'Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu', 'link': 'https://techcrunch.com', 'description': 'Thị trường chip bán dẫn tiếp tục ghi nhận nhu cầu mạnh mẽ.', 'published_at': '', 'source': 'TechCrunch'}, {'title': 'Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở', 'link': 'https://vnexpress.net', 'description': 'Hệ sinh thái open-source phát triển mạnh mẽ cho desktop assistant.', 'published_at': '', 'source': 'VnExpress'}], 'crypto': {'BTC': 64500.0, 'ETH': 3450.0}, 'usd_vnd_rate': 25450.0, 'crypto_speech': 'Bitcoin hiện ở mức $64,500 (+0.5%), Ethereum đạt $3,450 (+0.5%).', 'spoken_summary': 'Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như 29°C), nhiều mây. Độ ẩm 75%, sức gió 12.0 km/h, thưa Ngài. Về thị trường tài chính: Bitcoin hiện ở mức $64,500 (+0.5%), Ethereum đạt $3,450 (+0.5%). Điểm qua 3 tin tức công nghệ nổi bật: Thứ 1: Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing. Thứ 2: Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu. Thứ 3: Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở.', 'overlay_bullets': ['#x1F324️ **Thời tiết Hà Nội**: 27.0°C, Nhiều mây (Độ ẩm 75%)', '#x1F4B0 **Thị trường**: BTC $64,500 | ETH $3,450 | USD/VND 25,450', '#x1F4F0 **Tin tức nổi bật**:', '  • Nhiều bước tiến mới trong mô hình AI đa phương thức và Edge Computing', '  • Các tập đoàn công nghệ đẩy mạnh đầu tư hạ tầng bán dẫn và trung tâm dữ liệu', '  • Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở'], 'timestamp': '2026-09-24T16:27:19.431560'}"
+      },
+      {
+        "node": "tests/test_challenger2_stress/TestR8OverlayHUDAdversarial::test_long_text_truncation_and_turn_recording",
+        "kind": "failure",
+        "message": "AssertionError: 'AAAA[228 chars]AAAAA...' != 'AAAA[228 chars]AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA[9718 chars]AAAA'\nDiff is 10247 characters long. Set self.maxDiff to None to see it."
+      },
+      {
+        "node": "tests/test_challenger_m1_2_empirical::test_record_audio_exception_resilience_when_sounddevice_fails",
+        "kind": "failure",
+        "message": "AssertionError: Fallback buffer generation took too long: 5.5268s\nassert 5.526758699998027 < 0.1"
+      },
+      {
+        "node": "tests/test_challenger_m4_2_security::test_scanner_and_capture_reject_unauthenticated_contexts",
+        "kind": "failure",
+        "message": "AssertionError: assert <ActionStatus...ABS_DISABLED'> == 'PERMISSION_DENIED'\n  \n  - PERMISSION_DENIED\n  + LABS_DISABLED"
+      },
+      {
+        "node": "tests/test_challenger_m4_2_security::test_packet_capture_injection_resilience[tcp and port 80; calc.exe]",
+        "kind": "failure",
+        "message": "assert 0 == 1\n +  where 0 = len([])"
+      },
+      {
+        "node": "tests/test_challenger_m4_2_security::test_packet_capture_injection_resilience[udp | whoami]",
+        "kind": "failure",
+        "message": "assert 0 == 1\n +  where 0 = len([])"
+      },
+      {
+        "node": "tests/test_challenger_m4_2_security::test_packet_capture_injection_resilience[host 10.0.0.1 && dir C:\\\\]",
+        "kind": "failure",
+        "message": "assert 0 == 1\n +  where 0 = len([])"
+      },
+      {
+        "node": "tests/test_challenger_m4_2_security::test_packet_capture_injection_resilience[`calc.exe`]",
+        "kind": "failure",
+        "message": "assert 0 == 1\n +  where 0 = len([])"
+      },
+      {
+        "node": "tests/test_challenger_m4_2_security::test_tshark_subprocess_timeout_or_error_handling",
+        "kind": "failure",
+        "message": "AttributeError: 'ActionResult' object has no attribute 'packet_count'"
+      },
+      {
+        "node": "tests/test_comms_hub::test_comms_telegram_photo_dispatch_tier1",
+        "kind": "failure",
+        "message": "assert False is True"
+      },
+      {
+        "node": "tests/test_e2e_scenarios::test_e2e_tier3_unresponsive_app_healing_flow",
+        "kind": "failure",
+        "message": "assert 93.0 < 80.0\n +  where 93.0 = <tests.conftest.MockHardwareProvider object at 0x000001B30093F950>.ram_percent"
+      },
+      {
+        "node": "tests/test_e2e_scenarios::test_e2e_tier4_system_crisis_self_healing_workflow",
+        "kind": "failure",
+        "message": "assert 96.0 < 75.0\n +  where 96.0 = <tests.conftest.MockHardwareProvider object at 0x000001B304272300>.ram_percent"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m2::test_stress_cache_corruption_resilience_matrix[garbage_binary_200b]",
+        "kind": "failure",
+        "message": "assert True is False"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m2::test_stress_spotify_plugin_empty_and_corrupt_uris",
+        "kind": "failure",
+        "message": "AssertionError: assert False is True\n +  where False = ActionResult(action_name='spotify_play', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='ACTION_FAILED', me...m', error_code='ACTION_FAILED', execution_time_ms=0.07539999205619097, requester='system', timestamp=1790242117.259105).success"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m2::test_stress_shell_plugin_timeout_and_privilege_enforcement",
+        "kind": "failure",
+        "message": "assert ('timed out' in \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: 52c24b50)\" or 'CONFIRMATION_REQUIRED' == 'HANDLER_EXCEPTION'\n +  where \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: 52c24b50)\" = <built-in method lower of str object at 0x000001B301A84ED0>()\n +    where <built-in method lower of str object at 0x000001B301A84ED0> = \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: 52C24B50)\".lower\n +      where \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: 52C24B50)\" = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE..._code='CONFIRMATION_REQUIRED', execution_time_ms=0.18259999342262745, requester='system', timestamp=1790242117.2703896).error\n  \n  - HANDLER_EXCEPTION\n  + CONFIRMATION_REQUIRED)"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m2_e2e_stress::test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue",
+        "kind": "failure",
+        "message": "AssertionError: assert 'clap_pause_clap' in ['action:spotify', 'action:chrome_claude', 'action:chrome_binance', 'double_clap', 'action:tts_welcome', 'action:cursor', ...]"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m3_2::test_app_log_interaction_delegation_and_custom_config",
+        "kind": "failure",
+        "message": "AssertionError: assert False\n +  where False = exists()\n +    where exists = WindowsPath('C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/JARVIS/.baseline-tools/pytest-temp/pytest-of-MSI/pytest-3/test_app_log_interaction_deleg0/custom_app_interactions.log').exists"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m3_2::test_welcome_pool_empty_and_whitespace_fallback",
+        "kind": "failure",
+        "message": "IndexError: Cannot choose from an empty sequence"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m3_2::test_startup_intro_with_mocked_tts_queues_expected_phrase",
+        "kind": "failure",
+        "message": "AssertionError: assert 2 == 1\n +  where 2 = len([('Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như...n máy tính cá nhân thu hút cộng đồng mã nguồn mở.', False), ('Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.', False)])"
+      },
+      {
+        "node": "tests/test_empirical_challenger_m3_2::test_startup_intro_custom_configured_phrase",
+        "kind": "failure",
+        "message": "AssertionError: assert 2 == 1\n +  where 2 = len([('Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như...n máy tính cá nhân thu hút cộng đồng mã nguồn mở.', False), ('Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.', False)])"
+      },
+      {
+        "node": "tests/test_m3_ux::test_startup_vocal_introduction",
+        "kind": "failure",
+        "message": "AssertionError: assert 'Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS.' in 'Chào buổi chiều thưa Ngài. Sau đây là bản tin tổng hợp hôm nay: Thời tiết tại Hà Nội hiện tại là 27°C (cảm giác như 2...bán dẫn và trung tâm dữ liệu. Thứ 3: Phát triển trợ lý AI cá nhân trên máy tính cá nhân thu hút cộng đồng mã nguồn mở.'"
+      },
+      {
+        "node": "tests/test_plugins::test_plugin_shell_command_execution_tier1",
+        "kind": "failure",
+        "message": "AssertionError: assert False is True\n +  where False = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE..._code='CONFIRMATION_REQUIRED', execution_time_ms=0.11679998715408146, requester='system', timestamp=1790242147.3865428).success"
+      },
+      {
+        "node": "tests/test_plugins::test_plugin_shell_timeout_error_handling_tier2",
+        "kind": "failure",
+        "message": "assert 'timed out' in \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: fcdf6501)\"\n +  where \"hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa ngài. (mã xác nhận: fcdf6501)\" = <built-in method lower of str object at 0x000001B30237F090>()\n +    where <built-in method lower of str object at 0x000001B30237F090> = \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: FCDF6501)\".lower\n +      where \"Hành động 'shell_exec' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: FCDF6501)\" = ActionResult(action_name='shell_exec', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONFIRMATION_REQUIRE..._code='CONFIRMATION_REQUIRED', execution_time_ms=0.09839999256655574, requester='system', timestamp=1790242147.4057124).error"
+      },
+      {
+        "node": "tests/test_tier5_adversarial_sec_iot_comms_data::test_security_tshark_cli_parameters_and_bpf_injection",
+        "kind": "failure",
+        "message": "assert 0 == 1\n +  where 0 = len([])"
+      },
+      {
+        "node": "tests/test_tier5_adversarial_sec_iot_comms_data::test_telegram_unauthorized_user_and_injection_defense",
+        "kind": "failure",
+        "message": "assert 503 == 200"
+      },
+      {
+        "node": "tests/test_user_simulation::test_sim_05_second_double_clap_triggers_ai_voice_loop",
+        "kind": "failure",
+        "message": "assert False\n +  where False = _wait_for_condition(<function test_sim_05_second_double_clap_triggers_ai_voice_loop.<locals>.<lambda> at 0x000001B3018158A0>, timeout=3.0)"
+      },
+      {
+        "node": "tests/test_user_simulation::test_sim_06_voice_loop_smart_keyword_home_assistant",
+        "kind": "failure",
+        "message": "assert False\n +  where False = _wait_for_condition(<function test_sim_06_voice_loop_smart_keyword_home_assistant.<locals>.<lambda> at 0x000001B301815580>, timeout=3.0)"
+      },
+      {
+        "node": "tests/test_user_simulation::test_sim_07_voice_loop_smart_keyword_hardware_telemetry",
+        "kind": "failure",
+        "message": "assert False\n +  where False = _wait_for_condition(<function test_sim_07_voice_loop_smart_keyword_hardware_telemetry.<locals>.<lambda> at 0x000001B303D051C0>, timeout=3.0)"
+      },
+      {
+        "node": "tests/test_user_simulation::test_sim_16_vietnamese_smart_keyword_router_7_categories[kh\\xf3a m\\xe0n h\\xecnh-system_power-action-lock-\\u0110\\xe3 kh\\xf3a m\\xe0n h\\xecnh]",
+        "kind": "failure",
+        "message": "AssertionError: assert 'đã khóa màn hình' in 'đang tắt màn hình cho ngài.'\n +  where 'đã khóa màn hình' = <built-in method lower of str object at 0x000001B3762E2F00>()\n +    where <built-in method lower of str object at 0x000001B3762E2F00> = 'Đã khóa màn hình'.lower\n +  and   'đang tắt màn hình cho ngài.' = <built-in method lower of str object at 0x000001B374DB9930>()\n +    where <built-in method lower of str object at 0x000001B374DB9930> = 'Đang tắt màn hình cho Ngài.'.lower\n +      where 'Đang tắt màn hình cho Ngài.' = IntentResult(action_name='system_power', parameters={'action': 'screen_off'}, confidence=1.0, source='rule_fallback', ... response_text='Đang tắt màn hình cho Ngài.', requires_confirmation=False, confirmation_prompt=None, danger_level=None).response_text"
+      },
+      {
+        "node": "tests/test_user_simulation::test_sim_18_cli_health_check_verification",
+        "kind": "failure",
+        "message": "AssertionError: assert 'Operating System:' in '=================================================================\\n JARVIS System Health Diagnostics (v5.2.1)\\n======...==========================\\n Diagnostics completed. Browser automation is READY; review each subsystem result above.\\n'"
+      }
+    ],
+    "skips": [
+      {
+        "node": "::tests.test_biometrics",
+        "reason": "collection skipped"
+      },
+      {
+        "node": "::tests.test_live_infra_evidence",
+        "reason": "collection skipped"
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_http_503_navigation_fails_closed",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_http_403_navigation_reports_blocked",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_http_200_error_title_cannot_report_success",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_redirect_reports_final_real_url_and_dom",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_playwright_extra_headers_do_not_cross_redirect_origin",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_playwright_extra_headers_survive_same_origin_redirect",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_playwright_redirect_never_readds_headers_after_cross_origin_bounce",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_playwright_subresource_bounce_never_readds_scoped_header",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_playwright_cross_origin_iframe_cannot_spend_scoped_header",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_playwright_cross_origin_iframe_top_navigation_is_not_trusted_click",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_playwright_cookie_delta_only_mutates_targeted_identity",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_core_handler_can_use_browser_launched_on_another_thread",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_local_product_page_yields_only_evidenced_offer",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_real_browser_full_action_and_dom_flow",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_wait_timeout_has_stable_timeout_result",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_navigation_timeout_fails_closed",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_action_after_session_close_reports_disconnected",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_invalid_selector_returns_stable_error",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_real_cdp_attach_navigates_and_interacts",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_real_cdp_disconnect_fails_closed",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/e2e/test_browser_playwright_e2e::test_legacy_controller_delegates_to_real_canonical_browser",
+        "reason": "Set JARVIS_RUN_BROWSER_E2E=1 to run real Chromium tests."
+      },
+      {
+        "node": "tests/integration/test_web_intelligence_live/TestWebIntelligenceLiveRuntime::test_live_weather_wttr_in_sanity_bounds",
+        "reason": "wttr.in is unreachable (DNS or TCP connect failed) — skipping live test."
+      },
+      {
+        "node": "tests/integration/test_web_intelligence_live/TestWebIntelligenceLiveRuntime::test_live_vnexpress_rss_news_headlines",
+        "reason": "vnexpress.net is unreachable — skipping live test."
+      },
+      {
+        "node": "tests/integration/test_web_intelligence_live/TestWebIntelligenceLiveRuntime::test_live_morning_briefing_end_to_end_synthesis",
+        "reason": "Internet endpoints unreachable — skipping live briefing test."
+      },
+      {
+        "node": "tests/test_adversarial_harness::test_fixture_isolation_camera_feed_reset",
+        "reason": "opencv-python not installed; skip vision tests"
+      },
+      {
+        "node": "tests/test_adversarial_m2_llm_router::test_stress_concurrent_app_process_text_command",
+        "reason": "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+      },
+      {
+        "node": "tests/test_adversarial_m2_llm_router::test_pipeline_integration_category1_smart_home",
+        "reason": "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+      },
+      {
+        "node": "tests/test_adversarial_m2_llm_router::test_pipeline_integration_category2_hardware_telemetry",
+        "reason": "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+      },
+      {
+        "node": "tests/test_adversarial_m2_llm_router::test_pipeline_integration_category5_reminder",
+        "reason": "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+      },
+      {
+        "node": "tests/test_adversarial_m2_llm_router::test_pipeline_integration_category6_power_safety",
+        "reason": "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+      },
+      {
+        "node": "tests/test_e2e_scenarios::test_e2e_tier3_intruder_to_lock_and_telegram",
+        "reason": "opencv-python not installed; skip vision tests"
+      },
+      {
+        "node": "tests/test_e2e_scenarios::test_e2e_tier3_privilege_gated_nmap_scan_flow",
+        "reason": "opencv-python not installed; skip vision tests"
+      },
+      {
+        "node": "tests/test_e2e_scenarios::test_e2e_tier4_security_audit_and_incident_workflow",
+        "reason": "opencv-python not installed; skip vision tests"
+      },
+      {
+        "node": "tests/test_llm_router::test_m2_app_process_text_command_integration",
+        "reason": "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+      },
+      {
+        "node": "tests/test_windows_platform::test_mediapipe_hand_gesture_classifier_tier1",
+        "reason": "opencv-python not installed; skip vision tests"
+      },
+      {
+        "node": "tests/unit/test_data_analysis_service::test_render_chart_with_matplotlib_produces_png_bytes",
+        "reason": "could not import 'matplotlib': No module named 'matplotlib'"
+      },
+      {
+        "node": "tests/unit/test_data_analysis_service::test_render_chart_error_path_does_not_leak_figure",
+        "reason": "could not import 'matplotlib.pyplot': No module named 'matplotlib'"
+      },
+      {
+        "node": "tests/unit/test_data_analysis_service::test_execute_chart_success_reflects_actual_render_outcome",
+        "reason": "could not import 'matplotlib': No module named 'matplotlib'"
+      },
+      {
+        "node": "tests/unit/test_wake_word_p0::test_p0a_vosk_model_path_discovery_hierarchy",
+        "reason": "vosk not installed — test requires vosk package to mock vosk.Model"
+      }
+    ]
+  },
+  {
+    "name": "sandbox-external",
+    "started_utc": "2026-09-24T09:18:28.0057687Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": "../runtime/venv/Scripts/python.exe -m pytest tests/unit/test_adversarial_r1_r2_r5_stress.py::TestAdversarialR2SandboxSecurity::test_sandbox_timeout_and_resource_bounds_enforcement tests/unit/test_adversarial_r1_r2_r5_stress.py::TestAdversarialR2SandboxSecurity::test_dynamic_skill_synthesis_metadata_and_telemetry_stress tests/unit/test_skill_synthesis.py -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/sandbox-external.xml",
+    "exit_code": 0,
+    "wall_seconds": 33.1609754,
+    "console_summary": [
+      "30 passed, 19 subtests passed in 28.60s"
+    ],
+    "junit_suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "49",
+        "time": "28.540",
+        "timestamp": "2026-09-24T16:18:31.303397+07:00",
+        "hostname": "DESKTOP-OCR9N3Q"
+      }
+    ],
+    "failures": [],
+    "skips": []
+  },
+  {
+    "name": "sandbox-triage",
+    "started_utc": "2026-09-24T09:14:20.9905271Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": ".venv/Scripts/python.exe -m pytest tests/unit/test_adversarial_r1_r2_r5_stress.py::TestAdversarialR2SandboxSecurity::test_sandbox_timeout_and_resource_bounds_enforcement tests/unit/test_adversarial_r1_r2_r5_stress.py::TestAdversarialR2SandboxSecurity::test_dynamic_skill_synthesis_metadata_and_telemetry_stress -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/sandbox-triage.xml",
+    "exit_code": 1,
+    "wall_seconds": 7.2742797,
+    "console_summary": [
+      "2 failed in 5.01s"
+    ],
+    "junit_suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "2",
+        "skipped": "0",
+        "tests": "2",
+        "time": "4.955",
+        "timestamp": "2026-09-24T16:14:22.959053+07:00",
+        "hostname": "DESKTOP-OCR9N3Q"
+      }
+    ],
+    "failures": [
+      {
+        "node": "tests/unit/test_adversarial_r1_r2_r5_stress/TestAdversarialR2SandboxSecurity::test_sandbox_timeout_and_resource_bounds_enforcement",
+        "kind": "failure",
+        "message": "AssertionError: False is not true"
+      },
+      {
+        "node": "tests/unit/test_adversarial_r1_r2_r5_stress/TestAdversarialR2SandboxSecurity::test_dynamic_skill_synthesis_metadata_and_telemetry_stress",
+        "kind": "failure",
+        "message": "ValueError: Skill 'record_calculator' rejected: sandbox dry-run execution failed — Traceback (most recent call last):\r\n  File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\workspace\\sandbox\\run_8900f4c699\\script.py\", line 207, in <module>\r\n    import json\r\nModuleNotFoundError: No module named 'json'"
+      }
+    ],
+    "skips": []
+  },
+  {
+    "name": "t01-scoped",
+    "started_utc": "2026-09-24T09:34:01.7725921Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": "../runtime/venv/Scripts/python.exe -m pytest C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\tests\\unit\\test_browser_action_concurrency.py C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\tests\\unit\\test_browser_action_truthfulness.py C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\tests\\unit\\test_browser_agent.py C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\tests\\unit\\test_browser_cli_status.py C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\tests\\unit\\test_browser_control.py C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\tests\\unit\\test_browser_cookie_security.py C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\tests\\unit\\test_browser_core_handlers.py C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\tests\\unit\\test_browser_lifecycle_security.py C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\tests\\unit\\test_browser_price_truthfulness.py C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\tests\\unit\\test_browser_session_atomic.py C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\tests\\unit\\test_browser_thread_affinity.py C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\tests\\unit\\test_browser_truthfulness.py -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/t01-scoped.xml",
+    "exit_code": 0,
+    "wall_seconds": 14.7894987,
+    "console_summary": [
+      "286 passed in 12.11s"
+    ],
+    "junit_suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "286",
+        "time": "12.076",
+        "timestamp": "2026-09-24T16:34:03.683286+07:00",
+        "hostname": "DESKTOP-OCR9N3Q"
+      }
+    ],
+    "failures": [],
+    "skips": []
+  },
+  {
+    "name": "unit-baseline",
+    "started_utc": "2026-09-24T09:10:35.8710307Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": ".venv/Scripts/python.exe -m pytest tests/unit/ -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/unit-baseline.xml",
+    "exit_code": -1,
+    "wall_seconds": 81.456673,
+    "console_summary": []
+  },
+  {
+    "name": "unit-final",
+    "started_utc": "2026-09-24T09:19:24.1585771Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": "../runtime/venv/Scripts/python.exe -m pytest tests/unit/ -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/unit-final.xml",
+    "exit_code": 0,
+    "wall_seconds": 264.7205317,
+    "console_summary": [
+      "2723 passed, 4 skipped, 268 subtests passed in 261.12s (0:04:21)"
+    ],
+    "junit_suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "4",
+        "tests": "2995",
+        "time": "261.000",
+        "timestamp": "2026-09-24T16:19:26.223306+07:00",
+        "hostname": "DESKTOP-OCR9N3Q"
+      }
+    ],
+    "failures": [],
+    "skips": [
+      {
+        "node": "tests/unit/test_data_analysis_service::test_render_chart_with_matplotlib_produces_png_bytes",
+        "reason": "could not import 'matplotlib': No module named 'matplotlib'"
+      },
+      {
+        "node": "tests/unit/test_data_analysis_service::test_render_chart_error_path_does_not_leak_figure",
+        "reason": "could not import 'matplotlib.pyplot': No module named 'matplotlib'"
+      },
+      {
+        "node": "tests/unit/test_data_analysis_service::test_execute_chart_success_reflects_actual_render_outcome",
+        "reason": "could not import 'matplotlib': No module named 'matplotlib'"
+      },
+      {
+        "node": "tests/unit/test_wake_word_p0::test_p0a_vosk_model_path_discovery_hierarchy",
+        "reason": "vosk not installed — test requires vosk package to mock vosk.Model"
+      }
+    ]
+  },
+  {
+    "name": "unit",
+    "started_utc": "2026-09-24T09:11:57.4952959Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": ".venv/Scripts/python.exe -m pytest tests/unit/ -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/unit.xml",
+    "exit_code": 1,
+    "wall_seconds": 323.9672508,
+    "console_summary": [
+      "14 failed, 2709 passed, 4 skipped, 268 subtests passed in 320.58s (0:05:20)"
+    ],
+    "junit_suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "14",
+        "skipped": "4",
+        "tests": "2995",
+        "time": "320.411",
+        "timestamp": "2026-09-24T16:11:59.218884+07:00",
+        "hostname": "DESKTOP-OCR9N3Q"
+      }
+    ],
+    "failures": [
+      {
+        "node": "tests/unit/test_adversarial_r1_r2_r5_stress/TestAdversarialR2SandboxSecurity::test_dynamic_skill_synthesis_metadata_and_telemetry_stress",
+        "kind": "failure",
+        "message": "ValueError: Skill 'record_calculator' rejected: sandbox dry-run execution failed — Traceback (most recent call last):\r\n  File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\workspace\\sandbox\\run_302393d7b7\\script.py\", line 207, in <module>\r\n    import json\r\nModuleNotFoundError: No module named 'json'"
+      },
+      {
+        "node": "tests/unit/test_adversarial_r1_r2_r5_stress/TestAdversarialR2SandboxSecurity::test_sandbox_timeout_and_resource_bounds_enforcement",
+        "kind": "failure",
+        "message": "AssertionError: False is not true"
+      },
+      {
+        "node": "tests/unit/test_skill_synthesis/TestCodeInterpreterSandbox::test_sandbox_artifact_capture_image_and_excel",
+        "kind": "failure",
+        "message": "AssertionError: False is not true"
+      },
+      {
+        "node": "tests/unit/test_skill_synthesis/TestCodeInterpreterSandbox::test_sandbox_extra_files_provisioning",
+        "kind": "failure",
+        "message": "AssertionError: False is not true"
+      },
+      {
+        "node": "tests/unit/test_skill_synthesis/TestCodeInterpreterSandbox::test_sandbox_python_execution_data_processing",
+        "kind": "failure",
+        "message": "AssertionError: False is not true"
+      },
+      {
+        "node": "tests/unit/test_skill_synthesis/TestDynamicSkillSynthesizer::test_skill_auto_packaging_creates_valid_module",
+        "kind": "failure",
+        "message": "ValueError: Skill 'text_reverser' rejected: sandbox dry-run execution failed — Traceback (most recent call last):\r\n  File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\workspace\\sandbox\\run_7841b143ce\\script.py\", line 207, in <module>\r\n    import json\r\nModuleNotFoundError: No module named 'json'"
+      },
+      {
+        "node": "tests/unit/test_skill_synthesis/TestDynamicSkillSynthesizer::test_skill_dry_run_handles_parametrized_skill",
+        "kind": "failure",
+        "message": "ValueError: Skill 'param_test' rejected: sandbox dry-run execution failed — Traceback (most recent call last):\r\n  File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\workspace\\sandbox\\run_ff1336d95a\\script.py\", line 207, in <module>\r\n    import json\r\nModuleNotFoundError: No module named 'json'"
+      },
+      {
+        "node": "tests/unit/test_skill_synthesis/TestDynamicSkillSynthesizer::test_skill_dry_run_rejects_internal_type_error",
+        "kind": "failure",
+        "message": "AssertionError: 'unsupported operand type' not found in 'Skill \\'internal_type_error\\' rejected: sandbox dry-run execution failed — Traceback (most recent call last):\\r\\n  File \"C:\\\\Users\\\\MSI\\\\.codex\\\\worktrees\\\\ci-baseline-9d3c591\\\\JARVIS\\\\workspace\\\\sandbox\\\\run_6e0e45a0e4\\\\script.py\", line 207, in <module>\\r\\n    import json\\r\\nModuleNotFoundError: No module named \\'json\\''"
+      },
+      {
+        "node": "tests/unit/test_skill_synthesis/TestDynamicSkillSynthesizer::test_skill_dry_run_rejects_runtime_division_by_zero",
+        "kind": "failure",
+        "message": "AssertionError: 'ZeroDivisionError' not found in 'Skill \\'div_zero\\' rejected: sandbox dry-run execution failed — Traceback (most recent call last):\\r\\n  File \"C:\\\\Users\\\\MSI\\\\.codex\\\\worktrees\\\\ci-baseline-9d3c591\\\\JARVIS\\\\workspace\\\\sandbox\\\\run_8f1cdce774\\\\script.py\", line 207, in <module>\\r\\n    import json\\r\\nModuleNotFoundError: No module named \\'json\\''"
+      },
+      {
+        "node": "tests/unit/test_skill_synthesis/TestDynamicSkillSynthesizer::test_skill_dry_run_rejects_runtime_unhandled_exception",
+        "kind": "failure",
+        "message": "AssertionError: 'RuntimeError' not found in 'Skill \\'runtime_crash\\' rejected: sandbox dry-run execution failed — Traceback (most recent call last):\\r\\n  File \"C:\\\\Users\\\\MSI\\\\.codex\\\\worktrees\\\\ci-baseline-9d3c591\\\\JARVIS\\\\workspace\\\\sandbox\\\\run_31325c8e7a\\\\script.py\", line 207, in <module>\\r\\n    import json\\r\\nModuleNotFoundError: No module named \\'json\\''"
+      },
+      {
+        "node": "tests/unit/test_skill_synthesis/TestSkillRegistryAndDispatcherIntegration::test_skill_invocation_and_telemetry",
+        "kind": "failure",
+        "message": "ValueError: Skill 'list_summer' rejected: sandbox dry-run execution failed — Traceback (most recent call last):\r\n  File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\workspace\\sandbox\\run_28328aafcf\\script.py\", line 207, in <module>\r\n    import json\r\nModuleNotFoundError: No module named 'json'"
+      },
+      {
+        "node": "tests/unit/test_skill_synthesis/TestSkillRegistryAndDispatcherIntegration::test_skill_metrics_and_error_handling",
+        "kind": "failure",
+        "message": "ValueError: Skill 'error_tester' rejected: sandbox dry-run execution failed — Traceback (most recent call last):\r\n  File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\workspace\\sandbox\\run_3c5334ca92\\script.py\", line 207, in <module>\r\n    import json\r\nModuleNotFoundError: No module named 'json'"
+      },
+      {
+        "node": "tests/unit/test_skill_synthesis/TestSkillRegistryAndDispatcherIntegration::test_skill_registry_action_dispatcher_integration",
+        "kind": "failure",
+        "message": "ValueError: Skill 'greeter' rejected: sandbox dry-run execution failed — Traceback (most recent call last):\r\n  File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\workspace\\sandbox\\run_33ffa05e31\\script.py\", line 207, in <module>\r\n    import json\r\nModuleNotFoundError: No module named 'json'"
+      },
+      {
+        "node": "tests/unit/test_skill_synthesis/TestSkillRegistryAndDispatcherIntegration::test_skill_registry_dynamic_loading_and_introspection",
+        "kind": "failure",
+        "message": "ValueError: Skill 'multiplier' rejected: sandbox dry-run execution failed — Traceback (most recent call last):\r\n  File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\workspace\\sandbox\\run_66a7e104eb\\script.py\", line 207, in <module>\r\n    import json\r\nModuleNotFoundError: No module named 'json'"
+      }
+    ],
+    "skips": [
+      {
+        "node": "tests/unit/test_data_analysis_service::test_render_chart_with_matplotlib_produces_png_bytes",
+        "reason": "could not import 'matplotlib': No module named 'matplotlib'"
+      },
+      {
+        "node": "tests/unit/test_data_analysis_service::test_render_chart_error_path_does_not_leak_figure",
+        "reason": "could not import 'matplotlib.pyplot': No module named 'matplotlib'"
+      },
+      {
+        "node": "tests/unit/test_data_analysis_service::test_execute_chart_success_reflects_actual_render_outcome",
+        "reason": "could not import 'matplotlib': No module named 'matplotlib'"
+      },
+      {
+        "node": "tests/unit/test_wake_word_p0::test_p0a_vosk_model_path_discovery_hierarchy",
+        "reason": "vosk not installed — test requires vosk package to mock vosk.Model"
+      }
+    ]
+  },
+  {
+    "name": "wheel-green",
+    "started_utc": "2026-09-24T09:35:00.7799040Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": "../runtime/venv/Scripts/python.exe -m pytest tests/integration/test_package_version_build.py -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/wheel-green.xml",
+    "exit_code": 0,
+    "wall_seconds": 10.6223566,
+    "console_summary": [
+      "1 passed in 8.54s"
+    ],
+    "junit_suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "1",
+        "time": "8.487",
+        "timestamp": "2026-09-24T16:35:02.723777+07:00",
+        "hostname": "DESKTOP-OCR9N3Q"
+      }
+    ],
+    "failures": [],
+    "skips": []
+  },
+  {
+    "name": "wheel-red",
+    "started_utc": "2026-09-24T09:25:37.1519274Z",
+    "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+    "command": "../runtime/venv/Scripts/python.exe -m pytest tests/integration/test_package_version_build.py -v --tb=long --timeout=120 --junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\JARVIS\\reports\\evidence\\ci-baseline-20260924/wheel-red.xml",
+    "exit_code": 1,
+    "wall_seconds": 1.9968125,
+    "console_summary": [
+      "1 failed in 0.99s"
+    ],
+    "junit_suites": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "1",
+        "skipped": "0",
+        "tests": "1",
+        "time": "0.947",
+        "timestamp": "2026-09-24T16:25:38.024554+07:00",
+        "hostname": "DESKTOP-OCR9N3Q"
+      }
+    ],
+    "failures": [
+      {
+        "node": "tests/integration/test_package_version_build::test_built_wheel_version_matches_runtime_version",
+        "kind": "failure",
+        "message": "AssertionError: wheel build failed (exit 2):\n  stdout:\n  Processing .\\.\n    Preparing metadata (pyproject.toml): started\n    Preparing metadata (pyproject.toml): finished with status 'done'\n  \n  stderr:\n  ERROR: Exception:\n  Traceback (most recent call last):\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\cli\\base_command.py\", line 109, in _run_wrapper\n      status = _inner_run()\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\cli\\base_command.py\", line 102, in _inner_run\n      return self.run(options, args)\n             ~~~~~~~~^^^^^^^^^^^^^^^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\cli\\req_command.py\", line 106, in wrapper\n      return func(self, options, args)\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\commands\\wheel.py\", line 142, in run\n      requirement_set = resolver.resolve(reqs, check_supported_wheels=True)\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\resolver.py\", line 82, in resolve\n      collected = self.factory.collect_root_requirements(root_reqs)\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\factory.py\", line 563, in collect_root_requirements\n      reqs = list(\n          self._make_requirements_from_install_req(\n      ...<2 lines>...\n          )\n      )\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\factory.py\", line 519, in _make_requirements_from_install_req\n      cand = self._make_base_candidate_from_link(\n          ireq.link,\n      ...<2 lines>...\n          version=None,\n      )\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\factory.py\", line 227, in _make_base_candidate_from_link\n      self._link_candidate_cache[link] = LinkCandidate(\n                                         ~~~~~~~~~~~~~^\n          link,\n          ^^^^^\n      ...<3 lines>...\n          version=version,\n          ^^^^^^^^^^^^^^^^\n      )\n      ^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\candidates.py\", line 325, in __init__\n      super().__init__(\n      ~~~~~~~~~~~~~~~~^\n          link=link,\n          ^^^^^^^^^^\n      ...<4 lines>...\n          version=version,\n          ^^^^^^^^^^^^^^^^\n      )\n      ^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\candidates.py\", line 167, in __init__\n      self.dist = self._prepare()\n                  ~~~~~~~~~~~~~^^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\candidates.py\", line 245, in _prepare\n      dist = self._prepare_distribution()\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\resolution\\resolvelib\\candidates.py\", line 336, in _prepare_distribution\n      return preparer.prepare_linked_requirement(self._ireq, parallel_builds=True)\n             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\operations\\prepare.py\", line 664, in prepare_linked_requirement\n      return self._prepare_linked_requirement(req, parallel_builds)\n             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\operations\\prepare.py\", line 783, in _prepare_linked_requirement\n      dist = _get_prepared_distribution(\n          req,\n      ...<4 lines>...\n          self.allow_editables,\n      )\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\operations\\prepare.py\", line 82, in _get_prepared_distribution\n      abstract_dist.prepare_distribution_metadata(\n      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n          build_env_installer, build_isolation, check_build_deps, allow_editables\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n      )\n      ^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\distributions\\sdist.py\", line 81, in prepare_distribution_metadata\n      self.req.prepare_metadata(allow_editables)\n      ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\req\\req_install.py\", line 535, in prepare_metadata\n      self.metadata_directory = generate_metadata(\n                                ~~~~~~~~~~~~~~~~~^\n          build_env=self.build_env,\n          ^^^^^^^^^^^^^^^^^^^^^^^^^\n          backend=self.pep517_backend,\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n          details=details,\n          ^^^^^^^^^^^^^^^^\n      )\n      ^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\operations\\build\\metadata.py\", line 34, in generate_metadata\n      distinfo_dir = backend.prepare_metadata_for_build_wheel(metadata_dir)\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_internal\\utils\\misc.py\", line 755, in prepare_metadata_for_build_wheel\n      return super().prepare_metadata_for_build_wheel(\n             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n          metadata_directory=metadata_directory,\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n          config_settings=cs,\n          ^^^^^^^^^^^^^^^^^^^\n          _allow_fallback=_allow_fallback,\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n      )\n      ^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_vendor\\pyproject_hooks\\_impl.py\", line 224, in prepare_metadata_for_build_wheel\n      return self._call_hook(\n             ~~~~~~~~~~~~~~~^\n          \"prepare_metadata_for_build_wheel\",\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n      ...<4 lines>...\n          },\n          ^^\n      )\n      ^\n    File \"C:\\Users\\MSI\\.codex\\worktrees\\ci-baseline-9d3c591\\runtime\\venv\\Lib\\site-packages\\pip\\_vendor\\pyproject_hooks\\_impl.py\", line 402, in _call_hook\n      raise BackendUnavailable(\n      ...<4 lines>...\n      )\n  pip._vendor.pyproject_hooks._impl.BackendUnavailable: Cannot import 'setuptools.build_meta'\n  \nassert 2 == 0\n +  where 2 = CompletedProcess(args=['C:\\\\Users\\\\MSI\\\\.codex\\\\worktrees\\\\ci-baseline-9d3c591\\\\runtime\\\\venv\\\\Scripts\\\\python.exe', '....<4 lines>...\\n    )\\npip._vendor.pyproject_hooks._impl.BackendUnavailable: Cannot import \\'setuptools.build_meta\\'\\n').returncode"
+      }
+    ],
+    "skips": []
+  }
+]
