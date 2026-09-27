@@ -133,6 +133,13 @@
     "interrupted": false
   },
   {
+    "run": "final-unit-2",
+    "command_file": "final-unit-2.json",
+    "exit_code": 0,
+    "wall_seconds": 245.5340621471405,
+    "interrupted": false
+  },
+  {
     "run": "final-unit",
     "command_file": "final-unit.json",
     "exit_code": 0,
@@ -151,6 +158,13 @@
     "command_file": "full-integrated-red.json",
     "exit_code": 1,
     "wall_seconds": 791.8369207382202,
+    "interrupted": false
+  },
+  {
+    "run": "hosted-ci-check",
+    "command_file": "hosted-ci-check.json",
+    "exit_code": 0,
+    "wall_seconds": 1.1559999999881256,
     "interrupted": false
   },
   {

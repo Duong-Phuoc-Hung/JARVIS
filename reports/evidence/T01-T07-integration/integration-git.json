@@ -7,5 +7,7 @@
     "codex/t02-t04-trust-transports": "9e7b9772c32521ac09b979ca3a44eb3f75e3537d",
     "codex/t05-t07-runtime-contracts": "eb067351ce311660a90d433920964e18c13b3891"
   },
-  "pr": "https://github.com/Duong-Phuoc-Hung/JARVIS/pull/50"
+  "pr": "https://github.com/Duong-Phuoc-Hung/JARVIS/pull/50",
+  "validated_source_commit": "6af3509af050db158dc4387e6d7ce67c9bec5f73",
+  "source_ci_run": 36305486023
 }

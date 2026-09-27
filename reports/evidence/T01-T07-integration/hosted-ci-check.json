@@ -1,0 +1,13 @@
+{
+  "command": [
+    "D:/github/gh.exe",
+    "run",
+    "watch",
+    "36305486023",
+    "--repo",
+    "Duong-Phuoc-Hung/JARVIS",
+    "--exit-status"
+  ],
+  "exit_code": 0,
+  "wall_seconds": 1.1559999999881256
+}

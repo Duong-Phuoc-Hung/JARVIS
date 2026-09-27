@@ -17,11 +17,11 @@ The following criteria combine those rows with the user's stricter end-to-end ga
 |---|---|---|---|---|
 | T-01 | Real navigate, click, type, selector wait; timeout, no session, disconnect fail truthfully | browser agent/actions/driver/session, legacy CDP controller | `tests/e2e/test_browser_playwright_e2e.py`; Chromium/CDP process, controlled loopback website, result JSON/screenshots | PASS engineering / PASS fail-closed / PASS runtime: 21 actual browser cases; controlled website |
 | T-02 | DOM/scrape/URL/metadata/results cannot authorize shell/delete/send; real browser regression, legitimate actions and 30-second confirmation | external_content, agent graph, router, app, dispatcher, planner engine/interceptor | `tests/e2e/test_browser_authority_e2e.py`; real Chromium and production enforcement, adversarial model responses injected at external model boundary | PASS engineering / PASS fail-closed / PASS runtime: 30 actual browser enforcement cases; no live cloud-model claim |
-| T-03 | Authorized bot/chat/sender send + receive roundtrip, safe commands, rate/timeout/reconnect/replay and missing/bad token | TelegramBotController send_message/poll_updates/handle_update/start/stop | `tests/unit/test_telegram_transport_contract.py`; transport doubles only | runtime PENDING_CREDENTIALS |
-| T-04 | Verified OA outbound + inbound, authenticated webhook, message IDs/status/rate/token/network/replay | ZaloBotController send_message/handle_webhook/start_webhook | `tests/unit/test_zalo_transport_contract.py`, `tests/integration/test_zalo_webhook_http.py`; scripted local HTTP only | runtime PENDING_ZALO_OA_VERIFICATION |
-| T-05 | Permitted guild/channel inbound command + outbound reply; start/stop/reconnect/rate/401/403/404; explicit admin and safety gate | DiscordBotController handle_message/send_message/poll_once/start/stop | `tests/unit/test_discord_acceptance_contract.py`, `tests/integration/test_discord_http_contract.py`; scripted local HTTP only | runtime PENDING_GUILD_CHANNEL_AUTHORIZATION |
-| T-06 | Real unread Unicode mailbox via verified TLS, readonly/PEEK, allowlist/injection, reconnect/auth/timeout/disconnect | IMAPEmailReader connect/fetch_unread/fetch_and_summarize/disconnect | `tests/unit/test_imap_acceptance_contract.py`, `tests/integration/test_imap_tls_contract.py`; real TLS sockets to scripted server | runtime PENDING_MAILBOX_AUTHORIZATION |
-| T-07 | Actual entities; confirmed light on/off AND test temperature, before/after/restore; unknown/unauthorized/offline/bad token fail | HomeAssistantClient and app ActionDispatcher bindings | `tests/unit/test_ha_acceptance_contract.py`, `tests/integration/test_ha_http_contract.py`; scripted HTTP state, no HA software/device | runtime PENDING_HA_INSTANCE_ENTITY |
+| T-03 | Authorized bot/chat/sender send + receive roundtrip, safe commands, rate/timeout/reconnect/replay and missing/bad token | TelegramBotController send_message/poll_updates/handle_update/start/stop | `tests/unit/test_telegram_transport_contract.py`; transport doubles only | PASS engineering / PASS fail-closed; runtime PENDING_CREDENTIALS |
+| T-04 | Verified OA outbound + inbound, authenticated webhook, message IDs/status/rate/token/network/replay | ZaloBotController send_message/handle_webhook/start_webhook | `tests/unit/test_zalo_transport_contract.py`, `tests/integration/test_zalo_webhook_http.py`; scripted local HTTP only | PASS engineering / PASS fail-closed; runtime PENDING_ZALO_OA_VERIFICATION |
+| T-05 | Permitted guild/channel inbound command + outbound reply; start/stop/reconnect/rate/401/403/404; explicit admin and safety gate | DiscordBotController handle_message/send_message/poll_once/start/stop | `tests/unit/test_discord_acceptance_contract.py`, `tests/integration/test_discord_http_contract.py`; scripted local HTTP only | PASS engineering / PASS fail-closed; runtime PENDING_GUILD_CHANNEL_AUTHORIZATION |
+| T-06 | Real unread Unicode mailbox via verified TLS, readonly/PEEK, allowlist/injection, reconnect/auth/timeout/disconnect | IMAPEmailReader connect/fetch_unread/fetch_and_summarize/disconnect | `tests/unit/test_imap_acceptance_contract.py`, `tests/integration/test_imap_tls_contract.py`; real TLS sockets to scripted server | PASS engineering / PASS fail-closed; runtime PENDING_MAILBOX_AUTHORIZATION |
+| T-07 | Actual entities; confirmed light on/off AND test temperature, before/after/restore; unknown/unauthorized/offline/bad token fail | HomeAssistantClient and app ActionDispatcher bindings | `tests/unit/test_ha_acceptance_contract.py`, `tests/integration/test_ha_http_contract.py`; scripted HTTP state, no HA software/device | PASS engineering / PASS fail-closed; runtime PENDING_HA_INSTANCE_ENTITY |
 
 The owner explicitly reconfirmed in this task that T-03–T-07 resources, credentials and live permissions
 have not been provided. No historical credential or send-only result is reused. No live messaging,
@@ -139,9 +139,9 @@ failure or evidence of provider runtime. No warning suppression was added. Nativ
 <!-- current results start -->
 ## Latest completed validation and verdict
 
-Full: **4394 pass / 0 fail / 20 skip**, 683.31 s pytest, 686.491 s wall, native exit 0. Scoped T-01–T-07: **164 pass / 0 fail / 0 skip**, 112.44 s pytest, 115.401 s wall, native exit 0.
+Unit at source commit 6af3509: **2809 pass / 0 fail / 4 skip**, 243.05 s pytest, 245.534 s wall, native exit 0. Full: **4394 pass / 0 fail / 20 skip**, 683.31 s pytest, 686.491 s wall, native exit 0. Scoped T-01–T-07: **164 pass / 0 fail / 0 skip**, 112.44 s pytest, 115.401 s wall, native exit 0.
 
-Hosted CI for this final source is PENDING the branch push; the earlier green merge run does not certify these changes.
+[Hosted CI](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/runs/36305486023) PASS at `6af3509`; all 5 jobs succeeded.
 
 T-01/T-02: PASS engineering / PASS fail-closed / PASS runtime for controlled real Chromium execution/enforcement. T-03–T-07: PASS engineering / PASS fail-closed / runtime PENDING authorized resources. No live messaging, mailbox access or HA write was performed. Optional/live skips are not passes. No CONDITIONAL GO or GO. Main remains 9d3c591, unchanged.
 
@@ -156,3 +156,16 @@ No provider state requires restoration. Browser sessions and HTTP/TLS fixtures c
 canaries verify malicious delete/shell/send never occurred. Verdict: **NOT GO**.
 <!-- current results end -->
 
+Historical native heap exit 0xC0000374 was not reproduced by the latest completed full run (native exit 0); its historical root cause is not claimed solved by this work.
+
+
+## Hosted CI on the validated source commit
+
+Run [36305486023](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/runs/36305486023), head
+`6af3509af050db158dc4387e6d7ce67c9bec5f73`: Syntax, Import, Unit, Browser/transport and Summary all success.
+Hosted unit: **2809 passed / 4 skipped / 268 subtests**, **228.88 s**; hosted browser + local transport:
+**69 passed / 0 failed / 0 skipped**, **109.19 s**. `gh run watch --exit-status` returned native exit 0.
+Original hosted JUnit, job logs, metadata, screenshot artifact and artifact IDs are retained in the evidence ZIP.
+The final evidence/documentation follow-up does not change `jarvis/`, `tests/`, workflow or pyproject from this source
+commit. Its own PR check must also finish before handoff. Neither branch CI nor localhost transport success closes
+T-03–T-07 provider runtime gates; main has not been updated.

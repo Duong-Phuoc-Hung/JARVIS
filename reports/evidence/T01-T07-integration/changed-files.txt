@@ -34,7 +34,14 @@ A	reports/evidence/T01-T07-integration/clock_probe.py
 A	reports/evidence/T01-T07-integration/docx-requirements.json
 A	reports/evidence/T01-T07-integration/environment.json
 A	reports/evidence/T01-T07-integration/failure-classification.json
+A	reports/evidence/T01-T07-integration/final-full-2.json
+A	reports/evidence/T01-T07-integration/final-scoped-2.json
 A	reports/evidence/T01-T07-integration/final-static-checks.json
+A	reports/evidence/T01-T07-integration/final-unit-2.json
+A	reports/evidence/T01-T07-integration/hosted-ci-check.json
+A	reports/evidence/T01-T07-integration/hosted-integration-artifacts.json
+A	reports/evidence/T01-T07-integration/hosted-integration-test-summary.txt
+A	reports/evidence/T01-T07-integration/hosted-integration.json
 A	reports/evidence/T01-T07-integration/integration-git.json
 A	reports/evidence/T01-T07-integration/release-candidate-2-manifest.json
 A	reports/evidence/T01-T07-integration/run-catalog.json

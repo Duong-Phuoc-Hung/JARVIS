@@ -14,9 +14,9 @@ Root causes and file-level repairs:
 - `tests/confirmation_support.py`, new transport command tests and affected regression fixtures: actual confirmation protocol, explicit adapters, truthful errors/packet/RAM assertions, module-local clock patch and completed logging/voice/TTS lifecycle. No xfail or skip added to hide failures.
 - README, ROADMAP, integration audit/evidence: current version, exact source/command/exit/time provenance and resource gates. RED/interrupted evidence is retained.
 
-Full: **4394 pass / 0 fail / 20 skip**, 683.31 s pytest, 686.491 s wall, native exit 0. Scoped T-01–T-07: **164 pass / 0 fail / 0 skip**, 112.44 s pytest, 115.401 s wall, native exit 0.
+Unit at source commit 6af3509: **2809 pass / 0 fail / 4 skip**, 243.05 s pytest, 245.534 s wall, native exit 0. Full: **4394 pass / 0 fail / 20 skip**, 683.31 s pytest, 686.491 s wall, native exit 0. Scoped T-01–T-07: **164 pass / 0 fail / 0 skip**, 112.44 s pytest, 115.401 s wall, native exit 0.
 
-Hosted CI for this final source is PENDING the branch push; the earlier green merge run does not certify these changes.
+[Hosted CI](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/runs/36305486023) PASS at `6af3509`; all 5 jobs succeeded.
 
 T-01/T-02: PASS engineering / PASS fail-closed / PASS runtime for controlled real Chromium execution/enforcement. T-03–T-07: PASS engineering / PASS fail-closed / runtime PENDING authorized resources. No live messaging, mailbox access or HA write was performed. Optional/live skips are not passes. No CONDITIONAL GO or GO. Main remains 9d3c591, unchanged.
 
