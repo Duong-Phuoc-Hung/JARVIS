@@ -34,6 +34,19 @@ order-sensitive candidate). Hosted CI not rerun; runtime PENDING; no CONDITIONAL
 T-01 **PASS fail-closed / PASS runtime (loopback)**. Không nâng thành Product GO.
 Các số liệu/checklist bên dưới là lịch sử; không dùng để phủ định kết quả baseline mới.
 
+## T-02/T-03/T-04 task handoff — 2026-09-24
+
+- T-02: **PASS engineering / PASS fail-closed / PASS runtime (loopback enforcement)**; adversarial real-browser tests cover DOM/scrape/URL/metadata/results,
+  legacy adapters, app/router/planner/dispatcher paths and real 30-second confirmation expiry. Final verdict and fresh
+  test counts are in the [task audit](eval/t02_t04_trust_transports_20260924.md).
+- T-03: Telegram engineering/fail-closed verification delivered; **runtime PENDING** authorized bot/chat/sender/token and
+  human inbound interaction. Keep live certification open until a new two-way round trip succeeds.
+- T-04: OA outbound contract and authenticated real HTTP listener implemented; **runtime PENDING** verified OA/app,
+  allowed recipient, token/OA secret and authorized public HTTPS endpoint. Synthetic webhook/HTTP fixtures are not live OA evidence.
+- Fresh local regression: unit 2751 pass / 4 skip; browser 51 pass; full 4278 pass / 45 fail / 20 skip (exit 1).
+- Overall: **NO-GO** for product release. No integration/main push performed. Old completion/test claims below do not
+  certify this branch; final fresh full-suite failures and their scope are recorded in the audit.
+
 ## Comprehensive Security Audit, Hardening & Tooling Sprint (2026-09-22)
 
 - [x] **5-Category Security Audit & Vulnerability Remediation (22/22 Resolved)**:

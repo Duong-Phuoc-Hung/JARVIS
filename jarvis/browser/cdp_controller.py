@@ -34,6 +34,7 @@ from jarvis.browser.models import (
 from jarvis.browser.models import (
     BrowserConfig as CanonicalBrowserConfig,
 )
+from jarvis.security.external_content import mark_external
 from jarvis.security.prompt_guard import PromptGuard
 
 log = logging.getLogger("jarvis.browser.cdp")
@@ -90,6 +91,8 @@ class PageInfo:
     driver_type: BrowserDriverType | None = None
 
     def __post_init__(self) -> None:
+        for name in ("url", "title", "content_md", "links", "error_message"):
+            setattr(self, name, mark_external(getattr(self, name)))
         legacy_success = self.success
         if self.status is None:
             self.status = (
@@ -126,6 +129,10 @@ class ElementResult:
     text: str = ""
     value: str = ""
     href: str = ""
+
+    def __post_init__(self):
+        for name in ("selector", "text", "value", "href"):
+            setattr(self, name, mark_external(getattr(self, name)))
 
 
 class BrowserCDPController:
@@ -467,7 +474,7 @@ class BrowserCDPController:
         if self._driver is None:
             return ""
         try:
-            return self._driver.get_current_url()
+            return mark_external(self._driver.get_current_url())
         except Exception:
             return ""
 
@@ -664,7 +671,7 @@ class BrowserCDPController:
                     )
                 ]
             self._mark_success()
-            return links[: max(0, int(limit))]
+            return mark_external(links[: max(0, int(limit))])
         except Exception as exc:
             log.error("Browser link extraction failed (%s).", type(exc).__name__)
             self._mark_failure(BrowserResultStatus.ERROR, "BROWSER_CONTENT_READ_FAILED")

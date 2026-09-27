@@ -1,0 +1,15 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+______________ test_status_without_metrics_does_not_claim_active ______________
+tests\unit\test_zalo_transport_contract.py:169: in test_status_without_metrics_does_not_claim_active
+    assert outcome["status"] == 503
+E   assert 200 == 503
+__________ test_missing_dispatcher_cannot_fabricate_available_skills __________
+tests\unit\test_telegram_transport_contract.py:213: in test_missing_dispatcher_cannot_fabricate_available_skills
+    assert outcome["status"] == 503
+E   assert 200 == 503
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\truthful-status-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_zalo_transport_contract.py::test_status_without_metrics_does_not_claim_active
+FAILED tests/unit/test_telegram_transport_contract.py::test_missing_dispatcher_cannot_fabricate_available_skills
+2 failed, 26 deselected in 0.95s

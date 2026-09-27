@@ -46,14 +46,14 @@ class TestAuthorization:
         """Verify Fail-Close: Missing secret rejects all webhooks."""
         assert bot_unconfigured.verify_webhook_signature(b"payload", "sig") is False
 
-    def test_real_webhook_signature_validates_correctly(self):
+    def test_non_oa_hmac_signature_is_rejected(self):
         import hashlib, hmac
         secret = "super_secret_key"
         cfg = ZaloConfig(webhook_secret=secret, whitelist_user_ids=["u1"])
         controller = ZaloBotController(config=cfg, is_mock=False)
         payload = b'{"event":"test"}'
         valid_sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
-        assert controller.verify_webhook_signature(payload, valid_sig) is True
+        assert controller.verify_webhook_signature(payload, valid_sig) is False
         assert controller.verify_webhook_signature(payload, "invalid_signature_hex") is False
 
 

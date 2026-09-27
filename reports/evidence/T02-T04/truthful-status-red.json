@@ -1,0 +1,21 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/unit/test_zalo_transport_contract.py",
+    "tests/unit/test_telegram_transport_contract.py",
+    "-k",
+    "without_metrics or fabricate_available",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\reports\\evidence\\T02-T04\\truthful-status-red.xml"
+  ],
+  "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "started_utc": "2026-09-24T11:00:13Z",
+  "wall_seconds": 2.6489577293395996,
+  "exit_code": 1
+}

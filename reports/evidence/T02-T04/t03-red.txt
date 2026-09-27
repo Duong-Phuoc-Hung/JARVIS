@@ -1,0 +1,16 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_______________ test_http_200_api_failure_is_not_a_send_success _______________
+tests\unit\test_telegram_transport_contract.py:23: in test_http_200_api_failure_is_not_a_send_success
+    assert result["ok"] is False
+E   assert True is False
+__________ test_duplicate_update_is_not_dispatched_or_replied_twice ___________
+tests\unit\test_telegram_transport_contract.py:33: in test_duplicate_update_is_not_dispatched_or_replied_twice
+    assert len(first) == 1 and second == []
+E   AssertionError: assert (2 == 1)
+E    +  where 2 = len([{'status': 200, 'text': 'JARVIS Telegram Commands:\n/status - Kiểm tra trạng thái\n/briefing - Báo cáo tổng hợp sáng\...a máy trạm Windows\n/exec <action> - Thực thi hành động\n/healing - Kích hoạt tự phục hồi\n/help - Hiển thị trợ giúp'}])
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\t03-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_telegram_transport_contract.py::test_http_200_api_failure_is_not_a_send_success
+FAILED tests/unit/test_telegram_transport_contract.py::test_duplicate_update_is_not_dispatched_or_replied_twice
+2 failed in 0.44s

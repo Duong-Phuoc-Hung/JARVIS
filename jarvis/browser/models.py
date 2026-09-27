@@ -9,6 +9,8 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
 
+from jarvis.security.external_content import mark_external
+
 
 class BrowserDriverType(str, Enum):
     """Supported browser driver execution tiers."""
@@ -110,6 +112,9 @@ class BrowserActionResult:
             self.error_code = self.error_code or "BROWSER_ERROR"
             self.error_message = self.error_message or "The browser action failed."
 
+        for name in ("url", "title", "extracted_data", "metadata", "error_message"):
+            setattr(self, name, mark_external(getattr(self, name)))
+
     @property
     def error(self) -> str | None:
         """Convenience alias for error_message."""
@@ -181,6 +186,9 @@ class ScrapeResult:
         else:
             self.error_code = self.error_code or "BROWSER_EMPTY_DOCUMENT"
             self.error_message = self.error_message or "No browser page content was captured."
+
+        for name in ("url", "title", "markdown_content", "text_content", "structured_data", "links", "images", "tables", "metadata", "error_message"):
+            setattr(self, name, mark_external(getattr(self, name)))
 
     @property
     def markdown(self) -> str:

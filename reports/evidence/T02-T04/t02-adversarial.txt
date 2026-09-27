@@ -1,0 +1,18 @@
+......................F.                                                 [100%]
+================================== FAILURES ===================================
+_________ test_explicit_browser_task_grants_allow_only_exact_actions __________
+tests\e2e\test_browser_authority_e2e.py:140: in test_explicit_browser_task_grants_allow_only_exact_actions
+    assert real_agent.driver.get_text("#output") == "Đúng tác vụ"
+E   AssertionError: assert '' == 'Đúng tác vụ'
+E     
+E     - Đúng tác vụ
+------------------------------ Captured log call ------------------------------
+ERROR    jarvis.browser.driver:driver.py:1064 Playwright text entry failed (BROWSER_TIMEOUT).
+WARNING  jarvis.core.dispatcher:dispatcher.py:635 Action 'fill' handler reported failure: (no error detail)
+ERROR    jarvis.browser.driver:driver.py:1032 Playwright click failed (BROWSER_TIMEOUT).
+WARNING  jarvis.core.dispatcher:dispatcher.py:635 Action 'click' handler reported failure: (no error detail)
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'fill' is being overwritten in ActionDispatcher.
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\t02-adversarial.xml -
+=========================== short test summary info ===========================
+FAILED tests/e2e/test_browser_authority_e2e.py::test_explicit_browser_task_grants_allow_only_exact_actions
+1 failed, 23 passed in 65.63s (0:01:05)

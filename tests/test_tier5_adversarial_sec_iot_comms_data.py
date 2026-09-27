@@ -696,8 +696,9 @@ def test_telegram_unauthorized_user_and_injection_defense():
 
     # 3. Whitelisted user /exec command injection safety
     exec_res = bot.handle_inbound_message(user_id=111222333, text="/exec restart_service; rm -rf /")
-    assert exec_res["status"] == 200
-    assert "restart_service" in exec_res["text"]
+    assert exec_res["status"] == 503
+    assert exec_res["error_code"] == "DISPATCHER_UNAVAILABLE"
+    assert "restart_service" not in exec_res["text"]
 
 
 def test_telegram_inbound_voice_and_stt_exception_resilience():

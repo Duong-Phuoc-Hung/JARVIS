@@ -438,6 +438,13 @@ class ActionDispatcher:
         `self.bypass_security`, which only ever bypasses RBAC/privilege
         checks (see __init__).
         """
+        from jarvis.security.external_content import external_action_allowed
+        if not external_action_allowed(action_name, payload):
+            return ActionResult(
+                action_name=action_name, success=False,
+                error="External content cannot authorize this action.",
+                error_code="UNTRUSTED_ACTION_BLOCKED", requester=context.requester_id,
+            )
         if not self.safety_interceptor.is_high_risk(action_name, payload):
             return None
 

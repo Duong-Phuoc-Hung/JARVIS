@@ -1,0 +1,10 @@
+.F                                                                       [100%]
+================================== FAILURES ===================================
+___________________ test_browser_text_is_not_a_user_command ___________________
+tests\e2e\test_browser_authority_e2e.py:44: in test_browser_text_is_not_a_user_command
+    assert not effects
+E   AssertionError: assert not [{'app_name': 'notepad', 'installed_only': True, 'name': 'notepad'}]
+- generated xml file: C:\Users\MSI\.codex\worktrees\t02-t04-trust-transports\JARVIS\reports\evidence\T02-T04\t02-router-red-valid.xml -
+=========================== short test summary info ===========================
+FAILED tests/e2e/test_browser_authority_e2e.py::test_browser_text_is_not_a_user_command
+1 failed, 1 passed in 3.62s

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="3.284" timestamp="2026-09-24T17:21:22.807593+07:00" hostname="DESKTOP-OCR9N3Q"><testcase classname="tests.e2e.test_browser_authority_e2e" name="test_page_observation_cannot_authorize_outbound_tool" time="1.258" /><testcase classname="tests.e2e.test_browser_authority_e2e" name="test_browser_text_is_not_a_user_command" time="0.622"><failure message="TypeError: LLMIntentRouter.__init__() missing 1 required positional argument: 'llm_client'">tests\e2e\test_browser_authority_e2e.py:38: in test_browser_text_is_not_a_user_command
+    router = LLMIntentRouter(dispatcher=dispatcher)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: LLMIntentRouter.__init__() missing 1 required positional argument: 'llm_client'</failure></testcase></testsuite></testsuites>

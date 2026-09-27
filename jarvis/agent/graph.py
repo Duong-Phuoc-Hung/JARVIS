@@ -29,7 +29,10 @@ from jarvis.agent.tool_runtime import (
     normalize_tool_output,
     sandbox_result_to_tool_result,
 )
+from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.sandbox.interpreter import CodeInterpreterSandbox
+from jarvis.security.external_content import ActionScope, contains_external, external_action_scope
+from jarvis.security.prompt_guard import PromptGuard
 
 log = logging.getLogger("jarvis.agent.graph")
 
@@ -65,6 +68,7 @@ class AgentTask:
     started_at: float = field(default_factory=time.time)
     completed_at: float = 0.0
     max_iterations: int = 10
+    action_scope: Any = None
 
 
 @dataclass
@@ -94,6 +98,7 @@ class ReActAgent:
         self.is_mock = is_mock
         self._tasks: dict[str, AgentTask] = {}
         self._sandbox = sandbox
+        self.dispatcher = ActionDispatcher()
         self._register_default_tools()
         log.info("ReActAgent initialized with %d tools (mock=%s)", len(self.tools), is_mock)
 
@@ -133,10 +138,11 @@ class ReActAgent:
     # Core: Run Task
     # ------------------------------------------------------------------
 
-    def run(self, goal: str) -> AgentTask:
+    def run(self, goal: str, *, authorized_actions=()) -> AgentTask:
         """Run a goal through the ReAct loop. Returns completed AgentTask."""
         task_id = str(uuid.uuid4())[:8]
         task = AgentTask(task_id=task_id, goal=goal, max_iterations=self.max_iterations)
+        task.action_scope = ActionScope(authorized_actions)
         self._tasks[task_id] = task
 
         if self.is_mock:
@@ -179,7 +185,11 @@ class ReActAgent:
 
             # 3. OBSERVE: collect result
             task.state = AgentState.OBSERVING
-            observation = self._act(tool_name, tool_args)
+            if contains_external(task.goal) or any(s.step_type == "observation" for s in task.steps):
+                with external_action_scope(task.action_scope):
+                    observation = self._dispatch_tool(tool_name, tool_args)
+            else:
+                observation = self._dispatch_tool(tool_name, tool_args)
             action_step.tool_result = observation
             task.steps.append(ThoughtStep("observation", observation))
             log.debug("Observation: %s", observation[:100])
@@ -255,6 +265,19 @@ class ReActAgent:
                     args = {"query": raw}
         return thought or "Phân tích tiếp theo...", tool_name, args
 
+    def _dispatch_tool(self, tool_name: str, args: dict[str, Any]) -> str:
+        """All model-selected actions traverse the production dispatcher and gate."""
+        if tool_name not in self.tools or not isinstance(args, dict):
+            return self._act(tool_name, args)
+        self.dispatcher.register_action(
+            tool_name, lambda **kw: self._execute_tool(tool_name, kw).to_dict(),
+        )
+        result = self.dispatcher.dispatch_action(tool_name, payload=args, requester="agent")
+        if not result.success:
+            # Confirmation tokens stay on the trusted UI/event channel, never in LLM observations.
+            return result.error_code or "ACTION_FAILED"
+        return format_observation(normalize_tool_output(result.data))
+
     def _act(self, tool_name: str, args: dict[str, Any]) -> str:
         """Execute a tool and return a bounded, deterministic string observation."""
         result = self._execute_tool(tool_name, args)
@@ -300,7 +323,7 @@ class ReActAgent:
             elif s.step_type == "action":
                 lines.append(f"Hành động: {s.tool_name}({s.tool_args})")
             elif s.step_type == "observation":
-                lines.append(f"Quan sát: {s.content[:150]}")
+                lines.append(str(PromptGuard.sanitize(s.content[:4000], source="tool_observation")))
         return "\n".join(lines) if lines else "Chưa có lịch sử"
 
     def _mock_run(self, task: AgentTask) -> AgentTask:

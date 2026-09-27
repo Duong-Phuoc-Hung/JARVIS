@@ -1,0 +1,21 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/test_adversarial_m5_2.py",
+    "tests/test_user_simulation.py::test_sim_08_voice_loop_silence_handling",
+    "tests/unit/test_runaway_hardening.py::TestGesturePassiveTriggerGuardWiring::test_repeated_triple_clap_triggers_are_bounded",
+    "tests/unit/test_telegram_transport_contract.py",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t02-t04-trust-transports\\JARVIS\\reports\\evidence\\T02-T04\\compatibility-and-flake-rerun.xml"
+  ],
+  "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "started_utc": "2026-09-24T11:19:31Z",
+  "wall_seconds": 13.295306921005249,
+  "exit_code": 0
+}

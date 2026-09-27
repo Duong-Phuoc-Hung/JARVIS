@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="2" time="0.796" timestamp="2026-09-24T18:00:14.601564+07:00" hostname="DESKTOP-OCR9N3Q"><testcase classname="tests.unit.test_zalo_transport_contract" name="test_status_without_metrics_does_not_claim_active" time="0.011"><failure message="assert 200 == 503">tests\unit\test_zalo_transport_contract.py:169: in test_status_without_metrics_does_not_claim_active
+    assert outcome["status"] == 503
+E   assert 200 == 503</failure></testcase><testcase classname="tests.unit.test_telegram_transport_contract" name="test_missing_dispatcher_cannot_fabricate_available_skills" time="0.004"><failure message="assert 200 == 503">tests\unit\test_telegram_transport_contract.py:213: in test_missing_dispatcher_cannot_fabricate_available_skills
+    assert outcome["status"] == 503
+E   assert 200 == 503</failure></testcase></testsuite></testsuites>
