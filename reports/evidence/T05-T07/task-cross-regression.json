@@ -1,0 +1,31 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/benchmarks/test_workflow_acceptance_benchmark.py",
+    "tests/e2e/test_beta_v1_acceptance.py",
+    "tests/e2e/test_combined_security_stability_e2e.py",
+    "tests/test_adversarial_beta_m1_comms_failclosed.py",
+    "tests/test_adversarial_m5_2.py",
+    "tests/test_audit_adversarial_probes.py",
+    "tests/test_comms_hub.py",
+    "tests/test_e2e_scenarios.py",
+    "tests/test_live_infra_evidence.py",
+    "tests/test_smart_home.py",
+    "tests/test_tier5_adversarial_sec_iot_comms_data.py",
+    "tests/unit/test_phase8_defect_remediations.py",
+    "tests/unit/test_rate_limiter.py",
+    "tests/unit/test_terminal_modules.py",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\reports\\evidence\\T05-T07\\task-cross-regression.xml"
+  ],
+  "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "started_utc": "2026-09-27T06:11:15Z",
+  "wall_seconds": 14.834399461746216,
+  "exit_code": 1
+}

@@ -1,0 +1,42 @@
+..F.....FFF.                                                             [100%]
+================================== FAILURES ===================================
+_ TestHomeAssistantAdversarial.test_missing_credentials_returns_not_configured[toggle-args2] _
+tests\unit\test_m2_adversarial_challenger.py:60: in test_missing_credentials_returns_not_configured
+    assert res.code == "NOT_CONFIGURED"
+E   AssertionError: assert 'UNSUPPORTED_SERVICE' == 'NOT_CONFIGURED'
+E     
+E     - NOT_CONFIGURED
+E     + UNSUPPORTED_SERVICE
+_ TestHomeAssistantAdversarial.test_http_read_error_after_confirmation[429-True] _
+tests\unit\test_m2_adversarial_challenger.py:78: in test_http_read_error_after_confirmation
+    assert result.retryable is retryable
+E   AssertionError: assert False is True
+E    +  where False = ActionResult(action_name='home_assistant_call', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='HTTP_429', ...P_429', error_code='HTTP_429', execution_time_ms=0.05910001345910132, requester='system', timestamp=1790489390.7587264).retryable
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.core.dispatcher:dispatcher.py:470 Action 'home_assistant_call' gated pending confirmation (requester=system, token=4551DC08)
+WARNING  jarvis.core.dispatcher:dispatcher.py:628 Action 'home_assistant_call' handler reported failure: HTTP_429
+_ TestHomeAssistantAdversarial.test_http_read_error_after_confirmation[500-True] _
+tests\unit\test_m2_adversarial_challenger.py:78: in test_http_read_error_after_confirmation
+    assert result.retryable is retryable
+E   AssertionError: assert False is True
+E    +  where False = ActionResult(action_name='home_assistant_call', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='HTTP_500', ...P_500', error_code='HTTP_500', execution_time_ms=0.05779997445642948, requester='system', timestamp=1790489390.7670033).retryable
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.core.dispatcher:dispatcher.py:470 Action 'home_assistant_call' gated pending confirmation (requester=system, token=C0D181B3)
+WARNING  jarvis.core.dispatcher:dispatcher.py:628 Action 'home_assistant_call' handler reported failure: HTTP_500
+__ TestHomeAssistantAdversarial.test_network_read_failure_after_confirmation __
+tests\unit\test_m2_adversarial_challenger.py:89: in test_network_read_failure_after_confirmation
+    assert result.code == "CONNECTION_FAILED" and result.retryable
+E   AssertionError: assert ('CONNECTION_FAILED' == 'CONNECTION_FAILED'
+E     
+E       CONNECTION_FAILED and False)
+E    +  where False = ActionResult(action_name='home_assistant_call', success=False, status=<ActionStatus.ERROR: 'ERROR'>, code='CONNECTION_...error_code='CONNECTION_FAILED', execution_time_ms=0.06369999027810991, requester='system', timestamp=1790489390.775658).retryable
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.core.dispatcher:dispatcher.py:470 Action 'home_assistant_call' gated pending confirmation (requester=system, token=996FDC36)
+WARNING  jarvis.core.dispatcher:dispatcher.py:628 Action 'home_assistant_call' handler reported failure: CONNECTION_FAILED
+- generated xml file: C:\Users\MSI\.codex\worktrees\t05-t07-runtime-contracts\JARVIS\reports\evidence\T05-T07\ha-retry-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_m2_adversarial_challenger.py::TestHomeAssistantAdversarial::test_missing_credentials_returns_not_configured[toggle-args2]
+FAILED tests/unit/test_m2_adversarial_challenger.py::TestHomeAssistantAdversarial::test_http_read_error_after_confirmation[429-True]
+FAILED tests/unit/test_m2_adversarial_challenger.py::TestHomeAssistantAdversarial::test_http_read_error_after_confirmation[500-True]
+FAILED tests/unit/test_m2_adversarial_challenger.py::TestHomeAssistantAdversarial::test_network_read_failure_after_confirmation
+4 failed, 8 passed, 21 deselected in 0.70s

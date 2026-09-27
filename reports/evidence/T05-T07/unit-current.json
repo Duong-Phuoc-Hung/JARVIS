@@ -1,0 +1,18 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/unit/",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\reports\\evidence\\T05-T07\\unit-current.xml"
+  ],
+  "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "started_utc": "2026-09-27T06:02:07Z",
+  "wall_seconds": 303.5210301876068,
+  "exit_code": 1
+}

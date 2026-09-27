@@ -1,3 +1,23 @@
+<!-- T05-T07 roadmap start -->
+## T-05–T-07 scoped revalidation — 2026-09-27
+
+- T-05: engineering transport/permission/safety tests implemented; live guild command/reply and permitted
+  users/admins **PENDING_GUILD_CHANNEL_AUTHORIZATION**. REST polling is not WebSocket Gateway certification.
+- T-06: TLS/Unicode/read-only/allowlist/error/reconnect tests implemented; real mailbox DoD
+  **PENDING_MAILBOX_AUTHORIZATION**. Historical two-email read does not close this task.
+- T-07: authoritative entity allowlist + confirmation + before/after/restore tests implemented;
+  actual HA instance/entity **PENDING_HA_INSTANCE_ENTITY**. Docker engine probe exit 1, missing Linux engine pipe.
+- No task is marked runtime DONE. No CONDITIONAL GO/GO is issued by this work.
+
+[Revision-specific metrics and evidence](eval/t05_t07_runtime_contracts_20260927.md) supersede historical
+counts for this branch. Main and other agents' branches remain untouched; hand off commits to integration.
+Final validation: **PASS engineering / PASS fail-closed** for scoped T-05–T-07.
+Unit: 2764 pass / 4 skip, 287.81 s, exit 0. Scoped: 254 pass, 21.82 s, exit 0.
+Full: 4264 pass / 46 fail / 20 skip, 721.77 s, exit 1 (45 reproduced on base; one unresolved
+order-sensitive candidate). Hosted CI not rerun; runtime PENDING; no CONDITIONAL GO/GO.
+
+<!-- T05-T07 roadmap end -->
+
 ## Comprehensive Security Audit, Hardening & Tooling Sprint (2026-09-22)
 
 - [x] **5-Category Security Audit & Vulnerability Remediation (22/22 Resolved)**:

@@ -572,26 +572,21 @@ def test_acoustic_gesture_detector_chatter_burst_suppression():
 # ============================================================================
 
 def test_home_assistant_rest_http_errors_and_connection_drop(monkeypatch):
-    """
-    [Smart Home / F-26] Simulate HTTP 401 Unauthorized, HTTP 500 Server Error, and connection drops.
-    """
-    client = HomeAssistantClient(base_url="http://192.168.1.10:8123", access_token="secret_token")
+    from types import SimpleNamespace
 
-    # 1. Simulate HTTP 404 Not Found on get_state
-    def mock_urlopen_404(req, timeout=None):
-        raise urllib.error.HTTPError(req.full_url, 404, "Entity Not Found", {}, io.BytesIO(b"Not Found"))
+    import requests
 
-    monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen_404)
+    from tests.ha_transport_support import confirm_call
+    client = HomeAssistantClient(access_token="test", allowed_entity_ids=["light.living_room"])
+    monkeypatch.setattr(requests, "request", lambda *a, **k: SimpleNamespace(status_code=404))
     assert client.get_state("sensor.ghost_device") is None
-
-    # 2. Simulate ConnectionRefusedError on call_service
-    def mock_urlopen_conn_err(req, timeout=None):
-        raise urllib.error.URLError("Connection refused")
-
-    monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen_conn_err)
-    svc_res = client.call_service("light", "turn_on", {"entity_id": "light.living_room"})
-    assert svc_res["success"] is False
-    assert "unreachable" in svc_res["error"].lower() or "connection" in svc_res["error"].lower()
+    assert client.last_result.code == "HTTP_404"
+    def offline(*args, **kwargs):
+        raise requests.ConnectionError("private-canary")
+    monkeypatch.setattr(requests, "request", offline)
+    result = confirm_call(client, "light", "turn_on", {"entity_id":"light.living_room"})
+    assert not result.success and result.code == "CONNECTION_FAILED"
+    assert "private-canary" not in result.message
 
 
 def test_home_assistant_entity_alias_fuzzing():

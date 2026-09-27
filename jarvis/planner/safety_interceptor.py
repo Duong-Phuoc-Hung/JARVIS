@@ -6,14 +6,14 @@ enforcing a 30-second tokenized confirmation state machine integrated with Safet
 from __future__ import annotations
 
 import logging
-from copy import deepcopy
 import re
 import threading
+import unicodedata
+from copy import deepcopy
 from typing import Any
 
 from jarvis.automation.safety_gate import SafetyGate
 from jarvis.planner.models import StepStatus, TaskNode
-import unicodedata
 
 _HOMOGLYPH_TABLE = str.maketrans({
     "а": "a", "с": "c", "е": "e", "о": "o", "р": "p", "ѕ": "s", "і": "i", "ј": "j",
@@ -54,6 +54,7 @@ class SafetyGateInterceptor:
         # Outbound Discord
         "discord_send_message", "discord_send_file", "send_discord_message",
         # Home Assistant actuation
+        "macro_play", "screenshot", "note_add",
         "home_assistant_call", "smart_home_turn_on", "smart_home_turn_off",
         "smart_home_set_temp", "smart_home_toggle", "home_assistant_turn_on",
         "home_assistant_turn_off", "home_assistant_toggle", "home_assistant_set_temp",

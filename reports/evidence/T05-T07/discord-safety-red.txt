@@ -1,0 +1,22 @@
+FF...F                                                                   [100%]
+================================== FAILURES ===================================
+_______________ test_whitelist_does_not_implicitly_grant_admin ________________
+tests\unit\test_discord_acceptance_contract.py:9: in test_whitelist_does_not_implicitly_grant_admin
+    assert not bot.is_admin(1)
+E   assert not True
+E    +  where True = is_admin(1)
+E    +    where is_admin = <jarvis.comms.discord.DiscordBotController object at 0x0000018C619501A0>.is_admin
+____ test_discord_dangerous_action_reaches_real_safety_gate_without_effect ____
+tests\unit\test_discord_acceptance_contract.py:18: in test_discord_dangerous_action_reaches_real_safety_gate_without_effect
+    assert result['status'] == 409
+E   assert 200 == 409
+__________ test_non_admin_cannot_reach_any_action_path[x\xf3a file] ___________
+tests\unit\test_discord_acceptance_contract.py:28: in test_non_admin_cannot_reach_any_action_path
+    assert bot.handle_message(1, 'user', content)['status'] == 403
+E   assert 200 == 403
+- generated xml file: C:\Users\MSI\.codex\worktrees\t05-t07-runtime-contracts\JARVIS\reports\evidence\T05-T07\discord-safety-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_discord_acceptance_contract.py::test_whitelist_does_not_implicitly_grant_admin
+FAILED tests/unit/test_discord_acceptance_contract.py::test_discord_dangerous_action_reaches_real_safety_gate_without_effect
+FAILED tests/unit/test_discord_acceptance_contract.py::test_non_admin_cannot_reach_any_action_path[x\xf3a file]
+3 failed, 3 passed in 1.63s

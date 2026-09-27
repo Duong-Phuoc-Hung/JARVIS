@@ -1,0 +1,18 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "tests/unit/test_ha_acceptance_contract.py",
+    "-o",
+    "addopts=",
+    "-q",
+    "--tb=short",
+    "--timeout=120",
+    "--junit-xml=C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\reports\\evidence\\T05-T07\\ha-authority-green.xml"
+  ],
+  "head": "9d3c5916ee715eff291ed2364beab9b1e9a815b6",
+  "started_utc": "2026-09-27T05:52:02Z",
+  "wall_seconds": 1.877152442932129,
+  "exit_code": 0
+}

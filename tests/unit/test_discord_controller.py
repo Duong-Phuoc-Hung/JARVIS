@@ -3,6 +3,7 @@ tests/unit/test_discord_controller.py
 =======================================
 Unit tests for the full Discord Bot Controller (2-way JARVIS control).
 """
+
 from __future__ import annotations
 
 import time
@@ -70,19 +71,23 @@ class TestCommandDispatch:
     def test_status_command(self, bot):
         result = bot.handle_message(1, "user", "!status", 0)
         assert result["status"] == 200
-        assert "jarvis" in result["text"].lower() or "online" in result["text"].lower() or "✅" in result["text"]
+        assert (
+            "jarvis" in result["text"].lower()
+            or "online" in result["text"].lower()
+            or "✅" in result["text"]
+        )
 
     def test_note_command_empty_text(self, bot):
         result = bot.handle_message(1, "user", "!note", 0)
-        assert result["status"] in (400, 200)
+        assert result["status"] == 403
 
     def test_note_command_with_text(self, bot):
         result = bot.handle_message(1, "user", "!note ghi chú thử nghiệm", 0)
-        assert result["status"] == 200
+        assert result["status"] == 403
 
     def test_unknown_command_returns_200(self, bot):
         result = bot.handle_message(1, "user", "xin chào JARVIS", 0)
-        assert result["status"] == 200
+        assert result["status"] == 403
 
     def test_help_embed_has_fields(self, bot):
         result = bot.handle_message(1, "user", "!help", 0)
@@ -93,16 +98,11 @@ class TestCommandDispatch:
 
 
 class TestSendMessage:
-    def test_send_message_records_to_sent_list(self, bot):
-        initial = len(bot.sent_messages)
-        bot.send_message(channel_id=123, content="test message")
-        assert len(bot.sent_messages) == initial + 1
-
-    def test_send_message_stores_channel_id(self, bot):
-        bot.send_message(channel_id=456, content="hello")
-        last = bot.sent_messages[-1]
-        assert last["channel_id"] == 456
-        assert last["content"] == "hello"
+    def test_missing_channel_is_fail_closed_and_does_not_store_body(self, bot):
+        result = bot.send_message(123, "private-canary")
+        assert result["success"] is False
+        assert result["error_code"] == "PENDING_GUILD_CHANNEL"
+        assert "private-canary" not in str(bot.sent_messages)
 
 
 class TestDiscordEmbed:
@@ -194,7 +194,11 @@ class TestDiscordSlashCommandsAndRichEmbeds:
             channel_id=1001,
         )
         assert response["status"] == 200
-        assert "🧰" in response["text"] or "kỹ năng" in response["text"].lower() or "skills" in response["text"].lower()
+        assert (
+            "🧰" in response["text"]
+            or "kỹ năng" in response["text"].lower()
+            or "skills" in response["text"].lower()
+        )
 
     def test_slash_command_briefing_and_note(self, bot):
         """
@@ -205,8 +209,8 @@ class TestDiscordSlashCommandsAndRichEmbeds:
         assert "📰" in res_brief["text"] or "briefing" in res_brief["text"].lower()
 
         res_note = bot.handle_message(1, "user", "/note Họp nhóm lúc 3h chiều", 1001)
-        assert res_note["status"] == 200
-        assert "Họp nhóm lúc 3h chiều" in res_note["text"]
+        assert res_note["status"] == 403
+        assert "Họp nhóm lúc 3h chiều" not in res_note["text"]
 
     def test_send_embed_custom_dispatch(self, bot):
         """
@@ -227,18 +231,9 @@ class TestDiscordSlashCommandsAndRichEmbeds:
             description=description,
             fields=fields,
         )
-        # A3 fix (2026-09-04): send_embed is fail-closed — success=False when no bot_token.
-        # The record is still appended to sent_messages (local queue) for auditability.
         assert result["success"] is False
-        assert result.get("error_code") == "NOT_CONFIGURED"
-        assert len(bot.sent_messages) > 0
-        last_msg = bot.sent_messages[-1]
-        assert last_msg["channel_id"] == channel_id
-        assert title in last_msg["content"]
-        assert "embed" in last_msg
-        assert last_msg["embed"]["title"] == title
-        assert last_msg["embed"]["fields"] == fields
-
+        assert result["error_code"] == "PENDING_GUILD_CHANNEL"
+        assert description not in str(bot.sent_messages)
 
     def test_rate_limiter_throttles_excess_requests(self):
         """
@@ -261,7 +256,11 @@ class TestDiscordSlashCommandsAndRichEmbeds:
 
         res3 = bot.handle_message(1, "user", "/calc 1+1", 100)
         assert res3["status"] == 429
-        assert "429" in str(res3["status"]) or "quá nhiều yêu cầu" in res3["text"].lower() or "⏳" in res3["text"]
+        assert (
+            "429" in str(res3["status"])
+            or "quá nhiều yêu cầu" in res3["text"].lower()
+            or "⏳" in res3["text"]
+        )
         assert res3.get("retry_after") == 2.5
 
 
@@ -281,9 +280,6 @@ class TestFailClosed:
         assert result.get("error_code") == "NOT_CONFIGURED", (
             f"Expected error_code='NOT_CONFIGURED', got: {result.get('error_code')!r}"
         )
-        assert "NOT sent" in result.get("description", ""), (
-            f"Expected explicit 'NOT sent' in description, got: {result.get('description')!r}"
-        )
 
     def test_send_file_not_configured_when_token_empty(self, bot_unconfigured):
         """send_file() returns NOT_CONFIGURED when bot_token is empty string."""
@@ -295,215 +291,24 @@ class TestFailClosed:
             f"Expected error_code='NOT_CONFIGURED', got: {result.get('error_code')!r}"
         )
 
-    def test_send_message_logs_message_even_when_not_configured(self, bot_unconfigured):
-        """send_message() must append to sent_messages log (audit trail) even when unconfigured."""
-        initial_count = len(bot_unconfigured.sent_messages)
-        bot_unconfigured.send_message(99, "Audit trail test")
-        assert len(bot_unconfigured.sent_messages) == initial_count + 1, (
-            "send_message must record to sent_messages audit log regardless of config"
-        )
+    def test_failed_unconfigured_send_never_stores_content(self, bot_unconfigured):
+        result = bot_unconfigured.send_message(99, "private-canary")
+        assert not result["success"]
+        assert "private-canary" not in str(bot_unconfigured.sent_messages)
 
 
 class TestDiscordInboundGateway:
-    """
-    R5 Functional Test Suite for Discord Inbound Polling Gateway.
-    """
+    def test_missing_guild_channel_never_starts(self):
+        bot = DiscordBotController(bot_token="dummy", channel_id=30)
+        assert bot.start_polling()["error_code"] == "PENDING_GUILD_CHANNEL"
+        assert bot.stop_polling()["success"]
 
-    def test_start_polling_empty_token_fail_closed(self):
-        bot = DiscordBotController(bot_token="", channel_id=12345)
-        bot.start_polling()
-        assert bot._running is False
-        assert bot._poll_thread is None
+    def test_authorized_poll_reply(self):
+        from tests.discord_transport_support import DiscordHTTP, bot, message
 
-    def test_start_polling_missing_channel_fail_closed(self):
-        bot = DiscordBotController(bot_token="test_token", channel_id=None)
-        bot.start_polling()
-        assert bot._running is False
-        assert bot._poll_thread is None
-
-    def test_start_polling_spawns_thread_when_valid(self):
-        bot = DiscordBotController(bot_token="test_token", channel_id=12345, poll_interval_s=0.05)
-        with patch.object(bot, "poll_once", return_value=True):
-            bot.start_polling()
-            assert bot._running is True
-            assert bot._poll_thread is not None
-            assert bot._poll_thread.is_alive() is True
-            bot.stop_polling()
-            assert bot._running is False
-            assert bot._poll_thread is None
-
-    def test_poll_once_fetches_and_dispatches_message(self):
-        bot = DiscordBotController(bot_token="test_token", channel_id=12345, whitelist_user_ids=[1001])
-        dispatched: list[dict[str, Any]] = []
-        bot.register_handler(lambda msg: dispatched.append(msg))
-
-        mock_http = MagicMock()
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = [
-            {
-                "id": "5001",
-                "author": {"id": "1001", "username": "alice", "bot": False},
-                "content": "!status",
-            }
-        ]
-        mock_http.get.return_value = mock_resp
-
-        res = bot.poll_once(channel_id="12345", mock_http=mock_http)
-        assert res is True
-        assert len(dispatched) == 1
-        assert dispatched[0]["id"] == "5001"
-        assert dispatched[0]["content"] == "!status"
-        assert bot._last_message_id == "5001"
-        assert bot.consecutive_errors == 0
-
-    def test_poll_once_filters_bot_messages(self):
-        bot = DiscordBotController(bot_token="test_token", channel_id=12345, whitelist_user_ids=[1001])
-        dispatched: list[dict[str, Any]] = []
-        bot.register_handler(lambda msg: dispatched.append(msg))
-
-        mock_http = MagicMock()
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = [
-            {
-                "id": "5002",
-                "author": {"id": "9999", "username": "other_bot", "bot": True},
-                "content": "automated announcement",
-            }
-        ]
-        mock_http.get.return_value = mock_resp
-
-        res = bot.poll_once(channel_id="12345", mock_http=mock_http)
-        assert res is True
-        assert len(dispatched) == 0
-        assert bot._last_message_id == "5002"
-
-    def test_poll_once_drops_unauthorized_user_and_records_violation(self):
-        bot = DiscordBotController(bot_token="test_token", channel_id=12345, whitelist_user_ids=[1001])
-        dispatched: list[dict[str, Any]] = []
-        bot.register_handler(lambda msg: dispatched.append(msg))
-
-        mock_http = MagicMock()
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = [
-            {
-                "id": "5003",
-                "author": {"id": "8888", "username": "intruder", "bot": False},
-                "content": "malicious payload",
-            }
-        ]
-        mock_http.get.return_value = mock_resp
-
-        res = bot.poll_once(channel_id="12345", mock_http=mock_http)
-        assert res is True
-        assert len(dispatched) == 0
-        assert len(bot.security_violations) == 1
-        violation = bot.security_violations[0]
-        assert violation["user_id"] == 8888
-        assert violation["username"] == "intruder"
-        assert "payload_sha256_prefix" in violation
-        assert violation["event"] == "UNAUTHORIZED_DISCORD_ACCESS"
-        assert bot._last_message_id == "5003"
-
-    def test_poll_once_tracks_after_snowflake_monotonically(self):
-        bot = DiscordBotController(bot_token="test_token", channel_id=12345, whitelist_user_ids=[1001])
-        mock_http = MagicMock()
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        # Messages returned out of order: 5010, 5005, 5020
-        mock_resp.json.return_value = [
-            {"id": "5010", "author": {"id": "1001", "bot": False}, "content": "msg2"},
-            {"id": "5005", "author": {"id": "1001", "bot": False}, "content": "msg1"},
-            {"id": "5020", "author": {"id": "1001", "bot": False}, "content": "msg3"},
-        ]
-        mock_http.get.return_value = mock_resp
-
-        res = bot.poll_once(channel_id="12345", mock_http=mock_http)
-        assert res is True
-        assert bot._last_message_id == "5020"
-
-        # Second pass: verify 'after=5020' query param is included
-        mock_resp.json.return_value = []
-        bot.poll_once(channel_id="12345", mock_http=mock_http)
-        call_url = mock_http.get.call_args[0][0]
-        assert "after=5020" in call_url
-
-    def test_poll_once_fatal_http_error_terminates_loop(self):
-        bot = DiscordBotController(bot_token="test_token", channel_id=12345)
-        mock_http = MagicMock()
-
-        for status_code in (401, 403, 404):
-            bot._running = True
-            mock_resp = MagicMock()
-            mock_resp.status_code = status_code
-            mock_http.get.return_value = mock_resp
-
-            res = bot.poll_once(channel_id="12345", mock_http=mock_http)
-            assert res is False
-            assert bot._running is False
-
-    def test_poll_once_consecutive_errors_threshold_terminates_loop(self):
-        bot = DiscordBotController(bot_token="test_token", channel_id=12345, consecutive_error_threshold=3)
-        bot._running = True
-
-        mock_http = MagicMock()
-        mock_http.get.side_effect = ConnectionError("Connection refused by peer")
-
-        # Error 1
-        res1 = bot.poll_once(channel_id="12345", mock_http=mock_http)
-        assert res1 is True
-        assert bot.consecutive_errors == 1
-        assert bot._running is True
-
-        # Error 2
-        res2 = bot.poll_once(channel_id="12345", mock_http=mock_http)
-        assert res2 is True
-        assert bot.consecutive_errors == 2
-        assert bot._running is True
-
-        # Error 3 (reaches threshold 3) -> terminates
-        res3 = bot.poll_once(channel_id="12345", mock_http=mock_http)
-        assert res3 is False
-        assert bot.consecutive_errors == 3
-        assert bot._running is False
-
-    def test_stop_polling_cleans_up_thread(self):
-        bot = DiscordBotController(bot_token="test_token", channel_id=12345, poll_interval_s=0.05)
-        with patch.object(bot, "poll_once", return_value=True):
-            bot.start_polling()
-            assert bot._poll_thread is not None
-            assert bot._poll_thread.is_alive() is True
-            assert bot._running is True
-
-            bot.stop_polling(timeout=1.0)
-            assert bot._running is False
-            assert bot._stop_event.is_set() is True
-            assert bot._poll_thread is None
-
-    def test_poll_once_dispatches_to_handle_message_when_no_handler(self):
-        bot = DiscordBotController(bot_token="test_token", channel_id=12345, whitelist_user_ids=[1001])
-        assert bot.message_handler is None
-        with patch.object(bot, "handle_message") as mock_handle:
-            mock_http = MagicMock()
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = [
-                {
-                    "id": "5050",
-                    "author": {"id": "1001", "username": "bob", "bot": False},
-                    "content": "hello jarvis",
-                }
-            ]
-            mock_http.get.return_value = mock_resp
-
-            res = bot.poll_once(channel_id="12345", mock_http=mock_http)
-            assert res is True
-            assert mock_handle.called is True
-            args, kwargs = mock_handle.call_args
-            assert kwargs.get("user_id") == 1001
-            assert kwargs.get("username") == "bob"
-            assert kwargs.get("content") == "hello jarvis"
-
-
+        transport = DiscordHTTP([[], [message(1)]])
+        controller = bot(transport)
+        assert controller.poll_once()
+        assert controller.poll_once()
+        assert len(transport.posts) == 1
+        assert controller.sent_messages[-1]["message_id"]

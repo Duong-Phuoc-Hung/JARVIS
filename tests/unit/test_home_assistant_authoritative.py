@@ -10,6 +10,7 @@ Ensures:
   3. No ghost successes or silent fallbacks.
   4. Full integration with ActionDispatcher and JarvisApp.
 """
+
 from __future__ import annotations
 
 import unittest
@@ -48,8 +49,12 @@ class MockHTTPServerDouble:
                 self.states[entity_id]["state"] = "off"
             elif service == "set_temperature":
                 if "temperature" in service_data:
-                    self.states[entity_id]["attributes"]["temperature"] = service_data["temperature"]
-        return [{"entity_id": entity_id, "state": self.states.get(entity_id, {}).get("state", "ok")}]
+                    self.states[entity_id]["attributes"]["temperature"] = service_data[
+                        "temperature"
+                    ]
+        return [
+            {"entity_id": entity_id, "state": self.states.get(entity_id, {}).get("state", "ok")}
+        ]
 
     def handle_ha_get_state(self, entity_id: str) -> dict[str, Any] | None:
         return self.states.get(entity_id)
@@ -59,7 +64,9 @@ class TestHomeAssistantSecurityGating(unittest.TestCase):
     """Verifies domain allowlist, blocked prefixes, and input sanitization."""
 
     def setUp(self) -> None:
-        self.client = HomeAssistantClient(access_token="test_token")
+        self.client = HomeAssistantClient(
+            access_token="test_token", allowed_entity_ids=["light.living_room", "climate.ac_unit"]
+        )
         self.mock_http = MockHTTPServerDouble()
 
     def test_allowed_domains_and_aliases(self) -> None:
@@ -128,10 +135,9 @@ class TestHomeAssistantSecurityGating(unittest.TestCase):
             domain="lock",
             service="unlock",
             service_data={"entity_id": "lock.front_door"},
-            mock_http=self.mock_http,
         )
         self.assertFalse(res["success"])
-        self.assertIn("SECURITY_REFUSAL", res["error"])
+        self.assertIn(res.code, ("SECURITY_REFUSAL", "ENTITY_NOT_ALLOWED"))
         self.assertEqual(len(self.mock_http.calls), 0)
 
         # Refused entity inside allowed domain
@@ -139,30 +145,19 @@ class TestHomeAssistantSecurityGating(unittest.TestCase):
             domain="light",
             service="turn_on",
             service_data={"entity_id": "camera.backyard"},
-            mock_http=self.mock_http,
         )
         self.assertFalse(res["success"])
-        self.assertIn("SECURITY_REFUSAL", res["error"])
+        self.assertIn(res.code, ("SECURITY_REFUSAL", "ENTITY_NOT_ALLOWED"))
         self.assertEqual(len(self.mock_http.calls), 0)
 
-    def test_turn_on_and_set_temperature_authoritative_execution(self) -> None:
-        # Turn on light with brightness
-        res = self.client.turn_on("đèn phòng khách", brightness=180, mock_http=self.mock_http)
-        self.assertTrue(res["success"])
-        self.assertEqual(len(self.mock_http.calls), 1)
-        self.assertEqual(self.mock_http.calls[0][0], "light")
-        self.assertEqual(self.mock_http.calls[0][1], "turn_on")
-        self.assertEqual(self.mock_http.calls[0][2]["entity_id"], "light.living_room")
-        self.assertEqual(self.mock_http.calls[0][2]["brightness"], 180)
-
-        # Set temperature
-        res = self.client.set_temperature("ac", 22.0, mock_http=self.mock_http)
-        self.assertTrue(res["success"])
-        self.assertEqual(len(self.mock_http.calls), 2)
-        self.assertEqual(self.mock_http.calls[1][0], "climate")
-        self.assertEqual(self.mock_http.calls[1][1], "set_temperature")
-        self.assertEqual(self.mock_http.calls[1][2]["entity_id"], "climate.ac_unit")
-        self.assertEqual(self.mock_http.calls[1][2]["temperature"], 22.0)
+    def test_turn_on_and_set_temperature_require_confirmation(self):
+        for result in (
+            self.client.turn_on("đèn phòng khách", brightness=180),
+            self.client.set_temperature("ac", 22.0),
+        ):
+            self.assertFalse(result.success)
+            self.assertEqual(result.error_code, "CONFIRMATION_REQUIRED")
+        self.assertEqual(self.mock_http.calls, [])
 
     def test_get_state_refuses_restricted_entities(self) -> None:
         self.assertIsNone(self.client.get_state("lock.front_door", mock_http=self.mock_http))
@@ -178,10 +173,38 @@ class TestJarvisAppHomeAssistantIntegration(unittest.TestCase):
         self.app = JarvisApp(headless=True, no_hot_reload=True)
         self.app.initialize()
         if not hasattr(ActionDispatcher, "confirm_action"):
-            ActionDispatcher.confirm_action = lambda disp, tok: disp.safety_interceptor.confirm(tok) if hasattr(disp, "safety_interceptor") else False
+            ActionDispatcher.confirm_action = lambda disp, tok: (
+                disp.safety_interceptor.confirm(tok)
+                if hasattr(disp, "safety_interceptor")
+                else False
+            )
         self.mock_http = MockHTTPServerDouble()
+        self.app.ha_client.token = "test-token"
+        self.app.ha_client.entity_aliases.update(
+            {"đèn phòng khách": "light.living_room", "điều hòa": "climate.ac_unit"}
+        )
+        self.app.ha_client.allowed_entity_ids = frozenset(self.mock_http.states)
+
+        def request(method, url, **kwargs):
+            response = MagicMock(status_code=200)
+            if method == "GET":
+                entity = url.rsplit("/", 1)[1]
+                state = self.mock_http.states[entity]
+                from copy import deepcopy
+
+                response.json.return_value = deepcopy({"entity_id": entity, **state})
+            else:
+                domain, service = url.rsplit("/", 2)[-2:]
+                response.json.return_value = self.mock_http.handle_ha_call_service(
+                    domain, service, kwargs["json"]
+                )
+            return response
+
+        self.transport_patch = patch("requests.request", side_effect=request)
+        self.transport_patch.start()
 
     def tearDown(self) -> None:
+        self.transport_patch.stop()
         self.app.stop()
 
     def test_ha_actions_registered_in_dispatcher(self) -> None:
@@ -199,90 +222,48 @@ class TestJarvisAppHomeAssistantIntegration(unittest.TestCase):
                     f"Action '{act}' must be registered in ActionDispatcher",
                 )
 
-    def test_dispatcher_home_assistant_call_success(self) -> None:
-        payload = {"domain": "light", "service": "turn_on", "entity_id": "light.living_room"}
-        with patch.object(self.app.ha_client, "call_service", return_value={"success": True, "result": "ok"}) as mock_cs:
-            res_gated = self.app.dispatcher.dispatch_action("home_assistant_call", payload=payload)
-            self.assertFalse(res_gated.success)
-            self.assertEqual(res_gated.error_code, "CONFIRMATION_REQUIRED")
-            token = res_gated.data["confirmation_token"]
-            self.assertTrue(token)
-            self.assertTrue(self.app.dispatcher.confirm_action(token))
+    def execute_confirmed(self, action, payload):
+        pending = self.app.dispatcher.dispatch_action(action, payload)
+        self.assertEqual(pending.error_code, "CONFIRMATION_REQUIRED")
+        token = pending.data["confirmation_token"]
+        self.assertTrue(self.app.dispatcher.safety_interceptor.safety_gate.confirm(token))
+        return self.app.dispatcher.dispatch_action(action, payload, confirmation_token=token)
 
-            res = self.app.dispatcher.dispatch_action(
-                "home_assistant_call",
-                payload=payload,
-                confirmation_token=token,
-            )
-            self.assertTrue(res.success)
-            mock_cs.assert_called_once_with("light", "turn_on", {"entity_id": "light.living_room"})
-
-    def test_dispatcher_home_assistant_call_refuses_restricted_entity(self) -> None:
-        payload = {"domain": "lock", "service": "unlock", "entity_id": "lock.front_door"}
-        res_gated = self.app.dispatcher.dispatch_action("home_assistant_call", payload=payload)
-        self.assertFalse(res_gated.success)
-        self.assertEqual(res_gated.error_code, "CONFIRMATION_REQUIRED")
-        token = res_gated.data["confirmation_token"]
-        self.assertTrue(token)
-        self.assertTrue(self.app.dispatcher.confirm_action(token))
-
-        res = self.app.dispatcher.dispatch_action(
+    def test_dispatcher_home_assistant_call_success(self):
+        result = self.execute_confirmed(
             "home_assistant_call",
-            payload=payload,
-            confirmation_token=token,
+            {"domain": "light", "service": "turn_on", "entity_id": "light.living_room"},
         )
-        self.assertFalse(res.success)
-        self.assertIn("SECURITY_REFUSAL", res.error)
+        self.assertTrue(result.success)
+        self.assertEqual(result.data["before"]["state"], "off")
+        self.assertEqual(result.data["after"]["state"], "on")
 
-    def test_dispatcher_smart_home_turn_on_and_off(self) -> None:
-        payload_on = {"entity": "đèn phòng khách", "brightness": 150}
-        with patch.object(self.app.ha_client, "turn_on", return_value={"success": True}) as mock_to:
-            res_gated = self.app.dispatcher.dispatch_action("smart_home_turn_on", payload=payload_on)
-            self.assertFalse(res_gated.success)
-            self.assertEqual(res_gated.error_code, "CONFIRMATION_REQUIRED")
-            token_on = res_gated.data["confirmation_token"]
-            self.assertTrue(self.app.dispatcher.confirm_action(token_on))
+    def test_dispatcher_home_assistant_call_refuses_restricted_entity(self):
+        result = self.execute_confirmed(
+            "home_assistant_call",
+            {"domain": "lock", "service": "unlock", "entity_id": "lock.front_door"},
+        )
+        self.assertFalse(result.success)
+        self.assertEqual(result.code, "SECURITY_REFUSAL")
+        self.assertEqual(self.mock_http.calls, [])
 
-            res = self.app.dispatcher.dispatch_action(
-                "smart_home_turn_on",
-                payload=payload_on,
-                confirmation_token=token_on,
-            )
-            self.assertTrue(res.success)
-            mock_to.assert_called_once_with("đèn phòng khách", brightness=150)
+    def test_dispatcher_smart_home_turn_on_and_off(self):
+        self.assertTrue(
+            self.execute_confirmed(
+                "smart_home_turn_on", {"entity": "đèn phòng khách", "brightness": 150}
+            ).success
+        )
+        self.assertTrue(
+            self.execute_confirmed("smart_home_turn_off", {"entity": "đèn phòng khách"}).success
+        )
+        self.assertEqual(self.mock_http.states["light.living_room"]["state"], "off")
 
-        payload_off = {"entity": "desk_lamp"}
-        with patch.object(self.app.ha_client, "turn_off", return_value={"success": True}) as mock_toff:
-            res_off_gated = self.app.dispatcher.dispatch_action("smart_home_turn_off", payload=payload_off)
-            self.assertFalse(res_off_gated.success)
-            self.assertEqual(res_off_gated.error_code, "CONFIRMATION_REQUIRED")
-            token_off = res_off_gated.data["confirmation_token"]
-            self.assertTrue(self.app.dispatcher.confirm_action(token_off))
-
-            res_off = self.app.dispatcher.dispatch_action(
-                "smart_home_turn_off",
-                payload=payload_off,
-                confirmation_token=token_off,
-            )
-            self.assertTrue(res_off.success)
-            mock_toff.assert_called_once_with("desk_lamp")
-
-    def test_dispatcher_smart_home_set_temp(self) -> None:
-        payload = {"entity": "điều hòa", "temperature": 24.5}
-        with patch.object(self.app.ha_client, "set_temperature", return_value={"success": True}) as mock_st:
-            res_gated = self.app.dispatcher.dispatch_action("smart_home_set_temp", payload=payload)
-            self.assertFalse(res_gated.success)
-            self.assertEqual(res_gated.error_code, "CONFIRMATION_REQUIRED")
-            token = res_gated.data["confirmation_token"]
-            self.assertTrue(self.app.dispatcher.confirm_action(token))
-
-            res = self.app.dispatcher.dispatch_action(
-                "smart_home_set_temp",
-                payload=payload,
-                confirmation_token=token,
-            )
-            self.assertTrue(res.success)
-            mock_st.assert_called_once_with("điều hòa", 24.5)
+    def test_dispatcher_smart_home_set_temp(self):
+        result = self.execute_confirmed(
+            "smart_home_set_temp", {"entity": "điều hòa", "temperature": 24.5}
+        )
+        self.assertTrue(result.success)
+        self.assertEqual(result.data["after"]["attributes"]["temperature"], 24.5)
 
     def test_dispatcher_smart_home_get_state(self) -> None:
         with patch.object(

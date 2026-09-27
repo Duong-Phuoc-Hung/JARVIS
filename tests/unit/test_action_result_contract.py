@@ -23,7 +23,6 @@ from jarvis.comms.mobile_bridge import MobileFileBridge
 from jarvis.core.models import ActionResult, ActionStatus
 from jarvis.smart_home.home_assistant import HomeAssistantClient
 
-
 # ============================================================================
 # 1. ActionResult Contract & Field Verification
 # ============================================================================
@@ -175,58 +174,17 @@ class MockHAHttp:
 
 
 def test_home_assistant_client_returns_action_result():
-    """Verify that HomeAssistantClient methods return ActionResult instances."""
-    mock_http = MockHAHttp()
-    client = HomeAssistantClient(access_token="mock_token", base_url="http://ha.local:8123")
+    """Legacy write doubles cannot create successful runtime-shaped outcomes."""
+    client = HomeAssistantClient(access_token="mock_token")
+    for result in (client.turn_on("light.test", mock_http=MockHAHttp()),
+                   client.turn_off("light.test", mock_http=MockHAHttp()),
+                   client.set_temperature("climate.test", 24, mock_http=MockHAHttp())):
+        assert isinstance(result, ActionResult)
+        assert not result.success
+        assert result.code == "MOCK_WRITE_UNAVAILABLE"
+        assert result["success"] is False
+    assert client.toggle("light.test").code == "UNSUPPORTED_SERVICE"
 
-    # 1. turn_on
-    res_turn_on = client.turn_on("đèn phòng khách", brightness=200, mock_http=mock_http)
-    assert isinstance(res_turn_on, ActionResult)
-    assert res_turn_on.success is True
-    assert res_turn_on.status == ActionStatus.SUCCESS
-    assert res_turn_on.code == "OK"
-    assert res_turn_on["success"] is True
-
-    # 2. turn_off
-    res_turn_off = client.turn_off("light.living_room", mock_http=mock_http)
-    assert isinstance(res_turn_off, ActionResult)
-    assert res_turn_off.success is True
-    assert res_turn_off.status == ActionStatus.SUCCESS
-
-    # 3. toggle
-    res_toggle = client.toggle("light.living_room", mock_http=mock_http)
-    assert isinstance(res_toggle, ActionResult)
-    assert res_toggle.success is True
-
-    # 4. set_temperature
-    res_temp = client.set_temperature("climate.ac_unit", 24.0, mock_http=mock_http)
-    assert isinstance(res_temp, ActionResult)
-    assert res_temp.success is True
-    assert res_temp.code == "OK"
-
-    # 5. call_service (security refusal on disallowed domain)
-    res_refusal = client.call_service("lock", "unlock", {"entity_id": "lock.front_door"}, mock_http=mock_http)
-    assert isinstance(res_refusal, ActionResult)
-    assert res_refusal.success is False
-    assert res_refusal.status == ActionStatus.ERROR
-    assert res_refusal.code == "SECURITY_REFUSAL"
-    assert res_refusal.retryable is False
-    assert "SECURITY_REFUSAL" in res_refusal.message
-    assert "SECURITY_REFUSAL" in res_refusal["error"]
-
-    # 6. call_service (not configured token)
-    unauth_client = HomeAssistantClient(access_token="", base_url="http://ha.local:8123")
-    res_unauth = unauth_client.call_service("light", "turn_on", {"entity_id": "light.hallway"})
-    assert isinstance(res_unauth, ActionResult)
-    assert res_unauth.success is False
-    assert res_unauth.status == ActionStatus.ERROR
-    assert res_unauth.code == "NOT_CONFIGURED"
-    assert res_unauth.retryable is False
-
-
-# ============================================================================
-# 3. MobileFileBridge Migration Verification
-# ============================================================================
 
 def test_mobile_bridge_returns_action_result(tmp_path):
     """Verify that MobileFileBridge methods return ActionResult and 429 sets retryable=True and code='RATE_LIMITED'."""

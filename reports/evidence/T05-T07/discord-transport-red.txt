@@ -1,0 +1,81 @@
+......FFFFFFFFF                                                          [100%]
+================================== FAILURES ===================================
+______ test_send_reports_provider_failure_without_content_or_token[401] _______
+tests\unit\test_discord_acceptance_contract.py:57: in test_send_reports_provider_failure_without_content_or_token
+    assert result['http_status'] == status
+           ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'http_status'
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.comms.discord:discord.py:360 Discord send_message API error: <urlopen error External network disabled in tests; use live_network and explicit opt-in>
+______ test_send_reports_provider_failure_without_content_or_token[403] _______
+tests\unit\test_discord_acceptance_contract.py:57: in test_send_reports_provider_failure_without_content_or_token
+    assert result['http_status'] == status
+           ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'http_status'
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.comms.discord:discord.py:360 Discord send_message API error: <urlopen error External network disabled in tests; use live_network and explicit opt-in>
+______ test_send_reports_provider_failure_without_content_or_token[404] _______
+tests\unit\test_discord_acceptance_contract.py:57: in test_send_reports_provider_failure_without_content_or_token
+    assert result['http_status'] == status
+           ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'http_status'
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.comms.discord:discord.py:360 Discord send_message API error: <urlopen error External network disabled in tests; use live_network and explicit opt-in>
+______ test_send_reports_provider_failure_without_content_or_token[429] _______
+tests\unit\test_discord_acceptance_contract.py:57: in test_send_reports_provider_failure_without_content_or_token
+    assert result['http_status'] == status
+           ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'http_status'
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.comms.discord:discord.py:360 Discord send_message API error: <urlopen error External network disabled in tests; use live_network and explicit opt-in>
+______ test_send_reports_provider_failure_without_content_or_token[500] _______
+tests\unit\test_discord_acceptance_contract.py:57: in test_send_reports_provider_failure_without_content_or_token
+    assert result['http_status'] == status
+           ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'http_status'
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.comms.discord:discord.py:360 Discord send_message API error: <urlopen error External network disabled in tests; use live_network and explicit opt-in>
+____________ test_outbound_requires_message_id_and_channel_binding ____________
+tests\unit\test_discord_acceptance_contract.py:68: in test_outbound_requires_message_id_and_channel_binding
+    assert result['error_code'] == 'INVALID_RESPONSE'
+           ^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'error_code'
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.comms.discord:discord.py:360 Discord send_message API error: <urlopen error External network disabled in tests; use live_network and explicit opt-in>
+______________ test_poll_command_reply_and_duplicate_suppression ______________
+tests\unit\test_discord_acceptance_contract.py:82: in test_poll_command_reply_and_duplicate_suppression
+    assert len(posts) == 1
+E   assert 0 == 1
+E    +  where 0 = len([])
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.comms.discord:discord.py:619 Discord polling network/request error (1/5): '>=' not supported between instances of 'Mock' and 'int'
+WARNING  jarvis.comms.discord:discord.py:619 Discord polling network/request error (2/5): '>=' not supported between instances of 'Mock' and 'int'
+WARNING  jarvis.comms.discord:discord.py:619 Discord polling network/request error (3/5): '>=' not supported between instances of 'Mock' and 'int'
+________________ test_rate_limit_cooldown_does_not_retry_send _________________
+tests\unit\test_discord_acceptance_contract.py:91: in test_rate_limit_cooldown_does_not_retry_send
+    assert client.request.call_count == 2
+E   AssertionError: assert 0 == 2
+E    +  where 0 = <Mock name='mock.request' id='2812721177200'>.call_count
+E    +    where <Mock name='mock.request' id='2812721177200'> = <Mock id='2812721176864'>.request
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.comms.discord:discord.py:360 Discord send_message API error: <urlopen error External network disabled in tests; use live_network and explicit opt-in>
+WARNING  jarvis.comms.discord:discord.py:360 Discord send_message API error: <urlopen error External network disabled in tests; use live_network and explicit opt-in>
+________________ test_transport_failure_redacted_and_reconnect ________________
+tests\unit\test_discord_acceptance_contract.py:99: in test_transport_failure_redacted_and_reconnect
+    assert bot.last_poll_status['error_code'] == 'TIMEOUT'
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'DiscordBotController' object has no attribute 'last_poll_status'
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.comms.discord:discord.py:619 Discord polling network/request error (1/5): '>=' not supported between instances of 'Mock' and 'int'
+- generated xml file: C:\Users\MSI\.codex\worktrees\t05-t07-runtime-contracts\JARVIS\reports\evidence\T05-T07\discord-transport-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_discord_acceptance_contract.py::test_send_reports_provider_failure_without_content_or_token[401]
+FAILED tests/unit/test_discord_acceptance_contract.py::test_send_reports_provider_failure_without_content_or_token[403]
+FAILED tests/unit/test_discord_acceptance_contract.py::test_send_reports_provider_failure_without_content_or_token[404]
+FAILED tests/unit/test_discord_acceptance_contract.py::test_send_reports_provider_failure_without_content_or_token[429]
+FAILED tests/unit/test_discord_acceptance_contract.py::test_send_reports_provider_failure_without_content_or_token[500]
+FAILED tests/unit/test_discord_acceptance_contract.py::test_outbound_requires_message_id_and_channel_binding
+FAILED tests/unit/test_discord_acceptance_contract.py::test_poll_command_reply_and_duplicate_suppression
+FAILED tests/unit/test_discord_acceptance_contract.py::test_rate_limit_cooldown_does_not_retry_send
+FAILED tests/unit/test_discord_acceptance_contract.py::test_transport_failure_redacted_and_reconnect
+9 failed, 6 passed in 0.77s

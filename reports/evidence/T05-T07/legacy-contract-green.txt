@@ -1,0 +1,4 @@
+........................................................................ [ 96%]
+...                                                                      [100%]
+- generated xml file: C:\Users\MSI\.codex\worktrees\t05-t07-runtime-contracts\JARVIS\reports\evidence\T05-T07\legacy-contract-green.xml -
+75 passed in 3.12s

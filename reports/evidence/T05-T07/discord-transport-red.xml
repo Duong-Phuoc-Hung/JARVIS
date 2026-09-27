@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="9" skipped="0" tests="15" time="0.727" timestamp="2026-09-27T12:47:55.388972+07:00" hostname="DESKTOP-OCR9N3Q"><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_whitelist_does_not_implicitly_grant_admin" time="0.006" /><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_discord_dangerous_action_reaches_real_safety_gate_without_effect" time="0.157" /><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_non_admin_cannot_reach_any_action_path[!exec shell_exec {}]" time="0.002" /><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_non_admin_cannot_reach_any_action_path[!macro test]" time="0.002" /><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_non_admin_cannot_reach_any_action_path[!screenshot]" time="0.002" /><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_non_admin_cannot_reach_any_action_path[x\xf3a file]" time="0.002" /><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_send_reports_provider_failure_without_content_or_token[401]" time="0.058"><failure message="KeyError: 'http_status'">tests\unit\test_discord_acceptance_contract.py:57: in test_send_reports_provider_failure_without_content_or_token
+    assert result['http_status'] == status
+           ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'http_status'</failure></testcase><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_send_reports_provider_failure_without_content_or_token[403]" time="0.002"><failure message="KeyError: 'http_status'">tests\unit\test_discord_acceptance_contract.py:57: in test_send_reports_provider_failure_without_content_or_token
+    assert result['http_status'] == status
+           ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'http_status'</failure></testcase><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_send_reports_provider_failure_without_content_or_token[404]" time="0.002"><failure message="KeyError: 'http_status'">tests\unit\test_discord_acceptance_contract.py:57: in test_send_reports_provider_failure_without_content_or_token
+    assert result['http_status'] == status
+           ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'http_status'</failure></testcase><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_send_reports_provider_failure_without_content_or_token[429]" time="0.003"><failure message="KeyError: 'http_status'">tests\unit\test_discord_acceptance_contract.py:57: in test_send_reports_provider_failure_without_content_or_token
+    assert result['http_status'] == status
+           ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'http_status'</failure></testcase><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_send_reports_provider_failure_without_content_or_token[500]" time="0.002"><failure message="KeyError: 'http_status'">tests\unit\test_discord_acceptance_contract.py:57: in test_send_reports_provider_failure_without_content_or_token
+    assert result['http_status'] == status
+           ^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'http_status'</failure></testcase><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_outbound_requires_message_id_and_channel_binding" time="0.002"><failure message="KeyError: 'error_code'">tests\unit\test_discord_acceptance_contract.py:68: in test_outbound_requires_message_id_and_channel_binding
+    assert result['error_code'] == 'INVALID_RESPONSE'
+           ^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'error_code'</failure></testcase><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_poll_command_reply_and_duplicate_suppression" time="0.002"><failure message="assert 0 == 1&#10; +  where 0 = len([])">tests\unit\test_discord_acceptance_contract.py:82: in test_poll_command_reply_and_duplicate_suppression
+    assert len(posts) == 1
+E   assert 0 == 1
+E    +  where 0 = len([])</failure></testcase><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_rate_limit_cooldown_does_not_retry_send" time="0.003"><failure message="AssertionError: assert 0 == 2&#10; +  where 0 = &lt;Mock name='mock.request' id='2812721177200'&gt;.call_count&#10; +    where &lt;Mock name='mock.request' id='2812721177200'&gt; = &lt;Mock id='2812721176864'&gt;.request">tests\unit\test_discord_acceptance_contract.py:91: in test_rate_limit_cooldown_does_not_retry_send
+    assert client.request.call_count == 2
+E   AssertionError: assert 0 == 2
+E    +  where 0 = &lt;Mock name='mock.request' id='2812721177200'&gt;.call_count
+E    +    where &lt;Mock name='mock.request' id='2812721177200'&gt; = &lt;Mock id='2812721176864'&gt;.request</failure></testcase><testcase classname="tests.unit.test_discord_acceptance_contract" name="test_transport_failure_redacted_and_reconnect" time="0.002"><failure message="AttributeError: 'DiscordBotController' object has no attribute 'last_poll_status'">tests\unit\test_discord_acceptance_contract.py:99: in test_transport_failure_redacted_and_reconnect
+    assert bot.last_poll_status['error_code'] == 'TIMEOUT'
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'DiscordBotController' object has no attribute 'last_poll_status'</failure></testcase></testsuite></testsuites>

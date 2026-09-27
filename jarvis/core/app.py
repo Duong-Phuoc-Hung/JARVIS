@@ -663,6 +663,8 @@ class JarvisApp:
                 base_url=ha_cfg.get("url", "http://homeassistant.local:8123"),
                 access_token=ha_token,
                 entity_aliases=ha_cfg.get("entities"),
+                allowed_entity_ids=ha_cfg.get("allowed_entity_ids", []),
+                dispatcher=self.dispatcher,
             )
 
             # 26. Signal Handlers

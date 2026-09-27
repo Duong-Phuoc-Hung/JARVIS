@@ -1,0 +1,53 @@
+......................FF....F.....F...                                   [100%]
+================================== FAILURES ===================================
+___ TestConnectHappyPath.test_connect_constructs_imap4_ssl_and_calls_login ____
+tests\unit\test_imap_reader.py:100: in test_connect_constructs_imap4_ssl_and_calls_login
+    reader.connect()
+jarvis\comms\email_imap.py:139: in connect
+    self._command("login", self.username, self.password)
+jarvis\comms\email_imap.py:165: in _command
+    self._fail(exc, name)
+jarvis\comms\email_imap.py:156: in _fail
+    raise IMAPTransportError(code) from None
+E   jarvis.comms.email_imap.IMAPTransportError: AUTH_FAILED
+_______ TestConnectHappyPath.test_connect_stores_connection_on_success ________
+tests\unit\test_imap_reader.py:111: in test_connect_stores_connection_on_success
+    reader.connect()
+jarvis\comms\email_imap.py:139: in connect
+    self._command("login", self.username, self.password)
+jarvis\comms\email_imap.py:165: in _command
+    self._fail(exc, name)
+jarvis\comms\email_imap.py:156: in _fail
+    raise IMAPTransportError(code) from None
+E   jarvis.comms.email_imap.IMAPTransportError: AUTH_FAILED
+________ TestFetchUnread.test_fetch_unread_select_fails_returns_empty _________
+tests\unit\test_imap_reader.py:158: in test_fetch_unread_select_fails_returns_empty
+    result = reader.fetch_unread()
+             ^^^^^^^^^^^^^^^^^^^^^
+jarvis\comms\email_imap.py:189: in fetch_unread
+    self._command("select", mailbox, readonly=True)
+jarvis\comms\email_imap.py:165: in _command
+    self._fail(exc, name)
+jarvis\comms\email_imap.py:156: in _fail
+    raise IMAPTransportError(code) from None
+E   jarvis.comms.email_imap.IMAPTransportError: PROTOCOL_ERROR
+_____ TestFetchAndSummarize.test_real_path_calls_connect_fetch_disconnect _____
+tests\unit\test_imap_reader.py:241: in test_real_path_calls_connect_fetch_disconnect
+    result = reader.fetch_and_summarize()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+jarvis\comms\email_imap.py:352: in fetch_and_summarize
+    self.connect()
+jarvis\comms\email_imap.py:139: in connect
+    self._command("login", self.username, self.password)
+jarvis\comms\email_imap.py:165: in _command
+    self._fail(exc, name)
+jarvis\comms\email_imap.py:156: in _fail
+    raise IMAPTransportError(code) from None
+E   jarvis.comms.email_imap.IMAPTransportError: AUTH_FAILED
+- generated xml file: C:\Users\MSI\.codex\worktrees\t05-t07-runtime-contracts\JARVIS\reports\evidence\T05-T07\imap-lifecycle-green.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_imap_reader.py::TestConnectHappyPath::test_connect_constructs_imap4_ssl_and_calls_login
+FAILED tests/unit/test_imap_reader.py::TestConnectHappyPath::test_connect_stores_connection_on_success
+FAILED tests/unit/test_imap_reader.py::TestFetchUnread::test_fetch_unread_select_fails_returns_empty
+FAILED tests/unit/test_imap_reader.py::TestFetchAndSummarize::test_real_path_calls_connect_fetch_disconnect
+4 failed, 34 passed in 2.66s

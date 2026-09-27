@@ -284,7 +284,7 @@ class TestDiscordControllerAdversarialFuzzing:
         assert isinstance(res, dict)
         assert "status" in res
         assert "text" in res
-        assert res["status"] in (200, 400, 429)
+        assert res["status"] in (200, 400, 403, 429)
 
     def test_discord_rich_embed_generation_and_payload_serialization(self):
         """Verify DiscordEmbed structure, field limits, and dict formatting."""

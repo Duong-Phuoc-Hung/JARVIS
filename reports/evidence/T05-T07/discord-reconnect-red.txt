@@ -1,0 +1,19 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+____________ test_provider_cooldown_does_not_exhaust_error_budget _____________
+tests\unit\test_discord_acceptance_contract.py:136: in test_provider_cooldown_does_not_exhaust_error_budget
+    assert all(controller.poll_once() for _ in range(10))
+E   assert False
+E    +  where False = all(<generator object test_provider_cooldown_does_not_exhaust_error_budget.<locals>.<genexpr> at 0x0000011E7E6A7510>)
+_________________ test_disabled_config_never_starts_or_sends __________________
+tests\unit\test_discord_acceptance_contract.py:147: in test_disabled_config_never_starts_or_sends
+    assert controller.start_polling()['error_code'] == 'DISABLED'
+E   AssertionError: assert 'CONNECTION_FAILED' == 'DISABLED'
+E     
+E     - DISABLED
+E     + CONNECTION_FAILED
+- generated xml file: C:\Users\MSI\.codex\worktrees\t05-t07-runtime-contracts\JARVIS\reports\evidence\T05-T07\discord-reconnect-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_discord_acceptance_contract.py::test_provider_cooldown_does_not_exhaust_error_budget
+FAILED tests/unit/test_discord_acceptance_contract.py::test_disabled_config_never_starts_or_sends
+2 failed, 15 deselected in 0.48s

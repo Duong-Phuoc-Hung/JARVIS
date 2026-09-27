@@ -79,13 +79,18 @@ def test_e2e_tier3_gesture_to_multiaction_and_tts(mock_audio_stream, mock_http_s
     assert len(mock_http_server.elevenlabs_calls) == 1
 
 
-def test_e2e_tier3_voice_command_to_smart_home_with_tts(audio_synthesizer, mock_http_server):
+def test_e2e_tier3_voice_command_to_smart_home_with_tts(audio_synthesizer, mock_http_server, monkeypatch):
     """
     [Tier 3] Pipeline: Voice STT (F-14) -> LLM Intent (F-15) -> Home Assistant Light (F-26) -> Spoken Confirmation.
     """
     stt = STTEngine()
     llm = LLMIntentRouter(LLMClient(provider="gemini", api_key="test_key"))
-    ha = HomeAssistantClient()
+    import requests
+
+    from tests.ha_transport_support import HAHTTP, confirm_call
+    transport = HAHTTP()
+    monkeypatch.setattr(requests, "request", transport.request)
+    ha = HomeAssistantClient(access_token="test", allowed_entity_ids=["light.living_room"])
 
     # 1. Transcribe voice
     voice = audio_synthesizer.generate_noise(0.4, rms=0.04)
@@ -96,17 +101,10 @@ def test_e2e_tier3_voice_command_to_smart_home_with_tts(audio_synthesizer, mock_
     assert intent.action_name == "home_assistant_call"
 
     # 3. Smart Home Call
-    res = ha.call_service(
-        intent.parameters["domain"],
-        intent.parameters["service"],
-        {"entity_id": intent.parameters["entity_id"]},
-        mock_http=mock_http_server,
-    )
-    assert res["success"] is True
-
-    # 4. Verify light turned on
-    state = ha.get_state("light.living_room", mock_http=mock_http_server)
-    assert state["state"] == "on"
+    res = confirm_call(ha, intent.parameters["domain"], intent.parameters["service"],
+                       {"entity_id": intent.parameters["entity_id"]})
+    assert res.success
+    assert ha.get_state("light.living_room")["state"] == "on"
 
 
 def test_e2e_tier3_intruder_to_lock_and_telegram(mock_camera_feed, mock_win32_platform, mock_http_server):

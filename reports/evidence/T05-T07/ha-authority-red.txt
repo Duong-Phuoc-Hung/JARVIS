@@ -1,0 +1,68 @@
+FFFFFFFF                                                                 [100%]
+================================== FAILURES ===================================
+____________ test_missing_token_never_uses_placeholder_or_network _____________
+tests\unit\test_ha_acceptance_contract.py:12: in test_missing_token_never_uses_placeholder_or_network
+    network.assert_not_called()
+..\..\ci-baseline-9d3c591\runtime\python\Lib\unittest\mock.py:940: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'urlopen' to not have been called. Called 2 times.
+E   Calls: [call(<urllib.request.Request object at 0x000001ECAFD73B60>, timeout=5.0),
+E    call().__enter__(),
+E    call().__enter__().status.__eq__(200),
+E    call().__exit__(None, None, None),
+E    call(<urllib.request.Request object at 0x000001ECAFE2C190>, timeout=5.0),
+E    call().__enter__(),
+E    call().__enter__().status.__eq__(200),
+E    call().__enter__().status.__eq__(201),
+E    call().__enter__().status.__str__(),
+E    call().__enter__().status.__str__(),
+E    call().__enter__().status.__ge__(500),
+E    call().__exit__(<class 'TypeError'>, TypeError("'>=' not supported between instances of 'MagicMock' and 'int'"), <traceback object at 0x000001ECAFB64280>)].
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.smart_home.ha:home_assistant.py:224 Home Assistant service call failed: '>=' not supported between instances of 'MagicMock' and 'int'
+____ test_write_requires_explicit_single_matching_allowed_entity[payload0] ____
+tests\unit\test_ha_acceptance_contract.py:17: in test_write_requires_explicit_single_matching_allowed_entity
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'
+____ test_write_requires_explicit_single_matching_allowed_entity[payload1] ____
+tests\unit\test_ha_acceptance_contract.py:17: in test_write_requires_explicit_single_matching_allowed_entity
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'
+____ test_write_requires_explicit_single_matching_allowed_entity[payload2] ____
+tests\unit\test_ha_acceptance_contract.py:17: in test_write_requires_explicit_single_matching_allowed_entity
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'
+____ test_write_requires_explicit_single_matching_allowed_entity[payload3] ____
+tests\unit\test_ha_acceptance_contract.py:17: in test_write_requires_explicit_single_matching_allowed_entity
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'
+____ test_write_requires_explicit_single_matching_allowed_entity[payload4] ____
+tests\unit\test_ha_acceptance_contract.py:17: in test_write_requires_explicit_single_matching_allowed_entity
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'
+____ test_write_requires_explicit_single_matching_allowed_entity[payload5] ____
+tests\unit\test_ha_acceptance_contract.py:17: in test_write_requires_explicit_single_matching_allowed_entity
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'
+__________ test_public_write_requires_confirmation_even_without_app ___________
+tests\unit\test_ha_acceptance_contract.py:25: in test_public_write_requires_confirmation_even_without_app
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'
+- generated xml file: C:\Users\MSI\.codex\worktrees\t05-t07-runtime-contracts\JARVIS\reports\evidence\T05-T07\ha-authority-red.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_ha_acceptance_contract.py::test_missing_token_never_uses_placeholder_or_network
+FAILED tests/unit/test_ha_acceptance_contract.py::test_write_requires_explicit_single_matching_allowed_entity[payload0]
+FAILED tests/unit/test_ha_acceptance_contract.py::test_write_requires_explicit_single_matching_allowed_entity[payload1]
+FAILED tests/unit/test_ha_acceptance_contract.py::test_write_requires_explicit_single_matching_allowed_entity[payload2]
+FAILED tests/unit/test_ha_acceptance_contract.py::test_write_requires_explicit_single_matching_allowed_entity[payload3]
+FAILED tests/unit/test_ha_acceptance_contract.py::test_write_requires_explicit_single_matching_allowed_entity[payload4]
+FAILED tests/unit/test_ha_acceptance_contract.py::test_write_requires_explicit_single_matching_allowed_entity[payload5]
+FAILED tests/unit/test_ha_acceptance_contract.py::test_public_write_requires_confirmation_even_without_app
+8 failed in 0.43s

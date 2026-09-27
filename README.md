@@ -1,3 +1,24 @@
+<!-- T05-T07 audit start -->
+## T-05–T-07 acceptance update — 2026-09-27 (v5.2.1, unreleased)
+
+Discord REST polling now binds guild/channel, requires explicit admin privileges for sensitive commands,
+and routes those actions through ActionDispatcher confirmation. IMAP uses verified TLS, timeout,
+read-only BODY.PEEK[], Unicode MIME decoding and an exact sender allowlist. Home Assistant write actions
+require an explicit entity allowlist plus confirmation and verified before/after state.
+
+Runtime remains **PENDING** for all three tasks: no authorized Discord guild/channel, no authorized current
+mailbox, and no running local Docker/HA test instance or designated safe entity. Historical bot authentication
+with zero guilds and two previously read emails do not close these acceptance gates. Loopback tests are
+engineering fixtures, not live provider evidence. No release GO is implied.
+
+[Task report, commands, evidence and limitations](docs/eval/t05_t07_runtime_contracts_20260927.md).
+Final validation: **PASS engineering / PASS fail-closed** for scoped T-05–T-07.
+Unit: 2764 pass / 4 skip, 287.81 s, exit 0. Scoped: 254 pass, 21.82 s, exit 0.
+Full: 4264 pass / 46 fail / 20 skip, 721.77 s, exit 1 (45 reproduced on base; one unresolved
+order-sensitive candidate). Hosted CI not rerun; runtime PENDING; no CONDITIONAL GO/GO.
+
+<!-- T05-T07 audit end -->
+
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
 Verified app launch follow-up (2026-09-22, unreleased **5.2.1**): câu mở desktop

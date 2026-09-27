@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="8" skipped="0" tests="8" time="0.379" timestamp="2026-09-27T12:50:23.819510+07:00" hostname="DESKTOP-OCR9N3Q"><testcase classname="tests.unit.test_ha_acceptance_contract" name="test_missing_token_never_uses_placeholder_or_network" time="0.009"><failure message="AssertionError: Expected 'urlopen' to not have been called. Called 2 times.&#10;Calls: [call(&lt;urllib.request.Request object at 0x000001ECAFD73B60&gt;, timeout=5.0),&#10; call().__enter__(),&#10; call().__enter__().status.__eq__(200),&#10; call().__exit__(None, None, None),&#10; call(&lt;urllib.request.Request object at 0x000001ECAFE2C190&gt;, timeout=5.0),&#10; call().__enter__(),&#10; call().__enter__().status.__eq__(200),&#10; call().__enter__().status.__eq__(201),&#10; call().__enter__().status.__str__(),&#10; call().__enter__().status.__str__(),&#10; call().__enter__().status.__ge__(500),&#10; call().__exit__(&lt;class 'TypeError'&gt;, TypeError(&quot;'&gt;=' not supported between instances of 'MagicMock' and 'int'&quot;), &lt;traceback object at 0x000001ECAFB64280&gt;)].">tests\unit\test_ha_acceptance_contract.py:12: in test_missing_token_never_uses_placeholder_or_network
+    network.assert_not_called()
+..\..\ci-baseline-9d3c591\runtime\python\Lib\unittest\mock.py:940: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'urlopen' to not have been called. Called 2 times.
+E   Calls: [call(&lt;urllib.request.Request object at 0x000001ECAFD73B60&gt;, timeout=5.0),
+E    call().__enter__(),
+E    call().__enter__().status.__eq__(200),
+E    call().__exit__(None, None, None),
+E    call(&lt;urllib.request.Request object at 0x000001ECAFE2C190&gt;, timeout=5.0),
+E    call().__enter__(),
+E    call().__enter__().status.__eq__(200),
+E    call().__enter__().status.__eq__(201),
+E    call().__enter__().status.__str__(),
+E    call().__enter__().status.__str__(),
+E    call().__enter__().status.__ge__(500),
+E    call().__exit__(&lt;class 'TypeError'&gt;, TypeError("'&gt;=' not supported between instances of 'MagicMock' and 'int'"), &lt;traceback object at 0x000001ECAFB64280&gt;)].</failure></testcase><testcase classname="tests.unit.test_ha_acceptance_contract" name="test_write_requires_explicit_single_matching_allowed_entity[payload0]" time="0.002"><failure message="TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'">tests\unit\test_ha_acceptance_contract.py:17: in test_write_requires_explicit_single_matching_allowed_entity
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'</failure></testcase><testcase classname="tests.unit.test_ha_acceptance_contract" name="test_write_requires_explicit_single_matching_allowed_entity[payload1]" time="0.002"><failure message="TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'">tests\unit\test_ha_acceptance_contract.py:17: in test_write_requires_explicit_single_matching_allowed_entity
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'</failure></testcase><testcase classname="tests.unit.test_ha_acceptance_contract" name="test_write_requires_explicit_single_matching_allowed_entity[payload2]" time="0.002"><failure message="TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'">tests\unit\test_ha_acceptance_contract.py:17: in test_write_requires_explicit_single_matching_allowed_entity
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'</failure></testcase><testcase classname="tests.unit.test_ha_acceptance_contract" name="test_write_requires_explicit_single_matching_allowed_entity[payload3]" time="0.002"><failure message="TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'">tests\unit\test_ha_acceptance_contract.py:17: in test_write_requires_explicit_single_matching_allowed_entity
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'</failure></testcase><testcase classname="tests.unit.test_ha_acceptance_contract" name="test_write_requires_explicit_single_matching_allowed_entity[payload4]" time="0.002"><failure message="TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'">tests\unit\test_ha_acceptance_contract.py:17: in test_write_requires_explicit_single_matching_allowed_entity
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'</failure></testcase><testcase classname="tests.unit.test_ha_acceptance_contract" name="test_write_requires_explicit_single_matching_allowed_entity[payload5]" time="0.002"><failure message="TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'">tests\unit\test_ha_acceptance_contract.py:17: in test_write_requires_explicit_single_matching_allowed_entity
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'</failure></testcase><testcase classname="tests.unit.test_ha_acceptance_contract" name="test_public_write_requires_confirmation_even_without_app" time="0.002"><failure message="TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'">tests\unit\test_ha_acceptance_contract.py:25: in test_public_write_requires_confirmation_even_without_app
+    c = HomeAssistantClient(access_token='dummy', allowed_entity_ids=['light.test'])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: HomeAssistantClient.__init__() got an unexpected keyword argument 'allowed_entity_ids'</failure></testcase></testsuite></testsuites>

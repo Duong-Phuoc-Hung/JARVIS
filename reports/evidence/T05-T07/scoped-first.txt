@@ -1,0 +1,563 @@
+.....................................................................F...F.FF.FF......FFF.FF......FF.F.F..FFFFFFF [ 67%]
+FF.FFFF.F..FFF..FFFFFFFFFFFFFFFFFFF.......F.F.......F.                   [100%]
+================================== FAILURES ===================================
+_ TestHomeAssistantSecurityGating.test_call_service_enforces_domain_and_entity_policy _
+tests\unit\test_home_assistant_authoritative.py:134: in test_call_service_enforces_domain_and_entity_policy
+    self.assertIn("SECURITY_REFUSAL", res["error"])
+E   AssertionError: 'SECURITY_REFUSAL' not found in 'MOCK_WRITE_UNAVAILABLE'
+_ TestHomeAssistantSecurityGating.test_turn_on_and_set_temperature_authoritative_execution _
+tests\unit\test_home_assistant_authoritative.py:151: in test_turn_on_and_set_temperature_authoritative_execution
+    self.assertTrue(res["success"])
+E   AssertionError: False is not true
+_ TestJarvisAppHomeAssistantIntegration.test_dispatcher_home_assistant_call_refuses_restricted_entity _
+tests\unit\test_home_assistant_authoritative.py:235: in test_dispatcher_home_assistant_call_refuses_restricted_entity
+    self.assertIn("SECURITY_REFUSAL", res.error)
+E   AssertionError: 'SECURITY_REFUSAL' not found in 'NOT_CONFIGURED'
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_VOICE_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_MODEL_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_OUTPUT_FORMAT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_PCM_SAMPLE_RATE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_DIR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_INPUT_DEVICE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_SPIKE_RATIO not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CODE_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_BTC_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_NEW_WINDOW_WAIT_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_WIDTH not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_HEIGHT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: SONG_URI not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_PHRASE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_AFTER_SONG_DELAY_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: FOCUS_EXISTING_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_NEW_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CURSOR_OPEN_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CLAUDE_CODE_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_BINANCE_BTC_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CHROME_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_SEPARATE_SITE_PROFILES not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENWEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: DISCORD_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ZALO_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_MEMORY_DB not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: PORCUPINE_ACCESS_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_VOSK_MODEL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_LABS_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.stt.engine:engine.py:568 faster-whisper: requested device='cuda' but CUDA unavailable — falling back to device='cpu'. Install 'nvidia-cublas-cu12' or CUDA Toolkit 12.x to use GPU.
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'skill_git_assistant' is being overwritten in ActionDispatcher.
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'home_assistant_call' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_turn_on' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_turn_off' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_set_temp' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:470 Action 'home_assistant_call' gated pending confirmation (requester=system, token=FA1A1FF9)
+WARNING  jarvis.core.dispatcher:dispatcher.py:628 Action 'home_assistant_call' handler reported failure: NOT_CONFIGURED
+_ TestJarvisAppHomeAssistantIntegration.test_dispatcher_home_assistant_call_success _
+tests\unit\test_home_assistant_authoritative.py:217: in test_dispatcher_home_assistant_call_success
+    self.assertTrue(res.success)
+E   AssertionError: False is not true
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_VOICE_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_MODEL_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_OUTPUT_FORMAT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_PCM_SAMPLE_RATE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_DIR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_INPUT_DEVICE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_SPIKE_RATIO not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CODE_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_BTC_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_NEW_WINDOW_WAIT_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_WIDTH not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_HEIGHT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: SONG_URI not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_PHRASE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_AFTER_SONG_DELAY_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: FOCUS_EXISTING_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_NEW_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CURSOR_OPEN_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CLAUDE_CODE_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_BINANCE_BTC_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CHROME_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_SEPARATE_SITE_PROFILES not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENWEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: DISCORD_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ZALO_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_MEMORY_DB not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: PORCUPINE_ACCESS_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_VOSK_MODEL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_LABS_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.stt.engine:engine.py:568 faster-whisper: requested device='cuda' but CUDA unavailable — falling back to device='cpu'. Install 'nvidia-cublas-cu12' or CUDA Toolkit 12.x to use GPU.
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'skill_git_assistant' is being overwritten in ActionDispatcher.
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'home_assistant_call' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_turn_on' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_turn_off' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_set_temp' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:470 Action 'home_assistant_call' gated pending confirmation (requester=system, token=CF2047A1)
+WARNING  jarvis.core.dispatcher:dispatcher.py:628 Action 'home_assistant_call' handler reported failure: NOT_CONFIGURED
+__ TestJarvisAppHomeAssistantIntegration.test_dispatcher_smart_home_set_temp __
+tests\unit\test_home_assistant_authoritative.py:284: in test_dispatcher_smart_home_set_temp
+    self.assertTrue(res.success)
+E   AssertionError: False is not true
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_VOICE_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_MODEL_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_OUTPUT_FORMAT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_PCM_SAMPLE_RATE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_DIR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_INPUT_DEVICE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_SPIKE_RATIO not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CODE_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_BTC_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_NEW_WINDOW_WAIT_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_WIDTH not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_HEIGHT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: SONG_URI not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_PHRASE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_AFTER_SONG_DELAY_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: FOCUS_EXISTING_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_NEW_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CURSOR_OPEN_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CLAUDE_CODE_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_BINANCE_BTC_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CHROME_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_SEPARATE_SITE_PROFILES not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENWEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: DISCORD_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ZALO_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_MEMORY_DB not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: PORCUPINE_ACCESS_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_VOSK_MODEL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_LABS_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.stt.engine:engine.py:568 faster-whisper: requested device='cuda' but CUDA unavailable — falling back to device='cpu'. Install 'nvidia-cublas-cu12' or CUDA Toolkit 12.x to use GPU.
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'skill_git_assistant' is being overwritten in ActionDispatcher.
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'home_assistant_call' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_turn_on' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_turn_off' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_set_temp' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:470 Action 'smart_home_set_temp' gated pending confirmation (requester=system, token=ABB848CE)
+WARNING  jarvis.core.dispatcher:dispatcher.py:628 Action 'smart_home_set_temp' handler reported failure: NOT_CONFIGURED
+_ TestJarvisAppHomeAssistantIntegration.test_dispatcher_smart_home_turn_on_and_off _
+tests\unit\test_home_assistant_authoritative.py:251: in test_dispatcher_smart_home_turn_on_and_off
+    self.assertTrue(res.success)
+E   AssertionError: False is not true
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_VOICE_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_MODEL_ID not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_OUTPUT_FORMAT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ELEVENLABS_PCM_SAMPLE_RATE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_DIR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_INPUT_DEVICE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_SPIKE_RATIO not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CODE_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_BTC_URL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_NEW_WINDOW_WAIT_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_WIDTH not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_WINDOW_HEIGHT not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: SONG_URI not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_PHRASE not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_AFTER_SONG_DELAY_S not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_WELCOME_CACHE_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: FOCUS_EXISTING_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_NEW_CURSOR_ON_DOUBLE_CLAP not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CURSOR_OPEN_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CLAUDE_CODE_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_BINANCE_BTC_IN_CHROME not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPEN_CHROME_FULLSCREEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CHROME_SEPARATE_SITE_PROFILES not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: CLAUDE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: BINANCE_CHROME_MONITOR not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENWEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: DISCORD_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: ZALO_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_MEMORY_DB not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: PORCUPINE_ACCESS_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_VOSK_MODEL not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: JARVIS_LABS_ENABLED not found in Credential Manager or environment
+WARNING  jarvis.stt.engine:engine.py:568 faster-whisper: requested device='cuda' but CUDA unavailable — falling back to device='cpu'. Install 'nvidia-cublas-cu12' or CUDA Toolkit 12.x to use GPU.
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'skill_git_assistant' is being overwritten in ActionDispatcher.
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: GEMINI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: OPENAI_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: TELEGRAM_BOT_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: HASS_TOKEN not found in Credential Manager or environment
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'home_assistant_call' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_turn_on' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_turn_off' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:382 Action 'smart_home_set_temp' is being overwritten in ActionDispatcher.
+WARNING  jarvis.core.dispatcher:dispatcher.py:470 Action 'smart_home_turn_on' gated pending confirmation (requester=system, token=9A313444)
+WARNING  jarvis.core.dispatcher:dispatcher.py:628 Action 'smart_home_turn_on' handler reported failure: NOT_CONFIGURED
+______________ TestCommandDispatch.test_note_command_empty_text _______________
+tests\unit\test_discord_controller.py:77: in test_note_command_empty_text
+    assert result["status"] in (400, 200)
+E   assert 403 in (400, 200)
+_______________ TestCommandDispatch.test_note_command_with_text _______________
+tests\unit\test_discord_controller.py:81: in test_note_command_with_text
+    assert result["status"] == 200
+E   assert 403 == 200
+____________ TestCommandDispatch.test_unknown_command_returns_200 _____________
+tests\unit\test_discord_controller.py:85: in test_unknown_command_returns_200
+    assert result["status"] == 200
+E   assert 403 == 200
+___________ TestSendMessage.test_send_message_records_to_sent_list ____________
+tests\unit\test_discord_controller.py:99: in test_send_message_records_to_sent_list
+    assert len(bot.sent_messages) == initial + 1
+E   assert 0 == (0 + 1)
+E    +  where 0 = len([])
+E    +    where [] = <jarvis.comms.discord.DiscordBotController object at 0x000002705FA4C510>.sent_messages
+_____________ TestSendMessage.test_send_message_stores_channel_id _____________
+tests\unit\test_discord_controller.py:103: in test_send_message_stores_channel_id
+    last = bot.sent_messages[-1]
+           ^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range
+_ TestDiscordSlashCommandsAndRichEmbeds.test_slash_command_briefing_and_note __
+tests\unit\test_discord_controller.py:208: in test_slash_command_briefing_and_note
+    assert res_note["status"] == 200
+E   assert 403 == 200
+------------------------------ Captured log call ------------------------------
+WARNING  jarvis.security.secrets:secrets.py:87 secrets: WEATHER_API_KEY not found in Credential Manager or environment
+WARNING  jarvis.web.weather:weather.py:197 wttr.in weather fetch failed: HTTPSConnectionPool(host='wttr.in', port=443): Max retries exceeded with url: /Ha%2BNoi?format=j1 (Caused by NewConnectionError("HTTPSConnection(host='wttr.in', port=443): Failed to establish a new connection: External network disabled in tests; use live_network and explicit opt-in"))
+WARNING  jarvis.web.news:news.py:110 Failed to fetch RSS feed from https://vnexpress.net/rss/so-hoa.rss: HTTPSConnectionPool(host='vnexpress.net', port=443): Max retries exceeded with url: /rss/so-hoa.rss (Caused by NewConnectionError("HTTPSConnection(host='vnexpress.net', port=443): Failed to establish a new connection: External network disabled in tests; use live_network and explicit opt-in"))
+WARNING  jarvis.web.news:news.py:110 Failed to fetch RSS feed from https://techcrunch.com/feed/: HTTPSConnectionPool(host='techcrunch.com', port=443): Max retries exceeded with url: /feed/ (Caused by NewConnectionError("HTTPSConnection(host='techcrunch.com', port=443): Failed to establish a new connection: External network disabled in tests; use live_network and explicit opt-in"))
+____ TestDiscordSlashCommandsAndRichEmbeds.test_send_embed_custom_dispatch ____
+tests\unit\test_discord_controller.py:233: in test_send_embed_custom_dispatch
+    assert result.get("error_code") == "NOT_CONFIGURED"
+E   AssertionError: assert 'PENDING_GUILD_CHANNEL' == 'NOT_CONFIGURED'
+E     
+E     - NOT_CONFIGURED
+E     + PENDING_GUILD_CHANNEL
+______ TestFailClosed.test_send_message_not_configured_when_token_empty _______
+tests\unit\test_discord_controller.py:284: in test_send_message_not_configured_when_token_empty
+    assert "NOT sent" in result.get("description", ""), (
+E   AssertionError: Expected explicit 'NOT sent' in description, got: None
+E   assert 'NOT sent' in ''
+E    +  where '' = <built-in method get of dict object at 0x000002705FD64300>('description', '')
+E    +    where <built-in method get of dict object at 0x000002705FD64300> = {'error_code': 'NOT_CONFIGURED', 'http_status': None, 'success': False}.get
+___ TestFailClosed.test_send_message_logs_message_even_when_not_configured ____
+tests\unit\test_discord_controller.py:302: in test_send_message_logs_message_even_when_not_configured
+    assert len(bot_unconfigured.sent_messages) == initial_count + 1, (
+E   AssertionError: send_message must record to sent_messages audit log regardless of config
+E   assert 0 == (0 + 1)
+E    +  where 0 = len([])
+E    +    where [] = <jarvis.comms.discord.DiscordBotController object at 0x000002705FA4C3E0>.sent_messages
+____ TestDiscordInboundGateway.test_start_polling_spawns_thread_when_valid ____
+tests\unit\test_discord_controller.py:328: in test_start_polling_spawns_thread_when_valid
+    assert bot._running is True
+E   assert False is True
+E    +  where False = <jarvis.comms.discord.DiscordBotController object at 0x000002705FA4C2B0>._running
+___ TestDiscordInboundGateway.test_poll_once_fetches_and_dispatches_message ___
+tests\unit\test_discord_controller.py:353: in test_poll_once_fetches_and_dispatches_message
+    assert res is True
+E   assert False is True
+________ TestDiscordInboundGateway.test_poll_once_filters_bot_messages ________
+tests\unit\test_discord_controller.py:378: in test_poll_once_filters_bot_messages
+    assert res is True
+E   assert False is True
+_ TestDiscordInboundGateway.test_poll_once_drops_unauthorized_user_and_records_violation _
+tests\unit\test_discord_controller.py:400: in test_poll_once_drops_unauthorized_user_and_records_violation
+    assert res is True
+E   assert False is True
+_ TestDiscordInboundGateway.test_poll_once_tracks_after_snowflake_monotonically _
+tests\unit\test_discord_controller.py:424: in test_poll_once_tracks_after_snowflake_monotonically
+    assert res is True
+E   assert False is True
+__ TestDiscordInboundGateway.test_poll_once_fatal_http_error_terminates_loop __
+tests\unit\test_discord_controller.py:445: in test_poll_once_fatal_http_error_terminates_loop
+    assert bot._running is False
+E   assert True is False
+E    +  where True = <jarvis.comms.discord.DiscordBotController object at 0x000002705FA4E3F0>._running
+_ TestDiscordInboundGateway.test_poll_once_consecutive_errors_threshold_terminates_loop _
+tests\unit\test_discord_controller.py:456: in test_poll_once_consecutive_errors_threshold_terminates_loop
+    assert res1 is True
+E   assert False is True
+________ TestDiscordInboundGateway.test_stop_polling_cleans_up_thread _________
+tests\unit\test_discord_controller.py:476: in test_stop_polling_cleans_up_thread
+    assert bot._poll_thread is not None
+E   assert None is not None
+E    +  where None = <jarvis.comms.discord.DiscordBotController object at 0x000002705FC06060>._poll_thread
+_ TestDiscordInboundGateway.test_poll_once_dispatches_to_handle_message_when_no_handler _
+tests\unit\test_discord_controller.py:502: in test_poll_once_dispatches_to_handle_message_when_no_handler
+    assert res is True
+E   assert False is True
+_ TestAdversarialMalformedMessages.test_empty_and_missing_field_dicts_fail_closed _
+tests\test_adversarial_m1_discord_gateway.py:93: in test_empty_and_missing_field_dicts_fail_closed
+    assert res is True
+E   assert False is True
+_ TestAdversarialMalformedMessages.test_hostile_content_payloads_do_not_crash_sha256 _
+tests\test_adversarial_m1_discord_gateway.py:126: in test_hostile_content_payloads_do_not_crash_sha256
+    assert res is True
+E   assert False is True
+_ TestAdversarialAuthorIdTypes.test_string_whitelist_vs_int_coercion_behavior _
+tests\test_adversarial_m1_discord_gateway.py:166: in test_string_whitelist_vs_int_coercion_behavior
+    assert res is True
+E   assert False is True
+_ TestAdversarialAuthorIdTypes.test_empty_or_none_whitelist_is_strictly_fail_closed _
+tests\test_adversarial_m1_discord_gateway.py:193: in test_empty_or_none_whitelist_is_strictly_fail_closed
+    assert res is True
+E   assert False is True
+_ TestAdversarialPollingConcurrency.test_rapid_start_stop_sequence_no_deadlock _
+tests\test_adversarial_m1_discord_gateway.py:219: in test_rapid_start_stop_sequence_no_deadlock
+    assert bot._running is True
+E   assert False is True
+E    +  where False = <jarvis.comms.discord.DiscordBotController object at 0x000002705FA4CB00>._running
+_ TestAdversarialSnowflakeTracking.test_out_of_order_snowflakes_dispatched_in_numeric_order _
+tests\test_adversarial_m1_discord_gateway.py:316: in test_out_of_order_snowflakes_dispatched_in_numeric_order
+    assert dispatched_ids == ["5010", "5020", "5030", "5050"]
+E   AssertionError: assert [] == ['5010', '502...5030', '5050']
+E     
+E     Right contains 4 more items, first extra item: '5010'
+E     Use -v to get more diff
+_ TestAdversarialSnowflakeTracking.test_monotonic_tracking_rejects_backwards_snowflakes _
+tests\test_adversarial_m1_discord_gateway.py:333: in test_monotonic_tracking_rejects_backwards_snowflakes
+    assert bot._last_message_id == "9000"
+E   AssertionError: assert None == '9000'
+E    +  where None = <jarvis.comms.discord.DiscordBotController object at 0x000002705FA4C050>._last_message_id
+_ TestAdversarialSnowflakeTracking.test_64bit_snowflakes_differ_from_lexicographical_order _
+tests\test_adversarial_m1_discord_gateway.py:360: in test_64bit_snowflakes_differ_from_lexicographical_order
+    assert dispatched_ids == ["99999999999999999", "100000000000000000"]
+E   AssertionError: assert [] == ['99999999999...000000000000']
+E     
+E     Right contains 2 more items, first extra item: '99999999999999999'
+E     Use -v to get more diff
+_ TestAdversarialExceptionResilience.test_custom_message_handler_exception_is_contained _
+tests\test_adversarial_m1_discord_gateway.py:441: in test_custom_message_handler_exception_is_contained
+    assert res is True
+E   assert False is True
+_ TestConsecutiveNetworkExceptionTermination.test_exactly_five_consecutive_network_exceptions_terminate_poll_once _
+tests\test_adversarial_m1_discord_error_recovery.py:52: in test_exactly_five_consecutive_network_exceptions_terminate_poll_once
+    assert continue_polling is True, f"Failed at iteration {i}: loop terminated prematurely before threshold"
+E   AssertionError: Failed at iteration 1: loop terminated prematurely before threshold
+E   assert False is True
+_ TestConsecutiveNetworkExceptionTermination.test_error_counter_resets_to_zero_on_successful_poll _
+tests\test_adversarial_m1_discord_error_recovery.py:83: in test_error_counter_resets_to_zero_on_successful_poll
+    assert res is True
+E   assert False is True
+_ TestConsecutiveNetworkExceptionTermination.test_mixed_network_exceptions_streak _
+tests\test_adversarial_m1_discord_error_recovery.py:132: in test_mixed_network_exceptions_streak
+    assert res is True, f"Premature termination on exception {type(exc)}"
+E   AssertionError: Premature termination on exception <class 'TimeoutError'>
+E   assert False is True
+_ TestConsecutiveNetworkExceptionTermination.test_live_background_thread_terminates_after_five_errors _
+tests\test_adversarial_m1_discord_error_recovery.py:161: in test_live_background_thread_terminates_after_five_errors
+    assert bot._running is True
+E   assert False is True
+E    +  where False = <jarvis.comms.discord.DiscordBotController object at 0x000002705FA4C3E0>._running
+_ TestConsecutiveNetworkExceptionTermination.test_custom_consecutive_error_threshold _
+tests\test_adversarial_m1_discord_error_recovery.py:187: in test_custom_consecutive_error_threshold
+    assert res1 is True
+E   assert False is True
+_ TestImmediateTerminationOnFatalStatusCodes.test_fatal_http_status_codes_terminate_immediately_via_response[401] _
+tests\test_adversarial_m1_discord_error_recovery.py:220: in test_fatal_http_status_codes_terminate_immediately_via_response
+    assert bot._running is False, f"bot._running must be False immediately on HTTP {status_code}"
+E   AssertionError: bot._running must be False immediately on HTTP 401
+E   assert True is False
+E    +  where True = <jarvis.comms.discord.DiscordBotController object at 0x000002705FA4C510>._running
+_ TestImmediateTerminationOnFatalStatusCodes.test_fatal_http_status_codes_terminate_immediately_via_response[403] _
+tests\test_adversarial_m1_discord_error_recovery.py:220: in test_fatal_http_status_codes_terminate_immediately_via_response
+    assert bot._running is False, f"bot._running must be False immediately on HTTP {status_code}"
+E   AssertionError: bot._running must be False immediately on HTTP 403
+E   assert True is False
+E    +  where True = <jarvis.comms.discord.DiscordBotController object at 0x000002705FA4CD60>._running
+_ TestImmediateTerminationOnFatalStatusCodes.test_fatal_http_status_codes_terminate_immediately_via_response[404] _
+tests\test_adversarial_m1_discord_error_recovery.py:220: in test_fatal_http_status_codes_terminate_immediately_via_response
+    assert bot._running is False, f"bot._running must be False immediately on HTTP {status_code}"
+E   AssertionError: bot._running must be False immediately on HTTP 404
+E   assert True is False
+E    +  where True = <jarvis.comms.discord.DiscordBotController object at 0x000002705FA4CE90>._running
+_ TestImmediateTerminationOnFatalStatusCodes.test_fatal_http_status_codes_terminate_immediately_via_http_error_exception[401] _
+tests\test_adversarial_m1_discord_error_recovery.py:244: in test_fatal_http_status_codes_terminate_immediately_via_http_error_exception
+    assert bot._running is False
+E   assert True is False
+E    +  where True = <jarvis.comms.discord.DiscordBotController object at 0x000002705FA4E520>._running
+_ TestImmediateTerminationOnFatalStatusCodes.test_fatal_http_status_codes_terminate_immediately_via_http_error_exception[403] _
+tests\test_adversarial_m1_discord_error_recovery.py:244: in test_fatal_http_status_codes_terminate_immediately_via_http_error_exception
+    assert bot._running is False
+E   assert True is False
+E    +  where True = <jarvis.comms.discord.DiscordBotController object at 0x000002705FC05350>._running
+_ TestImmediateTerminationOnFatalStatusCodes.test_fatal_http_status_codes_terminate_immediately_via_http_error_exception[404] _
+tests\test_adversarial_m1_discord_error_recovery.py:244: in test_fatal_http_status_codes_terminate_immediately_via_http_error_exception
+    assert bot._running is False
+E   assert True is False
+E    +  where True = <jarvis.comms.discord.DiscordBotController object at 0x000002705FC04B00>._running
+_ TestImmediateTerminationOnFatalStatusCodes.test_fatal_status_code_in_live_background_thread_stops_immediately[401] _
+tests\test_adversarial_m1_discord_error_recovery.py:266: in test_fatal_status_code_in_live_background_thread_stops_immediately
+    assert bot._poll_thread is not None
+E   assert None is not None
+E    +  where None = <jarvis.comms.discord.DiscordBotController object at 0x000002705FC056E0>._poll_thread
+_ TestImmediateTerminationOnFatalStatusCodes.test_fatal_status_code_in_live_background_thread_stops_immediately[403] _
+tests\test_adversarial_m1_discord_error_recovery.py:266: in test_fatal_status_code_in_live_background_thread_stops_immediately
+    assert bot._poll_thread is not None
+E   assert None is not None
+E    +  where None = <jarvis.comms.discord.DiscordBotController object at 0x000002705F722D70>._poll_thread
+_ TestImmediateTerminationOnFatalStatusCodes.test_fatal_status_code_in_live_background_thread_stops_immediately[404] _
+tests\test_adversarial_m1_discord_error_recovery.py:266: in test_fatal_status_code_in_live_background_thread_stops_immediately
+    assert bot._poll_thread is not None
+E   assert None is not None
+E    +  where None = <jarvis.comms.discord.DiscordBotController object at 0x000002705F722EA0>._poll_thread
+_ TestImmediateTerminationOnFatalStatusCodes.test_server_errors_are_retryable_unlike_401_403_404[500] _
+tests\test_adversarial_m1_discord_error_recovery.py:293: in test_server_errors_are_retryable_unlike_401_403_404
+    assert res1 is True, f"HTTP {status_code} should be retryable on first failure"
+E   AssertionError: HTTP 500 should be retryable on first failure
+E   assert False is True
+_ TestImmediateTerminationOnFatalStatusCodes.test_server_errors_are_retryable_unlike_401_403_404[502] _
+tests\test_adversarial_m1_discord_error_recovery.py:293: in test_server_errors_are_retryable_unlike_401_403_404
+    assert res1 is True, f"HTTP {status_code} should be retryable on first failure"
+E   AssertionError: HTTP 502 should be retryable on first failure
+E   assert False is True
+_ TestImmediateTerminationOnFatalStatusCodes.test_server_errors_are_retryable_unlike_401_403_404[503] _
+tests\test_adversarial_m1_discord_error_recovery.py:293: in test_server_errors_are_retryable_unlike_401_403_404
+    assert res1 is True, f"HTTP {status_code} should be retryable on first failure"
+E   AssertionError: HTTP 503 should be retryable on first failure
+E   assert False is True
+_ TestImmediateTerminationOnFatalStatusCodes.test_server_errors_are_retryable_unlike_401_403_404[504] _
+tests\test_adversarial_m1_discord_error_recovery.py:293: in test_server_errors_are_retryable_unlike_401_403_404
+    assert res1 is True, f"HTTP {status_code} should be retryable on first failure"
+E   AssertionError: HTTP 504 should be retryable on first failure
+E   assert False is True
+_ TestConcurrencyAndThreadLifecycle.test_duplicate_start_polling_call_does_not_spawn_duplicate_threads _
+tests\test_adversarial_m1_discord_error_recovery.py:381: in test_duplicate_start_polling_call_does_not_spawn_duplicate_threads
+    assert first_thread is not None
+E   assert None is not None
+_ TestR6DiscordWatchdogFeatureTier1.test_r6_discord_slash_commands_functional _
+tests\e2e\test_r6_discord_watchdog_e2e.py:137: in test_r6_discord_slash_commands_functional
+    assert res_note["status"] == 200
+E   assert 403 == 200
+_ TestR6DiscordWatchdogBoundaryTier2.test_r6_discord_malformed_command_payloads _
+tests\e2e\test_r6_discord_watchdog_e2e.py:299: in test_r6_discord_malformed_command_payloads
+    assert res_empty["status"] == 200
+E   assert 403 == 200
+- generated xml file: C:\Users\MSI\.codex\worktrees\t05-t07-runtime-contracts\JARVIS\reports\evidence\T05-T07\scoped-first.xml -
+=========================== short test summary info ===========================
+FAILED tests/unit/test_home_assistant_authoritative.py::TestHomeAssistantSecurityGating::test_call_service_enforces_domain_and_entity_policy
+FAILED tests/unit/test_home_assistant_authoritative.py::TestHomeAssistantSecurityGating::test_turn_on_and_set_temperature_authoritative_execution
+FAILED tests/unit/test_home_assistant_authoritative.py::TestJarvisAppHomeAssistantIntegration::test_dispatcher_home_assistant_call_refuses_restricted_entity
+FAILED tests/unit/test_home_assistant_authoritative.py::TestJarvisAppHomeAssistantIntegration::test_dispatcher_home_assistant_call_success
+FAILED tests/unit/test_home_assistant_authoritative.py::TestJarvisAppHomeAssistantIntegration::test_dispatcher_smart_home_set_temp
+FAILED tests/unit/test_home_assistant_authoritative.py::TestJarvisAppHomeAssistantIntegration::test_dispatcher_smart_home_turn_on_and_off
+FAILED tests/unit/test_discord_controller.py::TestCommandDispatch::test_note_command_empty_text
+FAILED tests/unit/test_discord_controller.py::TestCommandDispatch::test_note_command_with_text
+FAILED tests/unit/test_discord_controller.py::TestCommandDispatch::test_unknown_command_returns_200
+FAILED tests/unit/test_discord_controller.py::TestSendMessage::test_send_message_records_to_sent_list
+FAILED tests/unit/test_discord_controller.py::TestSendMessage::test_send_message_stores_channel_id
+FAILED tests/unit/test_discord_controller.py::TestDiscordSlashCommandsAndRichEmbeds::test_slash_command_briefing_and_note
+FAILED tests/unit/test_discord_controller.py::TestDiscordSlashCommandsAndRichEmbeds::test_send_embed_custom_dispatch
+FAILED tests/unit/test_discord_controller.py::TestFailClosed::test_send_message_not_configured_when_token_empty
+FAILED tests/unit/test_discord_controller.py::TestFailClosed::test_send_message_logs_message_even_when_not_configured
+FAILED tests/unit/test_discord_controller.py::TestDiscordInboundGateway::test_start_polling_spawns_thread_when_valid
+FAILED tests/unit/test_discord_controller.py::TestDiscordInboundGateway::test_poll_once_fetches_and_dispatches_message
+FAILED tests/unit/test_discord_controller.py::TestDiscordInboundGateway::test_poll_once_filters_bot_messages
+FAILED tests/unit/test_discord_controller.py::TestDiscordInboundGateway::test_poll_once_drops_unauthorized_user_and_records_violation
+FAILED tests/unit/test_discord_controller.py::TestDiscordInboundGateway::test_poll_once_tracks_after_snowflake_monotonically
+FAILED tests/unit/test_discord_controller.py::TestDiscordInboundGateway::test_poll_once_fatal_http_error_terminates_loop
+FAILED tests/unit/test_discord_controller.py::TestDiscordInboundGateway::test_poll_once_consecutive_errors_threshold_terminates_loop
+FAILED tests/unit/test_discord_controller.py::TestDiscordInboundGateway::test_stop_polling_cleans_up_thread
+FAILED tests/unit/test_discord_controller.py::TestDiscordInboundGateway::test_poll_once_dispatches_to_handle_message_when_no_handler
+FAILED tests/test_adversarial_m1_discord_gateway.py::TestAdversarialMalformedMessages::test_empty_and_missing_field_dicts_fail_closed
+FAILED tests/test_adversarial_m1_discord_gateway.py::TestAdversarialMalformedMessages::test_hostile_content_payloads_do_not_crash_sha256
+FAILED tests/test_adversarial_m1_discord_gateway.py::TestAdversarialAuthorIdTypes::test_string_whitelist_vs_int_coercion_behavior
+FAILED tests/test_adversarial_m1_discord_gateway.py::TestAdversarialAuthorIdTypes::test_empty_or_none_whitelist_is_strictly_fail_closed
+FAILED tests/test_adversarial_m1_discord_gateway.py::TestAdversarialPollingConcurrency::test_rapid_start_stop_sequence_no_deadlock
+FAILED tests/test_adversarial_m1_discord_gateway.py::TestAdversarialSnowflakeTracking::test_out_of_order_snowflakes_dispatched_in_numeric_order
+FAILED tests/test_adversarial_m1_discord_gateway.py::TestAdversarialSnowflakeTracking::test_monotonic_tracking_rejects_backwards_snowflakes
+FAILED tests/test_adversarial_m1_discord_gateway.py::TestAdversarialSnowflakeTracking::test_64bit_snowflakes_differ_from_lexicographical_order
+FAILED tests/test_adversarial_m1_discord_gateway.py::TestAdversarialExceptionResilience::test_custom_message_handler_exception_is_contained
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestConsecutiveNetworkExceptionTermination::test_exactly_five_consecutive_network_exceptions_terminate_poll_once
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestConsecutiveNetworkExceptionTermination::test_error_counter_resets_to_zero_on_successful_poll
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestConsecutiveNetworkExceptionTermination::test_mixed_network_exceptions_streak
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestConsecutiveNetworkExceptionTermination::test_live_background_thread_terminates_after_five_errors
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestConsecutiveNetworkExceptionTermination::test_custom_consecutive_error_threshold
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_fatal_http_status_codes_terminate_immediately_via_response[401]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_fatal_http_status_codes_terminate_immediately_via_response[403]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_fatal_http_status_codes_terminate_immediately_via_response[404]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_fatal_http_status_codes_terminate_immediately_via_http_error_exception[401]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_fatal_http_status_codes_terminate_immediately_via_http_error_exception[403]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_fatal_http_status_codes_terminate_immediately_via_http_error_exception[404]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_fatal_status_code_in_live_background_thread_stops_immediately[401]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_fatal_status_code_in_live_background_thread_stops_immediately[403]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_fatal_status_code_in_live_background_thread_stops_immediately[404]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_server_errors_are_retryable_unlike_401_403_404[500]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_server_errors_are_retryable_unlike_401_403_404[502]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_server_errors_are_retryable_unlike_401_403_404[503]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestImmediateTerminationOnFatalStatusCodes::test_server_errors_are_retryable_unlike_401_403_404[504]
+FAILED tests/test_adversarial_m1_discord_error_recovery.py::TestConcurrencyAndThreadLifecycle::test_duplicate_start_polling_call_does_not_spawn_duplicate_threads
+FAILED tests/e2e/test_r6_discord_watchdog_e2e.py::TestR6DiscordWatchdogFeatureTier1::test_r6_discord_slash_commands_functional
+FAILED tests/e2e/test_r6_discord_watchdog_e2e.py::TestR6DiscordWatchdogBoundaryTier2::test_r6_discord_malformed_command_payloads
+54 failed, 113 passed, 31 subtests passed in 15.13s

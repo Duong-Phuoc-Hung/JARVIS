@@ -18,23 +18,17 @@ from jarvis.smart_home.mqtt import MQTTAdapter
 # TIER 1: FEATURE COVERAGE HAPPY PATHS
 # ============================================================================
 
-def test_smart_home_ha_turn_on_light_tier1(mock_http_server):
-    """
-    [F-26] Validate Home Assistant REST client dispatches service call to turn on light with brightness.
-    """
-    client = HomeAssistantClient()
-    res = client.call_service(
-        domain="light",
-        service="turn_on",
-        service_data={"entity_id": "light.living_room", "brightness": 200},
-        mock_http=mock_http_server,
-    )
-    assert res["success"] is True
+def test_smart_home_ha_turn_on_light_requires_confirmation(monkeypatch):
+    import requests
 
-    # Verify state updated in mock hub
-    state = client.get_state("light.living_room", mock_http=mock_http_server)
-    assert state["state"] == "on"
-    assert state["attributes"]["brightness"] == 200
+    from tests.ha_transport_support import HAHTTP, confirm_call
+    transport = HAHTTP()
+    monkeypatch.setattr(requests, "request", transport.request)
+    client = HomeAssistantClient(access_token="test", allowed_entity_ids=["light.living_room"])
+    result = confirm_call(client, "light", "turn_on", {"entity_id":"light.living_room", "brightness":200})
+    assert result.success
+    assert result.data["before"]["state"] == "off"
+    assert result.data["after"]["attributes"]["brightness"] == 200
 
 
 def test_smart_home_ha_state_query_tier1(mock_http_server):
@@ -85,4 +79,4 @@ def test_smart_home_ha_server_unreachable_timeout_tier2():
     client = HomeAssistantClient(base_url="http://invalid-ha-host.local:8123")
     res = client.call_service("light", "turn_on", {"entity_id": "light.room"}, mock_http=None)
     assert res["success"] is False
-    assert "unreachable" in res["error"].lower()
+    assert res.code == "NOT_CONFIGURED"  # missing token is checked before network

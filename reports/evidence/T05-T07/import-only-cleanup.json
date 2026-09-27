@@ -1,0 +1,28 @@
+{
+  "command": [
+    "C:/Users/MSI/.codex/worktrees/ci-baseline-9d3c591/runtime/venv/Scripts/python.exe",
+    "-m",
+    "ruff",
+    "check",
+    "--no-cache",
+    "--select",
+    "I",
+    "--fix",
+    "jarvis/planner/safety_interceptor.py",
+    "tests/test_e2e_scenarios.py",
+    "tests/test_smart_home.py",
+    "tests/test_tier5_adversarial_sec_iot_comms_data.py",
+    "tests/unit/test_action_result_contract.py",
+    "tests/unit/test_m2_adversarial_challenger.py"
+  ],
+  "exit_code": 0,
+  "output": "Found 6 errors (6 fixed, 0 remaining).\n",
+  "non_import_ast_unchanged": {
+    "jarvis/planner/safety_interceptor.py": true,
+    "tests/test_e2e_scenarios.py": true,
+    "tests/test_smart_home.py": true,
+    "tests/test_tier5_adversarial_sec_iot_comms_data.py": true,
+    "tests/unit/test_action_result_contract.py": true,
+    "tests/unit/test_m2_adversarial_challenger.py": true
+  }
+}

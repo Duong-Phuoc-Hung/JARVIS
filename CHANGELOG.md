@@ -1,3 +1,34 @@
+<!-- T05-T07 changelog start -->
+## [5.2.1-unreleased] — T-05–T-07 transport and safety hardening (2026-09-27)
+
+Goal: complete engineering/fail-closed acceptance for Discord, IMAP and Home Assistant while keeping
+unauthorized/unavailable live resources PENDING.
+
+Root causes: Discord whitelist implicitly granted admin, sensitive commands invoked skills outside the
+safety gate, sends ignored the injected transport and did not verify delivery IDs; IMAP substring sender
+matching, unbounded connect and swallowed protocol errors; HA placeholder credential, unrestricted entity
+selection and public writes outside confirmation, plus HTTP acceptance mistaken for verified device state.
+
+- `jarvis/comms/discord.py`: explicit admin + real dispatcher, guild/channel-bound HTTP, redacted outcomes,
+  sent message IDs, response delivery, cooldown/reconnect, dedupe, real worker lifecycle and no raw callback bypass.
+- `jarvis/comms/email_imap.py`: exact allowlist, verified TLS/timeout, Unicode/PEEK, redacted protocol errors,
+  cleanup/reconnect and fail-closed sanitizer errors.
+- `jarvis/smart_home/home_assistant.py`, `jarvis/core/app.py`: explicit writable entity configuration,
+  shared dispatcher/safety gate, conservative service/parameter policy, truthful before/after and retry contracts.
+- `jarvis/planner/safety_interceptor.py`: classify screenshot, macro and note writes as high risk.
+- Scoped unit/adversarial and real loopback HTTP/TLS tests replace obsolete raw-callback/mock-success contracts.
+  Native run metrics are recorded in the linked audit; initial RED and intermediate failures are retained.
+
+Runtime: T-05 PENDING_GUILD_CHANNEL_AUTHORIZATION; T-06 PENDING_MAILBOX_AUTHORIZATION;
+T-07 PENDING_HA_INSTANCE_ENTITY. No provider round-trip or HA physical write was performed.
+Full regression and final verdict: see [current audit](docs/eval/t05_t07_runtime_contracts_20260927.md).
+Final validation: **PASS engineering / PASS fail-closed** for scoped T-05–T-07.
+Unit: 2764 pass / 4 skip, 287.81 s, exit 0. Scoped: 254 pass, 21.82 s, exit 0.
+Full: 4264 pass / 46 fail / 20 skip, 721.77 s, exit 1 (45 reproduced on base; one unresolved
+order-sensitive candidate). Hosted CI not rerun; runtime PENDING; no CONDITIONAL GO/GO.
+
+<!-- T05-T07 changelog end -->
+
 ## [Unreleased] Comprehensive Security Audit, Hardening & Tooling Sprint (2026-09-22)
 
 - **Mục tiêu**: Kiểm toán toàn diện bề mặt tấn công của 200 tệp nguồn thuộc phân hệ `jarvis/`, phát hiện và khắc phục dứt điểm 22 lỗ hổng bảo mật thuộc 5 nhóm rủi ro (Code Vulnerabilities, Information Disclosure, Excessive Permissions, Outdated Dependencies, Sensitive Serialization), nâng cấp bộ kiểm thử an toàn thông tin chuyên sâu (21 security hardening tests), và triển khai công cụ quét tĩnh bảo mật tự động `tools/security_scanner.py`.

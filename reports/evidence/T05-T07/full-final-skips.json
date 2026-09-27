@@ -1,0 +1,102 @@
+[
+  {
+    "case": "::tests.test_biometrics",
+    "reason": "collection skipped",
+    "detail": "('C:\\\\Users\\\\MSI\\\\.codex\\\\worktrees\\\\t05-t07-runtime-contracts\\\\JARVIS\\\\tests\\\\test_biometrics.py', 18, \"Skipped: opencv-python not installed; biometrics tests require 'pip install opencv-python'\")"
+  },
+  {
+    "case": "::tests.test_live_infra_evidence",
+    "reason": "collection skipped",
+    "detail": "('C:\\\\Users\\\\MSI\\\\.codex\\\\worktrees\\\\t05-t07-runtime-contracts\\\\JARVIS\\\\tests\\\\test_live_infra_evidence.py', 30, 'Skipped: Live infrastructure probes require explicit opt-in')"
+  },
+  {
+    "case": "tests.integration.test_web_intelligence_live.TestWebIntelligenceLiveRuntime::test_live_weather_wttr_in_sanity_bounds",
+    "reason": "wttr.in is unreachable (DNS or TCP connect failed) — skipping live test.",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\integration\\test_web_intelligence_live.py:61: wttr.in is unreachable (DNS or TCP connect failed) — skipping live test."
+  },
+  {
+    "case": "tests.integration.test_web_intelligence_live.TestWebIntelligenceLiveRuntime::test_live_vnexpress_rss_news_headlines",
+    "reason": "vnexpress.net is unreachable — skipping live test.",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\integration\\test_web_intelligence_live.py:86: vnexpress.net is unreachable — skipping live test."
+  },
+  {
+    "case": "tests.integration.test_web_intelligence_live.TestWebIntelligenceLiveRuntime::test_live_morning_briefing_end_to_end_synthesis",
+    "reason": "Internet endpoints unreachable — skipping live briefing test.",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\integration\\test_web_intelligence_live.py:110: Internet endpoints unreachable — skipping live briefing test."
+  },
+  {
+    "case": "tests.test_adversarial_harness::test_fixture_isolation_camera_feed_reset",
+    "reason": "opencv-python not installed; skip vision tests",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\test_adversarial_harness.py:338: opencv-python not installed; skip vision tests"
+  },
+  {
+    "case": "tests.test_adversarial_m2_llm_router::test_stress_concurrent_app_process_text_command",
+    "reason": "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\test_adversarial_m2_llm_router.py:313: Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+  },
+  {
+    "case": "tests.test_adversarial_m2_llm_router::test_pipeline_integration_category1_smart_home",
+    "reason": "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\test_adversarial_m2_llm_router.py:375: Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+  },
+  {
+    "case": "tests.test_adversarial_m2_llm_router::test_pipeline_integration_category2_hardware_telemetry",
+    "reason": "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\test_adversarial_m2_llm_router.py:388: Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+  },
+  {
+    "case": "tests.test_adversarial_m2_llm_router::test_pipeline_integration_category5_reminder",
+    "reason": "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\test_adversarial_m2_llm_router.py:430: Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+  },
+  {
+    "case": "tests.test_adversarial_m2_llm_router::test_pipeline_integration_category6_power_safety",
+    "reason": "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\test_adversarial_m2_llm_router.py:443: Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+  },
+  {
+    "case": "tests.test_e2e_scenarios::test_e2e_tier3_intruder_to_lock_and_telegram",
+    "reason": "opencv-python not installed; skip vision tests",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\test_e2e_scenarios.py:109: opencv-python not installed; skip vision tests"
+  },
+  {
+    "case": "tests.test_e2e_scenarios::test_e2e_tier3_privilege_gated_nmap_scan_flow",
+    "reason": "opencv-python not installed; skip vision tests",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\test_e2e_scenarios.py:134: opencv-python not installed; skip vision tests"
+  },
+  {
+    "case": "tests.test_e2e_scenarios::test_e2e_tier4_security_audit_and_incident_workflow",
+    "reason": "opencv-python not installed; skip vision tests",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\test_e2e_scenarios.py:251: opencv-python not installed; skip vision tests"
+  },
+  {
+    "case": "tests.test_llm_router::test_m2_app_process_text_command_integration",
+    "reason": "Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\test_llm_router.py:549: Full-pipeline integration test: set JARVIS_INTEGRATION_TESTS=1 to run"
+  },
+  {
+    "case": "tests.test_windows_platform::test_mediapipe_hand_gesture_classifier_tier1",
+    "reason": "opencv-python not installed; skip vision tests",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\test_windows_platform.py:141: opencv-python not installed; skip vision tests"
+  },
+  {
+    "case": "tests.unit.test_data_analysis_service::test_render_chart_with_matplotlib_produces_png_bytes",
+    "reason": "could not import 'matplotlib': No module named 'matplotlib'",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\unit\\test_data_analysis_service.py:196: could not import 'matplotlib': No module named 'matplotlib'"
+  },
+  {
+    "case": "tests.unit.test_data_analysis_service::test_render_chart_error_path_does_not_leak_figure",
+    "reason": "could not import 'matplotlib.pyplot': No module named 'matplotlib'",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\unit\\test_data_analysis_service.py:209: could not import 'matplotlib.pyplot': No module named 'matplotlib'"
+  },
+  {
+    "case": "tests.unit.test_data_analysis_service::test_execute_chart_success_reflects_actual_render_outcome",
+    "reason": "could not import 'matplotlib': No module named 'matplotlib'",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\unit\\test_data_analysis_service.py:253: could not import 'matplotlib': No module named 'matplotlib'"
+  },
+  {
+    "case": "tests.unit.test_wake_word_p0::test_p0a_vosk_model_path_discovery_hierarchy",
+    "reason": "vosk not installed — test requires vosk package to mock vosk.Model",
+    "detail": "C:\\Users\\MSI\\.codex\\worktrees\\t05-t07-runtime-contracts\\JARVIS\\tests\\unit\\test_wake_word_p0.py:52: vosk not installed — test requires vosk package to mock vosk.Model"
+  }
+]
