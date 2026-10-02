@@ -1149,6 +1149,10 @@ class LLMIntentRouter:
             "mo youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
             "open youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
             "vao youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "cho tao vao youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "cho toi vao youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "cho t vao youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "vao youtube di": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
             "bật google": IntentResult(action_name="web_open", parameters={"target": "google", "site": "google"}, source="rule_fallback", response_text="Đang mở Google cho Ngài."),
             "mở google": IntentResult(action_name="web_open", parameters={"target": "google", "site": "google"}, source="rule_fallback", response_text="Đang mở Google cho Ngài."),
             "bật gmail": IntentResult(action_name="web_open", parameters={"target": "gmail", "site": "gmail"}, source="rule_fallback", response_text="Đang mở Gmail cho Ngài."),
@@ -1160,6 +1164,13 @@ class LLMIntentRouter:
             "mo facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
             "open facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
             "vao facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
+            "cho tao vao facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
+            "cho toi vao facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
+            "cho tao mo facebook": IntentResult(action_name="web_open", parameters={"target": "facebook", "site": "facebook"}, source="rule_fallback", response_text="Đang mở Facebook cho Ngài."),
+            "cho tao mo youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "cho toi mo youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "cho tao mo google": IntentResult(action_name="web_open", parameters={"target": "google", "site": "google"}, source="rule_fallback", response_text="Đang mở Google cho Ngài."),
+            "cho toi mo google": IntentResult(action_name="web_open", parameters={"target": "google", "site": "google"}, source="rule_fallback", response_text="Đang mở Google cho Ngài."),
             "open website": IntentResult(action_name="web_open", parameters={"target": "https://www.google.com", "site": "google"}, source="rule_fallback", response_text="Đang mở trình duyệt cho Ngài."),
             "mo trang web": IntentResult(action_name="web_open", parameters={"target": "https://www.google.com", "site": "google"}, source="rule_fallback", response_text="Đang mở trình duyệt cho Ngài."),
             "bật discord": IntentResult(action_name="app_open", parameters={"app_name": "discord"}, source="rule_fallback", response_text="Đang mở Discord cho Ngài."),
@@ -1713,7 +1724,7 @@ class LLMIntentRouter:
                 lambda m: self._make_hw_intent((m.group(1) or m.group(2) or "cpu").lower()),
             ),
             (
-                re.compile(r"^(?:jarvis[,\s]*)?(?:kiểm\s*tra|kiem\s*tra|xem|check)\s+(cpu|gpu|ram|disk|ổ\s*cứng|o\s*cung|pin|battery)$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:kiểm\s*tra|kiem\s*tra|xem|check)\s+(cpu|gpu|ram|disk|ổ\s*cứng|o\s*cung|bộ\s*nhớ|bo\s*nho|pin|battery)$", re.IGNORECASE),
                 lambda m: self._make_hw_intent(m.group(1)),
             ),
             (
@@ -1920,7 +1931,7 @@ class LLMIntentRouter:
                 lambda m: self._make_web_intent(m.group(1), None),
             ),
             (
-                re.compile(r"^(?:jarvis[,\s]*)?(?:mở|bật|vào|truy\s*cập|mo|bat|vao|truy\s*cap|open|visit|go\s*to|launch|start)(?:\s+(?:trang\s*web|web|website|trang))?\s*(youtube|yt|google|gg|facebook|fb|github|gh|chatgpt|gpt|chat\s*gpt|claude|claude\s*ai|anthropic|binance|zalo\s*web|gmail|mail|email|hòm\s*thư|vnexpress|báo|dantri|dân\s*trí|shopee|tiki|lazada|reddit|twitter|maps|bản\s*đồ|dịch|translate|google\s*dịch|notion|figma|canva|trello|jira|confluence|[\w\-]+(?:\.com|\.vn|\.net|\.org|\.io|\.edu))(?:\s+(.*))?$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:cho\s+(?:tao|tôi|mình|t)\s+|giúp\s+(?:tao|tôi|mình)\s+|hãy\s+|đi\s+)?(?:mở|bật|vào|truy\s*cập|mo|bat|vao|truy\s*cap|open|visit|go\s*to|launch|start)(?:\s+(?:trang\s*web|web|website|trang))?\s*(youtube|yt|google|gg|facebook|fb|github|gh|chatgpt|gpt|chat\s*gpt|claude|claude\s*ai|anthropic|binance|zalo\s*web|gmail|mail|email|hòm\s*thư|vnexpress|báo|dantri|dân\s*trí|shopee|tiki|lazada|reddit|twitter|maps|bản\s*đồ|dịch|translate|google\s*dịch|notion|figma|canva|trello|jira|confluence|[\w\-]+(?:\.com|\.vn|\.net|\.org|\.io|\.edu))(?:\s+(.*))?$", re.IGNORECASE),
                 lambda m: self._make_web_intent(m.group(1), m.group(2)),
             ),
             # 8b. File Search
@@ -2267,9 +2278,9 @@ class LLMIntentRouter:
         c = comp_raw.lower().strip()
         if "gpu" in c or "card" in c:
             comp = "gpu"
-        elif "ram" in c or "bộ nhớ" in c:
+        elif "ram" in c or "bộ nhớ" in c or "bo nho" in c:
             comp = "ram"
-        elif "disk" in c or "ổ cứng" in c or "smart" in c:
+        elif "disk" in c or "ổ cứng" in c or "o cung" in c or "smart" in c:
             comp = "disk"
         elif "pin" in c or "battery" in c:
             comp = "battery"
@@ -2400,6 +2411,12 @@ class LLMIntentRouter:
             return None
         target = clean[prefix.end():]
         qualifier = self._APP_QUALIFIER.match(target)
+        # Workspace/project commands share the same "mở/open" prefix but are
+        # not application launches. Leave them for the workspace rule family.
+        if qualifier is None and re.match(
+            r"^(?:dự\s+án|du\s+an|project|workspace|repo|code)\b", target, re.IGNORECASE
+        ):
+            return None
         if qualifier:
             target = target[qualifier.end():]
         if explicit_only and qualifier is None and len(clean) <= 512:
@@ -2970,6 +2987,49 @@ class LLMIntentRouter:
                 response_text="Tôi chưa hiểu lệnh này, vui lòng thử cách khác",
             )
 
+        # Never run full-text rule matching on an adversarially large command.
+        # The regex path is bounded, but dictionary substring rules could still
+        # classify a repeated phrase as a real action after truncation.
+        if len(clean) > 2048 and re.match(
+            r"^(?:jarvis[,\s]*)?(?:mở|mo|open)\s+(?:dự\s+án|du\s+an|project|workspace)\b",
+            clean,
+            re.IGNORECASE,
+        ):
+            # Keep the bounded, safe workspace intent without carrying the
+            # attacker-controlled 50KB suffix into a project path.
+            return IntentResult(
+                action_name="workspace_prepare",
+                parameters={"action": "open", "project": "", "recipe": "ai_development"},
+                confidence=1.0,
+                source="rule_fast_path",
+                raw_text=text,
+                response_text="Đang chuẩn bị môi trường làm việc cho Ngài.",
+            )
+        if len(clean) > 2048:
+            # Preserve deterministic, read-only/safe fast commands without
+            # scanning or retaining their untrusted suffixes.
+            folded = clean[:2048].casefold()
+            if "lệnh kiểm tra hệ thống" in folded or "len kiem tra he thong" in folded:
+                return IntentResult(
+                    action_name="hardware_status_query",
+                    parameters={},
+                    confidence=1.0,
+                    source="rule_fast_path",
+                    raw_text=text,
+                    response_text="Đang kiểm tra tình trạng hệ thống cho Ngài.",
+                )
+            if "bật đèn" in folded or "bat den" in folded:
+                return self._make_light_intent("turn_on", "")
+        if len(clean) > 2048:
+            return IntentResult(
+                action_name="unknown_intent",
+                parameters={"raw_text": text[:2048]},
+                confidence=0.0,
+                source="rule_fast_path",
+                raw_text=text,
+                response_text="Tôi chưa hiểu lệnh này, vui lòng thử cách khác",
+            )
+
         # 1. TIER 1: Fast Rule Check (Sub-millisecond)
         if not force_llm and self.fast_path_enabled:
             installed_intent = self._match_installed_app_request(text, explicit_only=True)
@@ -3122,7 +3182,17 @@ class LLMIntentRouter:
                 )
 
         except Exception as exc:
-            logger.warning("LLM intent routing encountered exception: %s. Initiating rule fallback.", exc)
+            from jarvis.llm.client import LLMAuthenticationError
+            if isinstance(exc, LLMAuthenticationError):
+                logger.warning(
+                    "LLM Tier-2 disabled: no API key for %s. "
+                    "Set GEMINI_API_KEY in Credential Manager: "
+                    "python -c \"import keyring; keyring.set_password('JARVIS', 'GEMINI_API_KEY', 'YOUR_KEY')\". "
+                    "Get free key at https://aistudio.google.com/app/apikey",
+                    getattr(self.llm, "provider", "llm"),
+                )
+            else:
+                logger.warning("LLM intent routing encountered exception: %s. Initiating rule fallback.", exc)
 
             # 3. TIER 3: Graceful Rule Fallback on Error
             installed_intent = self._match_installed_app_request(text, explicit_only=True)
