@@ -65,27 +65,16 @@ gesture:
       enabled: true
       min_gap_s: 0.05
       max_gap_s: 0.35
-      # P0 runaway-hardening: a passive acoustic trigger (a clap pattern) no
-      # longer has default authority to launch heavyweight external
-      # applications -- a false-positive/repeated detection (e.g. from the
-      # music this fanout itself would start playing) could otherwise keep
-      # relaunching Spotify/Chrome/Cursor unbounded. Set this to true to
-      # explicitly opt back into the full external-app fanout below on first
-      # activation; when false (default), first activation instead starts a
-      # safe voice interaction, same as every subsequent double_clap.
+      # Vỗ tay 2 cái → kích hoạt lắng nghe giọng nói (không mở app tự động)
       allow_side_effect_fanout: false
       actions:
-        - "spotify"
-        - "chrome_claude"
-        - "chrome_binance"
-        - "tts_welcome"
-        - "cursor"
+        - "tts_welcome"       # Chỉ chào, không mở Spotify/Chrome/Cursor
     triple_clap:
       enabled: true
       min_gap_s: 0.05
       max_gap_s: 0.40
       actions:
-        - "system_status"
+        - "system_status"     # Báo cáo phần cứng
     clap_pause_clap:
       enabled: true
       min_gap1_s: 0.05
@@ -95,7 +84,7 @@ gesture:
       min_gap2_s: 0.05
       max_gap2_s: 0.35
       actions:
-        - "show_overlay"    # Mở giao diện JARVIS chat (đã đổi từ toggle_mute)
+        - "show_overlay"      # Mở giao diện JARVIS chat
 
 tts:
   provider: "edge_tts"         # "edge_tts" (miễn phí, giọng Việt tự nhiên) | "elevenlabs" | "sapi5"
@@ -292,8 +281,8 @@ plugins:
     binance_url: "https://www.binance.com/en/trade/BTC_USDT"
     claude_monitor: 1
     binance_monitor: 3
-    open_claude: true
-    open_binance: true
+    open_claude: false            # Không tự động mở — chỉ mở khi ra lệnh "mở claude"
+    open_binance: false           # Không tự động mở — chỉ mở khi ra lệnh "mở binance"
     fullscreen: true
     separate_profiles: false
     window_width: 1400
@@ -302,7 +291,7 @@ plugins:
   cursor:
     enabled: true
     focus_existing: true
-    open_new: false
+    open_new: false               # Không tự động mở Cursor khi startup
     fullscreen: true
 
 labs:
