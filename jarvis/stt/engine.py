@@ -615,7 +615,10 @@ class FasterWhisperSTT(BaseSTTEngine):
                 return "cuda"
             except ImportError:
                 pass
-            log.warning("CUDA device found but cublas DLL missing. Falling back to CPU.")
+            log.warning(
+                "CUDA device found but cublas DLL missing. Falling back to CPU. "
+                "Fix: pip install nvidia-cublas-cu12  (or install CUDA Toolkit 12.x)"
+            )
             return "cpu"
         except Exception:
             return "cpu"

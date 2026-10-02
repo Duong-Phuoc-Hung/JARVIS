@@ -31,6 +31,9 @@ log = logging.getLogger("jarvis.security.secrets")
 # Service name used as namespace in Windows Credential Manager
 _SERVICE = "JARVIS"
 
+# Deduplicate "not found" warnings — warn once per key per process lifetime
+_warned_missing: set[str] = set()
+
 # Known secrets managed by this module
 KNOWN_SECRETS = (
     "GEMINI_API_KEY",
@@ -84,7 +87,9 @@ def get_secret(name: str, fallback_env: bool = True) -> str | None:
             log.debug("secrets: loaded %s from environment variable", name)
             return value
 
-    log.warning("secrets: %s not found in Credential Manager or environment", name)
+    if name not in _warned_missing:
+        _warned_missing.add(name)
+        log.warning("secrets: %s not found in Credential Manager or environment", name)
     return None
 
 

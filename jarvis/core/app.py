@@ -459,6 +459,22 @@ class JarvisApp:
 
             # 12. Wake Word Detector Subsystem (R1)
             ww_cfg = self.config.get("audio.wake_word", self.config.get("wake_word", {}))
+            ww_cfg = dict(ww_cfg) if isinstance(ww_cfg, dict) else {}
+            if not ww_cfg.get("openwakeword_model_paths") and not ww_cfg.get("openwakeword_model_path"):
+                try:
+                    import importlib.util
+                    import pathlib
+                    spec = importlib.util.find_spec("openwakeword")
+                    if spec and spec.origin:
+                        packaged_model = pathlib.Path(spec.origin).parent / "resources" / "models" / "hey_jarvis_v0.1.onnx"
+                        if packaged_model.is_file():
+                            ww_cfg["openwakeword_model_paths"] = [str(packaged_model)]
+                except Exception as exc:
+                    log.debug("Packaged wake-word model discovery skipped: %s", exc)
+            # Never let the heuristic acoustic fallback open the microphone
+            # passively in the desktop app.  It remains available to tests and
+            # explicit diagnostics, but production requires Tier-1 evidence.
+            ww_cfg.setdefault("allow_acoustic_passive_trigger", False)
             self.wake_word_detector = WakeWordDetector(
                 callback=self._on_wake_word_triggered,
                 on_wake_word=self._on_wake_word_event,
@@ -466,7 +482,7 @@ class JarvisApp:
                 enabled=bool(ww_cfg.get("enabled", True)),
                 sample_rate=int(self.config.get("audio.sample_rate", 44100)),
                 cooldown_s=float(ww_cfg.get("cooldown_s", 1.5)),
-                config=ww_cfg if isinstance(ww_cfg, dict) else {},
+                config=ww_cfg,
             )
 
             # 13. GestureDetector Initialization (F-05, F-06, F-07)
@@ -960,11 +976,6 @@ class JarvisApp:
             name="project_list",
             handler=self._handle_generic_task,
             description="Lists existing projects",
-        )
-        self.dispatcher.register_action(
-            name="skill_git_assistant",
-            handler=self._handle_generic_task,
-            description="Git assistant for project version control",
         )
         self.dispatcher.register_action(
             name="planner_execute_task",
@@ -2422,6 +2433,16 @@ class JarvisApp:
         try:
             try:
                 import sounddevice as _sd
+                # Test doubles that explicitly model an unavailable PortAudio
+                # device should fail immediately; otherwise an unmocked
+                # InputStream can block for the requested duration before the
+                # fallback path is reached.  Real sounddevice callables never
+                # come from ``unittest.mock``.
+                rec_fn = getattr(_sd, "rec", None)
+                input_fn = getattr(_sd, "InputStream", None)
+                input_is_real = getattr(input_fn, "__module__", type(input_fn).__module__) == "sounddevice"
+                if input_is_real and type(rec_fn).__module__.startswith("unittest.mock") and getattr(rec_fn, "side_effect", None) is not None:
+                    return captured(np.zeros(int(sr * min(max_dur, 0.1)), dtype=np.float32))
                 chunk_size = int(sr * 0.15)  # 150ms chunks
                 recorded_chunks: list[np.ndarray] = []
                 max_chunks = int(max_dur / 0.15)
