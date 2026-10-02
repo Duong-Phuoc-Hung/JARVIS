@@ -875,8 +875,8 @@ class LLMIntentRouter:
             "don dep may tinh": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Remove-Item $env:TEMP\\* -Recurse -Force -ErrorAction SilentlyContinue; Write-Output 'Đã dọn dẹp'\"", "topic": "cleanup"}, source="rule_fallback", response_text="Đang dọn dẹp file tạm trên máy cho Ngài."),
 
             # 4h. Window management
-            "phong to cua so": IntentResult(action_name="system_power", parameters={"action": "maximize_window"}, source="rule_fallback", response_text="Đang phóng to cửa sổ cho Ngài."),
-            "phóng to cửa sổ": IntentResult(action_name="system_power", parameters={"action": "maximize_window"}, source="rule_fallback", response_text="Đang phóng to cửa sổ cho Ngài."),
+            "phong to cua so": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Add-Type -AssemblyName Microsoft.VisualBasic; [System.Windows.Forms.SendKeys]::SendWait('%{F10}')\"", "topic": "window"}, source="rule_fallback", response_text="Đang phóng to cửa sổ cho Ngài."),
+            "phóng to cửa sổ": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"$wshell = New-Object -ComObject wscript.shell; $wshell.SendKeys('% '+'x')\"", "topic": "window"}, source="rule_fallback", response_text="Đang phóng to cửa sổ cho Ngài."),
 
             # 4i. Clipboard cut
             "cat": IntentResult(action_name="skill_clipboard", parameters={"action": "cut"}, source="rule_fallback", response_text="Đã cắt nội dung vào clipboard."),
