@@ -20,6 +20,7 @@ from jarvis.tts.base import BaseTTSEngine
 from jarvis.tts.cache import TTSAudioCache
 from jarvis.tts.elevenlabs import ElevenLabsTTS
 from jarvis.tts.fallback import SAPI5FallbackTTS
+from jarvis.tts.edge import EdgeTTS
 
 log = logging.getLogger("jarvis.tts.manager")
 
@@ -75,9 +76,19 @@ class TTSManager:
         c_dir = _raw_dir
 
         self.cache = TTSAudioCache(cache_dir=c_dir, enabled=cache_enabled)
-        self.primary_engine: BaseTTSEngine = (
-            primary_engine or ElevenLabsTTS(self.config.get("elevenlabs", {}))
-        )
+
+        # Select primary engine from tts.provider config
+        if primary_engine:
+            self.primary_engine: BaseTTSEngine = primary_engine
+        else:
+            provider = self.config.get("provider", "elevenlabs").lower()
+            if provider == "edge_tts" or provider == "edge":
+                self.primary_engine = EdgeTTS(self.config.get("edge_tts", {}))
+            elif provider == "sapi5":
+                self.primary_engine = SAPI5FallbackTTS(self.config.get("fallback", {}))
+            else:
+                self.primary_engine = ElevenLabsTTS(self.config.get("elevenlabs", {}))
+
         self.fallback_engine: BaseTTSEngine = (
             fallback_engine or SAPI5FallbackTTS(self.config.get("fallback", {}))
         )
@@ -129,12 +140,17 @@ class TTSManager:
                 text, voice_id, callback, mock_http = task
                 try:
                     success = self._execute_speak(text, voice_id=voice_id, wait=True, mock_http=mock_http)
-                    if callback:
-                        callback(success)
                 except Exception as e:
                     log.error("TTS worker failed speaking: %s", e)
+                    success = False
+                try:
                     if callback:
-                        callback(False)
+                        callback(success)
+                except Exception as callback_error:
+                    # A caller callback is notification-only. Never let a
+                    # buggy callback kill the worker or cause a second
+                    # callback invocation that can raise again.
+                    log.error("TTS callback failed: %s", callback_error)
                 finally:
                     self._queue.task_done()
         finally:
@@ -304,6 +320,11 @@ class TTSManager:
             else:
                 # 3. Fallback to default pool
                 candidate_pool = list(WELCOME_PHRASES)
+
+        # A configured list may contain only blank values.  Treat that the same
+        # as an absent list instead of passing an empty sequence to random.choice.
+        if not candidate_pool:
+            candidate_pool = list(WELCOME_PHRASES)
 
         with self._lock:
             if len(candidate_pool) > 1:

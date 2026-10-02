@@ -98,13 +98,16 @@ gesture:
         - "show_overlay"    # Mở giao diện JARVIS chat (đã đổi từ toggle_mute)
 
 tts:
-  provider: "elevenlabs"      # "elevenlabs" or "sapi5"
+  provider: "edge_tts"         # "edge_tts" (miễn phí, giọng Việt tự nhiên) | "elevenlabs" | "sapi5"
   elevenlabs:
     api_key: ""               # Loaded from .env ELEVENLABS_API_KEY
     voice_id: ""              # Loaded from .env ELEVENLABS_VOICE_ID
     model_id: "eleven_multilingual_v2"
     output_format: "pcm_24000"
     sample_rate: 24000
+  edge_tts:
+    voice: "vi-VN-HoaiMyNeural"  # vi-VN-HoaiMyNeural (nữ) | vi-VN-NamMinhNeural (nam)
+    rate: "+0%"                   # Tốc độ: "+10%" nhanh hơn, "-10%" chậm hơn
   cache:
     enabled: true
     dir: ""                     # "" = tự động %LOCALAPPDATA%\JARVIS\cache\tts
