@@ -26,6 +26,15 @@ from jarvis.audio.dsp import calculate_rms
 
 logger = logging.getLogger("jarvis.audio.engine")
 
+
+def _get_input_device_secret() -> str | None:
+    """Read JARVIS_INPUT_DEVICE from secrets manager (lazy import to avoid circular deps)."""
+    try:
+        from jarvis.security.secrets import get_secret
+        return get_secret("JARVIS_INPUT_DEVICE")
+    except Exception:
+        return None
+
 try:
     import sounddevice as sd
     SOUNDDEVICE_AVAILABLE = True
@@ -513,7 +522,8 @@ class AudioEngine:
                 # wins when it is a real (non-empty) selection; only an
                 # unset/empty config value defers to the environment variable.
                 _requested_device = _explicit_device_or(
-                    self.input_device, os.environ.get("JARVIS_INPUT_DEVICE")
+                    self.input_device,
+                    os.environ.get("JARVIS_INPUT_DEVICE") or _get_input_device_secret(),
                 )
                 try:
                     self._active_device_index = self.probe_manager.select_best_device(
