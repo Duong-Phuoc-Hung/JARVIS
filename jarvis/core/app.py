@@ -910,6 +910,11 @@ class JarvisApp:
             description="Translates and executes natural language shell command",
         )
         self.dispatcher.register_action(
+            name="shell_exec",
+            handler=self._handle_shell_execute,
+            description="Alias for shell_execute (used by intent router for weather/curl shortcuts)",
+        )
+        self.dispatcher.register_action(
             name="safety_gate_confirm",
             handler=self._handle_safety_gate_confirm,
             description="Confirms a pending gated high-risk action",
@@ -1831,10 +1836,17 @@ class JarvisApp:
             return {"status": "success" if res.get("success") else "failed", "result": res, "message": msg, "error_code": res.get("error_code")}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
-    def _handle_shell_execute(self, query: str, cwd: str | None = None, **kwargs) -> dict[str, Any]:
-        """Executes natural language shell command."""
+    def _handle_shell_execute(self, query: str = "", cwd: str | None = None, **kwargs) -> dict[str, Any]:
+        """Executes natural language shell command.
+        Accepts both 'query' (NL description) and 'command' (raw shell) parameter names
+        so router emissions using either key reach the same handler.
+        """
+        # router emits 'command' for weather/curl shortcuts, 'query' for NL shell requests
+        effective_query = query or kwargs.get("command", "") or ""
+        if not effective_query:
+            return {"status": "failed", "message": "Không có lệnh nào để thực thi."}
         if self.shell_assistant:
-            res = self.shell_assistant.execute_natural_command(query=query, cwd=cwd)
+            res = self.shell_assistant.execute_natural_command(query=effective_query, cwd=cwd)
             msg = res.get("summary") or res.get("message", "Đã thực thi lệnh shell.")
             return {"status": "success" if res.get("success") else "failed", "result": res, "message": msg}
         return {"status": "failed", "message": "Shell assistant unavailable"}

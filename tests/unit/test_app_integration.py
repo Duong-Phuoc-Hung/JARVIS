@@ -23,25 +23,23 @@ def test_full_audio_gesture_dispatch_pipeline(mock_audio_stream, tmp_path, monke
     # P0 runaway-hardening: fanout is opt-in by default now -- safe to opt in
     # here since every one of its actions is re-registered as a fake handler.
     app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
+    # Inject a test-only actions list so this test is decoupled from the
+    # default config (which intentionally no longer lists heavy app launches).
+    app.config.set("gesture.patterns.double_clap.actions", [
+        "test_action_a", "test_action_b", "test_action_c", "test_action_d",
+    ])
 
     # Track executed actions
     executed = []
-    app.dispatcher.register_action(
-        name="spotify",
-        handler=lambda **kw: executed.append("spotify") or {"status": "ok"},
-    )
-    app.dispatcher.register_action(
-        name="chrome_claude",
-        handler=lambda **kw: executed.append("chrome_claude") or {"status": "ok"},
-    )
-    app.dispatcher.register_action(
-        name="chrome_binance",
-        handler=lambda **kw: executed.append("chrome_binance") or {"status": "ok"},
-    )
-    app.dispatcher.register_action(
-        name="cursor",
-        handler=lambda **kw: executed.append("cursor") or {"status": "ok"},
-    )
+
+    def _make_handler(n):
+        def _h(**kw):
+            executed.append(n)
+            return {"status": "ok"}
+        return _h
+
+    for action_name in ("test_action_a", "test_action_b", "test_action_c", "test_action_d"):
+        app.dispatcher.register_action(name=action_name, handler=_make_handler(action_name))
 
     spoken = []
     if app.tts_manager:
@@ -58,9 +56,9 @@ def test_full_audio_gesture_dispatch_pipeline(mock_audio_stream, tmp_path, monke
     time.sleep(0.8)
 
     # Verify actions were dispatched
-    assert "spotify" in executed
-    assert "chrome_claude" in executed
-    assert "chrome_binance" in executed
-    assert "cursor" in executed
+    assert "test_action_a" in executed
+    assert "test_action_b" in executed
+    assert "test_action_c" in executed
+    assert "test_action_d" in executed
 
     app.stop()
