@@ -247,8 +247,15 @@ class TestPassiveGuardDoesNotBlockExplicitActions(unittest.TestCase):
 
 
 class TestDoubleClapFanoutOptIn(unittest.TestCase):
+    # These action names mirror the original double_clap fanout list.
+    # Injected into config in setUp so tests are decoupled from production
+    # default_config.yaml (which intentionally disables auto-launch).
+    _FANOUT_ACTIONS = ["spotify", "chrome_claude", "chrome_binance", "tts_welcome", "cursor"]
+
     def setUp(self) -> None:
         self.app = _make_app()
+        # Override config so fanout tests work regardless of production defaults
+        self.app.config.set("gesture.patterns.double_clap.actions", self._FANOUT_ACTIONS)
         self.dispatched: list[str] = []
         self.app.dispatcher.dispatch_action = (
             lambda action_name, **kw: self.dispatched.append(action_name) or MagicMock(success=True, error=None)

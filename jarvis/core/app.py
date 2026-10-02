@@ -983,6 +983,11 @@ class JarvisApp:
             description="Lists existing projects",
         )
         self.dispatcher.register_action(
+            name="skill_git_assistant",
+            handler=self._handle_generic_task,
+            description="Git assistant: commit, push, branch, status via natural language",
+        )
+        self.dispatcher.register_action(
             name="planner_execute_task",
             handler=self._handle_planner_execute_task,
             description="Constructs and executes an autonomous multi-step Task DAG",
