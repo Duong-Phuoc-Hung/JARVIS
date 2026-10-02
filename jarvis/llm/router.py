@@ -867,6 +867,27 @@ class LLMIntentRouter:
             "quay lai bai truoc": IntentResult(action_name="spotify", parameters={"action": "previous"}, source="rule_fallback", response_text="Đang phát bài trước cho Ngài."),
             "chat voi claude": IntentResult(action_name="web_open", parameters={"target": "claude", "site": "claude"}, source="rule_fallback", response_text="Đang mở Claude AI cho Ngài."),
 
+            # 4g. File operations
+            "tao file moi": IntentResult(action_name="file_search", parameters={"action": "create"}, source="rule_fallback", response_text="Ngài muốn tạo file tên gì và ở đâu?"),
+            "tạo file mới": IntentResult(action_name="file_search", parameters={"action": "create"}, source="rule_fallback", response_text="Ngài muốn tạo file tên gì và ở đâu?"),
+            "xoa file tam": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Remove-Item $env:TEMP\\* -Recurse -Force -ErrorAction SilentlyContinue; Write-Output 'Đã xóa file tạm'\"", "topic": "cleanup"}, source="rule_fallback", response_text="Đang xóa file tạm để giải phóng bộ nhớ cho Ngài."),
+            "xóa file tạm": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Remove-Item $env:TEMP\\* -Recurse -Force -ErrorAction SilentlyContinue; Write-Output 'Đã xóa file tạm'\"", "topic": "cleanup"}, source="rule_fallback", response_text="Đang xóa file tạm để giải phóng bộ nhớ cho Ngài."),
+            "don dep may tinh": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Remove-Item $env:TEMP\\* -Recurse -Force -ErrorAction SilentlyContinue; Write-Output 'Đã dọn dẹp'\"", "topic": "cleanup"}, source="rule_fallback", response_text="Đang dọn dẹp file tạm trên máy cho Ngài."),
+
+            # 4h. Window management
+            "phong to cua so": IntentResult(action_name="system_power", parameters={"action": "maximize_window"}, source="rule_fallback", response_text="Đang phóng to cửa sổ cho Ngài."),
+            "phóng to cửa sổ": IntentResult(action_name="system_power", parameters={"action": "maximize_window"}, source="rule_fallback", response_text="Đang phóng to cửa sổ cho Ngài."),
+
+            # 4i. Clipboard cut
+            "cat": IntentResult(action_name="skill_clipboard", parameters={"action": "cut"}, source="rule_fallback", response_text="Đã cắt nội dung vào clipboard."),
+            "xoa clipboard": IntentResult(action_name="skill_clipboard", parameters={"action": "clear"}, source="rule_fallback", response_text="Đã xóa clipboard."),
+            "xóa clipboard": IntentResult(action_name="skill_clipboard", parameters={"action": "clear"}, source="rule_fallback", response_text="Đã xóa clipboard."),
+
+            # 4j. Network speed
+            "toc do mang": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Test-Connection 8.8.8.8 -Count 3 | Select-Object ResponseTime | Measure-Object -Property ResponseTime -Average | ForEach-Object { Write-Output \\\"Ping trung bình: $([math]::Round($_.Average,1))ms\\\" }\"", "topic": "network"}, source="rule_fallback", response_text="Đang kiểm tra tốc độ mạng cho Ngài."),
+            "tốc độ mạng": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Test-Connection 8.8.8.8 -Count 3 | Select-Object ResponseTime | Measure-Object -Property ResponseTime -Average | ForEach-Object { Write-Output \\\"Ping: $([math]::Round($_.Average,1))ms\\\" }\"", "topic": "network"}, source="rule_fallback", response_text="Đang kiểm tra tốc độ mạng cho Ngài."),
+            "kiem tra mang": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Test-Connection 8.8.8.8 -Count 1 | ForEach-Object { Write-Output \\\"Kết nối OK, ping: $($_.ResponseTime)ms\\\" }\"", "topic": "network"}, source="rule_fallback", response_text="Đang kiểm tra kết nối mạng cho Ngài."),
+
             # 5. Reminder (Category 5)
             "tạo nhắc nhở": IntentResult(
                 action_name="reminder",
