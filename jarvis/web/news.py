@@ -194,7 +194,10 @@ class NewsAggregator:
         if channel is not None:
             src = source_name or (channel.findtext("title") or "RSS Feed").strip()
             for item in channel.findall("item"):
-                title = self._clean_text(item.findtext("title") or "")
+                # Feed titles may contain CDATA or inline markup just like
+                # descriptions; normalize both to plain text before exposing
+                # them to speech/UI consumers.
+                title = self._clean_html(item.findtext("title") or "")
                 link = (item.findtext("link") or "").strip()
                 desc = self._clean_html(item.findtext("description") or "")
                 pub_date = (item.findtext("pubDate") or "").strip()
@@ -218,7 +221,7 @@ class NewsAggregator:
             entries = root.findall("entry")
 
         for entry in entries:
-            title = self._clean_text(
+            title = self._clean_html(
                 entry.findtext("atom:title", default="", namespaces=ns)
                 or entry.findtext("title")
                 or ""

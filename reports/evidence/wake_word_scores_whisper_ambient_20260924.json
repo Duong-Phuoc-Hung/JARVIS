@@ -1,0 +1,14 @@
+{
+  "status": "COMPLETED",
+  "label": "ambient",
+  "duration_seconds": 3.013,
+  "sample_rate": 16000,
+  "chunk_size": 1280,
+  "device_index": null,
+  "sensitivity": 0.5,
+  "vad_threshold": 0.003,
+  "engine_selected": "whisper",
+  "event_count": 0,
+  "events": [],
+  "calibration_note": "Operator label only; no threshold recommendation is inferred by this tool."
+}

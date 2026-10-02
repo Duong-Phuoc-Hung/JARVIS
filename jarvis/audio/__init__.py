@@ -17,6 +17,7 @@ from jarvis.audio.engine import (
     AudioEngineMode,
     MicrophoneProbeManager,
 )
+from jarvis.audio.wake_word import WakeWordScoreEvent
 
 __all__ = [
     "AudioDSPProcessor",
@@ -29,4 +30,5 @@ __all__ = [
     "AudioEngine",
     "AudioEngineMode",
     "MicrophoneProbeManager",
+    "WakeWordScoreEvent",
 ]

@@ -1,3 +1,17 @@
+## Runtime bug-fix verification (2026-09-23)
+
+- [x] Fixed zero-area screen capture, explicit zero viewport normalization,
+  RSS/Atom title HTML cleanup, briefing `speech_text` compatibility, Telegram
+  photo mock transport dispatch, safe weather shell allowlist, brightness
+  Invoke-CimMethod argument execution, TTS callback isolation, and deterministic
+  hardware routing variants (`bộ nhớ/bo nho`, `ổ cứng/o cung`).
+- [x] Preserved fail-closed behavior for real TShark output, microphone
+  failures, unsupported brightness hardware, and packet-capture authentication.
+- [ ] Full release gate: current full run is blocked by the legacy E2E assertion
+  that production healing must mutate RAM telemetry after a kill. This conflicts
+  with the newer truthfulness tests that prohibit `set_ram()` fabrication; the
+  contract must be reconciled before declaring GO.
+
 ## Comprehensive Security Audit, Hardening & Tooling Sprint (2026-09-22)
 
 - [x] **5-Category Security Audit & Vulnerability Remediation (22/22 Resolved)**:
@@ -80,7 +94,9 @@ Details: [Catalog evidence](eval/app_catalog_20260922.md).
 - [x] Scoped engineering: URL/query chính xác, browser refusal fail-closed,
   error metadata app/web, bỏ substring app alias, nhận explicit HTTP(S) command.
 - [ ] Runtime Windows: xác nhận cửa sổ ứng dụng và trang đích thực tế từ câu lệnh.
-- [ ] Hoàn thiện negation/ambiguity/long-input routing và 10-workflow acceptance.
+- [x] Hoàn thiện negation/ambiguity/long-input routing; 10-workflow routing matrix
+  đạt 10/10 engineering pass. Runtime matrix còn chờ voice/hardware/credential và
+  clean-machine evidence (`eval/workflow_10_windows_runtime_20260923.md`).
 - [ ] Thiết bị ngoài qua ứng dụng, sau đó Home Assistant (chưa triển khai đợt này).
 
 Evidence: [Windows command execution](eval/windows_command_execution_20260922.md).
@@ -93,10 +109,10 @@ Số unit tổng trong audit bên dưới là lịch sử trước bản vá Win
 |---|---|---|
 | Safety TTL/payload/destructive suffix | PASS engineering / PASS fail-closed (scoped) | Không thay bằng chứng end-to-end của mọi entry point |
 | Skill path/overwrite/false-success | PASS engineering / PASS fail-closed (scoped) | Atomic từng tệp, chưa atomic transaction cả package; template thiếu backend vẫn NOT_IMPLEMENTED |
-| Result model + dispatcher metadata | PARTIAL MIGRATION | Đã vá trạng thái không khả dụng; chưa migration mọi backend/status legacy |
+| Result model + dispatcher metadata | PARTIAL MIGRATION | `BackendResult`/`HealthStatus` và dispatcher normalization đã có; connector legacy chưa migration toàn bộ |
 | Test network/live-probe isolation | PASS engineering (scoped) | Guard process-lifetime và opt-in; không phải sandbox network cho subprocess |
-| Unit suite | PASS engineering | 2.458 passed, 4 skipped, 268 subtests; giới hạn revision/guard ghi trong audit |
-| Full suite / CI / runtime gates | NOT PASSED / PENDING | Fail-fast phát hiện 20 failures; CI remote và runtime gates chưa tái chứng nhận |
+| Unit suite | PASS engineering | 3.002 passed, 3 skipped (334.31s); security subset 66 passed; E2E 290 passed/21 skipped |
+| Full suite / CI / runtime gates | NOT CERTIFIED / PENDING | Unit và E2E xanh; full repository còn test legacy ngoài unit nên không ghi full-green; CI remote và runtime gates chưa tái chứng nhận |
 | Product release | NO-GO | 6 gate mở theo dashboard và nghĩa vụ clean-machine/trust cần evidence |
 
 Báo cáo, root causes, số kiểm thử và việc còn thiếu:
@@ -144,7 +160,7 @@ Các milestone bên dưới là lịch sử, không tự chứng nhận bản v�
 | H-03 | DONE | Chống self-audio contamination: 150ms settling delay sau TTS greeting + lockout loop khi TTS đang phát |
 | H-04 | DONE | Fix crash hotkey Ctrl+Shift+L PTT: thay `_handle_voice_command` bằng `_start_voice_interaction` |
 | H-05 | DONE | STT & Router benchmark độc lập hoàn tất 100% (Small: N=420 clean+noisy; Large-v3: N=420 clean+noisy; Clean 87.1% / 2.79s, Noisy 84.8% / 2.79s, 0% empty, 178+2+0+30=210) |
-| H-06 | DONE | Idle soak 60 phút thật (3600.1s, Realtek built-in, 16kHz): **0 false triggers, 0.00 FP/hr** — vượt ngưỡng < 1 FP/hr. JSON: `docs/eval/wake_word_idle_results.json` |
+| H-06 | CONDITIONAL | OpenWakeWord Tier-1 đã được provision và probe ambient thật 3 giây ghi 36 score âm tính, 0 detection. Vẫn cần operator chạy phiên `true_wake` và ambient đủ dài để xác định phân phối confidence/recall trước khi chốt threshold. |
 | H-07 | DONE | Chuẩn hóa lệnh mở app/web: launch dedupe stress test (3 lệnh × 20 lần = 60 lần gọi; 3 allowed, 57 suppressed) |
 | H-08 | DONE | Volume & brightness fail-closed trên hardware None: trả `success: False`, không ghost success |
 | H-09 | DONE | Runaway soak test & leak detection framework: `tests/eval/soak_test_runner.py` (+0.00 handles/hr, 15 threads ổn định) |

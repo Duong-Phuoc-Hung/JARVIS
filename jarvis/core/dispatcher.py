@@ -19,15 +19,16 @@ from dataclasses import replace
 from typing import Any
 
 from jarvis.core.models import (
-    SecurityConfigurationError,
     ActionDefinition,
     ActionResult,
     ActionStatus,
     HandlerResult,
     PrivilegeLevel,
     RequesterContext,
+    SecurityConfigurationError,
     SubscriptionRecord,
 )
+from jarvis.core.result_model import BackendResult
 
 logger = logging.getLogger("jarvis.core.dispatcher")
 
@@ -154,7 +155,8 @@ class EventBus:
 
                     if loop and loop.is_running():
                         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                            res = executor.submit(lambda: asyncio.run(sub.handler(**payload))).result(timeout=10.0)
+                            handler = sub.handler
+                            res = executor.submit(lambda fn=handler: asyncio.run(fn(**payload))).result(timeout=10.0)
                     else:
                         res = asyncio.run(sub.handler(**payload))
                 else:
@@ -263,6 +265,9 @@ def _normalize_handler_outcome(raw: Any) -> tuple[bool, Any, str | None, str | N
     """
     if isinstance(raw, ActionResult):
         return raw.success, raw.data, raw.error, raw.error_code
+
+    if isinstance(raw, BackendResult):
+        return raw.success, raw, (raw.message if not raw.success else None), (raw.code if not raw.success else None)
 
     if isinstance(raw, dict):
         # Canonical unavailable/blocked states cannot become successful data.
@@ -590,7 +595,7 @@ class ActionDispatcher:
 
         # 4.5 Labs Feature Flag Check
         if action_def.labs_feature is not None:
-            from jarvis.core.labs import is_labs_enabled, create_labs_disabled_result
+            from jarvis.core.labs import create_labs_disabled_result, is_labs_enabled
             if not is_labs_enabled(action_def.labs_feature, getattr(self, "config", None)):
                 elapsed = (time.perf_counter() - t0) * 1000.0
                 logger.warning(
@@ -735,7 +740,7 @@ class ActionDispatcher:
 
         # Labs Feature Flag Check
         if action_def.labs_feature is not None:
-            from jarvis.core.labs import is_labs_enabled, create_labs_disabled_result
+            from jarvis.core.labs import create_labs_disabled_result, is_labs_enabled
             if not is_labs_enabled(action_def.labs_feature, getattr(self, "config", None)):
                 elapsed = (time.perf_counter() - t0) * 1000.0
                 logger.warning(

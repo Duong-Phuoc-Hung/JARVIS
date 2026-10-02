@@ -1,5 +1,20 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
+Runtime repair verification (2026-09-23): unit **3,002 passed / 3 skipped**;
+E2E **290 passed / 21 skipped**; security subset **66 passed**; scanner **0
+findings** trên 202 tệp. Full repository chưa được chứng nhận vì còn nhóm test
+legacy ngoài unit; không dùng kết quả partial để tuyên bố full-green. Release
+vẫn NO-GO vì 10 workflow mới có routing evidence, còn voice live, credential,
+hardware và clean-machine installer evidence chưa đủ.
+[runtime evidence](docs/eval/runtime_fix_verification_20260923.md).
+
+SRS hiện trạng: [Markdown](docs/SRS_JARVIS_Current_System_2026-09-23.md) ·
+[Word DOCX](docs/SRS_JARVIS_Current_System_2026-09-23.docx).
+
+10-workflow matrix: [routing/runtime evidence](docs/eval/workflow_10_windows_runtime_20260923.md).
+Dispatcher đã có `BackendResult`/`HealthStatus` seam dùng chung; connector migration
+toàn bộ vẫn đang theo từng phase.
+
 Verified app launch follow-up (2026-09-22, unreleased **5.2.1**): câu mở desktop
 app đi qua danh mục cục bộ và xác minh cửa sổ theo AUMID/đường dẫn executable;
 không dùng tên gần giống làm bằng chứng. Notepad/Calculator được gộp đúng định danh.
@@ -64,6 +79,7 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 
 ### 🎙️ Nhận Diện Giọng Nói Offline & Voice Pipeline (v5.1.3 Beta v1)
 - **Wake Word:** Nhận diện từ khóa *"Hey JARVIS"* tức thì với độ trễ cực thấp.
+- **Wake-word calibration:** Có thể ghi score classifier thật cho hai phiên `true_wake` và `ambient` bằng `tools/wake_word_score_probe.py`; hệ thống không tự đổi threshold khi chưa có dữ liệu có nhãn.
 - **Barge-in (Ngắt lời tức thời):** Khi JARVIS đang nói, bạn có thể nói chèn vào — hệ thống lập tức tắt âm thanh TTS và chuyển sang nghe lệnh mới.
 - **VAD (Voice Activity Detection):** Thuật toán phát hiện giọng nói thông minh bằng năng lượng RMS hoặc WebRTC VAD — xử lý offline, độ trễ <10ms.
 - **STT (Speech-to-Text) & Safe Diacritic Normalization:** Faster-Whisper (CTranslate2) chạy offline với bộ chuẩn hóa bỏ dấu đa âm an toàn (`strip_vietnamese_diacritics`) bảo vệ nguyên vẹn từ đơn, triệt tiêu 100% va chạm homophone (`nhạc` vs `nhắc`, `dừng` vs `dụng`, `dán` vs `dẫn`, `tắt` vs `tắc`).
@@ -608,3 +624,8 @@ Dự án được phát hành theo giấy phép **MIT License**. Xem file [LICEN
 
 </div>
 
+## Runtime regression fixes (2026-09-23)
+
+Latest verification after the ROI, weather safety, and Windows brightness fixes:
+**2,997 unit tests passed (4 skipped)** and **290 E2E tests passed (21 skipped)**.
+See [runtime fix evidence](docs/eval/runtime_fix_verification_20260923.md).

@@ -6,14 +6,14 @@ enforcing a 30-second tokenized confirmation state machine integrated with Safet
 from __future__ import annotations
 
 import logging
-from copy import deepcopy
 import re
 import threading
+import unicodedata
+from copy import deepcopy
 from typing import Any
 
 from jarvis.automation.safety_gate import SafetyGate
 from jarvis.planner.models import StepStatus, TaskNode
-import unicodedata
 
 _HOMOGLYPH_TABLE = str.maketrans({
     "а": "a", "с": "c", "е": "e", "о": "o", "р": "p", "ѕ": "s", "і": "i", "ј": "j",
@@ -159,6 +159,18 @@ class SafetyGateInterceptor:
         else:
             action_clean = action_name.strip().lower()
         action_clean_norm = normalize_homoglyphs(action_clean)
+
+        # Weather is a read-only workflow, but it historically uses the
+        # shell_exec action for the fixed wttr.in fast path. Only the exact
+        # generated command is exempt; arbitrary shell payloads remain gated.
+        if action_clean in {"shell_exec", "shell_execute", "shell_command"} and isinstance(parameters, dict):
+            topic = str(parameters.get("topic") or "").strip().casefold()
+            command = str(parameters.get("command") or "").strip()
+            if topic == "weather" and re.fullmatch(
+                r"curl\s+-s\s+wttr\.in(?:/[A-Za-z0-9._~-]+)?\?format=3", command
+            ):
+                return False
+
         if action_clean_norm in self.high_risk_actions:
             return True
         if action_clean in self.high_risk_actions:

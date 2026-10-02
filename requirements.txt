@@ -10,6 +10,7 @@ python-dotenv>=1.0,<2                # Đọc file .env
 # ── Audio / STT / TTS ────────────────────────────────────────
 numpy>=1.24,<3                       # Xử lý tín hiệu âm thanh
 sounddevice>=0.4.6,<0.6             # Ghi/phát âm thanh
+openwakeword>=0.6,<1                # Wake-word Tier-1 offline model/runtime
 # Tuỳ chọn (cài thêm để dùng offline):
 # faster-whisper>=1.0                # STT offline (cần ffmpeg)
 # piper-tts>=1.2                     # TTS offline

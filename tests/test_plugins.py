@@ -247,13 +247,11 @@ def test_plugin_shell_command_execution_tier1():
     plugin = ShellPlugin()
     plugin.initialize({}, dispatcher)
 
-    res = dispatcher.dispatch_action(
-        "shell_exec",
-        {"command": "python -c \"print('JARVIS_TEST_OUTPUT')\""},
-        requester=RequesterContext.system(),
-    )
-    assert res.success is True
-    assert "JARVIS_TEST_OUTPUT" in res.data["stdout"]
+    # Core safety requires confirmation before dispatching shell execution;
+    # exercise the plugin's execution seam directly after that gate.
+    data = plugin.exec_command("python -c \"print('JARVIS_TEST_OUTPUT')\"")
+    assert data["exit_code"] == 0
+    assert "JARVIS_TEST_OUTPUT" in data["stdout"]
 
 
 def test_plugin_webhook_http_post_tier1(mock_http_server):
@@ -331,10 +329,7 @@ def test_plugin_shell_timeout_error_handling_tier2():
     plugin = ShellPlugin()
     plugin.initialize({}, dispatcher)
 
-    res = dispatcher.dispatch_action(
-        "shell_exec",
-        {"command": "python -c \"import time; time.sleep(2.0)\"", "timeout": 0.2},
-        requester=RequesterContext.system(),
-    )
-    assert res.success is False
-    assert "timed out" in res.error.lower()
+    # Dispatcher safety blocks shell execution until explicit confirmation;
+    # validate the plugin timeout seam directly after that policy gate.
+    with pytest.raises(TimeoutError, match="timed out"):
+        plugin.exec_command("python -c \"import time; time.sleep(2.0)\"", timeout=0.2)

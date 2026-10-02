@@ -63,6 +63,14 @@ class TestBenignDispatchUnaffected(unittest.TestCase):
         self.assertEqual(result.data, {"ok": True, "x": 1})
         self.assertEqual(self.calls, [{"x": 1}])
 
+    def test_weather_shell_rule_is_safe_only_for_exact_allowlisted_command(self) -> None:
+        interceptor = SafetyGateInterceptor()
+        self.assertFalse(interceptor.is_high_risk(
+            "shell_exec", {"topic": "weather", "command": "curl -s wttr.in/Hanoi?format=3"}
+        ))
+        self.assertTrue(interceptor.is_high_risk(
+            "shell_exec", {"topic": "weather", "command": "curl -s wttr.in/Hanoi?format=3 & whoami"}
+        ))
     def test_benign_async_dispatch_executes_unchanged(self) -> None:
         async def async_handler(**kwargs):
             self.calls.append(kwargs)

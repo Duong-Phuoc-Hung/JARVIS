@@ -254,7 +254,12 @@ def test_security_tshark_cli_parameters_and_bpf_injection(monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
     monkeypatch.setattr(shutil, "which", lambda x: "tshark.exe")
 
-    capture_tool = PacketCapture(default_duration_s=5.0)
+    # Explicit config selects the truthful production path; the legacy
+    # unittest.mock compatibility branch is intentionally not under test here.
+    capture_tool = PacketCapture(
+        default_duration_s=5.0,
+        config={"labs": {"enabled": True, "features": ["tshark_capture"]}},
+    )
     bpf_payload = "tcp port 80; rm -rf / && netstat"
     output_pcap = Path("temp/capture.pcap")
 
@@ -272,12 +277,12 @@ def test_security_tshark_cli_parameters_and_bpf_injection(monkeypatch):
     assert "Ethernet 1; whoami" in invoked
     assert "-f" in invoked
     assert bpf_payload in invoked
-    assert result.packet_count == 200
-    assert result.protocols["TCP"] == 140
-    assert result.protocols["UDP"] == 40
-    assert result.protocols["ICMP"] == 20
-    assert result.status == "SUCCESS"
-    assert result.get("status") == "SUCCESS"
+    # Empty TShark stdout is not packet evidence.  The wrapper must not invent
+    # a fixed 70/20/10 protocol split; it returns an honest no-data status.
+    assert result.packet_count == 0
+    assert result.protocols == {}
+    assert result.status == "NO_TSHARK_OUTPUT"
+    assert result.get("status") == "NO_TSHARK_OUTPUT"
     assert "packet_count" in result
 
 
@@ -701,8 +706,10 @@ def test_telegram_unauthorized_user_and_injection_defense():
 
     # 3. Whitelisted user /exec command injection safety
     exec_res = bot.handle_inbound_message(user_id=111222333, text="/exec restart_service; rm -rf /")
-    assert exec_res["status"] == 200
-    assert "restart_service" in exec_res["text"]
+    # Remote execution is fail-closed when no authenticated executor is wired;
+    # a whitelisted Telegram user must not turn an unsafe command into success.
+    assert exec_res["status"] == 503
+    assert "không được thực thi" in exec_res["text"]
 
 
 def test_telegram_inbound_voice_and_stt_exception_resilience():

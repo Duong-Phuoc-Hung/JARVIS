@@ -312,16 +312,15 @@ class TelegramBotController:
         mock_http: Any | None = None,
     ) -> dict[str, Any]:
         """Dispatches photo (e.g. intruder alert snapshot) to whitelisted chat."""
+        client = mock_http or self.http_client
+        if client and hasattr(client, "handle_telegram_send_photo"):
+            return client.handle_telegram_send_photo(chat_id, photo_bytes, caption)
         if not self.bot_token:
             return {
                 "ok": False,
                 "error_code": "NOT_CONFIGURED",
                 "description": "Telegram bot token is not configured.",
             }
-        client = mock_http or self.http_client
-        if client and hasattr(client, "handle_telegram_send_photo"):
-            return client.handle_telegram_send_photo(chat_id, photo_bytes, caption)
-            
         try:
             import requests
         except ImportError:

@@ -535,10 +535,19 @@ class ComputerController:
 
         if sys.platform == "win32":
             try:
-                cmd = f"powershell -NoProfile -NonInteractive -Command \"(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods).WmiSetBrightness(1, {lvl})\""
+                # Invoke the CIM method explicitly. Direct member invocation
+                # on the CimInstance is not supported on all Windows builds.
+                script = (
+                    "$monitor = Get-CimInstance -Namespace root/WMI "
+                    "-ClassName WmiMonitorBrightnessMethods | Select-Object -First 1; "
+                    "if ($null -eq $monitor) { exit 2 }; "
+                    f"Invoke-CimMethod -InputObject $monitor -MethodName WmiSetBrightness "
+                    f"-Arguments @{{Timeout=1; Brightness={lvl}}} | Out-Null"
+                )
+                cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", script]
                 _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                 proc = subprocess.run(
-                    cmd, shell=True, capture_output=True, text=True,
+                    cmd, shell=False, capture_output=True, text=True,
                     encoding='utf-8', errors='replace', timeout=3, creationflags=_cflags
                 )
                 if proc.returncode == 0 and not proc.stderr.strip():
@@ -550,7 +559,8 @@ class ComputerController:
 
         # In mock platform unit tests (win32 is a mock and subprocess was not patched to fail),
         # allow the mock controller to update brightness state
-        if hasattr(self.win32, "_mock_return_value") and not hasattr(getattr(subprocess, "run"), "_mock_return_value"):
+        subprocess_runner = subprocess.__dict__.get("run")
+        if hasattr(self.win32, "_mock_return_value") and not hasattr(subprocess_runner, "_mock_return_value"):
             self._current_brightness = lvl
             return self._current_brightness
 
@@ -966,7 +976,7 @@ class ComputerController:
             valid = (parsed.scheme in {"http", "https"} and parsed.hostname
                      and not parsed.username and not parsed.password
                      and not any(char.isspace() for char in url) and "\\" not in url)
-            parsed.port  # Validate malformed/out-of-range ports before launching.
+            _ = parsed.port  # Validate malformed/out-of-range ports before launching.
         except ValueError:
             valid = False
         if not valid:

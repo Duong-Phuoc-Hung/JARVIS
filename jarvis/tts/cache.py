@@ -27,7 +27,8 @@ class TTSAudioCache:
             if not self.cache_dir.name == "jarvis_welcome" and not (self.cache_dir / "jarvis_welcome").exists():
                 self.cache_dir = self.cache_dir / "jarvis_welcome"
         else:
-            import os as _os, sys as _sys
+            import os as _os
+            import sys as _sys
             _appdata = _os.environ.get("LOCALAPPDATA") or _os.environ.get("APPDATA")
             _base = Path(_appdata) / "JARVIS" if (_appdata and _sys.platform == "win32") else Path.home() / ".jarvis"
             self.cache_dir = (_base / "cache" / "tts").resolve()
@@ -191,14 +192,22 @@ class TTSAudioCache:
             log.debug("JARVIS_MOCK_AUDIO=1: skipping physical playback for %s", wav_path)
             return True
 
-        # Method 1: sounddevice (high-fidelity float32 streaming)
+        # Validate the container before trying platform fallbacks.  winsound can
+        # report success for an invalid path on some Windows versions, which
+        # would turn corrupted-cache recovery into a false success.
         try:
-            import sounddevice as sd
             with wave.open(str(wav_path), "rb") as wf:
                 ch = wf.getnchannels()
                 sw = wf.getsampwidth()
                 rate = wf.getframerate()
                 raw = wf.readframes(wf.getnframes())
+        except Exception as e:
+            log.debug("Invalid WAV cache entry (%s): %s", wav_path, e)
+            return False
+
+        # Method 1: sounddevice (high-fidelity float32 streaming)
+        try:
+            import sounddevice as sd
             if raw and ch in (1, 2) and sw == 2:
                 pcm_i16 = np.frombuffer(raw, dtype=np.int16)
                 pcm_f = pcm_i16.astype(np.float32) / 32768.0

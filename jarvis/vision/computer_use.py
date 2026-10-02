@@ -236,7 +236,13 @@ class CoordinateMapper:
         self, x_px: int, y_px: int, screen_w: int | None = None, screen_h: int | None = None
     ) -> tuple[int, int]:
         """Converts physical screen pixel coordinates (x_px, y_px) to normalized (0-1000) point."""
-        w, h = (screen_w, screen_h) if screen_w and screen_h else self.get_screen_size()
+        # An explicitly supplied non-positive viewport is invalid input; do not
+        # silently replace it with the host display size (which can mis-target
+        # GUI actions and masks upstream capture failures).
+        if screen_w is not None or screen_h is not None:
+            w, h = int(screen_w or 0), int(screen_h or 0)
+        else:
+            w, h = self.get_screen_size()
         if w <= 0 or h <= 0:
             return 0, 0
         x_norm = int(round(max(0, min(w, x_px)) / w * 1000.0))

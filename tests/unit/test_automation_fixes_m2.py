@@ -71,6 +71,9 @@ def test_set_brightness_succeeds_when_wmi_returns_zero():
         result = ctrl.set_brightness(75)
         assert result == 75
         assert ctrl._current_brightness == 75
+        command = mock_run.call_args.args[0]
+        assert isinstance(command, list)
+        assert "Invoke-CimMethod" in command[-1]
 
 
 # ===========================================================================

@@ -1,0 +1,7 @@
+{
+  "status": "NOT_CONFIGURED",
+  "code": "WAKE_CLASSIFIER_NOT_CONFIGURED",
+  "message": "No configured Tier-1 wake-word model is available; install/configure OpenWakeWord, Vosk, or Porcupine before calibration.",
+  "engine_selected": "acoustic_fallback",
+  "retryable": false
+}

@@ -489,7 +489,10 @@ def test_stress_spotify_plugin_empty_and_corrupt_uris(monkeypatch):
         monkeypatch.setattr(webbrowser, "open", mock_startfile_fail)
 
     res_err = dispatcher.dispatch_action("spotify_play", {"song_uri": "spotify:track:123"}, requester=RequesterContext.system())
-    assert res_err.success is True
+    # An OS launch failure must propagate as a real failure; returning
+    # success=True with data.status="error" is forbidden false-success.
+    assert res_err.success is False
+    assert res_err.status.value == "ERROR"
     assert res_err.data["status"] == "error"
 
 
@@ -512,14 +515,19 @@ def test_stress_shell_plugin_timeout_and_privilege_enforcement():
     assert res_denied.success is False
     assert res_denied.error_code == "PERMISSION_DENIED"
 
-    # 2. Timeout check: Command sleeping 2s with 0.1s timeout should trigger TimeoutError
+    # 2. Dispatcher safety must block shell execution before it can run.
     res_timeout = dispatcher.dispatch_action(
         "shell_exec",
         {"command": "powershell -Command Start-Sleep -Seconds 2", "timeout": 0.1},
         requester=RequesterContext.system(),
     )
     assert res_timeout.success is False
-    assert "timed out" in res_timeout.error.lower() or res_timeout.error_code == "HANDLER_EXCEPTION"
+    assert res_timeout.error_code == "CONFIRMATION_REQUIRED"
+
+    # The plugin seam itself still enforces the wall-clock timeout once a
+    # caller has passed the core confirmation gate.
+    with pytest.raises(TimeoutError, match="timed out"):
+        plugin.exec_command("powershell -Command Start-Sleep -Seconds 2", timeout=0.1)
 
 
 def test_stress_webhook_plugin_network_failure(monkeypatch):

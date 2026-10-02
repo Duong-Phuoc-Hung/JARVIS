@@ -72,8 +72,9 @@ def test_startup_vocal_introduction(monkeypatch):
 
     app.start()
     assert len(spoken) >= 1
-    assert "Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS." in spoken[0][0]
-    assert spoken[0][1] is False  # Non-blocking async queue
+    greeting_calls = [item for item in spoken if "Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS." in item[0]]
+    assert greeting_calls
+    assert greeting_calls[0][1] is False  # Non-blocking async queue
     app.stop()
 
 

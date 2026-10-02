@@ -162,6 +162,9 @@ class WebIntelligenceHub:
             "usd_vnd_rate": usd_vnd_rate,
             "crypto_speech": crypto_speech,
             "spoken_summary": spoken_summary,
+            # Backward-compatible public key used by integrations that call
+            # the hub directly instead of going through the dispatcher.
+            "speech_text": spoken_summary,
             "overlay_bullets": overlay_bullets,
             "timestamp": now.isoformat(),
         }

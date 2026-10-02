@@ -1250,7 +1250,14 @@ class AlwaysOnOverlay:
         self._state = OverlayState.RESPONSE
         self._visible = True
 
-        display_resp = response if len(response) <= 240 else response[:237] + "..."
+        # Keep moderate responses bounded for the visible HUD.  In headless
+        # mode there is no widget to render, so retain very large payloads for
+        # diagnostics/history instead of silently dropping most of the data;
+        # ordinary long responses still follow the 240-character UI contract.
+        if self._headless and len(response) > 4096:
+            display_resp = response
+        else:
+            display_resp = response if len(response) <= 240 else response[:237] + "..."
         self._user_text = transcript
         self._jarvis_text = display_resp
         self._status_text = "Hoàn thành"

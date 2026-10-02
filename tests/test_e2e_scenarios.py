@@ -160,7 +160,11 @@ def test_e2e_tier3_privilege_gated_nmap_scan_flow(mock_camera_feed, monkeypatch,
 
 def test_e2e_tier3_unresponsive_app_healing_flow(mock_hardware_provider, mock_win32_platform):
     """
-    [Tier 3] Pipeline: Hung App Detection (F-42) -> Watchdog Trigger (F-41) -> Autonomous Kill (F-43) -> RAM Drop.
+    [Tier 3] Pipeline: Hung App Detection (F-42) -> Watchdog Trigger (F-41) -> Autonomous Kill (F-43).
+
+    RAM telemetry is read-only in production. A real RAM drop requires an
+    observed host change; this fixture verifies that termination success is not
+    upgraded into fabricated reclamation.
     """
     mock_hardware_provider.set_ram(93.0)
     mock_win32_platform.add_hung_window("frozen_browser.exe", pid=3344)
@@ -171,7 +175,8 @@ def test_e2e_tier3_unresponsive_app_healing_flow(mock_hardware_provider, mock_wi
 
     report = engine.heal_hung_process(hung[0].pid, hung[0].process_name)
     assert report["success"] is True
-    assert mock_hardware_provider.ram_percent < 80.0
+    assert mock_hardware_provider.ram_percent == 93.0
+    assert report.get("reclaimed_ram", 0.0) == 0.0
 
 
 def test_e2e_tier3_data_file_to_docx_and_voice(tmp_path):
@@ -234,7 +239,7 @@ def test_e2e_tier4_full_morning_workspace_automation_workflow(mock_audio_stream,
 def test_e2e_tier4_system_crisis_self_healing_workflow(mock_hardware_provider, mock_win32_platform):
     """
     [Tier 4] Crisis Self-Healing: RAM reaches 95% + Chrome hung window -> Watchdog safely kills hung worker
-    -> Reclaims RAM below 75% -> Announces vocal healing status.
+    -> Reports the observed telemetry without fabricating a RAM reclaim -> Announces vocal healing status.
     """
     mock_hardware_provider.set_ram(96.0)
     mock_win32_platform.add_hung_window("chrome.exe", pid=6677)
@@ -247,7 +252,10 @@ def test_e2e_tier4_system_crisis_self_healing_workflow(mock_hardware_provider, m
 
     report = engine.heal_hung_process(hung_apps[0].pid, hung_apps[0].process_name)
     assert report["success"] is True
-    assert mock_hardware_provider.ram_percent < 75.0
+    # The production healing path is telemetry-only: terminating a process does
+    # not mutate the injected hardware provider or claim a reclaim it did not observe.
+    assert mock_hardware_provider.ram_percent == 96.0
+    assert report.get("reclaimed_ram", 0.0) == 0.0
     assert "Hệ thống bị quá tải. Đã xử lý: chrome.exe" in report["spoken_message"]
 
 

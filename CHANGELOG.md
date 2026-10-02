@@ -3626,3 +3626,54 @@ PhiÃªn báº£n hoÃ n thiá»‡n Ä‘Æ°a **JARVIS** trá»Ÿ thÃ nh m�
 17. `System Tray & Autostart`: Zero-idle Background Daemon & Registry Autostart
 
 
+## [Unreleased] Runtime regression fixes (2026-09-23)
+
+- Fixed zero-area/off-screen ROI capture raising Pillow `ValueError`; empty
+  captures now fail safely to a valid 1x1 JPEG (`jarvis/vision/screen.py`).
+- Fixed weather fast-path being blocked by the generic `shell_exec` safety gate:
+  only the exact generated `curl wttr.in?...format=3` command is treated as the
+  read-only weather workflow; arbitrary shell commands remain gated
+  (`jarvis/planner/safety_interceptor.py`).
+- Fixed Windows brightness invocation to use `Invoke-CimMethod` with an argument
+  list and no shell wrapper. Unsupported display hardware still returns `None`
+  rather than claiming success (`jarvis/automation/control.py`).
+- Fresh verification: **2,997 unit passed + 4 skipped**, **290 E2E passed + 21
+  skipped**, focused regression **231 passed + 15 subtests**. Evidence:
+  `docs/eval/runtime_fix_verification_20260923.md`.
+## [Unreleased] Runtime regression repair (2026-09-23)
+
+- Fixed zero-area screen ROI, explicit zero viewport fallback, RSS/Atom title
+  markup, briefing `speech_text` compatibility, Telegram photo mock dispatch,
+  weather safety allowlist, WMI brightness invocation, TTS callback isolation,
+  RAM/disk telemetry aliases, and bounded oversized router input.
+- Preserved fail-closed behavior for real microphone/TShark/brightness paths;
+  scanner result remains **0 findings / 201 files / 66,822 lines**.
+- Fresh E2E: **290 passed, 21 skipped, 0 failed (21.99s)**.
+- Fresh unit run: **2,997 tests, 3 skipped, 1 order-dependent failure** in
+  `test_volume_mute_toggle`; isolated file run passes. Full repository remains
+  blocked by the legacy healing E2E RAM-mutation assertion conflicting with the
+  truthfulness contract.
+- Added the current-system SRS in Markdown and Word formats:
+  `docs/SRS_JARVIS_Current_System_2026-09-23.md` and `.docx`.
+## [Unreleased] System completion verification (2026-09-23)
+
+- **Mục tiêu**: đóng các blocker kiểm thử hiện tại, thêm seam Result/Health dùng chung và lập ma trận 10 workflow Windows với phân tầng bằng chứng trung thực.
+- **Nguyên nhân gốc rễ**: healing E2E cũ giả định kill process tự làm giảm RAM; audio virtual endpoint rò trạng thái giữa test; dispatcher chưa nhận kiểu kết quả chuẩn; tài liệu đang dùng số liệu cũ.
+- **Chỉnh sửa kỹ thuật**:
+  - `tests/test_e2e_scenarios.py`: sửa assertion theo telemetry-only, không bịa `reclaimed_ram`.
+  - `tests/conftest.py`: cô lập virtual audio endpoint mặc định; live audio chỉ bật với `JARVIS_LIVE_AUDIO_TESTS=1`.
+  - `jarvis/core/result_model.py`: thêm `BackendResult`, `HealthStatus`, chuẩn hóa SUCCESS/ERROR/TIMEOUT/BLOCKED/UNAVAILABLE/NOT_CONFIGURED.
+  - `jarvis/core/dispatcher.py`: normalize `BackendResult`, giữ tương thích `ActionResult`, sửa late-binding handler.
+  - `docs/eval/workflow_10_windows_runtime_20260923.md`: ghi 10/10 routing pass và ranh giới runtime evidence.
+  - `jarvis/tts/cache.py`: xác thực WAV trước `winsound` fallback; file cache hỏng không còn bị báo phát thành công.
+- **Kiểm thử thực tế**: unit `3,002 passed, 3 skipped, 334.31s`; E2E `290 passed, 21 skipped, 23.72s`; security subset `66 passed`; voice/app/release scoped `240 passed`; scanner `0 findings/202 files`; Ruff changed-file pass. Full repository chưa được chứng nhận vì còn test legacy ngoài unit; các lần lặp đã dừng theo yêu cầu, không ghi nhận full-green giả.
+## [Unreleased] Wake-word score calibration instrumentation (2026-09-24)
+
+- **Mục tiêu**: xử lý hiện tượng ngưỡng wake-word cũ gây false wake còn ngưỡng mới bỏ sót “Hey JARVIS” mà không chỉnh threshold theo cảm tính.
+- **Thay đổi kỹ thuật**: `jarvis/audio/wake_word.py` phát `WakeWordScoreEvent` cho cả mẫu dưới ngưỡng và mẫu phát hiện, gồm engine, confidence, threshold, RMS, timestamp và cờ detected; lỗi của telemetry observer bị cô lập, không làm thay đổi quyết định nhận diện. Export event qua `jarvis.audio`.
+- **Probe runtime**: thêm `tools/wake_word_score_probe.py`; yêu cầu `JARVIS_RUN_LIVE_WAKE_PROBE=1`, tách nhãn operator `true_wake`/`ambient`, ghi cấu hình và score thật, không tự suy diễn threshold.
+- **Kiểm thử thực tế trong commit này**: `tests/unit/test_h06_wake_false_positive.py` **31 passed**; Ruff trên các file thay đổi **passed**. Chưa có microphone evidence trong môi trường này; runtime calibration vẫn PENDING.
+- Probe microphone một lần ngày 2026-09-24 trả `NOT_CONFIGURED / WAKE_CLASSIFIER_NOT_CONFIGURED` vì máy chưa có Tier-1 model; tool giờ fail-closed thay vì ghi nhận fallback như classifier evidence.
+- Production desktop path (`jarvis/core/app.py`) nay mặc định tắt passive activation từ `acoustic_fallback`; `WakeWordDetector` chỉ cho phép fallback khi caller opt-in rõ ràng. Điều này chặn false wake mở phiên nghe trong lúc chờ cấu hình Tier-1 model.
+- Provisioned OpenWakeWord 0.6 và tự phát hiện model đóng gói `hey_jarvis_v0.1.onnx`; alias versioned model được chuẩn hóa về logical label `hey_jarvis`. Probe ambient thật 3 giây chạy với `engine=openwakeword`, ghi 36 score âm tính, không phát hiện wake.
+- Lập báo cáo chi tiết lỗi và verdict hiện tại tại `docs/eval/wake_word_issue_report_20260925.md`; true-wake calibration và full regression vẫn được đánh dấu PENDING, không thăng cấp thành runtime/release PASS.

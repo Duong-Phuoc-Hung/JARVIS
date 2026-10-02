@@ -80,6 +80,17 @@ def test_screen_capture_roi_cropping():
     assert img.size[1] <= 200
 
 
+def test_invalid_zero_area_roi_returns_nonempty_jpeg(monkeypatch):
+    """A degenerate ROI must return valid bytes instead of crashing JPEG encoding."""
+    from jarvis.vision import screen
+
+    manager = ScreenVisionManager()
+    manager._has_mss = False
+    monkeypatch.setattr(screen.ImageGrab, "grab", lambda bbox=None: Image.new("RGB", (0, 0)))
+    raw_bytes, _ = manager.capture_screenshot(roi=(100, 100, 100, 100))
+    assert raw_bytes[:2] == b"\xff\xd8"
+
+
 def test_save_screenshot_to_file(tmp_path):
     """Verify save_screenshot writes valid JPEG file to specified path."""
     manager = ScreenVisionManager()

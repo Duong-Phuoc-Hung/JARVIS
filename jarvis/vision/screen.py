@@ -195,6 +195,14 @@ class ScreenVisionManager:
                     total_time_ms=1.0,
                 )
 
+        # ImageGrab may return an empty image for a degenerate/off-screen ROI.
+        # Keep the capture contract valid and avoid passing zero-area pixels to
+        # Pillow's JPEG encoder, which raises ValueError instead of returning a
+        # truthful capture result.
+        if img is not None and (img.size[0] < 1 or img.size[1] < 1):
+            if PIL_AVAILABLE and Image is not None:
+                img = Image.new("RGB", (1, 1), color=(30, 30, 35))
+
         t_captured = time.perf_counter()
         capture_ms = (t_captured - t0) * 1000.0
 

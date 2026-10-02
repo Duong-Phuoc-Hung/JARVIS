@@ -305,6 +305,12 @@ def test_headless_ci_with_no_tier1_engine_still_uses_tier2_under_auto_policy():
     assert res.engine == WakeWordEngineType.ACOUSTIC_FALLBACK.value
 
 
+def test_acoustic_fallback_can_be_fail_closed_for_passive_production_wake():
+    detector = WakeWordDetector(config={"allow_acoustic_passive_trigger": False})
+    result = detector.feed_audio_block(generate_wake_word_signal(sample_rate=44100))
+    assert result is None
+
+
 # ============================================================================
 # 4 & 5. Deterministic benchmark: background negatives + true positives
 # ============================================================================
@@ -457,6 +463,57 @@ def test_openwakeword_negative_does_not_trigger_tier2_under_auto():
         fake_model.predict.assert_called()
 
 
+def test_openwakeword_score_observer_receives_negative_and_threshold_metadata():
+    """Score telemetry must expose below-threshold samples without triggering."""
+    fake_module, fake_model = _mock_openwakeword_module(
+        model_key="hey_jarvis", predict_return={"hey_jarvis": 0.42},
+    )
+    observations = []
+    with patch("jarvis.audio.wake_word.OPENWAKEWORD_AVAILABLE", True), \
+         patch("jarvis.audio.wake_word.openwakeword", fake_module):
+        detector = WakeWordDetector(
+            config={
+                "acoustic_fallback_policy": "auto",
+                "openwakeword_model_paths": [__file__],
+                "openwakeword_threshold": 0.5,
+            },
+            on_score=observations.append,
+        )
+        assert detector.feed_audio_block(np.random.normal(0, 0.05, 16000).astype(np.float32)) is None
+
+    assert len(observations) == 1
+    event = observations[0]
+    assert event.engine == WakeWordEngineType.OPENWAKEWORD.value
+    assert event.confidence == pytest.approx(0.42)
+    assert event.threshold == pytest.approx(0.5)
+    assert event.detected is False
+    assert event.rms > 0.0
+
+
+def test_score_observer_failure_does_not_change_detection_result():
+    fake_module, fake_model = _mock_openwakeword_module(
+        model_key="hey_jarvis", predict_return={"hey_jarvis": 0.87},
+    )
+
+    def broken_observer(_event):
+        raise RuntimeError("telemetry sink unavailable")
+
+    with patch("jarvis.audio.wake_word.OPENWAKEWORD_AVAILABLE", True), \
+         patch("jarvis.audio.wake_word.openwakeword", fake_module):
+        detector = WakeWordDetector(
+            config={
+                "acoustic_fallback_policy": "auto",
+                "openwakeword_model_paths": [__file__],
+            },
+            on_score=broken_observer,
+        )
+        result = detector.feed_audio_block(np.random.normal(0, 0.05, 16000).astype(np.float32))
+
+    assert result is not None
+    assert result.engine == WakeWordEngineType.OPENWAKEWORD.value
+    assert result.confidence == pytest.approx(0.87)
+
+
 def test_openwakeword_runtime_failure_allows_tier2_fallback():
     """(C) A genuine predict() exception is a real engine failure, not a
     confident no-match -- Tier 2 fallback IS allowed for that block under
@@ -545,8 +602,12 @@ def test_whisper_primary_engine_gates_tier2_under_auto_policy():
     # config override actually selects WHISPER (matching what a real
     # environment with faster_whisper installed would do), rather than
     # silently falling through to ACOUSTIC_FALLBACK and testing nothing.
+    observations = []
     with patch("jarvis.audio.wake_word.FASTER_WHISPER_AVAILABLE", True):
-        detector = WakeWordDetector(config={"engine": "whisper", "acoustic_fallback_policy": "auto"})
+        detector = WakeWordDetector(
+            config={"engine": "whisper", "acoustic_fallback_policy": "auto"},
+            on_score=observations.append,
+        )
     assert detector.engine_type == WakeWordEngineType.WHISPER.value
 
     fake_whisper_detector = MagicMock()
@@ -558,6 +619,9 @@ def test_whisper_primary_engine_gates_tier2_under_auto_policy():
     ) as spy:
         detector.feed_audio_block(np.random.normal(0, 0.05, 16000).astype(np.float32))
         spy.assert_not_called()
+    assert observations
+    assert observations[-1].engine == WakeWordEngineType.WHISPER.value
+    assert observations[-1].threshold == pytest.approx(0.92)
 
 
 # ============================================================================

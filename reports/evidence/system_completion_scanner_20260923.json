@@ -1,0 +1,14 @@
+{
+  "summary": {
+    "scanned_files": 201,
+    "scanned_lines": 66826,
+    "duration_seconds": 1.1586,
+    "total_findings": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "findings": [],
+  "errors": []
+}

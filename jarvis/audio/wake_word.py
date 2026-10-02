@@ -88,6 +88,30 @@ class WakeWordResult:
         }
 
 
+@dataclass(frozen=True)
+class WakeWordScoreEvent:
+    """Non-decision score telemetry used to calibrate wake-word thresholds."""
+
+    engine: str
+    confidence: float
+    threshold: float | None
+    detected: bool
+    rms: float
+    timestamp: float
+    keyword: str = "hey_jarvis"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "engine": self.engine,
+            "confidence": self.confidence,
+            "threshold": self.threshold,
+            "detected": self.detected,
+            "rms": self.rms,
+            "timestamp": self.timestamp,
+            "keyword": self.keyword,
+        }
+
+
 def resample_audio(samples: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
     """Linear interpolation resampling for 1D audio arrays."""
     if orig_sr == target_sr or len(samples) == 0:
@@ -504,6 +528,7 @@ class WakeWordDetector:
         window_duration_s: float = 1.2,
         cooldown_s: float = 1.5,
         on_wake_word: Callable[[str, float], None] | None = None,
+        on_score: Callable[[WakeWordScoreEvent], None] | None = None,
         config: dict[str, Any] | None = None,
         vad_filter_enabled: bool = True,
         vad_threshold: float = 0.003,
@@ -516,7 +541,13 @@ class WakeWordDetector:
         self.window_duration_s = float(window_duration_s)
         self.cooldown_s = float(cooldown_s)
         self.on_wake_word = on_wake_word
+        self.on_score = on_score
         self.config = config or {}
+        # Passive production wake must use a real Tier-1 classifier.  Tests
+        # and explicit diagnostic callers may still opt into acoustic fallback.
+        self.allow_acoustic_passive_trigger = bool(
+            self.config.get("allow_acoustic_passive_trigger", True)
+        )
         self.vad_filter_enabled = bool(
             self.config.get("vad_filter_enabled", vad_filter_enabled)
         )
@@ -665,6 +696,14 @@ class WakeWordDetector:
                     matched_labels = [
                         available_labels[lbl] for lbl in configured_labels if lbl in available_labels
                     ]
+                    if not matched_labels:
+                        # Official pretrained files include version suffixes
+                        # (for example ``hey_jarvis_v0.1``) while the logical
+                        # wake label remains ``hey_jarvis``.
+                        for base_label in configured_labels:
+                            for available_label, original_label in available_labels.items():
+                                if available_label.startswith(base_label + "_"):
+                                    matched_labels.append(original_label)
 
                     if matched_labels:
                         self._tier1_engine = oww_model
@@ -898,6 +937,15 @@ class WakeWordDetector:
         detected = best_score >= self._openwakeword_threshold
         return detected, (best_label or "hey_jarvis"), best_score
 
+    def _emit_score(self, event: WakeWordScoreEvent) -> None:
+        """Deliver optional calibration telemetry without affecting detection."""
+        if self.on_score is None:
+            return
+        try:
+            self.on_score(event)
+        except Exception as exc:
+            logger.warning("Wake-word score observer failed: %s", exc)
+
     # -----------------------------------------------------------------------
     # Audio Ingestion & Processing
     # -----------------------------------------------------------------------
@@ -1053,6 +1101,17 @@ class WakeWordDetector:
                 tier1_attempted = True
                 try:
                     ow_detected, ow_keyword, ow_confidence = self._process_openwakeword_tier(resampled)
+                    self._emit_score(
+                        WakeWordScoreEvent(
+                            engine=WakeWordEngineType.OPENWAKEWORD.value,
+                            confidence=ow_confidence,
+                            threshold=self._openwakeword_threshold,
+                            detected=ow_detected,
+                            rms=block_rms,
+                            timestamp=now,
+                            keyword=ow_keyword,
+                        )
+                    )
                     if ow_detected:
                         detected = True
                         keyword = ow_keyword
@@ -1073,6 +1132,17 @@ class WakeWordDetector:
                     timestamp=now,
                 )
                 tier1_attempted = True
+                self._emit_score(
+                    WakeWordScoreEvent(
+                        engine=WakeWordEngineType.WHISPER.value,
+                        confidence=confidence,
+                        threshold=0.92,
+                        detected=detected,
+                        rms=block_rms,
+                        timestamp=now,
+                        keyword=keyword or "hey_jarvis",
+                    )
+                )
                 if detected:
                     engine_name = WakeWordEngineType.WHISPER.value
 
@@ -1131,6 +1201,23 @@ class WakeWordDetector:
                     sensitivity=self.sensitivity,
                 )
                 engine_name = WakeWordEngineType.ACOUSTIC_FALLBACK.value
+                self._emit_score(
+                    WakeWordScoreEvent(
+                        engine=engine_name,
+                        confidence=confidence,
+                        threshold=max(0.40, 0.75 - (self.sensitivity * 0.35)),
+                        detected=detected,
+                        rms=block_rms,
+                        timestamp=now,
+                        keyword=keyword or "hey_jarvis",
+                    )
+                )
+                if detected and not self.allow_acoustic_passive_trigger:
+                    logger.warning(
+                        "Acoustic fallback detected a wake pattern but passive trigger is disabled; "
+                        "configure a Tier-1 wake-word model before enabling hands-free activation."
+                    )
+                    detected = False
 
             if detected:
                 self._last_trigger_time = now

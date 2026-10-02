@@ -167,9 +167,14 @@ def _mock_headless_audio_endpoint(monkeypatch):
     except Exception:
         needs_mock = True
 
-    # If running in explicit headless/CI test environment, prefer virtual endpoint
-    # to avoid interference from host system volume or missing soundcards
-    if os.environ.get("JARVIS_MOCK_AUDIO") == "1" or os.environ.get("JARVIS_HEADLESS") == "1":
+    # Unit/integration tests must not share mutable host mute state across
+    # cases. Keep real-device probing opt-in for dedicated live audio tests;
+    # the default test harness receives a fresh virtual endpoint per test.
+    if (
+        os.environ.get("JARVIS_MOCK_AUDIO") == "1"
+        or os.environ.get("JARVIS_HEADLESS") == "1"
+        or os.environ.get("JARVIS_LIVE_AUDIO_TESTS") != "1"
+    ):
         needs_mock = True
 
     if needs_mock:
