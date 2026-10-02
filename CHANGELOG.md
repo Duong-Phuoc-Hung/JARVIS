@@ -1,3 +1,61 @@
+## [Unreleased] Edge TTS, Intent Expansion & Startup Hardening (2026-10-02)
+
+- **Mục tiêu**: Loại bỏ 3 vấn đề khởi động gây nhiễu, thêm Engine TTS tiếng Việt miễn phí (Microsoft Neural Edge TTS), mở rộng hơn 30 lệnh thoại tiếng Việt khẩu ngữ, sửa auto-launch app không mong muốn, chuẩn hóa line endings toàn bộ repository.
+- **Nguyên nhân gốc rễ & Các chỉnh sửa kỹ thuật theo phân hệ**:
+
+  - **Startup Noise & Secrets Subsystem (`jarvis/core/`, `jarvis/secrets.py`, `jarvis/stt/`)**:
+    - `jarvis/secrets.py`: Deduplicate cảnh báo missing-key qua `_warned_missing: set` — mỗi key chỉ cảnh báo một lần per process thay vì hai lần (CLI + JarvisApp init).
+    - `jarvis/stt/engine.py`: Thêm hướng dẫn khắc phục actionable khi cublas DLL bị thiếu — thông báo rõ lệnh `pip install nvidia-cublas-cu12`.
+    - `jarvis/core/app.py`: Xóa đăng ký thủ công `skill_git_assistant`; `SkillRegistry` tự auto-discover và đăng ký từ `skills/git_assistant/`, tránh `ActionDispatcher overwrite WARNING` trên mỗi khởi động.
+
+  - **AudioEngine & Mic Selection (`jarvis/audio/engine.py`)**:
+    - `AudioEngine` đọc `JARVIS_INPUT_DEVICE` từ Secrets (Windows Credential Manager) thêm vào env var. Thứ tự ưu tiên: explicit config > env var > secrets.
+    - Root cause STT trả empty string: mic mặc định là "Microphone (Camo)" (virtual camera), không phải mic USB vật lý. `JARVIS_INPUT_DEVICE=2` lưu vào Credential Manager.
+
+  - **Text-to-Speech Engine (`jarvis/tts/`)**:
+    - `jarvis/tts/edge.py` *(mới)*: Engine `EdgeTTS` dùng package `edge-tts`, không cần API key, sử dụng Microsoft Edge speech service.
+      - Voices: `vi-VN-HoaiMyNeural` (nữ) / `vi-VN-NamMinhNeural` (nam).
+      - Playback chain: `pydub+sounddevice` → `pygame` → PowerShell `MediaPlayer`.
+    - `jarvis/tts/manager.py`: `TTSManager` đọc `tts.provider` từ config — `"edge_tts"` → EdgeTTS (default mới), `"sapi5"` → SAPI5FallbackTTS, `"elevenlabs"` → ElevenLabsTTS.
+    - `config/default_config.yaml`: Chuyển provider từ `"elevenlabs"` → `"edge_tts"`, loại bỏ delay `401 Unauthorized` trên mỗi phản hồi thoại.
+
+  - **Intent Router — Lệnh thoại tiếng Việt (`jarvis/llm/router.py`)**:
+    - Mở rộng Tier-1 regex: thêm tiền tố khẩu ngữ tùy chọn `cho tao/tôi/mình|giúp tao/tôi|hãy|đi` trước động từ mở/khởi chạy — `"cho tao vào youtube"` route thẳng mà không cần LLM.
+    - Exact-match dict — **30+ pattern mới** bao gồm:
+      - Crypto/Finance: `giá bitcoin`, `giá eth`, `btc hôm nay`, `thị trường hôm nay`, `cho tao xem binance` → `web_open`
+      - Ngày/Giờ: `mấy giờ rồi`, `hôm nay thứ mấy`, `hôm nay ngày mấy`, `xem giờ` → `shell_exec` (PowerShell `Get-Date`)
+      - Độ sáng: `độ sáng màn hình`, `tăng độ sáng`, `giảm độ sáng` → `system_volume`
+      - Power: `ngủ đông` → `system_power hibernate`, `ngủ` → sleep
+      - Spotify: `bài trước` → `spotify previous`
+      - Và thêm: `tạo file mới`, `xóa file tạm`, `dọn dẹp máy tính`, `xóa clipboard`, `tốc độ mạng`, `phóng to cửa sổ`.
+    - Auth error: Log hướng dẫn actionable khi `GEMINI_API_KEY` thiếu (URL lấy key miễn phí + lệnh `keyring.set_password`).
+
+  - **Routing Fix — Window Maximize (`jarvis/llm/router.py`, `jarvis/core/app.py`)**:
+    - `maximize_window` sai routing qua `system_power` (chỉ hỗ trợ lock/shutdown/restart/sleep/hibernate).
+    - Fix: route qua `shell_exec` dùng PowerShell `wscript.shell SendKeys` để maximize cửa sổ hiện tại.
+
+  - **Config Fix — Tắt Auto-Launch (`config/default_config.yaml`)**:
+    - `gesture.patterns.double_clap.actions`: Xóa `spotify`, `chrome_claude`, `chrome_binance`, `cursor` — double-clap chỉ còn greeting + bắt đầu nghe giọng nói.
+    - `plugins.chrome.open_claude/open_binance`: false — tab Chrome chỉ mở theo lệnh thoại tường minh, không bao giờ tự động.
+    - JARVIS hoạt động đúng vai trò: trợ lý AI cá nhân — phản hồi khi được hỏi, không tự mở app.
+
+  - **Dispatcher Fix (`jarvis/core/app.py`)**:
+    - Đăng ký alias `shell_exec` song song với `shell_execute` — router emit `shell_exec` (23 điểm) nhưng action chỉ đăng ký tên `shell_execute`, gây silent failure.
+    - `_handle_shell_execute`: nhận cả `query` (NL shell intents) lẫn `command` (weather/curl intents) — trước đây parameter mismatch gây silent failure.
+
+  - **Test Fixes (`tests/unit/`)**:
+    - `test_runaway_hardening.py`: `TestDoubleClapFanoutOptIn.setUp` inject `_FANOUT_ACTIONS` vào config trực tiếp — tách khỏi `default_config.yaml`, không còn fail khi config thay đổi.
+    - `test_llm_fixes_m3.py`: Đăng ký `skill_git_assistant` trong test setup — giải quyết `test_bug_llm_04` fail.
+    - 51 tests trong hai file này đều PASS.
+
+  - **Repository — Line Endings (`commits 32c0cff`, `a9ee8e9`)**:
+    - Thêm `.gitattributes` chuẩn hóa toàn bộ Python/text files về LF trong repo, binary assets đánh dấu binary.
+    - Bulk re-index CRLF → LF trên 715 files — không thay đổi logic code.
+
+- **Chỉ số kiểm thử thực tế**:
+  - 51/51 PASS cho `test_runaway_hardening.py` + `test_llm_fixes_m3.py`.
+  - Working tree: CLEAN. Branch ahead of `origin/main` by 12 commits (push lần này).
+
 ## [Unreleased] Comprehensive Security Audit, Hardening & Tooling Sprint (2026-09-22)
 
 - **Mục tiêu**: Kiểm toán toàn diện bề mặt tấn công của 200 tệp nguồn thuộc phân hệ `jarvis/`, phát hiện và khắc phục dứt điểm 22 lỗ hổng bảo mật thuộc 5 nhóm rủi ro (Code Vulnerabilities, Information Disclosure, Excessive Permissions, Outdated Dependencies, Sensitive Serialization), nâng cấp bộ kiểm thử an toàn thông tin chuyên sâu (21 security hardening tests), và triển khai công cụ quét tĩnh bảo mật tự động `tools/security_scanner.py`.
