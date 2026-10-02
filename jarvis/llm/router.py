@@ -837,6 +837,36 @@ class LLMIntentRouter:
                 response_text="Đang kiểm tra thông tin thời tiết hôm nay cho Ngài.",
             ),
 
+            # 4b. Crypto / Finance (web search shortcuts — no API key needed)
+            "xem gia bitcoin": IntentResult(action_name="web_open", parameters={"target": "https://www.google.com/search?q=giá+bitcoin+hôm+nay", "site": "google"}, source="rule_fallback", response_text="Đang tra giá Bitcoin cho Ngài."),
+            "gia bitcoin": IntentResult(action_name="web_open", parameters={"target": "https://www.google.com/search?q=giá+bitcoin+hôm+nay", "site": "google"}, source="rule_fallback", response_text="Đang tra giá Bitcoin cho Ngài."),
+            "btc hom nay": IntentResult(action_name="web_open", parameters={"target": "https://www.google.com/search?q=BTC+giá+hôm+nay", "site": "google"}, source="rule_fallback", response_text="Đang tra giá BTC cho Ngài."),
+            "gia eth": IntentResult(action_name="web_open", parameters={"target": "https://www.google.com/search?q=giá+ethereum+hôm+nay", "site": "google"}, source="rule_fallback", response_text="Đang tra giá ETH cho Ngài."),
+            "gia ethereum": IntentResult(action_name="web_open", parameters={"target": "https://www.google.com/search?q=giá+ethereum+hôm+nay", "site": "google"}, source="rule_fallback", response_text="Đang tra giá Ethereum cho Ngài."),
+            "thi truong hom nay": IntentResult(action_name="web_open", parameters={"target": "https://coinmarketcap.com", "site": "coinmarketcap"}, source="rule_fallback", response_text="Đang mở CoinMarketCap cho Ngài."),
+            "cho tao xem binance": IntentResult(action_name="web_open", parameters={"target": "binance", "site": "binance"}, source="rule_fallback", response_text="Đang mở Binance cho Ngài."),
+            "xem binance": IntentResult(action_name="web_open", parameters={"target": "binance", "site": "binance"}, source="rule_fallback", response_text="Đang mở Binance cho Ngài."),
+
+            # 4c. Date/Time
+            "may gio roi": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Get-Date -Format 'HH:mm:ss'\"", "topic": "time"}, source="rule_fallback", response_text="Đang kiểm tra giờ hiện tại cho Ngài."),
+            "hom nay thu may": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"(Get-Date).ToString('dddd, dd/MM/yyyy')\"", "topic": "date"}, source="rule_fallback", response_text="Đang kiểm tra ngày hôm nay cho Ngài."),
+            "hom nay ngay may": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"(Get-Date).ToString('dd/MM/yyyy')\"", "topic": "date"}, source="rule_fallback", response_text="Đang kiểm tra ngày hôm nay cho Ngài."),
+            "xem gio": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Get-Date -Format 'HH:mm'\"", "topic": "time"}, source="rule_fallback", response_text="Đang kiểm tra giờ hiện tại cho Ngài."),
+
+            # 4d. Display / Brightness
+            "do sang man hinh": IntentResult(action_name="system_volume", parameters={"action": "brightness_query"}, source="rule_fallback", response_text="Đang kiểm tra độ sáng màn hình cho Ngài."),
+            "tang do sang": IntentResult(action_name="system_volume", parameters={"action": "brightness_up"}, source="rule_fallback", response_text="Đang tăng độ sáng màn hình cho Ngài."),
+            "giam do sang": IntentResult(action_name="system_volume", parameters={"action": "brightness_down"}, source="rule_fallback", response_text="Đang giảm độ sáng màn hình cho Ngài."),
+
+            # 4e. Sleep/Hibernate
+            "ngu dong": IntentResult(action_name="system_power", parameters={"action": "hibernate"}, source="rule_fallback", response_text="Đang chuyển máy sang chế độ ngủ đông, thưa Ngài."),
+            "ngu": IntentResult(action_name="system_power", parameters={"action": "sleep"}, source="rule_fallback", response_text="Đang chuyển máy sang chế độ ngủ, thưa Ngài."),
+
+            # 4f. Spotify navigation
+            "bai truoc": IntentResult(action_name="spotify", parameters={"action": "previous"}, source="rule_fallback", response_text="Đang phát bài trước cho Ngài."),
+            "quay lai bai truoc": IntentResult(action_name="spotify", parameters={"action": "previous"}, source="rule_fallback", response_text="Đang phát bài trước cho Ngài."),
+            "chat voi claude": IntentResult(action_name="web_open", parameters={"target": "claude", "site": "claude"}, source="rule_fallback", response_text="Đang mở Claude AI cho Ngài."),
+
             # 5. Reminder (Category 5)
             "tạo nhắc nhở": IntentResult(
                 action_name="reminder",
@@ -2043,6 +2073,45 @@ class LLMIntentRouter:
                     parameters={"delta": -(int(m.group(1)) if (m.lastindex and m.group(1)) else 10)},
                     source="rule_fallback",
                     response_text="Đang giảm độ sáng màn hình cho Ngài.",
+                ),
+            ),
+            # 12b. Set volume to exact percent — "âm lượng 50", "volume 70%"
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:(?:đặt|dat|set)\s+)?(?:âm\s*lượng|am\s*luong|volume)\s+(\d{1,3})\s*%?$", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="system_volume",
+                    parameters={"level": min(100, max(0, int(m.group(1))))},
+                    source="rule_fallback",
+                    response_text=f"Đang đặt âm lượng {m.group(1)}% cho Ngài.",
+                ),
+            ),
+            # 12c. Date and time queries
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:mấy|may|bao\s*nhiêu|bao\s*nhieu)\s+giờ(?:\s+rồi)?|^(?:xem\s+giờ|hỏi\s+giờ|giờ\s+(?:hiện\s+tại|mấy\s+giờ))", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="shell_exec",
+                    parameters={"command": "powershell -c \"(Get-Date).ToString('HH:mm:ss dddd dd/MM/yyyy')\"", "topic": "time"},
+                    source="rule_fallback",
+                    response_text="Đang kiểm tra giờ hiện tại cho Ngài.",
+                ),
+            ),
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?hôm\s*nay\s+(?:là\s+)?(?:thứ|ngày)\s+(?:mấy|may)|^(?:hôm\s*nay\s+ngày\s+mấy|ngày\s+(?:hôm\s+nay|này))", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="shell_exec",
+                    parameters={"command": "powershell -c \"(Get-Date).ToString('dddd, dd/MM/yyyy')\"", "topic": "date"},
+                    source="rule_fallback",
+                    response_text="Đang kiểm tra ngày hôm nay cho Ngài.",
+                ),
+            ),
+            # 12d. Crypto price quick-search
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:giá|gia|xem\s+giá|gia\s+coin|coin)\s+(bitcoin|btc|ethereum|eth|bnb|sol|solana|usdt|xrp|ada|doge|[\w]+)(?:\s+hôm\s+nay)?", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="web_open",
+                    parameters={"target": f"https://www.google.com/search?q=giá+{m.group(1)}+hôm+nay", "site": "google"},
+                    source="rule_fallback",
+                    response_text=f"Đang tra giá {m.group(1).upper()} cho Ngài.",
                 ),
             ),
             # 13. News & Morning Briefing
