@@ -216,3 +216,32 @@ def test_spotify_media_controls():
         res_pause = plugin.play_track(action="pause")
         assert res_pause["status"] == "success"
         mock_hk.assert_called_with("media_play_pause")
+
+
+def test_youtube_intents_and_video_search():
+    """Verify YouTube homepage and specific video searches route to web_open with correct URLs."""
+    router = LLMIntentRouter(MagicMock())
+    home_queries = [
+        "mở youtube",
+        "mở xem youtube",
+        "xem youtube",
+        "bật youtube",
+        "vào xem youtube",
+        "cho tao vào youtube",
+    ]
+    for q in home_queries:
+        res = router.parse_intent(q, force_llm=False)
+        assert res.action_name == "web_open", f"'{q}' should route to web_open"
+        assert res.parameters.get("site") == "youtube"
+
+    search_queries = [
+        ("mở youtube xem nhạc sơn tùng", "youtube xem nhạc sơn tùng"),
+        ("xem video lofi trên youtube", "https://www.youtube.com/results?search_query=lofi"),
+        ("bật bài hát em của ngày hôm qua trên youtube", "https://www.youtube.com/results?search_query=em+c%E1%BB%A7a+ng%C3%A0y+h%C3%B4m+qua"),
+        ("youtube sơn tùng mtp", "https://www.youtube.com/results?search_query=s%C6%A1n+t%C3%B9ng+mtp"),
+        ("tìm nhạc edm trên youtube", "https://www.youtube.com/results?search_query=edm"),
+    ]
+    for q, expected_target in search_queries:
+        res = router.parse_intent(q, force_llm=False)
+        assert res.action_name == "web_open", f"'{q}' should route to web_open"
+        assert res.parameters.get("target") == expected_target, f"'{q}' expected target {expected_target}, got {res.parameters.get('target')}"

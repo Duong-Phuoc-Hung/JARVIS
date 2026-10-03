@@ -1200,9 +1200,13 @@ class LLMIntentRouter:
             "mở chatgpt": IntentResult(action_name="web_open", parameters={"target": "chatgpt", "site": "chatgpt"}, source="rule_fallback", response_text="Đang mở ChatGPT cho Ngài."),
             "bật youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
             "mở youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "mở xem youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "xem youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
             "mo youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "mo xem youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
             "open youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
             "vao youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
+            "vào xem youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
             "cho tao vao youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
             "cho toi vao youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
             "cho t vao youtube": IntentResult(action_name="web_open", parameters={"target": "youtube", "site": "youtube"}, source="rule_fallback", response_text="Đang mở YouTube cho Ngài."),
@@ -1799,13 +1803,26 @@ class LLMIntentRouter:
             (
                 re.compile(r"^(?:jarvis[,\s]*)?(?:mở|bật|phát|nghe|mo|bat|phat|nghe|play|launch)\s+(?:spotify\s*(?:bài|bài\s*hát|bai|song)?|nhạc|nhac|bài\s*hát|bai\s*hat|bài|bai|music|song)(?:\s+(.+))?$", re.IGNORECASE),
                 lambda m: (
-                    lambda q: IntentResult(
-                        action_name="spotify",
-                        parameters={"query": q} if q else {"command": "play", "query": ""},
-                        source="rule_fallback",
-                        response_text=f"Đang mở Spotify và phát {q} cho Ngài." if q else "Đang mở Spotify và phát nhạc cho Ngài.",
-                    )
-                )(re.sub(r"^(?:bài\s*hát|bai\s*hat|bài|bai|song)\s+", "", m.group(1).strip(), flags=re.IGNORECASE) if (m.lastindex and m.group(1) and m.group(1).strip()) else "")
+                    (lambda raw_q: (
+                        (lambda yt_m: IntentResult(
+                            action_name="web_open",
+                            parameters={
+                                "target": f"https://www.youtube.com/results?{urlencode({'search_query': yt_m.group(1).strip()})}",
+                                "site": "youtube",
+                                "query": yt_m.group(1).strip(),
+                            },
+                            source="rule_fallback",
+                            response_text=f"Đang mở '{yt_m.group(1).strip()}' trên YouTube cho Ngài.",
+                        ))(re.match(r"^(.+?)\s+(?:trên|ở|qua|tai|tại)\s+(?:youtube|yt)$", raw_q, re.IGNORECASE))
+                        if re.search(r"\b(?:trên|ở|qua|tai|tại)\s+(?:youtube|yt)$", raw_q, re.IGNORECASE)
+                        else IntentResult(
+                            action_name="spotify",
+                            parameters={"query": raw_q} if raw_q else {"command": "play", "query": ""},
+                            source="rule_fallback",
+                            response_text=f"Đang mở Spotify và phát {raw_q} cho Ngài." if raw_q else "Đang mở Spotify và phát nhạc cho Ngài.",
+                        )
+                    ))(re.sub(r"^(?:bài\s*hát|bai\s*hat|bài|bai|song)\s+", "", m.group(1).strip(), flags=re.IGNORECASE) if (m.lastindex and m.group(1) and m.group(1).strip()) else "")
+                ),
             ),
             (
                 re.compile(r"^(?:jarvis[,\s]*)?(?:bật\s*nhạc\s*lên|bat\s*nhac\s*len|phát\s*nhạc\s*đi|phat\s*nhac\s*di|\bspotify\b)$", re.IGNORECASE),
@@ -1985,8 +2002,41 @@ class LLMIntentRouter:
                 lambda m: self._make_web_intent(m.group(1), None),
             ),
             (
-                re.compile(r"^(?:jarvis[,\s]*)?(?:cho\s+(?:tao|tôi|mình|t)\s+|giúp\s+(?:tao|tôi|mình)\s+|hãy\s+|đi\s+)?(?:mở|bật|vào|truy\s*cập|mo|bat|vao|truy\s*cap|open|visit|go\s*to|launch|start)(?:\s+(?:trang\s*web|web|website|trang))?\s*(youtube|yt|google|gg|facebook|fb|github|gh|chatgpt|gpt|chat\s*gpt|claude|claude\s*ai|anthropic|binance|zalo\s*web|gmail|mail|email|hòm\s*thư|vnexpress|báo|dantri|dân\s*trí|shopee|tiki|lazada|reddit|twitter|maps|bản\s*đồ|dịch|translate|google\s*dịch|notion|figma|canva|trello|jira|confluence|[\w\-]+(?:\.com|\.vn|\.net|\.org|\.io|\.edu))(?:\s+(.*))?$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis[,\s]*)?(?:cho\s+(?:tao|tôi|mình|t)\s+|giúp\s+(?:tao|tôi|mình)\s+|hãy\s+|đi\s+)?(?:mở\s+xem|bật\s+xem|vào\s+xem|mo\s+xem|bat\s+xem|vao\s+xem|mở|bật|vào|xem|truy\s*cập|mo|bat|vao|truy\s*cap|open|watch|visit|go\s*to|launch|start)(?:\s+(?:trang\s*web|web|website|trang))?\s*(youtube|yt|google|gg|facebook|fb|github|gh|chatgpt|gpt|chat\s*gpt|claude|claude\s*ai|anthropic|binance|zalo\s*web|gmail|mail|email|hòm\s*thư|vnexpress|báo|dantri|dân\s*trí|shopee|tiki|lazada|reddit|twitter|maps|bản\s*đồ|dịch|translate|google\s*dịch|notion|figma|canva|trello|jira|confluence|[\w\-]+(?:\.com|\.vn|\.net|\.org|\.io|\.edu))(?:\s+(.*))?$", re.IGNORECASE),
                 lambda m: self._make_web_intent(m.group(1), m.group(2)),
+            ),
+            # 8a1. Specific YouTube Video/Music Search Intent ("xem video X trên youtube", "bật bài hát Y trên youtube")
+            (
+                re.compile(
+                    r"^(?:jarvis[,\s]*)?(?:cho\s+(?:tao|tôi|mình|t)\s+|giúp\s+(?:tao|tôi|mình)\s+|hãy\s+|đi\s+)?"
+                    r"(?:mở\s+xem|bật\s+xem|vào\s+xem|mở|bật|vào|xem|phát|play|tìm|tra\s*cứu|search|chạy|mo|bat|vao|phat|tim)\s+"
+                    r"(?:video|clip|bài\s*hát|bai\s*hat|bài|bai|nhạc|nhac|phim|kênh|kenh)?\s*"
+                    r"(.+?)\s+(?:trên|ở|qua|tai|tại|tren|o)\s+(?:youtube|yt)$",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(
+                    action_name="web_open",
+                    parameters={
+                        "target": f"https://www.youtube.com/results?{urlencode({'search_query': m.group(1).strip()})}",
+                        "site": "youtube",
+                        "query": m.group(1).strip(),
+                    },
+                    source="rule_fallback",
+                    response_text=f"Đang mở '{m.group(1).strip()}' trên YouTube cho Ngài.",
+                ),
+            ),
+            (
+                re.compile(r"^(?:jarvis[,\s]*)?(?:youtube|yt)\s+(.+)$", re.IGNORECASE),
+                lambda m: IntentResult(
+                    action_name="web_open",
+                    parameters={
+                        "target": f"https://www.youtube.com/results?{urlencode({'search_query': m.group(1).strip()})}",
+                        "site": "youtube",
+                        "query": m.group(1).strip(),
+                    },
+                    source="rule_fallback",
+                    response_text=f"Đang tìm '{m.group(1).strip()}' trên YouTube cho Ngài.",
+                ),
             ),
             # 8b. File Search
             (
@@ -2504,10 +2554,10 @@ class LLMIntentRouter:
             return None
         target = clean[prefix.end():]
         qualifier = self._APP_QUALIFIER.match(target)
-        # Workspace/project commands share the same "mở/open" prefix but are
-        # not application launches. Leave them for the workspace rule family.
+        # Workspace/project and web service commands share the same "mở/open" prefix but are
+        # not application launches. Leave them for the workspace / web rule families.
         if qualifier is None and re.match(
-            r"^(?:dự\s+án|du\s+an|project|workspace|repo|code)\b", target, re.IGNORECASE
+            r"^(?:dự\s+án|du\s+an|project|workspace|repo|code|xem\s+youtube|youtube|xem\s+video|trang\s+web|web|website)\b", target, re.IGNORECASE
         ):
             return None
         if qualifier:
