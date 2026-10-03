@@ -552,7 +552,18 @@ class JarvisApp:
 
             # 17. Persistent Skill Library & Synthesizer (M2 / Requirement R2)
             skills_cfg = self.config.get("skills", {})
-            skills_dir = skills_cfg.get("dir", "jarvis/skills")
+            skills_cfg = self.config.get("skills", {})
+            raw_skills_dir = skills_cfg.get("dir", "jarvis/skills")
+            p_skills = pathlib.Path(raw_skills_dir)
+            if not p_skills.is_absolute() and not p_skills.exists():
+                try:
+                    import jarvis.skills
+                    pkg_skills = pathlib.Path(jarvis.skills.__file__).resolve().parent
+                    if pkg_skills.is_dir():
+                        p_skills = pkg_skills
+                except Exception:
+                    pass
+            skills_dir = str(p_skills.resolve())
             self.skill_registry = SkillRegistry(
                 skills_dir=skills_dir,
                 dispatcher=self.dispatcher,
@@ -913,6 +924,16 @@ class JarvisApp:
             name="shell_exec",
             handler=self._handle_shell_execute,
             description="Alias for shell_execute (used by intent router for weather/curl shortcuts)",
+        )
+        self.dispatcher.register_action(
+            name="skill_clipboard",
+            handler=self._handle_clipboard,
+            description="Performs clipboard operations (copy, paste, cut, clear)",
+        )
+        self.dispatcher.register_action(
+            name="clipboard",
+            handler=self._handle_clipboard,
+            description="Alias for skill_clipboard",
         )
         self.dispatcher.register_action(
             name="safety_gate_confirm",
@@ -1622,12 +1643,47 @@ class JarvisApp:
             }
         return {"status": "failed", "message": "Web intelligence hub unavailable"}
 
-    def _handle_window_active(self, **kwargs) -> dict[str, Any]:
-        """Returns active foreground window info."""
+    def _handle_window_active(self, action: str | None = None, **kwargs) -> dict[str, Any]:
+        """Returns active foreground window info or manipulates it (maximize, close)."""
+        act = (action or kwargs.get("action") or "").lower().strip()
         if self.computer_controller:
             win = self.computer_controller.get_active_window()
-            return {"status": "success", "window": win, "message": f"Cửa sổ hiện tại: {win.get('title', 'N/A')}"}
+            hwnd = win.get("hwnd")
+            title = win.get("title", "cửa sổ hiện tại")
+            if act == "maximize":
+                if hwnd and hasattr(self.computer_controller, "win32") and hasattr(self.computer_controller.win32, "maximize_window"):
+                    ok = self.computer_controller.win32.maximize_window(hwnd)
+                    if ok:
+                        return {"status": "success", "success": True, "message": f"Đã phóng to {title}, thưa Ngài."}
+                return {"status": "failed", "success": False, "message": "Không thể phóng to cửa sổ hiện tại, thưa Ngài."}
+            elif act == "close":
+                ok = self.computer_controller.close_active_window()
+                return {"status": "success" if ok else "failed", "message": f"Đã đóng {title}, thưa Ngài."}
+            return {"status": "success", "window": win, "message": f"Cửa sổ hiện tại: {title}"}
         return {"status": "failed", "message": "Computer controller unavailable"}
+
+    def _handle_clipboard(self, action: str = "copy", text: str | None = None, **kwargs) -> dict[str, Any]:
+        """Handles clipboard operations (copy, paste, cut, clear, read)."""
+        act = (action or kwargs.get("action") or "copy").lower().strip()
+        if not self.computer_controller:
+            return {"status": "failed", "success": False, "message": "Computer controller unavailable"}
+
+        if act in ("cut", "cắt"):
+            ok = self.computer_controller.send_hotkey("ctrl", "x")
+            return {"status": "success" if ok else "failed", "success": ok, "message": "Đã cắt nội dung vào clipboard."}
+        elif act in ("clear", "xóa"):
+            ok = self.computer_controller.set_clipboard_text("")
+            return {"status": "success" if ok else "failed", "success": ok, "message": "Đã xóa nội dung clipboard."}
+        elif act in ("paste", "dán"):
+            ok = self.computer_controller.paste_text(text)
+            return {"status": "success" if ok else "failed", "success": ok, "message": "Đã dán nội dung từ clipboard, thưa Ngài."}
+        elif act in ("read", "đọc", "xem"):
+            clip_val = self.computer_controller.get_clipboard_text()
+            preview = clip_val[:100] + ("..." if len(clip_val) > 100 else "")
+            return {"status": "success", "success": True, "text": clip_val, "message": f"Nội dung clipboard: {preview}" if preview else "Clipboard đang trống, thưa Ngài."}
+        else:  # copy / sao chép
+            clip_val = self.computer_controller.copy_selection()
+            return {"status": "success", "success": True, "text": clip_val, "message": "Đã sao chép nội dung vào clipboard, thưa Ngài."}
 
     def _handle_window_minimize_all(self, **kwargs) -> dict[str, Any]:
         """Minimizes all windows."""
@@ -1733,8 +1789,16 @@ class JarvisApp:
         return {"status": "success", "success": True, "volume": vol, "message": f"Đã điều chỉnh âm lượng {direction} {vol}%, thưa Ngài."}
 
     def _handle_system_brightness(self, delta: int | None = None, level: int | None = None, **kwargs) -> dict[str, Any]:
-        """Adjusts or sets screen brightness (fail-closed if monitor unavailable)."""
+        """Adjusts, sets, or queries screen brightness (fail-closed if monitor unavailable)."""
         if self.computer_controller:
+            is_query = bool(kwargs.get("query") or kwargs.get("action") in ("query", "brightness_query"))
+            if is_query and delta is None and level is None:
+                b = self.computer_controller.get_brightness()
+                if b is None:
+                    code = "BRIGHTNESS_QUERY_FAILED"
+                    msg = "Không thể lấy thông tin độ sáng màn hình, thưa Ngài."
+                    return {"status": "failed", "success": False, "brightness": None, "error": _DualErrorStr(msg, code), "error_code": code, "message": msg}
+                return {"status": "success", "success": True, "brightness": b, "message": f"Độ sáng màn hình hiện tại là {b}%, thưa Ngài."}
             if level is not None:
                 b = self.computer_controller.set_brightness(level)
                 if b is None:
@@ -1755,6 +1819,13 @@ class JarvisApp:
 
     def _handle_file_search(self, filename: str | None = None, pattern: str | None = None, directory: str | None = None, root_dir: str | None = None, **kwargs) -> dict[str, Any]:
         """Searches local files."""
+        if kwargs.get("clarify") or (kwargs.get("action") == "create" and not filename and not pattern):
+            return {
+                "status": "success",
+                "success": True,
+                "clarification_required": True,
+                "message": "Ngài muốn tạo file tên gì và ở đâu? Xin cho biết tên file cụ thể.",
+            }
         target_name = pattern or filename or "*.*"
         target_root = directory or root_dir
         if self.computer_controller:

@@ -854,9 +854,11 @@ class LLMIntentRouter:
             "xem gio": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Get-Date -Format 'HH:mm'\"", "topic": "time"}, source="rule_fallback", response_text="Đang kiểm tra giờ hiện tại cho Ngài."),
 
             # 4d. Display / Brightness
-            "do sang man hinh": IntentResult(action_name="system_volume", parameters={"action": "brightness_query"}, source="rule_fallback", response_text="Đang kiểm tra độ sáng màn hình cho Ngài."),
-            "tang do sang": IntentResult(action_name="system_volume", parameters={"action": "brightness_up"}, source="rule_fallback", response_text="Đang tăng độ sáng màn hình cho Ngài."),
-            "giam do sang": IntentResult(action_name="system_volume", parameters={"action": "brightness_down"}, source="rule_fallback", response_text="Đang giảm độ sáng màn hình cho Ngài."),
+            "do sang man hinh": IntentResult(action_name="system_brightness", parameters={"query": True}, source="rule_fallback", response_text="Đang kiểm tra độ sáng màn hình cho Ngài."),
+            "độ sáng màn hình": IntentResult(action_name="system_brightness", parameters={"query": True}, source="rule_fallback", response_text="Đang kiểm tra độ sáng màn hình cho Ngài."),
+            "do sang": IntentResult(action_name="system_brightness", parameters={"query": True}, source="rule_fallback", response_text="Đang kiểm tra độ sáng màn hình cho Ngài."),
+            "tang do sang": IntentResult(action_name="system_brightness", parameters={"delta": 10}, source="rule_fallback", response_text="Đang tăng độ sáng màn hình cho Ngài."),
+            "giam do sang": IntentResult(action_name="system_brightness", parameters={"delta": -10}, source="rule_fallback", response_text="Đang giảm độ sáng màn hình cho Ngài."),
 
             # 4e. Sleep/Hibernate
             "ngu dong": IntentResult(action_name="system_power", parameters={"action": "hibernate"}, source="rule_fallback", response_text="Đang chuyển máy sang chế độ ngủ đông, thưa Ngài."),
@@ -868,18 +870,19 @@ class LLMIntentRouter:
             "chat voi claude": IntentResult(action_name="web_open", parameters={"target": "claude", "site": "claude"}, source="rule_fallback", response_text="Đang mở Claude AI cho Ngài."),
 
             # 4g. File operations
-            "tao file moi": IntentResult(action_name="file_search", parameters={"action": "create"}, source="rule_fallback", response_text="Ngài muốn tạo file tên gì và ở đâu?"),
-            "tạo file mới": IntentResult(action_name="file_search", parameters={"action": "create"}, source="rule_fallback", response_text="Ngài muốn tạo file tên gì và ở đâu?"),
+            "tao file moi": IntentResult(action_name="file_search", parameters={"action": "create", "clarify": True}, source="rule_fallback", response_text="Ngài muốn tạo file tên gì và ở đâu?"),
+            "tạo file mới": IntentResult(action_name="file_search", parameters={"action": "create", "clarify": True}, source="rule_fallback", response_text="Ngài muốn tạo file tên gì và ở đâu?"),
             "xoa file tam": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Remove-Item $env:TEMP\\* -Recurse -Force -ErrorAction SilentlyContinue; Write-Output 'Đã xóa file tạm'\"", "topic": "cleanup"}, source="rule_fallback", response_text="Đang xóa file tạm để giải phóng bộ nhớ cho Ngài."),
             "xóa file tạm": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Remove-Item $env:TEMP\\* -Recurse -Force -ErrorAction SilentlyContinue; Write-Output 'Đã xóa file tạm'\"", "topic": "cleanup"}, source="rule_fallback", response_text="Đang xóa file tạm để giải phóng bộ nhớ cho Ngài."),
             "don dep may tinh": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Remove-Item $env:TEMP\\* -Recurse -Force -ErrorAction SilentlyContinue; Write-Output 'Đã dọn dẹp'\"", "topic": "cleanup"}, source="rule_fallback", response_text="Đang dọn dẹp file tạm trên máy cho Ngài."),
 
             # 4h. Window management
-            "phong to cua so": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"Add-Type -AssemblyName Microsoft.VisualBasic; [System.Windows.Forms.SendKeys]::SendWait('%{F10}')\"", "topic": "window"}, source="rule_fallback", response_text="Đang phóng to cửa sổ cho Ngài."),
-            "phóng to cửa sổ": IntentResult(action_name="shell_exec", parameters={"command": "powershell -c \"$wshell = New-Object -ComObject wscript.shell; $wshell.SendKeys('% '+'x')\"", "topic": "window"}, source="rule_fallback", response_text="Đang phóng to cửa sổ cho Ngài."),
+            "phong to cua so": IntentResult(action_name="window_active", parameters={"action": "maximize"}, source="rule_fallback", response_text="Đang phóng to cửa sổ cho Ngài."),
+            "phóng to cửa sổ": IntentResult(action_name="window_active", parameters={"action": "maximize"}, source="rule_fallback", response_text="Đang phóng to cửa sổ cho Ngài."),
 
             # 4i. Clipboard cut
             "cat": IntentResult(action_name="skill_clipboard", parameters={"action": "cut"}, source="rule_fallback", response_text="Đã cắt nội dung vào clipboard."),
+            "cắt": IntentResult(action_name="skill_clipboard", parameters={"action": "cut"}, source="rule_fallback", response_text="Đã cắt nội dung vào clipboard."),
             "xoa clipboard": IntentResult(action_name="skill_clipboard", parameters={"action": "clear"}, source="rule_fallback", response_text="Đã xóa clipboard."),
             "xóa clipboard": IntentResult(action_name="skill_clipboard", parameters={"action": "clear"}, source="rule_fallback", response_text="Đã xóa clipboard."),
 

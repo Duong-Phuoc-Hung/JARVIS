@@ -9,7 +9,10 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import sys
 import threading
+import time
+from pathlib import Path
 from typing import Any
 
 from jarvis.tts.base import BaseTTSEngine, TTSError
@@ -35,6 +38,43 @@ def _run_async(coro) -> Any:
         return asyncio.run(coro)
 
 
+def _mp3_to_pcm(mp3_bytes: bytes, target_sr: int = 24000) -> bytes:
+    """Decode MP3 bytes to 16-bit mono PCM bytes."""
+    if not mp3_bytes:
+        return b""
+    # Method 1: soundfile (fast libsndfile)
+    try:
+        import soundfile as sf
+        data, sr = sf.read(io.BytesIO(mp3_bytes), dtype="int16")
+        if data.ndim > 1:
+            data = data[:, 0]
+        if sr != target_sr:
+            import numpy as np
+            from scipy import signal
+            num_samples = int(len(data) * target_sr / sr)
+            data = signal.resample(data.astype(np.float32), num_samples).astype(np.int16)
+        return data.tobytes()
+    except Exception as e:
+        log.debug("soundfile MP3 decode failed (%s), trying PyAV", e)
+
+    # Method 2: av (PyAV fallback)
+    try:
+        import av
+        container = av.open(io.BytesIO(mp3_bytes))
+        resampler = av.AudioResampler(format="s16", layout="mono", rate=target_sr)
+        chunks = []
+        for frame in container.decode(audio=0):
+            for r_frame in resampler.resample(frame):
+                chunks.append(bytes(r_frame.planes[0]))
+        for r_frame in resampler.resample(None):
+            chunks.append(bytes(r_frame.planes[0]))
+        return b"".join(chunks)
+    except Exception as e:
+        log.debug("PyAV MP3 decode failed (%s)", e)
+
+    return mp3_bytes
+
+
 class EdgeTTS(BaseTTSEngine):
     """Microsoft Edge Neural TTS — free, no API key, Vietnamese support."""
 
@@ -49,6 +89,18 @@ class EdgeTTS(BaseTTSEngine):
     def engine_name(self) -> str:
         return "edge_tts"
 
+    @property
+    def voice_id(self) -> str:
+        return self.voice
+
+    @property
+    def model_id(self) -> str:
+        return "edge_neural"
+
+    @property
+    def output_format(self) -> str:
+        return "pcm_24000"
+
     def is_available(self) -> bool:
         if self._available is None:
             try:
@@ -59,7 +111,7 @@ class EdgeTTS(BaseTTSEngine):
         return self._available
 
     def synthesize_to_bytes(self, text: str, voice_id: str | None = None, **kwargs) -> bytes:
-        """Synthesize to MP3 bytes (edge-tts native format)."""
+        """Synthesize text and return decoded 16-bit mono PCM bytes."""
         if not self.is_available():
             raise TTSError("edge-tts not installed — pip install edge-tts")
         import edge_tts
@@ -74,81 +126,63 @@ class EdgeTTS(BaseTTSEngine):
                     buf.write(chunk["data"])
             return buf.getvalue()
 
-        return _run_async(_synth())
+        mp3_bytes = _run_async(_synth())
+        return _mp3_to_pcm(mp3_bytes, target_sr=self.sample_rate)
 
     def speak(self, text: str, voice_id: str | None = None, wait: bool = False, **kwargs) -> bool:
-        """Synthesize and play via sounddevice (PCM) or pygame fallback."""
+        """Synthesize and play via sounddevice (PCM) or winsound fallback."""
         if not self.is_available():
             return False
         try:
-            mp3_bytes = self.synthesize_to_bytes(text, voice_id=voice_id)
-            if not mp3_bytes:
+            pcm_bytes = self.synthesize_to_bytes(text, voice_id=voice_id)
+            if not pcm_bytes:
                 return False
-            return self._play(mp3_bytes, wait=wait)
+            return self._play(pcm_bytes, wait=wait)
         except Exception as e:
             log.warning("EdgeTTS speak failed: %s", e)
             return False
 
-    def _play(self, mp3_bytes: bytes, wait: bool) -> bool:
-        """Play MP3 bytes. Tries sounddevice→pydub, then pygame, then temp file."""
-        # Method 1: pydub + sounddevice (best quality, no temp file)
+    def _play(self, pcm_bytes: bytes, wait: bool) -> bool:
+        """Play 16-bit PCM bytes via sounddevice with winsound fallback."""
+        if not pcm_bytes:
+            return False
+        # Method 1: sounddevice (high-fidelity streaming)
         try:
-            from pydub import AudioSegment
-            import sounddevice as sd
             import numpy as np
-            seg = AudioSegment.from_mp3(io.BytesIO(mp3_bytes))
-            seg = seg.set_channels(1).set_frame_rate(24000)
-            samples = np.array(seg.get_array_of_samples(), dtype=np.float32) / 32768.0
+            import sounddevice as sd
+            samples = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
             if wait:
-                sd.play(samples, samplerate=24000)
+                sd.play(samples, samplerate=self.sample_rate)
                 sd.wait()
             else:
-                threading.Thread(target=lambda: (sd.play(samples, samplerate=24000), sd.wait()), daemon=True).start()
-            return True
-        except Exception:
-            pass
-
-        # Method 2: pygame
-        try:
-            import pygame
-            pygame.mixer.init()
-            sound = pygame.mixer.Sound(io.BytesIO(mp3_bytes))
-            sound.play()
-            if wait:
-                while pygame.mixer.get_busy():
-                    pygame.time.wait(50)
-            return True
-        except Exception:
-            pass
-
-        # Method 3: write temp file + playsound
-        try:
-            import tempfile, os, subprocess
-            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
-                f.write(mp3_bytes)
-                tmp = f.name
-            cmd = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
-                   f"(New-Object Media.SoundPlayer).PlaySync()"]
-            # Use Windows Media Player via PowerShell for MP3
-            ps = (
-                f"Add-Type -AssemblyName presentationCore;"
-                f"$p=New-Object System.Windows.Media.MediaPlayer;"
-                f"$p.Open([uri]'{tmp}');$p.Play();"
-                f"Start-Sleep -Milliseconds 100;"
-                f"while($p.Position -lt $p.NaturalDuration.TimeSpan){{Start-Sleep -Milliseconds 200}};"
-            )
-            kw: dict = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL,
-                        "stderr": subprocess.DEVNULL}
-            if hasattr(subprocess, "CREATE_NO_WINDOW"):
-                kw["creationflags"] = subprocess.CREATE_NO_WINDOW
-            proc = subprocess.Popen(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps], **kw)
-            if wait:
-                proc.wait(timeout=15)
-            else:
-                threading.Thread(target=lambda: proc.wait(), daemon=True).start()
-            # ponytail: cleanup temp file after playback
-            threading.Thread(target=lambda: (proc.wait(), os.unlink(tmp)), daemon=True).start()
+                threading.Thread(
+                    target=lambda: (sd.play(samples, samplerate=self.sample_rate), sd.wait()),
+                    daemon=True,
+                ).start()
             return True
         except Exception as e:
-            log.warning("EdgeTTS all playback methods failed: %s", e)
-            return False
+            log.debug("EdgeTTS sounddevice playback failed: %s", e)
+
+        # Method 2: winsound via temporary WAV file
+        if sys.platform == "win32":
+            try:
+                import tempfile
+                import wave
+                import winsound
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                    tmp = f.name
+                with wave.open(tmp, "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(self.sample_rate)
+                    wf.writeframes(pcm_bytes)
+                flags = winsound.SND_FILENAME
+                if not wait:
+                    flags |= winsound.SND_ASYNC
+                winsound.PlaySound(tmp, flags)
+                threading.Thread(target=lambda: (time.sleep(15), Path(tmp).unlink(missing_ok=True)), daemon=True).start()
+                return True
+            except Exception as e:
+                log.warning("EdgeTTS winsound playback failed: %s", e)
+
+        return False

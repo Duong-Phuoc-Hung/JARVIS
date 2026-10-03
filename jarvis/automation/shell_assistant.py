@@ -565,6 +565,22 @@ class ShellAssistant:
         Translates NL query, performs destructive safety checks, executes command,
         and returns structured result with Vietnamese summary.
         """
+        # Fast stdlib resolution for date/time queries (sub-millisecond, zero subprocess overhead)
+        from datetime import datetime
+        q_lower = (query or "").lower().strip()
+        if any(w in q_lower for w in ("mấy giờ", "may gio", "xem giờ", "xem gio", "hỏi giờ", "hoi gio")) and not any(w in q_lower for w in ("ngày", "ngay", "thứ", "thu")):
+            now = datetime.now()
+            time_str = now.strftime("%H:%M:%S")
+            msg = f"Bây giờ là {now.hour} giờ {now.minute:02d} phút ({time_str}), thưa Ngài."
+            return {"success": True, "command": "datetime.time", "stdout": time_str, "stderr": "", "summary": msg, "message": msg}
+        elif any(w in q_lower for w in ("hôm nay thứ mấy", "hom nay thu may", "hôm nay ngày mấy", "hom nay ngay may", "ngày hôm nay", "ngay hom nay")):
+            now = datetime.now()
+            days = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"]
+            day_name = days[now.weekday()]
+            date_str = f"{day_name}, ngày {now.day:02d}/{now.month:02d}/{now.year}"
+            msg = f"Hôm nay là {date_str}, thưa Ngài."
+            return {"success": True, "command": "datetime.date", "stdout": date_str, "stderr": "", "summary": msg, "message": msg}
+
         cmd, category = self.translate_nl_command(query, cwd)
         target_dir = os.path.abspath(cwd or self.default_cwd)
 
@@ -605,6 +621,17 @@ class ShellAssistant:
                         "stderr": "Lệnh rỗng không thể thực thi.",
                         "summary": "Lệnh rỗng không hợp lệ, thưa Ngài.",
                     }
+                # On Windows, posix=False preserves surrounding quotes which cause PowerShell/tools
+                # to treat argument strings as literal string values rather than script code.
+                if sys.platform == "win32":
+                    stripped_tokens = []
+                    for t in cmd_tokens:
+                        if len(t) >= 2 and ((t.startswith('"') and t.endswith('"')) or (t.startswith("'") and t.endswith("'"))):
+                            stripped_tokens.append(t[1:-1])
+                        else:
+                            stripped_tokens.append(t)
+                    cmd_tokens = stripped_tokens
+
                 base_exec = os.path.basename(cmd_tokens[0]).lower().removesuffix(".exe")
                 allowed_custom_execs = {
                     "python", "python3", "node", "npm", "npx", "git", "pip", "pip3",

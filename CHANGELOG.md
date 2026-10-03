@@ -1,3 +1,31 @@
+## [Unreleased] Logic Hardening, Edge TTS PCM Decoding & Dispatcher Fixes (2026-10-03)
+
+- **Mục tiêu**: Khắc phục triệt để 8 lỗi logic/runtime phát sinh từ đợt mở rộng tính năng ngày 2026-10-02; chuẩn hóa giải mã âm thanh Edge TTS, routing độ sáng/cửa sổ/clipboard và điều khiển media phần cứng.
+- **Chi tiết các chỉnh sửa kỹ thuật**:
+  - **Edge TTS Engine (`jarvis/tts/edge.py`)**:
+    - `synthesize_to_bytes`: Giải mã dữ liệu MP3 từ Edge TTS sang chuẩn 16-bit mono 24kHz PCM bytes qua `soundfile` (fallback `av`). Khắc phục hiện tượng cache ghi MP3 vào WAV raw PCM gây rè nhiễu trắng trên loa.
+    - `_play`: Phát trực tiếp PCM qua `sounddevice` float32 stream hoặc `winsound` temporary WAV, loại bỏ phụ thuộc không khả dụng (`pydub`, `pygame`).
+  - **Intent Router & Display Brightness (`jarvis/llm/router.py`, `jarvis/core/app.py`)**:
+    - Chuyển `do sang man hinh`, `tang do sang`, `giam do sang` từ `system_volume` sang `system_brightness`.
+    - Bổ sung `query=True` trong `_handle_system_brightness` đọc độ sáng thực tế qua `ComputerController.get_brightness()`.
+  - **Shell Assistant & Fast Date/Time Path (`jarvis/automation/shell_assistant.py`)**:
+    - Thêm fast path giải quyết truy vấn ngày/giờ trực tiếp bằng Python `datetime` stdlib (0ms, không spawn process).
+    - Tước bỏ dấu ngoặc kép thừa ở token trên Windows khi gọi `shlex.split`, giải quyết lỗi PowerShell echo lại nguyên văn mã script thay vì thực thi lệnh.
+  - **Clipboard Actions (`jarvis/core/app.py`, `jarvis/llm/router.py`)**:
+    - Đăng ký action `skill_clipboard` và alias `clipboard` trong `ActionDispatcher`, điều khiển trực tiếp qua native Win32 clipboard API của `ComputerController` (`copy`, `paste`, `cut`, `clear`, `read`).
+    - Bổ sung từ khóa tiếng Việt chuẩn có dấu `"cắt"` vào từ điển router rule.
+  - **Window Management (`jarvis/core/app.py`, `jarvis/llm/router.py`)**:
+    - Map `phóng to cửa sổ` sang `window_active` với `action="maximize"`, gọi trực tiếp Win32 `ShowWindow(hwnd, SW_SHOWMAXIMIZED)` trên cửa sổ active, tránh lỗi PowerShell cướp focus làm trượt keystroke.
+  - **File Operations Clarification (`jarvis/core/app.py`, `jarvis/llm/router.py`)**:
+    - Map `tạo file mới` với `clarify=True`; `_handle_file_search` trả về yêu cầu làm rõ tên file thay vì quét toàn bộ ổ đĩa `*.*`.
+  - **Skill Registry Path Resolution (`jarvis/core/app.py`)**:
+    - Tự động phân giải `skills_dir` theo package directory `jarvis.skills` khi CWD ngoài repo root, đảm bảo luôn nạp đủ 18 skills built-in.
+  - **Spotify Playback Controls (`jarvis/plugins/spotify.py`)**:
+    - `play_track` xử lý tham số `action`: gửi phím đa phương tiện `media_prev`, `media_next`, `media_play_pause` qua `WindowsPlatformAPI` thay vì luôn mở lại URL bài hát mặc định.
+- **Kiểm thử**:
+  - Bổ sung `tests/unit/test_system_refinements_and_fixes.py` với 11 bài kiểm thử đơn vị bao phủ toàn diện 8 điểm sửa đổi: 11/11 PASS (100%).
+  - Kiểm thử hồi quy toàn bộ các module liên quan (`test_tts`, `test_shell_assistant`, `test_router_p0`, `test_h07`, `test_h08`): 100% PASS.
+
 ## [Unreleased] Edge TTS, Intent Expansion & Startup Hardening (2026-10-02)
 
 - **Mục tiêu**: Loại bỏ 3 vấn đề khởi động gây nhiễu, thêm Engine TTS tiếng Việt miễn phí (Microsoft Neural Edge TTS), mở rộng hơn 30 lệnh thoại tiếng Việt khẩu ngữ, sửa auto-launch app không mong muốn, chuẩn hóa line endings toàn bộ repository.

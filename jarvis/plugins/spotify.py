@@ -50,7 +50,36 @@ class SpotifyPlugin(BasePlugin):
         )
 
     def play_track(self, song_uri: str | None = None, **kwargs) -> dict[str, Any]:
-        """Launches target Spotify track or URL."""
+        """Launches target Spotify track or controls playback (previous, next, pause)."""
+        action = (kwargs.get("action") or kwargs.get("command") or "").lower().strip()
+        if action in ("previous", "prev", "next", "pause", "stop", "resume", "play_pause"):
+            try:
+                from jarvis.platform.windows import WindowsPlatformAPI
+                api = WindowsPlatformAPI()
+                key_map = {
+                    "previous": "media_prev",
+                    "prev": "media_prev",
+                    "next": "media_next",
+                    "pause": "media_play_pause",
+                    "stop": "media_stop",
+                    "resume": "media_play_pause",
+                    "play_pause": "media_play_pause",
+                }
+                vk_key = key_map.get(action, "media_play_pause")
+                ok = api.send_hotkey(vk_key)
+                msgs = {
+                    "previous": "Đang phát bài trước, thưa Ngài.",
+                    "prev": "Đang phát bài trước, thưa Ngài.",
+                    "next": "Đang chuyển bài tiếp theo, thưa Ngài.",
+                    "pause": "Đã tạm dừng phát nhạc, thưa Ngài.",
+                    "stop": "Đã dừng phát nhạc, thưa Ngài.",
+                    "resume": "Đang tiếp tục phát nhạc, thưa Ngài.",
+                }
+                msg = msgs.get(action, "Đã gửi lệnh điều khiển media.")
+                return {"status": "success", "success": ok, "action": action, "message": msg}
+            except Exception as e:
+                return {"status": "failed", "success": False, "error": str(e)}
+
         target = (song_uri or self.default_song_uri).strip()
         if not target:
             return {"status": "skipped", "reason": "empty_uri"}
