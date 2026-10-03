@@ -26,16 +26,16 @@ _DEFAULT_RATE = "+0%"
 def _run_async(coro) -> Any:
     """Run async coroutine from sync context, thread-safe."""
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # Already in async context (shouldn't happen here, but safe)
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                fut = ex.submit(asyncio.run, coro)
-                return fut.result(timeout=15)
-        return loop.run_until_complete(coro)
+        loop = asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(coro)
+        loop = None
+
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(asyncio.run, coro)
+            return fut.result(timeout=20)
+    return asyncio.run(coro)
 
 
 def _mp3_to_pcm(mp3_bytes: bytes, target_sr: int = 24000) -> bytes:
@@ -118,15 +118,27 @@ class EdgeTTS(BaseTTSEngine):
 
         voice = voice_id or self.voice
 
-        async def _synth() -> bytes:
-            communicate = edge_tts.Communicate(text, voice, rate=self.rate)
+        async def _synth(v: str) -> bytes:
+            communicate = edge_tts.Communicate(text, v, rate=self.rate)
             buf = io.BytesIO()
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
                     buf.write(chunk["data"])
-            return buf.getvalue()
+            data = buf.getvalue()
+            if not data:
+                raise TTSError("EdgeTTS stream produced empty audio data")
+            return data
 
-        mp3_bytes = _run_async(_synth())
+        try:
+            mp3_bytes = _run_async(_synth(voice))
+        except Exception as first_err:
+            fallback_v = "vi-VN-NamMinhNeural" if voice != "vi-VN-NamMinhNeural" else "vi-VN-HoaiMyNeural"
+            log.warning("EdgeTTS primary voice %s failed (%s), retrying with %s...", voice, first_err, fallback_v)
+            try:
+                mp3_bytes = _run_async(_synth(fallback_v))
+            except Exception as final_err:
+                raise TTSError(f"EdgeTTS synthesis failed on all attempts: {final_err}") from final_err
+
         return _mp3_to_pcm(mp3_bytes, target_sr=self.sample_rate)
 
     def speak(self, text: str, voice_id: str | None = None, wait: bool = False, **kwargs) -> bool:
