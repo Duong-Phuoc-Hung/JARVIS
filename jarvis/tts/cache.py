@@ -188,13 +188,9 @@ class TTSAudioCache:
             log.warning("Cannot play missing audio file: %s", wav_path)
             return False
 
-        if os.environ.get("JARVIS_MOCK_AUDIO") == "1":
-            log.debug("JARVIS_MOCK_AUDIO=1: skipping physical playback for %s", wav_path)
-            return True
-
-        # Validate the container before trying platform fallbacks.  winsound can
-        # report success for an invalid path on some Windows versions, which
-        # would turn corrupted-cache recovery into a false success.
+        # Validate the container before trying platform fallbacks or mock bypass.
+        # winsound can report success for an invalid path on some Windows versions,
+        # and mock audio must not bypass corrupted-cache detection.
         try:
             with wave.open(str(wav_path), "rb") as wf:
                 ch = wf.getnchannels()
@@ -204,6 +200,10 @@ class TTSAudioCache:
         except Exception as e:
             log.debug("Invalid WAV cache entry (%s): %s", wav_path, e)
             return False
+
+        if os.environ.get("JARVIS_MOCK_AUDIO") == "1":
+            log.debug("JARVIS_MOCK_AUDIO=1: skipping physical playback for %s", wav_path)
+            return True
 
         # Method 1: sounddevice (high-fidelity float32 streaming)
         try:
