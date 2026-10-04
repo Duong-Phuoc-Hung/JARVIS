@@ -122,7 +122,11 @@ def test_sim_01_audio_engine_double_clap_injection(sim_app, mock_audio_stream):
     """
     # P0 runaway-hardening: fanout is opt-in by default now -- safe to opt in
     # here since every one of its actions is re-registered as a fake handler.
+    sim_app.config.set("gesture.patterns.double_clap.enabled", True)
     sim_app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
+    sim_app.gesture_detector.configure_from_dict(
+        {"patterns": {"double_clap": {"enabled": True}}}
+    )
 
     executed_actions: List[str] = []
     for act in ["spotify", "chrome_claude", "chrome_binance", "tts_welcome", "cursor"]:

@@ -153,7 +153,11 @@ def test_e2e_full_pipeline_multi_pattern_audio_to_tts_queue(tmp_path, monkeypatc
     app.initialize()
     # P0 runaway-hardening: fanout is opt-in by default now -- safe to opt in
     # here since every launch call below is monkeypatched to a fake handler.
+    app.config.set("gesture.patterns.double_clap.enabled", True)
     app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
+    app.gesture_detector.configure_from_dict(
+        {"patterns": {"double_clap": {"enabled": True}}}
+    )
 
     # Replace TTS manager with test instance
     if app.tts_manager:

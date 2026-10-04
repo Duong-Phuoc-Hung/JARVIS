@@ -183,7 +183,11 @@ def test_zero_double_dispatch_gesture_pipeline(mock_audio_stream):
     app.initialize()
     # P0 runaway-hardening: fanout is opt-in by default now -- safe to opt in
     # here since every one of its actions is re-registered as a fake handler.
+    app.config.set("gesture.patterns.double_clap.enabled", True)
     app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
+    app.gesture_detector.configure_from_dict(
+        {"patterns": {"double_clap": {"enabled": True}}}
+    )
 
     # Ensure gesture detector does not hold duplicate dispatcher
     assert app.gesture_detector.dispatcher is None, "GestureDetector.dispatcher must be None to prevent double-dispatch"

@@ -4,6 +4,52 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] Wake-word two-stage verification hardening (2026-10-04)
+
+- **Mục tiêu**: sửa đồng thời false wake ("Affair", "A fifth", "Life" và
+  các câu gần âm) với false reject khi người dùng thật nói "Hey JARVIS";
+  không tiếp tục điều chỉnh một ngưỡng đơn lẻ theo cảm tính.
+- **Nguyên nhân gốc**:
+  - OpenWakeWord trước đây quyết định trực tiếp ở ngưỡng cố định `0.50`; điểm
+    cao không được kiểm tra lại. Replay phát hiện "Hey Travis" đạt `0.812034`
+    và có thể kích hoạt sai.
+  - Nhánh xác minh thử nghiệm gọi Whisper ngay tại frame đầu vượt ngưỡng, trước
+    khi cả từ "JARVIS" nằm trong sliding buffer, gây transcript rỗng/false reject.
+  - Gesture `double_clap` bật mặc định có thể mở voice interaction độc lập với
+    wake classifier, làm sự cố trông giống false wake của OpenWakeWord.
+  - PyInstaller có OpenWakeWord asset nhưng chưa mang theo model
+    Faster-Whisper; bản cài offline có thể mất tầng xác minh.
+- **Chỉnh sửa kỹ thuật**:
+  - `jarvis/audio/wake_word.py`: cascade hai yếu tố bắt buộc khi verification
+    bật: OpenWakeWord candidate (`>=0.02`) chỉ tạo ứng viên, thu thêm `0.40s`,
+    rồi Whisper/VAD/no-speech/log-probability xác nhận transcript. Cả score cao
+    hơn `0.50` cũng không bypass verifier. Candidate bị từ chối chỉ kiểm tra một
+    lần cho đến khi score hạ để tránh vòng lặp inference.
+  - `config/default_config.yaml`: bật packaged OpenWakeWord + verifier, đặt
+    candidate/post-roll rõ ràng, tắt passive acoustic trigger và `double_clap`
+    mặc định.
+  - `scripts/build_installer.py`: build bắt buộc resolve
+    `Systran/faster-whisper-tiny`, dereference cache vào staging (model.bin đo
+    thực tế `72.0 MB`) và bundle vào `models/faster-whisper-tiny`; thiếu model
+    làm build fail-closed. Runtime frozen tự ưu tiên model nội bộ.
+  - `tests/unit/test_wake_word_two_stage_release.py`: regression cho post-roll,
+    one-shot verifier, high-score bypass, accented log-probability boundary,
+    frozen model resolution và cấu hình gesture.
+- **Bằng chứng hiện tại**:
+  - Scoped wake/gesture/packaging: **135 passed / 16.56s**; nhóm sau hardening
+    cuối: **71 passed / 9.08s**.
+  - Replay TTS qua model thật: **14/14 phân loại đúng** — 3 wake positives
+    (Anh, nữ Việt, nam Việt) và 11 negatives; "Hey Travis" `0.812034` và
+    "Hey Charlie" `0.452293` đều bị transcript verifier từ chối.
+  - Security scanner: **0 findings / 203 files / 69,008 lines / 1.21s**;
+    PyInstaller spec compile pass và offline model staging pass.
+  - Full repository final tree: **4,612 passed / 40 skipped / 0 failed /
+    0 errors / 868.002s** (4,652 collected). Một `RuntimeWarning` về coroutine
+    `Server._close` chưa await vẫn được ghi nhận, không che giấu bằng pass count.
+  - Đây là **PASS engineering**, không phải `PASS runtime`: chưa có 10 lần
+    người dùng nói thật, long-idle false-wakes/hour hoặc 50-case live voice.
+    Xem `docs/eval/wake_word_fix_report_20261004.md`.
+
 ## [5.2.1] - 2026-10-04 — Official Production Release & Closed-Loop Hardening
 
 - **Mục tiêu**: Phát hành chính thức bản production v5.2.1; đóng gói bộ cài Windows Installer và Standalone `JARVIS.exe`; triệt tiêu 100% lỗi logic trong hệ thống bằng quy trình kiểm thử ma trận khép kín liên tục.

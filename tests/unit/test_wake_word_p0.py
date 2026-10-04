@@ -83,8 +83,10 @@ def test_p0a_vosk_model_path_discovery_hierarchy(tmp_path):
 
 
 def test_p0a_vosk_missing_model_falls_back_cleanly():
-    """Verify non-existent Vosk model path degrades gracefully to acoustic fallback."""
-    with patch.dict(os.environ, {"JARVIS_VOSK_MODEL": "/non/existent/model/path/98765"}):
+    """Verify missing Vosk and other Tier-1 backends degrade to acoustic fallback."""
+    with patch.dict(os.environ, {"JARVIS_VOSK_MODEL": "/non/existent/model/path/98765"}), patch(
+        "jarvis.audio.wake_word.OPENWAKEWORD_AVAILABLE", False
+    ), patch("jarvis.audio.wake_word.PORCUPINE_AVAILABLE", False):
         detector = WakeWordDetector(config={"vosk_model_path": "/invalid/path/12345"})
         assert detector._engine_type == WakeWordEngineType.ACOUSTIC_FALLBACK
         assert detector.is_enabled() is True

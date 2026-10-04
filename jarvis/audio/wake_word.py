@@ -18,11 +18,15 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+import sys
 import threading
 import time
+import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -99,6 +103,9 @@ class WakeWordScoreEvent:
     rms: float
     timestamp: float
     keyword: str = "hey_jarvis"
+    candidate_threshold: float | None = None
+    verified: bool | None = None
+    verifier_transcript: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -109,6 +116,9 @@ class WakeWordScoreEvent:
             "rms": self.rms,
             "timestamp": self.timestamp,
             "keyword": self.keyword,
+            "candidate_threshold": self.candidate_threshold,
+            "verified": self.verified,
+            "verifier_transcript": self.verifier_transcript,
         }
 
 
@@ -209,23 +219,100 @@ class WhisperSlidingWindowDetector:
         self._last_check_time: float = 0.0
         self.keywords = keywords or [
             "jarvis",
-            "hey jarvis",
-            "chào jarvis",
-            "ê jarvis",
-            "ơi jarvis",
-            "hi jarvis",
-            "ok jarvis",
-            "hello jarvis",
+            "javis",
+            "charvis",
+            "gia vit",
         ]
         self.model = model
         self._model_size = model_size
         self._lock = threading.Lock()
 
+    @staticmethod
+    def _resolve_model_identifier(model_size: str) -> str:
+        """Use the offline model embedded by PyInstaller when available."""
+        bundle_root = getattr(sys, "_MEIPASS", None)
+        if bundle_root and model_size == "tiny":
+            bundled = Path(bundle_root) / "models" / "faster-whisper-tiny"
+            if (bundled / "model.bin").is_file() and (bundled / "config.json").is_file():
+                return str(bundled)
+        return model_size
+
+    @staticmethod
+    def _normalize_transcript(text: str) -> str:
+        normalized = unicodedata.normalize("NFD", text.lower())
+        normalized = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+        normalized = normalized.replace("đ", "d")
+        return re.sub(r"[^a-z0-9]+", " ", normalized).strip()
+
+    def _contains_wake_alias(self, transcript: str) -> bool:
+        padded = f" {transcript} "
+        return any(f" {self._normalize_transcript(alias)} " in padded for alias in self.keywords)
+
+    def verify_window(self, buffer: np.ndarray) -> tuple[bool, str]:
+        """Verify a candidate with multilingual STT and conservative aliases."""
+        if len(buffer) == 0 or calculate_rms(buffer) < max(0.003, self.min_rms * 0.5):
+            return False, ""
+        model = self._get_model()
+        if not model:
+            return False, ""
+        try:
+            audio_arr = buffer.astype(np.float32) if buffer.dtype != np.float32 else buffer
+            with self._lock:
+                segments, _ = model.transcribe(
+                    audio_arr,
+                    # OpenWakeWord's bundled model is trained for the English
+                    # phrase "Hey Jarvis".  Keeping this narrow verification
+                    # pass in English avoids unstable auto-language guesses on
+                    # short Vietnamese-accented utterances.  ``hotwords`` is a
+                    # decoding hint only; VAD, no-speech/log-probability gates,
+                    # and the independent OpenWakeWord candidate gate still
+                    # have to pass before this transcript can activate JARVIS.
+                    language="en",
+                    beam_size=1,
+                    temperature=0.0,
+                    vad_filter=True,
+                    condition_on_previous_text=False,
+                    hotwords="Hey Jarvis, Chao Jarvis, Oi Jarvis",
+                )
+                segment_list = list(segments)
+            transcript = self._normalize_transcript(
+                " ".join(getattr(segment, "text", "") for segment in segment_list)
+            )
+            trustworthy_text = []
+            for segment in segment_list:
+                raw_no_speech = getattr(segment, "no_speech_prob", 0.0)
+                no_speech_prob = (
+                    float(raw_no_speech)
+                    if isinstance(raw_no_speech, (int, float, np.floating))
+                    else 0.0
+                )
+                raw_logprob = getattr(segment, "avg_logprob", -0.5)
+                avg_logprob = (
+                    float(raw_logprob)
+                    if isinstance(raw_logprob, (int, float, np.floating))
+                    else -0.5
+                )
+                # Short accented wake phrases can land slightly below -1.0
+                # even when the decoded token is exact (measured -1.142 for
+                # the Vietnamese-male replay). Keep a hard floor so weak
+                # keyword hallucinations still fail closed.
+                if no_speech_prob <= 0.60 and avg_logprob >= -1.25:
+                    trustworthy_text.append(getattr(segment, "text", ""))
+            verified_text = self._normalize_transcript(" ".join(trustworthy_text))
+            return self._contains_wake_alias(verified_text), transcript
+        except Exception as exc:
+            logger.debug("Whisper wake verification error: %s", exc)
+            return False, ""
+
     def _get_model(self) -> Any:
         if self.model is None and FASTER_WHISPER_AVAILABLE:
             try:
                 from faster_whisper import WhisperModel
-                self.model = WhisperModel(self._model_size, device="cpu", compute_type="int8")
+                self.model = WhisperModel(
+                    self._resolve_model_identifier(self._model_size),
+                    device="cpu",
+                    compute_type="int8",
+                )
             except Exception as e:
                 logger.warning("Failed to initialize Faster-Whisper model: %s", e)
                 self.model = False
@@ -256,35 +343,9 @@ class WhisperSlidingWindowDetector:
         if rms < threshold_rms:
             return False, "", 0.0
 
-        model = self._get_model()
-        if not model:
-            return False, "", 0.0
-
         self._last_check_time = now
-
-        try:
-            audio_arr = buffer.astype(np.float32) if buffer.dtype != np.float32 else buffer
-            with self._lock:
-                segments, _ = model.transcribe(
-                    audio_arr,
-                    language="vi",
-                    beam_size=1,
-                    temperature=0.0,
-                    initial_prompt="JARVIS, hey JARVIS, chào JARVIS",
-                    vad_filter=False,
-                )
-                text = " ".join([getattr(s, "text", "") for s in segments]).lower().strip()
-
-            if not text:
-                return False, "", 0.0
-
-            for kw in self.keywords:
-                if kw in text:
-                    return True, "hey_jarvis", 0.92
-        except Exception as e:
-            logger.debug("WhisperSlidingWindowDetector transcribe error: %s", e)
-
-        return False, "", 0.0
+        verified, _ = self.verify_window(buffer)
+        return (True, "hey_jarvis", 1.0) if verified else (False, "", 0.0)
 
     def reset(self) -> None:
         """Reset internal rate limit / state."""
@@ -579,6 +640,24 @@ class WakeWordDetector:
         self._porcupine_frame_buffer: _PorcupineFrameBuffer | None = None
         self._openwakeword_labels: list[str] = []
         self._openwakeword_threshold: float = 0.5
+        self._openwakeword_candidate_threshold: float = min(
+            self._openwakeword_threshold,
+            max(0.15, 0.40 - (self.sensitivity * 0.25)),
+        )
+        self._openwakeword_verification_enabled = bool(
+            self.config.get("openwakeword_verification_enabled", False)
+        )
+        self._openwakeword_verification_postroll_samples = max(
+            0,
+            int(
+                self.target_sample_rate
+                * float(self.config.get("openwakeword_verification_postroll_s", 0.40))
+            ),
+        )
+        self._openwakeword_candidate_active = False
+        self._openwakeword_candidate_armed = True
+        self._openwakeword_candidate_peak = 0.0
+        self._openwakeword_candidate_samples_left = 0
         self._engine_type: WakeWordEngineType = self._init_tier1()
 
         logger.info(
@@ -672,6 +751,21 @@ class WakeWordDetector:
                     model_paths = [str(p) for p in raw_paths if p]
                 model_paths = [p for p in model_paths if os.path.isfile(p)]
 
+                # The packaged model is part of the installed application,
+                # not an implicit download. This makes the same signed bundle
+                # work on a clean Windows machine without editing .env/source.
+                if not model_paths and self.config.get("allow_packaged_openwakeword_model", False):
+                    package_file = getattr(openwakeword, "__file__", None)
+                    if package_file:
+                        packaged_model = os.path.join(
+                            os.path.dirname(package_file),
+                            "resources",
+                            "models",
+                            "hey_jarvis_v0.1.onnx",
+                        )
+                        if os.path.isfile(packaged_model):
+                            model_paths = [packaged_model]
+
                 if model_paths:
                     raw_labels = self.config.get("openwakeword_wake_labels") or os.environ.get(
                         "JARVIS_OPENWAKEWORD_WAKE_LABEL"
@@ -710,6 +804,16 @@ class WakeWordDetector:
                         self._openwakeword_labels = matched_labels
                         self._openwakeword_threshold = float(
                             self.config.get("openwakeword_threshold", 0.5)
+                        )
+                        configured_candidate = self.config.get("openwakeword_candidate_threshold")
+                        self._openwakeword_candidate_threshold = (
+                            float(configured_candidate)
+                            if configured_candidate is not None
+                            else max(0.15, 0.40 - (self.sensitivity * 0.25))
+                        )
+                        self._openwakeword_candidate_threshold = min(
+                            self._openwakeword_threshold,
+                            max(0.0, self._openwakeword_candidate_threshold),
                         )
                         return WakeWordEngineType.OPENWAKEWORD
 
@@ -781,6 +885,10 @@ class WakeWordDetector:
         concatenated with caller-side PCM from after it.
         """
         self._ring_buffer.fill(0.0)
+        self._openwakeword_candidate_active = False
+        self._openwakeword_candidate_armed = True
+        self._openwakeword_candidate_peak = 0.0
+        self._openwakeword_candidate_samples_left = 0
         if self._porcupine_frame_buffer is not None:
             self._porcupine_frame_buffer.reset()
         if hasattr(self, "_whisper_detector") and self._whisper_detector:
@@ -1101,22 +1209,80 @@ class WakeWordDetector:
                 tier1_attempted = True
                 try:
                     ow_detected, ow_keyword, ow_confidence = self._process_openwakeword_tier(resampled)
-                    self._emit_score(
-                        WakeWordScoreEvent(
-                            engine=WakeWordEngineType.OPENWAKEWORD.value,
-                            confidence=ow_confidence,
-                            threshold=self._openwakeword_threshold,
-                            detected=ow_detected,
-                            rms=block_rms,
-                            timestamp=now,
-                            keyword=ow_keyword,
-                        )
-                    )
-                    if ow_detected:
+                    verifier_verdict: bool | None = None
+                    verifier_transcript = ""
+                    if ow_detected and not self._openwakeword_verification_enabled:
+                        self._openwakeword_candidate_active = False
+                        self._openwakeword_candidate_armed = False
+                        self._openwakeword_candidate_peak = 0.0
+                        self._openwakeword_candidate_samples_left = 0
                         detected = True
                         keyword = ow_keyword
                         confidence = ow_confidence
                         engine_name = WakeWordEngineType.OPENWAKEWORD.value
+                    elif self._openwakeword_verification_enabled:
+                        if self._openwakeword_candidate_active:
+                            self._openwakeword_candidate_peak = max(
+                                self._openwakeword_candidate_peak, ow_confidence
+                            )
+                            self._openwakeword_candidate_samples_left -= len(resampled)
+                            if self._openwakeword_candidate_samples_left <= 0:
+                                verifier_verdict, verifier_transcript = (
+                                    self._whisper_detector.verify_window(self._ring_buffer)
+                                )
+                                candidate_peak = self._openwakeword_candidate_peak
+                                self._openwakeword_candidate_active = False
+                                # Do not run Whisper on every following block
+                                # from the same utterance. A score below the
+                                # candidate gate rearms the next utterance.
+                                self._openwakeword_candidate_armed = False
+                                self._openwakeword_candidate_peak = 0.0
+                                self._openwakeword_candidate_samples_left = 0
+                                if verifier_verdict:
+                                    detected = True
+                                    keyword = ow_keyword
+                                    confidence = candidate_peak
+                                    engine_name = "openwakeword+whisper"
+                                else:
+                                    logger.debug(
+                                        "OpenWakeWord candidate rejected by verifier "
+                                        "(peak_score=%.3f, candidate_threshold=%.3f, transcript=%r)",
+                                        candidate_peak,
+                                        self._openwakeword_candidate_threshold,
+                                        verifier_transcript,
+                                    )
+                        elif (
+                            self._openwakeword_candidate_armed
+                            and ow_confidence >= self._openwakeword_candidate_threshold
+                        ):
+                            # Do not verify the first candidate frame. Short
+                            # wake phrases often cross the acoustic threshold
+                            # before "Jarvis" has reached the sliding buffer.
+                            self._openwakeword_candidate_active = True
+                            self._openwakeword_candidate_peak = ow_confidence
+                            self._openwakeword_candidate_samples_left = (
+                                self._openwakeword_verification_postroll_samples
+                            )
+                        elif ow_confidence < self._openwakeword_candidate_threshold:
+                            self._openwakeword_candidate_armed = True
+                    self._emit_score(
+                        WakeWordScoreEvent(
+                            engine=WakeWordEngineType.OPENWAKEWORD.value,
+                            confidence=(
+                                confidence
+                                if detected and engine_name == "openwakeword+whisper"
+                                else ow_confidence
+                            ),
+                            threshold=self._openwakeword_threshold,
+                            detected=detected,
+                            rms=block_rms,
+                            timestamp=now,
+                            keyword=ow_keyword,
+                            candidate_threshold=self._openwakeword_candidate_threshold,
+                            verified=verifier_verdict,
+                            verifier_transcript=verifier_transcript,
+                        )
+                    )
                 except Exception as e:
                     logger.debug("OpenWakeWord recognition error: %s", e)
                     # A genuine processing failure, not a confident "no

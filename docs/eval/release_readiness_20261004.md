@@ -33,6 +33,10 @@ Khai báo dependency audio và model collection cho PyInstaller.
 | Final targeted regression | 76 passed, 38.75s | Integration-E2E unit module, challenger2 stress, finance, notes, release, packaging, router; gồm cả 3 ca lỗi đã xử lý |
 | Security scanner | 0 findings, 203 files, 68,822 lines, 1.35s | Static rules, không phải pentest toàn diện |
 | Build environment check | PASS | Có Python/PyInstaller/Inno Setup; chưa build/chưa clean-machine test |
+| Wake two-stage focused | 135 passed / 16.56s | OpenWakeWord + Whisper post-roll; mocked unit/resources |
+| Wake synthetic real-model replay | 14/14 đúng | 3 TTS positive, 11 TTS negative; không phải giọng live |
+| Wake offline model staging | 72.0 MB model.bin, spec compile pass | Chưa build/cài EXE trên máy sạch |
+| Full final tree sau wake fix | 4,612 passed, 40 skipped, 0 failed/errors, 868.002s | Một RuntimeWarning `Server._close` chưa await; không phải runtime-live acceptance |
 
 Artifacts: `reports/evidence/release_focused_20261004.xml`,
 `reports/evidence/release_finance_20261004.xml`,
@@ -54,17 +58,19 @@ không truy cập được, 2 collection skipped. Không tính các ca này là 
 
 ## Gate chưa đóng — thứ tự tiếp theo
 
-1. **Engineering**: kết thúc full run, triage failure có tái hiện; chạy full
-   snapshot cuối trước commit/push. Không lặp lại toàn bộ khi chưa hiểu lỗi.
+1. **Engineering**: full local final-tree đã xanh. Còn chạy Main CI trên commit
+   chứa bản vá và điều tra `Server._close` warning; không biến local pass thành
+   CI pass trước khi workflow thực sự hoàn tất.
 2. **Data safety**: đã sửa atomic replace (flush/fsync), retry PermissionError
    tối đa 5 lần, cleanup file tạm; lock read-modify-write trong một module instance;
    dữ liệu JSON hỏng bị từ chối, không ghi đè. RED concurrency từng chỉ giữ 3/12
    notes, GREEN giữ đủ 12. Chưa chứng nhận multi-process/multiple independently
    loaded registries; cần single-instance enforcement hoặc shared file lock.
-3. **Voice**: thu true_wake được người dùng gán nhãn, negative/replay “Affair”,
-   “A fifth”, “Life”; đo false wakes/hour và recall trên holdout. Không suy diễn
-   confidence giả định của Whisper là probability đã hiệu chuẩn.
-   Chưa xác nhận lỗi false wake đã được giải quyết hoàn toàn.
+3. **Voice**: engineering cascade đã sửa và synthetic replay chặn “Affair”,
+   “A fifth”, “Life”, “Hey Travis”, “Hey Charlie” (14/14 toàn tập). Vẫn phải
+   thu true_wake do người dùng gán nhãn và long-idle ambient; đo false wakes/hour
+   và recall trên holdout. Không suy diễn TTS thành live acceptance. Xem
+   `docs/eval/wake_word_fix_report_20261004.md`.
 4. **10 workflow**: real OS >=95% tổng và từng workflow >=90%; output phải
    chứng minh tác vụ thật, không chỉ intent routing/process submission.
 5. **Voice acceptance**: 50 ca live >=95%, với tài liệu denominator rõ ràng.

@@ -1,15 +1,28 @@
 ## Release hardening (2026-10-04, unreleased)
 
+- [x] Wake-word two-stage engineering fix: candidate + 0.40s post-roll +
+  transcript/no-speech verification; high OpenWakeWord scores cannot bypass.
+- [x] Tắt `double_clap` passive activation mặc định; packaged OpenWakeWord được
+  tự phát hiện trong cấu hình sản phẩm.
+- [x] Synthetic real-model replay: 14/14 đúng (3 positive, 11 negative), gồm
+  chặn `Affair`, `A fifth`, `Life`, `Hey Travis`, `Hey Charlie`.
+- [x] Installer build staging chứa Faster-Whisper tiny thật (model.bin 72.0 MB),
+  dereference cache symlink và fail-closed nếu model thiếu.
+- [x] Full final-tree regression: 4.612 passed, 40 skipped, 0 failed/errors,
+  868.002s. Còn một RuntimeWarning `Server._close` chưa await cần điều tra.
+- [ ] Wake-word runtime acceptance: người dùng nói thật 10/10, long-idle
+  false-wakes/hour và bộ 50 ca voice live >=95%.
 - [x] Confirmation gate cho healing auto-kill và dialog auto-dismiss.
 - [x] Propagate backend failure ở notes, routines, workflows, research, healing.
 - [x] Decoder TTS fail-closed; cloud transport fallback và exception redaction.
 - [x] Khai báo Edge TTS/soundfile/openwakeword và bổ sung PyInstaller collection.
 - [x] Loại bỏ offline baseline giả cho tỷ giá, crypto và cổ phiếu.
-- [ ] Full regression trên snapshot cuối và Main CI xanh.
+- [x] Full regression local trên snapshot cuối xanh.
+- [ ] Main CI xanh trên commit chứa bản vá.
 - [x] Note storage atomic replace/retry và corrupt-file protection; serialized
   transaction trong một module instance, regression file tạm pass.
 - [ ] Note storage multiple-process/independently loaded registries verification.
-- [ ] Live wake-word recall/false-wake replay; 50 ca voice live.
+- [ ] Live wake-word recall/false-wake capture; 50 ca voice live.
 - [ ] 10 workflow real OS; installer/update/rollback trên máy sạch.
 - [ ] Signing/trust, support-bundle secret audit và release acceptance.
 

@@ -35,6 +35,23 @@ audio:
   probe_seconds: 0.5          # Duration for probe scanning
   silent_rms_threshold: 0.001 # Silence cutoff
 
+wake_word:
+  enabled: true
+  sensitivity: 0.60
+  cooldown_s: 2.0
+  allow_packaged_openwakeword_model: true
+  openwakeword_threshold: 0.50
+  # Candidate gate only: no OpenWakeWord score activates the UI by itself.
+  # Every score >= 0.02 must also pass the transcript/no-speech verifier.
+  # This low first gate restores accented-voice recall while the independent
+  # verifier rejects near phrases such as "Hey Travis".
+  openwakeword_candidate_threshold: 0.02
+  openwakeword_verification_enabled: true
+  openwakeword_verification_postroll_s: 0.40
+  acoustic_fallback_policy: "auto"
+  whisper_model_size: "tiny"
+  allow_acoustic_passive_trigger: false
+
 safety:
   # P0 runaway-hardening (see CHANGELOG.md/docs/PROJECT_STATE.md for the
   # incident writeup): centralized circuit breaker bounding how often an
@@ -62,10 +79,10 @@ gesture:
     quiet_gate_mult: 2.2      # Noise floor adaptation gate
   patterns:
     double_clap:
-      enabled: true
+      enabled: false
       min_gap_s: 0.05
       max_gap_s: 0.35
-      # Vỗ tay 2 cái → kích hoạt lắng nghe giọng nói (không mở app tự động)
+      # Opt-in only: room transients must not open the microphone by default.
       allow_side_effect_fanout: false
       actions:
         - "tts_welcome"       # Chỉ chào, không mở Spotify/Chrome/Cursor

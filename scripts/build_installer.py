@@ -34,6 +34,8 @@ DIST = ROOT / "dist"
 BUILD = ROOT / "build"
 SPEC_FILE = ROOT / "JARVIS.spec"
 ICON_FILE = ROOT / "assets" / "jarvis_icon.ico"
+WHISPER_MODEL_REPO = "Systran/faster-whisper-tiny"
+WHISPER_MODEL_REVISION = "d90ca5fe260221311c53c58e660288d3deb8d356"
 INNO_EXE_PATHS = [
     Path("C:/Program Files (x86)/Inno Setup 6/ISCC.exe"),
     Path("C:/Program Files/Inno Setup 6/ISCC.exe"),
@@ -112,10 +114,15 @@ def build_exe(clean: bool = True) -> bool:
         shutil.rmtree(BUILD)
         print("  🧹 Build cache cleared")
 
+    whisper_model_dir = _prepare_whisper_model_bundle()
+    if whisper_model_dir is None:
+        print("  ❌ Không thể chuẩn bị Faster-Whisper tiny cho bộ cài offline")
+        return False
+
     # Always regenerate the spec file so a stale entry point or data path
     # (e.g. from a cached checkout or an older version of this script) can
     # never silently linger across builds.
-    _generate_spec_file()
+    _generate_spec_file(whisper_model_dir)
 
     _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     result = subprocess.run(
@@ -137,7 +144,41 @@ def build_exe(clean: bool = True) -> bool:
     return False
 
 
-def _generate_spec_file() -> None:
+def _prepare_whisper_model_bundle() -> Path | None:
+    """Resolve/download the pinned-size wake verifier model for offline installs."""
+    try:
+        from huggingface_hub import snapshot_download
+
+        snapshot = Path(
+            snapshot_download(
+                repo_id=WHISPER_MODEL_REPO,
+                revision=WHISPER_MODEL_REVISION,
+            )
+        )
+    except Exception as exc:
+        print(f"  ❌ Faster-Whisper model unavailable: {exc}")
+        return None
+
+    required = (snapshot / "model.bin", snapshot / "config.json")
+    if not all(path.is_file() and path.stat().st_size > 0 for path in required):
+        print(f"  ❌ Faster-Whisper snapshot không đầy đủ: {snapshot}")
+        return None
+
+    # Hugging Face snapshots commonly contain relative symlinks into its
+    # cache. Dereference them into the workspace build tree so PyInstaller
+    # never emits links that break on a different Windows machine.
+    bundle_dir = BUILD / "bundled_models" / "faster-whisper-tiny"
+    bundle_dir.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(snapshot, bundle_dir, symlinks=False, dirs_exist_ok=True)
+    bundled_required = (bundle_dir / "model.bin", bundle_dir / "config.json")
+    if not all(path.is_file() and path.stat().st_size > 0 for path in bundled_required):
+        print(f"  ❌ Faster-Whisper staging không đầy đủ: {bundle_dir}")
+        return None
+    print(f"  ✅ Offline wake verifier model: {bundle_dir}")
+    return bundle_dir
+
+
+def _generate_spec_file(whisper_model_dir: Path | None = None) -> None:
     """
     (Re)generate JARVIS.spec, always overwriting any existing file so a stale
     entry point or data path can never silently linger across builds.
@@ -162,6 +203,10 @@ def _generate_spec_file() -> None:
     ]
     if (ROOT / "assets").is_dir():
         datas.append(f"({repr(str(ROOT / 'assets'))}, 'assets')")
+    if whisper_model_dir is not None:
+        datas.append(
+            f"({repr(str(whisper_model_dir))}, 'models/faster-whisper-tiny')"
+        )
     datas_block = ",\n        ".join(datas)
 
     spec_content = f'''# -*- mode: python ; coding: utf-8 -*-

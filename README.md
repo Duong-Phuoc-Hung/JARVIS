@@ -1,6 +1,17 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Release hardening (2026-10-04), source **5.2.1**, **unreleased / NO-GO**:
+Wake-word hardening (2026-10-04), source **5.2.1**, **unreleased / NO-GO**:
+OpenWakeWord nay chỉ tạo ứng viên; mọi score (kể cả `>0.50`) phải được Whisper
+xác minh sau post-roll 0,40 giây. Cổng ứng viên `0.02` khôi phục khả năng nhận
+giọng có accent mà không cho score thấp tự mở microphone. `double_clap` bị tắt
+mặc định và model `faster-whisper-tiny` được bắt buộc đóng trong bộ cài offline.
+Replay model thật đạt **14/14** mẫu tổng hợp đúng (3 positive, 11 negative),
+gồm chặn "Affair", "A fifth", "Life", "Hey Travis" và "Hey Charlie";
+full final tree đạt **4.612 passed / 40 skipped / 0 failed** trong `868.002s`.
+**Đây là PASS engineering, không phải voice-live acceptance**. Xem
+[báo cáo wake-word](docs/eval/wake_word_fix_report_20261004.md).
+
+Release hardening trước đó (2026-10-04), source **5.2.1**:
 đã bổ sung confirmation cho auto-kill/dialog dismissal, sửa các nhánh báo thành
 công giả, decoder TTS, fallback LLM và khai báo dependency đóng gói âm thanh.
 Scoped verification: **147 passed + 15 subtests, 42.74s**; không phải full-suite
