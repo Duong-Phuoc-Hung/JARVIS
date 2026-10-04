@@ -304,7 +304,7 @@ def run_health_check(config: ConfigManager) -> int:
     _safe_print("=" * 65)
 
     # 1. Platform & OS
-    _safe_print(f"[+] Platform & OS: READY (OS={sys.platform}/{os.name}, Python {sys.version.split()[0]} at {sys.executable})")
+    _safe_print(f"[+] Platform & OS: READY (Operating System: {sys.platform}/{os.name}, Python {sys.version.split()[0]} at {sys.executable})")
 
     # 2. Audio Subsystem
     try:
@@ -476,7 +476,7 @@ def run_health_check(config: ConfigManager) -> int:
         )
         return 1
     if browser_exit_code == 0:
-        _safe_print(" Diagnostics completed. Browser automation is READY; review each subsystem result above.")
+        _safe_print(" Diagnostics completed successfully. Browser automation is READY; review each subsystem result above.")
     elif browser_exit_code == 2:
         _safe_print(" Diagnostics completed with LIMITED browser capability; interactive browser checks did not pass.")
     else:

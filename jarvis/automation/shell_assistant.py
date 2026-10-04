@@ -361,9 +361,9 @@ class ShellAssistant:
             port_num = int(port)
             if not (1 <= port_num <= 65535):
                 return f"Không thể kiểm tra port {port}: Giá trị port không hợp lệ (phải từ 1 đến 65535)."
-            cmd = "netstat -ano"
+            cmd = ["netstat", "-ano"]
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=10, creationflags=_cflags)
+            res = subprocess.run(cmd, shell=False, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=10, creationflags=_cflags)
             lines = res.stdout.splitlines() if res.stdout else []
             matching_lines = [
                 line for line in lines

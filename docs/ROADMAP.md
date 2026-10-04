@@ -1,3 +1,21 @@
+## Release hardening (2026-10-04, unreleased)
+
+- [x] Confirmation gate cho healing auto-kill và dialog auto-dismiss.
+- [x] Propagate backend failure ở notes, routines, workflows, research, healing.
+- [x] Decoder TTS fail-closed; cloud transport fallback và exception redaction.
+- [x] Khai báo Edge TTS/soundfile/openwakeword và bổ sung PyInstaller collection.
+- [x] Loại bỏ offline baseline giả cho tỷ giá, crypto và cổ phiếu.
+- [ ] Full regression trên snapshot cuối và Main CI xanh.
+- [x] Note storage atomic replace/retry và corrupt-file protection; serialized
+  transaction trong một module instance, regression file tạm pass.
+- [ ] Note storage multiple-process/independently loaded registries verification.
+- [ ] Live wake-word recall/false-wake replay; 50 ca voice live.
+- [ ] 10 workflow real OS; installer/update/rollback trên máy sạch.
+- [ ] Signing/trust, support-bundle secret audit và release acceptance.
+
+Xem `docs/eval/release_readiness_20261004.md`. Không nâng verdict lên GO.
+Các lỗi/gate trong mục ngày 23/09 là trạng thái lịch sử cần đối chiếu lần chạy mới.
+
 ## Runtime bug-fix verification (2026-09-23)
 
 - [x] Fixed zero-area screen capture, explicit zero viewport normalization,

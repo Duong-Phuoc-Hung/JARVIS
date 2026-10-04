@@ -6,9 +6,15 @@ from __future__ import annotations
 
 import datetime
 import json
+import os
+import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
+# Serialize read-modify-write within this process; no shared in-memory cache.
+_transaction_lock = threading.Lock()
+_save_lock = threading.Lock()
 
 
 def _get_notes_file() -> Path:
@@ -17,8 +23,6 @@ def _get_notes_file() -> Path:
     _apd = _os.environ.get("LOCALAPPDATA") or _os.environ.get("APPDATA")
     p = (Path(_apd) / "JARVIS" / "notes.json") if _apd else Path.home() / ".jarvis" / "notes.json"
     p.parent.mkdir(parents=True, exist_ok=True)
-    if not p.exists():
-        p.write_text("[]", encoding="utf-8")
     return p
 
 
@@ -26,17 +30,53 @@ def _load_notes() -> list[dict[str, Any]]:
     p = _get_notes_file()
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
-        return data if isinstance(data, list) else []
-    except Exception:
+    except FileNotFoundError:
         return []
+    if not isinstance(data, list) or any(
+        not isinstance(note, dict)
+        or not isinstance(note.get("id"), int)
+        or not isinstance(note.get("content"), str)
+        for note in data
+    ):
+        raise ValueError("NOTES_STORAGE_INVALID: existing notebook was preserved")
+    return data
 
 
 def _save_notes(notes: list[dict[str, Any]]) -> None:
-    p = _get_notes_file()
-    p.write_text(json.dumps(notes, indent=2, ensure_ascii=False), encoding="utf-8")
+    with _save_lock:
+        p = _get_notes_file()
+        snapshot = json.dumps(notes, indent=2, ensure_ascii=False)
+        tmp = p.with_name(f"{p.name}.tmp.{threading.get_ident()}.{time.time_ns()}")
+        try:
+            with tmp.open("x", encoding="utf-8") as stream:
+                stream.write(snapshot)
+                stream.flush()
+                os.fsync(stream.fileno())
+            for attempt in range(1, 6):
+                try:
+                    tmp.replace(p)
+                    break
+                except PermissionError:
+                    if attempt == 5:
+                        raise
+                    time.sleep(0.02 * attempt)
+        finally:
+            tmp.unlink(missing_ok=True)
 
 
 def execute(
+    action: str = "add",
+    content: str = "",
+    tag: str = "general",
+    query: str = "",
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Execute a notebook transaction without losing concurrent writes."""
+    with _transaction_lock:
+        return _execute_locked(action=action, content=content, tag=tag, query=query, **kwargs)
+
+
+def _execute_locked(
     action: str = "add",
     content: str = "",
     tag: str = "general",
@@ -55,7 +95,7 @@ def execute(
 
         now = datetime.datetime.now()
         new_note = {
-            "id": len(notes) + 1,
+            "id": max((note["id"] for note in notes), default=0) + 1,
             "content": content.strip(),
             "tag": tag.strip() or "general",
             "created_at": now.strftime("%Y-%m-%d %H:%M:%S"),
@@ -63,6 +103,20 @@ def execute(
         }
         notes.append(new_note)
         _save_notes(notes)
+
+        # Sync to Desktop Markdown file for fast human glance
+        try:
+            desktop = Path.home() / "Desktop"
+            if desktop.exists():
+                notes_md = desktop / "JARVIS_Notes.md"
+                md_line = f"- **[{new_note['created_at']}]** ({new_note['tag']}): {new_note['content']}\n"
+                if not notes_md.exists():
+                    notes_md.write_text(f"# 📝 JARVIS Notes\n\n{md_line}", encoding="utf-8")
+                else:
+                    with open(notes_md, "a", encoding="utf-8") as f:
+                        f.write(md_line)
+        except Exception:
+            pass
 
         msg = f"Đã lưu ghi chú #{new_note['id']} [{new_note['tag']}]: \"{new_note['content']}\""
         return {
@@ -117,6 +171,13 @@ def execute(
 
     elif action == "clear":
         _save_notes([])
+        try:
+            desktop = Path.home() / "Desktop"
+            notes_md = desktop / "JARVIS_Notes.md"
+            if notes_md.exists():
+                notes_md.unlink(missing_ok=True)
+        except Exception:
+            pass
         msg = "Đã xóa toàn bộ ghi chú cá nhân."
         return {"data": {"text": msg, "success": True}, "output": msg}
 

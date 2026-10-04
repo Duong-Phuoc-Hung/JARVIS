@@ -102,7 +102,8 @@ class UnresponsiveAppDetector:
             try:
                 windows = self.win32.list_windows(visible_only=True, include_cloaked=False)
                 for w in windows:
-                    if getattr(w, "is_hung", False):
+                    is_hung = getattr(w, "is_hung", False) or self.is_window_hung(getattr(w, "hwnd", 0))
+                    if is_hung:
                         hung_list.append(
                             HungProcessInfo(
                                 hwnd=w.hwnd,

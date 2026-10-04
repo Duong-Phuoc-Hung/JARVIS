@@ -102,6 +102,30 @@ class ComputerController:
         """Minimizes all windows (Show Desktop) via Win+D."""
         return bool(self.win32.send_hotkey("win", "d"))
 
+    def snap_window(self, direction: str = "left") -> bool:
+        """Snaps the active window (left, right, up, down) via Windows Aero Snap hotkeys."""
+        clean_dir = (direction or "left").lower().strip()
+        dir_map = {
+            "left": "left",
+            "trai": "left",
+            "trái": "left",
+            "right": "right",
+            "phai": "right",
+            "phải": "right",
+            "up": "up",
+            "tren": "up",
+            "trên": "up",
+            "down": "down",
+            "duoi": "down",
+            "dưới": "down",
+        }
+        vk = dir_map.get(clean_dir, "left")
+        return bool(self.win32.send_hotkey("win", vk))
+
+    def switch_window(self) -> bool:
+        """Switches to the next application window via Alt+Tab."""
+        return bool(self.win32.send_hotkey("alt", "tab"))
+
     def close_active_window(self) -> bool:
         """Closes the current foreground window."""
         win = self.win32.get_active_window()
@@ -118,6 +142,17 @@ class ComputerController:
     def close_tab(self) -> bool:
         """Closes the active tab in current application (Ctrl+W)."""
         return bool(self.win32.send_hotkey("ctrl", "w"))
+
+    def scroll_page(self, direction: str = "down") -> bool:
+        """Scrolls current window up or down via PageDown / PageUp."""
+        clean_dir = direction.lower().strip()
+        if clean_dir in ("down", "xuong", "xuống", "duoi", "dưới"):
+            return bool(self.win32.send_hotkey("pagedown"))
+        return bool(self.win32.send_hotkey("pageup"))
+
+    def refresh_page(self) -> bool:
+        """Refreshes or reloads active page via F5."""
+        return bool(self.win32.send_hotkey("f5"))
 
     def list_windows(self, visible_only: bool = True) -> list[dict[str, Any]]:
         """Lists active top-level windows."""

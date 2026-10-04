@@ -404,40 +404,43 @@ class SkillRegistry:
         logger.info("Unregistered skill '%s'", skill_name)
         return True
 
-    def get_skill(self, skill_name: str) -> SkillDefinition | None:
+    def get_skill(self, skill_name: str | SkillMetadata) -> SkillDefinition | None:
         """Retrieve loaded skill by name."""
+        name = getattr(skill_name, "name", skill_name)
         with self._lock:
-            return self._skills.get(skill_name)
+            return self._skills.get(str(name))
 
-    def is_skill_registered(self, skill_name: str) -> bool:
+    def is_skill_registered(self, skill_name: str | SkillMetadata) -> bool:
         """Check if a skill is registered."""
+        name = getattr(skill_name, "name", skill_name)
         with self._lock:
-            return skill_name in self._skills
+            return str(name) in self._skills
 
-    def load_skill(self, skill_name: str) -> SkillDefinition | None:
+    def load_skill(self, skill_name: str | SkillMetadata) -> SkillDefinition | None:
         """Load or reload skill by name."""
+        name = str(getattr(skill_name, "name", skill_name))
         with self._lock:
-            skill_dir = self.skills_dir / skill_name
+            skill_dir = self.skills_dir / name
             if skill_dir.is_dir():
                 loaded = self.load_skill_from_directory(skill_dir)
                 if loaded:
-                    self._skills[skill_name] = loaded
+                    self._skills[name] = loaded
                     if self.dispatcher:
                         self._register_skill_to_dispatcher(loaded)
                     return loaded
 
-            skill_file = self.skills_dir / f"{skill_name}.py"
+            skill_file = self.skills_dir / f"{name}.py"
             if skill_file.is_file():
                 loaded = self.load_skill_from_file(skill_file)
                 if loaded:
-                    self._skills[skill_name] = loaded
+                    self._skills[name] = loaded
                     if self.dispatcher:
                         self._register_skill_to_dispatcher(loaded)
                     return loaded
 
-            return self._skills.get(skill_name)
+            return self._skills.get(name)
 
-    def reload_skill(self, skill_name: str) -> SkillDefinition | None:
+    def reload_skill(self, skill_name: str | SkillMetadata) -> SkillDefinition | None:
         """Hot-reload an existing skill from disk."""
         return self.load_skill(skill_name)
 
@@ -446,10 +449,10 @@ class SkillRegistry:
         with self._lock:
             return [s.metadata for s in self._skills.values()]
 
-    def invoke_skill(self, skill_name: str, **kwargs) -> SkillExecutionResult:
+    def invoke_skill(self, skill_name: str | SkillMetadata, **kwargs) -> SkillExecutionResult:
         """
         Directly invoke a loaded skill by name with arguments and update usage metrics.
-        
+
         Args:
             skill_name: Name of registered skill.
             **kwargs: Keyword arguments for entrypoint function.

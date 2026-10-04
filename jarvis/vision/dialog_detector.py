@@ -217,6 +217,90 @@ class ErrorDialogDetector:
             return f"Phát hiện hộp thoại cảnh báo '{title}': {text}."
         return f"Phát hiện hộp thoại cảnh báo '{title}' đang hiển thị trên màn hình."
 
+    def dismiss_dialog(self, hwnd: int, action: str = "ok") -> bool:
+        """
+        Sends appropriate button click or close command to dismiss a modal dialog.
+        Supports: 'ok' (IDOK=1), 'cancel' (IDCANCEL=2), 'close' (WM_CLOSE=0x0010).
+        """
+        if not self._is_windows:
+            return False
+
+        try:
+            user32 = getattr(ctypes.windll, "user32", None)
+            if user32 is None:
+                return False
+
+            clean_act = (action or "ok").lower().strip()
+
+            # Method 1: Find matching button control (OK, Cancel, Close, Yes, No)
+            btn_hwnd = None
+            target_labels = ("ok", "đồng ý") if clean_act == "ok" else ("cancel", "hủy", "close", "đóng")
+
+            def enum_btn_proc(chwnd: int, lparam: int) -> int:
+                nonlocal btn_hwnd
+                try:
+                    cls_buf = ctypes.create_unicode_buffer(64)
+                    user32.GetClassNameW(chwnd, cls_buf, 64)
+                    if cls_buf.value.lower() == "button":
+                        txt_len = user32.GetWindowTextLengthW(chwnd)
+                        if txt_len > 0:
+                            t_buf = ctypes.create_unicode_buffer(txt_len + 1)
+                            user32.GetWindowTextW(chwnd, t_buf, txt_len + 1)
+                            b_text = t_buf.value.lower().strip()
+                            if any(target in b_text for target in target_labels):
+                                btn_hwnd = chwnd
+                                return 0
+                except Exception:
+                    pass
+                return 1
+
+            WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p)
+            proc = WNDENUMPROC(enum_btn_proc)
+            enum_child_func = getattr(user32, "EnumChildWindows", None)
+            if enum_child_func:
+                enum_child_func(hwnd, proc, 0)
+
+            # If matching button found, send BM_CLICK (0x00F5)
+            if btn_hwnd and hasattr(user32, "PostMessageW"):
+                if user32.PostMessageW(btn_hwnd, 0x00F5, 0, 0):
+                    time.sleep(0.05)
+                    if not bool(user32.IsWindow(hwnd)):
+                        return True
+
+            # Method 2: Fallback to WM_COMMAND with IDOK (1) or IDCANCEL (2)
+            cmd_id = 1 if clean_act == "ok" else 2
+            if hasattr(user32, "PostMessageW"):
+                # Submit only the requested action, without an unsolicited close.
+                message = 0x0010 if clean_act == "close" else 0x0111
+                if user32.PostMessageW(hwnd, message, cmd_id if message == 0x0111 else 0, 0):
+                    time.sleep(0.05)
+                    return not bool(user32.IsWindow(hwnd))
+
+        except Exception as exc:
+            logger.warning("Failed to dismiss dialog %s: %s", hwnd, exc)
+
+        return False
+
+    def resolve_error_dialogs(self, auto_dismiss: bool = True, preferred_action: str = "ok") -> list[dict[str, Any]]:
+        """
+        Scans for active error dialogs and optionally dismisses them.
+        Returns list of handled dialog reports.
+        """
+        found = self.scan_for_dialogs()
+        results = []
+        for d in found:
+            h = d.get("hwnd", 0)
+            d_report = dict(d)
+            if auto_dismiss and h > 0:
+                closed = self.dismiss_dialog(h, action=preferred_action)
+                d_report["dismissed"] = closed
+                d_report["action_taken"] = preferred_action if closed else "failed"
+            else:
+                d_report["dismissed"] = False
+                d_report["action_taken"] = "inspected"
+            results.append(d_report)
+        return results
+
 
 # Backward compatibility alias
 DialogDetector = ErrorDialogDetector

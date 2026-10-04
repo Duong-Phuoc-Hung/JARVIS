@@ -118,6 +118,9 @@ class HardwareMetrics:
     vram_total_gb: float | None = None
     ram_total_bytes: int = 0
     ram_used_bytes: int = 0
+    battery_percent: float | None = None
+    battery_power_plugged: bool | None = None
+    battery_secsleft: int | None = None
     disks: dict[str, DiskSmartMetrics] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
 
@@ -137,6 +140,9 @@ class HardwareMetrics:
             "ram_used_bytes": self.ram_used_bytes,
             "vram_used_gb": round(self.vram_used_gb, 2) if self.vram_used_gb is not None else None,
             "vram_total_gb": round(self.vram_total_gb, 2) if self.vram_total_gb is not None else None,
+            "battery_percent": round(self.battery_percent, 1) if self.battery_percent is not None else None,
+            "battery_power_plugged": self.battery_power_plugged,
+            "battery_secsleft": self.battery_secsleft,
             "smart_status": self.smart_status,
             "disks": {k: v.to_dict() for k, v in self.disks.items()},
             "timestamp": self.timestamp,
@@ -214,6 +220,7 @@ class HardwareMonitor:
         gpu_pct, gpu_temp, vram_used_gb, vram_total_gb, fan_rpm, fan_pct = self._probe_gpu()
         disks = self.get_disk_smart_status(use_cache=use_cache)
         smart_status = self._aggregate_smart_status(disks)
+        batt_pct, batt_plugged, batt_secs = self._probe_battery()
 
         return HardwareMetrics(
             cpu_percent=cpu_pct,
@@ -229,6 +236,9 @@ class HardwareMonitor:
             ram_used_bytes=ram_used,
             vram_used_gb=vram_used_gb,
             vram_total_gb=vram_total_gb,
+            battery_percent=batt_pct,
+            battery_power_plugged=batt_plugged,
+            battery_secsleft=batt_secs,
             smart_status=smart_status,
             disks=disks,
             timestamp=time.time(),
@@ -268,6 +278,11 @@ class HardwareMonitor:
         ram_total = getattr(p, "ram_total_bytes", 0)
         ram_used = getattr(p, "ram_used_bytes", 0)
 
+        # Battery metrics from provider
+        batt_pct = getattr(p, "battery_percent", None)
+        batt_plugged = getattr(p, "battery_power_plugged", None)
+        batt_secs = getattr(p, "battery_secsleft", None)
+
         # Disk & S.M.A.R.T.
         disks: dict[str, DiskSmartMetrics] = {}
         if hasattr(p, "smart_drives") and isinstance(p.smart_drives, dict):
@@ -305,6 +320,9 @@ class HardwareMonitor:
             ram_used_bytes=ram_used,
             vram_used_gb=vram_used_gb,
             vram_total_gb=vram_total_gb,
+            battery_percent=batt_pct,
+            battery_power_plugged=batt_plugged,
+            battery_secsleft=batt_secs,
             smart_status=smart_status,
             disks=disks,
             timestamp=time.time(),
@@ -341,6 +359,43 @@ class HardwareMonitor:
                 pass
 
         return 0.0, 0, 0
+
+    def _probe_battery(self) -> tuple[float | None, bool | None, int | None]:
+        """Probes battery percentage, power plugged state, and estimated seconds left."""
+        if HAS_PSUTIL and hasattr(psutil, "sensors_battery"):
+            try:
+                batt = psutil.sensors_battery()
+                if batt is not None:
+                    secs = int(batt.secsleft) if batt.secsleft not in (-1, -2) else None
+                    return float(batt.percent), bool(batt.power_plugged), secs
+            except Exception as exc:
+                log.debug("psutil.sensors_battery failed: %s", exc)
+
+        if sys.platform == "win32":
+            try:
+                class SYSTEM_POWER_STATUS(ctypes.Structure):
+                    _fields_ = [
+                        ("ACLineStatus", ctypes.c_byte),
+                        ("BatteryFlag", ctypes.c_byte),
+                        ("BatteryLifePercent", ctypes.c_byte),
+                        ("SystemStatusFlag", ctypes.c_byte),
+                        ("BatteryLifeTime", ctypes.c_ulong),
+                        ("BatteryFullLifeTime", ctypes.c_ulong),
+                    ]
+
+                k32 = getattr(ctypes, "windll", None) and getattr(ctypes.windll, "kernel32", None)
+                if k32 and hasattr(k32, "GetSystemPowerStatus"):
+                    sps = SYSTEM_POWER_STATUS()
+                    if k32.GetSystemPowerStatus(ctypes.byref(sps)):
+                        if sps.BatteryLifePercent != 255 and sps.BatteryLifePercent <= 100:
+                            pct = float(sps.BatteryLifePercent)
+                            plugged = (sps.ACLineStatus == 1) if sps.ACLineStatus != 255 else None
+                            secs = int(sps.BatteryLifeTime) if sps.BatteryLifeTime != 0xFFFFFFFF else None
+                            return pct, plugged, secs
+            except Exception as exc:
+                log.debug("GetSystemPowerStatus failed: %s", exc)
+
+        return None, None, None
 
     def _probe_cpu(self) -> tuple[float, list[float], float | None]:
         """Probes CPU total percent, per-CPU percent list, and frequency."""

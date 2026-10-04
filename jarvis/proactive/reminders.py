@@ -26,7 +26,7 @@ logger = logging.getLogger("jarvis.proactive.reminders")
 
 @dataclass(order=True)
 class ScheduledReminder:
-    """Represents a scheduled reminder in the priority queue."""
+    """Represents a scheduled reminder or automated routine in the priority queue."""
     trigger_timestamp: float
     reminder_id: str = field(compare=False)
     text: str = field(compare=False)
@@ -34,6 +34,9 @@ class ScheduledReminder:
     callback: Callable[[ScheduledReminder], None] | None = field(compare=False, default=None)
     completed: bool = field(compare=False, default=False)
     cancelled: bool = field(compare=False, default=False)
+    action_name: str | None = field(compare=False, default=None)
+    action_payload: dict[str, Any] | None = field(compare=False, default=None)
+    repeat_interval_s: float | None = field(compare=False, default=None)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert reminder to dictionary."""
@@ -44,6 +47,9 @@ class ScheduledReminder:
             "created_timestamp": self.created_timestamp,
             "completed": self.completed,
             "cancelled": self.cancelled,
+            "action_name": self.action_name,
+            "action_payload": self.action_payload,
+            "repeat_interval_s": self.repeat_interval_s,
             "time_remaining_s": max(0.0, self.trigger_timestamp - time.time()),
         }
 
@@ -117,6 +123,46 @@ class ReminderScheduler:
             reminder.text,
             max(0.0, reminder.trigger_timestamp - time.time()),
             reminder.trigger_timestamp,
+        )
+        return reminder_id
+
+    def schedule_routine(
+        self,
+        text: str,
+        delay_seconds: float,
+        action_name: str | None = None,
+        action_payload: dict[str, Any] | None = None,
+        repeat_interval_s: float | None = None,
+        callback: Callable[[ScheduledReminder], None] | None = None,
+    ) -> str:
+        """
+        Schedules an automated task routine with optional recurring interval.
+        """
+        now = time.time()
+        trigger_time = now + max(0.0, float(delay_seconds))
+        reminder_id = str(uuid.uuid4())[:8]
+        routine = ScheduledReminder(
+            trigger_timestamp=float(trigger_time),
+            reminder_id=reminder_id,
+            text=text.strip(),
+            created_timestamp=now,
+            callback=callback,
+            action_name=action_name,
+            action_payload=action_payload,
+            repeat_interval_s=repeat_interval_s,
+        )
+
+        with self._lock:
+            heapq.heappush(self._queue, routine)
+            self._reminders_by_id[reminder_id] = routine
+
+        logger.info(
+            "Scheduled routine [%s] '%s' (action=%s, repeat=%.1fs) in %.1fs",
+            reminder_id,
+            routine.text,
+            action_name,
+            repeat_interval_s or 0.0,
+            max(0.0, trigger_time - now),
         )
         return reminder_id
 
@@ -203,20 +249,38 @@ class ReminderScheduler:
             except Exception as e:
                 logger.error("Error in reminder callback for [%s]: %s", reminder.reminder_id, e)
 
-        # 2. Vocalize via TTS
-        vocal_phrase = f"Thưa Ngài, đây là lời nhắc: {reminder.text}"
-        if self.tts_callback:
+        # 2. Vocalize via TTS (only for reminders, not automated background routines)
+        if self.tts_callback and not reminder.action_name:
+            vocal_phrase = f"Thưa Ngài, đây là lời nhắc: {reminder.text}"
             try:
                 self.tts_callback(vocal_phrase)
             except Exception as e:
                 logger.error("Error dispatching reminder TTS: %s", e)
 
         # 3. Notify Overlay
-        if self.overlay_callback:
+        if self.overlay_callback and not reminder.action_name:
             try:
                 self.overlay_callback("⏰ Lời nhắc", reminder.text)
             except Exception as e:
                 logger.error("Error dispatching reminder overlay: %s", e)
+
+        # 4. Recurring reschedule
+        if reminder.repeat_interval_s and reminder.repeat_interval_s > 0 and not reminder.cancelled:
+            next_trigger = time.time() + float(reminder.repeat_interval_s)
+            next_reminder = ScheduledReminder(
+                trigger_timestamp=next_trigger,
+                reminder_id=reminder.reminder_id,
+                text=reminder.text,
+                created_timestamp=time.time(),
+                callback=reminder.callback,
+                action_name=reminder.action_name,
+                action_payload=reminder.action_payload,
+                repeat_interval_s=reminder.repeat_interval_s,
+            )
+            with self._lock:
+                heapq.heappush(self._queue, next_reminder)
+                self._reminders_by_id[reminder.reminder_id] = next_reminder
+            logger.info("Rescheduled recurring routine [%s] in %.1fs", reminder.reminder_id, reminder.repeat_interval_s)
 
     # ──────────────────────────────────────────────────────────────────────────
     # Background Thread Lifecycle

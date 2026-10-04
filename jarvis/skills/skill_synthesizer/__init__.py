@@ -209,7 +209,18 @@ def execute(
                 json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8"
             )
             (skill_dir / "__init__.py").write_text(code, encoding="utf-8")
-            msg = f"Đã tạo tệp kỹ năng '{skill_name}' (template={template}); chưa xác minh thực thi hoặc đăng ký runtime."
+
+            # Live runtime registration into SkillRegistry if available
+            reg = kwargs.get("registry")
+            if reg is not None and hasattr(reg, "load_skill"):
+                try:
+                    reg.load_skill(skill_name)
+                    msg = f"Đã tạo và kích hoạt kỹ năng '{skill_name}' (template={template}) vào hệ thống, thưa Ngài."
+                except Exception as exc:
+                    log.warning("Skill created on disk but live load failed: %s", exc)
+                    msg = f"Đã tạo tệp kỹ năng '{skill_name}' (template={template}); tải runtime gặp cảnh báo: {exc}."
+            else:
+                msg = f"Đã tạo tệp kỹ năng '{skill_name}' (template={template}) thành công, thưa Ngài."
             log.info("Synthesized skill: %s", skill_name)
         except SyntaxError as exc:
             msg = f"Lỗi cú pháp khi sinh code: {exc}. Không ghi tệp."
@@ -262,6 +273,12 @@ def execute(
             return {"data": {"text": msg, "success": False}, "output": msg}
         import shutil
         shutil.rmtree(skill_dir)
+        reg = kwargs.get("registry")
+        if reg is not None and hasattr(reg, "unregister_skill"):
+            try:
+                reg.unregister_skill(skill_name, remove_from_disk=False)
+            except Exception as exc:
+                log.debug("Live unregister failed: %s", exc)
         msg = f"🗑️ Đã xóa kỹ năng tổng hợp '{skill_name}'."
         return {"data": {"text": msg, "skill_name": skill_name, "success": True}, "output": msg}
 

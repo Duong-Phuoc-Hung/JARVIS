@@ -160,6 +160,15 @@ class SafetyGateInterceptor:
             action_clean = action_name.strip().lower()
         action_clean_norm = normalize_homoglyphs(action_clean)
 
+        if action_clean in {"healing_watchdog_heal", "dialog_resolve"}:
+            if not isinstance(parameters, dict):
+                return True
+            # Only an explicit boolean False opts into read-only inspection.
+            flag = "auto_kill" if action_clean == "healing_watchdog_heal" else "auto_dismiss"
+            default = action_clean == "dialog_resolve"
+            if parameters.get(flag, default) is not False:
+                return True
+
         # Weather is a read-only workflow, but it historically uses the
         # shell_exec action for the fixed wttr.in fast path. Only the exact
         # generated command is exempt; arbitrary shell payloads remain gated.

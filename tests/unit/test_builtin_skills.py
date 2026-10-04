@@ -58,8 +58,11 @@ class TestBuiltinSkills:
         assert res.data is not None
         assert "entries" in res.data
 
-    def test_note_taker_crud_lifecycle(self, registry: SkillRegistry) -> None:
+    def test_note_taker_crud_lifecycle(self, registry: SkillRegistry, tmp_path, monkeypatch) -> None:
         """Test full note taker lifecycle: add, list, search, clear."""
+        # Never add/clear the real user's notebook or Desktop export.
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
         # 1. Add note
         res_add = registry.invoke_skill("note_taker", action="add", content="Buy coffee for team", tag="work")
         assert res_add.success is True

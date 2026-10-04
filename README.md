@@ -1,5 +1,17 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
+Release hardening (2026-10-04), source **5.2.1**, **unreleased / NO-GO**:
+đã bổ sung confirmation cho auto-kill/dialog dismissal, sửa các nhánh báo thành
+công giả, decoder TTS, fallback LLM và khai báo dependency đóng gói âm thanh.
+Scoped verification: **147 passed + 15 subtests, 42.74s**; không phải full-suite
+hay nghiệm thu microphone thật. Đã loại bỏ giá tài chính cố định khi mất API.
+Full post-briefing run: **4321 passed / 3 failed / 40 skipped**, 268 subtests,
+1 warning; ba test hợp đồng/fixture đã được xử lý tiếp nhưng chưa có full-green
+trên cây cuối. Ghi chú đã có atomic replace và bảo vệ JSON hỏng.
+Nhóm regression cuối gồm ba ca lỗi đã sửa: **76 passed / 38.75s**.
+Xem [báo cáo và gate phát hành](docs/eval/release_readiness_20261004.md).
+Các kết quả ngày 23/09 dưới đây là lịch sử, không phải lần chạy hiện tại.
+
 Runtime repair verification (2026-09-23): unit **3,002 passed / 3 skipped**;
 E2E **290 passed / 21 skipped**; security subset **66 passed**; scanner **0
 findings** trên 202 tệp. Full repository chưa được chứng nhận vì còn nhóm test

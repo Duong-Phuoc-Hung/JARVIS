@@ -186,6 +186,9 @@ class LLMClient:
         default_temperature: float = 0.7,
         default_max_tokens: int = 1024,
         mock_mode: bool = False,
+        fallback_to_ollama: bool = False,
+        ollama_fallback_model: str = "llama3.2",
+        ollama_fallback_url: str = "http://localhost:11434/api/chat",
     ) -> None:
         if isinstance(provider, str):
             try:
@@ -222,6 +225,9 @@ class LLMClient:
         self.default_temperature = default_temperature
         self.default_max_tokens = default_max_tokens
         self.mock_mode = mock_mode
+        self.fallback_to_ollama = fallback_to_ollama
+        self.ollama_fallback_model = ollama_fallback_model
+        self.ollama_fallback_url = ollama_fallback_url
 
         self.session = requests.Session() if REQUESTS_AVAILABLE else None
         self.call_history: list[dict[str, Any]] = []
@@ -302,6 +308,21 @@ class LLMClient:
 
         # 1. Permission / Authentication Validation
         if not self.api_key and self.provider not in (LLMProvider.OLLAMA, LLMProvider.MOCK):
+            if self.fallback_to_ollama:
+                logger.info("Missing cloud API key; attempting local Ollama fallback directly...")
+                try:
+                    t0 = time.perf_counter()
+                    resp = self._call_ollama(
+                        normalized_messages,
+                        tools,
+                        temperature if temperature is not None else self.default_temperature,
+                        max_tokens if max_tokens is not None else self.default_max_tokens,
+                    )
+                    resp.provider = "ollama"
+                    resp.latency_ms = (time.perf_counter() - t0) * 1000.0
+                    return resp
+                except Exception as ollama_err:
+                    logger.debug("Ollama direct fallback failed: %s", self._sanitize_error_text(str(ollama_err)))
             raise LLMAuthenticationError(f"API key required for cloud LLM provider '{self.provider.value}'")
 
         # 2. Check Mock / Synthetic Test Mode. These are the only paths that
@@ -330,6 +351,7 @@ class LLMClient:
         # 4. Provider Wire Request Dispatch with Exponential Backoff
         temp = temperature if temperature is not None else self.default_temperature
         tokens = max_tokens if max_tokens is not None else self.default_max_tokens
+        last_error: LLMError = LLMProviderError(f"Exhausted retries calling {self.provider.value}")
 
         for attempt in range(self.max_retries + 1):
             try:
@@ -357,10 +379,11 @@ class LLMClient:
 
             except requests.Timeout as exc:
                 if attempt == self.max_retries:
-                    raise LLMTimeoutError(
+                    last_error = LLMTimeoutError(
                         f"LLM request to {self.provider.value} timed out after {self.timeout}s: "
                         f"{self._sanitize_error_text(str(exc))}"
-                    ) from exc
+                    )
+                    break
                 time.sleep(0.5 * (2 ** attempt))
             except requests.ConnectionError as exc:
                 # A real connection failure (daemon not running, host
@@ -369,43 +392,67 @@ class LLMClient:
                 # successful (mocked or otherwise) response, for Ollama or
                 # any other provider.
                 if attempt == self.max_retries:
-                    raise LLMProviderError(
+                    last_error = LLMProviderError(
                         f"Could not connect to {self.provider.value}: {self._sanitize_error_text(str(exc))}"
-                    ) from exc
+                    )
+                    break
                 time.sleep(0.5 * (2 ** attempt))
             except requests.HTTPError as exc:
                 status = exc.response.status_code if exc.response is not None else 0
                 if status == 401:
-                    raise LLMAuthenticationError(f"Authentication failed for {self.provider.value} (HTTP 401).")
+                    last_error = LLMAuthenticationError(f"Authentication failed for {self.provider.value} (HTTP 401).")
+                    break
                 elif status == 429:
                     if attempt == self.max_retries:
-                        raise LLMRateLimitError(f"Rate limit exceeded on {self.provider.value} (HTTP 429).")
+                        last_error = LLMRateLimitError(f"Rate limit exceeded on {self.provider.value} (HTTP 429).")
+                        break
                     time.sleep(1.0 * (2 ** attempt))
                 elif status >= 500:
                     if attempt == self.max_retries:
-                        raise LLMProviderError(f"Server error from {self.provider.value} (HTTP {status}).")
+                        last_error = LLMProviderError(f"Server error from {self.provider.value} (HTTP {status}).")
+                        break
                     time.sleep(1.0 * (2 ** attempt))
                 else:
-                    raise LLMProviderError(
+                    last_error = LLMProviderError(
                         f"HTTP {status} error from {self.provider.value}: {self._sanitize_error_text(str(exc))}"
                     )
+                    break
             except Exception as exc:
                 if isinstance(exc, LLMError):
-                    raise
+                    last_error = type(exc)(self._sanitize_error_text(str(exc)))
+                    break
                 # A real transport/OS-level failure is a genuine provider
                 # failure -- it must never be silently converted into a
                 # synthetic successful response. Only provider=MOCK or
                 # mock_mode may ever produce a mock LLMResponse (checked
                 # above, before this loop is ever entered).
                 if isinstance(exc, (requests.RequestException, ConnectionError, OSError)):
-                    raise LLMProviderError(
+                    last_error = LLMProviderError(
                         f"Transport error calling {self.provider.value}: {self._sanitize_error_text(str(exc))}"
-                    ) from exc
-                raise LLMProviderError(
+                    )
+                    break
+                last_error = LLMProviderError(
                     f"Unexpected error calling {self.provider.value}: {self._sanitize_error_text(str(exc))}"
-                ) from exc
+                )
+                break
 
-        raise LLMProviderError(f"Exhausted retries calling {self.provider.value}")
+        if self.fallback_to_ollama and self.provider != LLMProvider.OLLAMA:
+            logger.info("Cloud provider %s exhausted retries; attempting local Ollama fallback...", self.provider.value)
+            try:
+                t0 = time.perf_counter()
+                resp = self._call_ollama(
+                    normalized_messages,
+                    tools,
+                    temp,
+                    tokens,
+                )
+                resp.provider = "ollama"
+                resp.latency_ms = (time.perf_counter() - t0) * 1000.0
+                return resp
+            except Exception as ollama_err:
+                logger.debug("Ollama final fallback failed: %s", self._sanitize_error_text(str(ollama_err)))
+
+        raise last_error from None
 
     def _execute_mock(
         self,
@@ -675,11 +722,13 @@ class LLMClient:
 
     def _call_ollama(self, messages: list[ChatMessage], tools: list[dict[str, Any]] | None, temperature: float, max_tokens: int) -> LLMResponse:
         assert self.session is not None
-        url = self.base_url or self.DEFAULT_ENDPOINTS[LLMProvider.OLLAMA]
+        is_primary = self.provider == LLMProvider.OLLAMA
+        url = (self.base_url or self.DEFAULT_ENDPOINTS[LLMProvider.OLLAMA]) if is_primary else self.ollama_fallback_url
+        model = self.model if is_primary else self.ollama_fallback_model
         headers = {"Content-Type": "application/json"}
         formatted_messages = [m.to_dict() for m in messages]
         payload: dict[str, Any] = {
-            "model": self.model,
+            "model": model,
             "messages": formatted_messages,
             "stream": False,
             "options": {"temperature": temperature, "num_predict": max_tokens},
@@ -718,7 +767,7 @@ class LLMClient:
             content=content,
             tool_calls=tool_calls,
             provider="ollama",
-            model=self.model,
+            model=model,
             usage=usage,
             raw_response=data,
             success=True,

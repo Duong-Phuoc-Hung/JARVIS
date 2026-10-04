@@ -128,6 +128,17 @@ class HardwareReporter:
                 return f"Storage health status is {m.smart_status}{free_en}."
             return f"Trạng thái ổ đĩa {m.smart_status}{free_part}."
 
+        elif "battery" in c_clean or "pin" in c_clean or "nguồn" in c_clean:
+            if m.battery_percent is not None:
+                plug_str = "đang cắm sạc" if m.battery_power_plugged else "đang dùng pin"
+                if is_en:
+                    plug_en = "plugged in" if m.battery_power_plugged else "on battery"
+                    return f"Battery is at {m.battery_percent:.0f} percent, currently {plug_en}."
+                return f"Pin máy tính hiện còn {m.battery_percent:.0f} phần trăm, {plug_str}, thưa Ngài."
+            if is_en:
+                return "No battery detected; system running on direct AC power."
+            return "Hệ thống đang sử dụng nguồn điện trực tiếp AC, không phát hiện pin."
+
         return self.format_voice_summary(metrics=m, lang=lang)
 
     def format_markdown_report(self, metrics: HardwareMetrics | None = None) -> str:

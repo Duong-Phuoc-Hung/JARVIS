@@ -62,7 +62,9 @@ EXPECTED_ACTIONS: dict[str, set[str]] = {
     "search":          {"web_open", "shell_exec"},
     "music_play":      {"spotify"},
     "screen_off":      {"system_power", "system_brightness"},
-    "note_take":       {"memory_save_fact", "skill_note_taker"},
+    # note_add is the registered persistent-notebook handler, including
+    # clarification when the user has not supplied content yet.
+    "note_take":       {"memory_save_fact", "skill_note_taker", "note_add"},
     "settings_open":   {"app_open", "web_open"},
 }
 

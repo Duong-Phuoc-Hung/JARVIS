@@ -44,6 +44,8 @@ dependencies = [
 [project.optional-dependencies]
 audio = [
     "sounddevice>=0.4.6,<0.6",
+    "edge-tts>=7.2,<8",
+    "soundfile>=0.13,<1",
 ]
 windows = [
     "pywin32>=306",
@@ -60,6 +62,7 @@ notifications = [
 ]
 wakeword = [
     "pvporcupine>=4.0.3,<5",
+    "openwakeword>=0.6,<1",
 ]
 charts = [
     "matplotlib>=3.7,<4",

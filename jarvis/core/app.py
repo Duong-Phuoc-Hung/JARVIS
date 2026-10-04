@@ -24,9 +24,11 @@ Wires together:
 """
 from __future__ import annotations
 
+import ctypes
 import logging
 import os
 import signal
+import sys
 import threading
 import time
 import uuid
@@ -200,6 +202,18 @@ _POWER_ACTION_ALIASES: dict[str, str] = {
     "lock": "lock",
     "lock_screen": "lock",
     "lock screen": "lock",
+    "screen_off": "screen_off",
+    "screen off": "screen_off",
+    "turn_off_screen": "screen_off",
+    "abort": "abort",
+    "cancel": "abort",
+    "abort_shutdown": "abort",
+    "cancel_shutdown": "abort",
+    "cancel shutdown": "abort",
+    "abort shutdown": "abort",
+    "huy_tat_may": "abort",
+    "huy tat may": "abort",
+    "huy": "abort",
 }
 
 # Canonical power actions with no trustworthy, authoritative backend anywhere
@@ -269,6 +283,7 @@ class JarvisApp:
 
         # 8. Hardware Telemetry & Diagnostics
         self.hardware_reporter: HardwareReporter | None = None
+        self._last_healing_alert_time: float = 0.0
 
         # 8b. System-Wide Hotkey Shortcuts
         self.hotkey_manager: GlobalHotkeyManager | None = None
@@ -700,6 +715,36 @@ class JarvisApp:
                 except (ValueError, AttributeError):
                     pass
 
+            # 27. Proactive Self-Healing Watchdog Event Subscribers
+            def _on_ram_critical_alert(**payload):
+                now = time.time()
+                if now - self._last_healing_alert_time > 600.0:
+                    self._last_healing_alert_time = now
+                    try:
+                        import gc
+                        gc.collect()
+                        if sys.platform == "win32":
+                            import ctypes
+                            k32 = getattr(ctypes, "windll", None) and getattr(ctypes.windll, "kernel32", None)
+                            psapi = getattr(ctypes, "windll", None) and getattr(ctypes.windll, "psapi", None)
+                            if k32 and psapi:
+                                psapi.EmptyWorkingSet(k32.GetCurrentProcess())
+                    except Exception:
+                        pass
+                    ram_pct = payload.get("ram_percent", 0.0)
+                    msg = f"Cảnh báo: Bộ nhớ RAM hệ thống đang ở mức cao ({ram_pct:.0f}%). Đã yêu cầu thu gom bộ nhớ của JARVIS; chưa xác minh lượng RAM giải phóng."
+                    if self.tts_manager:
+                        self.tts_manager.speak(msg, wait=False)
+                    if self.overlay and hasattr(self.overlay, "show_response"):
+                        self.overlay.show_response("Cảnh báo Hệ Thống", msg)
+
+            def _on_app_hung_alert(**payload):
+                p_name = payload.get("process_name", "ứng dụng")
+                log.warning("Proactive alert: Hung app detected: %s", p_name)
+
+            self.event_bus.subscribe("healing:ram_critical", _on_ram_critical_alert)
+            self.event_bus.subscribe("healing:app_hung", _on_app_hung_alert)
+
             log.info("All JARVIS Core & Autonomous Agentic Subsystems successfully initialized.")
             self._initialized = True
             return self
@@ -831,6 +876,11 @@ class JarvisApp:
             handler=self._handle_screen_summarize,
             description="Summarizes visible document or code on screen",
         )
+        self.dispatcher.register_action(
+            name="dialog_resolve",
+            handler=self._handle_dialog_resolve,
+            description="Scans for system error dialogs and automatically dismisses them",
+        )
 
         # Web Intelligence actions
         self.dispatcher.register_action(
@@ -852,6 +902,11 @@ class JarvisApp:
             name="crypto_rates",
             handler=self._handle_crypto_rates,
             description="Queries cryptocurrency prices (BTC, ETH) and exchange rates",
+        )
+        self.dispatcher.register_action(
+            name="deep_research",
+            handler=self._handle_deep_research,
+            description="Conducts deep multi-source web research and generates executive markdown report",
         )
         self.dispatcher.register_action(
             name="morning_briefing",
@@ -906,6 +961,21 @@ class JarvisApp:
             description="Opens a new browser tab in the foreground window (Ctrl+T)",
         )
         self.dispatcher.register_action(
+            name="close_tab",
+            handler=self._handle_close_tab,
+            description="Closes the active browser or editor tab (Ctrl+W)",
+        )
+        self.dispatcher.register_action(
+            name="page_scroll",
+            handler=self._handle_page_scroll,
+            description="Scrolls current page up or down",
+        )
+        self.dispatcher.register_action(
+            name="page_refresh",
+            handler=self._handle_page_refresh,
+            description="Reloads or refreshes active page (F5)",
+        )
+        self.dispatcher.register_action(
             name="web_open",
             handler=self._handle_web_open,
             description="Opens target website or search query in browser",
@@ -958,6 +1028,16 @@ class JarvisApp:
             description="Alias for proactive_reminder to satisfy router intent emissions",
         )
         self.dispatcher.register_action(
+            name="routine_schedule",
+            handler=self._handle_routine_schedule,
+            description="Schedules an automated or recurring task routine",
+        )
+        self.dispatcher.register_action(
+            name="workflow_preset",
+            handler=self._handle_workflow_preset,
+            description="Executes curated multi-action productivity workflows (work, relax, clean)",
+        )
+        self.dispatcher.register_action(
             name="proactive_pomodoro_start",
             handler=self._handle_proactive_pomodoro_start,
             description="Starts a Pomodoro focus mode timer",
@@ -978,6 +1058,18 @@ class JarvisApp:
             name="memory_summarize_daily",
             handler=self._handle_memory_summarize_daily,
             description="Summarizes today's interactions and episodes",
+        )
+
+        # Personal Notes actions
+        self.dispatcher.register_action(
+            name="note_add",
+            handler=self._handle_note_add,
+            description="Adds a personal voice or text note",
+        )
+        self.dispatcher.register_action(
+            name="note_list",
+            handler=self._handle_note_list,
+            description="Lists or reads recent personal notes",
         )
 
         # ── Autonomous Superpower Actions (Milestones 1-5) ───────────────────
@@ -1140,6 +1232,18 @@ class JarvisApp:
             description="Executes live packet capture and protocol analysis via TShark",
         )
 
+        # 9. Self-Healing & Network Security Auditing actions
+        self.dispatcher.register_action(
+            name="healing_watchdog_heal",
+            handler=self._handle_healing_watchdog_heal,
+            description="Performs system RAM optimization, process inspection and self-healing",
+        )
+        self.dispatcher.register_action(
+            name="security_nmap_scan",
+            handler=self._handle_security_nmap_scan,
+            description="Performs network and subnet security scan via Nmap",
+        )
+
     # ── Action Handlers ──────────────────────────────────────────────────────
 
     @require_labs("browser_cdp")
@@ -1295,6 +1399,93 @@ class JarvisApp:
             return result.to_dict()
         return dict(result)
 
+    def _handle_healing_watchdog_heal(self, **kwargs) -> dict[str, Any]:
+        """Performs system RAM optimization, process inspection, and self-healing."""
+        import gc
+        gc.collect()
+
+        try:
+            if sys.platform == "win32":
+                import ctypes
+                try:
+                    k32 = ctypes.windll.kernel32
+                    psapi = ctypes.windll.psapi
+                    h_proc = k32.GetCurrentProcess()
+                    psapi.EmptyWorkingSet(h_proc)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        hung_apps: list[dict[str, Any]] = []
+        healed_reports: list[dict[str, Any]] = []
+        auto_kill = bool(kwargs.get("auto_kill", False))
+
+        try:
+            from jarvis.healing.terminator import HealingEngine
+            engine = HealingEngine(
+                hardware_provider=getattr(self, "hardware_reporter", None),
+                auto_kill=auto_kill,
+            )
+            found = engine.find_hung_windows()
+            for app in found:
+                hung_apps.append(app.to_dict() if hasattr(app, "to_dict") else dict(app))
+
+            if auto_kill and found:
+                healed_reports = engine.run_auto_recovery_cycle()
+        except Exception as exc:
+            log.debug("Healing watchdog hung probe encountered: %s", exc)
+            return {"success": False, "status": "ERROR", "code": "HEALING_PROBE_FAILED",
+                    "message": "Không kiểm tra được tiến trình; chưa xác minh kết quả tối ưu bộ nhớ."}
+
+        if any(not report.get("success") for report in healed_reports):
+            return {"success": False, "status": "ERROR", "code": "HEALING_RECOVERY_FAILED",
+                    "message": "Một hoặc nhiều tiến trình chưa được xử lý thành công.",
+                    "data": {"healed_reports": healed_reports}}
+
+        if hung_apps and not auto_kill:
+            names = ", ".join(sorted(list(set(str(a.get("process_name", "Unknown")) for a in hung_apps[:3]))))
+            msg = f"Đã kiểm tra tiến trình. Phát hiện {len(hung_apps)} ứng dụng bị treo ({names}); chưa đóng ứng dụng."
+        elif healed_reports:
+            msg = f"Đã xử lý {len(healed_reports)} tiến trình bị treo; chưa xác minh tổng RAM giải phóng."
+        else:
+            msg = "Đã kiểm tra tiến trình và yêu cầu thu gom bộ nhớ JARVIS; chưa xác minh lượng RAM giải phóng."
+
+        if self.tts_manager:
+            self.tts_manager.speak(msg, wait=False)
+
+        return {
+            "success": True,
+            "status": "SUCCESS",
+            "code": "OK",
+            "message": msg,
+            "data": {
+                "hung_apps_detected": len(hung_apps),
+                "hung_apps": hung_apps,
+                "healed_reports": healed_reports,
+            },
+        }
+
+    def _handle_security_nmap_scan(self, target: str = "192.168.1.0/24", **kwargs) -> dict[str, Any]:
+        """Performs network and subnet security scan via Nmap."""
+        from jarvis.security.scanner import NetworkScanner
+        target_str = kwargs.get("target") or target or "192.168.1.0/24"
+        scanner = NetworkScanner(timeout_s=float(kwargs.get("timeout_s", 30.0)))
+        if "/" in str(target_str):
+            report = scanner.scan_subnet(str(target_str))
+        else:
+            report = scanner.scan_host(str(target_str))
+
+        res_dict = report.to_dict() if hasattr(report, "to_dict") else dict(report)
+        status_ok = (report.status == "SUCCESS")
+        return {
+            "success": status_ok,
+            "status": report.status,
+            "code": "OK" if status_ok else report.status,
+            "message": f"Quét an ninh mạng cho {target_str}: {report.status} ({report.total_hosts} hosts)",
+            "data": res_dict,
+        }
+
     def _handle_home_assistant_call(self, **kwargs) -> dict[str, Any]:
         """Dispatches an authoritative service call to Home Assistant."""
         if not getattr(self, "ha_client", None):
@@ -1436,7 +1627,12 @@ class JarvisApp:
 
         log.info("Handling system_power action: %s (canonical=%s)", raw_act, canonical)
 
-        if canonical in _UNSUPPORTED_POWER_ACTIONS:
+        allow_hardware_power = bool(
+            self.config.get("power.allow_hardware_power_actions", False)
+            if hasattr(self.config, "get") else False
+        )
+
+        if canonical in _UNSUPPORTED_POWER_ACTIONS and not allow_hardware_power:
             msg = (
                 f"Chức năng '{canonical}' hiện chưa được hỗ trợ một cách đáng tin cậy trên "
                 f"hệ thống này, thưa Ngài."
@@ -1448,6 +1644,75 @@ class JarvisApp:
                 "error_code": "POWER_ACTION_UNSUPPORTED",
                 "action": canonical,
             }
+
+        if canonical == "abort":
+            win32 = getattr(self.computer_controller, "win32", None) if self.computer_controller else None
+            aborted = False
+            if win32 and hasattr(win32, "abort_shutdown"):
+                aborted = bool(win32.abort_shutdown())
+            else:
+                from jarvis.platform.windows import abort_shutdown
+                aborted = bool(abort_shutdown())
+
+            abort_msg = "Đã hủy lệnh tắt máy tính thành công, thưa Ngài." if aborted else "Không có lệnh tắt máy nào đang chờ để hủy, thưa Ngài."
+            if self.tts_manager:
+                self.tts_manager.speak(abort_msg, wait=False)
+            return {"success": True, "action": canonical, "message": abort_msg, "aborted": aborted}
+
+        if canonical in ("sleep", "hibernate"):
+            win32 = getattr(self.computer_controller, "win32", None) if self.computer_controller else None
+            is_hibernate = (canonical == "hibernate")
+            suspended = False
+            if win32 and hasattr(win32, "suspend_system"):
+                suspended = bool(win32.suspend_system(hibernate=is_hibernate))
+            else:
+                from jarvis.platform.windows import suspend_system
+                suspended = bool(suspend_system(hibernate=is_hibernate))
+
+            if not suspended:
+                mode_str = "ngủ đông" if is_hibernate else "ngủ"
+                return {"success": False, "error": f"Không thể đưa máy vào chế độ {mode_str}.", "error_code": "SUSPEND_FAILED", "action": canonical}
+
+            mode_msg = "Đang đưa máy vào chế độ ngủ đông, thưa Ngài." if is_hibernate else "Đang đưa máy vào chế độ ngủ, thưa Ngài."
+            if self.tts_manager:
+                self.tts_manager.speak(mode_msg, wait=False)
+            return {"success": True, "action": canonical, "message": mode_msg}
+
+        if canonical in ("shutdown", "restart"):
+            win32 = getattr(self.computer_controller, "win32", None) if self.computer_controller else None
+            is_restart = (canonical == "restart")
+            scheduled = False
+            if win32 and hasattr(win32, "shutdown_system"):
+                scheduled = bool(win32.shutdown_system(restart=is_restart, delay_s=30))
+            else:
+                from jarvis.platform.windows import shutdown_system
+                scheduled = bool(shutdown_system(restart=is_restart, delay_s=30))
+
+            if not scheduled:
+                act_str = "khởi động lại" if is_restart else "tắt máy"
+                return {"success": False, "error": f"Không thể {act_str} hệ thống.", "error_code": "SHUTDOWN_FAILED", "action": canonical}
+
+            act_msg = "Hệ thống sẽ khởi động lại sau 30 giây. Ngài có thể nói 'Hủy tắt máy' để dừng." if is_restart else "Hệ thống sẽ tắt sau 30 giây. Ngài có thể nói 'Hủy tắt máy' để dừng."
+            if self.tts_manager:
+                self.tts_manager.speak(act_msg, wait=False)
+            return {"success": True, "action": canonical, "message": act_msg}
+
+        if canonical == "screen_off":
+            submitted = False
+            if sys.platform == "win32":
+                try:
+                    # HWND_BROADCAST = 0xFFFF, WM_SYSCOMMAND = 0x0112, SC_MONITORPOWER = 0xF170, 2 = OFF
+                    user32 = getattr(ctypes, "windll", None) and getattr(ctypes.windll, "user32", None)
+                    if user32 and hasattr(user32, "PostMessageW"):
+                        submitted = bool(user32.PostMessageW(0xFFFF, 0x0112, 0xF170, 2))
+                except Exception as exc:
+                    log.error("Failed to turn off monitor via Win32: %s", exc)
+            msg = "Đã gửi yêu cầu tắt màn hình." if submitted else "Không gửi được yêu cầu tắt màn hình."
+            if self.tts_manager:
+                self.tts_manager.speak(msg, wait=False)
+            return {"success": submitted, "status": "SUCCESS" if submitted else "ERROR",
+                    "code": "REQUEST_SUBMITTED" if submitted else "SCREEN_OFF_FAILED",
+                    "action": canonical, "message": msg}
 
         # canonical == "lock" is the only supported action past this point.
         locked = self._attempt_lock_workstation()
@@ -1599,6 +1864,24 @@ class JarvisApp:
             return {"status": "success", "summary": res, "message": res}
         return {"status": "failed", "message": "Vision subsystem unavailable"}
 
+    def _handle_dialog_resolve(self, auto_dismiss: bool = True, action: str = "ok", **kwargs) -> dict[str, Any]:
+        """Scans for active error dialogs and dismisses them safely."""
+        from jarvis.vision.dialog_detector import ErrorDialogDetector
+        detector = ErrorDialogDetector()
+        results = detector.resolve_error_dialogs(auto_dismiss=auto_dismiss, preferred_action=action)
+        if not results:
+            msg = "Không phát hiện hộp thoại lỗi nào trên màn hình, thưa Ngài."
+        else:
+            dismissed_cnt = sum(1 for r in results if r.get("dismissed"))
+            titles = ", ".join(str(r.get("title", "")) for r in results[:2])
+            msg = f"Đã phát hiện và đóng {dismissed_cnt} hộp thoại lỗi ({titles}), thưa Ngài." if dismissed_cnt else f"Phát hiện {len(results)} hộp thoại lỗi: {titles}."
+
+        if self.tts_manager:
+            self.tts_manager.speak(msg, wait=False)
+        success = not auto_dismiss or all(r.get("dismissed") for r in results)
+        return {"status": "SUCCESS" if success else "ERROR", "success": success,
+                "code": "OK" if success else "DIALOG_DISMISS_FAILED", "dialogs": results, "message": msg}
+
     def _handle_web_search(self, query: str, **kwargs) -> dict[str, Any]:
         """Searches the web and returns summary."""
         if self.web_hub:
@@ -1623,12 +1906,42 @@ class JarvisApp:
         return {"status": "failed", "message": "News aggregator unavailable"}
 
     def _handle_crypto_rates(self, **kwargs) -> dict[str, Any]:
-        """Fetches crypto and currency rates."""
-        if self.web_hub:
-            rates = self.web_hub.get_crypto_rates()
-            summary = self.web_hub.finance.get_crypto_summary()
-            return {"status": "success", "rates": rates, "message": summary}
-        return {"status": "failed", "message": "Financial tracker unavailable"}
+        """Fetches crypto and foreign currency rates."""
+        if not self.web_hub:
+            return {"status": "failed", "success": False, "message": "Financial tracker unavailable"}
+
+        curr = kwargs.get("currency") or kwargs.get("pair") or kwargs.get("symbol")
+        if curr and str(curr).upper() in ("USD", "EUR", "JPY", "GBP", "FOREX"):
+            base_curr = "EUR" if str(curr).upper() == "EUR" else ("JPY" if str(curr).upper() == "JPY" else "USD")
+            summary = self.web_hub.finance.get_forex_summary(currency=base_curr)
+            rate = self.web_hub.finance.get_exchange_rate(base_curr, "VND")
+            if self.tts_manager:
+                self.tts_manager.speak(summary, wait=False)
+            return {"status": "success", "success": True, "currency": base_curr, "rate": rate, "message": summary}
+
+        rates = self.web_hub.get_crypto_rates()
+        summary = self.web_hub.finance.get_crypto_summary()
+        if self.tts_manager:
+            self.tts_manager.speak(summary, wait=False)
+        return {"status": "success", "success": True, "rates": rates, "message": summary}
+
+    def _handle_deep_research(self, topic: str = "", query: str = "", **kwargs) -> dict[str, Any]:
+        """Conducts deep web research and saves executive report to Desktop."""
+        target_topic = topic or query or kwargs.get("text") or "trí tuệ nhân tạo"
+        if not self.web_hub:
+            return {"status": "failed", "success": False, "message": "Web intelligence hub unavailable"}
+
+        res = self.web_hub.conduct_deep_research(target_topic)
+        if not res.get("success"):
+            return {"status": "ERROR", "success": False, "code": "RESEARCH_FAILED",
+                    "message": res.get("spoken_summary", "Không thể hoàn tất nghiên cứu."), "data": res}
+        msg = res.get("spoken_summary", f"Đã hoàn tất nghiên cứu về {target_topic}.")
+        if self.tts_manager:
+            self.tts_manager.speak(msg, wait=False)
+        if self.overlay and hasattr(self.overlay, "show_response") and "report_markdown" in res:
+            self.overlay.show_response(f"Nghiên Cứu: {target_topic}", res["report_markdown"][:1000])
+
+        return {"status": "success", "success": True, "message": msg, "data": res}
 
     def _handle_morning_briefing(self, city: str | None = None, **kwargs) -> dict[str, Any]:
         """Generates comprehensive morning briefing."""
@@ -1637,7 +1950,9 @@ class JarvisApp:
             if self.overlay and "overlay_bullets" in briefing:
                 self.overlay.show_response("Morning Briefing", "\n".join(briefing["overlay_bullets"]))
             return {
-                "status": "success",
+                "status": "ERROR" if briefing.get("success") is False else "SUCCESS",
+                "success": briefing.get("success") is not False,
+                "code": "BRIEFING_PARTIAL" if briefing.get("success") is False else "OK",
                 "briefing": briefing,
                 "message": briefing.get("spoken_summary", "Chào buổi sáng thưa Ngài."),
             }
@@ -1650,15 +1965,47 @@ class JarvisApp:
             win = self.computer_controller.get_active_window()
             hwnd = win.get("hwnd")
             title = win.get("title", "cửa sổ hiện tại")
-            if act == "maximize":
+            if act in ("maximize", "phong_to", "phóng to"):
                 if hwnd and hasattr(self.computer_controller, "win32") and hasattr(self.computer_controller.win32, "maximize_window"):
                     ok = self.computer_controller.win32.maximize_window(hwnd)
                     if ok:
-                        return {"status": "success", "success": True, "message": f"Đã phóng to {title}, thưa Ngài."}
+                        msg = f"Đã phóng to {title}, thưa Ngài."
+                        if self.tts_manager:
+                            self.tts_manager.speak(msg, wait=False)
+                        return {"status": "success", "success": True, "message": msg}
                 return {"status": "failed", "success": False, "message": "Không thể phóng to cửa sổ hiện tại, thưa Ngài."}
-            elif act == "close":
+            elif act in ("snap_left", "sang_trai", "trai", "nua_trai"):
+                ok = self.computer_controller.snap_window("left")
+                msg = f"Đã xếp {title} sang nửa trái màn hình, thưa Ngài." if ok else "Không thể xếp cửa sổ sang trái."
+                if self.tts_manager:
+                    self.tts_manager.speak(msg, wait=False)
+                return {"status": "success" if ok else "failed", "success": ok, "message": msg}
+            elif act in ("snap_right", "sang_phai", "phai", "nua_phai"):
+                ok = self.computer_controller.snap_window("right")
+                msg = f"Đã xếp {title} sang nửa phải màn hình, thưa Ngài." if ok else "Không thể xếp cửa sổ sang phải."
+                if self.tts_manager:
+                    self.tts_manager.speak(msg, wait=False)
+                return {"status": "success" if ok else "failed", "success": ok, "message": msg}
+            elif act in ("minimize", "thu_nho", "hạ xuống"):
+                ok = False
+                if hwnd and hasattr(self.computer_controller, "win32") and hasattr(self.computer_controller.win32, "minimize_window"):
+                    ok = self.computer_controller.win32.minimize_window(hwnd)
+                else:
+                    ok = self.computer_controller.snap_window("down")
+                msg = f"Đã thu nhỏ {title}, thưa Ngài." if ok else "Không thể thu nhỏ cửa sổ."
+                if self.tts_manager:
+                    self.tts_manager.speak(msg, wait=False)
+                return {"status": "success" if ok else "failed", "success": ok, "message": msg}
+            elif act in ("switch", "chuyen_app", "next", "chuyen_cua_so"):
+                ok = self.computer_controller.switch_window()
+                msg = "Đã chuyển sang cửa sổ tiếp theo, thưa Ngài." if ok else "Không chuyển được cửa sổ."
+                return {"status": "success" if ok else "failed", "success": ok, "message": msg}
+            elif act in ("close", "dong", "tat_cua_so", "đóng cửa sổ"):
                 ok = self.computer_controller.close_active_window()
-                return {"status": "success" if ok else "failed", "message": f"Đã đóng {title}, thưa Ngài."}
+                msg = f"Đã đóng {title}, thưa Ngài." if ok else "Không đóng được cửa sổ."
+                if self.tts_manager:
+                    self.tts_manager.speak(msg, wait=False)
+                return {"status": "success" if ok else "failed", "success": ok, "message": msg}
             return {"status": "success", "window": win, "message": f"Cửa sổ hiện tại: {title}"}
         return {"status": "failed", "message": "Computer controller unavailable"}
 
@@ -1903,6 +2250,33 @@ class JarvisApp:
         return {"success": False, "status": "failed", "error_code": "KEYBOARD_UNAVAILABLE",
                 "message": "Khong the dieu khien ban phim de mo tab moi, thua Ngai."}
 
+    def _handle_close_tab(self, **kwargs) -> dict[str, Any]:
+        """Closes active tab (Ctrl+W)."""
+        if self.computer_controller:
+            ok = self.computer_controller.close_tab()
+            msg = "Đã đóng tab hiện tại, thưa Ngài." if ok else "Không thể đóng tab."
+            if self.tts_manager:
+                self.tts_manager.speak(msg, wait=False)
+            return {"status": "success" if ok else "failed", "success": ok, "message": msg}
+        return {"status": "failed", "success": False, "message": "Computer controller unavailable"}
+
+    def _handle_page_scroll(self, direction: str = "down", **kwargs) -> dict[str, Any]:
+        """Scrolls current window down or up."""
+        if self.computer_controller:
+            ok = self.computer_controller.scroll_page(direction)
+            dir_str = "xuống" if "down" in direction.lower() or "xuong" in direction.lower() else "lên"
+            msg = f"Đã cuộn trang {dir_str}, thưa Ngài." if ok else "Không cuộn được trang."
+            return {"status": "success" if ok else "failed", "success": ok, "message": msg}
+        return {"status": "failed", "success": False, "message": "Computer controller unavailable"}
+
+    def _handle_page_refresh(self, **kwargs) -> dict[str, Any]:
+        """Refreshes or reloads active page (F5)."""
+        if self.computer_controller:
+            ok = self.computer_controller.refresh_page()
+            msg = "Đã tải lại trang, thưa Ngài." if ok else "Không thể tải lại trang."
+            return {"status": "success" if ok else "failed", "success": ok, "message": msg}
+        return {"status": "failed", "success": False, "message": "Computer controller unavailable"}
+
     def _handle_web_open(self, url: str | None = None, target: str | None = None, query: str | None = None, site: str | None = None, **kwargs) -> dict[str, Any]:
         """Opens target website or search query in browser."""
         dest = url or target or site or query or kwargs.get("website") or ""
@@ -1990,6 +2364,90 @@ class JarvisApp:
             return {"status": "success", "reminder_id": r_id, "message": resp_msg}
         return {"status": "failed", "message": "Proactive engine unavailable"}
 
+    def _handle_routine_schedule(
+        self,
+        text: str = "",
+        action_name: str | None = None,
+        interval_seconds: float | None = None,
+        delay_seconds: float = 0.0,
+        **kwargs,
+    ) -> dict[str, Any]:
+        """Schedules automated routines in the ProactiveEngine."""
+        act_name = action_name or kwargs.get("action")
+        repeat_s = float(interval_seconds) if interval_seconds else None
+        delay_s = float(delay_seconds) if delay_seconds else (repeat_s or 60.0)
+        desc = text or f"Tác vụ tự động: {act_name}"
+
+        def _routine_callback(reminder):
+            if act_name:
+                log.info("Executing scheduled routine: %s", act_name)
+                try:
+                    self.dispatcher.dispatch_action(act_name, payload=kwargs.get("payload", {}))
+                except Exception as exc:
+                    log.error("Routine action '%s' failed: %s", act_name, exc)
+
+        if self.proactive_engine and hasattr(self.proactive_engine, "reminders"):
+            r_id = self.proactive_engine.reminders.schedule_routine(
+                text=desc,
+                delay_seconds=delay_s,
+                action_name=act_name,
+                action_payload=kwargs.get("payload"),
+                repeat_interval_s=repeat_s,
+                callback=_routine_callback,
+            )
+            msg = f"Đã lên lịch tác vụ '{desc}' thành công, chu kỳ {repeat_s:.0f} giây, thưa Ngài." if repeat_s else f"Đã lên lịch tác vụ '{desc}' sau {delay_s:.0f} giây, thưa Ngài."
+            if self.tts_manager:
+                self.tts_manager.speak(msg, wait=False)
+            return {"status": "success", "success": True, "routine_id": r_id, "message": msg}
+
+        return {"status": "UNAVAILABLE", "success": False, "code": "SCHEDULER_UNAVAILABLE",
+                "message": "Không thể tạo lịch: bộ lập lịch chưa sẵn sàng."}
+
+    def _handle_workflow_preset(self, preset: str = "work", **kwargs) -> dict[str, Any]:
+        """Executes curated multi-action productivity workflows."""
+        p = (preset or "work").lower().strip()
+        executed_steps = []
+
+        if p in ("work", "lam_viec", "focus") and (
+            not self.proactive_engine or not self.computer_controller
+        ):
+            return {"success": False, "status": "UNAVAILABLE", "code": "WORKFLOW_BACKEND_UNAVAILABLE",
+                    "message": "Thiếu backend để bật chế độ làm việc.", "steps": []}
+        if p in ("relax", "nghi_ngoi", "thu_gian") and not self.computer_controller:
+            return {"success": False, "status": "UNAVAILABLE", "code": "WORKFLOW_BACKEND_UNAVAILABLE",
+                    "message": "Thiếu backend điều khiển màn hình.", "steps": []}
+
+        if p in ("work", "lam_viec", "focus"):
+            if self.proactive_engine:
+                self.proactive_engine.start_pomodoro(work_minutes=25.0)
+                executed_steps.append("Started 25m Focus Pomodoro")
+            if self.computer_controller:
+                if self.computer_controller.set_volume(40) is None:
+                    return {"success": False, "status": "ERROR", "code": "VOLUME_SET_FAILED",
+                            "message": "Không chỉnh được âm lượng; phiên tập trung có thể đã bắt đầu.", "steps": executed_steps}
+                executed_steps.append("Volume set to 40%")
+            msg = "Đã kích hoạt chế độ làm việc tập trung. Chúc Ngài làm việc hiệu quả."
+        elif p in ("relax", "nghi_ngoi", "thu_gian"):
+            if self.computer_controller:
+                if self.computer_controller.change_brightness(-15) is None:
+                    return {"success": False, "status": "ERROR", "code": "BRIGHTNESS_SET_FAILED",
+                            "message": "Không chỉnh được độ sáng.", "steps": executed_steps}
+                executed_steps.append("Brightness dimmed")
+            msg = "Đã kích hoạt chế độ nghỉ ngơi. Ngài hãy thư giãn nhé."
+        elif p in ("clean", "don_dep", "toi_uu"):
+            healing = self._handle_healing_watchdog_heal()
+            if not healing.get("success"):
+                return healing
+            executed_steps.append("Process inspection completed")
+            msg = healing["message"]
+        else:
+            msg = f"Kịch bản '{p}' không được hỗ trợ."
+            return {"status": "failed", "success": False, "message": msg}
+
+        if self.tts_manager:
+            self.tts_manager.speak(msg, wait=False)
+        return {"status": "success", "success": True, "preset": p, "steps": executed_steps, "message": msg}
+
     def _handle_proactive_pomodoro_start(self, work_minutes: float = 25.0, break_minutes: float = 5.0, **kwargs) -> dict[str, Any]:
         """Starts Pomodoro timer."""
         if self.proactive_engine:
@@ -2029,6 +2487,47 @@ class JarvisApp:
             res = self.memory_manager.handle_today_summary(text)
             return {"status": "success", "summary": res, "message": res.get("message", "")}
         return {"status": "failed", "message": "Memory manager unavailable"}
+
+    def _handle_note_add(self, content: str = "", tag: str = "general", **kwargs) -> dict[str, Any]:
+        """Adds a voice or text note using note_taker skill and speaks confirmation."""
+        text_content = content or kwargs.get("text") or kwargs.get("message") or ""
+        if not text_content.strip():
+            msg = "Nội dung ghi chú trống, vui lòng cho biết nội dung ghi chú."
+            return {"status": "failed", "success": False, "message": msg}
+
+        if self.skill_registry:
+            res = self.skill_registry.invoke_skill("note_taker", action="add", content=text_content.strip(), tag=tag)
+            data_dict = res.data if isinstance(res.data, dict) else {}
+            if not res.success or data_dict.get("success") is False:
+                return {"success": False, "status": "ERROR", "code": "NOTE_SAVE_FAILED",
+                        "message": "Không lưu được ghi chú.", "data": data_dict}
+            msg = f"Đã lưu ghi chú cho Ngài: {text_content.strip()}"
+            if self.tts_manager:
+                self.tts_manager.speak(msg, wait=False)
+            data_dict = res.data if hasattr(res, "data") and isinstance(res.data, dict) else {}
+            return {"status": "success", "success": True, "message": msg, "data": data_dict}
+
+        return {"success": False, "status": "UNAVAILABLE", "code": "NOTE_BACKEND_UNAVAILABLE",
+                "message": "Không lưu được ghi chú: bộ lưu trữ chưa sẵn sàng."}
+
+    def _handle_note_list(self, **kwargs) -> dict[str, Any]:
+        """Lists and reads recent notes."""
+        if self.skill_registry:
+            res = self.skill_registry.invoke_skill("note_taker", action="list")
+            data_dict = res.data if hasattr(res, "data") and isinstance(res.data, dict) else {}
+            if not res.success or data_dict.get("success") is False:
+                return {"success": False, "status": "ERROR", "code": "NOTE_READ_FAILED",
+                        "message": "Không đọc được danh sách ghi chú."}
+            notes = data_dict.get("notes", [])
+            if not notes:
+                msg = "Ngài chưa có ghi chú nào được lưu."
+            else:
+                latest = notes[-1]
+                msg = f"Ngài có {len(notes)} ghi chú. Ghi chú gần nhất là: {latest.get('content')}"
+            if self.tts_manager:
+                self.tts_manager.speak(msg, wait=False)
+            return {"status": "success", "success": True, "notes": notes, "message": msg}
+        return {"status": "failed", "success": False, "message": "Skill registry unavailable"}
 
     # ── Autonomous Superpower Action Handlers ────────────────────────────────
 
@@ -2896,6 +3395,10 @@ class JarvisApp:
                         configured_actions = self.config.get("gesture.patterns.double_clap.actions", [
                             "spotify", "chrome_claude", "chrome_binance", "tts_welcome", "cursor"
                         ])
+                        if configured_actions == ["tts_welcome"] and allow_fanout:
+                            configured_actions = [
+                                "spotify", "chrome_claude", "chrome_binance", "tts_welcome", "cursor"
+                            ]
                         for act in configured_actions:
                             try:
                                 self.dispatcher.dispatch_action(act, requester=RequesterContext.system())
@@ -3160,8 +3663,34 @@ class JarvisApp:
                 response_text = f"Lỗi thực thi: {e}"
                 status_flag = "failed"
         else:
-            response_text = "Tôi chưa hiểu lệnh này, vui lòng thử cách khác"
-            status_flag = "success"  # Graceful fallback is a successful response, not an error
+            # Intelligent Conversational Fallback via LLM
+            llm_reply = None
+            if self.llm_client:
+                try:
+                    from jarvis.llm.client import ChatMessage
+                    sys_prompt = (
+                        "You are JARVIS, Tony Stark's ultra-competent AI desktop assistant for Windows. "
+                        "The user asked a natural conversational question or made a comment. "
+                        "Reply concisely, courteously ('thưa Ngài' or 'Sir'), and helpfully. "
+                        "Match the user's language: reply in Vietnamese if spoken to in Vietnamese; English if English. "
+                        "Keep answers under 3 sentences unless complex analysis is specifically asked."
+                    )
+                    messages = [
+                        ChatMessage(role="system", content=sys_prompt),
+                        ChatMessage(role="user", content=clean_text),
+                    ]
+                    llm_resp = self.llm_client.chat(messages, max_tokens=256, temperature=0.7)
+                    if llm_resp and llm_resp.content and llm_resp.content.strip():
+                        llm_reply = llm_resp.content.strip()
+                except Exception as exc:
+                    log.debug("Conversational LLM fallback failed: %s", exc)
+
+            if llm_reply:
+                response_text = llm_reply
+                matched_action = "conversational_reply"
+            else:
+                response_text = "Tôi chưa hiểu lệnh này, vui lòng thử cách khác"
+            status_flag = "success"
 
         # 5. Record Assistant Turn & Log Episode into Persistent Memory
         if self.memory_manager:

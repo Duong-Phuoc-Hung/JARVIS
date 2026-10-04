@@ -91,8 +91,17 @@ def _safe_eval(node: ast.AST) -> float:
 
 
 def evaluate_expression(expr: str) -> float:
-    """Clean and evaluate a mathematical expression."""
-    cleaned = expr.replace("^", "**").replace("x", "*").replace("X", "*")
+    """Clean and evaluate a mathematical expression supporting Vietnamese operators."""
+    cleaned = expr.lower().strip()
+    # Normalize Vietnamese verbal operators
+    cleaned = re.sub(r"\b(cộng|cong)\b", "+", cleaned)
+    cleaned = re.sub(r"\b(trừ|tru)\b", "-", cleaned)
+    cleaned = re.sub(r"\b(nhân|nhan|x)\b", "*", cleaned)
+    cleaned = re.sub(r"\b(chia\s*cho|chia)\b", "/", cleaned)
+    cleaned = re.sub(r"\b(mũ|mu)\b", "**", cleaned)
+    cleaned = re.sub(r"\s*(?:phẩy|phay)\s*", ".", cleaned)
+
+    cleaned = cleaned.replace("^", "**").replace("x", "*").replace("X", "*")
     cleaned = cleaned.replace("×", "*").replace("÷", "/")
     cleaned = re.sub(r'(\d+(?:\.\d+)?)\s*%', r'(\1/100)', cleaned)
 

@@ -219,10 +219,21 @@ def test_screen_vision_action_dispatch(tmp_path):
     app.stop()
 
 
-def test_web_intelligence_hub_briefing_dispatch():
+def test_web_intelligence_hub_briefing_dispatch(monkeypatch):
     """Verify WebIntelligenceHub weather, news, crypto, and morning briefing actions."""
     app = JarvisApp(headless=True, no_hot_reload=True)
     app.initialize()
+
+    # Deterministic provider fixtures: this is a dispatch success-path test,
+    # not permission to synthesize live prices when the network is unavailable.
+    from jarvis.web.finance import CryptoQuote
+    monkeypatch.setattr(app.web_hub.finance, "_fetch_exchange_rate", lambda base, target: 25000.0)
+    monkeypatch.setattr(
+        app.web_hub.finance, "_fetch_crypto_quote",
+        lambda symbol, rate: CryptoQuote(
+            symbol=symbol, name=symbol, price_usd=100.0, price_vnd=100.0 * rate
+        ),
+    )
 
     # Morning briefing action
     briefing_res = app.dispatcher.dispatch_action("morning_briefing", payload={"city": "Hanoi"})
@@ -238,6 +249,7 @@ def test_web_intelligence_hub_briefing_dispatch():
     crypto_res = app.dispatcher.dispatch_action("crypto_rates")
     assert crypto_res.is_success
     assert "rates" in crypto_res.data
+    assert crypto_res.data["rates"] == {"BTC": 100.0, "ETH": 100.0}
 
     app.stop()
 

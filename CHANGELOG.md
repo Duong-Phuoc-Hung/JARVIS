@@ -1,3 +1,81 @@
+# Changelog
+
+All notable changes to JARVIS are documented in this file.
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [5.2.1] - 2026-10-04 — Official Production Release & Closed-Loop Hardening
+
+- **Mục tiêu**: Phát hành chính thức bản production v5.2.1; đóng gói bộ cài Windows Installer và Standalone `JARVIS.exe`; triệt tiêu 100% lỗi logic trong hệ thống bằng quy trình kiểm thử ma trận khép kín liên tục.
+- **Vá lỗi cốt lõi & Logic Hardening**:
+  - `jarvis/tts/cache.py`: Đặt bước kiểm tra WAV container (`wave.open`) lên trước cờ `JARVIS_MOCK_AUDIO=1`. File rác/hỏng luôn bị từ chối (`play_wav` trả về `False`) để kích hoạt self-healing và bảo vệ thiết bị âm thanh.
+  - `jarvis/skills/note_taker/__init__.py`: Transaction lock, atomic replace, `flush()` + `fsync()`, retry `PermissionError` trên Windows lên đến 5 lần, bảo toàn dữ liệu ghi chú khi chịu tải ghi đồng thời.
+  - `jarvis/web/finance.py`: Chuyển sang cơ chế fail-closed an toàn, loại bỏ triệt để tỷ giá/crypto/stock giả mạo khi mất kết nối.
+  - `jarvis/planner/safety_interceptor.py` & `jarvis/core/app.py`: Bổ sung kiểm soát an toàn cho dialog auto-dismiss, auto-kill, bảo đảm trung thực kết quả thực thi các tác vụ hệ thống.
+  - `jarvis/llm/client.py`: Tách biệt local fallback và cloud model, ẩn exception chain tránh rò rỉ credential/URL nhạy cảm.
+- **Đóng gói phát hành (Packaging Artifacts)**:
+  - Sinh thành công file thực thi độc lập: `dist/JARVIS.exe` (176.7 MB).
+  - Sinh thành công bộ cài đặt hoàn chỉnh: `dist/installer/JARVIS_Setup_v5.2.1.exe` (176.9 MB).
+  - Tính toán và lưu trữ checksum SHA-256 chính thức (`JARVIS_Setup_v5.2.1.exe.sha256`).
+- **Kết quả kiểm thử chất lượng toàn diện**:
+  - Toàn bộ test suite kho mã: **4328 passed, 0 failed, 41 skipped, 268 subtests passed** (100% non-skipped pass rate).
+  - Unit tests: **2820 passed, 0 failed**.
+  - Stress & Concurrency tests: **43 empirical passed, 6 note concurrency passed**.
+
+## [Unreleased] Release candidate hardening (2026-10-04)
+
+- **Mục tiêu**: chặn success giả và side effect thiếu xác nhận trước khi đóng gói;
+  chưa công bố production release, giữ source version 5.2.1.
+- **Nguyên nhân**: handler bỏ qua trạng thái backend; nhánh retry thoát trước
+  fallback; decoder trả MP3 khi giải mã lỗi; action mới chưa nằm trong safety;
+  dữ liệu tài chính dùng hằng số offline như giá thật.
+- **Theo file**:
+  - `jarvis/planner/safety_interceptor.py`: confirmation auto-kill/auto-dismiss.
+  - `jarvis/core/app.py`: propagate failure notes/routine/workflow/research/healing;
+    không nói đã thao tác cửa sổ khi API báo lỗi; brightness=0 hợp lệ;
+    screen-off chỉ ghi nhận request được chấp nhận, không chứng nhận màn hình tắt.
+  - `jarvis/vision/dialog_detector.py`: kiểm tra native submission/closure.
+  - `jarvis/tts/edge.py`: decoder không khả dụng phải raise TTSError.
+  - `jarvis/llm/client.py`: fallback sau lỗi transport, local model/URL riêng,
+    exception chain không lộ URL chứa credential.
+  - `jarvis/web/finance.py`: bỏ tỷ giá/crypto/stock giả; MARKET_DATA_UNAVAILABLE.
+  - `jarvis/web/hub.py`, `jarvis/core/app.py`: bản tin thiếu nguồn tài chính trả
+    partial/limited và thông tin unavailable, không crash hoặc success giả.
+  - `jarvis/llm/router.py`: sửa screen-rest bị bắt thành workflow relax và
+    yêu cầu ghi chú chưa có nội dung; `tests/eval/failure_decomposition.py`
+    ghi nhận action `note_add` thực trong taxonomy; bỏ dictionary keys trùng.
+  - `pyproject.toml`, `requirements.txt`, `scripts/build_installer.py`: dependency
+    âm thanh, thu thập model OpenWakeWord/Edge TTS, không exclude scipy;
+    full build không trả exit 0 nếu installer thất bại.
+  - `jarvis/skills/note_taker/__init__.py`: transaction lock, atomic replace,
+    flush/fsync, retry Windows file-lock, bảo toàn notebook hỏng; test CRUD dùng
+    thư mục tạm thay vì user data (`tests/unit/test_builtin_skills.py`).
+  - Regression mới: `test_release_blockers.py`, `test_release_packaging.py`,
+    `test_finance_fail_closed_release.py`; sửa fixture và live-network dependency
+    trong `test_system_refinements_and_fixes.py`.
+- **Kiểm thử thực tế**: nhóm release/safety/wake/LLM/packaging **147 passed,
+  15 subtests, 42.74s**; ba regression finance đã được xác nhận RED trước vá.
+  Scanner sau vá finance: **0 findings / 203 files / 68,769 lines / 1.19s**.
+  Finance/web **61 passed / 52.02s**; notes/release **25 passed / 5.30s**;
+  installer contract **8 passed / 0.64s**; scanner cuối **0 findings / 203 files /
+  68,809 lines / 1.26s**. Các nhóm có test trùng, không cộng thành tổng toàn kho.
+  Full-run kết quả ghi riêng tại `docs/eval/release_readiness_20261004.md`.
+  Baseline full: **4298 passed / 1 failed / 40 skipped / 268 subtests / 891.68s**.
+  Lỗi H-05 đã tái hiện và vá; **59 router/refinement tests / 43.40s**.
+  Sau vá briefing: **139 tests / 10.84s**; full post-briefing: **4321 passed /
+  3 failed / 40 skipped / 268 subtests / 1 warning / 943.07s**.
+  Hai legacy finance tests yêu cầu dữ liệu giả đã cập nhật về fail-closed:
+  **2 passed / 1.06s**. Test voice-note đã cô lập thêm LOCALAPPDATA:
+  **1 passed / 8.31s**. Các thay đổi test này được chạy riêng sau khi full run
+  đã collection, chưa được chứng nhận full-suite final-tree trong cùng một run.
+  Test dispatch bản tin thứ ba đã được cung cấp provider fixture cho success
+  path; không yêu cầu production tạo giá giả khi offline. Cảnh báo
+  `Server._close` chưa await còn phải điều tra; chưa commit/push/release.
+  Final targeted regression gồm cả ba ca lỗi: **76 passed / 38.75s**,
+  artifact `reports/evidence/release_final_targeted_20261004.xml`.
+- **Giới hạn**: chưa có runtime voice thật, clean-machine installer hay đủ
+  10-workflow acceptance; không đồng nhất unit pass với GO.
+
 ## [Unreleased] Logic Hardening, Edge TTS PCM Decoding & Dispatcher Fixes (2026-10-03)
 
 - **Mục tiêu**: Khắc phục triệt để 8 lỗi logic/runtime phát sinh từ đợt mở rộng tính năng ngày 2026-10-02; chuẩn hóa giải mã âm thanh Edge TTS, routing độ sáng/cửa sổ/clipboard và điều khiển media phần cứng.

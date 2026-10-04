@@ -27,7 +27,7 @@ from jarvis.proactive.pomodoro import PomodoroState, PomodoroTimer
 from jarvis.proactive.reminders import ReminderScheduler, ScheduledReminder
 from jarvis.ui.overlay import AlwaysOnOverlay, OverlayMode, OverlayState, TurnRecord
 from jarvis.web.cache import TTLCache
-from jarvis.web.finance import CryptoQuote, FinanceTracker, StockQuote
+from jarvis.web.finance import FinanceTracker, StockQuote
 from jarvis.web.hub import WebIntelligenceHub
 from jarvis.web.news import NewsAggregator, NewsArticle
 from jarvis.web.weather import WeatherData, WeatherProvider
@@ -200,18 +200,19 @@ class TestR5WebIntelligenceAdversarial(unittest.TestCase):
                 mock_get.return_value.json.return_value = mock_resp
                 mock_get.return_value.raise_for_status = MagicMock()
 
-                quote = tracker._fetch_stock_quote("AAPL")
-                self.assertIsInstance(quote, StockQuote)
-                self.assertIsInstance(quote.price, float)
-                self.assertIsInstance(quote.change_pct, float)
+                if mock_resp == corrupted_chart_responses[-1]:
+                    quote = tracker._fetch_stock_quote("AAPL")
+                    self.assertIsInstance(quote, StockQuote)
+                    self.assertEqual(quote.price, 150.0)
+                    self.assertEqual(quote.change_pct, 0.0)
+                else:
+                    with self.assertRaisesRegex(RuntimeError, "MARKET_DATA_UNAVAILABLE"):
+                        tracker._fetch_stock_quote("AAPL")
 
-        # 2. Crypto error fallback
+        # 2. Missing feeds must fail closed, never fabricate positive prices.
         with patch("requests.get", side_effect=Exception("Crypto API Down")):
-            quote = tracker._fetch_crypto_quote("BTC", 25450.0)
-            self.assertIsInstance(quote, CryptoQuote)
-            self.assertEqual(quote.symbol, "BTC")
-            self.assertGreater(quote.price_usd, 0)
-            self.assertGreater(quote.price_vnd, 0)
+            with self.assertRaisesRegex(RuntimeError, "MARKET_DATA_UNAVAILABLE"):
+                tracker._fetch_crypto_quote("BTC", 25450.0)
 
     def test_offline_network_failure_recovery_full_hub(self):
         """Verify WebIntelligenceHub complete offline resilience without exceptions."""
@@ -234,10 +235,9 @@ class TestR5WebIntelligenceAdversarial(unittest.TestCase):
             self.assertIsInstance(news_res, list)
             self.assertGreaterEqual(len(news_res), 1)
 
-            # 4. Crypto rates fallback
-            crypto_res = hub.get_crypto_rates()
-            self.assertIn("BTC", crypto_res)
-            self.assertIn("ETH", crypto_res)
+            # 4. No current quote is available when both transports fail.
+            with self.assertRaisesRegex(RuntimeError, "MARKET_DATA_UNAVAILABLE"):
+                hub.get_crypto_rates()
 
             # 5. Morning briefing aggregation fallback
             briefing = hub.generate_morning_briefing()
@@ -245,6 +245,10 @@ class TestR5WebIntelligenceAdversarial(unittest.TestCase):
             self.assertIn("news", briefing)
             self.assertIn("crypto", briefing)
             self.assertIn("speech_text", briefing)
+            self.assertFalse(briefing["success"])
+            self.assertEqual(briefing["status"], "LIMITED")
+            self.assertEqual(briefing["crypto"], {})
+            self.assertIsNone(briefing["usd_vnd_rate"])
 
 
 class TestR6ProactiveIntelligenceAdversarial(unittest.TestCase):

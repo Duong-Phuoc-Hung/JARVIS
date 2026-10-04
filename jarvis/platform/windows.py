@@ -666,6 +666,45 @@ class WindowsPlatformAPI:
             return False
         return bool(self.user32.LockWorkStation())
 
+    def suspend_system(self, hibernate: bool = False) -> bool:
+        """Suspends system into sleep (hibernate=False) or hibernate (hibernate=True)."""
+        if sys.platform != "win32":
+            return False
+        try:
+            # SetSuspendState(bHibernate, bForce, bWakeupEventsDisabled)
+            powrprof = getattr(ctypes, "windll", None) and getattr(ctypes.windll, "powrprof", None)
+            if powrprof and hasattr(powrprof, "SetSuspendState"):
+                return bool(powrprof.SetSuspendState(1 if hibernate else 0, 1, 0))
+        except Exception as exc:
+            logger.error("SetSuspendState failed: %s", exc)
+        return False
+
+    def shutdown_system(self, restart: bool = False, delay_s: int = 30) -> bool:
+        """Schedules an abortable system shutdown or restart."""
+        if sys.platform != "win32":
+            return False
+        try:
+            flag = "/r" if restart else "/s"
+            cmd = ["shutdown.exe", flag, "/t", str(max(0, int(delay_s))), "/c", "JARVIS automated system power action"]
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=5, creationflags=_cflags)
+            return res.returncode == 0
+        except Exception as exc:
+            logger.error("shutdown.exe failed: %s", exc)
+        return False
+
+    def abort_shutdown(self) -> bool:
+        """Aborts a pending scheduled system shutdown."""
+        if sys.platform != "win32":
+            return False
+        try:
+            _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            res = subprocess.run(["shutdown.exe", "/a"], capture_output=True, text=True, timeout=5, creationflags=_cflags)
+            return res.returncode == 0
+        except Exception as exc:
+            logger.error("shutdown /a failed: %s", exc)
+        return False
+
 
 # Module-level default singleton
 platform_win32 = WindowsPlatformAPI()
@@ -688,6 +727,9 @@ send_unicode_text = platform_win32.send_unicode_text
 send_keystrokes = platform_win32.send_keystrokes
 
 lock_workstation = platform_win32.lock_workstation
+suspend_system = platform_win32.suspend_system
+shutdown_system = platform_win32.shutdown_system
+abort_shutdown = platform_win32.abort_shutdown
 is_window_cloaked = platform_win32.is_window_cloaked
 is_window_hung = platform_win32.is_window_hung
 

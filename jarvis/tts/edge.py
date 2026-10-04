@@ -72,7 +72,7 @@ def _mp3_to_pcm(mp3_bytes: bytes, target_sr: int = 24000) -> bytes:
     except Exception as e:
         log.debug("PyAV MP3 decode failed (%s)", e)
 
-    return mp3_bytes
+    raise TTSError("Unable to decode Edge TTS audio to PCM; no usable decoder")
 
 
 class EdgeTTS(BaseTTSEngine):

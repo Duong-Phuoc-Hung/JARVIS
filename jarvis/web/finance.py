@@ -4,7 +4,7 @@ jarvis/web/finance.py
 Financial Market Intelligence Tracker for JARVIS.
 Provides real-time Crypto tracking (BTC, ETH in USD and VND),
 Currency exchange rates (USD/VND, EUR/VND), and Stock quotes (VN-Index, AAPL).
-Integrates with TTLCache for 10-minute caching and graceful offline fallback.
+Integrates with TTLCache for 10-minute caching; unavailable feeds fail closed.
 """
 from __future__ import annotations
 
@@ -74,8 +74,6 @@ class FinanceTracker:
     foreign exchange rates, and public equity indices.
     """
 
-    DEFAULT_USD_VND_RATE = 25450.0
-
     def __init__(
         self,
         cache: TTLCache | None = None,
@@ -108,7 +106,7 @@ class FinanceTracker:
         return rate
 
     def _fetch_exchange_rate(self, base: str, target: str) -> float:
-        """Queries open exchange rate API or falls back to baseline rate."""
+        """Queries the exchange rate API; never invents an offline quote."""
         url = f"https://open.er-api.com/v6/latest/{base}"
         try:
             if REQUESTS_AVAILABLE and requests is not None:
@@ -126,12 +124,17 @@ class FinanceTracker:
         except Exception as exc:
             logger.debug("Failed to fetch live exchange rate %s/%s: %s", base, target, exc)
 
-        # Baseline fallback
-        if base == "USD" and target == "VND":
-            return self.DEFAULT_USD_VND_RATE
-        elif base == "EUR" and target == "VND":
-            return 27800.0
-        return 1.0
+        raise RuntimeError("MARKET_DATA_UNAVAILABLE: exchange rate")
+
+    def get_forex_summary(self, currency: str = "USD") -> str:
+        """Generates natural language summary for foreign exchange rate to VND."""
+        curr = currency.upper().strip()
+        rate = self.get_exchange_rate(curr, "VND")
+        if curr == "USD":
+            return f"Tỷ giá 1 Đô la Mỹ (USD) hiện đổi được khoảng {rate:,.0f} Việt Nam Đồng, thưa Ngài."
+        elif curr == "EUR":
+            return f"Tỷ giá 1 Euro (EUR) hiện đổi được khoảng {rate:,.0f} Việt Nam Đồng, thưa Ngài."
+        return f"Tỷ giá 1 {curr} hiện đổi được khoảng {rate:,.0f} Việt Nam Đồng, thưa Ngài."
 
     # ──────────────────────────────────────────────────────────────────────────
     # 2. Cryptocurrency Rates
@@ -243,20 +246,7 @@ class FinanceTracker:
             except Exception as exc2:
                 logger.debug("CoinGecko API failed for %s: %s", symbol, exc2)
 
-        # 3. Offline Baseline Defaults
-        defaults = {
-            "BTC": 64500.0,
-            "ETH": 3450.0,
-            "SOL": 145.0,
-        }
-        price_usd = defaults.get(symbol, 100.0)
-        return CryptoQuote(
-            symbol=symbol,
-            name=coin_name,
-            price_usd=price_usd,
-            price_vnd=price_usd * usd_vnd_rate,
-            change_24h_pct=0.5,
-        )
+        raise RuntimeError("MARKET_DATA_UNAVAILABLE: cryptocurrency")
 
     # ──────────────────────────────────────────────────────────────────────────
     # 3. Stock Market Quotes
@@ -280,7 +270,7 @@ class FinanceTracker:
         return quote
 
     def _fetch_stock_quote(self, ticker: str) -> StockQuote:
-        """Queries stock ticker data from public endpoints or provides baseline."""
+        """Queries stock ticker data from public endpoints or fails closed."""
         # 1. Yahoo Finance chart API for US stocks / VNINDEX
         symbol_query = "^VNINDEX" if ticker == "VNINDEX" else ticker
         try:
@@ -312,20 +302,7 @@ class FinanceTracker:
         except Exception as exc:
             logger.debug("Yahoo finance chart failed for %s: %s", ticker, exc)
 
-        # Baseline Defaults
-        defaults = {
-            "VNINDEX": (1250.5, "VND", 0.35, "VN-Index"),
-            "AAPL": (225.5, "USD", -0.15, "Apple Inc."),
-            "TSLA": (210.0, "USD", 1.20, "Tesla Inc."),
-        }
-        def_price, def_curr, def_chg, def_name = defaults.get(ticker, (100.0, "USD", 0.0, ticker))
-        return StockQuote(
-            ticker=ticker,
-            price=def_price,
-            currency=def_curr,
-            change_pct=def_chg,
-            company_name=def_name,
-        )
+        raise RuntimeError("MARKET_DATA_UNAVAILABLE: stock quote")
 
     # ──────────────────────────────────────────────────────────────────────────
     # 4. Summary Formatters

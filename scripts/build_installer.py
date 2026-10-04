@@ -168,7 +168,7 @@ def _generate_spec_file() -> None:
 # JARVIS.spec — PyInstaller Spec File (tự sinh bởi build_installer.py)
 # Regenerated on every build — do not hand-edit, changes will be overwritten.
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
 block_cipher = None
 
@@ -182,8 +182,10 @@ hiddenimports = (
     collect_submodules("jarvis.browser") +
     collect_submodules("jarvis.plugins") +
     collect_submodules("jarvis.agent") +
+    collect_submodules("edge_tts") +
+    collect_submodules("openwakeword") +
     ["pystray", "PIL", "win32api", "win32con", "win32gui",
-     "ctypes", "json", "sqlite3", "threading", "pathlib"]
+     "ctypes", "json", "sqlite3", "threading", "pathlib", "soundfile"]
 )
 
 a = Analysis(
@@ -192,7 +194,7 @@ a = Analysis(
     binaries=[],
     datas=[
         {datas_block}
-    ],
+    ] + collect_data_files("openwakeword") + collect_data_files("edge_tts"),
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={{}},
@@ -201,7 +203,7 @@ a = Analysis(
     # jarvis.skills.clipboard import it unconditionally at module level,
     # so excluding it produces an exe that crashes with ModuleNotFoundError
     # as soon as either module loads.
-    excludes=["matplotlib", "scipy", "numpy.testing"],
+    excludes=["matplotlib", "numpy.testing"],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -382,7 +384,12 @@ def main() -> None:
         installer_ok = build_installer(sign=True)
 
     print_summary(exe_ok, installer_ok)
-    success = (exe_ok or (args.installer_only and installer_ok))
+    if args.installer_only:
+        success = installer_ok
+    elif args.exe_only:
+        success = exe_ok
+    else:
+        success = exe_ok and installer_ok
     sys.exit(0 if success else 1)
 
 

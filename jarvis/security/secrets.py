@@ -56,7 +56,11 @@ def _keyring_available() -> bool:
         return False
 
 
-def get_secret(name: str, fallback_env: bool = True) -> str | None:
+# Substrings indicating credential/auth keys that warrant missing warning
+_SENSITIVE_PATTERNS = ("_KEY", "_TOKEN", "_SECRET", "_PASSWORD", "API_KEY", "ACCESS_TOKEN")
+
+
+def get_secret(name: str, fallback_env: bool = True, warn_if_missing: bool | None = None) -> str | None:
     """
     Read a secret by name.
 
@@ -68,6 +72,7 @@ def get_secret(name: str, fallback_env: bool = True) -> str | None:
     Args:
         name: Secret name (e.g. "GEMINI_API_KEY")
         fallback_env: If True, check os.environ when keyring has no value.
+        warn_if_missing: If True, log a warning when not found. If None, only warn for sensitive credential keys.
     """
     # 1. Try keyring / Windows Credential Manager
     if _keyring_available():
@@ -87,7 +92,12 @@ def get_secret(name: str, fallback_env: bool = True) -> str | None:
             log.debug("secrets: loaded %s from environment variable", name)
             return value
 
-    if name not in _warned_missing:
+    should_warn = (
+        warn_if_missing
+        if warn_if_missing is not None
+        else any(pat in name.upper() for pat in _SENSITIVE_PATTERNS)
+    )
+    if should_warn and name not in _warned_missing:
         _warned_missing.add(name)
         log.warning("secrets: %s not found in Credential Manager or environment", name)
     return None

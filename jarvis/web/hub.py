@@ -122,11 +122,21 @@ class WebIntelligenceHub:
         news_headlines = [f"{a.title} ({a.source})" if a.source else a.title for a in top_news_articles]
 
         # 3. Crypto & Currency
-        crypto_rates = self.get_crypto_rates()
-        btc_price = crypto_rates.get("BTC", 0.0)
-        eth_price = crypto_rates.get("ETH", 0.0)
-        usd_vnd_rate = self.finance.get_exchange_rate("USD", "VND")
-        crypto_speech = self.finance.get_crypto_summary()
+        unavailable_sections = []
+        try:
+            crypto_rates = self.get_crypto_rates()
+            crypto_speech = f"BTC ${crypto_rates['BTC']:,.0f} | ETH ${crypto_rates['ETH']:,.0f}"
+        except (RuntimeError, ValueError, KeyError):
+            crypto_rates = {}
+            crypto_speech = "Không lấy được giá tiền mã hóa hiện tại."
+            unavailable_sections.append("crypto")
+        try:
+            usd_vnd_rate = self.finance.get_exchange_rate("USD", "VND")
+            rate_speech = f"USD/VND {usd_vnd_rate:,.0f}"
+        except (RuntimeError, ValueError):
+            usd_vnd_rate = None
+            rate_speech = "Không lấy được tỷ giá hiện tại."
+            unavailable_sections.append("exchange_rate")
 
         # 4. Spoken Summary Formulation
         now = datetime.datetime.now()
@@ -135,7 +145,7 @@ class WebIntelligenceHub:
         spoken_parts = [
             f"{greeting} Sau đây là bản tin tổng hợp hôm nay:",
             weather_speech,
-            f"Về thị trường tài chính: {crypto_speech}",
+            f"Về thị trường tài chính: {crypto_speech}. {rate_speech}.",
             "Điểm qua 3 tin tức công nghệ nổi bật:",
         ]
         for idx, art in enumerate(top_news_articles, start=1):
@@ -146,13 +156,16 @@ class WebIntelligenceHub:
         # 5. Overlay UI Bullet Points
         overlay_bullets = [
             f"🌤️ **Thời tiết {weather_data.city}**: {weather_data.temp_c:.1f}°C, {weather_data.condition} (Độ ẩm {weather_data.humidity}%)",
-            f"💰 **Thị trường**: BTC ${btc_price:,.0f} | ETH ${eth_price:,.0f} | USD/VND {usd_vnd_rate:,.0f}",
+            f"💰 **Thị trường**: {crypto_speech} | {rate_speech}",
             "📰 **Tin tức nổi bật**:",
         ]
         for idx, art in enumerate(top_news_articles, start=1):
             overlay_bullets.append(f"  • {art.title}")
 
         return {
+            "success": not unavailable_sections,
+            "status": "LIMITED" if unavailable_sections else "SUCCESS",
+            "unavailable_sections": unavailable_sections,
             "city": weather_data.city,
             "weather": weather_data.to_dict(),
             "weather_speech": weather_speech,
@@ -167,4 +180,70 @@ class WebIntelligenceHub:
             "speech_text": spoken_summary,
             "overlay_bullets": overlay_bullets,
             "timestamp": now.isoformat(),
+        }
+
+    def conduct_deep_research(self, topic: str, max_sources: int = 3) -> dict[str, Any]:
+        """
+        Conducts deep multi-source research on a topic, compiles an executive report,
+        and saves it to Desktop/JARVIS_Research_{slug}.md.
+        """
+        import datetime
+        import os
+        from pathlib import Path
+        clean_topic = topic.strip()
+        search_results = self.searcher.search(clean_topic, max_results=max_sources)
+        now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        lines = [
+            f"# 📑 Báo Cáo Nghiên Cứu Chuyên Sâu: {clean_topic}",
+            f"*Thời gian thực hiện: {now_str}*",
+            "",
+            "## 1. Tóm Tắt Tổng Quan (Executive Summary)",
+        ]
+
+        if not search_results:
+            lines.append("Không tìm thấy đủ dữ liệu công khai trên Internet cho chủ đề này.")
+        else:
+            snippets = [getattr(r, "snippet", "") for r in search_results if getattr(r, "snippet", "")]
+            combined_snippet = " ".join(snippets[:2])[:300]
+            lines.append(f"Chủ đề **{clean_topic}** đã được tổng hợp từ {len(search_results)} nguồn thông tin uy tín. {combined_snippet}")
+
+            lines.append("\n## 2. Các Luận Điểm Then Chốt (Key Findings)")
+            for i, item in enumerate(search_results, 1):
+                t = getattr(item, "title", f"Nguồn {i}")
+                s = getattr(item, "snippet", "")
+                lines.append(f"- **{t}**: {s}")
+
+            lines.append("\n## 3. Danh Mục Nguồn Tham Khảo (References)")
+            for i, item in enumerate(search_results, 1):
+                t = getattr(item, "title", f"Nguồn {i}")
+                u = getattr(item, "url", "")
+                lines.append(f"{i}. [{t}]({u})")
+
+        report_md = "\n".join(lines)
+        file_path_str = ""
+        try:
+            desktop = Path.home() / "Desktop"
+            if desktop.exists():
+                safe_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in clean_topic)[:30] or "report"
+                target_file = desktop / f"JARVIS_Research_{safe_name}.md"
+                target_file.write_text(report_md, encoding="utf-8")
+                file_path_str = str(target_file)
+        except Exception as exc:
+            logger.debug("Failed to write research report to Desktop: %s", exc)
+
+        if not search_results:
+            spoken_summary = f"Tôi đã tìm kiếm về {clean_topic} nhưng chưa thấy dữ liệu trực tuyến phù hợp, thưa Ngài."
+        elif file_path_str:
+            spoken_summary = f"Đã hoàn thành báo cáo nghiên cứu về {clean_topic} từ {len(search_results)} nguồn. Tôi đã lưu chi tiết ra màn hình Desktop cho Ngài."
+        else:
+            spoken_summary = f"Đã hoàn thành báo cáo nghiên cứu về {clean_topic} từ {len(search_results)} nguồn, thưa Ngài."
+
+        return {
+            "success": bool(search_results),
+            "topic": clean_topic,
+            "sources_count": len(search_results),
+            "spoken_summary": spoken_summary,
+            "report_path": file_path_str,
+            "report_markdown": report_md,
         }
