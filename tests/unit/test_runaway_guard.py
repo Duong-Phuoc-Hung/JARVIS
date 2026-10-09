@@ -249,12 +249,60 @@ class TestCanonicalLaunchKeys(unittest.TestCase):
 
 class TestTriggerDecisionShape(unittest.TestCase):
     def test_trigger_decision_is_a_frozen_dataclass_with_expected_fields(self) -> None:
+        from dataclasses import FrozenInstanceError
+
         d = TriggerDecision(allowed=True, reason="OK")
         self.assertTrue(d.allowed)
         self.assertEqual(d.reason, "OK")
         self.assertEqual(d.retry_after_s, 0.0)
-        with self.assertRaises(Exception):
+        with self.assertRaises((AttributeError, FrozenInstanceError)):
             d.allowed = False  # frozen -- must not be mutable
+
+
+class TestClockInjectionSeam(unittest.TestCase):
+    def test_passive_guard_default_clock_uses_real_time_monotonic(self) -> None:
+        guard = PassiveTriggerGuard(min_rearm_interval_s=2.5)
+        decision = guard.try_acquire("WAKE_WORD:hey_jarvis")  # no now parameter passed
+        self.assertTrue(decision.allowed)
+        self.assertIn("WAKE_WORD:hey_jarvis", guard._last_trigger)
+        self.assertGreater(guard._last_trigger["WAKE_WORD:hey_jarvis"], 0.0)
+
+    def test_passive_guard_injected_clock_sequencing_without_sleeping(self) -> None:
+        times = iter([100.0, 101.0, 103.0])
+        guard = PassiveTriggerGuard(min_rearm_interval_s=2.0, clock=lambda: next(times))
+        r1 = guard.try_acquire("GESTURE:double_clap")
+        self.assertTrue(r1.allowed)
+        r2 = guard.try_acquire("GESTURE:double_clap")
+        self.assertFalse(r2.allowed)
+        self.assertEqual(r2.reason, "MIN_INTERVAL")
+        r3 = guard.try_acquire("GESTURE:double_clap")
+        self.assertTrue(r3.allowed)
+
+    def test_passive_guard_explicit_now_overrides_injected_clock(self) -> None:
+        def _failing_clock() -> float:
+            raise RuntimeError("Clock should not be invoked when explicit now is provided")
+
+        guard = PassiveTriggerGuard(clock=_failing_clock)
+        decision = guard.try_acquire("GESTURE:double_clap", now=42.0)
+        self.assertTrue(decision.allowed)
+
+    def test_launch_dedupe_guard_default_clock_uses_real_time_monotonic(self) -> None:
+        guard = LaunchDedupeGuard(default_cooldown_s=5.0)
+        self.assertTrue(guard.should_allow("spotify", "track_uri"))  # no now parameter passed
+
+    def test_launch_dedupe_guard_injected_clock_sequencing_without_sleeping(self) -> None:
+        times = iter([0.0, 2.0, 6.0])
+        guard = LaunchDedupeGuard(default_cooldown_s=5.0, clock=lambda: next(times))
+        self.assertTrue(guard.should_allow("open_app", "cursor"))
+        self.assertFalse(guard.should_allow("open_app", "cursor"))
+        self.assertTrue(guard.should_allow("open_app", "cursor"))
+
+    def test_launch_dedupe_guard_explicit_now_overrides_injected_clock(self) -> None:
+        def _failing_clock() -> float:
+            raise RuntimeError("Clock should not be invoked when explicit now is provided")
+
+        guard = LaunchDedupeGuard(clock=_failing_clock)
+        self.assertTrue(guard.should_allow("open_app", "cursor", now=10.0))
 
 
 if __name__ == "__main__":

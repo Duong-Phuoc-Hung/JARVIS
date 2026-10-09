@@ -88,32 +88,32 @@ def test_double_clap_welcome_first_time_then_voice_loop_progression():
     assert count_welcome_actions >= 3
 
     # Fast-forward monotonic clock past 3.0s cooldown
-    with patch("time.monotonic", side_effect=[100.0, 100.0, 100.0, 100.0]):
-        app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
+    app._passive_trigger_guard._clock = lambda: 100.0
+    app._passive_trigger_guard.reset("GESTURE:double_clap")  # P0 runaway-hardening: clear circuit-breaker state instead of the old ad hoc _pattern_last_fired dict
 
-        # Track spoken utterances
-        spoken_phrases: List[str] = []
-        if app.tts_manager:
-            app.tts_manager.speak = lambda txt, **kw: spoken_phrases.append(txt) or True
+    # Track spoken utterances
+    spoken_phrases: List[str] = []
+    if app.tts_manager:
+        app.tts_manager.speak = lambda txt, **kw: spoken_phrases.append(txt) or True
 
-        # Provide simulated audio for record_audio
-        sr = 16000
-        t = np.linspace(0, 0.5, int(sr * 0.5), endpoint=False)
-        simulated_voice_audio = (0.5 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
-        app.record_audio = lambda *a, **kw: simulated_voice_audio
+    # Provide simulated audio for record_audio
+    sr = 16000
+    t = np.linspace(0, 0.5, int(sr * 0.5), endpoint=False)
+    simulated_voice_audio = (0.5 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
+    app.record_audio = lambda *a, **kw: simulated_voice_audio
 
-        # --- SECOND TRIGGER (t=100.0s) ---
-        app._on_gesture_event("double_clap", confidence=1.0)
-        time.sleep(0.4)
+    # --- SECOND TRIGGER (t=100.0s) ---
+    app._on_gesture_event("double_clap", confidence=1.0)
+    time.sleep(0.4)
 
-        # Verify welcome actions were NOT re-executed
-        count_welcome_after = len([a for a in executed_actions if a in ("spotify", "chrome_claude", "tts_welcome")])
-        assert count_welcome_after == count_welcome_actions, "Welcome actions must not repeat on 2nd double clap"
+    # Verify welcome actions were NOT re-executed
+    count_welcome_after = len([a for a in executed_actions if a in ("spotify", "chrome_claude", "tts_welcome")])
+    assert count_welcome_after == count_welcome_actions, "Welcome actions must not repeat on 2nd double clap"
 
-        # Verify AI voice loop was executed:
-        # TTS should have spoken listening prompt and/or response
-        assert len(spoken_phrases) >= 1
-        assert any("lắng nghe" in p.lower() or "hệ thống" in p.lower() or "thực hiện" in p.lower() for p in spoken_phrases)
+    # Verify AI voice loop was executed:
+    # TTS should have spoken listening prompt and/or response
+    assert len(spoken_phrases) >= 1
+    assert any("lắng nghe" in p.lower() or "hệ thống" in p.lower() or "thực hiện" in p.lower() for p in spoken_phrases)
 
     app.stop()
 
@@ -135,26 +135,29 @@ def test_cooldown_debounce_suppression_and_info_logging(caplog):
     app.config.set("gesture.patterns.custom_pat.actions", ["custom_act"])
     app.event_bus.subscribe("action.post_dispatch", lambda **ev: None)
 
+    current_time = 10.0
+    app._passive_trigger_guard._clock = lambda: current_time
+
     with caplog.at_level(logging.INFO, logger="jarvis.core.app"):
         # Trigger 1 at t=10.0s -> Accepted
-        with patch("time.monotonic", return_value=10.0):
-            app._on_gesture_event("custom_pat", confidence=0.95)
+        current_time = 10.0
+        app._on_gesture_event("custom_pat", confidence=0.95)
 
         # Trigger 2 at t=10.5s (elapsed 0.5s < 3.0s) -> Suppressed
-        with patch("time.monotonic", return_value=10.5):
-            app._on_gesture_event("custom_pat", confidence=0.95)
+        current_time = 10.5
+        app._on_gesture_event("custom_pat", confidence=0.95)
 
         # Trigger 3 at t=12.0s (elapsed 2.0s < 3.0s) -> Suppressed
-        with patch("time.monotonic", return_value=12.0):
-            app._on_gesture_event("custom_pat", confidence=0.95)
+        current_time = 12.0
+        app._on_gesture_event("custom_pat", confidence=0.95)
 
         # Trigger 4 at t=12.9s (elapsed 2.9s < 3.0s) -> Suppressed
-        with patch("time.monotonic", return_value=12.9):
-            app._on_gesture_event("custom_pat", confidence=0.95)
+        current_time = 12.9
+        app._on_gesture_event("custom_pat", confidence=0.95)
 
         # Trigger 5 at t=13.1s (elapsed 3.1s >= 3.0s) -> Accepted
-        with patch("time.monotonic", return_value=13.1):
-            app._on_gesture_event("custom_pat", confidence=0.95)
+        current_time = 13.1
+        app._on_gesture_event("custom_pat", confidence=0.95)
 
     # Check suppression logs
     suppressed_logs = [r for r in caplog.records if "suppressed" in r.message.lower() and r.levelname == "INFO"]

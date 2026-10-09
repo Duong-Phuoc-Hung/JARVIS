@@ -12,12 +12,12 @@
 - [x] **God-object decomposition completed**:
   - `jarvis/core/app.py`: Decomposed from 3,965 to 2,136 lines into `jarvis/core/handlers/` (`system_handlers.py`, `service_handlers.py`, `automation_handlers.py`, `base.py`).
   - `jarvis/llm/router.py`: Decomposed from 3,678 to 2,214 lines by extracting 1,446-line rule engine into `jarvis/llm/rules_catalog.py` and dataclass into `jarvis/llm/models.py`.
-- [x] **Real acceptance verification closed**:
-  - Live human voice wake-word acceptance harness (`tools/live_wake_word_acceptance.py`) executed against physical audio hardware (`PASS runtime (0 false alarms)`).
-  - Empirical 10-workflow Real-OS runner (`scripts/run_10_workflow_real_os.py`) executed against real Windows kernel (8/10 PASS runtime, 2/10 PASS fail-closed, 0 FAIL).
+- [ ] **Real acceptance verification remains open**:
+  - Live wake-word harness đã được sửa fail-closed và microphone probe đạt `PASS engineering`; artifact ambient 2,06 giây trước đây không đủ điều kiện. Còn cần operator `true_wake` >=10 lần đạt >=95% và ambient soak >=120 giây không false alarm để có `PASS runtime` theo phiên.
+  - 10-workflow Real-OS gate vẫn mở: artifact 8/10 cũ đã bị vô hiệu hóa do runner chạy sai domain/thiếu objective evidence. Preflight refactor đã `PASS engineering` 10/10 qua seam in-memory không khởi động subsystem; chưa có 200 trial real voice theo protocol.
   - Authenticode signing (`scripts/sign_installer_v520.py`) upgraded with fail-closed `--require-commercial` mode and machine-readable audit manifests (`signature_audit.json`).
-- [x] **Automated Security Audit**: Zero findings across 210 files / 69,674 lines (`tools/security_scanner.py`).
-- [x] **Test suite integrity & standalone execution**: Remediated module-level skip mechanisms in `tests/test_biometrics.py` and `tests/test_live_infra_evidence.py` to ensure clean exit code 0 under standalone pytest runner; verified 63/63 root test files and 4,395 test cases across the entire repository.
+- [x] **Automated Security Audit**: Zero findings across 210 files / 69,684 lines in 1.44s (`tools/security_scanner.py`).
+- [x] **Clock isolation and final regression**: guard clocks được inject theo instance, loại bỏ test phụ thuộc global `time.monotonic`; full unit **2,903 passed / 3 skipped**, E2E **269 passed / 21 skipped**, full repository **4,415 passed / 47 skipped / 268 subtests / 0 failed** trong 15:32.
 
 ## Release hardening (2026-10-04, unreleased)
 

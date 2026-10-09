@@ -86,10 +86,9 @@ hội thoại Việt. Audio là Edge TTS, không phải microphone người dùn
 Vì vậy không ghi “đã sửa hoàn toàn runtime” hoặc “GO”. Code đã sửa đúng cơ chế
 và replay đã vượt các câu lỗi, nhưng product gate chỉ đóng sau dữ liệu live.
 
-Full run còn phát một `RuntimeWarning: coroutine 'Server._close' was never
-awaited` tại teardown của một test gesture. Warning này không liên quan trực
-tiếp đến classifier và không làm test fail, nhưng vẫn là technical debt mở;
-không dùng `0 failed` để tuyên bố repository hoàn toàn không còn lỗi.
+Ghi chú lịch sử: full run ngày 2026-10-04 từng phát một `RuntimeWarning` tại
+teardown. Lỗi lifecycle này đã được sửa và kiểm tra riêng ở thay đổi sau; nó
+không phải bằng chứng đóng gate wake-word live.
 
 ## 7. Quy trình nghiệm thu live còn lại
 

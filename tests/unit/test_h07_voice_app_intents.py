@@ -27,6 +27,7 @@ process and never opens a real browser window.
 """
 from __future__ import annotations
 
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -122,9 +123,11 @@ def _dispatch(app: JarvisApp, spotify: SpotifyPlugin, intent) -> dict:
 class _BaseCase(unittest.TestCase):
     def setUp(self) -> None:
         launch_dedupe_guard.reset()
+        launch_dedupe_guard._clock = time.monotonic
 
     def tearDown(self) -> None:
         launch_dedupe_guard.reset()
+        launch_dedupe_guard._clock = time.monotonic
 
 
 # ============================================================================
@@ -371,70 +374,70 @@ class TestH07RateLimitProof(_BaseCase):
     def test_settings_too_fast_repeat_suppressed_then_allowed_after_cooldown(self):
         controller = ComputerController(win32=MagicMock())
         times = iter([0.0, 1.0, 10.0])
-        with patch("jarvis.core.runaway_guard.time.monotonic", side_effect=lambda: next(times)):
-            with patch("os.startfile", create=True) as m1:
-                r1 = controller.open_app("Settings")
-            self.assertTrue(r1.get("success"))
-            m1.assert_called_once()
+        launch_dedupe_guard._clock = lambda: next(times)
+        with patch("os.startfile", create=True) as m1:
+            r1 = controller.open_app("Settings")
+        self.assertTrue(r1.get("success"))
+        m1.assert_called_once()
 
-            with patch("os.startfile", create=True) as m2:
-                r2 = controller.open_app("Settings")
-            self.assertFalse(r2.get("success"), "immediate repeat must be suppressed truthfully")
-            self.assertEqual(r2.get("error_code"), "LAUNCH_RATE_LIMITED")
-            m2.assert_not_called()
+        with patch("os.startfile", create=True) as m2:
+            r2 = controller.open_app("Settings")
+        self.assertFalse(r2.get("success"), "immediate repeat must be suppressed truthfully")
+        self.assertEqual(r2.get("error_code"), "LAUNCH_RATE_LIMITED")
+        m2.assert_not_called()
 
-            with patch("os.startfile", create=True) as m3:
-                r3 = controller.open_app("Settings")
-            self.assertTrue(r3.get("success"), "same target must be allowed again after cooldown elapses")
+        with patch("os.startfile", create=True) as m3:
+            r3 = controller.open_app("Settings")
+        self.assertTrue(r3.get("success"), "same target must be allowed again after cooldown elapses")
 
     def test_spotify_too_fast_repeat_suppressed_then_allowed_after_cooldown(self):
         spotify = _make_spotify_plugin()
         times = iter([0.0, 1.0, 10.0])
-        with patch("jarvis.core.runaway_guard.time.monotonic", side_effect=lambda: next(times)):
-            with patch("os.startfile", create=True) as m1:
-                r1 = spotify.play_track()
-            self.assertTrue(r1.get("success"))
-            m1.assert_called_once()
+        launch_dedupe_guard._clock = lambda: next(times)
+        with patch("os.startfile", create=True) as m1:
+            r1 = spotify.play_track()
+        self.assertTrue(r1.get("success"))
+        m1.assert_called_once()
 
-            with patch("os.startfile", create=True) as m2:
-                r2 = spotify.play_track()
-            self.assertFalse(r2.get("success"))
-            self.assertEqual(r2.get("error_code"), "LAUNCH_RATE_LIMITED")
-            m2.assert_not_called()
+        with patch("os.startfile", create=True) as m2:
+            r2 = spotify.play_track()
+        self.assertFalse(r2.get("success"))
+        self.assertEqual(r2.get("error_code"), "LAUNCH_RATE_LIMITED")
+        m2.assert_not_called()
 
-            with patch("os.startfile", create=True) as m3:
-                r3 = spotify.play_track()
-            self.assertTrue(r3.get("success"))
+        with patch("os.startfile", create=True) as m3:
+            r3 = spotify.play_track()
+        self.assertTrue(r3.get("success"))
 
     def test_claude_too_fast_repeat_suppressed_then_allowed_after_cooldown(self):
         app = _make_handler_app()
         times = iter([0.0, 1.0, 10.0])
-        with patch("jarvis.core.runaway_guard.time.monotonic", side_effect=lambda: next(times)):
-            with patch("webbrowser.open") as m1:
-                r1 = app._handle_web_open(target="claude", site="claude")
-            self.assertEqual(r1.get("status"), "success")
-            m1.assert_called_once()
+        launch_dedupe_guard._clock = lambda: next(times)
+        with patch("webbrowser.open") as m1:
+            r1 = app._handle_web_open(target="claude", site="claude")
+        self.assertEqual(r1.get("status"), "success")
+        m1.assert_called_once()
 
-            with patch("webbrowser.open") as m2:
-                r2 = app._handle_web_open(target="claude", site="claude")
-            self.assertEqual(r2.get("status"), "failed")
-            m2.assert_not_called()
+        with patch("webbrowser.open") as m2:
+            r2 = app._handle_web_open(target="claude", site="claude")
+        self.assertEqual(r2.get("status"), "failed")
+        m2.assert_not_called()
 
-            with patch("webbrowser.open") as m3:
-                r3 = app._handle_web_open(target="claude", site="claude")
-            self.assertEqual(r3.get("status"), "success")
+        with patch("webbrowser.open") as m3:
+            r3 = app._handle_web_open(target="claude", site="claude")
+        self.assertEqual(r3.get("status"), "success")
 
     def test_different_targets_are_not_incorrectly_cross_suppressed(self):
         controller = ComputerController(win32=MagicMock())
         spotify = _make_spotify_plugin()
         app = _make_handler_app()
-        with patch("jarvis.core.runaway_guard.time.monotonic", return_value=0.0):
-            with patch("os.startfile", create=True) as m1:
-                r_settings = controller.open_app("Settings")
-            with patch("os.startfile", create=True) as m2:
-                r_spotify = spotify.play_track()
-            with patch("webbrowser.open") as m3:
-                r_claude = app._handle_web_open(target="claude", site="claude")
+        launch_dedupe_guard._clock = lambda: 0.0
+        with patch("os.startfile", create=True) as m1:
+            r_settings = controller.open_app("Settings")
+        with patch("os.startfile", create=True) as m2:
+            r_spotify = spotify.play_track()
+        with patch("webbrowser.open") as m3:
+            r_claude = app._handle_web_open(target="claude", site="claude")
         self.assertTrue(r_settings.get("success"))
         self.assertTrue(r_spotify.get("success"))
         self.assertEqual(r_claude.get("status"), "success")

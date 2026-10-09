@@ -170,16 +170,16 @@ class TestWakeWordPassiveTriggerGuardWiring(unittest.TestCase):
         # MIN_INTERVAL never blocks any individual call -- only the sliding-
         # window lockout (default max_triggers=5 within window_s=60.0) can.
         times = [i * 2.5 for i in range(7)]  # 0, 2.5, 5.0, ..., 15.0
-        with patch("jarvis.core.runaway_guard.time.monotonic", side_effect=lambda: times.pop(0)):
-            for _ in range(7):
-                self.app._on_wake_word_triggered()
+        self.app._passive_trigger_guard._clock = lambda: times.pop(0)
+        for _ in range(7):
+            self.app._on_wake_word_triggered()
         self.assertEqual(len(self.calls), 5, "circuit breaker must trip after max_triggers within the window")
 
     def test_immediate_retrigger_suppressed_by_min_interval(self) -> None:
         seq = iter([0.0, 0.1])
-        with patch("jarvis.core.runaway_guard.time.monotonic", side_effect=lambda: next(seq)):
-            self.app._on_wake_word_triggered()
-            self.app._on_wake_word_triggered()
+        self.app._passive_trigger_guard._clock = lambda: next(seq)
+        self.app._on_wake_word_triggered()
+        self.app._on_wake_word_triggered()
         self.assertEqual(len(self.calls), 1)
 
 
@@ -195,17 +195,28 @@ class TestGesturePassiveTriggerGuardWiring(unittest.TestCase):
     def test_repeated_triple_clap_triggers_are_bounded(self) -> None:
         # triple_clap's own established cooldown (_action_fanout_cooldown_s) is 3.0s.
         times = [i * 3.0 for i in range(7)]  # 0, 3, 6, ..., 18
-        with patch("jarvis.core.runaway_guard.time.monotonic", side_effect=lambda: times.pop(0)):
-            for _ in range(7):
-                self.app._on_gesture_event("triple_clap", confidence=1.0)
+        self.app._passive_trigger_guard._clock = lambda: times.pop(0)
+        for _ in range(7):
+            self.app._on_gesture_event("triple_clap", confidence=1.0)
         # Each allowed trigger dispatches exactly one action ("system_status").
         self.assertEqual(len(self.dispatched), 5)
 
     def test_immediate_regesture_suppressed_by_min_interval(self) -> None:
         seq = iter([0.0, 0.5])
-        with patch("jarvis.core.runaway_guard.time.monotonic", side_effect=lambda: next(seq)):
+        self.app._passive_trigger_guard._clock = lambda: next(seq)
+        self.app._on_gesture_event("triple_clap", confidence=1.0)
+        self.app._on_gesture_event("triple_clap", confidence=1.0)
+        self.assertEqual(len(self.dispatched), 1)
+
+    def test_dispatcher_time_calls_do_not_consume_guard_clock_iterator(self) -> None:
+        """Proves unrelated dispatcher/telemetry time calls cannot consume the guard clock iterator."""
+        times = [0.0, 0.5]
+        self.app._passive_trigger_guard._clock = lambda: times.pop(0)
+        with patch("time.monotonic", return_value=999.0):
             self.app._on_gesture_event("triple_clap", confidence=1.0)
             self.app._on_gesture_event("triple_clap", confidence=1.0)
+        # Guard clock iterator was consumed strictly by guard (2 calls -> 0 left)
+        self.assertEqual(len(times), 0)
         self.assertEqual(len(self.dispatched), 1)
 
 
@@ -302,8 +313,8 @@ class TestDoubleClapFanoutOptIn(unittest.TestCase):
         """
         self.app.config.set("gesture.patterns.double_clap.allow_side_effect_fanout", True)
         times = [i * 3.0 for i in range(10)]
-        with patch("threading.Thread", _SyncThread), \
-             patch("jarvis.core.runaway_guard.time.monotonic", side_effect=lambda: times.pop(0)):
+        self.app._passive_trigger_guard._clock = lambda: times.pop(0)
+        with patch("threading.Thread", _SyncThread):
             for _ in range(10):
                 self.app._on_gesture_event("double_clap", confidence=1.0)
         spotify_launches = [a for a in self.dispatched if a == "spotify"]

@@ -1,6 +1,6 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Architectural gap remediation & acceptance verification (2026-10-09), source **5.2.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-10-10), source **5.2.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
 - Triệt tiêu các lỗ hổng trung thực (PacketCapture TShark parsing, Telegram/Discord API 200/ok verification, Terminal UI truthful dispatch).
 - Triệt tiêu 100% `RuntimeWarning: coroutine 'Server._close' was never awaited` trong vòng đời tắt Web Dashboard / WebSocket.
 - Sửa đứt gãy OpenWakeWord streaming qua cooldown bằng bộ đệm trượt `_OpenWakeWordFrameBuffer` (1.280 mẫu).
@@ -8,11 +8,11 @@ Architectural gap remediation & acceptance verification (2026-10-09), source **5
 - Tích hợp `ReActAgent` hoàn chỉnh vào `ActionDispatcher` và `SafetyGateInterceptor` với kiểm soát workspace.
 - Hợp nhất schema Skill manifest (`display_name`, `actions`) và bảo vệ manifest khỏi telemetry runtime bằng `.to_manifest_dict()`.
 - Phân rã hai God-objects: `app.py` (từ 3.965 xuống 2.136 dòng qua `jarvis/core/handlers/`) và `router.py` (từ 3.678 xuống 2.214 dòng qua `rules_catalog.py`).
-- Nghiệm thu thực tế: Live wake-word harness (`tools/live_wake_word_acceptance.py`) đạt **PASS runtime (0 false alarms)** trên microphone thật; 10-workflow OS matrix (`scripts/run_10_workflow_real_os.py`) đạt **8/10 PASS runtime, 2/10 PASS fail-closed, 0 FAIL**; Authenticode signing (`scripts/sign_installer_v520.py`) áp dụng cờ `--require-commercial` fail-closed minh bạch và ghi nhận kiểm thử test-signed đúng chuẩn Three-Tier.
-- Full unit test suite (`tests/unit/`): **2.839 passed / 0 failed / 100% green**.
-- Root test files suite (`tests/test_*.py`): **63/63 files passed (100% green / 0 failed)**.
-- Repository test collection: **4.395 test cases collected and verified 100% green**.
-- Security scanner: **0 findings / 210 files / 69.674 lines / 0.97s**.
+- Nghiệm thu hiện tại: microphone probe đạt **PASS engineering** (25 input devices, default index 1). Artifact ambient cũ chỉ dài **2,06 giây** nên đã bị hạ verdict và **không** còn được dùng làm bằng chứng false-wake runtime. Recall `true_wake` 10 lần và ambient soak tối thiểu 120 giây vẫn **PENDING**. Báo cáo 10-workflow cũ cũng bị vô hiệu hóa; preflight mới đã được sửa thành seam in-memory 10/10, không initialize/dispatch subsystem, nhưng 200 trial voice/Real-OS vẫn **PENDING**. Product GO tiếp tục **PENDING**.
+- Full unit test suite (`tests/unit/`): **2.903 passed / 3 skipped / 0 failed** (2.906 collected).
+- E2E suite (`tests/e2e/`): **269 passed / 21 skipped / 0 failed** (290 collected).
+- Full repository regression: **4.415 passed / 47 skipped / 268 subtests / 0 failed** trong **15:32**.
+- Security scanner: **0 findings / 210 files / 69.684 lines / 1,44s**.
 
 Wake-word hardening trước đó (2026-10-04), source **5.2.1**:
 
@@ -108,6 +108,7 @@ JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiế
 ### 🎙️ Nhận Diện Giọng Nói Offline & Voice Pipeline (v5.1.3 Beta v1)
 - **Wake Word:** Nhận diện từ khóa *"Hey JARVIS"* tức thì với độ trễ cực thấp.
 - **Wake-word calibration:** Có thể ghi score classifier thật cho hai phiên `true_wake` và `ambient` bằng `tools/wake_word_score_probe.py`; hệ thống không tự đổi threshold khi chưa có dữ liệu có nhãn.
+- **Wake-word acceptance fail-closed:** `tools/live_wake_word_acceptance.py` chỉ trả `PASS runtime` khi có frame/score microphone thật, đúng OpenWakeWord + Whisper cascade và đạt tiêu chí phiên. `true_wake` 0/10 là lỗi; ambient dưới 120 giây bị chặn; mặc định dùng sensitivity production thay vì âm thầm ghi đè.
 - **Barge-in (Ngắt lời tức thời):** Khi JARVIS đang nói, bạn có thể nói chèn vào — hệ thống lập tức tắt âm thanh TTS và chuyển sang nghe lệnh mới.
 - **VAD (Voice Activity Detection):** Thuật toán phát hiện giọng nói thông minh bằng năng lượng RMS hoặc WebRTC VAD — xử lý offline, độ trễ <10ms.
 - **STT (Speech-to-Text) & Safe Diacritic Normalization:** Faster-Whisper (CTranslate2) chạy offline với bộ chuẩn hóa bỏ dấu đa âm an toàn (`strip_vietnamese_diacritics`) bảo vệ nguyên vẹn từ đơn, triệt tiêu 100% va chạm homophone (`nhạc` vs `nhắc`, `dừng` vs `dụng`, `dán` vs `dẫn`, `tắt` vs `tắc`).

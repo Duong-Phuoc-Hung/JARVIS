@@ -4,6 +4,56 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] Truthful live wake-word acceptance evidence (2026-10-10)
+
+- **Mục tiêu**: ngăn harness nghiệm thu gắn `PASS runtime` cho phiên không có
+  wake thật hoặc phiên ambient quá ngắn; bảo toàn cấu hình production khi đo.
+- **Nguyên nhân gốc rễ**: harness cũ coi mọi phiên ambient 0 detection là pass
+  dù chỉ chạy 2,06 giây, coi phiên `true_wake` 0 detection là pass, luôn trả
+  exit code 0, và âm thầm ép sensitivity về `0.6`.
+- **Chỉnh sửa kỹ thuật**:
+  - `tools/live_wake_word_acceptance.py`: chuẩn hóa Result fail-closed; yêu cầu
+    OpenWakeWord + Whisper verifier, frame và score thật; `true_wake` tối thiểu
+    10 trial/recall 95%; ambient tối thiểu 120 giây; exit code khác 0 cho mọi
+    outcome không thành công; lưu report không ghi đè; dùng sensitivity từ
+    production trừ khi operator truyền override rõ ràng; lỗi detector/model
+    được trả thành `UNAVAILABLE` có cấu trúc.
+  - `tests/unit/test_live_wake_word_acceptance_tool.py`: thêm regression cho
+    zero detection, low trigger ratio, ambient duration, thiếu mic/dependency,
+    engine/verifier, không có audio evidence, output collision, exit code,
+    sensitivity production/override và lỗi khởi tạo detector.
+  - `docs/eval/live_wake_word_acceptance_audit_20261010.md`: vô hiệu hóa verdict
+    cũ nhưng giữ nguyên JSON gốc làm audit trail.
+- **Bằng chứng hiện tại**: focused harness **19 passed / 10.57s**; toàn cụm
+  wake/voice **169 passed + 25 subtests / 14.29s**; probe microphone thật thấy
+  25 input devices và default index 1 (**PASS engineering**, không phải runtime
+  acceptance). Recall người dùng và ambient soak vẫn **PENDING**.
+- **Audit 10-workflow liên quan**: artifact `8/10 PASS runtime` ngày 2026-10-09
+  bị vô hiệu hóa vì runner chạy sai 10 domain Beta, chấp nhận cờ success thiếu
+  bằng chứng, đọc clipboard và tạo routine ngoài ý muốn. Preflight của bản
+  refactor ban đầu còn gọi `JarvisApp.initialize()`; follow-up
+  `JARVIS-WORKFLOW-PREFLIGHT-FIX1` đã tách seam in-memory, đạt **41 unit tests**
+  và preflight thật 10/10 trong khi không khởi động Playwright, Telegram,
+  hotkeys, audio, STT hoặc wake-word.
+- **Sửa phụ thuộc clock/test-order**:
+  - `jarvis/core/runaway_guard.py`: thêm seam `clock` riêng cho
+    `PassiveTriggerGuard` và `LaunchDedupeGuard`; `now=` tường minh vẫn có ưu
+    tiên. Dispatcher/telemetry không còn tiêu thụ iterator clock của guard.
+  - `tests/unit/test_runaway_hardening.py`, `test_runaway_guard.py` và
+    `test_h07_voice_app_intents.py`: thay patch global `time.monotonic` bằng
+    clock injection theo instance; focused **92 passed + 25 subtests / 34.20s**.
+  - `tests/test_empirical_challenger_m1_stabilization.py`: thay hai patch clock
+    global còn sót bằng seam guard; giữ đúng chuỗi 10.0/10.5/12.0/12.9/13.1 và
+    ba log suppression; focused **8 passed / 20.30s**.
+- **Bằng chứng regression cây cuối**:
+  - Full unit: **2.903 passed, 3 skipped, 0 failed** (2.906 collected).
+  - E2E: **269 passed, 21 skipped, 0 failed** (290 collected).
+  - Full repository: **4.415 passed, 47 skipped, 268 subtests, 0 failed** trong
+    **932,50s (15:32)**.
+  - Security scanner: **210 files / 69.684 lines / 0 findings / 1,44s**.
+  Đây là `PASS engineering`, không thay thế bằng chứng wake-word/10-workflow
+  runtime, clean-machine installer hoặc credential thật; Product GO vẫn PENDING.
+
 ## [Unreleased] Architectural Gap Remediation, God-Object Decomposition & Truthful Acceptance Verification (2026-10-09)
 
 - **Mục tiêu**:
@@ -14,7 +64,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Tích hợp `ReActAgent` hoàn chỉnh vào `ActionDispatcher`, `SafetyInterceptor`, và thực thi kiểm tra ranh giới workspace (`allowed_workspace_dir`) chống path traversal.
   - Hợp nhất schema Skill manifest (`display_name`, `actions`), thay thế `.to_dict()` bằng `.to_manifest_dict()` trong `synthesizer.py` để không ghi đè dữ liệu đo lường runtime (telemetry) vào manifest tệp skill.
   - Tái cấu trúc phân rã hai God-objects: `jarvis/core/app.py` (từ 3.965 dòng xuống 2.136 dòng qua các Mixin handlers chuyên biệt) và `jarvis/llm/router.py` (từ 3.678 dòng xuống 2.214 dòng bằng cách tách từ điển luật tĩnh 1.446 dòng ra `rules_catalog.py`).
-  - Khép kín nghiệm thu thực nghiệm: kiểm thử wake-word microphone thật (`tools/live_wake_word_acceptance.py`), ma trận 10-workflow real OS (`scripts/run_10_workflow_real_os.py`), và nâng cấp kịch bản ký Authenticode (`scripts/sign_installer_v520.py`) theo chuẩn Fail-Closed / Three-Tier Verdict.
+  - Bổ sung harness kiểm thử wake-word microphone thật (`tools/live_wake_word_acceptance.py`), ma trận 10-workflow real OS (`scripts/run_10_workflow_real_os.py`), và nâng cấp kịch bản ký Authenticode (`scripts/sign_installer_v520.py`) theo chuẩn Fail-Closed / Three-Tier Verdict. Verdict wake-word 2,06 giây của lượt này đã bị audit sau đó vô hiệu hóa; xem mục 2026-10-10.
 
 - **Nguyên nhân gốc rễ (Root Cause)**:
   1. *Truthfulness gaps*: `PacketCapture.capture_packets()` tính toán phân bố giao thức bằng công thức chia tỷ lệ giả định thay vì bóc tách số liệu gói tin thực tế từ TShark; Telegram/Discord chỉ kiểm tra kết nối cục bộ mà trả `ok: True` cả khi API server trả lỗi hoặc thiếu token; Terminal UI gọi trực tiếp notification mock thay vì định tuyến qua action dispatcher.
@@ -68,8 +118,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `tests/e2e/test_beta_v1_acceptance.py`: **28/28 passed**
   - Full unit test suite (`tests/unit/`): **2,839/2,839 passed / 0 failed / 100% green**
   - Security Scanner (`tools/security_scanner.py`): **210 files / 69.674 lines / 0 findings (0 Critical, 0 High, 0 Medium, 0 Low)**
-  - Real-OS 10-Workflow Execution (`scripts/run_10_workflow_real_os.py`): **8/10 PASS runtime, 2/10 PASS fail-closed, 0 FAIL**
-  - Live Wake-Word Acceptance (`tools/live_wake_word_acceptance.py`): **PASS runtime (0 false alarms)** trên microphone thiết bị thật.
+  - Real-OS 10-Workflow Execution (`scripts/run_10_workflow_real_os.py`): artifact từng ghi **8/10 PASS runtime, 2/10 PASS fail-closed, 0 FAIL**, nhưng audit 2026-10-10 đã vô hiệu hóa verdict do sai workflow và thiếu objective evidence.
+  - Live Wake-Word Acceptance (`tools/live_wake_word_acceptance.py`): artifact ghi **PASS runtime (0 false alarms)** nhưng chỉ dài **2,06 giây**; verdict này không đủ điều kiện và đã bị vô hiệu hóa trong audit 2026-10-10.
 
 ## [Unreleased] Wake-word two-stage verification hardening (2026-10-04)
 

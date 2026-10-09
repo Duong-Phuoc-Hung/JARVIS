@@ -44,6 +44,7 @@ from __future__ import annotations
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 
 
@@ -79,11 +80,13 @@ class PassiveTriggerGuard:
         max_triggers: int = 5,
         window_s: float = 60.0,
         lockout_s: float = 120.0,
+        clock: Callable[[], float] | None = None,
     ) -> None:
         self.min_rearm_interval_s = float(min_rearm_interval_s)
         self.max_triggers = int(max_triggers)
         self.window_s = float(window_s)
         self.lockout_s = float(lockout_s)
+        self._clock: Callable[[], float] = clock if clock is not None else time.monotonic
         self._lock = threading.RLock()
         self._history: dict[str, deque[float]] = {}
         self._last_trigger: dict[str, float] = {}
@@ -122,7 +125,7 @@ class PassiveTriggerGuard:
         vs gesture's established 3.0s) without needing a separate guard
         instance per trigger type.
         """
-        t = now if now is not None else time.monotonic()
+        t = now if now is not None else self._clock()
         rearm = self.min_rearm_interval_s if min_rearm_interval_s is None else float(min_rearm_interval_s)
         with self._lock:
             lockout_until = self._lockout_until.get(key, 0.0)
@@ -227,8 +230,13 @@ class LaunchDedupeGuard:
 
     _MAX_TRACKED_KEYS = 512
 
-    def __init__(self, default_cooldown_s: float = 5.0) -> None:
+    def __init__(
+        self,
+        default_cooldown_s: float = 5.0,
+        clock: Callable[[], float] | None = None,
+    ) -> None:
         self.default_cooldown_s = float(default_cooldown_s)
+        self._clock: Callable[[], float] = clock if clock is not None else time.monotonic
         self._lock = threading.RLock()
         self._last_launch: dict[str, float] = {}
 
@@ -250,7 +258,7 @@ class LaunchDedupeGuard:
         only an allowed launch does -- so once the real cooldown elapses
         since the last ALLOWED launch, a later call is permitted again.
         """
-        t = now if now is not None else time.monotonic()
+        t = now if now is not None else self._clock()
         cd = self.default_cooldown_s if cooldown_s is None else float(cooldown_s)
         key = self.normalize_key(action, target)
         with self._lock:
