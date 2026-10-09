@@ -26,20 +26,22 @@ import pytest
 
 # These probes use real accounts/devices and overwrite tracked evidence files.
 # Never load .env or opt into live services merely by collecting the test suite.
-if os.environ.get("JARVIS_RUN_LIVE_INFRA_TESTS") != "1":
-    pytest.skip("Live infrastructure probes require explicit opt-in", allow_module_level=True)
-
-pytestmark = pytest.mark.live_network
+pytestmark = [
+    pytest.mark.live_network,
+    pytest.mark.skipif(
+        os.environ.get("JARVIS_RUN_LIVE_INFRA_TESTS") != "1",
+        reason="Live infrastructure probes require explicit opt-in (JARVIS_RUN_LIVE_INFRA_TESTS=1)",
+    ),
+]
 
 from dotenv import load_dotenv
 
-from jarvis.comms.email_imap import IMAPEmailReader, EmailMessage
+from jarvis.comms.email_imap import EmailMessage, IMAPEmailReader
 from jarvis.security.scanner import PacketCapture, resolve_tshark_binary
-
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = PROJECT_ROOT / ".env"
-if ENV_PATH.is_file():
+if os.environ.get("JARVIS_RUN_LIVE_INFRA_TESTS") == "1" and ENV_PATH.is_file():
     load_dotenv(ENV_PATH, override=False)
 
 

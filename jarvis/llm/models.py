@@ -43,4 +43,3 @@ class IntentResult:
             "confirmation_prompt": self.confirmation_prompt,
             "danger_level": self.danger_level,
         }
-

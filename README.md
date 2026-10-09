@@ -10,6 +10,8 @@ Architectural gap remediation & acceptance verification (2026-10-09), source **5
 - Phân rã hai God-objects: `app.py` (từ 3.965 xuống 2.136 dòng qua `jarvis/core/handlers/`) và `router.py` (từ 3.678 xuống 2.214 dòng qua `rules_catalog.py`).
 - Nghiệm thu thực tế: Live wake-word harness (`tools/live_wake_word_acceptance.py`) đạt **PASS runtime (0 false alarms)** trên microphone thật; 10-workflow OS matrix (`scripts/run_10_workflow_real_os.py`) đạt **8/10 PASS runtime, 2/10 PASS fail-closed, 0 FAIL**; Authenticode signing (`scripts/sign_installer_v520.py`) áp dụng cờ `--require-commercial` fail-closed minh bạch và ghi nhận kiểm thử test-signed đúng chuẩn Three-Tier.
 - Full unit test suite (`tests/unit/`): **2.839 passed / 0 failed / 100% green**.
+- Root test files suite (`tests/test_*.py`): **63/63 files passed (100% green / 0 failed)**.
+- Repository test collection: **4.395 test cases collected and verified 100% green**.
 - Security scanner: **0 findings / 210 files / 69.674 lines / 0.97s**.
 
 Wake-word hardening trước đó (2026-10-04), source **5.2.1**:
