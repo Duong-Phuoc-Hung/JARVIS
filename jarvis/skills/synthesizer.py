@@ -407,7 +407,7 @@ logger = logging.getLogger("jarvis.skills.{name}")
                 raise ValueError("Skill destination must remain inside the skills directory")
             contents = {
                 "__init__.py": skill_def.entrypoint_code,
-                "metadata.json": json.dumps(skill_def.metadata.to_dict(), indent=2, ensure_ascii=False),
+                "metadata.json": json.dumps(skill_def.metadata.to_manifest_dict(), indent=2, ensure_ascii=False),
                 "SKILL.md": md_content,
             }
             # Validate every child before writing any of them. Replacing each file

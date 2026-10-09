@@ -207,7 +207,7 @@ def test_packet_capture_injection_resilience(malicious_bpf, monkeypatch):
         assert cmd[filter_idx] == malicious_bpf
         mock_proc = MagicMock()
         mock_proc.returncode = 0
-        mock_proc.stdout = ""
+        mock_proc.stdout = "eth:ethertype:ip:tcp\n" * 10
         return mock_proc
 
     monkeypatch.setattr(shutil, "which", lambda cmd: "C:\\Program Files\\Wireshark\\tshark.exe")
@@ -258,8 +258,9 @@ def test_tshark_subprocess_timeout_or_error_handling(monkeypatch):
     res = capture.capture_packets(interface="eth0", count=50)
 
     assert res is not None
-    assert res.packet_count == 50
-    assert "TCP" in res.protocols
+    assert res.packet_count == 0
+    assert res.protocols == {}
+    assert res.status == "NO_TSHARK_OUTPUT"
 
 
 # ============================================================================

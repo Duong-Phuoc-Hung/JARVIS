@@ -26,6 +26,7 @@ from jarvis.sandbox.security import (
     inject_security_preamble,
     is_compat_fallback_enabled,
     prepare_scrubbed_environment,
+    spawn_appcontainer_process,
     spawn_low_integrity_process,
     strip_sandbox_ready_sentinel,
 )
@@ -84,6 +85,7 @@ class CodeInterpreterSandbox:
         cleanup_on_exit: bool = False,
         persistent_artifacts_dir: str | Path | None = None,
         max_execution_seconds: float | None = None,
+        use_appcontainer: bool | None = None,
         **kwargs: Any,
     ) -> None:
         if base_scratch_dir:
@@ -97,6 +99,10 @@ class CodeInterpreterSandbox:
         self.max_execution_seconds = self.default_timeout
         self.validator = validator or ASTCodeValidator()
         self.cleanup_on_exit = cleanup_on_exit
+        if use_appcontainer is None:
+            self.use_appcontainer = os.environ.get("JARVIS_SANDBOX_USE_APPCONTAINER", "0") in ("1", "true", "TRUE")
+        else:
+            self.use_appcontainer = bool(use_appcontainer)
         self.persistent_artifacts_dir = (
             Path(persistent_artifacts_dir).resolve() if persistent_artifacts_dir else None
         )
@@ -245,89 +251,124 @@ class CodeInterpreterSandbox:
             execution_handled = False
 
             if is_win:
-                try:
-                    exit_code, stdout, stderr, timed_out = spawn_low_integrity_process(
-                        cmd=cmd_str,
-                        cwd=str(scratch_dir),
-                        env=exec_env,
-                        job=job,
-                        timeout_seconds=timeout,
-                    )
-                except RestrictedProcessBootstrapError as ex_token:
-                    reason = str(ex_token)
-                    logger.warning(
-                        "OS Restricted Token sandbox isolation unavailable "
-                        "(retry_safe=%s): %s",
-                        ex_token.retry_safe,
-                        reason,
-                    )
-                    if ex_token.retry_safe and is_compat_fallback_enabled():
-                        logger.warning(
-                            "%s is set: falling back to Job-Object + scrubbed-environment "
-                            "compatibility isolation for this CONFIRMED pre-user-code "
-                            "bootstrap failure. This provides WEAKER isolation than OS "
-                            "Restricted Token Low Integrity execution and must never be "
-                            "enabled in production.",
-                            SANDBOX_COMPAT_FALLBACK_ENV_VAR,
+                if self.use_appcontainer:
+                    try:
+                        ac_exit_code, ac_stdout, ac_stderr, ac_timed_out = spawn_appcontainer_process(
+                            cmd=cmd_str,
+                            cwd=str(scratch_dir),
+                            env=exec_env,
+                            job=job,
+                            timeout_seconds=timeout,
                         )
-                        # Falls through to the legacy Popen path below --
-                        # safe ONLY because RestrictedProcessBootstrapError
-                        # is raised with retry_safe=True exclusively where
-                        # spawn_low_integrity_process() can formally prove
-                        # the child never crossed the readiness boundary
-                        # (CREATE_SUSPENDED never resumed, or the readiness
-                        # sentinel was never observed).
-                    else:
-                        # FAIL CLOSED: either not retry-eligible (a failure
-                        # that could have occurred after the child started
-                        # running/producing side effects) or the operator
-                        # has not opted in -- either way, refuse to run the
-                        # script with weaker isolation.
-                        if ex_token.retry_safe:
-                            advice = (
-                                f"Set {SANDBOX_COMPAT_FALLBACK_ENV_VAR}=1 to explicitly allow a "
-                                "reduced-isolation compatibility fallback for this confirmed "
-                                "pre-user-code failure (non-production only)."
+                        if ac_exit_code != 0 and (
+                            "Failed to find real location" in ac_stdout
+                            or "Failed to find real location" in ac_stderr
+                        ):
+                            raise RestrictedProcessBootstrapError(
+                                f"AppContainer cannot load python binary: {ac_stdout.strip() or ac_stderr.strip()}",
+                                retry_safe=True,
                             )
+                        exit_code = ac_exit_code
+                        stdout = ac_stdout
+                        stderr = ac_stderr
+                        timed_out = ac_timed_out
+                        stdout, _ = strip_sandbox_ready_sentinel(stdout)
+                        execution_handled = True
+                    except RestrictedProcessBootstrapError as ex_appcontainer:
+                        logger.info(
+                            "AppContainer bootstrap error (%s); falling back to Low Integrity token spawner.",
+                            ex_appcontainer,
+                        )
+                    except Exception as ex_appcontainer_unexp:
+                        logger.info(
+                            "AppContainer unexpected error (%s); falling back to Low Integrity token spawner.",
+                            ex_appcontainer_unexp,
+                        )
+
+                if not execution_handled:
+                    try:
+                        exit_code, stdout, stderr, timed_out = spawn_low_integrity_process(
+                            cmd=cmd_str,
+                            cwd=str(scratch_dir),
+                            env=exec_env,
+                            job=job,
+                            timeout_seconds=timeout,
+                        )
+                    except RestrictedProcessBootstrapError as ex_token:
+                        reason = str(ex_token)
+                        logger.warning(
+                            "OS Restricted Token sandbox isolation unavailable "
+                            "(retry_safe=%s): %s",
+                            ex_token.retry_safe,
+                            reason,
+                        )
+                        if ex_token.retry_safe and is_compat_fallback_enabled():
+                            logger.warning(
+                                "%s is set: falling back to Job-Object + scrubbed-environment "
+                                "compatibility isolation for this CONFIRMED pre-user-code "
+                                "bootstrap failure. This provides WEAKER isolation than OS "
+                                "Restricted Token Low Integrity execution and must never be "
+                                "enabled in production.",
+                                SANDBOX_COMPAT_FALLBACK_ENV_VAR,
+                            )
+                            # Falls through to the legacy Popen path below --
+                            # safe ONLY because RestrictedProcessBootstrapError
+                            # is raised with retry_safe=True exclusively where
+                            # spawn_low_integrity_process() can formally prove
+                            # the child never crossed the readiness boundary
+                            # (CREATE_SUSPENDED never resumed, or the readiness
+                            # sentinel was never observed).
                         else:
-                            advice = "This failure is not classified as safe to retry with weaker isolation."
+                            # FAIL CLOSED: either not retry-eligible (a failure
+                            # that could have occurred after the child started
+                            # running/producing side effects) or the operator
+                            # has not opted in -- either way, refuse to run the
+                            # script with weaker isolation.
+                            if ex_token.retry_safe:
+                                advice = (
+                                    f"Set {SANDBOX_COMPAT_FALLBACK_ENV_VAR}=1 to explicitly allow a "
+                                    "reduced-isolation compatibility fallback for this confirmed "
+                                    "pre-user-code failure (non-production only)."
+                                )
+                            else:
+                                advice = "This failure is not classified as safe to retry with weaker isolation."
+                            exit_code = -1
+                            stdout = ""
+                            stderr = (
+                                "Sandbox execution refused: OS Restricted Token isolation failed "
+                                f"to initialize or could not be confirmed safe ({reason}). {advice}"
+                            )
+                            timed_out = False
+                            execution_handled = True
+                    except Exception as ex_unexpected:
+                        # Unclassified failure from the launcher: could have
+                        # occurred at any point, including after the child
+                        # crossed the readiness boundary. NEVER eligible for
+                        # compatibility retry, regardless of
+                        # JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK -- always fail
+                        # closed, unconditionally.
+                        logger.error(
+                            "Unexpected OS Restricted Token launcher error (failing closed, "
+                            "not retry-eligible): %s",
+                            ex_unexpected,
+                            exc_info=True,
+                        )
                         exit_code = -1
                         stdout = ""
                         stderr = (
-                            "Sandbox execution refused: OS Restricted Token isolation failed "
-                            f"to initialize or could not be confirmed safe ({reason}). {advice}"
+                            "Sandbox execution refused: an unclassified error occurred in the "
+                            f"OS Restricted Token launcher ({ex_unexpected}). This failure mode "
+                            "is not confirmed to have occurred before user code could run, so it "
+                            "is never eligible for the compatibility fallback."
                         )
                         timed_out = False
                         execution_handled = True
-                except Exception as ex_unexpected:
-                    # Unclassified failure from the launcher: could have
-                    # occurred at any point, including after the child
-                    # crossed the readiness boundary. NEVER eligible for
-                    # compatibility retry, regardless of
-                    # JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK -- always fail
-                    # closed, unconditionally.
-                    logger.error(
-                        "Unexpected OS Restricted Token launcher error (failing closed, "
-                        "not retry-eligible): %s",
-                        ex_unexpected,
-                        exc_info=True,
-                    )
-                    exit_code = -1
-                    stdout = ""
-                    stderr = (
-                        "Sandbox execution refused: an unclassified error occurred in the "
-                        f"OS Restricted Token launcher ({ex_unexpected}). This failure mode "
-                        "is not confirmed to have occurred before user code could run, so it "
-                        "is never eligible for the compatibility fallback."
-                    )
-                    timed_out = False
-                    execution_handled = True
-                else:
-                    # Genuine execution under OS Restricted Token isolation:
-                    # whatever exit code/timeout the user script itself
-                    # produced is final -- never retried via compatibility.
-                    stdout, _ = strip_sandbox_ready_sentinel(stdout)
-                    execution_handled = True
+                    else:
+                        # Genuine execution under OS Restricted Token isolation:
+                        # whatever exit code/timeout the user script itself
+                        # produced is final -- never retried via compatibility.
+                        stdout, _ = strip_sandbox_ready_sentinel(stdout)
+                        execution_handled = True
 
             if not execution_handled:
                 # Legacy Job-Object + scrubbed subprocess.Popen path: used on

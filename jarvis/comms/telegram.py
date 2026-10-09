@@ -292,7 +292,17 @@ class TelegramBotController:
             url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
             resp = self._session.post(url, json={"chat_id": chat_id, "text": text}, timeout=self.timeout_s)
             if resp.status_code == 200:
-                return {"ok": True, "result": resp.json().get("result")}
+                try:
+                    payload = resp.json()
+                except Exception:
+                    payload = {}
+                if payload.get("ok"):
+                    return {"ok": True, "result": payload.get("result")}
+                return {
+                    "ok": False,
+                    "error_code": "TELEGRAM_API_ERROR",
+                    "description": payload.get("description", "Telegram API returned ok=false"),
+                }
             elif resp.status_code == 401:
                 return {"ok": False, "error_code": "AUTH_FAILED", "description": "Invalid Telegram bot token."}
             elif resp.status_code == 429:
@@ -335,7 +345,17 @@ class TelegramBotController:
             files = {"photo": photo_bytes}
             resp = self._session.post(url, data=data, files=files, timeout=self.timeout_s)
             if resp.status_code == 200:
-                return {"ok": True, "result": resp.json().get("result")}
+                try:
+                    payload = resp.json()
+                except Exception:
+                    payload = {}
+                if payload.get("ok"):
+                    return {"ok": True, "result": payload.get("result")}
+                return {
+                    "ok": False,
+                    "error_code": "TELEGRAM_API_ERROR",
+                    "description": payload.get("description", "Telegram API returned ok=false"),
+                }
             elif resp.status_code == 401:
                 return {"ok": False, "error_code": "AUTH_FAILED", "description": "Invalid Telegram bot token."}
             elif resp.status_code == 429:

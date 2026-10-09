@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-10-09 20:44:17",
+  "label": "ambient",
+  "duration_seconds": 2.06,
+  "engine_type": "openwakeword",
+  "frames_processed": 31616,
+  "detection_count": 0,
+  "detections": [],
+  "scores_recorded": 76,
+  "verdict": "PASS runtime (0 false alarms)"
+}

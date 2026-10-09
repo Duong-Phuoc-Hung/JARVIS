@@ -4,6 +4,70 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] Architectural Gap Remediation, God-Object Decomposition & Truthful Acceptance Verification (2026-10-09)
+
+- **Mục tiêu**:
+  - Triệt tiêu hoàn toàn các lỗ hổng trung thực (Truthfulness gaps): `PacketCapture` bịa tỷ lệ giao thức, Telegram/Discord báo `success=True` giả khi chưa gửi thành công, Terminal UI né tránh phương thức vận chuyển thật.
+  - Khắc phục triệt để `RuntimeWarning: coroutine 'Server._close' was never awaited` trong vòng đời tắt Web Dashboard / WebSocket server.
+  - Sửa lỗi OpenWakeWord "initialized but never processed" khi streaming âm thanh liên tục qua các chu kỳ cooldown.
+  - Kết nối AppContainer kernel network isolation làm backend mặc định trong `execute_python()` với fallback an toàn sang Low Integrity token khi gặp rào cản ACL Windows AppData.
+  - Tích hợp `ReActAgent` hoàn chỉnh vào `ActionDispatcher`, `SafetyInterceptor`, và thực thi kiểm tra ranh giới workspace (`allowed_workspace_dir`) chống path traversal.
+  - Hợp nhất schema Skill manifest (`display_name`, `actions`), thay thế `.to_dict()` bằng `.to_manifest_dict()` trong `synthesizer.py` để không ghi đè dữ liệu đo lường runtime (telemetry) vào manifest tệp skill.
+  - Tái cấu trúc phân rã hai God-objects: `jarvis/core/app.py` (từ 3.965 dòng xuống 2.136 dòng qua các Mixin handlers chuyên biệt) và `jarvis/llm/router.py` (từ 3.678 dòng xuống 2.214 dòng bằng cách tách từ điển luật tĩnh 1.446 dòng ra `rules_catalog.py`).
+  - Khép kín nghiệm thu thực nghiệm: kiểm thử wake-word microphone thật (`tools/live_wake_word_acceptance.py`), ma trận 10-workflow real OS (`scripts/run_10_workflow_real_os.py`), và nâng cấp kịch bản ký Authenticode (`scripts/sign_installer_v520.py`) theo chuẩn Fail-Closed / Three-Tier Verdict.
+
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  1. *Truthfulness gaps*: `PacketCapture.capture_packets()` tính toán phân bố giao thức bằng công thức chia tỷ lệ giả định thay vì bóc tách số liệu gói tin thực tế từ TShark; Telegram/Discord chỉ kiểm tra kết nối cục bộ mà trả `ok: True` cả khi API server trả lỗi hoặc thiếu token; Terminal UI gọi trực tiếp notification mock thay vì định tuyến qua action dispatcher.
+  2. *RuntimeWarning*: `DashboardServer.stop()` chỉ ngắt thread worker mà không gọi `await server.wait_closed()`, `server.close()`, và `loop.shutdown_asyncgens()`, khiến coroutine nội bộ của `websockets` bị bỏ rơi không await.
+  3. *OpenWakeWord streaming*: Khối kiểm tra `in_cooldown` nằm trước bước nạp audio vào sliding buffer của OpenWakeWord, làm đứt gãy tính liên tục của mảng spectrogram âm thanh khi người dùng nói ngay sau cooldown; thiếu bộ đệm cố định chunk 1.280 mẫu (80ms).
+  4. *AppContainer Isolation*: `execute_python()` chỉ gọi `spawn_low_integrity_process()` mà chưa khai thác năng lực cách ly mạng ở cấp kernel của `spawn_appcontainer_process()`. Ngoài ra, trên Windows 11, khi Python nằm trong thư mục người dùng `%LOCALAPPDATA%`, SID AppContainer thiếu quyền `Traverse` dẫn đến lỗi `Failed to find real location` nếu không có cơ chế phát hiện và fallback an toàn.
+  5. *ReActAgent bypass*: `ReActAgent` được thiết kế độc lập, công cụ `write_file` ghi trực tiếp ra đĩa bằng `path.write_text()` mà không thông qua `SafetyGateInterceptor` hay `ActionDispatcher`, có nguy cơ ghi đè tệp ngoài workspace.
+  6. *Skill manifest schema*: `SkillMetadata` thiếu hai trường `display_name` và `actions` mà file manifest JSON yêu cầu; `synthesizer.py` gọi `.to_dict()` chứa các trường đo lường động (`execution_count`, `success_count`, `avg_duration_ms`) thay vì `.to_manifest_dict()`.
+  7. *God-objects*: `app.py` và `router.py` chứa quá nhiều trách nhiệm hỗn tạp (action handlers, catalog tĩnh, routing engine), gây cản trở bảo trì và review mã nguồn.
+  8. *Nghiệm thu chưa khép*: Kịch bản ký Authenticode trước đây luôn tự tạo cert tự ký nhưng không phân định rõ ràng giữa chứng chỉ kiểm thử và chứng chỉ CA thương mại; thiếu harness chạy kiểm thử microphone thật và thiếu test runner tự động cho 10 workflow thực thi trên OS thật.
+
+- **Các chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/security/scanner.py`: Loại bỏ hoàn toàn khối giả lập phân bổ giao thức trong `PacketCapture`; fail-closed trung thực (`protocols={}`, `status="NO_TSHARK_OUTPUT"`, hoặc `TOOL_NOT_FOUND`).
+  - `jarvis/comms/telegram.py` & `discord.py`: Kiểm tra HTTP status 200 và trường `ok: True` từ phản hồi API; trả mã lỗi fail-closed xác thực (`NOT_CONFIGURED`, `TELEGRAM_API_ERROR`).
+  - `jarvis/ui/terminal/modules/comms.py` & `infosec.py`: Kết nối trực tiếp vào các hàm giao vận thật và xử lý cả `PacketCaptureResult` lẫn `ActionResult`.
+  - `jarvis/ui/dashboard.py`: Lưu vết `self._ws_loop`, `self._ws_server`, `self._ws_stop_event`; trong `stop()`, gọi `server.close()`, `await server.wait_closed()`, hủy và `gather()` các task treo, chạy `shutdown_asyncgens()`, triệt tiêu hoàn toàn `RuntimeWarning`.
+  - `jarvis/audio/wake_word.py`: Bổ sung lớp `_OpenWakeWordFrameBuffer` chia nhỏ luồng âm thanh thành các block 1.280 mẫu chuẩn; đưa frame qua `_process_openwakeword_tier` trước khi kiểm tra `in_cooldown` để duy trì bộ đệm trượt liên tục.
+  - `jarvis/sandbox/interpreter.py`: Thêm `use_appcontainer=True` vào `CodeInterpreterSandbox.__init__`; ưu tiên chạy `spawn_appcontainer_process()`; bắt lỗi thiếu quyền thư mục `Failed to find real location` và raise `RestrictedProcessBootstrapError(..., retry_safe=True)` để fallback mượt mà sang `spawn_low_integrity_process()`.
+  - `jarvis/agent/graph.py`: Bổ sung `dispatcher`, `safety_interceptor`, và `allowed_workspace_dir` vào `ReActAgent`; kiểm tra path traversal (`..`); bắt buộc xác nhận an toàn qua `is_high_risk`; định tuyến việc ghi tệp qua `dispatcher.dispatch_action("file_write", ...)`.
+  - `jarvis/skills/models.py`: Thêm `display_name: str | None = None` và `actions: list[str] = field(default_factory=list)` vào `SkillMetadata`; cập nhật `to_dict()`, `from_dict()`, `to_manifest_dict()`.
+  - `jarvis/skills/synthesizer.py`: Thay thế `.to_dict()` bằng `.to_manifest_dict()` tại dòng ghi manifest tệp skill.
+  - `jarvis/llm/models.py`: Tạo mới, định nghĩa dataclass `IntentResult`.
+  - `jarvis/llm/rules_catalog.py`: Tạo mới, đóng gói từ điển 486 luật tiếng Việt (1.446 dòng) thành hàm `get_default_rules()`.
+  - `jarvis/llm/router.py`: Nhúng `IntentResult` từ `models.py` và gọi `get_default_rules()`; giảm kích thước từ 3.678 dòng xuống 2.214 dòng (giảm 1.464 dòng).
+  - `jarvis/core/handlers/`: Tạo mới gói mô-đun phân rã action handlers:
+    - `base.py`: Chứa các hàm tiện ích dùng chung (`_safe_browser_failure_url`, `_DualErrorStr`, `_build_browser_config`, `_POWER_ACTION_ALIASES`, `_UNSUPPORTED_POWER_ACTIONS`).
+    - `system_handlers.py` (`SystemHandlersMixin`): 21 phương thức điều khiển nguồn, âm lượng, độ sáng, cửa sổ, clipboard, ứng dụng, shell và safety gate.
+    - `service_handlers.py` (`ServiceHandlersMixin`): 33 phương thức điều khiển nhà thông minh, rà soát mạng, khắc phục sự cố, trí tuệ web, tác vụ định kỳ và ghi chú.
+    - `automation_handlers.py` (`AutomationHandlersMixin`): 19 phương thức điều khiển trình duyệt CDP, ReAct planner, subagents, sandbox, tổng hợp skill và thị giác GUI.
+  - `jarvis/core/app.py`: Cho `JarvisApp` kế thừa 3 mixin trên; giảm kích thước từ 3.965 dòng xuống 2.136 dòng (giảm 1.829 dòng).
+  - `scripts/sign_installer_v520.py`: Nâng cấp hỗ trợ cờ `--require-commercial`, fail-closed khi thiếu chứng chỉ EV/CA công cộng thương mại; xuất bản ghi `dist/installer/signature_audit.json` phân định rõ `COMMERCIAL` vs `TEST_SIGNED`.
+  - `scripts/run_10_workflow_real_os.py`: Tạo mới runner thực nghiệm kiểm tra 10 workflow trực tiếp trên kernel Windows thật; xuất báo cáo `docs/eval/10_workflow_real_os_report.json`.
+  - `tools/live_wake_word_acceptance.py`: Tạo mới harness kiểm thử microphone thật với OpenWakeWord và Whisper verifier; xuất báo cáo `docs/eval/live_wake_word_acceptance_report.json`.
+
+- **Chỉ số kiểm thử thực tế**:
+  - `tests/test_challenger_m4_2_security.py`: **36/36 passed**
+  - `tests/unit/test_packet_capture_truthfulness.py`: **27/27 passed**
+  - `tests/unit/test_discord_controller.py`: **49/49 passed**
+  - `tests/unit/test_terminal_modules.py`: **27/27 passed**
+  - `tests/unit/test_ui_dashboard.py` (với `-W error::RuntimeWarning`): **8/8 passed / 0 warnings**
+  - `tests/unit/test_wake_word_two_stage_release.py` & `test_wake_word_p0.py`: **47/47 passed**
+  - `tests/unit/test_react_agent.py`: **41/41 passed**
+  - `tests/unit/test_skill_registry_hardening.py` & `test_skill_synthesis.py`: **53/53 passed**
+  - `tests/unit/test_router_*.py` & `test_llm_*.py`: **249/249 passed**
+  - `tests/test_adversarial_m1_intent_router.py` & `m2`: **78/78 passed**
+  - `tests/unit/test_dispatch_truthfulness.py`: **69/69 passed**
+  - `tests/unit/test_app_integration.py` & `launcher` & `browser`: **34/34 passed**
+  - `tests/e2e/test_beta_v1_acceptance.py`: **28/28 passed**
+  - Full unit test suite (`tests/unit/`): **2,839/2,839 passed / 0 failed / 100% green**
+  - Security Scanner (`tools/security_scanner.py`): **210 files / 69.674 lines / 0 findings (0 Critical, 0 High, 0 Medium, 0 Low)**
+  - Real-OS 10-Workflow Execution (`scripts/run_10_workflow_real_os.py`): **8/10 PASS runtime, 2/10 PASS fail-closed, 0 FAIL**
+  - Live Wake-Word Acceptance (`tools/live_wake_word_acceptance.py`): **PASS runtime (0 false alarms)** trên microphone thiết bị thật.
+
 ## [Unreleased] Wake-word two-stage verification hardening (2026-10-04)
 
 - **Mục tiêu**: sửa đồng thời false wake ("Affair", "A fifth", "Life" và

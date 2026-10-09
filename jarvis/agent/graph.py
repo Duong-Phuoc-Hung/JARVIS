@@ -88,12 +88,19 @@ class ReActAgent:
         max_iterations: int = 10,
         is_mock: bool = False,
         sandbox: CodeInterpreterSandbox | None = None,
+        dispatcher: Any | None = None,
+        safety_interceptor: Any | None = None,
+        allowed_workspace_dir: str | None = None,
     ) -> None:
+        from pathlib import Path
         self.tools: dict[str, Tool] = {t.name: t for t in (tools or [])}
         self.max_iterations = max_iterations
         self.is_mock = is_mock
         self._tasks: dict[str, AgentTask] = {}
         self._sandbox = sandbox
+        self.dispatcher = dispatcher
+        self.safety_interceptor = safety_interceptor
+        self.allowed_workspace_dir = Path(allowed_workspace_dir or Path.cwd()).resolve()
         self._register_default_tools()
         log.info("ReActAgent initialized with %d tools (mock=%s)", len(self.tools), is_mock)
 
@@ -347,9 +354,39 @@ class ReActAgent:
     def _tool_write_file(self, path: str = "", content: str = "", **kw) -> dict:
         from pathlib import Path
         try:
-            Path(path).parent.mkdir(parents=True, exist_ok=True)
-            Path(path).write_text(content, encoding="utf-8")
-            return {"output": f"Đã ghi file: {path}"}
+            if not path or not path.strip():
+                return {"output": "Security Error: write_file path cannot be empty."}
+            target_path = Path(path).resolve()
+            # Path traversal and workspace boundary check
+            try:
+                target_path.relative_to(self.allowed_workspace_dir)
+            except ValueError:
+                return {
+                    "output": f"Security Error: write_file path '{path}' is outside allowed workspace directory '{self.allowed_workspace_dir}'."
+                }
+
+            # Safety interceptor check if available
+            if self.safety_interceptor:
+                is_high_risk_fn = getattr(self.safety_interceptor, "is_high_risk", None)
+                if is_high_risk_fn and is_high_risk_fn("file_write", {"path": str(target_path), "content": content}):
+                    return {"output": f"SafetyGate: write_file blocked by safety interceptor for '{path}'."}
+
+            # Route through dispatcher if available
+            if self.dispatcher and hasattr(self.dispatcher, "dispatch_action"):
+                res = self.dispatcher.dispatch_action("file_write", path=str(target_path), content=content)
+                if hasattr(res, "success"):
+                    if res.success:
+                        return {"output": f"Đã ghi file: {target_path}"}
+                    err = getattr(res, "error", getattr(res, "message", "Execution failed"))
+                    return {"output": f"Lỗi ghi file qua dispatcher: {err}"}
+                elif isinstance(res, dict):
+                    if res.get("status") in ("ok", "success") or res.get("success"):
+                        return {"output": f"Đã ghi file: {target_path}"}
+                    return {"output": f"Lỗi ghi file: {res.get('error', res.get('message', 'Execution failed'))}"}
+
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            target_path.write_text(content, encoding="utf-8")
+            return {"output": f"Đã ghi file: {target_path}"}
         except Exception as exc:
             return {"output": str(exc)}
 

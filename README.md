@@ -1,15 +1,18 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Wake-word hardening (2026-10-04), source **5.2.1**, **unreleased / NO-GO**:
-OpenWakeWord nay chỉ tạo ứng viên; mọi score (kể cả `>0.50`) phải được Whisper
-xác minh sau post-roll 0,40 giây. Cổng ứng viên `0.02` khôi phục khả năng nhận
-giọng có accent mà không cho score thấp tự mở microphone. `double_clap` bị tắt
-mặc định và model `faster-whisper-tiny` được bắt buộc đóng trong bộ cài offline.
-Replay model thật đạt **14/14** mẫu tổng hợp đúng (3 positive, 11 negative),
-gồm chặn "Affair", "A fifth", "Life", "Hey Travis" và "Hey Charlie";
-full final tree đạt **4.612 passed / 40 skipped / 0 failed** trong `868.002s`.
-**Đây là PASS engineering, không phải voice-live acceptance**. Xem
-[báo cáo wake-word](docs/eval/wake_word_fix_report_20261004.md).
+Architectural gap remediation & acceptance verification (2026-10-09), source **5.2.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- Triệt tiêu các lỗ hổng trung thực (PacketCapture TShark parsing, Telegram/Discord API 200/ok verification, Terminal UI truthful dispatch).
+- Triệt tiêu 100% `RuntimeWarning: coroutine 'Server._close' was never awaited` trong vòng đời tắt Web Dashboard / WebSocket.
+- Sửa đứt gãy OpenWakeWord streaming qua cooldown bằng bộ đệm trượt `_OpenWakeWordFrameBuffer` (1.280 mẫu).
+- Kích hoạt AppContainer kernel network isolation mặc định cho `execute_python()` với fallback an toàn Low-Integrity.
+- Tích hợp `ReActAgent` hoàn chỉnh vào `ActionDispatcher` và `SafetyGateInterceptor` với kiểm soát workspace.
+- Hợp nhất schema Skill manifest (`display_name`, `actions`) và bảo vệ manifest khỏi telemetry runtime bằng `.to_manifest_dict()`.
+- Phân rã hai God-objects: `app.py` (từ 3.965 xuống 2.136 dòng qua `jarvis/core/handlers/`) và `router.py` (từ 3.678 xuống 2.214 dòng qua `rules_catalog.py`).
+- Nghiệm thu thực tế: Live wake-word harness (`tools/live_wake_word_acceptance.py`) đạt **PASS runtime (0 false alarms)** trên microphone thật; 10-workflow OS matrix (`scripts/run_10_workflow_real_os.py`) đạt **8/10 PASS runtime, 2/10 PASS fail-closed, 0 FAIL**; Authenticode signing (`scripts/sign_installer_v520.py`) áp dụng cờ `--require-commercial` fail-closed minh bạch và ghi nhận kiểm thử test-signed đúng chuẩn Three-Tier.
+- Full unit test suite (`tests/unit/`): **2.839 passed / 0 failed / 100% green**.
+- Security scanner: **0 findings / 210 files / 69.674 lines / 0.97s**.
+
+Wake-word hardening trước đó (2026-10-04), source **5.2.1**:
 
 Release hardening trước đó (2026-10-04), source **5.2.1**:
 đã bổ sung confirmation cho auto-kill/dialog dismissal, sửa các nhánh báo thành

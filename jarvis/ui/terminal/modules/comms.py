@@ -144,9 +144,60 @@ def _telegram_rate_limiter(ctx: TerminalContext) -> ActionOutcome:
     return run_timed(body)
 
 
-def _telegram_send_blocked(label: str) -> ActionOutcome:
+def _telegram_send_msg(ctx: TerminalContext) -> ActionOutcome:
     def body() -> ActionOutcome:
-        return ActionOutcome(status=StatusLevel.LIMITED, title=label, detail_lines=[_UNTRUSTED_SEND_DETAIL])
+        ctrl = _telegram(ctx)
+        chat_ids = ctx.config.get("comms.telegram.whitelist_chat_ids", []) or []
+        if not chat_ids:
+            return ActionOutcome(
+                status=StatusLevel.UNAVAILABLE,
+                title="Send Message",
+                error_reason="No Telegram whitelist chat ID configured.",
+            )
+        target_id = int(chat_ids[0])
+        res = ctrl.send_message(chat_id=target_id, text="[JARVIS Terminal Test Ping]")
+        if res.get("ok"):
+            return ActionOutcome(
+                status=StatusLevel.READY,
+                title="Send Message",
+                fields=[("Status", "DELIVERED"), ("Chat ID", str(target_id))],
+            )
+        code = res.get("error_code", "FAILED")
+        status = StatusLevel.UNAVAILABLE if code == "NOT_CONFIGURED" else StatusLevel.ERROR
+        return ActionOutcome(
+            status=status,
+            title="Send Message",
+            error_reason=f"{code}: {res.get('description', '')}",
+        )
+    return run_timed(body)
+
+
+def _telegram_send_photo(ctx: TerminalContext) -> ActionOutcome:
+    def body() -> ActionOutcome:
+        ctrl = _telegram(ctx)
+        chat_ids = ctx.config.get("comms.telegram.whitelist_chat_ids", []) or []
+        if not chat_ids:
+            return ActionOutcome(
+                status=StatusLevel.UNAVAILABLE,
+                title="Send Photo",
+                error_reason="No Telegram whitelist chat ID configured.",
+            )
+        target_id = int(chat_ids[0])
+        dummy_pixel = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+        res = ctrl.send_photo(chat_id=target_id, photo_bytes=dummy_pixel, caption="[JARVIS Terminal Test Photo]")
+        if res.get("ok"):
+            return ActionOutcome(
+                status=StatusLevel.READY,
+                title="Send Photo",
+                fields=[("Status", "DELIVERED"), ("Chat ID", str(target_id))],
+            )
+        code = res.get("error_code", "FAILED")
+        status = StatusLevel.UNAVAILABLE if code == "NOT_CONFIGURED" else StatusLevel.ERROR
+        return ActionOutcome(
+            status=status,
+            title="Send Photo",
+            error_reason=f"{code}: {res.get('description', '')}",
+        )
     return run_timed(body)
 
 
@@ -157,10 +208,10 @@ def build_telegram_menu(ctx: TerminalContext) -> MenuScreen:
         MenuAction(id="tg_ratelimit", key="3", label="Rate Limiter", handler=lambda: _telegram_rate_limiter(ctx), safe_for_batch=True),
         MenuAction(id="tg_send_msg", key="4", label="Send Message", read_only=False,
                    requires_confirmation=True, side_effect_level="external_send", safe_for_batch=False,
-                   handler=lambda: _telegram_send_blocked("Send Message")),
+                   handler=lambda: _telegram_send_msg(ctx)),
         MenuAction(id="tg_send_photo", key="5", label="Send Photo", read_only=False,
                    requires_confirmation=True, side_effect_level="external_send", safe_for_batch=False,
-                   handler=lambda: _telegram_send_blocked("Send Photo")),
+                   handler=lambda: _telegram_send_photo(ctx)),
     ]
     return MenuScreen(id="comms_telegram", title="TELEGRAM", breadcrumb=["MAIN", "COMMUNICATIONS", "TELEGRAM"],
                        actions=actions, batch_label="Check All", help_intro="Send actions never fabricate delivery.")
@@ -193,9 +244,64 @@ def _discord_whitelist(ctx: TerminalContext) -> ActionOutcome:
     return run_timed(body)
 
 
-def _discord_send_blocked(label: str) -> ActionOutcome:
+def _discord_send_msg(ctx: TerminalContext) -> ActionOutcome:
     def body() -> ActionOutcome:
-        return ActionOutcome(status=StatusLevel.LIMITED, title=label, detail_lines=[_UNTRUSTED_SEND_DETAIL])
+        ctrl = _discord(ctx)
+        channel_ids = ctx.config.get("comms.discord.channel_ids", []) or []
+        if not channel_ids:
+            return ActionOutcome(
+                status=StatusLevel.UNAVAILABLE,
+                title="Discord Send Message",
+                error_reason="No Discord channel ID configured.",
+            )
+        target_id = int(channel_ids[0])
+        res = ctrl.send_message(channel_id=target_id, content="[JARVIS Terminal Test Ping]")
+        if res.get("success"):
+            return ActionOutcome(
+                status=StatusLevel.READY,
+                title="Discord Send Message",
+                fields=[("Status", "DELIVERED"), ("Channel ID", str(target_id))],
+            )
+        code = res.get("error_code", "FAILED")
+        status = StatusLevel.UNAVAILABLE if code == "NOT_CONFIGURED" else StatusLevel.ERROR
+        return ActionOutcome(
+            status=status,
+            title="Discord Send Message",
+            error_reason=f"{code}: {res.get('description', res.get('error', ''))}",
+        )
+    return run_timed(body)
+
+
+def _discord_send_embed(ctx: TerminalContext) -> ActionOutcome:
+    def body() -> ActionOutcome:
+        ctrl = _discord(ctx)
+        channel_ids = ctx.config.get("comms.discord.channel_ids", []) or []
+        if not channel_ids:
+            return ActionOutcome(
+                status=StatusLevel.UNAVAILABLE,
+                title="Discord Send Embed",
+                error_reason="No Discord channel ID configured.",
+            )
+        target_id = int(channel_ids[0])
+        res = ctrl.send_embed(
+            channel_id=target_id,
+            title="JARVIS Terminal Status",
+            description="Testing embed dispatch from Terminal Control Center",
+            fields=[{"name": "Status", "value": "Online", "inline": True}],
+        )
+        if res.get("success"):
+            return ActionOutcome(
+                status=StatusLevel.READY,
+                title="Discord Send Embed",
+                fields=[("Status", "DELIVERED"), ("Channel ID", str(target_id))],
+            )
+        code = res.get("error_code", "FAILED")
+        status = StatusLevel.UNAVAILABLE if code == "NOT_CONFIGURED" else StatusLevel.ERROR
+        return ActionOutcome(
+            status=status,
+            title="Discord Send Embed",
+            error_reason=f"{code}: {res.get('description', res.get('error', ''))}",
+        )
     return run_timed(body)
 
 
@@ -205,10 +311,10 @@ def build_discord_menu(ctx: TerminalContext) -> MenuScreen:
         MenuAction(id="dc_whitelist", key="2", label="Whitelist", handler=lambda: _discord_whitelist(ctx), safe_for_batch=True),
         MenuAction(id="dc_send_msg", key="3", label="Send Message", read_only=False,
                    requires_confirmation=True, side_effect_level="external_send", safe_for_batch=False,
-                   handler=lambda: _discord_send_blocked("Send Message")),
+                   handler=lambda: _discord_send_msg(ctx)),
         MenuAction(id="dc_send_embed", key="4", label="Send Embed", read_only=False,
                    requires_confirmation=True, side_effect_level="external_send", safe_for_batch=False,
-                   handler=lambda: _discord_send_blocked("Send Embed")),
+                   handler=lambda: _discord_send_embed(ctx)),
     ]
     return MenuScreen(id="comms_discord", title="DISCORD", breadcrumb=["MAIN", "COMMUNICATIONS", "DISCORD"],
                        actions=actions, batch_label="Check All", help_intro="Send actions never fabricate delivery.")

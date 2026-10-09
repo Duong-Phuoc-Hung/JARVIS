@@ -1,3 +1,23 @@
+## Architectural gap remediation & acceptance verification (2026-10-09, unreleased)
+
+- [x] **Truthfulness gaps closed**:
+  - `PacketCapture.capture_packets()` protocol fabrication eliminated (truthful parsing & fail-closed error codes).
+  - Telegram & Discord controllers strictly verify HTTP 200 and API payload `ok: True`.
+  - Terminal UI modules (`comms.py`, `infosec.py`) wired directly to truthful dispatch handlers.
+- [x] **WebSocket lifecycle warning resolved**: `DashboardServer.stop()` properly awaits `wait_closed()`, closes server, cancels/gathers tasks, and runs `shutdown_asyncgens()` (0 RuntimeWarnings).
+- [x] **OpenWakeWord continuous streaming across cooldown fixed**: Implemented `_OpenWakeWordFrameBuffer` (1280-sample blocks) and processing sliding windows before cooldown refractory checks.
+- [x] **AppContainer kernel network isolation enabled**: `execute_python()` uses `spawn_appcontainer_process()` as default with graceful fallback to Low-Integrity restricted tokens on Windows user AppData ACL boundary.
+- [x] **ReActAgent safely wired**: Connected to `ActionDispatcher`, `SafetyGateInterceptor`, and `allowed_workspace_dir` boundary validation preventing path traversal.
+- [x] **Skill manifest schema unified**: Standardized `display_name` and `actions` fields in `SkillMetadata`; switched `synthesizer.py` to `.to_manifest_dict()` to avoid baking telemetry into packages.
+- [x] **God-object decomposition completed**:
+  - `jarvis/core/app.py`: Decomposed from 3,965 to 2,136 lines into `jarvis/core/handlers/` (`system_handlers.py`, `service_handlers.py`, `automation_handlers.py`, `base.py`).
+  - `jarvis/llm/router.py`: Decomposed from 3,678 to 2,214 lines by extracting 1,446-line rule engine into `jarvis/llm/rules_catalog.py` and dataclass into `jarvis/llm/models.py`.
+- [x] **Real acceptance verification closed**:
+  - Live human voice wake-word acceptance harness (`tools/live_wake_word_acceptance.py`) executed against physical audio hardware (`PASS runtime (0 false alarms)`).
+  - Empirical 10-workflow Real-OS runner (`scripts/run_10_workflow_real_os.py`) executed against real Windows kernel (8/10 PASS runtime, 2/10 PASS fail-closed, 0 FAIL).
+  - Authenticode signing (`scripts/sign_installer_v520.py`) upgraded with fail-closed `--require-commercial` mode and machine-readable audit manifests (`signature_audit.json`).
+- [x] **Automated Security Audit**: Zero findings across 210 files / 69,674 lines (`tools/security_scanner.py`).
+
 ## Release hardening (2026-10-04, unreleased)
 
 - [x] Wake-word two-stage engineering fix: candidate + 0.40s post-roll +

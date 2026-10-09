@@ -216,3 +216,38 @@ def test_default_config_does_not_turn_room_transients_into_voice_activation():
     assert detector.feed_clap(ClapEvent(timestamp=1.0, amplitude=0.8)) is None
     detector.feed_clap(ClapEvent(timestamp=1.2, amplitude=0.8))
     assert detector.tick(2.0) is None
+
+
+def test_openwakeword_continuous_streaming_across_cooldown_and_frame_buffering():
+    """Verify OpenWakeWord continues feeding predict() during cooldown and chunks frames."""
+    detector = _make_openwakeword_detector(0.95, openwakeword_verification_enabled=False)
+    detector.cooldown_s = 2.0
+    mock_model = detector._tier1_engine
+
+    # 1. Trigger detection at t=100.0
+    result1 = detector.feed_audio_block(np.full(1280, 0.05, dtype=np.float32), timestamp=100.0)
+    assert result1 is not None
+    assert result1.keyword == "hey_jarvis_v0.1"
+    initial_predict_calls = mock_model.predict.call_count
+    assert initial_predict_calls >= 1
+
+    # 2. Feed audio during cooldown (t=100.5, within 2.0s cooldown)
+    cooldown_result = detector.feed_audio_block(
+        np.full(1280, 0.05, dtype=np.float32), timestamp=100.5
+    )
+    assert cooldown_result is None  # Blocked by cooldown
+    # But predict() WAS called so rolling spectrogram buffer does not freeze
+    assert mock_model.predict.call_count == initial_predict_calls + 1
+
+    # 3. Test frame buffering with non-1280 chunk size (e.g. 640 samples)
+    detector._openwakeword_frame_buffer.reset()
+    mock_model.predict.reset_mock()
+
+    # Feed 640 samples: half frame -> predict() should not be called yet
+    detector.feed_audio_block(np.full(640, 0.05, dtype=np.float32), timestamp=105.0)
+    assert mock_model.predict.call_count == 0
+
+    # Feed another 640 samples: completes 1280 frame -> predict() called with 1280 frame
+    res = detector.feed_audio_block(np.full(640, 0.05, dtype=np.float32), timestamp=105.08)
+    assert mock_model.predict.call_count == 1
+    assert len(mock_model.predict.call_args[0][0]) == 1280

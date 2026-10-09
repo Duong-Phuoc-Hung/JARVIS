@@ -507,6 +507,9 @@ class DashboardServer:
         self._httpd: http.server.ThreadingHTTPServer | None = None
         self._http_thread: threading.Thread | None = None
         self._ws_thread: threading.Thread | None = None
+        self._ws_loop: asyncio.AbstractEventLoop | None = None
+        self._ws_server: Any | None = None
+        self._ws_stop_event: asyncio.Event | None = None
         self._lock = threading.RLock()
 
         self.last_broadcast_payload: dict[str, Any] | None = None
@@ -554,9 +557,14 @@ class DashboardServer:
 
     def _start_ws_server(self) -> None:
         """Starts asyncio WebSocket broadcaster in background thread."""
+        loop = asyncio.new_event_loop()
+        self._ws_loop = loop
+        ready_event = threading.Event()
+
         def _ws_runner():
-            loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+            stop_event = asyncio.Event()
+            self._ws_stop_event = stop_event
 
             async def _handler(websocket):
                 self._ws_clients.add(websocket)
@@ -567,19 +575,39 @@ class DashboardServer:
 
             async def _main():
                 try:
-                    async with websockets.serve(_handler, self.host, self.ws_port):
-                        while self._is_running:
-                            await asyncio.sleep(1.0)
+                    server = await websockets.serve(_handler, self.host, self.ws_port)
+                    self._ws_server = server
+                    ready_event.set()
+                    await stop_event.wait()
+                    server.close()
+                    await server.wait_closed()
                 except Exception as e:
                     logger.debug("WebSocket server error: %s", e)
+                    ready_event.set()
 
             try:
                 loop.run_until_complete(_main())
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("WebSocket loop terminated: %s", e)
+            finally:
+                try:
+                    pending = asyncio.all_tasks(loop)
+                    for task in pending:
+                        task.cancel()
+                    if pending:
+                        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    loop.run_until_complete(loop.shutdown_asyncgens())
+                except Exception:
+                    pass
+                finally:
+                    try:
+                        loop.close()
+                    except Exception:
+                        pass
 
         self._ws_thread = threading.Thread(target=_ws_runner, name="JarvisDashboardWSWorker", daemon=True)
         self._ws_thread.start()
+        ready_event.wait(timeout=2.0)
 
     def stop(self) -> None:
         """Gracefully stops HTTP and WebSocket servers."""
@@ -599,6 +627,22 @@ class DashboardServer:
         if self._http_thread and self._http_thread.is_alive():
             self._http_thread.join(timeout=1.0)
             self._http_thread = None
+
+        # Shut down WebSocket server gracefully
+        if self._ws_loop and not self._ws_loop.is_closed():
+            try:
+                if self._ws_stop_event:
+                    self._ws_loop.call_soon_threadsafe(self._ws_stop_event.set)
+            except Exception as e:
+                logger.debug("Error signaling WS stop event: %s", e)
+
+        if self._ws_thread and self._ws_thread.is_alive():
+            self._ws_thread.join(timeout=2.0)
+            self._ws_thread = None
+
+        self._ws_server = None
+        self._ws_loop = None
+        self._ws_stop_event = None
 
         logger.info("DashboardServer stopped.")
 

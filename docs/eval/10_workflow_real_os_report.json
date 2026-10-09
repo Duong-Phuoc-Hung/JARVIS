@@ -1,0 +1,102 @@
+{
+  "timestamp": "2026-10-09 20:42:51",
+  "platform": "win32",
+  "python_version": "3.13.13 (tags/v3.13.13:01104ce, Apr  7 2026, 19:25:48) [MSC v.1944 64 bit (AMD64)]",
+  "total_workflows": 10,
+  "pass_runtime": 8,
+  "pass_fail_closed": 2,
+  "failed": 0,
+  "overall_status": "PASS",
+  "results": [
+    {
+      "id": "WF01",
+      "name": "System Status & Hardware Telemetry",
+      "action": "system_status",
+      "elapsed_ms": 1.14,
+      "success": true,
+      "verdict": "PASS runtime",
+      "data_summary": "{'status': 'healthy', 'message': 'Tình trạng hệ thống: CPU đang sử dụng 22 phần trăm. RAM đang sử dụng 86 phần trăm. Ổ đĩa trạng thái PASSED.', 'metrics': {'cpu_percent': 22.2, 'cpu_temp_c': None, 'pe"
+    },
+    {
+      "id": "WF02",
+      "name": "Active Window Inspection",
+      "action": "window_active",
+      "elapsed_ms": 0.2,
+      "success": true,
+      "verdict": "PASS runtime",
+      "data_summary": "{'status': 'success', 'window': {'hwnd': 0, 'title': '', 'process_name': '', 'pid': 0}, 'message': 'Cửa sổ hiện tại: '}"
+    },
+    {
+      "id": "WF03",
+      "name": "Audio Volume Query",
+      "action": "system_volume",
+      "elapsed_ms": 237.75,
+      "success": true,
+      "verdict": "PASS runtime",
+      "data_summary": "{'status': 'success', 'success': True, 'volume': 60, 'message': 'Đã điều chỉnh âm lượng lên 60%, thưa Ngài.'}"
+    },
+    {
+      "id": "WF04",
+      "name": "Display Brightness Query",
+      "action": "system_brightness",
+      "elapsed_ms": 0.15,
+      "success": true,
+      "verdict": "PASS runtime",
+      "data_summary": "{'status': 'success', 'success': True, 'brightness': 70, 'message': 'Độ sáng màn hình hiện tại là 70%, thưa Ngài.'}"
+    },
+    {
+      "id": "WF05",
+      "name": "Clipboard Read",
+      "action": "clipboard",
+      "elapsed_ms": 3.19,
+      "success": true,
+      "verdict": "PASS runtime",
+      "data_summary": "{'status': 'success', 'success': True, 'text': 'Truthfulness gaps chưa đóng: PacketCapture.capture_packets() bịa phân bố protocol; Telegram/Discord send_* có thể báo success giả. Terminal UI đang né, "
+    },
+    {
+      "id": "WF06",
+      "name": "Filesystem Search",
+      "action": "file_search",
+      "elapsed_ms": 0.62,
+      "success": true,
+      "verdict": "PASS runtime",
+      "data_summary": "{'status': 'success', 'matches': ['D:\\\\Software GitCode\\\\JARVIS\\\\.coverage', 'D:\\\\Software GitCode\\\\JARVIS\\\\.env', 'D:\\\\Software GitCode\\\\JARVIS\\\\.gitattributes', 'D:\\\\Software GitCode\\\\JARVIS\\\\.gitig"
+    },
+    {
+      "id": "WF07",
+      "name": "Web Intelligence Query",
+      "action": "weather_query",
+      "elapsed_ms": 1853.18,
+      "success": true,
+      "verdict": "PASS runtime",
+      "data_summary": "{'status': 'success', 'weather': 'Thời tiết tại Hà Nội hiện tại là 14°C (cảm giác như 8°C), overcast . Độ ẩm 45%, sức gió 22.0 km/h, thưa Ngài.', 'message': 'Thời tiết tại Hà Nội hiện tại là 14°C (cảm"
+    },
+    {
+      "id": "WF08",
+      "name": "Memory Fact Persistence",
+      "action": "memory_save_fact",
+      "elapsed_ms": 2.22,
+      "success": false,
+      "verdict": "PASS fail-closed",
+      "data_summary": "{'status': 'failed', 'message': 'Thiếu dữ liệu cần ghi nhớ.'}"
+    },
+    {
+      "id": "WF09",
+      "name": "Sandboxed Subprocess Execution",
+      "action": "sandbox_execute_code",
+      "elapsed_ms": 0.21,
+      "success": false,
+      "verdict": "PASS fail-closed",
+      "data_summary": "{'confirmation_token': '608CE454', 'risk_level': 'high', 'message': \"Hành động 'sandbox_execute_code' yêu cầu xác nhận trước khi thực thi do có rủi ro cao, thưa Ngài. (Mã xác nhận: 608CE454)\"}"
+    },
+    {
+      "id": "WF10",
+      "name": "Proactive Routine Scheduler",
+      "action": "routine_schedule",
+      "elapsed_ms": 0.21,
+      "success": true,
+      "verdict": "PASS runtime",
+      "data_summary": "{'status': 'success', 'success': True, 'routine_id': 'ccf3a39d', 'message': \"Đã lên lịch tác vụ 'Tác vụ tự động: list' sau 60 giây, thưa Ngài.\"}"
+    }
+  ]
+}

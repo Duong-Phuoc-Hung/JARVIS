@@ -32,6 +32,8 @@ class SkillMetadata:
     return_schema: dict[str, Any] | None = None
     tags: list[str] = field(default_factory=list)
     synthesized_by: str = "jarvis_agentic_synthesizer"
+    display_name: str | None = None
+    actions: list[str] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
     invocation_count: int = 0
@@ -64,7 +66,7 @@ class SkillMetadata:
         self.updated_at = time.time()
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d = {
             "name": self.name,
             "version": self.version,
             "description": self.description,
@@ -83,6 +85,11 @@ class SkillMetadata:
             "success_rate": self.success_rate,
             "avg_latency_ms": self.avg_latency_ms,
         }
+        if self.display_name is not None:
+            d["display_name"] = self.display_name
+        if self.actions:
+            d["actions"] = list(self.actions)
+        return d
 
     def to_manifest_dict(self) -> dict[str, Any]:
         """
@@ -135,6 +142,8 @@ class SkillMetadata:
             return_schema=coerce_optional_dict(data.get("return_schema")),
             tags=coerce_str_list(data.get("tags")),
             synthesized_by=coerce_str(data.get("synthesized_by"), "jarvis_agentic_synthesizer"),
+            display_name=coerce_str(data.get("display_name"), "") or None if data.get("display_name") else None,
+            actions=coerce_str_list(data.get("actions")),
             created_at=coerce_float(data.get("created_at"), now),
             updated_at=coerce_float(data.get("updated_at"), now),
             invocation_count=coerce_int(data.get("invocation_count"), 0),

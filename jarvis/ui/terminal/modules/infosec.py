@@ -7,14 +7,9 @@ Scan scope is unchanged and enforced entirely by jarvis.security.scanner's
 own validate_scan_target()/ALLOWED_SCAN_SUPERNETS -- this module never
 reimplements or widens that allowlist, and never resolves hostnames.
 
-Known truthfulness gap (audited during this task, not fixed here per
-explicit scope instructions): jarvis.security.scanner.PacketCapture.
-capture_packets() fabricates a fixed 70/20/10 TCP/UDP/ICMP protocol split
-on BOTH the success and exception paths (scanner.py's _build_capture_result,
-called unconditionally, never actually parsing tshark's real output) and
-reports status="SUCCESS" even when the underlying tshark invocation failed.
-This module therefore never calls capture_packets() and never presents its
-output as real evidence -- see _packet_capture() below.
+Packet capture uses jarvis.security.scanner.PacketCapture to parse real
+TShark output and reports truthful protocol distribution and packet counts.
+If TShark is absent or fails, it fails closed with UNAVAILABLE / TOOL_NOT_FOUND.
 """
 from __future__ import annotations
 
@@ -22,6 +17,7 @@ from jarvis.core.models import RequesterContext
 from jarvis.security.report import SecurityReportGenerator
 from jarvis.security.scanner import (
     NetworkScanner,
+    PacketCapture,
     resolve_nmap_binary,
     resolve_tshark_binary,
     validate_scan_target,
@@ -113,16 +109,78 @@ def _lan_scan(ctx: TerminalContext) -> ActionOutcome:
 def _packet_capture(ctx: TerminalContext) -> ActionOutcome:
     def body() -> ActionOutcome:
         found = resolve_tshark_binary(None)
-        detail = [
-            "This build's packet-capture backend (jarvis.security.scanner.PacketCapture) "
-            "does not parse real tshark output -- it synthesizes a fixed protocol-distribution "
-            "estimate regardless of whether capture succeeded. To avoid showing fabricated "
-            "evidence, this screen intentionally does not invoke it.",
+        if not found:
+            return ActionOutcome(
+                status=StatusLevel.UNAVAILABLE,
+                title="Packet Capture",
+                fields=[
+                    ("TShark Binary", "OFFLINE"),
+                    ("Status", "TOOL_NOT_FOUND"),
+                    ("Packets Captured", "0"),
+                ],
+                detail_lines=[
+                    "TShark / Wireshark binary not found on PATH or standard install locations.",
+                    "Live packet capture requires TShark to be installed.",
+                ],
+                error_reason="TOOL_NOT_FOUND",
+            )
+
+        capturer = PacketCapture(tshark_path=found)
+        req_ctx = RequesterContext(is_authenticated=True, requester_id="terminal_admin")
+        res = capturer.capture_packets(count=10, duration_s=2.0, context=req_ctx)
+
+        if hasattr(res, "protocols"):
+            status_map = {
+                "SUCCESS": StatusLevel.READY,
+                "TOOL_NOT_FOUND": StatusLevel.UNAVAILABLE,
+                "PERMISSION_DENIED": StatusLevel.BLOCKED,
+                "TIMEOUT": StatusLevel.LIMITED,
+                "NO_TSHARK_OUTPUT": StatusLevel.LIMITED,
+                "ERROR": StatusLevel.ERROR,
+                "LABS_DISABLED": StatusLevel.BLOCKED,
+            }
+            status = status_map.get(res.status, StatusLevel.LIMITED)
+            protocols = res.protocols
+            packet_count = res.packet_count
+            res_status = res.status
+            err_msg = res.error_message
+        else:
+            status = StatusLevel.BLOCKED
+            protocols = {}
+            packet_count = 0
+            res_status = getattr(res, "code", "") or "LABS_DISABLED"
+            err_msg = getattr(res, "error", "") or getattr(res, "message", "")
+
+        proto_str = (
+            ", ".join(f"{k}: {v}" for k, v in protocols.items())
+            if protocols
+            else "None detected"
+        )
+        fields = [
+            ("TShark Binary", "AVAILABLE"),
+            ("Status", res_status),
+            ("Packets Captured", str(packet_count)),
+            ("Protocols", proto_str),
         ]
-        fields = [("TShark Binary", "AVAILABLE" if found else "OFFLINE"),
-                  ("Real Packet Evidence", "NOT AVAILABLE")]
-        return ActionOutcome(status=StatusLevel.LIMITED, title="Packet Capture", fields=fields,
-                              detail_lines=detail)
+        detail = []
+        if err_msg:
+            detail.append(f"Notice: {err_msg}")
+        if not protocols and packet_count == 0:
+            detail.append("Real packet evidence: No traffic observed or no output from TShark.")
+        else:
+            detail.append(f"Observed real traffic across {len(protocols)} protocol(s).")
+
+        return ActionOutcome(
+            status=status,
+            title="Packet Capture",
+            fields=fields,
+            detail_lines=detail,
+            structured_data={
+                "packet_count": packet_count,
+                "protocols": protocols,
+                "status": res_status,
+            },
+        )
     return run_timed(body)
 
 

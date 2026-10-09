@@ -338,3 +338,53 @@ class TestAgentLifecycle:
         task = agent.run("some goal")
         assert task.state == AgentState.DONE
         assert agent._sandbox is None  # never constructed since run_python was never called
+
+
+class TestSafetyAndDispatcherWiring:
+    def test_write_file_rejects_path_traversal(self, tmp_path):
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        agent = ReActAgent(is_mock=True, allowed_workspace_dir=str(workspace))
+        
+        # Path outside workspace
+        outside_file = tmp_path / "outside.txt"
+        res = agent._tool_write_file(path=str(outside_file), content="malicious")
+        assert "Security Error" in res["output"]
+        assert not outside_file.exists()
+
+    def test_write_file_routes_through_dispatcher(self, tmp_path):
+        from unittest.mock import MagicMock
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        mock_dispatcher = MagicMock()
+        mock_dispatcher.dispatch_action.return_value = {"status": "success"}
+
+        agent = ReActAgent(
+            is_mock=True,
+            dispatcher=mock_dispatcher,
+            allowed_workspace_dir=str(workspace),
+        )
+        target = workspace / "test.txt"
+        res = agent._tool_write_file(path=str(target), content="hello")
+        
+        mock_dispatcher.dispatch_action.assert_called_once_with(
+            "file_write", path=str(target.resolve()), content="hello"
+        )
+        assert "Đã ghi file" in res["output"]
+
+    def test_write_file_blocked_by_safety_interceptor(self, tmp_path):
+        from unittest.mock import MagicMock
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        mock_interceptor = MagicMock()
+        mock_interceptor.is_high_risk.return_value = True
+
+        agent = ReActAgent(
+            is_mock=True,
+            safety_interceptor=mock_interceptor,
+            allowed_workspace_dir=str(workspace),
+        )
+        target = workspace / "system.dll"
+        res = agent._tool_write_file(path=str(target), content="danger")
+        assert "SafetyGate" in res["output"]
+        assert not target.exists()

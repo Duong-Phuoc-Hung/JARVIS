@@ -564,6 +564,40 @@ class _PorcupineFrameBuffer:
         self._pending = np.empty(0, dtype=np.int16)
 
 
+class _OpenWakeWordFrameBuffer:
+    """
+    Adapts arbitrary-sized incoming audio blocks to OpenWakeWord's chunk
+    contract: OpenWakeWord expects 1280 int16 samples (80ms at 16kHz) per step.
+    Partial frames are carried over so rolling spectrogram buffers stay contiguous.
+    """
+
+    def __init__(self, frame_length: int = 1280) -> None:
+        self.frame_length = int(frame_length)
+        self._pending: np.ndarray = np.empty(0, dtype=np.int16)
+
+    def append_and_get_frames(self, pcm_int16: np.ndarray) -> list[np.ndarray]:
+        """
+        Buffers incoming int16 PCM and returns all complete frames of `frame_length`.
+        If pcm_int16 is already exactly `frame_length` and buffer was empty, returns [pcm_int16].
+        """
+        if pcm_int16.size == 0:
+            return []
+        if len(self._pending) == 0 and len(pcm_int16) == self.frame_length:
+            return [pcm_int16]
+
+        self._pending = np.concatenate([self._pending, pcm_int16])
+        frames: list[np.ndarray] = []
+        while len(self._pending) >= self.frame_length:
+            frame = self._pending[: self.frame_length]
+            self._pending = self._pending[self.frame_length :]
+            frames.append(frame)
+        return frames
+
+    def reset(self) -> None:
+        """Drop any buffered partial frame (used on detector reset())."""
+        self._pending = np.empty(0, dtype=np.int16)
+
+
 class WakeWordDetector:
     """
     Real-time, multi-tier Wake Word Detector for JARVIS.
@@ -638,6 +672,7 @@ class WakeWordDetector:
         )
         self._tier1_engine: Any | None = None
         self._porcupine_frame_buffer: _PorcupineFrameBuffer | None = None
+        self._openwakeword_frame_buffer: _OpenWakeWordFrameBuffer = _OpenWakeWordFrameBuffer(frame_length=1280)
         self._openwakeword_labels: list[str] = []
         self._openwakeword_threshold: float = 0.5
         self._openwakeword_candidate_threshold: float = min(
@@ -891,6 +926,8 @@ class WakeWordDetector:
         self._openwakeword_candidate_samples_left = 0
         if self._porcupine_frame_buffer is not None:
             self._porcupine_frame_buffer.reset()
+        if hasattr(self, "_openwakeword_frame_buffer") and self._openwakeword_frame_buffer is not None:
+            self._openwakeword_frame_buffer.reset()
         if hasattr(self, "_whisper_detector") and self._whisper_detector:
             self._whisper_detector.reset()
 
@@ -1034,15 +1071,27 @@ class WakeWordDetector:
         genuinely failed on this block" (Tier-2 fallback IS allowed).
         """
         int16_pcm = (np.clip(resampled, -1.0, 1.0) * 32767.0).astype(np.int16)
-        scores = self._tier1_engine.predict(int16_pcm)
+        if hasattr(self, "_openwakeword_frame_buffer") and self._openwakeword_frame_buffer is not None:
+            frames = self._openwakeword_frame_buffer.append_and_get_frames(int16_pcm)
+        else:
+            frames = [int16_pcm]
+
+        if not frames:
+            return False, "", 0.0
+
         best_label = ""
         best_score = 0.0
-        for label in self._openwakeword_labels:
-            score = float(scores.get(label, 0.0))
-            if score > best_score:
-                best_score = score
-                best_label = label
-        detected = best_score >= self._openwakeword_threshold
+        detected = False
+        for frame in frames:
+            scores = self._tier1_engine.predict(frame)
+            for label in self._openwakeword_labels:
+                score = float(scores.get(label, 0.0))
+                if score > best_score:
+                    best_score = score
+                    best_label = label
+            if best_score >= self._openwakeword_threshold:
+                detected = True
+
         return detected, (best_label or "hey_jarvis"), best_score
 
     def _emit_score(self, event: WakeWordScoreEvent) -> None:
@@ -1119,10 +1168,18 @@ class WakeWordDetector:
 
             in_cooldown = (now - self._last_trigger_time) < self.cooldown_s
 
-            # Porcupine must keep streaming through cooldown
+            # Streaming engines (Porcupine, OpenWakeWord) must keep streaming through cooldown
+            # so rolling spectrogram and ring buffers stay contiguous and in sync.
             porcupine_hit = False
             if self._engine_type == WakeWordEngineType.PORCUPINE:
                 porcupine_hit = self._process_porcupine_tier(resampled, arr, in_sr)
+
+            ow_result: tuple[bool, str, float] | None = None
+            if self._engine_type == WakeWordEngineType.OPENWAKEWORD and self._tier1_engine:
+                try:
+                    ow_result = self._process_openwakeword_tier(resampled)
+                except Exception as e:
+                    logger.debug("OpenWakeWord streaming error: %s", e)
 
             # Refractory period / cooldown guard
             if in_cooldown:
@@ -1208,7 +1265,10 @@ class WakeWordDetector:
             elif self._engine_type == WakeWordEngineType.OPENWAKEWORD and self._tier1_engine:
                 tier1_attempted = True
                 try:
-                    ow_detected, ow_keyword, ow_confidence = self._process_openwakeword_tier(resampled)
+                    if ow_result is not None:
+                        ow_detected, ow_keyword, ow_confidence = ow_result
+                    else:
+                        ow_detected, ow_keyword, ow_confidence = self._process_openwakeword_tier(resampled)
                     verifier_verdict: bool | None = None
                     verifier_transcript = ""
                     if ow_detected and not self._openwakeword_verification_enabled:

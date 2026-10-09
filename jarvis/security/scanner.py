@@ -801,23 +801,6 @@ class PacketCapture:
             status = "SUCCESS" if protocols else "NO_PROTOCOLS_PARSED"
             packet_count = sum(protocols.values()) if protocols else 0
         else:
-            # Legacy unit seams replace ``subprocess.run`` with a mock that
-            # emits no tshark stdout.  Preserve their historical success
-            # contract without ever fabricating data in a real process: the
-            # production callable is never from unittest.mock.
-            runner = subprocess.__dict__.get("run")
-            runner_module = getattr(runner, "__module__", type(runner).__module__)
-            if self.config is None and (type(runner).__module__.startswith("unittest.mock") or runner_module != "subprocess"):
-                return PacketCaptureResult(
-                    interface=interface,
-                    packet_count=count,
-                    duration_s=duration,
-                    protocols={"TCP": count},
-                    anomalies_detected=0,
-                    anomalies=[],
-                    pcap_path=pcap_path,
-                    status="SUCCESS",
-                )
             # Truthful: capture ran but produced no parseable output, or TShark
             # subprocess raised an exception. Do NOT fabricate protocol counts or echo requested count.
             protocols = {}

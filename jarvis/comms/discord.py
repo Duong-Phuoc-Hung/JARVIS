@@ -368,31 +368,33 @@ class DiscordBotController:
     def send_message(self, channel_id: int, content: str) -> dict[str, Any]:
         record = {"channel_id": channel_id, "content": content, "timestamp": time.time()}
         self.sent_messages.append(record)
-        if self._http and self.bot_token:
-            try:
-                import json as _json
-                import urllib.error
-                import urllib.request
-                payload = _json.dumps({"content": content}).encode()
-                req = urllib.request.Request(
-                    f"https://discord.com/api/v10/channels/{channel_id}/messages",
-                    data=payload,
-                    headers={"Authorization": f"Bot {self.bot_token}", "Content-Type": "application/json"},
-                    method="POST",
-                )
-                urllib.request.urlopen(req, timeout=10)
-                return {"success": True, "data": record}
-            except Exception as exc:
-                log.warning("Discord send_message API error: %s", exc)
-                return {"success": False, "error": str(exc), "data": record}
-        # Fail-closed: no bot_token or http_client — do NOT fabricate successful delivery.
-        # Previously returned success=True here regardless — that was fabrication (2026-09-04).
-        return {
-            "success": False,
-            "error_code": "NOT_CONFIGURED",
-            "description": "No bot_token configured. Message was NOT sent to Discord.",
-            "data": record,
-        }
+        if not self.bot_token or not self._http:
+            return {
+                "success": False,
+                "error_code": "NOT_CONFIGURED",
+                "description": "No bot_token or http_client configured. Message was NOT sent to Discord.",
+                "data": record,
+            }
+        if hasattr(self._http, "handle_discord_send_message"):
+            return self._http.handle_discord_send_message(channel_id, content)
+        try:
+            import json as _json
+            import urllib.error
+            import urllib.request
+            payload = _json.dumps({"content": content}).encode()
+            req = urllib.request.Request(
+                f"https://discord.com/api/v10/channels/{channel_id}/messages",
+                data=payload,
+                headers={"Authorization": f"Bot {self.bot_token}", "Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status in (200, 201, 204):
+                    return {"success": True, "data": record}
+                return {"success": False, "error": f"HTTP {resp.status}", "data": record}
+        except Exception as exc:
+            log.warning("Discord send_message API error: %s", exc)
+            return {"success": False, "error": str(exc), "data": record}
 
     def send_file(
         self,
@@ -403,24 +405,23 @@ class DiscordBotController:
     ) -> dict[str, Any]:
         record = {"channel_id": channel_id, "filename": filename, "size": len(file_bytes), "timestamp": time.time()}
         self.sent_messages.append(record)
-        # Fail-closed: file upload via multipart API not yet implemented.
-        # Previously returned success=True regardless — that was fabrication (2026-09-04).
-        # When bot_token is present, log a warning that file upload is not implemented.
-        if self._http and self.bot_token:
-            log.warning(
-                "Discord send_file: file upload API (multipart/form-data) is not yet "
-                "implemented. File '%s' was NOT sent to channel %d.", filename, channel_id
-            )
+        if not self.bot_token or not self._http:
             return {
                 "success": False,
-                "error_code": "FILE_SEND_NOT_IMPLEMENTED",
-                "description": f"File '{filename}' was NOT uploaded — Discord multipart file upload is not yet implemented.",
+                "error_code": "NOT_CONFIGURED",
+                "description": f"No bot_token or http_client configured. File '{filename}' was NOT sent to Discord.",
                 "data": record,
             }
+        if hasattr(self._http, "handle_discord_send_file"):
+            return self._http.handle_discord_send_file(channel_id, file_bytes, filename, caption)
+        log.warning(
+            "Discord send_file: file upload API (multipart/form-data) is not yet "
+            "implemented. File '%s' was NOT sent to channel %d.", filename, channel_id
+        )
         return {
             "success": False,
-            "error_code": "NOT_CONFIGURED",
-            "description": f"No bot_token configured. File '{filename}' was NOT sent to Discord.",
+            "error_code": "FILE_SEND_NOT_IMPLEMENTED",
+            "description": f"File '{filename}' was NOT uploaded — Discord multipart file upload is not yet implemented.",
             "data": record,
         }
 
@@ -440,34 +441,36 @@ class DiscordBotController:
             "timestamp": time.time(),
         }
         self.sent_messages.append(record)
-        if self._http and self.bot_token:
-            try:
-                import json as _json
-                import urllib.error
-                import urllib.request
-                payload = _json.dumps({
-                    "content": f"**{title}**\n{description}",
-                    "embeds": [embed_dict],
-                }).encode()
-                req = urllib.request.Request(
-                    f"https://discord.com/api/v10/channels/{channel_id}/messages",
-                    data=payload,
-                    headers={"Authorization": f"Bot {self.bot_token}", "Content-Type": "application/json"},
-                    method="POST",
-                )
-                urllib.request.urlopen(req, timeout=10)
-                return {"success": True, "data": record}
-            except Exception as exc:
-                log.warning("Discord send_embed API error: %s", exc)
-                return {"success": False, "error": str(exc), "data": record}
-        # Fail-closed: no bot_token or http_client — do NOT fabricate successful delivery.
-        # Previously returned success=True here regardless — that was fabrication (2026-09-04).
-        return {
-            "success": False,
-            "error_code": "NOT_CONFIGURED",
-            "description": "No bot_token configured. Embed was NOT sent to Discord.",
-            "data": record,
-        }
+        if not self.bot_token or not self._http:
+            return {
+                "success": False,
+                "error_code": "NOT_CONFIGURED",
+                "description": "No bot_token or http_client configured. Embed was NOT sent to Discord.",
+                "data": record,
+            }
+        if hasattr(self._http, "handle_discord_send_embed"):
+            return self._http.handle_discord_send_embed(channel_id, title, description, fields)
+        try:
+            import json as _json
+            import urllib.error
+            import urllib.request
+            payload = _json.dumps({
+                "content": f"**{title}**\n{description}",
+                "embeds": [embed_dict],
+            }).encode()
+            req = urllib.request.Request(
+                f"https://discord.com/api/v10/channels/{channel_id}/messages",
+                data=payload,
+                headers={"Authorization": f"Bot {self.bot_token}", "Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status in (200, 201, 204):
+                    return {"success": True, "data": record}
+                return {"success": False, "error": f"HTTP {resp.status}", "data": record}
+        except Exception as exc:
+            log.warning("Discord send_embed API error: %s", exc)
+            return {"success": False, "error": str(exc), "data": record}
 
     def _capture_screenshot(self) -> bytes | None:
         try:

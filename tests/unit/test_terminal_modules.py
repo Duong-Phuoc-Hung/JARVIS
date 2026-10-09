@@ -92,16 +92,17 @@ def test_infosec_batch_excludes_scan_when_no_target_selected():
 
 
 def test_infosec_packet_capture_never_fabricates_evidence():
-    """Confirmed truthfulness gap: PacketCapture.capture_packets() invents
-    a fixed protocol split even on failure. This module must never call
-    it or present its output as real."""
+    """PacketCapture.capture_packets() is called truthfully and fails closed
+    when TShark is absent, never inventing fake protocol distributions."""
     ctx = _make_ctx()
     screen = infosec.build_menu(ctx)
     capture_action = next(a for a in screen.actions if a.id == "infosec_capture")
     assert capture_action.safe_for_batch is False
     outcome = capture_action.handler()
-    assert outcome.status == StatusLevel.LIMITED
-    assert "TCP" not in " ".join(outcome.fields[0]) if outcome.fields else True
+    assert outcome.status != StatusLevel.READY
+    assert outcome.status in (StatusLevel.UNAVAILABLE, StatusLevel.LIMITED, StatusLevel.BLOCKED)
+    fields_dict = dict(outcome.fields)
+    assert "70% TCP" not in fields_dict.get("Protocols", "")
 
 
 def test_infosec_security_report_skipped_without_prior_scan():

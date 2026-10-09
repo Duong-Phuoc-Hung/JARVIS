@@ -128,7 +128,10 @@ def test_dashboard_server():
     server = DashboardServer(host="127.0.0.1", port=port, ws_port=ws_port, dispatcher=dispatcher)
     server.start()
     time.sleep(0.05)
-    return server
+    try:
+        yield server
+    finally:
+        server.stop()
 
 
 def test_dashboard_http_server_endpoints(test_dashboard_server):
