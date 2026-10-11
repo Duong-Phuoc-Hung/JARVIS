@@ -173,6 +173,6 @@ class WindowsApplicationLauncher:
             if time.monotonic() >= deadline:
                 break
             time.sleep(min(self.interval, max(0.0, deadline - time.monotonic())))
-        return {"success": True, "status": "launched", "error_code": "APP_LAUNCH_UNVERIFIED",
+        return {"success": False, "status": "timeout", "error_code": "APP_LAUNCH_UNVERIFIED",
                 "verification": "launch_requested", "app": app.name,
-                "message": f"Đã yêu cầu mở {app.name}. Đang khởi động — không tự mở lại."}
+                "message": f"Không thể xác minh cửa sổ ứng dụng {app.name} trong thời gian chờ."}

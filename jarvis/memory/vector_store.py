@@ -62,6 +62,22 @@ class SearchResult:
         return {"doc_id": self.doc_id, "content": self.content, "score": self.score, "category": self.category}
 
 
+def _resolve_default_persist_path() -> str:
+    """Resolve default vector store path under centralized JARVIS data directory."""
+    try:
+        from jarvis.core.paths import data_path
+        return str(data_path("vector_store.json"))
+    except Exception:
+        import os
+        import sys
+        if sys.platform == "win32":
+            base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or "~"
+            p = Path(base) / "JARVIS" / "vector_store.json"
+        else:
+            p = Path.home() / ".jarvis" / "vector_store.json"
+        return str(p)
+
+
 class SemanticVectorStore:
     """
     Lightweight semantic search using TF-IDF cosine similarity.
@@ -71,6 +87,8 @@ class SemanticVectorStore:
 
     def __init__(self, config: VectorStoreConfig | None = None) -> None:
         self.config = config or VectorStoreConfig()
+        if not self.config.persist_path:
+            self.config.persist_path = _resolve_default_persist_path()
         self._documents: dict[str, DocumentVector] = {}
         self._idf: dict[str, float] = {}
         self._lock = threading.Lock()
@@ -170,11 +188,15 @@ class SemanticVectorStore:
     # Persistence
     # ------------------------------------------------------------------
 
-    def save(self) -> None:
+    def save(self) -> bool:
         if not self.config.persist_path:
-            return
+            return False
         path = Path(self.config.persist_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        except Exception as exc:
+            log.warning("Vector store save error (mkdir): %s", exc)
+            return False
         with self._save_lock:
             with self._lock:
                 docs_snapshot = {
@@ -194,16 +216,18 @@ class SemanticVectorStore:
             try:
                 tmp_path.write_text(json_str, encoding="utf-8")
                 # Retry on Windows transient file lock or Access Denied
-                for attempt in range(5):
+                for attempt in range(1, 6):
                     try:
                         tmp_path.replace(path)
                         break
                     except OSError:
-                        if attempt == 4:
+                        if attempt == 5:
                             raise
-                        time.sleep(0.02 * (attempt + 1))
+                        time.sleep(0.02 * attempt)
+                return True
             except Exception as exc:
                 log.warning("Vector store save error: %s", exc)
+                return False
             finally:
                 if tmp_path.exists():
                     try:
@@ -211,14 +235,21 @@ class SemanticVectorStore:
                     except OSError:
                         pass
 
+    def persist(self) -> bool:
+        """Atomic persistence alias for save()."""
+        return self.save()
+
     def _load(self) -> None:
+        if not self.config.persist_path:
+            return
         path = Path(self.config.persist_path)
-        if not path.exists():
+        if not path.is_file():
             return
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
+            loaded_docs: dict[str, DocumentVector] = {}
             for doc_id, d in raw.get("documents", {}).items():
-                self._documents[doc_id] = DocumentVector(
+                loaded_docs[doc_id] = DocumentVector(
                     doc_id=d["doc_id"],
                     content=d["content"],
                     tokens=d.get("tokens", []),
@@ -226,7 +257,9 @@ class SemanticVectorStore:
                     category=d.get("category", "general"),
                     timestamp=d.get("timestamp", 0.0),
                 )
-            self._rebuild_idf()
+            with self._lock:
+                self._documents = loaded_docs
+                self._rebuild_idf()
             log.info("Vector store loaded: %d documents", len(self._documents))
         except Exception as exc:
             log.warning("Vector store load error: %s", exc)

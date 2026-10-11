@@ -61,12 +61,14 @@ jobs:
       - name: Run tests before build
         run: |
           python -m pytest tests/unit/ -q --timeout=60 --tb=short
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Write-Host "All tests passed — proceeding with build"
 
       - name: Build JARVIS.exe
         id: build
         run: |
           python scripts/build_installer.py --exe-only --skip-tests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $exe = Get-Item "dist/JARVIS.exe"
           $sizeMB = [math]::Round($exe.Length / 1MB, 1)
           echo "exe_size=$sizeMB MB" >> $env:GITHUB_OUTPUT
@@ -80,14 +82,17 @@ jobs:
           path: "dist/JARVIS.exe"
           retention-days: 7
 
-  # ── Code Signing — Zero-Cost Self-Signed Authenticode (R1) ───────────
+  # ── Code Signing — Authenticode & Trust Tiering Gate (R1) ───────────
   sign:
-    name: 🔐 Code Signing (Self-Signed Authenticode)
+    name: 🔐 Code Signing (Authenticode Trust Gate)
     runs-on: windows-latest
     needs: build
     timeout-minutes: 10
     permissions:
       contents: write
+    outputs:
+      is_commercial: ${{ steps.sign_step.outputs.is_commercial }}
+      signature_tier: ${{ steps.sign_step.outputs.signature_tier }}
 
     steps:
       - name: Download unsigned artifact
@@ -96,8 +101,14 @@ jobs:
           name: jarvis-unsigned-exe
           path: dist/
 
-      - name: Sign JARVIS.exe with self-signed certificate
+      - name: Sign JARVIS.exe with Authenticode & Trust Gate
+        id: sign_step
         shell: pwsh
+        env:
+          COMMERCIAL_PFX_BASE64: ${{ secrets.COMMERCIAL_PFX_BASE64 }}
+          COMMERCIAL_PFX_PASSWORD: ${{ secrets.COMMERCIAL_PFX_PASSWORD }}
+          COMMERCIAL_CERT_THUMBPRINT: ${{ secrets.COMMERCIAL_CERT_THUMBPRINT }}
+          REQUIRE_COMMERCIAL_RELEASE: ${{ vars.REQUIRE_COMMERCIAL_RELEASE }}
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $false
@@ -118,27 +129,50 @@ jobs:
           Write-Host "Using signtool: $signtool"
 
           Write-Host "`n=== 2. Creating Ephemeral Code Signing Certificate ==="
-          $cert = New-SelfSignedCertificate `
-              -Type CodeSigningCert `
-              -Subject "CN=JARVIS AI Assistant (CI Self-Signed), O=JARVIS Project" `
-              -CertStoreLocation "Cert:\CurrentUser\My" `
-              -KeyExportPolicy Exportable `
-              -KeyUsage DigitalSignature `
-              -KeyLength 2048 `
-              -HashAlgorithm SHA256 `
-              -NotAfter (Get-Date).AddYears(5)
+          $isCommercialAttempt = $false
+          $isCommercial = $false
+          $signatureTier = "TEST_SIGNED"
+          $expectedThumbprint = ""
 
-          Write-Host "Created certificate: $($cert.Subject) (Thumbprint: $($cert.Thumbprint))"
+          if ($env:COMMERCIAL_PFX_BASE64 -or $env:COMMERCIAL_PFX_PASSWORD -or $env:COMMERCIAL_CERT_THUMBPRINT) {
+              if (-not ($env:COMMERCIAL_PFX_BASE64 -and $env:COMMERCIAL_PFX_PASSWORD -and $env:COMMERCIAL_CERT_THUMBPRINT)) {
+                  throw "FAIL-CLOSED: Incomplete commercial signing configuration. COMMERCIAL_PFX_BASE64, COMMERCIAL_PFX_PASSWORD, and COMMERCIAL_CERT_THUMBPRINT are all required."
+              }
+              Write-Host "`n=== 2. Using Configured Commercial PFX Certificate ==="
+              $pfxPath = Join-Path $env:TEMP "jarvis_commercial.pfx"
+              [System.IO.File]::WriteAllBytes($pfxPath, [System.Convert]::FromBase64String($env:COMMERCIAL_PFX_BASE64))
+              $pfxPassword = $env:COMMERCIAL_PFX_PASSWORD
+              $expectedThumbprint = ($env:COMMERCIAL_CERT_THUMBPRINT -replace '[\s:]', '').ToUpper()
+              $isCommercialAttempt = $true
+              Write-Host "Commercial PFX unpacked successfully. Expected Thumbprint: $expectedThumbprint"
+          } else {
+              $tag = "${{ github.ref_name }}"
+              $isPrereleaseTag = ($tag -match 'alpha|beta|rc')
+              if (-not $isPrereleaseTag -and $env:REQUIRE_COMMERCIAL_RELEASE -eq 'true') {
+                  throw "FAIL-CLOSED: Tag '$tag' is a production release tag, but no commercial certificate was found. Commercial Authenticode signing is required."
+              }
+              Write-Warning "No commercial signing credentials configured. Generating development self-signed certificate."
+              Write-Warning "Per Three-Tier Verdict Discipline, artifact is marked as TEST_SIGNED and restricted to PRERELEASE status."
+              Write-Host "`n=== 2. Creating Ephemeral Code Signing Certificate ==="
+              $cert = New-SelfSignedCertificate `
+                  -Type CodeSigningCert `
+                  -Subject "CN=JARVIS AI Assistant (CI Self-Signed), O=JARVIS Project" `
+                  -CertStoreLocation "Cert:\CurrentUser\My" `
+                  -KeyExportPolicy Exportable `
+                  -KeyUsage DigitalSignature `
+                  -KeyLength 2048 `
+                  -HashAlgorithm SHA256 `
+                  -NotAfter (Get-Date).AddYears(5)
 
-          Write-Host "`n=== 3. Exporting PFX ==="
-          $pfxPassword = [System.Guid]::NewGuid().ToString("N")
-          $secPassword = ConvertTo-SecureString -String $pfxPassword -Force -AsPlainText
-          $pfxPath = Join-Path $env:TEMP "jarvis_codesign.pfx"
-          Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $secPassword | Out-Null
-          Write-Host "PFX exported to $pfxPath"
-          # NOTE: Skipping Import-Certificate to Cert:\CurrentUser\Root — triggers UAC dialog on
-          # Windows Server 2025 CI runners, causing a non-interactive hang. The PFX file is
-          # sufficient for signtool /f signing without a store import.
+              Write-Host "Created certificate: $($cert.Subject) (Thumbprint: $($cert.Thumbprint))"
+
+              Write-Host "`n=== 3. Exporting PFX ==="
+              $pfxPassword = [System.Guid]::NewGuid().ToString("N")
+              $secPassword = ConvertTo-SecureString -String $pfxPassword -Force -AsPlainText
+              $pfxPath = Join-Path $env:TEMP "jarvis_codesign.pfx"
+              Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $secPassword | Out-Null
+              Write-Host "PFX exported to $pfxPath"
+          }
 
           Write-Host "`n=== 4. Signing JARVIS.exe with Timestamp Fallback ==="
           $tsaList = @(
@@ -172,27 +206,48 @@ jobs:
               Write-Host "Successfully signed without TSA."
           }
 
-          Write-Host "`n=== 5. Verifying Authenticode Signature ==="
+          Write-Host "`n=== 5. Verifying Authenticode Signature & Trust Tiering ==="
           $sig = Get-AuthenticodeSignature "$exePath"
           Write-Host "Authenticode Status:        $($sig.Status)"
           Write-Host "Authenticode StatusMessage:   $($sig.StatusMessage)"
+          if ($null -eq $sig.SignerCertificate) {
+              throw "AUTHENTICODE VERIFICATION FAILED: No SignerCertificate found on $exePath!"
+          }
+          $actualThumbprint = ($sig.SignerCertificate.Thumbprint -replace '[\s:]', '').ToUpper()
           Write-Host "Signer Subject:              $($sig.SignerCertificate.Subject)"
-          Write-Host "Signer Thumbprint:           $($sig.SignerCertificate.Thumbprint)"
+          Write-Host "Signer Thumbprint:           $actualThumbprint"
           if ($sig.TimeStamperCertificate) {
               Write-Host "TSA Subject:                 $($sig.TimeStamperCertificate.Subject)"
           }
 
-          if ($sig.Status -notin @([System.Management.Automation.SignatureStatus]::Valid, 'Valid', 'UnknownError')) {
-              throw "AUTHENTICODE VERIFICATION FAILED: $exePath has invalid status: $($sig.Status) ($($sig.StatusMessage))!"
+          if ($isCommercialAttempt) {
+              if ($sig.Status -ne [System.Management.Automation.SignatureStatus]::Valid -and $sig.Status -ne 'Valid') {
+                  throw "AUTHENTICODE VERIFICATION FAILED: Commercial executable signature status is '$($sig.Status)', expected Valid ($($sig.StatusMessage))!"
+              }
+              if ($actualThumbprint -ne $expectedThumbprint) {
+                  throw "AUTHENTICODE VERIFICATION FAILED: Signer thumbprint '$actualThumbprint' does not match expected approved thumbprint '$expectedThumbprint'!"
+              }
+              $isCommercial = $true
+              $signatureTier = "COMMERCIAL"
+              Write-Host "COMMERCIAL Authenticode signature verified successfully. Thumbprint matched approved certificate: $actualThumbprint"
+          } else {
+              if ($sig.Status -notin @([System.Management.Automation.SignatureStatus]::Valid, 'Valid', 'UnknownError')) {
+                  throw "AUTHENTICODE VERIFICATION FAILED: Self-signed executable has invalid status: $($sig.Status) ($($sig.StatusMessage))!"
+              }
+              $isCommercial = $false
+              $signatureTier = "TEST_SIGNED"
+              Write-Host "Self-signed Authenticode signature verified successfully: Status = $($sig.Status)"
           }
-          if ($null -eq $sig.SignerCertificate) {
-              throw "AUTHENTICODE VERIFICATION FAILED: No SignerCertificate found on $exePath!"
-          }
-          Write-Host "Signature verified successfully: Status = $($sig.Status)"
 
-          Write-Host "`n=== 6. Cleanup ==="
+          Write-Host "`n=== 6. Outputting Trust Metadata ==="
+          Write-Host "Is Commercial: $isCommercial"
+          Write-Host "Signature Tier: $signatureTier"
+          echo "is_commercial=$($isCommercial.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          echo "signature_tier=$signatureTier" >> $env:GITHUB_OUTPUT
+
+          Write-Host "`n=== 7. Cleanup ==="
           Remove-Item -Path $pfxPath -Force -ErrorAction SilentlyContinue
-          Write-Host "Ephemeral PFX removed."
+          Write-Host "PFX removed."
 
       - name: Upload as signed artifact
         uses: actions/upload-artifact@v4
@@ -256,7 +311,7 @@ jobs:
             *Built automatically from tag `${{ github.ref_name }}` by GitHub Actions*
           files: "*.zip"
           draft: false
-          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          prerelease: ${{ needs.sign.outputs.is_commercial != 'true' || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

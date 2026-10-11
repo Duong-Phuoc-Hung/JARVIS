@@ -18,9 +18,9 @@ from typing import Any
 
 from jarvis.tts.base import BaseTTSEngine
 from jarvis.tts.cache import TTSAudioCache
+from jarvis.tts.edge import EdgeTTS
 from jarvis.tts.elevenlabs import ElevenLabsTTS
 from jarvis.tts.fallback import SAPI5FallbackTTS
-from jarvis.tts.edge import EdgeTTS
 
 log = logging.getLogger("jarvis.tts.manager")
 
@@ -116,6 +116,7 @@ class TTSManager:
         self._last_welcome_phrase: str | None = None
         self._last_playback_finish_time: float = 0.0
         self._is_playing: bool = False
+        self._is_shutdown: bool = False
         self._start_worker()
 
     def _start_worker(self) -> None:
@@ -134,12 +135,18 @@ class TTSManager:
 
             while not self._stop_event.is_set():
                 try:
-                    task = self._queue.get(timeout=0.2)
+                    task = self._queue.get(timeout=0.1)
                 except queue.Empty:
                     continue
+                if self._stop_event.is_set():
+                    self._queue.task_done()
+                    break
                 text, voice_id, callback, mock_http = task
                 try:
-                    success = self._execute_speak(text, voice_id=voice_id, wait=True, mock_http=mock_http)
+                    if self._stop_event.is_set():
+                        success = False
+                    else:
+                        success = self._execute_speak(text, voice_id=voice_id, wait=True, mock_http=mock_http)
                 except Exception as e:
                     log.error("TTS worker failed speaking: %s", e)
                     success = False
@@ -231,8 +238,22 @@ class TTSManager:
             return False
 
         if not wait:
-            self._queue.put((clean_text, voice_id, callback, mock_http))
-            return True
+            with self._lock:
+                if self._is_shutdown or self._stop_event.is_set():
+                    log.warning("TTSManager is shut down / stopped. Rejecting speak() call.")
+                    if callback:
+                        try:
+                            callback(False)
+                        except Exception:
+                            pass
+                    return False
+                self._queue.put((clean_text, voice_id, callback, mock_http))
+                return True
+
+        if self._is_shutdown:
+            log.warning("TTSManager is shut down. Rejecting synchronous speak() call.")
+            return False
+
         return self._execute_speak(clean_text, voice_id=voice_id, wait=True, mock_http=mock_http)
 
     def _execute_speak(
@@ -243,6 +264,8 @@ class TTSManager:
         mock_http: Any | None = None,
     ) -> bool:
         with self._lock:
+            if self._is_shutdown:
+                return False
             self._is_playing = True
         try:
             # H-03 fix: only the actual blocking I/O (cache lookup, network
@@ -251,6 +274,9 @@ class TTSManager:
             # is_in_echo_window() stay fast for any other thread reading them
             # concurrently, regardless of how long this call takes.
             with self._playback_resource_lock:
+                if self._is_shutdown:
+                    return False
+
                 v_id = voice_id or str(getattr(self.primary_engine, "voice_id", "") or "")
                 m_id = getattr(self.primary_engine, "model_id", "eleven_multilingual_v2")
                 out_fmt = getattr(self.primary_engine, "output_format", "pcm_24000")
@@ -262,6 +288,9 @@ class TTSManager:
                     if self.cache.play_wav(cached_path, wait=wait):
                         return True
                     log.warning("Cache playback failed, regenerating audio...")
+
+                if self._is_shutdown:
+                    return False
 
                 # 2. Try Online Primary Engine (ElevenLabs)
                 if self.primary_engine.is_available() or mock_http is not None:
@@ -284,6 +313,9 @@ class TTSManager:
                             return self.cache.play_wav(saved_path, wait=wait)
                     except Exception as e:
                         log.warning("Primary TTS engine failed (%s); switching to SAPI5 fallback.", e)
+
+                if self._is_shutdown:
+                    return False
 
                 # 3. Offline Fallback (SAPI5 / pyttsx3)
                 log.info("Using offline fallback TTS for: %r", text[:40])
@@ -350,6 +382,65 @@ class TTSManager:
         threading.Thread(target=_runner, daemon=True, name="WelcomeTTS").start()
 
     def stop(self) -> None:
-        self._stop_event.set()
+        """
+        Stop the TTS worker thread, halt active audio playback, and drain the queue.
+        Notifies any pending task callbacks with success=False.
+        Safe and idempotent when called multiple times.
+        """
+        with self._lock:
+            already_stopped = self._stop_event.is_set()
+            self._stop_event.set()
+
+            if already_stopped:
+                return
+
+            # 1. Drain remaining queue items immediately under lock so concurrent speak() cannot enqueue
+            while not self._queue.empty():
+                try:
+                    task = self._queue.get_nowait()
+                    self._queue.task_done()
+                    if len(task) >= 3 and task[2] is not None:
+                        callback = task[2]
+                        try:
+                            callback(False)
+                        except Exception:
+                            pass
+                except queue.Empty:
+                    break
+
+        # 2. Stop active audio cache hardware playback
+        if hasattr(self, "cache"):
+            try:
+                if hasattr(self.cache, "shutdown"):
+                    self.cache.shutdown()
+                elif hasattr(self.cache, "stop"):
+                    self.cache.stop()
+            except Exception as e:
+                log.debug("cache shutdown error during manager teardown: %s", e)
+
+        # 3. Halt fallback engine if it has a stop or shutdown method
+        if hasattr(self, "fallback_engine"):
+            try:
+                if hasattr(self.fallback_engine, "shutdown"):
+                    self.fallback_engine.shutdown()
+                elif hasattr(self.fallback_engine, "stop"):
+                    self.fallback_engine.stop()
+            except Exception:
+                pass
+
+        # 4. Wait for worker thread to exit
         if self._worker_thread and self._worker_thread.is_alive():
-            self._worker_thread.join(timeout=1.0)
+            self._worker_thread.join(timeout=5.0)
+
+        with self._lock:
+            self._is_playing = False
+
+    def shutdown(self) -> None:
+        """Idempotent entrypoint to shut down TTSManager."""
+        with self._lock:
+            self._is_shutdown = True
+        self.stop()
+
+    def close(self) -> None:
+        """Idempotent entrypoint to close TTSManager."""
+        self.shutdown()

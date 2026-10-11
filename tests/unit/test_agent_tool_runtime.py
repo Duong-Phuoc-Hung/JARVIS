@@ -66,11 +66,62 @@ def test_normalize_tool_output_dict_with_explicit_failure():
     assert result.error == "nope"
 
 
+def test_normalize_tool_output_dict_with_error_and_no_success_infers_failure():
+    result = normalize_tool_output({"output": "Failed to connect", "error": "Connection timeout"})
+    assert result.success is False
+    assert result.error == "Connection timeout"
+
+
+
 def test_normalize_tool_output_dict_without_output_key_stringifies_whole_dict():
     raw = {"foo": "bar"}
     result = normalize_tool_output(raw)
     assert result.success is True
     assert "foo" in result.output
+
+
+def test_normalize_tool_output_dict_with_ok_false_infers_failure():
+    result = normalize_tool_output({"ok": False, "message": "Failed to perform operation"})
+    assert result.success is False
+    assert result.error == "Failed to perform operation"
+
+
+def test_normalize_tool_output_dict_with_status_error_infers_failure():
+    result = normalize_tool_output({"status": "error", "message": "System error"})
+    assert result.success is False
+    assert result.error == "System error"
+
+
+def test_normalize_tool_output_dict_with_success_false_no_error_uses_message():
+    result = normalize_tool_output({"success": False, "message": "Action refused"})
+    assert result.success is False
+    assert result.error == "Action refused"
+
+
+def test_normalize_tool_output_dict_respects_explicit_top_level_success_true():
+    raw = {"success": True, "data": {"status": "ok", "error": None}}
+    result = normalize_tool_output(raw)
+    assert result.success is True
+    assert result.error is None
+
+
+def test_normalize_tool_output_dict_with_nested_result_ok_false():
+    raw = {"output": "Calc done", "data": {"ok": False, "message": "Division by zero"}}
+    result = normalize_tool_output(raw)
+    assert result.success is False
+    assert result.error == "Division by zero"
+
+
+def test_format_observation_sanitizes_bearer_tokens_and_api_keys():
+    result = ToolExecutionResult(
+        success=False,
+        output="Got error with Bearer secret_access_token_123456",
+        error="API Key AIzaSy123456789012345678901234567890123 failed authorization",
+    )
+    observation = format_observation(result)
+    assert "secret_access_token" not in observation
+    assert "AIzaSy123456789012345678901234567890123" not in observation
+
 
 
 def test_normalize_tool_output_non_dict_value_becomes_successful_string():

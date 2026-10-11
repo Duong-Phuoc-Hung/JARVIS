@@ -330,65 +330,85 @@ class ReActAgent:
     def _tool_web_search(self, query: str = "", **kw) -> dict:
         try:
             from jarvis.skills.briefing import execute as b
-            return b(action="news", query=query)
-        except Exception:
-            return {"output": f"Tìm kiếm: {query} (web không khả dụng trong mock)"}
+            res = b(action="news", query=query)
+            if isinstance(res, dict):
+                return res
+            return {"success": True, "output": str(res)}
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "output": f"Lỗi tìm kiếm: {exc}"}
 
     def _tool_take_note(self, text: str = "", **kw) -> dict:
         try:
             from jarvis.skills.note_taker import execute as n
-            return n(action="add", text=text)
-        except Exception:
-            return {"output": f"Ghi chú: {text}"}
+            res = n(action="add", text=text)
+            if isinstance(res, dict):
+                return res
+            return {"success": True, "output": str(res)}
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "output": f"Lỗi ghi chú: {exc}"}
 
     def _tool_read_file(self, path: str = ".", **kw) -> dict:
         from pathlib import Path
         try:
-            p = Path(path)
-            if p.is_file():
-                return {"output": p.read_text(encoding="utf-8")[:2000]}
-            return {"output": str(list(p.iterdir())[:20]) if p.is_dir() else "Không tìm thấy"}
+            target_path = Path(path).resolve()
+            try:
+                target_path.relative_to(self.allowed_workspace_dir)
+            except ValueError:
+                err = f"Security Error: read_file path '{path}' is outside allowed workspace directory '{self.allowed_workspace_dir}'."
+                return {"success": False, "error": err, "output": err}
+            if target_path.is_file():
+                return {"success": True, "output": target_path.read_text(encoding="utf-8")[:2000]}
+            if target_path.is_dir():
+                return {"success": True, "output": str(list(target_path.iterdir())[:20])}
+            err = f"Không tìm thấy file hoặc thư mục: {path}"
+            return {"success": False, "error": err, "output": err}
         except Exception as exc:
-            return {"output": str(exc)}
+            return {"success": False, "error": str(exc), "output": f"Lỗi đọc file: {exc}"}
 
     def _tool_write_file(self, path: str = "", content: str = "", **kw) -> dict:
         from pathlib import Path
         try:
             if not path or not path.strip():
-                return {"output": "Security Error: write_file path cannot be empty."}
+                err = "Security Error: write_file path cannot be empty."
+                return {"success": False, "error": err, "output": err}
             target_path = Path(path).resolve()
             # Path traversal and workspace boundary check
             try:
                 target_path.relative_to(self.allowed_workspace_dir)
             except ValueError:
+                err = f"Security Error: write_file path '{path}' is outside allowed workspace directory '{self.allowed_workspace_dir}'."
                 return {
-                    "output": f"Security Error: write_file path '{path}' is outside allowed workspace directory '{self.allowed_workspace_dir}'."
+                    "success": False,
+                    "error": err,
+                    "output": err,
                 }
 
             # Safety interceptor check if available
             if self.safety_interceptor:
                 is_high_risk_fn = getattr(self.safety_interceptor, "is_high_risk", None)
                 if is_high_risk_fn and is_high_risk_fn("file_write", {"path": str(target_path), "content": content}):
-                    return {"output": f"SafetyGate: write_file blocked by safety interceptor for '{path}'."}
+                    err = f"SafetyGate: write_file blocked by safety interceptor for '{path}'."
+                    return {"success": False, "error": err, "output": err}
 
             # Route through dispatcher if available
             if self.dispatcher and hasattr(self.dispatcher, "dispatch_action"):
                 res = self.dispatcher.dispatch_action("file_write", path=str(target_path), content=content)
                 if hasattr(res, "success"):
                     if res.success:
-                        return {"output": f"Đã ghi file: {target_path}"}
-                    err = getattr(res, "error", getattr(res, "message", "Execution failed"))
-                    return {"output": f"Lỗi ghi file qua dispatcher: {err}"}
+                        return {"success": True, "output": f"Đã ghi file: {target_path}"}
+                    err = getattr(res, "error", None) or getattr(res, "message", None) or "Execution failed"
+                    return {"success": False, "error": str(err), "output": f"Lỗi ghi file qua dispatcher: {err}"}
                 elif isinstance(res, dict):
                     if res.get("status") in ("ok", "success") or res.get("success"):
-                        return {"output": f"Đã ghi file: {target_path}"}
-                    return {"output": f"Lỗi ghi file: {res.get('error', res.get('message', 'Execution failed'))}"}
+                        return {"success": True, "output": f"Đã ghi file: {target_path}"}
+                    err = res.get('error') or res.get('message') or 'Execution failed'
+                    return {"success": False, "error": str(err), "output": f"Lỗi ghi file: {err}"}
 
             target_path.parent.mkdir(parents=True, exist_ok=True)
             target_path.write_text(content, encoding="utf-8")
-            return {"output": f"Đã ghi file: {target_path}"}
+            return {"success": True, "output": f"Đã ghi file: {target_path}"}
         except Exception as exc:
-            return {"output": str(exc)}
+            return {"success": False, "error": str(exc), "output": f"Lỗi ghi file: {exc}"}
 
     def _tool_run_python(self, code: str = "", timeout_seconds: float | None = None, **kw) -> dict:
         """
@@ -422,32 +442,38 @@ class ReActAgent:
     def _tool_browser(self, url: str = "", **kw) -> dict:
         try:
             from jarvis.skills.browser_control import execute as br
-            return br(action="open", url=url)
+            res = br(action="open", url=url)
+            if isinstance(res, dict):
+                if res.get("success", True) is False or res.get("error"):
+                    err = str(res.get("error") or res.get("message", "Browser open failed"))
+                    return {"success": False, "error": err, "output": str(res.get("output") or err)}
+                return res
+            return {"success": True, "output": str(res)}
         except Exception as exc:
-            return {"output": str(exc)}
+            return {"success": False, "error": str(exc), "output": f"Lỗi browser: {exc}"}
 
     def _tool_screenshot(self, **kw) -> dict:
         try:
             from jarvis.skills.system_control import execute as sc
             return sc(action="screenshot")
         except Exception as exc:
-            return {"output": str(exc)}
+            return {"success": False, "error": str(exc), "output": str(exc)}
 
     def _tool_calc(self, expression: str = "", **kw) -> dict:
         try:
             from jarvis.skills.calculator import execute as c
             return c(action="calculate", expression=expression)
         except Exception as exc:
-            return {"output": str(exc)}
+            return {"success": False, "error": str(exc), "output": str(exc)}
 
     def _tool_memory_search(self, query: str = "", **kw) -> dict:
         try:
             from jarvis.memory.manager import MemoryManager
             mgr = MemoryManager()
             results = mgr.semantic_search(query)
-            return {"output": str(results[:3])}
+            return {"success": True, "output": str(results[:3])}
         except Exception as exc:
-            return {"output": str(exc)}
+            return {"success": False, "error": str(exc), "output": str(exc)}
 
     def _tool_send_telegram(self, message: str = "", **kw) -> dict:
         try:
@@ -457,20 +483,41 @@ class ReActAgent:
             from jarvis.security.secrets import get_secret as _get_secret
             chat_id = os.environ.get("TELEGRAM_CHAT_ID")
             if not chat_id:
-                return {"output": "Telegram: TELEGRAM_CHAT_ID not configured"}
-            tg = TelegramBotController(bot_token=_get_secret("TELEGRAM_BOT_TOKEN") or "")
-            tg.send_message(int(chat_id), message)
-            return {"output": f"Telegram: {message[:60]}"}
+                err = "NOT_CONFIGURED: TELEGRAM_CHAT_ID not configured"
+                return {"success": False, "error": err, "output": err}
+            token = _get_secret("TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN") or ""
+            if not token:
+                err = "NOT_CONFIGURED: TELEGRAM_BOT_TOKEN not configured"
+                return {"success": False, "error": err, "output": err}
+            tg = TelegramBotController(bot_token=token)
+            res = tg.send_message(int(chat_id), message)
+            if isinstance(res, dict):
+                if not res.get("ok", False):
+                    err = str(res.get("error") or res.get("description") or res.get("message") or "TELEGRAM_API_ERROR")
+                    return {"success": False, "error": err, "output": f"Telegram error: {err}"}
+            return {"success": True, "output": f"Telegram: {message[:60]}"}
         except Exception as exc:
-            return {"output": str(exc)}
+            return {"success": False, "error": str(exc), "output": f"Telegram error: {exc}"}
 
     def _tool_list_dir(self, path: str = ".", **kw) -> dict:
         from pathlib import Path
         try:
-            items = [str(p.name) for p in Path(path).iterdir()][:20]
-            return {"output": "\n".join(items)}
+            target_path = Path(path).resolve()
+            try:
+                target_path.relative_to(self.allowed_workspace_dir)
+            except ValueError:
+                err = f"Security Error: list_dir path '{path}' is outside allowed workspace directory '{self.allowed_workspace_dir}'."
+                return {"success": False, "error": err, "output": err}
+            if not target_path.exists():
+                err = f"Không tìm thấy thư mục: {path}"
+                return {"success": False, "error": err, "output": err}
+            if not target_path.is_dir():
+                err = f"Đường dẫn không phải là thư mục: {path}"
+                return {"success": False, "error": err, "output": err}
+            items = [str(p.name) for p in target_path.iterdir()][:20]
+            return {"success": True, "output": "\n".join(items)}
         except Exception as exc:
-            return {"output": str(exc)}
+            return {"success": False, "error": str(exc), "output": str(exc)}
 
     def _tool_git_status(self, **kw) -> dict:
         import subprocess
@@ -478,9 +525,13 @@ class ReActAgent:
         try:
             _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             r = subprocess.run(["git", "status", "--short"], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5, creationflags=_cflags)
-            return {"output": r.stdout or "Working tree clean"}
+            if r.returncode != 0:
+                err = r.stderr.strip() or f"git status exited with code {r.returncode}"
+                return {"success": False, "error": err, "output": f"Lỗi git status: {err}"}
+            return {"success": True, "output": r.stdout or "Working tree clean"}
         except Exception as exc:
-            return {"output": str(exc)}
+            return {"success": False, "error": str(exc), "output": str(exc)}
+
 
     # ------------------------------------------------------------------
     # Queries

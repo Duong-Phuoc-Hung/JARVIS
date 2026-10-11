@@ -32,6 +32,46 @@ def test_provider_failure_is_visible_and_does_not_use_stale_inventory():
     assert catalog.errors
 
 
+def test_transient_discovery_failure_recovers_without_waiting_full_ttl():
+    attempts = 0
+    entry = app_catalog.InstalledApp("RecoveredApp", "C:\\App.exe", "exe")
+
+    def flaky_provider():
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise OSError("Transient WMI lock")
+        return [entry]
+
+    catalog = app_catalog.ApplicationCatalog(provider=flaky_provider, ttl=300)
+    # Attempt 1: fails due to transient error
+    assert catalog.resolve("RecoveredApp") == ()
+    assert catalog.errors == ("OSError",)
+
+    # Attempt 2: must recover on next resolve rather than staying locked for 300s
+    results = catalog.resolve("RecoveredApp")
+    assert results == (entry,)
+    assert catalog.errors == ()
+
+
+def test_legitimate_empty_scan_is_cached_for_ttl():
+    calls = []
+    def empty_provider():
+        calls.append(1)
+        return []
+
+    catalog = app_catalog.ApplicationCatalog(provider=empty_provider, ttl=300)
+    assert catalog.resolve("AnyApp") == ()
+    assert catalog.errors == ()
+    assert len(calls) == 1
+
+    # Second call within TTL must use cached empty scan (no re-invoking provider)
+    assert catalog.resolve("AnyApp") == ()
+    assert len(calls) == 1
+
+
+
+
 def test_cache_prevents_discovery_for_every_command():
     calls = []
     def provider():
@@ -98,8 +138,9 @@ def test_store_launch_acknowledgement_is_not_verified_success(monkeypatch):
     from jarvis.core.runaway_guard import launch_dedupe_guard
     launch_dedupe_guard.reset()
     controller = ComputerController()
-    from jarvis.automation.app_launcher import WindowsApplicationLauncher
     from unittest.mock import MagicMock
+
+    from jarvis.automation.app_launcher import WindowsApplicationLauncher
     probe = MagicMock()
     probe.find.return_value = None
     controller.app_launcher = WindowsApplicationLauncher(probe=probe, timeout=0)
@@ -110,10 +151,9 @@ def test_store_launch_acknowledgement_is_not_verified_success(monkeypatch):
     result = controller.open_installed_app("Editor")
     # Launch was dispatched to the OS
     assert launched == [r"shell:AppsFolder\X!One"]
-    # Fix 2: success=True because the app launch request WAS sent —
-    # HWND timeout ≠ app failure; user should see "launching" not "failed".
-    assert result["success"] is True
-    assert result["status"] == "launched"
+    # TRUTHFUL-LAUNCH-FIX1: HWND timeout is an unverified failure (success=False).
+    assert result["success"] is False
+    assert result["status"] == "timeout"
     assert result["error_code"] == "APP_LAUNCH_UNVERIFIED"
     launch_dedupe_guard.reset()
 
@@ -123,12 +163,12 @@ def test_executable_requires_matching_visible_window(monkeypatch, tmp_path, wind
     """Test exe launch verification via HWND + process identity.
 
     window_pid=123 → process_identity matches executable → verified success (window_executable).
-    window_pid=999 → process_identity mismatch → unverified: subprocess.Popen still ran,
-    so Fix 2 (2026-09-22) returns success=True with error_code=APP_LAUNCH_UNVERIFIED.
+    window_pid=999 → process_identity mismatch → unverified: returns success=False with APP_LAUNCH_UNVERIFIED.
     """
     import subprocess
     from types import SimpleNamespace
     from unittest.mock import MagicMock
+
     from jarvis.automation.control import ComputerController
     from jarvis.core.runaway_guard import launch_dedupe_guard
     launch_dedupe_guard.reset()
@@ -152,9 +192,52 @@ def test_executable_requires_matching_visible_window(monkeypatch, tmp_path, wind
         assert result["success"] is True
         assert result["verification"] == "window_executable"
     else:
-        # window_pid=999 doesn't match our exe — subprocess.Popen still ran.
-        # Fix 2: success=True because the launch request WAS sent; HWND mismatch
-        # ≠ app failure (app may still be initializing). error_code marks unverified.
-        assert result["success"] is True
+        # window_pid=999 doesn't match our exe — HWND unconfirmed within timeout → success=False
+        assert result["success"] is False
         assert result["error_code"] == "APP_LAUNCH_UNVERIFIED"
+        assert result["status"] == "timeout"
     launch_dedupe_guard.reset()
+
+
+def test_transient_provider_runtime_error_retries_immediately():
+    """Generic Exception from provider must set errors, clear _updated, and retry on next resolve."""
+    attempts = 0
+    entry = app_catalog.InstalledApp("TestApp", "C:\\TestApp.exe", "exe")
+
+    def failing_provider():
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("Provider failed transiently")
+        return [entry]
+
+    catalog = app_catalog.ApplicationCatalog(provider=failing_provider, ttl=300)
+    assert catalog.resolve("TestApp") == ()
+    assert catalog.errors == ("RuntimeError",)
+
+    # Next resolve must retry without waiting for 300s TTL
+    results = catalog.resolve("TestApp")
+    assert results == (entry,)
+    assert catalog.errors == ()
+
+
+def test_concurrent_catalog_refresh_and_resolve_thread_safety():
+    """Concurrent resolve and refresh calls must be thread-safe."""
+    import threading
+
+    entry = app_catalog.InstalledApp("ThreadApp", "C:\\ThreadApp.exe", "exe")
+    catalog = app_catalog.ApplicationCatalog(provider=lambda: [entry], ttl=300)
+
+    def worker():
+        for _ in range(20):
+            catalog.resolve("ThreadApp")
+            catalog.refresh()
+
+    threads = [threading.Thread(target=worker) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert catalog.resolve("ThreadApp") == (entry,)
+    assert catalog.errors == ()

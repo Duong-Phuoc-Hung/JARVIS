@@ -1,4 +1,4 @@
-﻿"""
+"""
 jarvis/updater/updater.py
 ==========================
 D-13: Updater with Integrity Check + Rollback
@@ -278,8 +278,8 @@ class JarvisUpdater:
         if manifest is None:
             return UpdateResult(status=NOT_CONFIGURED, error="Manifest unavailable")
 
-        if self._versions_equal(self.current_version, manifest.version):
-            log.info("Updater: already up-to-date (%s)", self.current_version)
+        if not self._is_newer(manifest.version, self.current_version):
+            log.info("Updater: already up-to-date (%s >= %s)", self.current_version, manifest.version)
             return UpdateResult(
                 status=UP_TO_DATE,
                 from_version=self.current_version,
@@ -366,11 +366,47 @@ class JarvisUpdater:
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _versions_equal(v1: str, v2: str) -> bool:
-        """Normalise and compare version strings."""
-        def norm(v: str) -> tuple:
-            return tuple(int(x) for x in v.strip().lstrip("v").split(".")[:3] if x.isdigit())
+    def _parse_semver(v: str) -> tuple[int, int, int, int, tuple[tuple[int, int | str], ...]]:
+        """
+        Parse semver string into a (major, minor, patch) tuple of ints.
+        Handles 'v' or 'V' prefixes, trailing release notes, and prerelease identifiers.
+        """
+        clean = v.strip().lstrip("vV").split("+", 1)[0]
+        core, separator, prerelease = clean.partition("-")
+        parts = core.split(".")
+        nums = []
+        for p in parts[:3]:
+            digits = ""
+            for char in p:
+                if char.isdigit():
+                    digits += char
+                else:
+                    break
+            nums.append(int(digits) if digits else 0)
+        while len(nums) < 3:
+            nums.append(0)
+        if not separator:
+            return (nums[0], nums[1], nums[2], 1, ())
+        prerelease_key: list[tuple[int, int | str]] = []
+        for identifier in prerelease.split("."):
+            if identifier.isdigit():
+                prerelease_key.append((0, int(identifier)))
+            else:
+                prerelease_key.append((1, identifier.lower()))
+        return (nums[0], nums[1], nums[2], 0, tuple(prerelease_key))
+
+    @classmethod
+    def _is_newer(cls, new: str, old: str) -> bool:
+        """Return True if new version is strictly newer than old version."""
         try:
-            return norm(v1) == norm(v2)
+            return cls._parse_semver(new) > cls._parse_semver(old)
         except Exception:
-            return v1.strip() == v2.strip()
+            return False
+
+    @classmethod
+    def _versions_equal(cls, v1: str, v2: str) -> bool:
+        """Normalise and compare version strings."""
+        try:
+            return cls._parse_semver(v1) == cls._parse_semver(v2)
+        except Exception:
+            return v1.strip().lstrip("v").lstrip("V") == v2.strip().lstrip("v").lstrip("V")

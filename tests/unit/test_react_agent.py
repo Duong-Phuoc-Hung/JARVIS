@@ -119,6 +119,108 @@ class TestBuiltinTools:
         assert isinstance(result["output"], str)
         assert len(result["output"]) > 0
 
+    def test_read_file_nonexistent_returns_structured_failure(self, agent):
+        result = agent._tool_read_file(path="nonexistent_file_definitely_missing_12345.xyz")
+        assert result["success"] is False
+        assert result["error"] is not None
+
+    def test_write_file_outside_workspace_returns_structured_failure(self, agent):
+        result = agent._tool_write_file(path="../../outside_secret.txt", content="payload")
+        assert result["success"] is False
+        assert "Security Error" in result["error"]
+
+    def test_send_telegram_missing_chat_id_returns_structured_failure(self, agent, monkeypatch):
+        monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+        result = agent._tool_send_telegram(message="hello")
+        assert result["success"] is False
+        assert "NOT_CONFIGURED" in result["error"]
+
+    def test_send_telegram_api_error_extracts_description(self, agent, monkeypatch):
+        monkeypatch.setenv("TELEGRAM_CHAT_ID", "123456")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "mock_bot_token")
+        from unittest.mock import MagicMock
+        fake_controller = MagicMock()
+        fake_controller.send_message.return_value = {
+            "ok": False,
+            "error_code": 403,
+            "description": "Forbidden: bot was blocked by the user",
+        }
+        monkeypatch.setattr("jarvis.comms.telegram.TelegramBotController", lambda bot_token: fake_controller)
+        result = agent._tool_send_telegram(message="hello")
+        assert result["success"] is False
+        assert result["error"] == "Forbidden: bot was blocked by the user"
+
+    def test_git_status_nonzero_exit_returns_structured_failure(self, agent, monkeypatch):
+        from unittest.mock import MagicMock
+        fake_run = MagicMock()
+        fake_run.return_value = MagicMock(returncode=128, stdout="", stderr="fatal: not a git repository")
+        monkeypatch.setattr("subprocess.run", fake_run)
+        result = agent._tool_git_status()
+        assert result["success"] is False
+        assert "fatal: not a git repository" in result["error"]
+
+    def test_write_file_dispatcher_action_result_with_none_error_uses_message(self, tmp_path):
+        from unittest.mock import MagicMock
+
+        from jarvis.core.models import ActionResult, ActionStatus
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        mock_dispatcher = MagicMock()
+        mock_dispatcher.dispatch_action.return_value = ActionResult(
+            action_name="file_write",
+            success=False,
+            status=ActionStatus.BLOCKED,
+            code="CONFIRMATION_REQUIRED",
+            message="CONFIRMATION_REQUIRED: User confirmation needed",
+            error=None,
+        )
+        agent = ReActAgent(
+            is_mock=True,
+            dispatcher=mock_dispatcher,
+            allowed_workspace_dir=str(workspace),
+        )
+        target = workspace / "gated.txt"
+        res = agent._tool_write_file(path=str(target), content="gated")
+        assert res["success"] is False
+        assert res["error"] == "CONFIRMATION_REQUIRED: User confirmation needed"
+        assert "None" not in res["error"]
+
+    def test_list_dir_outside_workspace_returns_structured_failure(self, agent, tmp_path):
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        agent = ReActAgent(is_mock=True, allowed_workspace_dir=str(workspace))
+        outside_dir = tmp_path / "outside_dir"
+        outside_dir.mkdir()
+        res = agent._tool_list_dir(path=str(outside_dir))
+        assert res["success"] is False
+        assert "Security Error" in res["error"]
+
+    def test_take_note_nested_data_failure_returns_structured_failure(self, agent, monkeypatch):
+        from unittest.mock import MagicMock
+        fake_note = MagicMock(return_value={"data": {"success": False, "error": "Database locked"}})
+        monkeypatch.setattr("jarvis.skills.note_taker.execute", fake_note)
+        result = agent._execute_tool("take_note", {"text": "hello"})
+        assert result.success is False
+        assert result.error == "Database locked"
+
+    def test_calculator_nested_data_failure_returns_structured_failure(self, agent, monkeypatch):
+        from unittest.mock import MagicMock
+        fake_calc = MagicMock(return_value={"output": "1/0", "data": {"success": False, "error": "Division by zero"}})
+        monkeypatch.setattr("jarvis.skills.calculator.execute", fake_calc)
+        result = agent._execute_tool("calculator", {"expression": "1/0"})
+        assert result.success is False
+        assert result.error == "Division by zero"
+
+    def test_web_search_nested_data_failure_returns_structured_failure(self, agent, monkeypatch):
+        from unittest.mock import MagicMock
+        fake_briefing = MagicMock(return_value={"data": {"ok": False, "message": "API limit reached"}})
+        monkeypatch.setattr("jarvis.skills.briefing.execute", fake_briefing)
+        result = agent._execute_tool("web_search", {"query": "AI"})
+        assert result.success is False
+        assert result.error == "API limit reached"
+
+
+
 
 class TestHeuristicThink:
     def test_heuristic_search_goal(self, agent):

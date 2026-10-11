@@ -23,7 +23,6 @@ from jarvis.comms.mobile_bridge import MobileFileBridge
 from jarvis.core.models import ActionResult, ActionStatus
 from jarvis.smart_home.home_assistant import HomeAssistantClient
 
-
 # ============================================================================
 # 1. ActionResult Contract & Field Verification
 # ============================================================================
@@ -219,7 +218,7 @@ def test_home_assistant_client_returns_action_result():
     res_unauth = unauth_client.call_service("light", "turn_on", {"entity_id": "light.hallway"})
     assert isinstance(res_unauth, ActionResult)
     assert res_unauth.success is False
-    assert res_unauth.status == ActionStatus.ERROR
+    assert res_unauth.status == ActionStatus.NOT_CONFIGURED
     assert res_unauth.code == "NOT_CONFIGURED"
     assert res_unauth.retryable is False
 

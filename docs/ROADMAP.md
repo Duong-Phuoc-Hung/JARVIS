@@ -1,3 +1,20 @@
+## Truthfulness bugs 1 to 6 remediation & architecture hardening (2026-10-11, unreleased)
+
+- [x] **Truthfulness bugs 1 to 6 closed**:
+  - `BUG-1`: `WebhookPlugin.send_payload` trả `BackendResult.failure(code="WEBHOOK_INVALID_URL")` khi URL rỗng/trắng hoặc `WEBHOOK_DELIVERY_FAILED` khi dispatch thất bại; triệt tiêu false-success.
+  - `BUG-2`: Thẻ bảo vệ `<email_quarantine>` trong `email_imap.py` không bao giờ bị cắt ngắn; `clean_text` được cắt trước khi bọc thẻ bảo vệ.
+  - `BUG-3`: `_inspect_dict_failure` trong `tool_runtime.py` tôn trọng cờ `success: True` / `ok: True` ở root dict, không rơi xuống nested failure false-positive; chuẩn hóa status `'timeout'`.
+  - `BUG-4`: Khắc phục race condition giữa enqueue và drain trong `TTSManager.stop()`; đồng bộ hóa `_queue.put()` dưới lock; phân tách giữa `stop()` (dừng worker thread) và `shutdown()`/`close()` (chấm dứt hệ thống).
+  - `BUG-5`: Vô hiệu hóa legacy auto-apply updater (`AutoUpdaterWorker.auto_apply = False`), thêm log cảnh báo bảo mật, ngăn background loop tự ý `git pull` chưa qua kiểm chứng.
+  - `BUG-6`: Chuẩn hóa trạng thái timeout xác minh cửa sổ ứng dụng từ `'unverified'` sang `'timeout'`.
+- [x] **Risk-First Seam Architecture Tasks 1-12 completed**:
+  - 1: `TRUTHFUL-LAUNCH-FIX1`, 2: `HA-NOT-CONFIGURED-FIX1`, 3: `REACT-TOOL-RESULT-FIX1`, 4: `UPDATER-SAFETY-DESIGN`, 5: `EMAIL-TTS-SANITIZE-FIX1`, 6: `VECTOR-PERSISTENCE-FIX1`, 7: `APP-CATALOG-RECOVERY-FIX1`, 8: `TTS-SHUTDOWN-PROBE`, 9: `SQLITE-CONCURRENCY-PROBE`, 10: `RELEASE-TRUST-GATE-FIX1`, 11: `CI-COVERAGE-GATE-FIX1`, 12: `RESULT-HEALTH-MIGRATION`.
+- [x] **Regression testing verified**:
+  - Full Unit test suite (`tests/unit/`): **2.978 passed, 3 skipped, 0 failed** trong **462,27s (07:42)**.
+  - Root tests (`tests/`): **26 passed, 0 failed** trong **51,45s**.
+  - Automated Security Scanner (`tools/security_scanner.py`): **0 findings / 210 files / 70.475 lines / 1,93s** (`[PASS] Clean scan`).
+  - Ruff Linter: **All checks passed!**
+
 ## Architectural gap remediation & acceptance verification (2026-10-09, unreleased)
 
 - [x] **Truthfulness gaps closed**:

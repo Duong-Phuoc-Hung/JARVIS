@@ -64,7 +64,32 @@ class BackendResult:
     @classmethod
     def from_action_result(cls, result: ActionResult) -> "BackendResult":
         status = result.status if isinstance(result.status, ActionStatus) else ActionStatus.ERROR
+        if result.code == "NOT_CONFIGURED":
+            status = ActionStatus.NOT_CONFIGURED
+        elif result.code in ("TIMEOUT", "BACKEND_TIMEOUT"):
+            status = ActionStatus.TIMEOUT
         return cls(result.success, status, result.code, result.message, result.data, result.retryable)
+
+    def to_action_result(
+        self,
+        action_name: str = "",
+        requester: str = "",
+        execution_time_ms: float = 0.0,
+    ) -> ActionResult:
+        """Converts this canonical BackendResult into an ActionResult."""
+        return ActionResult(
+            action_name=action_name,
+            success=self.success,
+            status=self.status,
+            code=self.code,
+            message=self.message,
+            data=self.data,
+            retryable=self.retryable,
+            error=self.message if not self.success else None,
+            error_code=self.code if not self.success else None,
+            execution_time_ms=execution_time_ms,
+            requester=requester,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {

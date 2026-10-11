@@ -4,6 +4,39 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] Truthfulness Bugs 1 to 6 Remediation & Architecture Hardening (2026-10-11)
+
+- **Mục tiêu**:
+  - Khắc phục triệt để 6 khiếm khuyết trung thực (BUGS 1-6) và hoàn tất 12 hạng mục kỹ thuật kiến trúc theo chiến lược Risk-First Seam.
+  - Ngăn ngừa hoàn toàn hiện tượng báo thành công giả mạo (False-Success), rò rỉ dữ liệu qua TTS email, race condition trong vòng đời TTS, tự động cập nhật mã nguồn không kiểm chứng, và sai lệch trạng thái xác minh ứng dụng.
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  - `BUG-1`: `WebhookPlugin.send_payload` trả kết quả không kiểm tra URL rỗng/trắng, coi mock dispatch là thành công vô điều kiện và không bọc thất bại mạng vào `BackendResult.failure`.
+  - `BUG-2`: `email_imap.py` cắt ngắn chuỗi email thô theo `_MAX_BODY_LEN` sau khi bọc thẻ bảo vệ, dẫn tới thẻ đóng `</email_quarantine>` bị cắt cụt khiến nội dung chưa kiểm duyệt có thể rò rỉ tới bộ xử lý TTS.
+  - `BUG-3`: `_inspect_dict_failure` trong `tool_runtime.py` kiểm tra các trường lồng nhau (`data.success`) trước khi kiểm tra trạng thái gốc, khiến phản hồi thành công tường minh ở root dict bị ghi đè thành lỗi giả; đồng thời thiếu trạng thái `'timeout'`.
+  - `BUG-4`: `TTSManager` tồn tại race condition giữa `speak(wait=False)` (đưa tác vụ vào `_queue` ngoài lock) và `stop()` (drain `_queue` dưới lock). Ngoài ra, `stop()` đánh dấu shutdown toàn bộ khiến các cuộc gọi `speak(wait=True)` đồng bộ trong kiểm thử bị từ chối sai lệch.
+  - `BUG-5`: `AutoUpdaterWorker` chạy chế độ `auto_apply=True` gọi `git pull` mà không qua kiểm tra checksum SHA-256 hoặc chữ ký số Authenticode.
+  - `BUG-6`: `WindowsApplicationLauncher.open()` trả status `'unverified'` khi quá thời gian chờ xác minh cửa sổ, gây mơ hồ giữa trường hợp không hỗ trợ kiểm tra và trường hợp kiểm tra bị timeout.
+- **Các chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/plugins/webhook.py`: Thêm kiểm tra URL rỗng/trắng (`code="WEBHOOK_INVALID_URL"`), hỗ trợ `mock_http.should_fail`, trả canonical `BackendResult` cho mọi nhánh thành công/thất bại mạng.
+  - `jarvis/comms/email_imap.py`: Đảm bảo `clean_text` được cắt ngắn về `_MAX_BODY_LEN` trước khi bọc thẻ bảo vệ, bảo đảm thẻ `</email_quarantine>` không bao giờ bị cắt cụt.
+  - `jarvis/agent/tool_runtime.py`: `_inspect_dict_failure` ưu tiên kiểm tra cờ `success: True` / `ok: True` ở root dict và trả `(False, None)`; bổ sung `'timeout'` vào danh sách failure statuses.
+  - `jarvis/tts/manager.py`: Đồng bộ hóa `self._queue.put()` dưới `self._lock` trong `speak(wait=False)`; drain hàng đợi an toàn dưới `self._lock` trong `stop()`; phân tách rõ ràng giữa `stop()` (dừng worker thread và drain hàng đợi) và `shutdown()`/`close()` (chấm dứt vòng đời thực thi); tăng timeout join worker lên 5,0s.
+  - `jarvis/workers/auto_updater.py`: Vô hiệu hóa legacy auto-apply (`self.auto_apply = False`), thêm log cảnh báo bảo mật khi phát hiện nỗ lực tự áp dụng cập nhật chưa ký số, chặn background loop tự ý `git pull`.
+  - `jarvis/automation/app_launcher.py`: Chuẩn hóa trạng thái timeout xác minh cửa sổ thành `'status': 'timeout'`.
+  - `tests/test_empirical_challenger_m2.py`: Cập nhật assertion phản ánh fail-closed cho Webhook invalid/unreachable URL.
+  - `tests/unit/test_action_result_contract.py` & `tests/unit/test_m2_adversarial_challenger.py`: Cập nhật assertion kiểm tra `ActionStatus.NOT_CONFIGURED` khi Home Assistant thiếu credential.
+  - `tests/unit/test_agent_tool_runtime.py` & `tests/unit/test_react_agent.py`: Cập nhật test suite cho `_inspect_dict_failure` và ReAct tools.
+  - `tests/unit/test_app_launcher.py` & `tests/unit/test_app_catalog.py`: Cập nhật assertion cho trạng thái `'timeout'`.
+  - `tests/unit/test_email_tts_sanitization.py`: Bổ sung kiểm thử biên đảm bảo không cắt cụt thẻ quarantine khi email dài.
+  - `tests/unit/test_tts_shutdown_probe.py`: Kiểm thử dừng active playback, drain hàng đợi, không gây deadlock.
+  - `tests/unit/test_result_health_migration.py`: Bổ sung kiểm thử fail-closed cho WebhookPlugin và HomeAssistantClient.
+- **Chỉ số kiểm thử thực tế**:
+  - Full Unit test suite (`tests/unit/`): **2.978 passed, 3 skipped, 0 failed** (tổng 2.981 tests) trong **462,27s (07:42)**.
+  - Root tests (`tests/`): **26 passed, 0 failed** trong **51,45s**.
+  - Tổng số test kiểm chứng: **3.004 passed, 3 skipped (3.007 tests)**.
+  - Security Scanner (`tools/security_scanner.py`): **0 findings / 210 files / 70.475 lines / 1,93s** (`[PASS] Clean scan`).
+  - Ruff Linter: **All checks passed!**
+
 ## [Unreleased] Truthful live wake-word acceptance evidence (2026-10-10)
 
 - **Mục tiêu**: ngăn harness nghiệm thu gắn `PASS runtime` cho phiên không có

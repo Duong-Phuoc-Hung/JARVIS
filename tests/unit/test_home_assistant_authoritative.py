@@ -297,5 +297,54 @@ class TestJarvisAppHomeAssistantIntegration(unittest.TestCase):
             mock_gs.assert_called_once_with("sensor.temperature")
 
 
+class TestHomeAssistantUnconfiguredFailClosed(unittest.TestCase):
+    """HA-NOT-CONFIGURED-FIX1: Missing token must return NOT_CONFIGURED and never make HTTP calls."""
+
+    @patch.dict("os.environ", {}, clear=True)
+    @patch("jarvis.smart_home.home_assistant.get_secret", return_value=None)
+    @patch("urllib.request.urlopen")
+    def test_missing_token_never_calls_http_and_returns_not_configured(
+        self, mock_urlopen: MagicMock, mock_secret: MagicMock
+    ) -> None:
+        client = HomeAssistantClient(access_token=None)
+        self.assertFalse(client.is_configured)
+        self.assertIsNone(client.token)
+
+        # 1. call_service without mock_http must fail closed immediately
+        res = client.call_service("light", "turn_on", {"entity_id": "light.living_room"})
+        self.assertFalse(res.success)
+        self.assertEqual(res.code, "NOT_CONFIGURED")
+        mock_urlopen.assert_not_called()
+
+        # 2. get_state without mock_http must return None without HTTP call
+        state = client.get_state("light.living_room")
+        self.assertIsNone(state)
+        mock_urlopen.assert_not_called()
+
+    @patch.dict("os.environ", {}, clear=True)
+    @patch("jarvis.smart_home.home_assistant.get_secret", return_value=None)
+    @patch("urllib.request.urlopen")
+    def test_blank_whitespace_token_returns_not_configured(
+        self, mock_urlopen: MagicMock, mock_secret: MagicMock
+    ) -> None:
+        client = HomeAssistantClient(access_token="   ")
+        self.assertFalse(client.is_configured)
+        self.assertIsNone(client.token)
+
+        res = client.call_service("light", "turn_on", {"entity_id": "light.living_room"})
+        self.assertFalse(res.success)
+        self.assertEqual(res.code, "NOT_CONFIGURED")
+        mock_urlopen.assert_not_called()
+
+        backend_res = client.call_service_backend("light", "turn_on", {"entity_id": "light.living_room"})
+        self.assertFalse(backend_res.success)
+        self.assertEqual(backend_res.code, "NOT_CONFIGURED")
+        mock_urlopen.assert_not_called()
+
+        state = client.get_state("light.living_room")
+        self.assertIsNone(state)
+        mock_urlopen.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

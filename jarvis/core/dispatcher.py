@@ -636,6 +636,12 @@ class ActionDispatcher:
             if isinstance(data, ActionResult):
                 return replace(data, action_name=action_name, execution_time_ms=elapsed,
                                requester=context.requester_id)
+            if isinstance(data, BackendResult):
+                return data.to_action_result(
+                    action_name=action_name,
+                    requester=context.requester_id,
+                    execution_time_ms=elapsed,
+                )
             handler_status = norm_data.get("status") if isinstance(norm_data, dict) else None
             if isinstance(handler_status, ActionStatus):
                 status_arg = handler_status
@@ -781,6 +787,12 @@ class ActionDispatcher:
             if isinstance(data, ActionResult):
                 return replace(data, action_name=action_name, execution_time_ms=elapsed,
                                requester=context.requester_id)
+            if isinstance(data, BackendResult):
+                return data.to_action_result(
+                    action_name=action_name,
+                    requester=context.requester_id,
+                    execution_time_ms=elapsed,
+                )
             handler_status = norm_data.get("status") if isinstance(norm_data, dict) else None
             if isinstance(handler_status, ActionStatus):
                 status_arg = handler_status
@@ -835,3 +847,24 @@ class ActionDispatcher:
                 execution_time_ms=elapsed,
                 requester=context.requester_id
             )
+
+    def dispatch_backend(
+        self,
+        action_name: str,
+        payload: dict[str, Any] | None = None,
+        requester: str | RequesterContext = "system",
+        timeout: float | None = None,
+        confirmation_token: str | None = None,
+    ) -> BackendResult:
+        """Dispatches an action and returns the canonical BackendResult contract."""
+        res = self.dispatch_action(
+            action_name=action_name,
+            payload=payload,
+            requester=requester,
+            timeout=timeout,
+            confirmation_token=confirmation_token,
+        )
+        return BackendResult.from_action_result(res)
+
+    dispatch = dispatch_action
+

@@ -34,6 +34,7 @@ class TTSAudioCache:
             self.cache_dir = (_base / "cache" / "tts").resolve()
 
         self.enabled = enabled
+        self._is_closed: bool = False
         if self.enabled:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -70,7 +71,7 @@ class TTSAudioCache:
         output_format: str = "pcm_24000",
     ) -> Path | None:
         """Returns Path to valid cached WAV file if exists and uncorrupted, otherwise None."""
-        if not self.enabled:
+        if not self.enabled or self._is_closed:
             return None
         path = self.get_cache_path(text, voice_id, model_id, output_format)
         if not path.is_file():
@@ -95,7 +96,7 @@ class TTSAudioCache:
         output_format: str = "pcm_24000",
     ) -> bytes | None:
         """Returns raw bytes of cached WAV if valid."""
-        if not self.enabled:
+        if not self.enabled or self._is_closed:
             return None
         path = self.get_cache_path(text, voice_id, model_id, output_format)
         if not path.is_file():
@@ -119,7 +120,7 @@ class TTSAudioCache:
         sample_rate: int = 24000,
     ) -> Path:
         """Atomically saves raw 16-bit mono PCM bytes as a standard WAV file."""
-        if not self.enabled:
+        if not self.enabled or self._is_closed:
             return self.get_cache_path(text, voice_id, model_id, output_format)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         path = self.get_cache_path(text, voice_id, model_id, output_format)
@@ -183,6 +184,10 @@ class TTSAudioCache:
 
     def play_wav(self, path: str | Path, wait: bool = True) -> bool:
         """Plays a WAV file via sounddevice with winsound/system fallbacks."""
+        if self._is_closed:
+            log.warning("TTSAudioCache is closed/shut down. Skipping audio playback.")
+            return False
+
         wav_path = Path(path)
         if not wav_path.is_file():
             log.warning("Cannot play missing audio file: %s", wav_path)
@@ -233,6 +238,34 @@ class TTSAudioCache:
                 log.warning("winsound playback failed: %s", e)
 
         return False
+
+    def stop(self) -> None:
+        """
+        Immediately halts active audio playback on sounddevice and platform backends.
+        Safe and idempotent to call even when playback is inactive.
+        """
+        self._is_closed = True
+        try:
+            import sounddevice as sd
+            sd.stop()
+        except Exception as e:
+            log.debug("sounddevice.stop() error or not available: %s", e)
+
+        if sys.platform == "win32":
+            try:
+                import winsound
+                winsound.PlaySound(None, winsound.SND_PURGE)
+            except Exception as e:
+                log.debug("winsound purge error: %s", e)
+
+    def close(self) -> None:
+        """Idempotent alias for stopping/closing audio cache."""
+        self.stop()
+
+    def shutdown(self) -> None:
+        """Idempotent alias for stopping/closing audio cache."""
+        self.stop()
+
 
 
 class LocalTTSCache(TTSAudioCache):

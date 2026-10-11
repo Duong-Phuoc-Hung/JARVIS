@@ -264,6 +264,18 @@ class PluginHealth:
     last_check_timestamp: float = field(default_factory=time.time)
     metrics: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def health_status(self) -> Any:
+        """Maps plugin runtime status to canonical HealthStatus enum."""
+        from jarvis.core.result_model import HealthStatus
+        if self.status == PluginStatus.RUNNING:
+            return HealthStatus.READY
+        if self.status in (PluginStatus.INITIALIZED, PluginStatus.DEGRADED):
+            return HealthStatus.LIMITED
+        if self.status == PluginStatus.ERROR:
+            return HealthStatus.ERROR
+        return HealthStatus.UNAVAILABLE
+
 
 @dataclass(frozen=True)
 class MonitorInfo:

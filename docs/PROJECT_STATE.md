@@ -18,6 +18,30 @@
 > Snapshot: 2026-09-19 v5.2.0 Phase 4 + Peer Review completion checkpoint; older sections retain their historical dates.
 > Always verify Git state and current code before relying on this snapshot.
 
+## 0A-0. Current Checkpoint — Truthfulness Remediation (BUGS 1-6 & Architecture Hardening) (2026-10-11)
+
+This checkpoint supersedes older sections for Truthfulness Remediation (BUGS 1-6) and the Risk-First Seam architecture tasks (Tasks 1-12) on branch `fix/truthfulness-bugs-1-to-6`.
+
+**Source & Verification State:**
+- **Branch**: `fix/truthfulness-bugs-1-to-6`
+- **Runtime Version**: `5.2.1` (`jarvis.__version__` in `jarvis/__init__.py`).
+- **Remediated BUGS (1-6)**:
+  1. `BUG-1`: WebhookPlugin.send_payload fail-closed on invalid URL or delivery failure (`code="WEBHOOK_INVALID_URL"`).
+  2. `BUG-2`: IMAP email quarantine tags never truncated when body exceeds max length.
+  3. `BUG-3`: Agent tool runtime inspects explicit top-level success/ok correctly without false-negative fallthrough; recognizes `'timeout'`.
+  4. `BUG-4`: TTSManager thread-safe enqueue/drain synchronization, separating worker stop from system shutdown.
+  5. `BUG-5`: AutoUpdaterWorker legacy auto-apply disabled (`auto_apply = False`) with security warning.
+  6. `BUG-6`: Application launcher window verification timeout normalized to `'status': 'timeout'`.
+- **Three-Tier Verdict Discipline (`AGENTS.md §5`)**:
+  - **Engineering Quality Gate**: **`PASS engineering`**
+    - Full Unit (`tests/unit/`): **2,978 passed, 3 skipped, 0 failed** (2,981 tests) trong **462,27s (07:42)**.
+    - Root tests: **26 passed, 0 failed** trong **51,45s**.
+    - Tổng test pass: **3,004 passed, 3 skipped (3,007 tests)**.
+    - Security Scanner: **0 findings / 210 files / 70,475 lines / 1.93s** (`[PASS] Clean scan`).
+    - Ruff Linter: **All checks passed!**
+  - **Internal Pilot Authorization**: **`CONDITIONAL GO`** (Fail-closed verified, zero ghost success).
+  - **Product / General Release**: **`PENDING`** (Đợi physical hardware/live voice acceptance).
+
 ## 0A. Current checkpoint — v5.2.0 Phase 4 + Peer Review (2026-09-19) — READ THIS FIRST
 
 This checkpoint supersedes older sections for JARVIS v5.2.0 Phase 4 and Peer Review status,

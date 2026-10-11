@@ -34,7 +34,6 @@ from jarvis.comms.rate_limiter import RateLimitConfig
 from jarvis.core.models import ActionResult, ActionStatus
 from jarvis.smart_home.home_assistant import HomeAssistantClient
 
-
 # ============================================================================
 # 1. HomeAssistantClient Adversarial Probes
 # ============================================================================
@@ -56,7 +55,7 @@ class TestHomeAssistantAdversarial:
 
         assert isinstance(res, ActionResult), f"{method_name} must return ActionResult"
         assert res.success is False
-        assert res.status == ActionStatus.ERROR
+        assert res.status == ActionStatus.NOT_CONFIGURED
         assert res.code == "NOT_CONFIGURED"
         assert res.retryable is False
         assert "token missing" in res.message or "NOT_CONFIGURED" in res.message

@@ -50,10 +50,12 @@ class HomeAssistantClient:
     ):
         self.base_url = base_url.rstrip("/")
         if access_token is not None:
-            self.token = access_token
+            clean = access_token.strip()
+            self.token = clean if clean else None
         else:
             token = get_secret("HASS_TOKEN") or os.environ.get("HASS_TOKEN")
-            self.token = token if token else "token_xyz"
+            clean = token.strip() if token else ""
+            self.token = clean if clean else None
         self.timeout = timeout
         self.entity_aliases: dict[str, str] = entity_aliases or {
             "living_room_light": "light.living_room",
@@ -70,7 +72,7 @@ class HomeAssistantClient:
     @property
     def is_configured(self) -> bool:
         """Returns True if a real (non-placeholder) token is configured."""
-        return bool(self.token and self.token != "token_xyz")
+        return bool(self.token and self.token.strip() and self.token != "token_xyz")
 
     def resolve_entity(self, alias_or_id: str) -> str:
         """Resolves natural language or config alias to valid HA entity_id."""
@@ -113,7 +115,7 @@ class HomeAssistantClient:
         if mock_http is not None:
             return mock_http.handle_ha_get_state(resolved)
 
-        if not self.token:
+        if not self.is_configured:
             log.warning("Home Assistant not configured: missing access token")
             return None
 
@@ -181,11 +183,11 @@ class HomeAssistantClient:
                 data=res,
             )
 
-        if not self.token:
+        if not self.is_configured:
             return ActionResult(
                 action_name="home_assistant_call",
                 success=False,
-                status=ActionStatus.ERROR,
+                status=ActionStatus.NOT_CONFIGURED,
                 code="NOT_CONFIGURED",
                 message="NOT_CONFIGURED: Home Assistant token missing",
                 retryable=False,
@@ -268,3 +270,23 @@ class HomeAssistantClient:
             {"entity_id": resolved, "temperature": temperature},
             mock_http=mock_http,
         )
+
+    def call_service_backend(
+        self,
+        domain: str,
+        service: str,
+        service_data: dict[str, Any] | None = None,
+        mock_http: Any | None = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Calls a Home Assistant domain service returning canonical BackendResult."""
+        from jarvis.core.result_model import BackendResult
+        payload = dict(service_data or {})
+        payload.update(kwargs)
+        action_res = self.call_service(
+            domain=domain,
+            service=service,
+            service_data=payload,
+            mock_http=mock_http,
+        )
+        return BackendResult.from_action_result(action_res)

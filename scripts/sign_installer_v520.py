@@ -27,6 +27,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).parent.parent.resolve()
 DEFAULT_INSTALLER = ROOT / "dist" / "installer" / "JARVIS_Setup_v5.2.1.exe"
@@ -50,25 +51,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--require-commercial",
         action="store_true",
-        default=os.environ.get("JARVIS_REQUIRE_COMMERCIAL_SIGNING", "0") in ("1", "true", "TRUE"),
+        default=os.environ.get("JARVIS_REQUIRE_COMMERCIAL_SIGNING", os.environ.get("REQUIRE_COMMERCIAL_RELEASE", "0")) in ("1", "true", "TRUE"),
         help="Enforce commercial EV/CA code signing certificate (fails closed if missing)",
     )
     parser.add_argument(
         "--cert-thumbprint",
         type=str,
-        default=os.environ.get("JARVIS_COMMERCIAL_CERT_THUMBPRINT"),
+        default=os.environ.get("JARVIS_COMMERCIAL_CERT_THUMBPRINT", os.environ.get("COMMERCIAL_CERT_THUMBPRINT")),
         help="Certificate thumbprint in Windows Cert Store (Cert:\\CurrentUser\\My or Cert:\\LocalMachine\\My)",
     )
+    pfx_path_env = os.environ.get("JARVIS_COMMERCIAL_PFX_PATH", os.environ.get("COMMERCIAL_PFX_PATH"))
     parser.add_argument(
         "--pfx-path",
         type=Path,
-        default=Path(os.environ["JARVIS_COMMERCIAL_PFX_PATH"]) if os.environ.get("JARVIS_COMMERCIAL_PFX_PATH") else None,
+        default=Path(pfx_path_env) if pfx_path_env else None,
         help="Path to commercial code signing .pfx file",
     )
     parser.add_argument(
         "--pfx-password",
         type=str,
-        default=os.environ.get("JARVIS_COMMERCIAL_PFX_PASSWORD", ""),
+        default=os.environ.get("JARVIS_COMMERCIAL_PFX_PASSWORD", os.environ.get("COMMERCIAL_PFX_PASSWORD", "")),
         help="Password for commercial code signing .pfx file",
     )
     parser.add_argument(
@@ -77,7 +79,47 @@ def parse_args() -> argparse.Namespace:
         default=os.environ.get("JARVIS_TIMESTAMP_URL", "http://timestamp.digicert.com"),
         help="RFC 3161 Timestamp Authority URL",
     )
+    parser.add_argument(
+        "--target-channel",
+        type=str,
+        default=None,
+        choices=["commercial", "production", "prerelease", "internal", "development"],
+        help="Target distribution channel to validate against before release",
+    )
     return parser.parse_args()
+
+
+def validate_release_trust(manifest: dict[str, Any], target_channel: str = "commercial") -> tuple[bool, str]:
+    """
+    Validates whether an artifact's signature tier permits publication to the target release channel.
+    Complies with Three-Tier Verdict Discipline and Fail-Closed semantics:
+    - Commercial/production channels require signature_tier == 'COMMERCIAL' and smartscreen_trusted == True.
+    - Test-signed builds are strictly restricted to prerelease/internal/development channels.
+    - Unsigned or NOT_CONFIGURED builds are blocked from all distribution channels.
+    """
+    tier = str(manifest.get("signature_tier", "UNSIGNED")).upper()
+    smartscreen_trusted = bool(manifest.get("smartscreen_trusted", False))
+    comm_allowed = bool(manifest.get("commercial_release_allowed", False))
+
+    norm_channel = target_channel.lower().strip()
+
+    if tier in ("NOT_CONFIGURED", "UNSIGNED"):
+        return False, f"FAIL_CLOSED: Artifact signature tier is {tier}. Not eligible for any distribution channel."
+
+    if norm_channel in ("production", "commercial"):
+        if not comm_allowed or tier != "COMMERCIAL" or not smartscreen_trusted:
+            return False, (
+                f"FAIL_CLOSED: Artifact is signed under '{tier}' tier (smartscreen_trusted={smartscreen_trusted}). "
+                "Commercial production release is strictly prohibited without a genuine CA-issued Authenticode certificate."
+            )
+        return True, "OK: Valid commercial Authenticode signature authorized for production release."
+
+    if norm_channel in ("prerelease", "internal", "development"):
+        if tier in ("TEST_SIGNED", "COMMERCIAL"):
+            return True, f"OK: Signature tier '{tier}' permitted for {norm_channel} channel."
+        return False, f"FAIL_CLOSED: Tier '{tier}' not permitted for {norm_channel} channel."
+
+    return False, f"FAIL_CLOSED: Unknown target channel '{target_channel}'."
 
 
 def sign_installer(args: argparse.Namespace) -> int:
@@ -103,6 +145,8 @@ def sign_installer(args: argparse.Namespace) -> int:
             "signature_tier": "NOT_CONFIGURED",
             "verdict": "FAIL_CLOSED (COMMERCIAL_CERT_NOT_CONFIGURED)",
             "smartscreen_trusted": False,
+            "commercial_release_allowed": False,
+            "allowed_release_channels": [],
             "error_code": "COMMERCIAL_CERT_NOT_CONFIGURED",
         }
         manifest_path = installer.parent / "signature_audit.json"
@@ -196,6 +240,12 @@ exit 0
 
     # Write signature audit manifest
     smartscreen_trusted = signature_tier == "COMMERCIAL"
+    commercial_release_allowed = signature_tier == "COMMERCIAL" and smartscreen_trusted
+    allowed_release_channels = (
+        ["commercial", "production", "prerelease", "internal", "development"]
+        if commercial_release_allowed
+        else ["prerelease", "internal", "development"]
+    )
     verdict = (
         "PASS runtime (COMMERCIAL)"
         if signature_tier == "COMMERCIAL"
@@ -208,6 +258,8 @@ exit 0
         "size_bytes": installer.stat().st_size,
         "signature_tier": signature_tier,
         "smartscreen_trusted": smartscreen_trusted,
+        "commercial_release_allowed": commercial_release_allowed,
+        "allowed_release_channels": allowed_release_channels,
         "verdict": verdict,
         "timestamp_authority": args.timestamp_url if signature_tier == "COMMERCIAL" else None,
     }
@@ -215,6 +267,12 @@ exit 0
     audit_path.write_text(json.dumps(audit_manifest, indent=2), encoding="utf-8")
     log.info("Wrote signature audit manifest to: %s", audit_path)
     log.info("Authenticode Verdict: %s", verdict)
+
+    if getattr(args, "target_channel", None):
+        ok, msg = validate_release_trust(audit_manifest, args.target_channel)
+        if not ok:
+            log.error("[RELEASE GATE REJECTED] %s", msg)
+            return 4
 
     return 0
 

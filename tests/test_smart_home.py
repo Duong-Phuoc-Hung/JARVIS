@@ -82,7 +82,7 @@ def test_smart_home_ha_server_unreachable_timeout_tier2():
     """
     [F-26] Validate offline Home Assistant endpoint returns descriptive connection error without crash.
     """
-    client = HomeAssistantClient(base_url="http://invalid-ha-host.local:8123")
+    client = HomeAssistantClient(base_url="http://invalid-ha-host.local:8123", access_token="test_token")
     res = client.call_service("light", "turn_on", {"entity_id": "light.room"}, mock_http=None)
     assert res["success"] is False
     assert "unreachable" in res["error"].lower()

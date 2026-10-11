@@ -544,7 +544,7 @@ def test_stress_webhook_plugin_network_failure(monkeypatch):
         {"url": "http://127.0.0.1:59999/nonexistent_webhook_endpoint", "payload": {"event": "test"}, "timeout": 0.2},
         requester=RequesterContext.system(),
     )
-    assert res.success is True
+    assert res.success is False
     assert res.data["status"] == 500
     assert res.data["delivered"] is False
 

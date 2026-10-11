@@ -362,10 +362,11 @@ class ApplicationCatalog:
             try:
                 self._entries = _coalesce(self._provider())
                 self.errors = ()
-            except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                self._updated = time.monotonic()
+            except Exception as exc:
                 self._entries = ()
                 self.errors = (type(exc).__name__,)
-            self._updated = time.monotonic()
+                self._updated = None
             return self._entries
 
     def resolve(self, name: str) -> tuple[InstalledApp, ...]:

@@ -220,6 +220,7 @@ jobs:
             --timeout=120 `
             --junit-xml=reports/junit.xml `
             2>&1 | Tee-Object reports/test_output.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         env:
           PYTHONIOENCODING: utf-8
           JARVIS_HEADLESS: "1"
@@ -371,13 +372,117 @@ jobs:
           retention-days: 14
 
   # -------------------------------------------------------
-  # JOB 5 - Summary
+  # JOB 5 - Security & Vulnerability Scan
+  # -------------------------------------------------------
+  security_scan:
+    name: 🛡️ Security & Vulnerability Scan
+    runs-on: windows-latest
+    timeout-minutes: 10
+    needs: syntax
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install security scan dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip --quiet
+          pip install bandit pytest pytest-timeout requests python-dotenv --quiet
+
+      - name: Run Bandit AST security scanner
+        shell: pwsh
+        run: |
+          Write-Host "Running Bandit security scan on jarvis/..."
+          python -m bandit -r jarvis/ -ll -ii -x "jarvis/tests/" --format custom --msg-template "{abspath}:{line}: {test_id}[bandit]: {severity}: {msg}"
+          if ($LASTEXITCODE -ne 0) {
+              Write-Error "Bandit detected potential security issues."
+              exit $LASTEXITCODE
+          }
+
+      - name: Run Security Scanner test suite
+        shell: pwsh
+        run: |
+          python -m pytest tests/test_security_scanner.py -v --timeout=60 --tb=short
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        env:
+          PYTHONIOENCODING: utf-8
+          JARVIS_HEADLESS: "1"
+          JARVIS_MOCK_AUDIO: "1"
+
+      - name: Run Security Probes & Adversarial Tests
+        shell: pwsh
+        run: |
+          python -m pytest tests/test_audit_adversarial_probes.py -v --timeout=60 --tb=short
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        env:
+          PYTHONIOENCODING: utf-8
+          JARVIS_HEADLESS: "1"
+          JARVIS_MOCK_AUDIO: "1"
+
+  # -------------------------------------------------------
+  # JOB 6 - Non-Unit & Integration Regressions
+  # -------------------------------------------------------
+  integration_regression:
+    name: 🔄 Non-Unit & Integration Regressions
+    runs-on: windows-latest
+    timeout-minutes: 15
+    needs: syntax
+    env:
+      JARVIS_SANDBOX_ALLOW_COMPAT_FALLBACK: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip --quiet
+          pip install `
+            "google-generativeai>=0.7" `
+            "python-dotenv" `
+            "numpy" `
+            "Pillow" `
+            "requests" `
+            "psutil" `
+            "pyperclip" `
+            "pytest>=8" `
+            "pytest-timeout" `
+            --quiet
+
+      - name: Run integration test suite
+        shell: pwsh
+        run: |
+          python -m pytest tests/integration/ -v --timeout=120 --tb=short
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        env:
+          PYTHONIOENCODING: utf-8
+          JARVIS_HEADLESS: "1"
+          JARVIS_MOCK_AUDIO: "1"
+
+      - name: Run core subsystem regression tests
+        shell: pwsh
+        run: |
+          python -m pytest tests/test_smart_home.py tests/test_dispatcher.py tests/test_config.py -v --timeout=120 --tb=short
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        env:
+          PYTHONIOENCODING: utf-8
+          JARVIS_HEADLESS: "1"
+          JARVIS_MOCK_AUDIO: "1"
+
+  # -------------------------------------------------------
+  # JOB 7 - Summary
   # -------------------------------------------------------
   summary:
     name: Pipeline Summary
     runs-on: windows-latest
     timeout-minutes: 3
-    needs: [syntax, test, imports, browser_e2e]
+    needs: [syntax, test, imports, security_scan, integration_regression, browser_e2e]
     if: always()
 
     steps:
@@ -387,15 +492,19 @@ jobs:
           Write-Host "========================================"
           Write-Host "JARVIS CI Results"
           Write-Host "========================================"
-          Write-Host "Syntax Check:    ${{ needs.syntax.result }}"
-          Write-Host "Unit Tests:      ${{ needs.test.result }}"
-          Write-Host "Import Check:    ${{ needs.imports.result }}"
-          Write-Host "Browser E2E:     ${{ needs.browser_e2e.result }}"
+          Write-Host "Syntax Check:           ${{ needs.syntax.result }}"
+          Write-Host "Unit Tests:             ${{ needs.test.result }}"
+          Write-Host "Import Check:           ${{ needs.imports.result }}"
+          Write-Host "Security Scan:          ${{ needs.security_scan.result }}"
+          Write-Host "Integration Regression: ${{ needs.integration_regression.result }}"
+          Write-Host "Browser E2E:            ${{ needs.browser_e2e.result }}"
           Write-Host "========================================"
           $failed = @()
           if ("${{ needs.syntax.result }}" -ne "success") { $failed += "Syntax" }
           if ("${{ needs.test.result }}"   -ne "success") { $failed += "Tests" }
           if ("${{ needs.imports.result }}" -ne "success") { $failed += "Imports" }
+          if ("${{ needs.security_scan.result }}" -ne "success") { $failed += "Security Scan" }
+          if ("${{ needs.integration_regression.result }}" -ne "success") { $failed += "Integration Regression" }
           if ("${{ needs.browser_e2e.result }}" -ne "success") { $failed += "Browser E2E" }
           if ($failed.Count -gt 0) {
             Write-Host "STATUS: FAILED ($($failed -join ', '))"

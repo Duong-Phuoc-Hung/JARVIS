@@ -29,7 +29,7 @@ import imaplib
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, NamedTuple
 
 log = logging.getLogger("jarvis.comms.email")
 
@@ -53,6 +53,18 @@ class IMAPNotConfiguredError(RuntimeError):
     """Raised when IMAP credentials are missing — fail-closed contract."""
 
 
+class SanitizedEmailBody(NamedTuple):
+    """
+    Dual-representation of sanitized email content:
+    - llm_content: wrapped in XML quarantine boundaries (<untrusted_external_content source="email">)
+      for prompt-injection defense when prompting LLMs.
+    - clean_text: pure sanitized text with injection patterns redacted/neutralized,
+      without XML quarantine tags, safe for direct speech in TTS synthesizers.
+    """
+    llm_content: str
+    clean_text: str
+
+
 @dataclass
 class EmailMessage:
     sender: str
@@ -68,6 +80,7 @@ class EmailSummaryResult:
     total_unread: int
     priority_count: int
     voice_summary: str
+    llm_summary: str = ""
     priority_emails: list[EmailMessage] = field(default_factory=list)
     dropped_count: int = 0          # emails dropped by security filters
 
@@ -267,29 +280,60 @@ class IMAPEmailReader:
                 return True
         return False
 
-    def _sanitize_for_llm(self, text: str) -> str:
+    def sanitize_email_body(self, text: str) -> SanitizedEmailBody:
         """
-        Apply PromptGuard-style sanitization before feeding body to LLM.
-        Truncates to _MAX_BODY_LEN after sanitization.
+        Sanitize email text using PromptGuard.
+        Returns SanitizedEmailBody with:
+          - llm_content: XML quarantine wrapped content for LLM safety.
+          - clean_text: clean sanitized text without XML quarantine tags for TTS voice output.
+        Both representations are truncated to _MAX_BODY_LEN chars.
         """
+        if not text:
+            return SanitizedEmailBody(llm_content="", clean_text="")
+
         try:
             from jarvis.security.prompt_guard import PromptGuard
-            result = PromptGuard().sanitize(text)
-            sanitized = str(result)
-        except ImportError:
-            # PromptGuard not available — fall back to basic stripping
-            sanitized = re.sub(r"(ignore|disregard|forget)\s+(all|previous|prior)", "",
-                               text, flags=re.IGNORECASE)
-        except Exception as exc:
-            log.warning("email: PromptGuard failed (%s) — using raw text", exc)
-            sanitized = text
+            res = PromptGuard.sanitize(text, source="email")
+            clean = getattr(res, "clean_text", "")
+            if not clean or clean.startswith("<untrusted_external_content"):
+                clean = re.sub(r"</?untrusted_external_content[^>]*>", "", str(res))
+            # Truncate the INNER content first, then wrap — so the closing
+            # quarantine tag is never truncated away (which would silently break
+            # the LLM prompt-injection boundary for long bodies).
+            clean_tts = clean[:_MAX_BODY_LEN].strip()
+            llm_wrapped = (
+                f'<untrusted_external_content source="email">\n'
+                f"{clean_tts}\n"
+                f"</untrusted_external_content>"
+            )
+            return SanitizedEmailBody(llm_content=llm_wrapped, clean_text=clean_tts)
+        except (ImportError, Exception) as exc:
+            log.warning("email: PromptGuard unavailable or failed (%s) — using fallback sanitization", exc)
+            sanitized = re.sub(
+                r"\b(?:ignore|disregard|forget|override|bypass|clear|reset)\s+(?:all\s+)?"
+                r"(?:previous|prior|system|earlier|existing|above)\s+"
+                r"(?:instructions|directives|prompts|rules|commands|constraints|guidelines)\b|"
+                r"\b(?:you are no longer \w+|you are now (?:in )?(?:DAN|developer mode)|jailbroken|jailbreak|"
+                r"developer mode enabled|unrestricted mode|god mode|always obey the user)\b|"
+                r"\b(?:new instruction:|system prompt:|system override:|system message:|system instruction:|system:)|"
+                r"\b(?:bỏ qua|hủy bỏ|quên|vượt qua|xóa)\s+(?:tất cả\s+)?"
+                r"(?:chỉ dẫn|hướng dẫn|lệnh|mệnh lệnh|quy tắc|ràng buộc|chỉ thị)(?:\s+(?:trước|trước đó|hệ thống|cũ|ban đầu))?\b",
+                "[REDACTED_INJECTION_ATTEMPT]",
+                text,
+                flags=re.IGNORECASE,
+            )
+            sanitized = re.sub(r"</?untrusted_external_content[^>]*>", "", sanitized, flags=re.IGNORECASE)[:_MAX_BODY_LEN].strip()
+            wrapped = f'<untrusted_external_content source="email">\n{sanitized}\n</untrusted_external_content>'
+            return SanitizedEmailBody(llm_content=wrapped, clean_text=sanitized)
 
-        return sanitized[:_MAX_BODY_LEN].strip()
+    def _sanitize_for_llm(self, text: str) -> str:
+        """Legacy helper for backward compatibility — returns llm_content."""
+        return self.sanitize_email_body(text).llm_content
 
     # ── Public API ────────────────────────────────────────────────────────────
 
     def _process_emails(self, emails: list[EmailMessage]) -> dict[str, Any]:
-        """Apply security pipeline and build voice summary from a list of EmailMessage."""
+        """Apply security pipeline and build voice and LLM summaries from a list of EmailMessage."""
         accepted: list[EmailMessage] = []
         dropped = 0
 
@@ -313,25 +357,35 @@ class IMAPEmailReader:
                             getattr(em, "sender", "?"), exc)
                 dropped += 1
 
-        summaries: list[str] = []
+        voice_summaries: list[str] = []
+        llm_summaries: list[str] = []
         for em in accepted:
             try:
                 # Step 3: HTML strip
                 body = self._strip_html(em.body_text) if "<" in em.body_text else em.body_text
 
-                # Steps 4+5: PromptGuard + hard truncation
-                safe_body = self._sanitize_for_llm(body)
+                # Steps 4+5: PromptGuard dual sanitization + hard truncation
+                sanitized = self.sanitize_email_body(body)
+                clean_sender = self.sanitize_email_body(em.sender).clean_text
+                clean_subject = self.sanitize_email_body(em.subject).clean_text
 
-                summary_text = (
-                    f"Email mới từ {em.sender} về tiêu đề {em.subject}. "
-                    f"Tóm tắt: {safe_body}."
+                voice_summary_text = (
+                    f"Email mới từ {clean_sender} về tiêu đề {clean_subject}. "
+                    f"Tóm tắt: {sanitized.clean_text}."
                 )
-                summaries.append(summary_text)
+                voice_summaries.append(voice_summary_text)
+
+                llm_summary_text = (
+                    f"Email mới từ {clean_sender} về tiêu đề {clean_subject}.\n"
+                    f"Nội dung:\n{sanitized.llm_content}"
+                )
+                llm_summaries.append(llm_summary_text)
             except Exception as exc:
                 log.warning("email: summary generation failed for %r: %s",
                             em.sender[:40], exc)
 
-        combined_voice = " ".join(summaries) if summaries else "Không có email ưu tiên mới."
+        combined_voice = " ".join(voice_summaries) if voice_summaries else "Không có email ưu tiên mới."
+        combined_llm = "\n\n".join(llm_summaries) if llm_summaries else "Không có email ưu tiên mới."
         log.info("email: processed %d/%d emails (%d dropped by security filters)",
                  len(accepted), len(emails), dropped)
 
@@ -339,6 +393,7 @@ class IMAPEmailReader:
             "total_unread": len(emails),
             "priority_count": len(accepted),
             "voice_summary": combined_voice,
+            "llm_summary": combined_llm,
             "dropped_by_security": dropped,
         }
 

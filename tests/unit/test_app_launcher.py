@@ -72,17 +72,16 @@ def test_launch_waits_for_verified_window(monkeypatch):
 
 
 def test_acknowledgement_without_window_times_out(monkeypatch):
-    """Fix 2 (2026-09-22): HWND timeout → success=True because os.startfile() was called.
-    The app IS launching; 'launched' status means request dispatched but HWND unconfirmed.
+    """TRUTHFUL-LAUNCH-FIX1: HWND timeout must return success=False.
+    Even if launch command was dispatched, an unconfirmed HWND within timeout is an unverified failure.
     """
     probe = MagicMock()
     probe.find.return_value = None
     monkeypatch.setattr("os.startfile", lambda target: None, raising=False)
     result = app_launcher.WindowsApplicationLauncher(probe=probe, timeout=0).open(InstalledApp("Calculator", "Vendor!App", "app_id"))
-    # Fix 2: launch dispatched → success=True; HWND unconfirmed → error_code for diagnostics
-    assert result["success"] is True
+    assert result["success"] is False
     assert result["error_code"] == "APP_LAUNCH_UNVERIFIED"
-    assert result["status"] == "launched"
+    assert result["status"] == "timeout"
 
 
 def test_launch_os_error_is_reported(monkeypatch):

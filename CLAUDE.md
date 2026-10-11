@@ -21,6 +21,17 @@ specifically marked otherwise.
 > on "current state" for any non-trivial task: run `git fetch origin --prune`, then
 > `git rev-parse origin/main`, and trust that output over anything written here.
 
+- **Truthfulness Remediation (BUGS 1-6 & Architecture Hardening) Checkpoint (2026-10-11):**
+  Hoàn tất 6 bug trung thực (BUGS 1-6) và 12 task thuộc chuỗi Risk-First Seam trên nhánh
+  `fix/truthfulness-bugs-1-to-6`. Sửa Webhook false-success, IMAP email quarantine truncation,
+  tool runtime explicit success inspection, TTS stop/drain race, vô hiệu hóa legacy auto-apply
+  updater, và chuẩn hóa app launcher window verification timeout. Toàn bộ `tests/unit/` đạt
+  **2.978 passed, 3 skipped, 0 failed** trong **462,27s (07:42)**; root tests đạt **26 passed**
+  trong **51,45s** (tổng 3.004 passed, 3 skipped); Security Scanner đạt **0 findings / 210 files /
+  70.475 lines / 1,93s** (`[PASS] Clean scan`); Ruff linter đạt **All checks passed**.
+  Trạng thái: **PASS engineering**, Product GO tiếp tục PENDING cho các điều kiện nghiệm thu
+  thực tế ngoài phòng lab.
+
 - **T-01 completion checkpoint (2026-09-16):** canonical browser automation
   now uses real Playwright-managed Chromium or Playwright `connect_over_cdp`; legacy
   `browser_control` delegates to that seam, while HTTP is explicitly read-only and Mock is
