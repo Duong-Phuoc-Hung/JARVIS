@@ -20,7 +20,7 @@
 
 ## 0A-0. Current Checkpoint — Truthfulness Remediation (BUGS 1-6 & Architecture Hardening) (2026-10-11)
 
-This checkpoint supersedes older sections for Truthfulness Remediation (BUGS 1-6) and the Risk-First Seam architecture tasks (Tasks 1-12) on branch `fix/truthfulness-bugs-1-to-6`.
+This checkpoint supersedes older sections for Truthfulness Remediation (BUGS 1-6), the Risk-First Seam architecture tasks (Tasks 1-12), and the 5 Architectural & Quality Pillars on branch `fix/truthfulness-bugs-1-to-6`.
 
 **Source & Verification State:**
 - **Branch**: `fix/truthfulness-bugs-1-to-6`
@@ -32,6 +32,12 @@ This checkpoint supersedes older sections for Truthfulness Remediation (BUGS 1-6
   4. `BUG-4`: TTSManager thread-safe enqueue/drain synchronization, separating worker stop from system shutdown.
   5. `BUG-5`: AutoUpdaterWorker legacy auto-apply disabled (`auto_apply = False`) with security warning.
   6. `BUG-6`: Application launcher window verification timeout normalized to `'status': 'timeout'`.
+- **5 Architectural & Quality Enhancements Completed**:
+  1. **Acceptance Gates Protocol & 10-Workflow Matrix**: Created `docs/ACCEPTANCE_GATES_PROTOCOL.md` and `scripts/run_10_workflow_real_os.py` formalizing physical live voice 50-case benchmark, 10-workflow real OS execution, and clean-machine VM deployment.
+  2. **Test Coverage Enforcement**: Updated `pyproject.toml` with `fail_under = 80` in `[tool.coverage.report]` and created `scripts/generate_coverage_report.py` (HTML/XML/terminal reporting).
+  3. **JarvisApp Hybrid Composition & MRO Compatibility**: Maintained mixin inheritance on `JarvisApp` (`SystemHandlersMixin`, `ServiceHandlersMixin`, `AutomationHandlersMixin`) to preserve class-bound methods for `object.__new__` test doubles, while exposing `system_service`, `service_service`, and `automation_service` as `BaseActionService` composed domains with verified backward-compatibility aliases in `tests/unit/test_app_composition.py`.
+  4. **CLAUDE.md Archiving & Condensation**: Archived 1,244 lines of historical logs to `docs/CLAUDE_HISTORICAL.md`, compressing `CLAUDE.md` to 98 lines focused purely on current baseline and durable invariants.
+  5. **Mypy Strict Progressive Rollout**: Configured `[tool.mypy]` baseline safety checks and enabled `strict = true` overrides for `jarvis.core.handlers.*`, `jarvis.core.paths`, `jarvis.core.runaway_guard`, and `jarvis.security.*`.
 - **Three-Tier Verdict Discipline (`AGENTS.md §5`)**:
   - **Engineering Quality Gate**: **`PASS engineering`**
     - Full Unit (`tests/unit/`): **2,978 passed, 3 skipped, 0 failed** (2,981 tests) trong **462,27s (07:42)**.

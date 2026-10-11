@@ -14,6 +14,7 @@ import time
 from typing import Any
 
 from jarvis.core.handlers.base import (
+    BaseActionService,
     _POWER_ACTION_ALIASES,
     _UNSUPPORTED_POWER_ACTIONS,
     _DualErrorStr,
@@ -25,7 +26,7 @@ from jarvis.ui.tray import TrayStatus
 log = logging.getLogger("jarvis.core.handlers.system")
 
 
-class SystemHandlersMixin:
+class SystemHandlersMixin(BaseActionService):
     """Mixin providing system, desktop, and window management action handlers for JarvisApp."""
 
     def _handle_system_status(self, **kwargs) -> dict[str, Any]:
@@ -688,4 +689,9 @@ class SystemHandlersMixin:
             msg = f"Đã hủy thao tác (Token {t}), thưa Ngài." if ok else "Không có thao tác nào đang chờ xác nhận."
             return {"status": "success" if ok else "failed", "message": msg}
         return {"status": "failed", "message": "Safety gate unavailable"}
+
+
+# Backward-compatibility alias
+SystemHandlers = SystemHandlersMixin
+
 

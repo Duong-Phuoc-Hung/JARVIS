@@ -30,6 +30,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `tests/unit/test_email_tts_sanitization.py`: Bổ sung kiểm thử biên đảm bảo không cắt cụt thẻ quarantine khi email dài.
   - `tests/unit/test_tts_shutdown_probe.py`: Kiểm thử dừng active playback, drain hàng đợi, không gây deadlock.
   - `tests/unit/test_result_health_migration.py`: Bổ sung kiểm thử fail-closed cho WebhookPlugin và HomeAssistantClient.
+  - `docs/ACCEPTANCE_GATES_PROTOCOL.md` & `scripts/run_10_workflow_real_os.py`: Chuẩn hóa giao thức nghiệm thu 3 tầng (Live Voice 50 ca, 10-Workflow Real-OS Matrix, Clean-Machine VM Deployment).
+  - `scripts/generate_coverage_report.py` & `pyproject.toml`: Bật chuẩn kiểm soát độ phủ mã nguồn `pytest-cov` với ngưỡng nghiêm ngặt `fail_under = 80`.
+  - `jarvis/core/handlers/base.py`, `jarvis/core/handlers/`, `jarvis/core/app.py`: Kết hợp Hybrid Composition & Mixin MRO cho `JarvisApp` (`SystemHandlersMixin`, `ServiceHandlersMixin`, `AutomationHandlersMixin`), giữ phương thức class-bound cho các test doubles dùng `object.__new__`, đồng thời khởi tạo `system_service`, `service_service`, `automation_service` theo `BaseActionService` với ủy quyền an toàn; bổ sung `tests/unit/test_app_composition.py`.
+  - `docs/CLAUDE_HISTORICAL.md` & `CLAUDE.md`: Tách 1.244 dòng lịch sử phát triển sang tài liệu lưu trữ, tinh gọn `CLAUDE.md` xuống 98 dòng chỉ giữ quy tắc và bất biến cốt lõi.
+  - `pyproject.toml`: Bật dần mypy strict mode với các cờ an toàn cốt lõi và kích hoạt `strict = true` cho các module hạt nhân (`jarvis.core.handlers.*`, `jarvis.core.paths`, `jarvis.core.runaway_guard`, `jarvis.security.*`).
 - **Chỉ số kiểm thử thực tế**:
   - Full Unit test suite (`tests/unit/`): **2.978 passed, 3 skipped, 0 failed** (tổng 2.981 tests) trong **462,27s (07:42)**.
   - Root tests (`tests/`): **26 passed, 0 failed** trong **51,45s**.

@@ -43,10 +43,22 @@ def validate_safe_path(
     if "\x00" in raw_path_str:
         return False, "INVALID_CHARACTERS", None
 
-    # 2. URL-decoding traversal patterns
-    unquoted = urllib.parse.unquote(raw_path_str)
+    # 2. URL-decoding traversal patterns (iterative unquote to defeat multi-encoding)
+    curr = raw_path_str
+    for _ in range(3):
+        nxt = urllib.parse.unquote(curr)
+        if nxt == curr:
+            break
+        curr = nxt
+    unquoted = curr
+
     if "\x00" in unquoted:
         return False, "INVALID_CHARACTERS", None
+
+    # Detect multi-dot sequence evasion (e.g. ....//, ...\\)
+    import re
+    if re.search(r"(^|[/\\])\.{3,}([/\\]|$)", unquoted):
+        return False, "PATH_TRAVERSAL_DETECTED", None
 
     # 3. Explicit base directory resolution
     if base_dir is None:

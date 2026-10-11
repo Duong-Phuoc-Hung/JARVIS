@@ -111,8 +111,12 @@ log = logging.getLogger("jarvis.core.app")
 
 
 from jarvis.core.handlers import (
+    AutomationHandlers,
     AutomationHandlersMixin,
+    BaseActionService,
+    ServiceHandlers,
     ServiceHandlersMixin,
+    SystemHandlers,
     SystemHandlersMixin,
     _DualErrorStr,
     _POWER_ACTION_ALIASES,
@@ -227,6 +231,12 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
         # the REAL configured values are applied in initialize(), after the
         # config is actually loaded -- see _apply_safety_guard_config().
         self._passive_trigger_guard = PassiveTriggerGuard()
+
+        # Composed action service domain aliases
+        self._app = self
+        self.system_service = self
+        self.service_service = self
+        self.automation_service = self
 
     def log_interaction(
         self,

@@ -159,6 +159,7 @@ omit = [
 show_missing = true
 skip_covered = false
 precision = 1
+fail_under = 80
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
@@ -206,9 +207,23 @@ known-first-party = ["jarvis"]
 
 [tool.mypy]
 python_version = "3.10"
-strict = false
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
 ignore_missing_imports = true
 exclude = ["tests/", "scripts/", "build/", "dist/"]
+
+# Progressive rollout of mypy strict mode ("Bật dần") starting from core & security
+[[tool.mypy.overrides]]
+module = [
+    "jarvis.core.handlers.*",
+    "jarvis.core.paths",
+    "jarvis.core.runaway_guard",
+    "jarvis.security.*",
+]
+strict = true
 
 [[tool.mypy.overrides]]
 module = [

@@ -10,13 +10,14 @@ import sys
 import time
 from typing import Any
 
+from jarvis.core.handlers.base import BaseActionService
 from jarvis.core.labs import require_labs
 
 log = logging.getLogger("jarvis.core.handlers.service")
 
 
-class ServiceHandlersMixin:
-    """Mixin providing smart home, infosec, healing, and web intelligence handlers for JarvisApp."""
+class ServiceHandlersMixin(BaseActionService):
+    """Composed service providing smart home, infosec, healing, and web intelligence handlers for JarvisApp."""
 
     @require_labs("tshark_capture")
     def _handle_tshark_capture(
@@ -559,4 +560,9 @@ class ServiceHandlersMixin:
                 self.tts_manager.speak(msg, wait=False)
             return {"status": "success", "success": True, "notes": notes, "message": msg}
         return {"status": "failed", "success": False, "message": "Skill registry unavailable"}
+
+
+# Backward-compatibility alias
+ServiceHandlers = ServiceHandlersMixin
+
 

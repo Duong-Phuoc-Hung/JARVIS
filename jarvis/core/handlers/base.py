@@ -41,6 +41,26 @@ class _DualErrorStr(str):
         return hash(str(self))
 
 
+class BaseActionService:
+    """Base class for composed action service domains in JARVIS (Composition pattern)."""
+
+    def __init__(self, app: Any = None) -> None:
+        self._app = app
+
+    @property
+    def app(self) -> Any:
+        app_ref = self.__dict__.get("_app", None)
+        return app_ref if app_ref is not None else self
+
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        app = self.__dict__.get("_app", None)
+        if app is not None and app is not self and hasattr(app, name):
+            return getattr(app, name)
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
+
 def _build_browser_config(
     browser_cfg: dict[str, Any],
     *,

@@ -46,8 +46,8 @@ _RESIDUAL_SANDBOX_SENTINEL_RE = re.compile(r"\x02JARVIS_SANDBOX_READY_v1\x03\r?\
 
 _SECRET_PATTERNS = [
     (re.compile(r"Bearer\s+[A-Za-z0-9\-\._~\+\/]+=*", re.IGNORECASE), "Bearer [REDACTED]"),
-    (re.compile(r"AIzaSy[A-Za-z0-9_-]{33}"), "[REDACTED]"),
-    (re.compile(r"sk-[A-Za-z0-9]{20,}"), "[REDACTED]"),
+    (re.compile(r"AIzaSy[A-Za-z0-9_-]{20,}"), "[REDACTED]"),
+    (re.compile(r"sk-[A-Za-z0-9_-]{20,}"), "[REDACTED]"),
     (re.compile(r"\b[0-9]{8,10}:[A-Za-z0-9_-]{35}\b"), "[REDACTED]"),
 ]
 

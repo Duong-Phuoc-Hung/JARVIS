@@ -20,6 +20,7 @@ from jarvis.browser.models import (
     ScrapeResult,
 )
 from jarvis.core.handlers.base import (
+    BaseActionService,
     _DualErrorStr,
     _build_browser_config,
     _safe_browser_failure_url,
@@ -32,8 +33,8 @@ from jarvis.workers.models import WorkerPriority, WorkerTask
 log = logging.getLogger("jarvis.core.handlers.automation")
 
 
-class AutomationHandlersMixin:
-    """Mixin providing browser automation, subagents, code sandbox, skills, and vision handlers for JarvisApp."""
+class AutomationHandlersMixin(BaseActionService):
+    """Composed service providing browser automation, subagents, code sandbox, skills, and vision handlers for JarvisApp."""
 
     @require_labs("browser_cdp")
     def _handle_browser_cdp_capture(
@@ -623,4 +624,9 @@ class AutomationHandlersMixin:
             if self.proactive_engine:
                 return self.proactive_engine.start_pomodoro()
         return None
+
+
+# Backward-compatibility alias
+AutomationHandlers = AutomationHandlersMixin
+
 
