@@ -1,3 +1,19 @@
+## Argon architecture deep audit & truthfulness remediation (2026-10-15, unreleased)
+
+- [x] **BaseActionService composition transparency**:
+  - Sửa `BaseActionService.__getattr__` chỉ chặn dunders và `_app`; cho phép ủy quyền `_handle_*` và thuộc tính `_*` sang `self._app`.
+  - Bổ sung `__setattr__` đồng bộ hóa biến trạng thái hai chiều giữa composed service và `JarvisApp` (`_mic_muted`).
+- [x] **HomeAssistantClient fail-closed mock hardening**:
+  - Kiểm tra `getattr(mock_http, "should_fail", False) is True` trả `MOCK_HTTP_ERROR`.
+  - Bọc lời gọi mock trong `try...except`, bẫy ngoại lệ thành `CONNECTION_FAILED` hoặc `None`.
+  - Kiểm tra kết quả trả về từ `handle_ha_call_service`: tôn trọng `ActionResult(success=False)` và error dictionaries từ `_inspect_dict_failure`.
+- [x] **ReActAgent & File Write path traversal defense**:
+  - Áp dụng `validate_safe_path` (SEC-004) vào `_handle_file_write`, `_tool_read_file`, `_tool_write_file`, và `_tool_list_dir` chặn đứng các mẫu traversal mã hóa URL (`%2e%2e/`, `%252e%252e/`) và null-byte injection.
+- [x] **Regression testing verified**:
+  - Affected test suites: **100 passed, 31 subtests passed** trong **17.92s**.
+  - Automated Security Scanner: **0 findings / 210 files / 70.590 lines / 1,20s** (`[PASS] Clean scan`).
+  - Ruff Linter: **All checks passed!**
+
 ## Truthfulness bugs 1 to 6 remediation & architecture hardening (2026-10-11, unreleased)
 
 - [x] **Truthfulness bugs 1 to 6 closed**:

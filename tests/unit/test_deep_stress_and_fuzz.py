@@ -14,6 +14,7 @@ import concurrent.futures
 import threading
 import time
 from typing import Any
+
 import pytest
 
 from jarvis.agent.tool_runtime import _inspect_dict_failure, sanitize_secrets
@@ -21,7 +22,6 @@ from jarvis.automation.safety_gate import SafetyGate
 from jarvis.core.dispatcher import ActionDispatcher, EventBus, _normalize_handler_outcome
 from jarvis.planner.safety_interceptor import SafetyGateInterceptor, normalize_homoglyphs
 from jarvis.security.path_guard import validate_safe_path
-
 
 # ============================================================================
 # 1. CONCURRENCY & RACE CONDITION STRESS TESTS
@@ -129,6 +129,35 @@ def test_path_guard_fuzzing_rejects_malicious_inputs(tmp_path, malicious_path):
     assert is_safe is False
     assert resolved is None
     assert code in ("PATH_EMPTY", "INVALID_CHARACTERS", "PATH_TRAVERSAL_DETECTED")
+
+
+def test_handle_file_write_and_agent_file_tools_enforce_path_guard(tmp_path, monkeypatch):
+    """Verify JarvisApp._handle_file_write and ReActAgent file tools fail closed on encoded traversal."""
+    from jarvis.agent.graph import ReActAgent
+    from jarvis.core.app import JarvisApp
+
+    monkeypatch.chdir(tmp_path)
+    app = JarvisApp(headless=True, no_hot_reload=True)
+    agent = ReActAgent(is_mock=True, allowed_workspace_dir=str(tmp_path))
+
+    # _handle_file_write
+    res1 = app._handle_file_write("%2e%2e/outside.txt", "payload")
+    assert res1["status"] == "failed"
+    assert "PATH_TRAVERSAL_DETECTED" in res1["error"] or "Path traversal blocked" in res1["error"]
+
+    # ReActAgent file tools
+    res_read = agent._tool_read_file(path="%2e%2e/outside.txt")
+    assert res_read["success"] is False
+    assert "Security Error" in res_read["error"]
+
+    res_write = agent._tool_write_file(path="%252e%252e/outside.txt", content="payload")
+    assert res_write["success"] is False
+    assert "Security Error" in res_write["error"]
+
+    res_list = agent._tool_list_dir(path="%2e%2e/dir")
+    assert res_list["success"] is False
+    assert "Security Error" in res_list["error"]
+
 
 
 # ============================================================================

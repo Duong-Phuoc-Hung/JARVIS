@@ -348,13 +348,11 @@ class ReActAgent:
             return {"success": False, "error": str(exc), "output": f"Lỗi ghi chú: {exc}"}
 
     def _tool_read_file(self, path: str = ".", **kw) -> dict:
-        from pathlib import Path
         try:
-            target_path = Path(path).resolve()
-            try:
-                target_path.relative_to(self.allowed_workspace_dir)
-            except ValueError:
-                err = f"Security Error: read_file path '{path}' is outside allowed workspace directory '{self.allowed_workspace_dir}'."
+            from jarvis.security.path_guard import validate_safe_path
+            is_safe, code, target_path = validate_safe_path(path, base_dir=self.allowed_workspace_dir)
+            if not is_safe or target_path is None:
+                err = f"Security Error: read_file path '{path}' rejected: {code}."
                 return {"success": False, "error": err, "output": err}
             if target_path.is_file():
                 return {"success": True, "output": target_path.read_text(encoding="utf-8")[:2000]}
@@ -366,17 +364,11 @@ class ReActAgent:
             return {"success": False, "error": str(exc), "output": f"Lỗi đọc file: {exc}"}
 
     def _tool_write_file(self, path: str = "", content: str = "", **kw) -> dict:
-        from pathlib import Path
         try:
-            if not path or not path.strip():
-                err = "Security Error: write_file path cannot be empty."
-                return {"success": False, "error": err, "output": err}
-            target_path = Path(path).resolve()
-            # Path traversal and workspace boundary check
-            try:
-                target_path.relative_to(self.allowed_workspace_dir)
-            except ValueError:
-                err = f"Security Error: write_file path '{path}' is outside allowed workspace directory '{self.allowed_workspace_dir}'."
+            from jarvis.security.path_guard import validate_safe_path
+            is_safe, code, target_path = validate_safe_path(path, base_dir=self.allowed_workspace_dir)
+            if not is_safe or target_path is None:
+                err = f"Security Error: write_file path '{path}' rejected: {code}."
                 return {
                     "success": False,
                     "error": err,
@@ -500,13 +492,11 @@ class ReActAgent:
             return {"success": False, "error": str(exc), "output": f"Telegram error: {exc}"}
 
     def _tool_list_dir(self, path: str = ".", **kw) -> dict:
-        from pathlib import Path
         try:
-            target_path = Path(path).resolve()
-            try:
-                target_path.relative_to(self.allowed_workspace_dir)
-            except ValueError:
-                err = f"Security Error: list_dir path '{path}' is outside allowed workspace directory '{self.allowed_workspace_dir}'."
+            from jarvis.security.path_guard import validate_safe_path
+            is_safe, code, target_path = validate_safe_path(path, base_dir=self.allowed_workspace_dir)
+            if not is_safe or target_path is None:
+                err = f"Security Error: list_dir path '{path}' rejected: {code}."
                 return {"success": False, "error": err, "output": err}
             if not target_path.exists():
                 err = f"Không tìm thấy thư mục: {path}"

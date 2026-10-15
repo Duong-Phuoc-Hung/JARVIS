@@ -490,3 +490,23 @@ class TestSafetyAndDispatcherWiring:
         res = agent._tool_write_file(path=str(target), content="danger")
         assert "SafetyGate" in res["output"]
         assert not target.exists()
+
+    def test_file_tools_reject_url_encoded_and_fuzzed_traversal(self, tmp_path):
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        agent = ReActAgent(is_mock=True, allowed_workspace_dir=str(workspace))
+
+        # 1. URL encoded traversal in read_file
+        res_read = agent._tool_read_file(path="%2e%2e%2foutside.txt")
+        assert res_read["success"] is False
+        assert "Security Error" in res_read["error"]
+
+        # 2. Iterative URL encoded traversal in write_file
+        res_write = agent._tool_write_file(path="%252e%252e%252foutside.txt", content="payload")
+        assert res_write["success"] is False
+        assert "Security Error" in res_write["error"]
+
+        # 3. Null-byte injection in list_dir
+        res_list = agent._tool_list_dir(path="valid\x00traversal")
+        assert res_list["success"] is False
+        assert "Security Error" in res_list["error"]

@@ -18,7 +18,14 @@
 > Snapshot: 2026-09-19 v5.2.0 Phase 4 + Peer Review completion checkpoint; older sections retain their historical dates.
 > Always verify Git state and current code before relying on this snapshot.
 
-## 0A-0. Current Checkpoint — Truthfulness Remediation (BUGS 1-6 & Architecture Hardening) (2026-10-11)
+## 0A-0. Current Checkpoint — Argon Architecture Deep Audit & Truthfulness Remediation (2026-10-15)
+
+This checkpoint documents the resolution of architectural gaps and truthfulness risks discovered via Gemini 4 Argon deep reasoning audit on branch `fix/truthfulness-bugs-1-to-6`:
+- **BaseActionService Composition Transparency**: Resolved `AttributeError` on internal handler calls (`_handle_*`) and private state delegation (`_mic_muted`) in `jarvis/core/handlers/base.py`, adding bidirectional state mutation synchronization.
+- **HomeAssistantClient Fail-Closed Mock Hardening**: Enforced fail-closed behavior on `should_fail`, propagated error dictionaries via `_inspect_dict_failure` and failed `ActionResult` instances, and wrapped mock calls in exception handlers returning `CONNECTION_FAILED`.
+- **ReActAgent & File Write Path Traversal Defense**: Wired `validate_safe_path` into `_handle_file_write`, `_tool_read_file`, `_tool_write_file`, and `_tool_list_dir` to block iterative URL-encoded traversal (`%2e%2e/`, `%252e%252e/`) and null bytes.
+
+## 0A-1. Previous Checkpoint — Truthfulness Remediation (BUGS 1-6 & Architecture Hardening) (2026-10-11)
 
 This checkpoint supersedes older sections for Truthfulness Remediation (BUGS 1-6), the Risk-First Seam architecture tasks (Tasks 1-12), and the 5 Architectural & Quality Pillars on branch `fix/truthfulness-bugs-1-to-6`.
 

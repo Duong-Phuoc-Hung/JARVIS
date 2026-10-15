@@ -346,5 +346,51 @@ class TestHomeAssistantUnconfiguredFailClosed(unittest.TestCase):
         mock_urlopen.assert_not_called()
 
 
+class TestHomeAssistantMockFailurePropagation(unittest.TestCase):
+    """Verify HomeAssistantClient respects mock failures, should_fail, and catches mock exceptions."""
+
+    def setUp(self) -> None:
+        self.client = HomeAssistantClient(access_token="test-token-12345", base_url="http://localhost:8123")
+
+    def test_mock_http_should_fail_flag(self) -> None:
+        mock_http = MagicMock()
+        mock_http.should_fail = True
+
+        res = self.client.call_service("light", "turn_on", {"entity_id": "light.living_room"}, mock_http=mock_http)
+        self.assertFalse(res.success)
+        self.assertEqual(res.code, "MOCK_HTTP_ERROR")
+
+        state = self.client.get_state("light.living_room", mock_http=mock_http)
+        self.assertIsNone(state)
+
+    def test_mock_http_error_dict_and_action_result_propagation(self) -> None:
+        mock_http = MagicMock()
+        # Returning a failed dict
+        mock_http.handle_ha_call_service.return_value = {"success": False, "error": "Device offline", "code": "DEVICE_OFFLINE"}
+        res = self.client.call_service("light", "turn_on", {"entity_id": "light.living_room"}, mock_http=mock_http)
+        self.assertFalse(res.success)
+        self.assertEqual(res.code, "DEVICE_OFFLINE")
+
+        # Returning a failed ActionResult
+        from jarvis.core.models import ActionResult, ActionStatus
+        failed_ar = ActionResult(action_name="home_assistant_call", success=False, status=ActionStatus.ERROR, code="CUSTOM_FAIL", message="Failed")
+        mock_http.handle_ha_call_service.return_value = failed_ar
+        res2 = self.client.call_service("light", "turn_on", {"entity_id": "light.living_room"}, mock_http=mock_http)
+        self.assertFalse(res2.success)
+        self.assertEqual(res2.code, "CUSTOM_FAIL")
+
+    def test_mock_http_exception_caught_as_connection_failed(self) -> None:
+        mock_http = MagicMock()
+        mock_http.handle_ha_call_service.side_effect = TimeoutError("Simulated socket timeout")
+        res = self.client.call_service("light", "turn_on", {"entity_id": "light.living_room"}, mock_http=mock_http)
+        self.assertFalse(res.success)
+        self.assertEqual(res.code, "CONNECTION_FAILED")
+
+        mock_http.handle_ha_get_state.side_effect = ConnectionResetError("Connection reset")
+        state = self.client.get_state("light.living_room", mock_http=mock_http)
+        self.assertIsNone(state)
+
+
 if __name__ == "__main__":
     unittest.main()
+

@@ -53,12 +53,22 @@ class BaseActionService:
         return app_ref if app_ref is not None else self
 
     def __getattr__(self, name: str) -> Any:
-        if name.startswith("_"):
+        if name == "_app" or (name.startswith("__") and name.endswith("__")):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
         app = self.__dict__.get("_app", None)
         if app is not None and app is not self and hasattr(app, name):
             return getattr(app, name)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "_app" or (name.startswith("__") and name.endswith("__")):
+            super().__setattr__(name, value)
+            return
+        app = self.__dict__.get("_app", None)
+        if app is not None and app is not self and hasattr(app, name):
+            setattr(app, name, value)
+            return
+        super().__setattr__(name, value)
 
 
 def _build_browser_config(

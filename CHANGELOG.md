@@ -4,7 +4,31 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] Argon Architecture Deep Audit & Truthfulness Remediation (2026-10-15)
+
+- **Mục tiêu**:
+  - Khắc phục các khiếm khuyết kiến trúc và lỗ hổng trung thực phát hiện qua kiểm toán suy luận chuyên sâu với Gemini 4 Argon và bộ kỹ năng phát triển chuẩn (`diagnosing-bugs`, `doubt-driven-development`, `security-audit`, `power-dev`).
+  - Đảm bảo tính ủy quyền trong suốt 2 chiều cho Composition Pattern của `BaseActionService`, đồng bộ hóa state nội bộ, fail-closed triệt để khi mock Home Assistant gặp lỗi hoặc ngoại lệ mạng, và phòng thủ chống traversal lặp/mã hóa URL cho tất cả công cụ thao tác tệp tin của ReActAgent.
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  - `BaseActionService.__getattr__`: Chặn cứng mọi tên bắt đầu bằng `_` (`if name.startswith("_"): raise AttributeError(...)`), làm gãy cơ chế gọi chéo giữa các handler miền (ví dụ `AutomationHandlers._on_overlay_quick_action("briefing_morning")` gọi `self._handle_morning_briefing()`) và chặn truy cập state `self._mic_muted` khi dịch vụ được khởi tạo độc lập qua Composition.
+  - `HomeAssistantClient`: Bỏ qua cờ `should_fail`, nuốt lỗi khi `mock_http.handle_ha_call_service` trả về dictionary báo lỗi hoặc `ActionResult(success=False)`, vô điều kiện trả về `success=True`. Đồng thời, các lời gọi mock nằm ngoài khối `try...except`, khiến ngoại lệ mạng/timeout từ mock thoát ra ngoài thay vì trả `CONNECTION_FAILED`.
+  - `ReActAgent` File Tools & `_handle_file_write`: Sử dụng trực tiếp `Path.resolve()` và `relative_to()` thay vì module bảo vệ trung tâm `validate_safe_path`, dẫn tới việc các mẫu traversal mã hóa URL (`%2e%2e/`, `%252e%252e/`) hoặc ký tự null (`\x00`) không bị chặn triệt để.
+- **Các chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/core/handlers/base.py`: Sửa `BaseActionService.__getattr__` chỉ chặn dunder protocols (`__*__`) và `_app`; cho phép ủy quyền các phương thức `_handle_*` và thuộc tính `_*` sang `self._app`. Bổ sung `__setattr__` đồng bộ hóa các biến trạng thái hai chiều giữa composed service và `app`.
+  - `jarvis/smart_home/home_assistant.py`: Bọc các lời gọi `mock_http` trong `get_state` và `call_service` vào khối `try...except`, kiểm tra nghiêm ngặt `getattr(mock_http, "should_fail", False) is True`, kiểm tra và truyền đạt thất bại từ dictionary qua `_inspect_dict_failure` hoặc `ActionResult` trả về.
+  - `jarvis/agent/graph.py`: Cập nhật `_tool_read_file`, `_tool_write_file`, và `_tool_list_dir` sử dụng `validate_safe_path(..., base_dir=self.allowed_workspace_dir)` phòng thủ đa tầng trước URL encoding và null-byte injection.
+  - `jarvis/core/handlers/automation_handlers.py`: Cập nhật `_handle_file_write` sử dụng `validate_safe_path(path, base_dir=workspace_dir)`.
+  - `tests/unit/test_app_composition.py`: Bổ sung `test_composed_service_cross_delegates_internal_handlers_and_state`.
+  - `tests/unit/test_home_assistant_authoritative.py`: Bổ sung `TestHomeAssistantMockFailurePropagation` kiểm thử `should_fail`, error dict propagation, và ngoại lệ kết nối mock.
+  - `tests/unit/test_deep_stress_and_fuzz.py`: Bổ sung `test_handle_file_write_and_agent_file_tools_enforce_path_guard`.
+  - `tests/unit/test_react_agent.py`: Bổ sung `test_file_tools_reject_url_encoded_and_fuzzed_traversal`.
+- **Chỉ số kiểm thử thực tế**:
+  - Affected test suites (`test_app_composition.py`, `test_home_assistant_authoritative.py`, `test_deep_stress_and_fuzz.py`, `test_react_agent.py`): **100 passed, 31 subtests passed** trong **17.92s**.
+  - Security Scanner (`tools/security_scanner.py`): **0 findings** trên 210 files (70.590 lines).
+  - Ruff Linter: **All checks passed**.
+
 ## [Unreleased] Truthfulness Bugs 1 to 6 Remediation & Architecture Hardening (2026-10-11)
+
 
 - **Mục tiêu**:
   - Khắc phục triệt để 6 khiếm khuyết trung thực (BUGS 1-6) và hoàn tất 12 hạng mục kỹ thuật kiến trúc theo chiến lược Risk-First Seam.

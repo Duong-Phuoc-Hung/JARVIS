@@ -6,10 +6,10 @@ and vision GUI actor handlers for JarvisApp.
 """
 from __future__ import annotations
 
-from collections.abc import Callable
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import asdict, is_dataclass
 from typing import Any
 
@@ -21,8 +21,8 @@ from jarvis.browser.models import (
 )
 from jarvis.core.handlers.base import (
     BaseActionService,
-    _DualErrorStr,
     _build_browser_config,
+    _DualErrorStr,
     _safe_browser_failure_url,
 )
 from jarvis.core.labs import require_labs
@@ -248,16 +248,14 @@ class AutomationHandlersMixin(BaseActionService):
     def _handle_file_write(self, path: str = "", content: str = "", **kwargs: Any) -> dict[str, Any]:
         """Safely write content to a file inside the workspace."""
         from pathlib import Path
-        if not path or not path.strip():
-            return {"status": "failed", "error": "Path cannot be empty"}
-        target_path = Path(path).resolve()
+
+        from jarvis.security.path_guard import validate_safe_path
         workspace_dir = Path.cwd().resolve()
-        try:
-            target_path.relative_to(workspace_dir)
-        except ValueError:
+        is_safe, code, target_path = validate_safe_path(path, base_dir=workspace_dir)
+        if not is_safe or target_path is None:
             return {
                 "status": "failed",
-                "error": f"Path traversal blocked: '{path}' is outside workspace '{workspace_dir}'",
+                "error": f"Path traversal blocked: '{path}' rejected with code '{code}'",
             }
         try:
             target_path.parent.mkdir(parents=True, exist_ok=True)

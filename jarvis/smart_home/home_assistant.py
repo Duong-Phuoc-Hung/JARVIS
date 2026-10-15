@@ -14,6 +14,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from jarvis.agent.tool_runtime import _inspect_dict_failure
 from jarvis.core.models import ActionResult, ActionStatus
 from jarvis.security.secrets import get_secret
 
@@ -113,7 +114,13 @@ class HomeAssistantClient:
             return None
 
         if mock_http is not None:
-            return mock_http.handle_ha_get_state(resolved)
+            if getattr(mock_http, "should_fail", False) is True:
+                return None
+            try:
+                return mock_http.handle_ha_get_state(resolved)
+            except Exception as exc:
+                log.warning("Failed to query mock Home Assistant entity '%s': %s", resolved, exc)
+                return None
 
         if not self.is_configured:
             log.warning("Home Assistant not configured: missing access token")
@@ -172,16 +179,51 @@ class HomeAssistantClient:
                 )
 
         if mock_http is not None:
-            res = mock_http.handle_ha_call_service(domain_clean, service, resolved_data)
-            return ActionResult(
-                action_name="home_assistant_call",
-                success=True,
-                status=ActionStatus.SUCCESS,
-                code="OK",
-                message=f"Service {domain_clean}.{service} executed successfully",
-                retryable=False,
-                data=res,
-            )
+            if getattr(mock_http, "should_fail", False) is True:
+                return ActionResult(
+                    action_name="home_assistant_call",
+                    success=False,
+                    status=ActionStatus.ERROR,
+                    code="MOCK_HTTP_ERROR",
+                    message="Home Assistant mock HTTP requested failure",
+                    retryable=True,
+                )
+            try:
+                res = mock_http.handle_ha_call_service(domain_clean, service, resolved_data)
+                if isinstance(res, ActionResult):
+                    return res
+                if isinstance(res, dict):
+                    failed, err_msg = _inspect_dict_failure(res)
+                    if failed:
+                        return ActionResult(
+                            action_name="home_assistant_call",
+                            success=False,
+                            status=ActionStatus.ERROR,
+                            code=res.get("code") or "SERVICE_EXECUTION_FAILED",
+                            message=err_msg or f"Service {domain_clean}.{service} failed",
+                            retryable=False,
+                            data=res,
+                        )
+                return ActionResult(
+                    action_name="home_assistant_call",
+                    success=True,
+                    status=ActionStatus.SUCCESS,
+                    code="OK",
+                    message=f"Service {domain_clean}.{service} executed successfully",
+                    retryable=False,
+                    data=res,
+                )
+            except Exception as exc:
+                log.warning("Home Assistant mock service call failed: %s", exc)
+                return ActionResult(
+                    action_name="home_assistant_call",
+                    success=False,
+                    status=ActionStatus.ERROR,
+                    code="CONNECTION_FAILED",
+                    message=f"Connection failed: Home Assistant unreachable - {exc}",
+                    retryable=True,
+                )
+
 
         if not self.is_configured:
             return ActionResult(

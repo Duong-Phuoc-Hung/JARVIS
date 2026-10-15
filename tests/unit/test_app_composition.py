@@ -94,3 +94,30 @@ def test_backward_compatibility_aliases():
     assert SystemHandlersMixin is SystemHandlers
     assert ServiceHandlersMixin is ServiceHandlers
     assert AutomationHandlersMixin is AutomationHandlers
+
+
+def test_composed_service_cross_delegates_internal_handlers_and_state():
+    """Verify composed service instances can access and delegate cross-domain _handle_* and internal state."""
+    app = JarvisApp(headless=True, no_hot_reload=True)
+    auto_svc = AutomationHandlers(app)
+    sys_svc = SystemHandlers(app)
+
+    # 1. Cross-domain method delegation (defined on ServiceHandlersMixin/app)
+    assert callable(auto_svc._handle_morning_briefing)
+    res = auto_svc._on_overlay_quick_action("briefing_morning")
+    assert isinstance(res, dict)
+    assert "message" in res
+
+    # 2. Internal state delegation and bidirectional mutation
+    assert sys_svc._mic_muted is False
+    sys_svc._mic_muted = True
+    assert app._mic_muted is True
+    assert sys_svc._mic_muted is True
+
+    # 3. Dunder and non-existent private attributes cleanly raise AttributeError
+    with pytest.raises(AttributeError):
+        _ = auto_svc._non_existent_private_method_xyz()
+
+    with pytest.raises(AttributeError):
+        _ = auto_svc.__non_existent_dunder__
+
