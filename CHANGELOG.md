@@ -35,6 +35,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `jarvis/core/app.py`:
     - Khởi tạo `self.voice_biometrics` và `self.streaming_stt` trong `JARVISApp.initialize()`.
     - Tích hợp cổng kiểm tra sinh trắc học giọng nói trong `_start_voice_interaction`: kiểm tra độ tương đồng giọng nói trước khi đưa vào pipeline STT/Action, từ chối lệnh nếu là giọng người lạ và hiển thị cảnh báo lên Overlay.
+  - `docs/SCIENTIFIC_FOUNDATIONS.md`:
+    - Tạo mới tài liệu chuẩn hóa toàn bộ cơ sở khoa học, công trình nghiên cứu bình duyệt (ITU-T G.722/P.800, Fant 1960, Davis & Mermelstein 1980, Peeters 2004 MPEG-7, Dehak et al. 2011, Radford et al. 2022, Lisker & Abramson 1964, Stivers et al. 2009 PNAS, Nielsen 1993) và số liệu viễn trắc phần cứng máy tính (Device 3 Realtek Microphone Array, DC bias -0.00105, giảm 40.97% - 50.76% RMS nhiễu quạt, SNR 1.6 dB).
   - `tests/unit/test_voice_biometrics.py`:
     - 8 bài kiểm thử đơn vị: trích xuất Mel/phổ, chuẩn hóa đơn vị, độ tương đồng cosine, đăng ký đa mẫu, nạp/lưu nguyên tử, xóa hồ sơ, phân biệt hai chất giọng khác nhau và fail-closed trên âm thanh im lặng/hỏng.
   - `tests/unit/test_streaming_stt.py`:

@@ -14,6 +14,9 @@
   - Triển khai `jarvis/voice/realtime.py` và `jarvis/voice/__init__.py` quản lý máy trạng thái hội thoại (`IDLE`, `LISTENING`, `THINKING`, `SPEAKING`).
   - Hỗ trợ ngắt lời bằng giọng nói (Acoustic/Hardware Barge-In) tức thì khi người dùng nói trong lúc JARVIS đang phát TTS: xác nhận sau 3 khung vượt ngưỡng, ngắt TTS và chuyển sang nghe tiếp.
   - Tích hợp liên kết `StreamingSTTSession`, `AlwaysOnOverlay`, và `VoiceBiometricsManager`.
+- [x] **Scientific Foundations & Hardware Benchmarks Documentation (`docs/SCIENTIFIC_FOUNDATIONS.md`)**:
+  - Chuẩn hóa toàn bộ căn cứ khoa học, các bài báo bình duyệt (ITU-T G.722/P.800, Fant 1960, Davis & Mermelstein 1980, Peeters 2004 MPEG-7, Dehak et al. 2011, Radford et al. 2022, Lisker & Abramson 1964, Stivers et al. 2009 PNAS, Nielsen 1993).
+  - Ghi nhận số liệu đo đạc thực tế từ microphone vật lý Realtek (Device 3), DC bias -0.00105, giảm 40.97% - 50.76% RMS nhiễu quạt, và SNR 1.6 dB.
 - [x] **Unit & Regression Testing Verified**:
   - `tests/unit/test_voice_biometrics.py`: 8 passed.
   - `tests/unit/test_streaming_stt.py`: 7 passed.
