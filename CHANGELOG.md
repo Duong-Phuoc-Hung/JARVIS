@@ -4,6 +4,51 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] Voice Biometrics, Real-Time Chunked Streaming STT & Full-Duplex Realtime Voice Session (2026-10-15)
+
+- **Mục tiêu**:
+  - Nâng cấp JARVIS từ hệ thống trợ lý theo lượt tuần tự (batch turn-based) lên đẳng cấp thương mại hóa tương đương Siri, Google Gemini Live, và ChatGPT Realtime.
+  - Xây dựng hệ thống nhận diện sinh trắc học giọng nói người nói (`VoiceBiometricsManager` trong `jarvis/audio/biometrics.py`), trích xuất vector đặc trưng âm học 64 chiều (Mel filterbank, spectral centroid/spread/flux moments, harmonic subband ratios) trên mặt cầu đơn vị, so khớp khoảng cách cosine và lưu trữ đĩa nguyên tử trên Windows (`Windows Atomic Persistence` với retry loop WinError 5), ngăn ngừa triệt để việc người lạ hoặc âm thanh xung quanh kích hoạt trợ lý.
+  - Xây dựng động cơ nhận dạng giọng nói luồng theo khối thời gian thực (`StreamingSTTEngine` và `StreamingSTTSession` trong `jarvis/stt/streaming.py`), tiếp nhận các khối âm thanh 100ms - 200ms qua bộ đệm trượt (sliding window ring buffer), phát tín hiệu giả thuyết từng phần (`on_partial`) cập nhật HUD thời gian thực ngay khi người dùng đang nói và chốt kết quả phiên âm (`on_final`) khi gặp điểm ngắt câu tự nhiên.
+  - Xây dựng giao thức phiên thoại hai chiều thời gian thực (`RealtimeVoiceSession` trong `jarvis/voice/realtime.py`), quản lý máy trạng thái hội thoại đa tầng (`IDLE`, `LISTENING`, `THINKING`, `SPEAKING`), phát hiện ngắt lời bằng giọng nói (Barge-In) tức thì khi TTS đang phát để dừng loa và chuyển ngay sang trạng thái lắng nghe.
+  - Tích hợp cổng xác thực sinh trắc học giọng nói và streaming STT trực tiếp vào `JARVISApp._start_voice_interaction` và `AlwaysOnOverlay`.
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  - Các trợ lý ảo thế hệ cũ xử lý theo kiểu hàng loạt (batch): người dùng nói xong phải chờ đóng băng 2-4 giây mới bắt đầu giải mã STT và suy luận, thiếu phản hồi chữ trực tiếp (streaming partials) trên giao diện HUD.
+  - Thiếu lớp xác thực sinh trắc học giọng nói khiến trợ lý bị kích hoạt bởi người thứ ba trong phòng hoặc tiếng TV/video bên ngoài.
+  - Khi JARVIS đang nói qua loa, người dùng muốn ngắt lời bằng giọng nói tự nhiên thì âm thanh mic bị rơi vào cửa sổ dập tiếng vọng (echo window) hoặc không có bộ phân giải barge-in mức khung.
+- **Các chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/audio/biometrics.py`:
+    - Tạo mới `VoiceBiometricsManager`, `VoiceprintProfile`, `extract_voiceprint`, `compute_cosine_similarity`.
+    - Trích xuất 64 chiều đặc trưng âm học: 32 chiều năng lượng dải lọc Mel, 16 chiều mô-men phổ âm thanh (Centroid, Spread, Flux, RMS dynamic energy), 16 chiều tỷ số hài âm đa băng tần (0-1kHz, 1-2kHz, 2-4kHz, 4-7.5kHz).
+    - Chuẩn hóa vector đơn vị Euclidean ($L_2$ norm), tính toán độ tương đồng cosine $\in [-1.0, 1.0]$.
+    - Đăng ký đa mẫu âm thanh (multi-sample enrollment) với tích lũy trọng số và tái chuẩn hóa vector.
+    - Lưu trữ đĩa nguyên tử theo chuẩn Windows Atomic Persistence: ghi file tạm `.tmp.<tid>.<now_ns>` và hoán đổi `replace()` với vòng lặp thử lại 5 lần backoff xử lý khóa file tạm thời của Windows OS.
+  - `jarvis/stt/streaming.py`:
+    - Tạo mới `StreamingConfig`, `StreamingHypothesis`, `StreamingSTTSession`, `StreamingSTTEngine`.
+    - Hỗ trợ nạp các khối âm thanh 100ms - 200ms, bộ đệm tiền phát âm (pre-speech buffer 300ms) để không bị nuốt phụ âm đầu câu.
+    - Phát sự kiện `on_speech_start`, chu kỳ làm mới giả thuyết từng phần (`on_partial`) theo nhịp `step_interval_s = 0.25s`, và chốt phiên âm `on_final` khi im lặng vượt ngưỡng `silence_cutoff_s = 0.75s`.
+    - Quản lý vòng đời phiên an toàn đa luồng (`finish()`, `cancel()`, `reset()`).
+  - `jarvis/voice/realtime.py` & `jarvis/voice/__init__.py`:
+    - Tạo mới `RealtimeVoiceState`, `RealtimeSessionConfig`, `RealtimeVoiceSession`.
+    - Máy trạng thái đầy đủ hai chiều (Full-Duplex): tự động kích hoạt ngắt lời Barge-In khi năng lượng âm thanh mic vượt ngưỡng (`barge_in_threshold = 0.025`) liên tục 3 khung trong trạng thái `SPEAKING`, ngay lập tức gọi `TTSManager.interrupt()` và chuyển sang `LISTENING`.
+    - Cổng kiểm tra sinh trắc học giọng nói người nói: đối chiếu âm thanh của lượt nói với hồ sơ chủ nhân đã đăng ký, từ chối thực thi và thông báo lên HUD nếu độ tương đồng dưới ngưỡng.
+  - `jarvis/core/app.py`:
+    - Khởi tạo `self.voice_biometrics` và `self.streaming_stt` trong `JARVISApp.initialize()`.
+    - Tích hợp cổng kiểm tra sinh trắc học giọng nói trong `_start_voice_interaction`: kiểm tra độ tương đồng giọng nói trước khi đưa vào pipeline STT/Action, từ chối lệnh nếu là giọng người lạ và hiển thị cảnh báo lên Overlay.
+  - `tests/unit/test_voice_biometrics.py`:
+    - 8 bài kiểm thử đơn vị: trích xuất Mel/phổ, chuẩn hóa đơn vị, độ tương đồng cosine, đăng ký đa mẫu, nạp/lưu nguyên tử, xóa hồ sơ, phân biệt hai chất giọng khác nhau và fail-closed trên âm thanh im lặng/hỏng.
+  - `tests/unit/test_streaming_stt.py`:
+    - 7 bài kiểm thử đơn vị: nạp khối liên tục, kích hoạt VAD, phát giả thuyết từng phần, ngắt câu tự nhiên theo thời gian im lặng, `finish()` thủ công, `cancel()` hủy bỏ và tích hợp base engine.
+  - `tests/unit/test_realtime_voice.py`:
+    - 3 bài kiểm thử đơn vị: vòng đời trạng thái hai chiều, ngắt lời Barge-In khi đang nói, và cổng sinh trắc học giọng nói từ chối kẻ lạ / chấp nhận chủ nhân.
+- **Chỉ số kiểm thử thực tế**:
+  - `tests/unit/test_voice_biometrics.py`: **8/8 passed** trong **2.82s**.
+  - `tests/unit/test_streaming_stt.py`: **7/7 passed** trong **2.95s**.
+  - `tests/unit/test_realtime_voice.py`: **3/3 passed** trong **2.83s**.
+  - `tests/unit/test_h01_stt_boundary.py`: **71/71 passed** trong **4.76s**.
+  - `tests/unit/test_dsp.py`, `test_h02_device_failclosed.py`, `test_h03_echo_guard.py`, `test_overlay.py`: **44/44 passed**.
+  - Không có hồi quy trên toàn bộ các phân hệ âm thanh, UI, và luồng tương tác.
+
 ## [Unreleased] Acoustic Front-End (AFE), Dynamic Noise Floor Adaptation & Whisper Hallucination Shield (2026-10-15)
 
 - **Mục tiêu**:

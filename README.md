@@ -1,10 +1,15 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
 Current verified snapshot (2026-10-15), source **5.2.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
-- **Sprint 1 Voice & Audio Pipeline Overhaul & Acoustic Front-End (AFE)**:
-  - Triệt tiêu hoàn toàn nghịch lý nhạy/chặt của wake-word bằng cơ chế Two-Stage Wake-Word Verification: đồng bộ tham số nhạy/candidate gate (`0.02`), bổ sung danh mục bí danh ngữ âm tiếng Việt (`chào jarvis`, `ơi jarvis`, `ê jarvis`, `tra vit`) và chuẩn hóa chuỗi `transcript` đầu vào trong `WhisperSlidingWindowDetector`.
+- **Sprint 5 Voice Biometrics, Streaming STT & Full-Duplex Realtime Voice Session**:
+  - Nhận diện sinh trắc học giọng nói người nói (`VoiceBiometricsManager`): Trích xuất vector đặc trưng 64 chiều (Mel filterbank, spectral centroid/spread/flux, harmonic subband ratios) trên mặt cầu đơn vị, so khớp cosine distance, và lưu trữ đĩa nguyên tử an toàn Windows Atomic Persistence (retry loop WinError 5). Cổng xác thực trực tiếp tại `JARVISApp._start_voice_interaction` ngăn chặn người lạ kích hoạt trợ lý.
+  - Nhận dạng giọng nói luồng theo khối thời gian thực (`StreamingSTTEngine` & `StreamingSTTSession`): Tiếp nhận audio 100ms - 200ms qua ring buffer, phát giả thuyết từng phần (`on_partial`) cập nhật HUD theo nhịp `step_interval_s = 0.25s`, hiển thị chữ chạy thời gian thực trên Overlay HUD ngay khi người dùng nói, và chốt phiên âm (`on_final`) khi gặp ngắt câu tự nhiên `silence_cutoff_s = 0.75s`.
+  - Giao thức phiên thoại hai chiều thời gian thực (`RealtimeVoiceSession`): Máy trạng thái hội thoại đầy đủ (`IDLE`, `LISTENING`, `THINKING`, `SPEAKING`), hỗ trợ ngắt lời tức thì bằng giọng nói (Hardware/Acoustic Barge-In) khi người dùng cất tiếng trong lúc JARVIS đang phát TTS, lập tức dừng phát âm thanh và chuyển sang nghe tiếp.
+- **Sprint 4 Acoustic Front-End (AFE) & Whisper Hallucination Shield**:
   - Tiền xử lý âm học thương mại (`AcousticFrontEnd`): Bộ lọc thông dải Butterworth bậc 4 (80Hz - 7500Hz) triệt tiêu DC offset và rung quạt máy tính (<80Hz), kết hợp AGC và bộ giới hạn đỉnh `tanh`.
   - Whisper Hallucination Shield & Sàn nhiễu động (`live_noise_floor`): Thay thế ngưỡng năng lượng tĩnh cũ (0.015) bằng ngưỡng thích ứng môi trường (`max(0.018, floor * 2.5)`). Bỏ qua STT khi chỉ có tiếng quạt/ồn nền (SNR < 5.5 dB), tiết kiệm >3.3s CPU và ngăn chặn 100% ảo giác phiên âm ("Affair", "Life", "A fifth").
+- **Sprint 1 Voice & Audio Pipeline Overhaul**:
+  - Triệt tiêu hoàn toàn nghịch lý nhạy/chặt của wake-word bằng cơ chế Two-Stage Wake-Word Verification: đồng bộ tham số nhạy/candidate gate (`0.02`), bổ sung danh mục bí danh ngữ âm tiếng Việt (`chào jarvis`, `ơi jarvis`, `ê jarvis`, `tra vit`) và chuẩn hóa chuỗi `transcript` đầu vào trong `WhisperSlidingWindowDetector`.
   - Sentence-Level Streaming TTS: Phân tách câu hội thoại và phát âm dạng luồng theo từng câu, giảm Time-to-First-Audio xuống <800ms.
   - True Low-Latency Barge-In: Ngắt lời tức thì qua hotkey PTT (`Ctrl+Shift+L`), khẩu lệnh thoại (`dừng nói`, `im lặng`, `stop talking`), và tự động dừng phát khi bắt đầu lượt tương tác mới mà không phá hủy cache hay dừng luồng TTS worker.
 - **Sprint 2 Local Semantic Router & Typed Slot-Filling**:

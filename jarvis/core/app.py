@@ -154,6 +154,9 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
         self.gesture_detector: GestureDetector | None = None
         self.wake_word_detector: WakeWordDetector | None = None
         self.stt_engine: STTEngine | None = None
+        self.voice_biometrics: Any | None = None
+        self.streaming_stt: Any | None = None
+        self.realtime_voice: Any | None = None
         # Truthful mic-mute state tracker, used when no tray_controller exists
         # (headless/CLI mode) -- see _handle_toggle_mute(). When tray_controller
         # is present, tray_controller._is_mic_muted is the single source of truth
@@ -315,6 +318,28 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                 event_bus=self.event_bus,
                 config_manager=self.config,
             )
+
+            # 5a. Acoustic Voice Biometrics (Speaker Verification Gate)
+            try:
+                from jarvis.audio.biometrics import VoiceBiometricsManager
+                biometrics_cfg = self.config.get("audio.biometrics", {})
+                bio_path = biometrics_cfg.get("path") or str(get_jarvis_data_dir() / "voiceprints.json")
+                self.voice_biometrics = VoiceBiometricsManager(
+                    storage_path=bio_path,
+                    default_threshold=float(biometrics_cfg.get("threshold", 0.80)),
+                    allow_unregistered_when_empty=bool(biometrics_cfg.get("allow_unregistered_when_empty", True)),
+                )
+            except Exception as e_bio:
+                log.warning("Voice biometrics initialization warning: %s", e_bio)
+                self.voice_biometrics = None
+
+            # 5b. Real-Time Streaming STT Engine
+            try:
+                from jarvis.stt.streaming import StreamingSTTEngine
+                self.streaming_stt = StreamingSTTEngine(base_engine=self.stt_engine)
+            except Exception as e_stt:
+                log.warning("Streaming STT initialization warning: %s", e_stt)
+                self.streaming_stt = None
 
             # 6. Screen Vision Subsystem (R3)
             vis_cfg = self.config.get("vision", {})
@@ -1431,6 +1456,39 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                             )
                             transcript = ""
                         else:
+                            # Speaker Voice Biometrics Verification Gate:
+                            # If enrolled profiles exist, verify candidate voice before executing any commands
+                            raw_samples = audio_flat.samples if isinstance(audio_flat, CapturedAudio) else audio_flat
+                            voice_bio = getattr(self, "voice_biometrics", None)
+                            if (
+                                voice_bio
+                                and getattr(voice_bio, "enrolled_speakers", None)
+                                and raw_samples is not None
+                                and getattr(raw_samples, "size", 0) > 0
+                            ):
+                                verified, speaker, score = voice_bio.verify_speaker(raw_samples)
+                                if not verified:
+                                    log.warning(
+                                        "Voice biometrics rejected speaker '%s' (similarity=%.3f below threshold)",
+                                        speaker, score,
+                                    )
+                                    if self.overlay:
+                                        self.overlay.show_response(
+                                            "(từ chối sinh trắc học)",
+                                            "Không nhận diện được giọng nói của chủ nhân. Lệnh bị từ chối.",
+                                        )
+                                    if self.tray_controller:
+                                        self.tray_controller.update_status(TrayStatus.ACTIVE)
+                                    self.log_interaction(
+                                        trigger=trigger_name,
+                                        input_text="(biometrics_rejected)",
+                                        action="none",
+                                        response="Không nhận diện được giọng nói của chủ nhân.",
+                                        status="rejected",
+                                    )
+                                    return
+                                log.info("Voice biometrics verified speaker '%s' (similarity=%.3f)", speaker, score)
+
                             try:
                                 # Timeout guard: STT must complete within 30s or we abort
                                 import concurrent.futures as _cf

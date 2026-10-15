@@ -1,3 +1,24 @@
+## Sprint 5: Voice Biometrics, Real-Time Chunked Streaming STT & Full-Duplex Realtime Voice Session (2026-10-15, unreleased)
+
+- [x] **Acoustic Voice Biometrics & Speaker Verification (`VoiceBiometricsManager`)**:
+  - Triển khai `jarvis/audio/biometrics.py` trích xuất 64-dim embedding âm học: 32 Mel filterbanks, 16 spectral shape moments (Centroid, Spread, Flux, RMS dynamic energy), 16 harmonic subband ratios.
+  - Chuẩn hóa vector đơn vị trên mặt cầu Euclidean $L_2$, so khớp độ tương đồng Cosine Similarity $\in [-1.0, 1.0]$.
+  - Quản lý hồ sơ giọng nói `VoiceprintProfile` và hỗ trợ đăng ký đa mẫu (multi-sample enrollment) với tích lũy trọng số và tái chuẩn hóa.
+  - Lưu trữ đĩa nguyên tử Windows Atomic Persistence với retry loop backoff xử lý khóa file `WinError 5: Access is denied`.
+  - Tích hợp cổng kiểm tra sinh trắc học giọng nói trong `JARVISApp._start_voice_interaction`: từ chối người lạ hoặc âm thanh ngoài kích hoạt trợ lý.
+- [x] **Real-Time Chunked Streaming Speech-to-Text (`StreamingSTTEngine` & `StreamingSTTSession`)**:
+  - Triển khai `jarvis/stt/streaming.py` nạp âm thanh theo khối 100ms - 200ms qua ring buffer trượt và pre-speech buffer 300ms.
+  - Phát sự kiện `on_speech_start`, chu kỳ làm mới giả thuyết từng phần (`on_partial`) theo nhịp `step_interval_s = 0.25s`, hiển thị chữ chạy trực tiếp trên HUD khi người dùng đang nói.
+  - Tự động chốt phiên âm `on_final` khi im lặng vượt ngưỡng `silence_cutoff_s = 0.75s`.
+- [x] **Full-Duplex Realtime Voice Session Protocol (`RealtimeVoiceSession`)**:
+  - Triển khai `jarvis/voice/realtime.py` và `jarvis/voice/__init__.py` quản lý máy trạng thái hội thoại (`IDLE`, `LISTENING`, `THINKING`, `SPEAKING`).
+  - Hỗ trợ ngắt lời bằng giọng nói (Acoustic/Hardware Barge-In) tức thì khi người dùng nói trong lúc JARVIS đang phát TTS: xác nhận sau 3 khung vượt ngưỡng, ngắt TTS và chuyển sang nghe tiếp.
+  - Tích hợp liên kết `StreamingSTTSession`, `AlwaysOnOverlay`, và `VoiceBiometricsManager`.
+- [x] **Unit & Regression Testing Verified**:
+  - `tests/unit/test_voice_biometrics.py`: 8 passed.
+  - `tests/unit/test_streaming_stt.py`: 7 passed.
+  - `tests/unit/test_realtime_voice.py`: 3 passed.
+
 ## Sprint 4: Acoustic Front-End (AFE), Dynamic Noise Floor Adaptation & Whisper Hallucination Shield (2026-10-15, unreleased)
 
 - [x] **Acoustic Front-End (AFE) Signal Conditioning (`AcousticFrontEnd`)**:
