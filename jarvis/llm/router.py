@@ -23,6 +23,7 @@ from jarvis.core.models import ActionResult, RequesterContext
 from jarvis.llm.client import LLMClient, LLMResponse
 from jarvis.llm.models import IntentResult
 from jarvis.llm.rules_catalog import get_default_rules
+from jarvis.llm.semantic_router import LocalSemanticRouter
 
 logger = logging.getLogger("jarvis.llm.router")
 
@@ -286,6 +287,7 @@ class LLMIntentRouter:
         self.fast_path_enabled = fast_path_enabled
         self.memory_manager = memory_manager
         self._memory_manager = memory_manager
+        self.semantic_router: LocalSemanticRouter = LocalSemanticRouter()
 
         # Compiled Deterministic Rule Engine for Substring Matching
         self.rule_engine: dict[str, IntentResult] = get_default_rules()
@@ -519,21 +521,11 @@ class LLMIntentRouter:
             # Fan Controls
             (
                 re.compile(r"(?:bật|mở|turn\s*on)\s+(?:quạt|fan)(?:\s+(phòng\s*khách|phòng\s*ngủ|trần|living\s*room|bedroom))?", re.IGNORECASE),
-                lambda m: IntentResult(
-                    action_name="home_assistant_call",
-                    parameters={"domain": "fan", "service": "turn_on", "entity_id": "fan.living_room"},
-                    source="rule_fallback",
-                    response_text="Đang bật quạt cho Ngài.",
-                ),
+                lambda m: self._make_fan_intent("turn_on", m.group(1)),
             ),
             (
                 re.compile(r"(?:tắt|turn\s*off)\s+(?:quạt|fan)(?:\s+(phòng\s*khách|phòng\s*ngủ|trần|living\s*room|bedroom))?", re.IGNORECASE),
-                lambda m: IntentResult(
-                    action_name="home_assistant_call",
-                    parameters={"domain": "fan", "service": "turn_off", "entity_id": "fan.living_room"},
-                    source="rule_fallback",
-                    response_text="Đang tắt quạt cho Ngài.",
-                ),
+                lambda m: self._make_fan_intent("turn_off", m.group(1)),
             ),
             # Climate Controls & Set Temperature
             (
@@ -1196,6 +1188,24 @@ class LLMIntentRouter:
             entity_id = "light.living_room"
 
         params = {"domain": "light", "service": service, "entity_id": entity_id}
+        resp = self.get_natural_response("home_assistant_call", params, text=t)
+        return IntentResult(
+            action_name="home_assistant_call",
+            parameters=params,
+            source="rule_fallback",
+            response_text=resp,
+        )
+
+    def _make_fan_intent(self, service: str, target: str | None) -> IntentResult:
+        t = (target or "").lower().strip()
+        if "trần" in t or "ceiling" in t:
+            entity_id = "fan.ceiling"
+        elif "phòng ngủ" in t or "bedroom" in t:
+            entity_id = "fan.bedroom"
+        else:
+            entity_id = "fan.living_room"
+
+        params = {"domain": "fan", "service": service, "entity_id": entity_id}
         resp = self.get_natural_response("home_assistant_call", params, text=t)
         return IntentResult(
             action_name="home_assistant_call",
@@ -2030,6 +2040,18 @@ class LLMIntentRouter:
             installed_intent = self._match_installed_app_request(text)
             if installed_intent is not None:
                 return installed_intent
+
+            # Fast Local Semantic Slot Matcher (Home Assistant, Volume, Brightness, Media, Windows, Timers)
+            if hasattr(self, "semantic_router") and self.semantic_router:
+                sem_res = self.semantic_router.match(clean)
+                if sem_res is not None:
+                    if not self._is_negated_h07_launch_target(
+                        sem_res.action_name, sem_res.parameters, clean_lower, clean_lower_stripped
+                    ):
+                        sem_res.raw_text = text
+                        if sem_res.response_text is None:
+                            sem_res.response_text = self.get_natural_response(sem_res.action_name, sem_res.parameters, text)
+                        return sem_res
 
             # Then check sorted rule dictionary keys — full text, O(n) substring checks are fast
             for key in self._sorted_rule_keys:

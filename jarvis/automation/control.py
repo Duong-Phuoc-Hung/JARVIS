@@ -77,6 +77,47 @@ class ComputerController:
         self._current_volume: int = 50
         self._is_muted: bool = False
         self._current_brightness: int = 70
+        self._uiautomation: Any = None
+
+    @property
+    def uiautomation(self) -> Any:
+        """Lazily instantiates and returns the native Windows UI Automation engine."""
+        if self._uiautomation is None:
+            from jarvis.platform.uiautomation import WindowsUIAutomation
+            self._uiautomation = WindowsUIAutomation()
+        return self._uiautomation
+
+    def find_ui_element(
+        self,
+        query: str,
+        root_hwnd: int | None = None,
+        control_type: str | None = None,
+    ) -> dict[str, Any] | None:
+        """
+        Locates a native Windows UI control element matching `query`.
+        Returns dictionary containing hwnd, name, class_name, rect, and center coordinates.
+        """
+        elem = self.uiautomation.find_element(query, root_hwnd=root_hwnd, control_type=control_type)
+        return elem.to_dict() if elem else None
+
+    def click_ui_element(self, query: str, root_hwnd: int | None = None) -> bool:
+        """
+        Finds and clicks a native Windows UI control element matching `query`.
+        Uses sub-millisecond BM_CLICK for buttons or cursor event for controls.
+        """
+        return bool(self.uiautomation.click_element(query, root_hwnd=root_hwnd))
+
+    def type_into_ui_element(
+        self,
+        query: str,
+        text: str,
+        root_hwnd: int | None = None,
+        clear_first: bool = False,
+    ) -> bool:
+        """
+        Finds a native Windows edit/input control and writes text via WM_SETTEXT or key events.
+        """
+        return bool(self.uiautomation.type_into_element(query, text, root_hwnd=root_hwnd, clear_first=clear_first))
 
     # -----------------------------------------------------------------------
     # Window Management

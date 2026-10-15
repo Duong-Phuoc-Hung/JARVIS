@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from jarvis.automation.control import ComputerController
-from jarvis.vision.computer_use import ComputerUseVision, UIElement
+from jarvis.vision.computer_use import BoundingBox, ComputerUseVision, UIElement
 from jarvis.vision.screen import ScreenVisionManager
 from jarvis.vision.visual_verifier import VisualDiffResult, VisualVerifier
 
@@ -106,6 +106,14 @@ class GUIActor:
             self.computer_use = cu or ComputerUseVision(vision_manager=self.vision_manager)
         self.controller = controller or ComputerController()
         self.verifier = verifier or VisualVerifier(vision_manager=self.vision_manager)
+        self.uiautomation = kwargs.get("uiautomation")
+        if self.uiautomation is None:
+            try:
+                from jarvis.platform.uiautomation import WindowsUIAutomation
+                self.uiautomation = WindowsUIAutomation()
+            except Exception as exc:
+                logger.debug("Failed to initialize WindowsUIAutomation in GUIActor: %s", exc)
+                self.uiautomation = None
         self._action_history: list[GUIActionResult] = []
 
     @property
@@ -186,13 +194,39 @@ class GUIActor:
             # 1. Capture before-action screenshot
             before_bytes: bytes = self._capture_bytes() if verify else b""
 
-            # 2. Ground UI Element
-            element = self.computer_use.locate_element(
-                query=query,
-                screenshot_bytes=before_bytes if before_bytes else None,
-                screen_w=screen_w,
-                screen_h=screen_h,
-            )
+            element = None
+            # Fast Path: Check Native UI Automation first on initial attempt (<50ms)
+            if self.uiautomation and getattr(self.uiautomation, "is_supported", False) and attempt == 0:
+                try:
+                    native_elem = self.uiautomation.find_element(query)
+                    if native_elem:
+                        left, top, right, bottom = native_elem.rect
+                        if right > left and bottom > top:
+                            bbox = BoundingBox.from_pixel_coords(left, top, right, bottom, screen_w, screen_h)
+                            element = UIElement(
+                                name=native_elem.name or query,
+                                element_type=native_elem.control_type,
+                                bbox=bbox,
+                                text=native_elem.name,
+                                confidence=0.95,
+                                source="win32_uia",
+                                metadata=native_elem.to_dict(),
+                            )
+                            logger.info(
+                                "Native UIAutomation fast path located '%s' at pixel (%d, %d)",
+                                query, native_elem.center[0], native_elem.center[1]
+                            )
+                except Exception as exc:
+                    logger.debug("Native UIAutomation lookup failed: %s", exc)
+
+            # 2. Ground UI Element via ComputerUse Vision if not found via fast path
+            if not element:
+                element = self.computer_use.locate_element(
+                    query=query,
+                    screenshot_bytes=before_bytes if before_bytes else None,
+                    screen_w=screen_w,
+                    screen_h=screen_h,
+                )
 
             if not element:
                 logger.warning("UI element matching '%s' could not be located on screen.", query)
@@ -209,7 +243,10 @@ class GUIActor:
                 return False
 
             # 3. Calculate Target Pixel Position (with self-healing jitter on retry)
-            cx, cy = element.center_pixel(screen_w, screen_h)
+            if element.metadata and "center" in element.metadata and isinstance(element.metadata["center"], (list, tuple)):
+                cx, cy = int(element.metadata["center"][0]), int(element.metadata["center"][1])
+            else:
+                cx, cy = element.center_pixel(screen_w, screen_h)
             if attempt == 1:
                 # Retry 1: Slight offset towards top-left quarter of element bbox
                 left, top, right, bottom = element.bbox.to_pixel_coords(screen_w, screen_h)
@@ -307,6 +344,30 @@ class GUIActor:
         """
         t0 = time.perf_counter()
         screen_w, screen_h = self.computer_use.get_screen_size()
+
+        # Fast Path: Check native Edit control direct typing if available and unverified
+        if self.uiautomation and getattr(self.uiautomation, "is_supported", False):
+            try:
+                native_elem = self.uiautomation.find_element(query, control_type="edit")
+                if native_elem:
+                    typed_ok = self.uiautomation.type_into_element(
+                        query=query, text=text, clear_first=clear_first
+                    )
+                    if press_enter:
+                        time.sleep(0.05)
+                        self.controller.send_hotkey("enter")
+                    if not verify or typed_ok:
+                        result = GUIActionResult(
+                            action="type",
+                            target_query=query,
+                            success=typed_ok,
+                            element_found=True,
+                            execution_time_ms=(time.perf_counter() - t0) * 1000,
+                        )
+                        self._record_result(result)
+                        return typed_ok
+            except Exception as exc:
+                logger.debug("Native Edit control direct typing fast path failed: %s", exc)
 
         # 1. Focus element by clicking
         clicked = self.click_element(query=query, verify=False)

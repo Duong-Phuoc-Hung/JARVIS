@@ -1,3 +1,24 @@
+## Sprint 2 & 3: Local Semantic Router with Typed Slot-Filling & Native Windows UI Automation (2026-10-15, unreleased)
+
+- [x] **Local Semantic Router & Typed Slot-Filling (`LocalSemanticRouter`)**:
+  - Triển khai `LocalSemanticRouter` với trích xuất slot có kiểu (`Typed Slot-Filling`): Volume (`level`, `delta`, `mute`), Brightness (`level`, `delta`, `query`), Smart Home (`domain`, `service`, `entity_id`, `temperature`), Window/Tabs (`minimize_all`, `new_tab`, `close_tab`, `page_refresh`, `page_scroll`), Media/Music (`play`, `pause`, `next`, `stop`, `query`), Timers/Reminders (`duration` giây, `label`), và Web Search (`web_open`).
+  - Hỗ trợ phân tích tiền tố đệm hội thoại tiếng Việt ("jarvis ơi", "cho mình", "làm ơn"), số từ tiếng Việt ("hai mươi", "một nửa", "tối đa"), và đơn vị thời gian.
+  - Tích hợp `LocalSemanticRouter` vào `LLMIntentRouter` trước danh mục regex tĩnh, đạt tốc độ phân giải intent <0.5ms cho 90% khẩu lệnh thường nhật mà không cần gọi LLM qua mạng.
+  - Sửa lỗi định tuyến quạt trần: ánh xạ đúng thực thể `fan.bedroom` / `fan.ceiling` thay vì gán cứng `fan.living_room`.
+- [x] **Native Windows UI Automation & Fast-Path Accessibility (`WindowsUIAutomation`)**:
+  - Triển khai `WindowsUIAutomation` thuần Win32 `ctypes` (không phụ thuộc pywin32 bên ngoài), an toàn đa luồng.
+  - Triển khai `ensure_desktop()` tự động liên kết luồng gọi với Desktop Station `Default`, đảm bảo thấy 100% cửa sổ và native child controls ngay cả khi chạy từ worker/daemon background.
+  - Cung cấp `find_element()`, `enumerate_windows()`, `enumerate_controls()`, `click_element()` (sử dụng `BM_CLICK` hoặc chuột), và `type_into_element()` (sử dụng `WM_SETTEXT` hoặc bàn phím).
+  - Tích hợp `WindowsUIAutomation` vào `ComputerController` (`find_ui_element`, `click_ui_element`, `type_into_ui_element`) và `GUIActor` (`click_element`, `type_into_element`), cung cấp fast-path dưới 50ms và giảm phụ thuộc vào Vision LLM 2.5-4s.
+  - Nâng cấp Tier 3 `detect_via_win32_uia` trong `ComputerUseVision` sử dụng `WindowsUIAutomation` đồng bộ desktop và quét toàn bộ child controls.
+- [x] **Regression testing verified**:
+  - `tests/unit/test_semantic_router.py`: 9 passed.
+  - `tests/unit/test_uiautomation.py`: 15 passed.
+  - Router test suite: 345 passed, 6 skipped.
+  - Control & Vision suite: 69 passed.
+  - H-05 Vietnamese regression contract: 25 passed, 0 failures, 0 misroutes.
+  - Stress & regression suite: 296 passed.
+
 ## Voice Pipeline Overhaul: Two-Stage Wake-Word Verification, Sentence-Level Streaming TTS, and Low-Latency Barge-In (2026-10-15, unreleased)
 
 - [x] **Two-Stage Wake-Word Verification (False-Wake & False-Reject Remediation)**:

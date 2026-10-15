@@ -436,7 +436,39 @@ class UIElementDetector:
         Tier 3: Enumerates visible native Windows controls (buttons, edit boxes, child windows).
         """
         elements: list[UIElement] = []
-        if sys.platform != "win32" or not WIN32GUI_AVAILABLE or win32gui is None:
+        if sys.platform != "win32":
+            return elements
+
+        # 1. Native WindowsUIAutomation (ctypes, desktop station synchronization, child control discovery)
+        try:
+            from jarvis.platform.uiautomation import WindowsUIAutomation
+            uia = WindowsUIAutomation()
+            elem = uia.find_element(query)
+            if elem:
+                left, top, right, bottom = elem.rect
+                w = right - left
+                h = bottom - top
+                if w > 0 and h > 0:
+                    bbox = BoundingBox.from_pixel_coords(
+                        left=left, top=top, right=right, bottom=bottom, screen_w=screen_w, screen_h=screen_h
+                    )
+                    elements.append(
+                        UIElement(
+                            name=elem.name or query,
+                            element_type=elem.control_type,
+                            bbox=bbox,
+                            text=elem.name,
+                            confidence=0.9,
+                            source="win32_uia",
+                            metadata=elem.to_dict(),
+                        )
+                    )
+                    return elements
+        except Exception as exc:
+            logger.debug("WindowsUIAutomation in detect_via_win32_uia failed: %s", exc)
+
+        # 2. Fallback to win32gui EnumWindows if available
+        if not WIN32GUI_AVAILABLE or win32gui is None:
             return elements
 
         query_lower = query.strip().lower()

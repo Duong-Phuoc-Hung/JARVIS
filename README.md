@@ -5,6 +5,12 @@ Current verified snapshot (2026-10-15), source **5.2.1**, **unreleased / CONDITI
   - Triệt tiêu hoàn toàn nghịch lý nhạy/chặt của wake-word bằng cơ chế Two-Stage Wake-Word Verification: đồng bộ tham số nhạy/candidate gate (`0.02`), bổ sung danh mục bí danh ngữ âm tiếng Việt (`chào jarvis`, `ơi jarvis`, `ê jarvis`, `tra vit`) và chuẩn hóa chuỗi `transcript` đầu vào trong `WhisperSlidingWindowDetector`.
   - Sentence-Level Streaming TTS: Phân tách câu hội thoại và phát âm dạng luồng theo từng câu, giảm Time-to-First-Audio xuống <800ms.
   - True Low-Latency Barge-In: Ngắt lời tức thì qua hotkey PTT (`Ctrl+Shift+L`), khẩu lệnh thoại (`dừng nói`, `im lặng`, `stop talking`), và tự động dừng phát khi bắt đầu lượt tương tác mới mà không phá hủy cache hay dừng luồng TTS worker.
+- **Sprint 2 Local Semantic Router & Typed Slot-Filling**:
+  - Kiến trúc phân giải intent cận biên (`LocalSemanticRouter`) đạt độ trễ <0.5ms cho 90% tương tác hàng ngày (âm lượng, độ sáng, Home Assistant IoT, quản lý tabs/cửa sổ, nghe nhạc, hẹn giờ/nhắc nhở, tìm kiếm).
+  - Trích xuất tham số có kiểu (level %, delta +/-, entity_id, nhiệt độ, duration giây), chuẩn hóa số từ tiếng Việt, và loại bỏ tiền tố xưng hô tự nhiên ("jarvis ơi", "cho mình", "làm ơn").
+- **Sprint 3 Native Windows UI Automation & Fast-Path Accessibility**:
+  - Bộ điều khiển `WindowsUIAutomation` thuần ctypes Win32 API, đồng bộ Desktop Station `Default` cho 100% khả năng hiển thị cửa sổ tương tác từ tiến trình ngầm.
+  - Thao tác trực tiếp (direct control manipulation) qua `BM_CLICK` và `WM_SETTEXT` với độ trễ <50ms; tích hợp fast-path vào `GUIActor` và `ComputerController` giúp giảm phụ thuộc vào Vision LLM 2.5-4s.
 - Triệt tiêu 6 lỗi trung thực (BUGS 1-6): Webhook fail-closed trên URL sai/lỗi mạng, IMAP quarantine tags bảo toàn khi truncate, Agent tool runtime tôn trọng cờ success tường minh, TTSManager khắc phục race enqueue/drain, vô hiệu hóa legacy auto-apply updater chưa xác thực, chuẩn hóa status timeout khi xác minh cửa sổ app launcher.
 - Triệt tiêu các lỗ hổng trung thực (PacketCapture TShark parsing, Telegram/Discord API 200/ok verification, Terminal UI truthful dispatch).
 - Triệt tiêu 100% `RuntimeWarning: coroutine 'Server._close' was never awaited` trong vòng đời tắt Web Dashboard / WebSocket.

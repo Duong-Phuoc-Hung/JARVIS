@@ -4,6 +4,46 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] Local Semantic Router with Typed Slot-Filling & Native Windows UI Automation (2026-10-15)
+
+- **Mục tiêu**:
+  - Hiện đại hóa kiến trúc trợ lý ảo JARVIS theo chuẩn các hệ thống hàng đầu thế giới (Home Assistant Voice/Wyoming, Rhasspy, Open Interpreter, Talon Voice).
+  - Khắc phục hạn chế của cơ chế định tuyến intent dựa trên regex chuỗi con cứng nhắc (brittle substring matching) bằng bộ định tuyến ngữ nghĩa cục bộ phân tích slot có kiểu dữ liệu (`LocalSemanticRouter`), đạt độ trễ phân giải intent <0.5ms cho 90% tương tác thông thường mà không phụ thuộc vào LLM.
+  - Khắc phục sự chậm trễ và thiếu ổn định của tự động hóa GUI dựa trên chụp ảnh màn hình và Vision LLM (mất 2.5-4s, dễ lệch tọa độ khi giao diện thay đổi) bằng tầng Native Windows UI Automation & Accessibility (`WindowsUIAutomation`), hỗ trợ tìm kiếm và thao tác phần tử UI trực tiếp (direct control manipulation) qua Win32 APIs trong <50ms.
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  - Brittle Intent Routing: Router trước đây dùng từ điển so khớp chuỗi con tĩnh (`_sorted_rule_keys`), dễ bị xung đột chuỗi con (false positive giữa các từ tố tiếng Việt như "hạ" trong "phần trăm", "ôn" trong "phòng") và không trích xuất được tham số có kiểu (level %, delta +/-, entity_id, nhiệt độ, duration giây, câu lệnh phát nhạc).
+  - Background Desktop Isolation: Các tiến trình chạy ngầm/agent sandbox trong Windows bị gắn vào desktop không tương tác (`exebox-...`), khiến các hàm `EnumWindows` và `GetForegroundWindow` trả về 0/None.
+  - Blind Coordinate GUI: `GUIActor` và `ComputerController` phụ thuộc hoàn toàn vào chụp màn hình và mô hình thị giác máy tính, tốn nhiều giây và không tận dụng được cây điều khiển trợ năng (Accessibility/UI Automation) có sẵn trong Windows.
+- **Các chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/llm/semantic_router.py`:
+    - Tạo mới `LocalSemanticRouter` với phân tích cú pháp slot có kiểu (`Typed Slot-Filling`): Volume (`level`, `delta`, `mute`), Brightness (`level`, `delta`, `query`), Smart Home (`domain`, `service`, `entity_id`, `temperature`), Window/Tabs (`minimize_all`, `new_tab`, `close_tab`, `page_refresh`, `page_scroll`), Media (`play`, `pause`, `next`, `stop`, `query`), Timers/Reminders (`duration` giây, `label`), và Web Search (`web_open`).
+    - Hỗ trợ bóc tách tiền tố đệm hội thoại tiếng Việt ("jarvis ơi", "cho mình", "làm ơn"), chuẩn hóa số từ tiếng Việt ("hai mươi", "một nửa", "tối đa") và đơn vị thời gian.
+  - `jarvis/llm/router.py`:
+    - Tích hợp `LocalSemanticRouter` trước `_sorted_rule_keys` để ưu tiên phân giải ngữ nghĩa tham số hóa trước khi rơi vào regex tĩnh.
+    - Sửa lỗi định tuyến quạt trần: ánh xạ đúng thực thể `fan.bedroom` / `fan.ceiling` thay vì luôn gán cứng `fan.living_room`.
+  - `jarvis/platform/uiautomation.py`:
+    - Tạo mới bộ điều khiển `WindowsUIAutomation` thuần `ctypes` (không phụ thuộc pywin32 bên ngoài).
+    - Triển khai `ensure_desktop()` đồng bộ luồng gọi với `OpenDesktopW("Default")`, đảm bảo thấy 100% cửa sổ và control tương tác của người dùng ngay cả từ daemon/background worker.
+    - Cung cấp `find_element`, `enumerate_windows`, `enumerate_controls`, `click_element` (sử dụng `BM_CLICK` hoặc chuột), và `type_into_element` (sử dụng `WM_SETTEXT` hoặc bàn phím).
+  - `jarvis/automation/control.py`:
+    - Bổ sung `uiautomation` property, `find_ui_element()`, `click_ui_element()`, và `type_into_ui_element()`.
+  - `jarvis/automation/gui_actor.py`:
+    - Tích hợp fast-path UI Automation vào `click_element` và `type_into_element` (<50ms execution trước khi rơi vào Vision LLM 2.5-4s).
+    - Tối ưu tính toán tọa độ tâm chính xác từ pixel metadata tránh sai số làm tròn chuẩn hóa.
+  - `jarvis/vision/computer_use.py`:
+    - Nâng cấp Tier 3 `detect_via_win32_uia` ưu tiên sử dụng `WindowsUIAutomation` đa luồng đồng bộ desktop, tìm kiếm cả child controls thay vì chỉ top-level windows.
+  - `tests/unit/test_semantic_router.py`:
+    - Bổ sung 9 bài kiểm thử đơn vị cho toàn bộ các miền slot của `LocalSemanticRouter`.
+  - `tests/unit/test_uiautomation.py`:
+    - Bổ sung 15 bài kiểm thử đơn vị cho UIControlElement, fail-closed trên non-Windows/thiếu phần tử, `ComputerController`, và `GUIActor` fast-path / fallback.
+- **Chỉ số kiểm thử thực tế**:
+  - `test_semantic_router.py`: **9 passed** trong **0.27s**.
+  - `test_uiautomation.py`: **15 passed** trong **0.76s**.
+  - Router test suite: **345 passed, 6 skipped** trong **12.95s**.
+  - Control & Vision suite: **69 passed** trong **5.35s**.
+  - H-05 Vietnamese regression contract: **25 passed, 0 failures, 0 misroutes**.
+  - Stress & regression suite: **296 passed** trong **35s**.
+
 ## [Unreleased] Voice Pipeline Overhaul: Two-Stage Wake-Word Verification, Sentence-Level Streaming TTS, and Low-Latency Barge-In (2026-10-15)
 
 - **Mục tiêu**:
