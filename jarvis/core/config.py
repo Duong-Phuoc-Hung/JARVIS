@@ -387,10 +387,18 @@ class WakeWordConfig(ConfigNode):
     def __init__(self, data: dict[str, Any] | None = None) -> None:
         defaults = {
             "enabled": True,
-            "sensitivity": 0.35,
+            "sensitivity": 0.60,
             "cooldown_s": 2.0,
-            "min_rms": 0.02,
+            "min_rms": 0.005,
             "vosk_model_path": "",
+            "allow_packaged_openwakeword_model": True,
+            "openwakeword_threshold": 0.50,
+            "openwakeword_candidate_threshold": 0.02,
+            "openwakeword_verification_enabled": True,
+            "openwakeword_verification_postroll_s": 0.40,
+            "acoustic_fallback_policy": "auto",
+            "whisper_model_size": "tiny",
+            "allow_acoustic_passive_trigger": False,
         }
         if data:
             defaults.update(data)

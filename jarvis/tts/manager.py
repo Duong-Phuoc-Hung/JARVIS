@@ -10,9 +10,10 @@ from __future__ import annotations
 import logging
 import queue
 import random
+import re
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
@@ -77,6 +78,10 @@ class TTSManager:
 
         self.cache = TTSAudioCache(cache_dir=c_dir, enabled=cache_enabled)
 
+        self.fallback_engine: BaseTTSEngine = (
+            fallback_engine or SAPI5FallbackTTS(self.config.get("fallback", {}))
+        )
+
         # Select primary engine from tts.provider config
         if primary_engine:
             self.primary_engine: BaseTTSEngine = primary_engine
@@ -85,13 +90,9 @@ class TTSManager:
             if provider == "edge_tts" or provider == "edge":
                 self.primary_engine = EdgeTTS(self.config.get("edge_tts", {}))
             elif provider == "sapi5":
-                self.primary_engine = SAPI5FallbackTTS(self.config.get("fallback", {}))
+                self.primary_engine = self.fallback_engine
             else:
                 self.primary_engine = ElevenLabsTTS(self.config.get("elevenlabs", {}))
-
-        self.fallback_engine: BaseTTSEngine = (
-            fallback_engine or SAPI5FallbackTTS(self.config.get("fallback", {}))
-        )
 
         self._queue: queue.Queue = queue.Queue()
         self._stop_event = threading.Event()
@@ -256,6 +257,59 @@ class TTSManager:
 
         return self._execute_speak(clean_text, voice_id=voice_id, wait=True, mock_http=mock_http)
 
+    @staticmethod
+    def split_sentences(text: str) -> list[str]:
+        """
+        Splits paragraph into conversational sentences for low-latency streaming TTS.
+        Preserves natural pause boundaries (., !, ?, ;, \n).
+        """
+        if not text or not text.strip():
+            return []
+        chunks = re.split(r"(?<=[.!?;\n])\s+", text.strip())
+        results = [c.strip() for c in chunks if c.strip()]
+        return results if results else [text.strip()]
+
+    def speak_sentences(
+        self,
+        sentences: Iterable[str],
+        voice_id: str | None = None,
+        wait: bool = False,
+        callback: Callable[[bool], None] | None = None,
+        mock_http: Any | None = None,
+    ) -> bool:
+        """
+        Stream speech sentence-by-sentence to reduce time-to-first-audio.
+        If wait=False, queues all sentences sequentially into worker.
+        If wait=True, speaks each sentence sequentially, stopping early if interrupted/shutdown.
+        """
+        items = [s.strip() for s in sentences if s and s.strip()]
+        if not items:
+            return False
+
+        if not wait:
+            all_ok = True
+            for i, sent in enumerate(items):
+                cb = callback if (i == len(items) - 1) else None
+                ok = self.speak(sent, voice_id=voice_id, wait=False, callback=cb, mock_http=mock_http)
+                if not ok:
+                    all_ok = False
+            return all_ok
+
+        all_ok = True
+        for sent in items:
+            if self._stop_event.is_set() or self._is_shutdown:
+                all_ok = False
+                break
+            ok = self.speak(sent, voice_id=voice_id, wait=True, mock_http=mock_http)
+            if not ok:
+                all_ok = False
+        if callback:
+            try:
+                callback(all_ok)
+            except Exception:
+                pass
+        return all_ok
+
     def _execute_speak(
         self,
         text: str,
@@ -292,7 +346,10 @@ class TTSManager:
                 if self._is_shutdown:
                     return False
 
-                # 2. Try Online Primary Engine (ElevenLabs)
+                # 2. Try Online Primary Engine (ElevenLabs / EdgeTTS) or SAPI5
+                if isinstance(self.primary_engine, SAPI5FallbackTTS):
+                    return self.primary_engine.speak(text, voice_id=voice_id, wait=wait)
+
                 if self.primary_engine.is_available() or mock_http is not None:
                     try:
                         pcm_bytes = self.primary_engine.synthesize_to_bytes(
@@ -379,7 +436,62 @@ class TTSManager:
                 time.sleep(delay_s)
             self.speak(welcome_phrase, wait=False)
 
-        threading.Thread(target=_runner, daemon=True, name="WelcomeTTS").start()
+    def interrupt(self) -> bool:
+        """
+        Barge-in / interrupt entrypoint.
+        Immediately halts active audio output and drains pending queued utterances
+        WITHOUT shutting down the manager or terminating the worker thread.
+        Returns True if an active or queued speech was interrupted, False otherwise.
+        """
+        interrupted = False
+        with self._lock:
+            if self._is_playing or not self._queue.empty():
+                interrupted = True
+            while not self._queue.empty():
+                try:
+                    task = self._queue.get_nowait()
+                    self._queue.task_done()
+                    if len(task) >= 3 and task[2] is not None:
+                        try:
+                            task[2](False)
+                        except Exception:
+                            pass
+                except queue.Empty:
+                    break
+
+        # Stop active hardware playback on cache and engines without closing them
+        if hasattr(self, "cache"):
+            try:
+                if hasattr(self.cache, "stop_playback"):
+                    self.cache.stop_playback()
+                elif hasattr(self.cache, "stop"):
+                    self.cache.stop()
+            except Exception as e:
+                log.debug("cache stop_playback error: %s", e)
+
+        if hasattr(self, "primary_engine"):
+            try:
+                if hasattr(self.primary_engine, "stop_playback"):
+                    self.primary_engine.stop_playback()
+                elif hasattr(self.primary_engine, "stop"):
+                    self.primary_engine.stop()
+            except Exception:
+                pass
+
+        if hasattr(self, "fallback_engine"):
+            try:
+                if hasattr(self.fallback_engine, "stop_playback"):
+                    self.fallback_engine.stop_playback()
+                elif hasattr(self.fallback_engine, "stop"):
+                    self.fallback_engine.stop()
+            except Exception:
+                pass
+
+        with self._lock:
+            self._is_playing = False
+            self._last_playback_finish_time = time.monotonic()
+
+        return interrupted
 
     def stop(self) -> None:
         """

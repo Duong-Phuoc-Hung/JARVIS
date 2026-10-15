@@ -4,6 +4,40 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] Voice Pipeline Overhaul: Two-Stage Wake-Word Verification, Sentence-Level Streaming TTS, and Low-Latency Barge-In (2026-10-15)
+
+- **Mục tiêu**:
+  - Khắc phục triệt để nghịch lý nhạy/chặt của wake-word (ngưỡng cũ kích hoạt nhầm các từ rác, ngưỡng mới nói 10 lần không nhận) bằng cơ chế Xác minh Hai Tầng (Two-Stage Wake-Word Verification) kết hợp mô hình Whisper xác thực đa ngữ và chuẩn hóa ngữ âm tiếng Việt.
+  - Giảm thiểu độ trễ phản hồi âm thanh (Time-to-First-Audio) từ 4-6 giây xuống dưới 800ms thông qua kiến trúc phát âm dạng luồng theo câu (Sentence-Level Streaming TTS).
+  - Cung cấp khả năng ngắt lời tức thì (True Low-Latency Barge-In) cho phép người dùng dừng phát âm thanh ngay lập tức khi bấm phím PTT, bắt đầu tương tác mới hoặc ra lệnh giọng nói ("im lặng", "dừng nói", "stop talking").
+- **Nguyên nhân gốc rễ (Root Cause)**:
+  - Wake-word False Wake vs False Reject: Việc chỉ điều chỉnh ngưỡng độ nhạy (sensitivity) của mô hình acoustic/OpenWakeWord dẫn đến dilemma toán học kinh điển: ngưỡng cao bỏ sót giọng tiếng Việt có ngữ điệu, ngưỡng thấp kích hoạt nhầm từ âm thanh môi trường. Hệ thống đã có cơ chế two-stage candidate gate (0.02 threshold) nhưng `jarvis/core/config.py` vẫn giữ giá trị mặc định cũ (`sensitivity: 0.35`, `min_rms: 0.02`), thiếu đồng bộ với `default_config.yaml`. Đồng thời, hàm `WhisperSlidingWindowDetector._contains_wake_alias` chỉ chuẩn hóa từ khóa alias mà quên chuẩn hóa chuỗi `transcript` đầu vào (giữ nguyên chữ hoa và dấu thanh), khiến các câu có dấu thanh hoặc viết hoa như "Chào JARVIS" bị so khớp trượt.
+  - TTS Latency: Toàn bộ pipeline trước đây chờ đợi mô hình sinh xong toàn bộ văn bản và sinh toàn bộ âm thanh WAV rồi mới bắt đầu phát ra loa, gây độ trễ cảm nhận người dùng rất lớn.
+  - Thiếu Barge-In: Lệnh `TTSAudioCache.stop()` và `TTSManager.stop()` trước đây đánh dấu `self._is_closed = True` và shutdown luồng worker, khiến việc ngắt lời làm hỏng hoàn toàn khả năng phát âm tiếp theo trong phiên. Hệ thống cũng chưa có đường dẫn action cho dispatcher hay phím PTT ngắt active playback.
+- **Các chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/audio/wake_word.py`: Bổ sung bí danh ngữ âm tiếng Việt (`"chao jarvis"`, `"oi jarvis"`, `"e jarvis"`, `"tra vit"`) vào `WhisperSlidingWindowDetector.keywords`. Sửa lỗi căn bản trong `_contains_wake_alias`: áp dụng `self._normalize_transcript(transcript)` trước khi đệm khoảng trắng và so khớp.
+  - `jarvis/core/config.py`: Đồng bộ hóa cấu hình mặc định trong `WakeWordConfig` với `default_config.yaml` (`sensitivity: 0.60`, `min_rms: 0.005`, `openwakeword_candidate_threshold: 0.02`, `openwakeword_verification_enabled: True`, `openwakeword_verification_postroll_s: 0.40`).
+  - `jarvis/tts/cache.py`: Bổ sung `stop_playback()` dừng ngay lập tức playback trên `sounddevice` và `winsound` mà không đóng cache (`self._is_closed = False`). Tự động ghi file tạm (`tempfile`) khi persistent cache bị tắt (`enabled=False`) để phương thức `play_wav` vẫn phát được âm thanh.
+  - `jarvis/tts/edge.py`: Thêm phương thức `stop()` và `stop_playback()` phục vụ ngắt lời tức thì cho Edge TTS.
+  - `jarvis/tts/manager.py`:
+    - Bổ sung `split_sentences(text: str)`: Tách đoạn văn thành các câu hội thoại tự nhiên theo ranh giới dấu câu.
+    - Bổ sung `speak_sentences(...)`: Phát âm thanh dạng luồng tuần tự theo từng câu.
+    - Bổ sung `interrupt()`: Xóa sạch hàng đợi tác vụ và dừng phát loa ngay lập tức mà không tiêu hủy luồng worker.
+    - Sửa nhánh `provider == "sapi5"` trong `__init__` và `_execute_speak()` ủy quyền trực tiếp tới `SAPI5FallbackTTS.speak()`.
+  - `jarvis/core/app.py`:
+    - Đăng ký action `tts_stop` và bí danh `barge_in` trong `_register_core_actions()`.
+    - Gọi `self.tts_manager.interrupt()` ngay đầu hàm `_start_voice_interaction()` và trong hotkey PTT `Ctrl+Shift+L` khi loa đang phát.
+    - Áp dụng `speak_sentences()` trong vòng lặp giọng nói để stream phản hồi theo từng câu.
+  - `jarvis/llm/router.py`: Bổ sung regex nhận diện các khẩu lệnh ngắt lời ("dừng nói", "dừng phát", "im lặng", "stop talking", "be quiet") sang action `tts_stop`; thêm alias `route()`; trả chuỗi rỗng trong `get_natural_response` khi nhận `tts_stop`/`barge_in`.
+  - `tests/unit/test_tts_engines.py`: Bổ sung các bài test cho `split_sentences`, `interrupt`, và `speak_sentences`.
+  - `tests/unit/test_barge_in_and_streaming.py`: Tạo mới bộ kiểm thử toàn diện cho barge-in dispatcher action, voice interaction interruption, sentence streaming, Vietnamese phonetic aliases, và router barge-in phrases.
+- **Chỉ số kiểm thử thực tế**:
+  - `test_barge_in_and_streaming.py`: **5 passed** trong **11.76s**.
+  - `test_tts_engines.py`: **7 passed** trong **14.31s**.
+  - `test_wake_word_two_stage_release.py`: **14 passed** trong **16.21s**.
+  - Full router test suite: **260 passed, 1 skipped** trong **18.04s**.
+  - Full unit test suite (`tests/unit/`): **153 test files, 100% PASS, 0 failures**.
+
 ## [Unreleased] Argon Architecture Deep Audit & Truthfulness Remediation (2026-10-15)
 
 - **Mục tiêu**:

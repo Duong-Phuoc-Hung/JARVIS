@@ -67,3 +67,70 @@ def test_tts_manager_cache_and_fallback_routing(mock_http_server, tmp_path):
     assert "Phrase Beta" in mgr.fallback_engine.spoken_history
 
     mgr.stop()
+
+
+def test_tts_manager_split_sentences():
+    """Verify conversational sentence splitting for streaming TTS."""
+    text = "Xin chào Ngài! Tôi là JARVIS. Hệ thống đang hoạt động tối ưu; bạn có cần trợ giúp gì không?"
+    chunks = TTSManager.split_sentences(text)
+    assert len(chunks) == 4
+    assert chunks[0] == "Xin chào Ngài!"
+    assert chunks[1] == "Tôi là JARVIS."
+    assert chunks[2] == "Hệ thống đang hoạt động tối ưu;"
+    assert chunks[3] == "bạn có cần trợ giúp gì không?"
+
+    # Empty and whitespace handling
+    assert TTSManager.split_sentences("") == []
+    assert TTSManager.split_sentences("   ") == []
+    assert TTSManager.split_sentences("Một câu duy nhất") == ["Một câu duy nhất"]
+
+
+def test_tts_manager_barge_in_interrupt(tmp_path):
+    """Verify barge-in interrupt halts current speech while keeping worker alive for next speech."""
+    mgr = TTSManager(
+        config={
+            "cache": {"enabled": False},
+            "provider": "sapi5",
+        }
+    )
+
+    cb_results = []
+    # Queue multiple sentences
+    mgr.speak("Sentence 1 to be interrupted", wait=False, callback=lambda ok: cb_results.append(ok))
+    mgr.speak("Sentence 2 to be cancelled", wait=False, callback=lambda ok: cb_results.append(ok))
+
+    # Trigger barge-in interrupt
+    interrupted = mgr.interrupt()
+    assert interrupted is True
+    assert not mgr.is_playing
+    assert mgr._queue.empty()
+
+    # Crucial: Worker thread must still be alive after interrupt (unlike stop())
+    assert mgr._worker_thread.is_alive()
+    assert not mgr._is_shutdown
+
+    # Subsequent speech must succeed without reinitializing manager
+    res = mgr.speak("New command response after barge-in", wait=True)
+    assert res is True
+    assert "New command response after barge-in" in mgr.fallback_engine.spoken_history
+
+    mgr.stop()
+
+
+def test_tts_manager_speak_sentences_streaming(tmp_path):
+    """Verify speak_sentences streams multiple chunks sequentially."""
+    mgr = TTSManager(
+        config={
+            "cache": {"enabled": False},
+            "provider": "sapi5",
+        }
+    )
+
+    sentences = ["Chào sếp.", "Mọi thứ đã sẵn sàng.", "Nhiệt độ phòng là 25 độ."]
+    res = mgr.speak_sentences(sentences, wait=True)
+    assert res is True
+
+    for s in sentences:
+        assert s in mgr.fallback_engine.spoken_history
+
+    mgr.stop()

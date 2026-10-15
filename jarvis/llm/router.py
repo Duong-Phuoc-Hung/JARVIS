@@ -306,6 +306,19 @@ class LLMIntentRouter:
 
         # Advanced Parametric Regex Rules (Run before static substring fallback)
         self._regex_rules: list[tuple[re.Pattern, Callable[[re.Match], IntentResult]]] = [
+            # Barge-in / Interruption: "dừng nói", "dừng phát", "im lặng", "thôi im đi", "stop talking", "be quiet"
+            (
+                re.compile(
+                    r"^(?:jarvis[,\s]*)?(?:(?:dừng|dung|ngừng|ngung)\s+(?:nói|noi|phát|phat|âm\s*thanh|am\s*thanh)|(?:thôi\s*)?(?:im\s*(?:lặng|lang|đi|di|mồm|mom)?)|stop\s+talking|be\s*quiet|shut\s*up)[.!?]?$",
+                    re.IGNORECASE,
+                ),
+                lambda m: IntentResult(
+                    action_name="tts_stop",
+                    parameters={},
+                    source="rule_fallback",
+                    response_text="",
+                ),
+            ),
             # A specific screen target takes precedence over the relax shortcut.
             (
                 re.compile(r"^(?:jarvis[,\s]*)?(?:cho\s+)?man\s+hinh\s+(?:pc\s+|may\s+tinh\s+)?nghi\s+ngoi[.!?]?$", re.IGNORECASE),
@@ -1625,6 +1638,10 @@ class LLMIntentRouter:
         p = params or {}
         text_lower = text.lower() if text else ""
 
+        # Barge-in / speech stop: silent response
+        if action_name in ("tts_stop", "barge_in"):
+            return ""
+
         # 1. Pre-formatted message from ActionResult (e.g. from HardwareReporter or system status)
         if action_result and action_result.data and isinstance(action_result.data, dict):
             if "message" in action_result.data and action_result.data["message"]:
@@ -1845,6 +1862,16 @@ class LLMIntentRouter:
         # 14. Fallback (Category 7)
         return "Tôi chưa hiểu lệnh này, vui lòng thử cách khác"
 
+    def route(
+        self,
+        text: str,
+        available_actions: list[str] | None = None,
+        context: dict[str, Any] | None = None,
+        force_llm: bool = False,
+    ) -> IntentResult:
+        """Alias for parse_intent()."""
+        return self.parse_intent(text, available_actions=available_actions, context=context, force_llm=force_llm)
+
     def parse_intent(
         self,
         text: str,
@@ -1996,7 +2023,7 @@ class LLMIntentRouter:
                     ):
                         continue
                     res.raw_text = text
-                    if not res.response_text:
+                    if res.response_text is None:
                         res.response_text = self.get_natural_response(res.action_name, res.parameters, text)
                     return res
 

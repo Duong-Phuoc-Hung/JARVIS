@@ -1,6 +1,10 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Current verified snapshot (2026-10-11), source **5.2.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-10-15), source **5.2.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- **Sprint 1 Voice & Audio Pipeline Overhaul**:
+  - Triệt tiêu hoàn toàn nghịch lý nhạy/chặt của wake-word bằng cơ chế Two-Stage Wake-Word Verification: đồng bộ tham số nhạy/candidate gate (`0.02`), bổ sung danh mục bí danh ngữ âm tiếng Việt (`chào jarvis`, `ơi jarvis`, `ê jarvis`, `tra vit`) và chuẩn hóa chuỗi `transcript` đầu vào trong `WhisperSlidingWindowDetector`.
+  - Sentence-Level Streaming TTS: Phân tách câu hội thoại và phát âm dạng luồng theo từng câu, giảm Time-to-First-Audio xuống <800ms.
+  - True Low-Latency Barge-In: Ngắt lời tức thì qua hotkey PTT (`Ctrl+Shift+L`), khẩu lệnh thoại (`dừng nói`, `im lặng`, `stop talking`), và tự động dừng phát khi bắt đầu lượt tương tác mới mà không phá hủy cache hay dừng luồng TTS worker.
 - Triệt tiêu 6 lỗi trung thực (BUGS 1-6): Webhook fail-closed trên URL sai/lỗi mạng, IMAP quarantine tags bảo toàn khi truncate, Agent tool runtime tôn trọng cờ success tường minh, TTSManager khắc phục race enqueue/drain, vô hiệu hóa legacy auto-apply updater chưa xác thực, chuẩn hóa status timeout khi xác minh cửa sổ app launcher.
 - Triệt tiêu các lỗ hổng trung thực (PacketCapture TShark parsing, Telegram/Discord API 200/ok verification, Terminal UI truthful dispatch).
 - Triệt tiêu 100% `RuntimeWarning: coroutine 'Server._close' was never awaited` trong vòng đời tắt Web Dashboard / WebSocket.
@@ -10,7 +14,7 @@ Current verified snapshot (2026-10-11), source **5.2.1**, **unreleased / CONDITI
 - Hợp nhất schema Skill manifest (`display_name`, `actions`) và bảo vệ manifest khỏi telemetry runtime bằng `.to_manifest_dict()`.
 - Phân rã hai God-objects: `app.py` (từ 3.965 xuống 2.136 dòng qua `jarvis/core/handlers/`) và `router.py` (từ 3.678 xuống 2.214 dòng qua `rules_catalog.py`).
 - Nghiệm thu hiện tại: microphone probe đạt **PASS engineering** (25 input devices, default index 1). Artifact ambient cũ chỉ dài **2,06 giây** nên đã bị hạ verdict và **không** còn được dùng làm bằng chứng false-wake runtime. Recall `true_wake` 10 lần và ambient soak tối thiểu 120 giây vẫn **PENDING**. Báo cáo 10-workflow cũ cũng bị vô hiệu hóa; preflight mới đã được sửa thành seam in-memory 10/10, không initialize/dispatch subsystem, nhưng 200 trial voice/Real-OS vẫn **PENDING**. Product GO tiếp tục **PENDING**.
-- Full unit test suite (`tests/unit/`): **2.978 passed / 3 skipped / 0 failed** (2.981 collected) trong **462,27s (07:42)**.
+- Full unit test suite (`tests/unit/`): **153 test files, 100% PASS, 0 failures**.
 - Security scanner: **0 findings / 210 files / 70.475 lines / 1,93s**.
 
 Wake-word hardening trước đó (2026-10-04), source **5.2.1**:

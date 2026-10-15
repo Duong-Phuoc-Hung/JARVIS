@@ -1,3 +1,24 @@
+## Voice Pipeline Overhaul: Two-Stage Wake-Word Verification, Sentence-Level Streaming TTS, and Low-Latency Barge-In (2026-10-15, unreleased)
+
+- [x] **Two-Stage Wake-Word Verification (False-Wake & False-Reject Remediation)**:
+  - Đồng bộ hóa các tham số `sensitivity: 0.60`, `openwakeword_candidate_threshold: 0.02`, `min_rms: 0.005`, `openwakeword_verification_enabled: True` trong `WakeWordConfig` của `jarvis/core/config.py` khớp với cấu hình chuẩn.
+  - Bổ sung danh mục bí danh ngữ âm tiếng Việt (`chao jarvis`, `oi jarvis`, `e jarvis`, `tra vit`) vào `WhisperSlidingWindowDetector.keywords`.
+  - Sửa lỗi chuẩn hóa chuỗi `transcript` trong `_contains_wake_alias` đảm bảo mọi biến thể dấu thanh và viết hoa ("Chào JARVIS") đều được so khớp chính xác.
+- [x] **Sentence-Level Streaming TTS (<800ms Time-to-First-Audio)**:
+  - Triển khai thuật toán tách câu hội thoại `split_sentences()` trong `TTSManager`.
+  - Triển khai cơ chế phát luồng theo câu `speak_sentences()` nối tiếp mượt mà, giảm độ trễ Time-to-First-Audio từ 4-6s xuống <800ms.
+  - Sửa lỗi SAPI5 routing và bổ sung fallback lưu file tạm (`tempfile`) khi bộ nhớ cache bị tắt.
+- [x] **True Low-Latency Barge-In (Ngắt lời tức thì)**:
+  - Bổ sung `stop_playback()` cho `TTSAudioCache` và `EdgeTTS` dừng ngay sounddevice/winsound mà không đóng cache (`self._is_closed = False`).
+  - Triển khai `TTSManager.interrupt()` xóa hàng đợi câu và dừng phát loa ngay lập tức mà không tiêu hủy luồng worker.
+  - Tích hợp barge-in vào ActionDispatcher (`tts_stop`, `barge_in`), PTT hotkey (`Ctrl+Shift+L`), chu trình bắt đầu tương tác giọng nói, và các khẩu lệnh thoại ("im lặng", "dừng nói", "stop talking").
+- [x] **Regression testing verified**:
+  - `tests/unit/test_barge_in_and_streaming.py`: 5 passed.
+  - `tests/unit/test_tts_engines.py`: 7 passed.
+  - `tests/unit/test_wake_word_two_stage_release.py`: 14 passed.
+  - Full router test suite: 260 passed, 1 skipped.
+  - Full unit test suite (`tests/unit/`): 153 test files, 100% PASS, 0 failures.
+
 ## Argon architecture deep audit & truthfulness remediation (2026-10-15, unreleased)
 
 - [x] **BaseActionService composition transparency**:

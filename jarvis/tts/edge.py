@@ -198,3 +198,21 @@ class EdgeTTS(BaseTTSEngine):
                 log.warning("EdgeTTS winsound playback failed: %s", e)
 
         return False
+
+    def stop(self) -> None:
+        """Immediately halts any active audio playback."""
+        try:
+            import sounddevice as sd
+            sd.stop()
+        except Exception:
+            pass
+        if sys.platform == "win32":
+            try:
+                import winsound
+                winsound.PlaySound(None, winsound.SND_PURGE)
+            except Exception:
+                pass
+
+    def stop_playback(self) -> None:
+        """Alias for stop()."""
+        self.stop()

@@ -120,10 +120,16 @@ class TTSAudioCache:
         sample_rate: int = 24000,
     ) -> Path:
         """Atomically saves raw 16-bit mono PCM bytes as a standard WAV file."""
-        if not self.enabled or self._is_closed:
+        if self._is_closed:
             return self.get_cache_path(text, voice_id, model_id, output_format)
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        path = self.get_cache_path(text, voice_id, model_id, output_format)
+        if not self.enabled:
+            import tempfile
+            temp_dir = Path(tempfile.gettempdir()) / "jarvis_tts_ephemeral"
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            path = temp_dir / f"{self.compute_key(text, voice_id, model_id, output_format)}.wav"
+        else:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            path = self.get_cache_path(text, voice_id, model_id, output_format)
 
         import threading
         import time
@@ -239,12 +245,11 @@ class TTSAudioCache:
 
         return False
 
-    def stop(self) -> None:
+    def stop_playback(self) -> None:
         """
-        Immediately halts active audio playback on sounddevice and platform backends.
-        Safe and idempotent to call even when playback is inactive.
+        Immediately halts active audio playback on sounddevice and platform backends
+        without closing or shutting down the cache. Safe and idempotent.
         """
-        self._is_closed = True
         try:
             import sounddevice as sd
             sd.stop()
@@ -257,6 +262,14 @@ class TTSAudioCache:
                 winsound.PlaySound(None, winsound.SND_PURGE)
             except Exception as e:
                 log.debug("winsound purge error: %s", e)
+
+    def stop(self) -> None:
+        """
+        Immediately halts active audio playback and closes/shuts down the cache.
+        Safe and idempotent to call even when playback is inactive.
+        """
+        self._is_closed = True
+        self.stop_playback()
 
     def close(self) -> None:
         """Idempotent alias for stopping/closing audio cache."""

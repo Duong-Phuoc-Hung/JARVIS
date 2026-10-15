@@ -222,6 +222,10 @@ class WhisperSlidingWindowDetector:
             "javis",
             "charvis",
             "gia vit",
+            "tra vit",
+            "chao jarvis",
+            "oi jarvis",
+            "e jarvis",
         ]
         self.model = model
         self._model_size = model_size
@@ -245,7 +249,7 @@ class WhisperSlidingWindowDetector:
         return re.sub(r"[^a-z0-9]+", " ", normalized).strip()
 
     def _contains_wake_alias(self, transcript: str) -> bool:
-        padded = f" {transcript} "
+        padded = f" {self._normalize_transcript(transcript)} "
         return any(f" {self._normalize_transcript(alias)} " in padded for alias in self.keywords)
 
     def verify_window(self, buffer: np.ndarray) -> tuple[bool, str]:

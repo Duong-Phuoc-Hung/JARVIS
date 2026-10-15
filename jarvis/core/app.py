@@ -675,24 +675,8 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                 self.overlay.toggle()
 
         def _ptt_voice_cb():
-            # H-04 fix: delegate directly to _start_voice_interaction (which does NOT
-            # exist as _handle_voice_command anywhere -- that path never existed).
-            # PTT hotkey uses shorter greeting to minimize delay before recording starts.
-            #
-            # H-04 FINAL: no wrapper thread here. GlobalHotkeyManager already invokes
-            # every hotkey callback on its own dedicated background thread (see
-            # jarvis/platform/hotkeys.py::_message_pump_loop -- "Run callback in
-            # background thread to avoid blocking pump"), so this callback never runs
-            # on the Win32 message-pump thread. And _start_voice_interaction() is
-            # itself already non-blocking: it atomically acquires _voice_lock, checks/
-            # sets _is_voice_interacting, and only THEN spawns the one real
-            # "JARVIS-VoiceInteraction" work thread -- or returns immediately if an
-            # interaction is already in progress. Wrapping it in a second thread here
-            # added nothing but an extra OS thread per keypress, spawned BEFORE
-            # single-flight was ever evaluated; the single-flight decision itself was
-            # always safe either way (the lock makes the check-and-set atomic
-            # regardless of which thread calls in), so removing the wrapper is a pure
-            # structural cleanup, not a correctness fix to the guard itself.
+            if self.tts_manager and self.tts_manager.is_playing:
+                self.tts_manager.interrupt()
             self._start_voice_interaction(
                 trigger_name="HOTKEY_PTT",
                 greeting_phrase="Vâng, tôi nghe.",
@@ -719,6 +703,23 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
 
     def _register_core_actions(self) -> None:
         """Register built-in system and expansion actions into ActionDispatcher."""
+        def _handle_tts_stop(**kwargs) -> dict[str, Any]:
+            interrupted = False
+            if self.tts_manager:
+                interrupted = self.tts_manager.interrupt()
+            return {"status": "success", "interrupted": interrupted}
+
+        self.dispatcher.register_action(
+            name="tts_stop",
+            handler=_handle_tts_stop,
+            description="Stops active TTS playback immediately (barge-in)",
+        )
+        self.dispatcher.register_action(
+            name="barge_in",
+            handler=_handle_tts_stop,
+            description="Alias for tts_stop — interrupts ongoing speech output",
+        )
+
         # Core Voice & Hardware actions
         self.dispatcher.register_action(
             name="tts_welcome",
@@ -1344,6 +1345,10 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                 return
             self._is_voice_interacting = True
 
+        # Stop any active TTS playback (barge-in) when interaction starts
+        if self.tts_manager and self.tts_manager.is_playing:
+            self.tts_manager.interrupt()
+
         def _voice_loop():
             try:
                 if self.proactive_engine:
@@ -1476,7 +1481,11 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                 _is_wake_word_trigger = trigger_name.startswith("WAKE_WORD")
                 if self.tts_manager:
                     if response_text and response_text.strip():
-                        self.tts_manager.speak(response_text, wait=True)
+                        sentences = self.tts_manager.split_sentences(response_text)
+                        if len(sentences) > 1:
+                            self.tts_manager.speak_sentences(sentences, wait=True)
+                        else:
+                            self.tts_manager.speak(response_text, wait=True)
                     elif not _is_wake_word_trigger:
                         # Unknown intent or empty response → explicit acknowledgement
                         # but ONLY for explicit user-initiated triggers (hotkey, PTT)
