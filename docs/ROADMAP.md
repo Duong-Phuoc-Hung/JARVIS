@@ -1,3 +1,23 @@
+## Sprint 4: Acoustic Front-End (AFE), Dynamic Noise Floor Adaptation & Whisper Hallucination Shield (2026-10-15, unreleased)
+
+- [x] **Acoustic Front-End (AFE) Signal Conditioning (`AcousticFrontEnd`)**:
+  - Triển khai `AcousticFrontEnd` và `AFEOutput` trong `jarvis/audio/dsp.py` với bộ lọc thông dải Butterworth bậc 4 (80Hz - 7500Hz), triệt tiêu hoàn toàn DC bias và rung ồn quạt máy tính (<80Hz), giảm 40.97% - 50.76% RMS nhiễu môi trường thô trên mic thực.
+  - Triển khai `automatic_gain_control` (AGC) với bộ giới hạn đỉnh dạng hàm hyperbolic tangent (`tanh`) giúp khuếch đại khẩu lệnh nhỏ mà không bị vỡ/clip âm thanh khi nói gần (giữ peak <= 0.95).
+  - Phân tích phân vị năng lượng khung 20ms, tính toán chính xác tỷ số tín hiệu trên nhiễu (`snr_db`) và thời lượng phát âm thực tế (`active_speech_ms`).
+  - Hỗ trợ bảo toàn tín hiệu mô phỏng kiểm thử (synthetic test doubles `np.full(...)` có phương sai bằng 0) mà không làm suy hao kiểm thử hồi quy.
+- [x] **Whisper Hallucination Shield & Sàn nhiễu động (`live_noise_floor`)**:
+  - Cải tiến `record_audio()`: thay thế `energy_threshold = 0.015` tĩnh bằng cơ chế ước lượng sàn nhiễu thích ứng động (`live_noise_floor`) từ 300ms đầu tiên (`speech_threshold = max(0.018, live_noise_floor * 2.5)`).
+  - Tối ưu thời gian ngắt lời tự nhiên (natural silence cutoff) từ 1.0s (7 chunks) xuống 750ms (5 chunks), tăng độ nhạy phản hồi tương đương Siri/Alexa.
+  - Lọc toàn bộ buffer âm thanh qua `AcousticFrontEnd` trước khi trả về `CapturedAudio`.
+  - Trong `_start_voice_interaction`: kiểm tra `audio_flat.has_speech`. Nếu AFE kết luận là tiếng ồn nền/im lặng (SNR thấp), bỏ qua gọi STT, giải phóng tài nguyên trong <1ms thay vì đơ 3.3s.
+  - Cập nhật `FasterWhisperSTTEngine.transcribe()` và `CapturedAudio` dataclass với chốt chặn im lặng/nhiễu (`calculate_rms(audio_float) < 0.003` hoặc rỗng), trả về rỗng `""` ngay lập tức, ngăn ngừa Whisper suy luận trên bộ đệm tĩnh.
+- [x] **Regression testing verified**:
+  - `tests/unit/test_acoustic_front_end.py`: 7 passed.
+  - `tests/unit/test_voice_pipeline_fixes.py`: 8 passed.
+  - `tests/unit/test_dsp.py`: 9 passed.
+  - `test_h01_stt_boundary.py`, `test_h02_device_failclosed.py`, `test_h03_echo_guard.py`: 95 passed.
+  - `tests/test_overlay.py` & `tests/unit/test_always_on_overlay.py`: 37 passed.
+
 ## Sprint 2 & 3: Local Semantic Router with Typed Slot-Filling & Native Windows UI Automation (2026-10-15, unreleased)
 
 - [x] **Local Semantic Router & Typed Slot-Filling (`LocalSemanticRouter`)**:

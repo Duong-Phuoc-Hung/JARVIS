@@ -107,6 +107,8 @@ class CapturedAudio:
 
     samples: np.ndarray
     source_sample_rate: int
+    has_speech: bool = True
+    snr_db: float = 0.0
 
 
 def prepare_stt_audio(audio: Any, source_sample_rate: int = STT_SAMPLE_RATE) -> np.ndarray:

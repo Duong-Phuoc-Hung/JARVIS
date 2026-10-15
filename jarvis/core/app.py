@@ -1194,11 +1194,11 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
         sr = validate_sample_rate(16000 if selected_rate is None else selected_rate)
         max_dur = float(duration_s or self.config.get("stt.timeout_s", 4.0))
 
-        def captured(samples: np.ndarray) -> np.ndarray | CapturedAudio:
-            return CapturedAudio(samples, sr) if return_capture else samples
+        def captured(samples: np.ndarray, has_speech: bool = True, snr_db: float = 0.0) -> np.ndarray | CapturedAudio:
+            return CapturedAudio(samples, sr, has_speech=has_speech, snr_db=snr_db) if return_capture else samples
 
         if self.headless:
-            return captured(np.zeros(int(sr * min(max_dur, 0.1)), dtype=np.float32))
+            return captured(np.zeros(int(sr * min(max_dur, 0.1)), dtype=np.float32), has_speech=False, snr_db=0.0)
 
         # H-02 fix: Synchronize recording device with AudioEngine's selected active device
         # so wake-word detector and command capture always listen on the exact same
@@ -1272,34 +1272,65 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                 input_is_real = getattr(input_fn, "__module__", type(input_fn).__module__) == "sounddevice"
                 if input_is_real and type(rec_fn).__module__.startswith("unittest.mock") and getattr(rec_fn, "side_effect", None) is not None:
                     return captured(np.zeros(int(sr * min(max_dur, 0.1)), dtype=np.float32))
+                from jarvis.audio.dsp import AcousticFrontEnd, calculate_rms
+                afe = getattr(self, "afe", None)
+                if afe is None or getattr(afe, "sample_rate", None) != sr:
+                    afe = AcousticFrontEnd(sample_rate=sr)
+
                 chunk_size = int(sr * 0.15)  # 150ms chunks
                 recorded_chunks: list[np.ndarray] = []
                 max_chunks = int(max_dur / 0.15)
                 silence_chunks_after_speech = 0
                 has_speech_started = False
-                energy_threshold = 0.015
+                live_noise_floor = 0.005
 
                 log.info("Capturing voice command (device=%s, sr=%d, max %.1fs)...", target_device, sr, max_dur)
                 with _sd.InputStream(samplerate=sr, channels=1, dtype="float32", blocksize=chunk_size, device=target_device) as stream:
-                    for _ in range(max_chunks):
+                    for chunk_idx in range(max_chunks):
                         chunk, overflowed = stream.read(chunk_size)
                         chunk_flat = chunk.flatten()
                         recorded_chunks.append(chunk_flat)
 
-                        rms = float(np.sqrt(np.mean(chunk_flat ** 2))) if len(chunk_flat) > 0 else 0.0
-                        if rms > energy_threshold:
-                            has_speech_started = True
-                            silence_chunks_after_speech = 0
-                        elif has_speech_started:
-                            silence_chunks_after_speech += 1
-                            # If user spoke and then fell silent for ~1.0s (7 chunks), cut off early
-                            if silence_chunks_after_speech >= 7:
-                                log.debug("Speech ended naturally (silence cutoff after %d chunks).", len(recorded_chunks))
-                                break
+                        # Bandpass filter chunk to remove DC offset and AC fan rumble (<80Hz)
+                        filtered_chunk = afe.filter_bandpass(chunk_flat)
+                        rms = calculate_rms(filtered_chunk)
+
+                        if not has_speech_started:
+                            if chunk_idx < 2:
+                                live_noise_floor = max(1e-5, rms)
+                            else:
+                                live_noise_floor = 0.95 * live_noise_floor + 0.05 * min(rms, live_noise_floor * 1.5)
+
+                            speech_threshold = max(0.018, live_noise_floor * 2.5)
+                            if rms > speech_threshold:
+                                has_speech_started = True
+                                silence_chunks_after_speech = 0
+                                log.debug(
+                                    "Speech activity detected at chunk %d (rms=%.4f > thresh=%.4f)",
+                                    chunk_idx,
+                                    rms,
+                                    speech_threshold,
+                                )
+                        else:
+                            silence_threshold = max(0.010, live_noise_floor * 1.4)
+                            if rms <= silence_threshold:
+                                silence_chunks_after_speech += 1
+                                # Early cutoff after ~750ms of post-speech silence (5 chunks)
+                                if silence_chunks_after_speech >= 5:
+                                    log.debug(
+                                        "Speech ended naturally (silence cutoff after %d chunks).",
+                                        len(recorded_chunks),
+                                    )
+                                    break
+                            else:
+                                silence_chunks_after_speech = 0
 
                 if recorded_chunks:
-                    return captured(np.concatenate(recorded_chunks))
-                return captured(np.zeros(int(sr * 0.5), dtype=np.float32))
+                    raw_buf = np.concatenate(recorded_chunks)
+                    afe_res = afe.process(raw_buf, noise_floor=live_noise_floor)
+                    out_samples = afe_res.samples if afe_res.samples.size == raw_buf.size else raw_buf
+                    return captured(out_samples, has_speech=afe_res.has_speech, snr_db=afe_res.snr_db)
+                return captured(np.zeros(int(sr * 0.5), dtype=np.float32), has_speech=False, snr_db=0.0)
             except Exception as e:
                 log.warning("Fast microphone capture via InputStream failed: %s. Falling back to simple rec.", e)
                 try:
@@ -1307,7 +1338,14 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                     dur = min(max_dur, 3.0)
                     audio_data = _sd.rec(int(dur * sr), samplerate=sr, channels=1, dtype="float32", device=target_device)
                     _sd.wait()
-                    return captured(audio_data.flatten())
+                    raw_buf = audio_data.flatten()
+                    from jarvis.audio.dsp import AcousticFrontEnd
+                    afe = getattr(self, "afe", None)
+                    if afe is None or getattr(afe, "sample_rate", None) != sr:
+                        afe = AcousticFrontEnd(sample_rate=sr)
+                    afe_res = afe.process(raw_buf)
+                    out_samples = afe_res.samples if afe_res.samples.size == raw_buf.size else raw_buf
+                    return captured(out_samples, has_speech=afe_res.has_speech, snr_db=afe_res.snr_db)
                 except Exception as e2:
                     # H-02 fix: both the fast InputStream path AND the same-device sd.rec
                     # fallback failed to access hardware -- this is a genuine microphone
@@ -1384,19 +1422,28 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                         log.error("Voice capture aborted -- acoustic gate busy: %s", e)
                         gate_error = e
                     else:
-                        try:
-                            # Timeout guard: STT must complete within 30s or we abort
-                            import concurrent.futures as _cf
-                            with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
-                                _fut = _ex.submit(self.stt_engine.transcribe, audio_flat)
-                                try:
-                                    transcript = _fut.result(timeout=30.0)
-                                    log.info("Transcribed: '%s'", transcript)
-                                except _cf.TimeoutError:
-                                    log.error("STT transcription timed out after 30s")
-                                    transcript = ""
-                        except Exception as e:
-                            log.error("STT recording/transcription failed: %s", e)
+                        # Acoustic Front-End speech gate: if recorded audio contains no valid speech
+                        # (pure ambient noise/fan hum/silence), skip STT transcription to avoid hallucination.
+                        if isinstance(audio_flat, CapturedAudio) and not audio_flat.has_speech:
+                            log.info(
+                                "AFE rejected capture: ambient noise/silence without speech (SNR=%.1f dB). Skipping STT.",
+                                audio_flat.snr_db,
+                            )
+                            transcript = ""
+                        else:
+                            try:
+                                # Timeout guard: STT must complete within 30s or we abort
+                                import concurrent.futures as _cf
+                                with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
+                                    _fut = _ex.submit(self.stt_engine.transcribe, audio_flat)
+                                    try:
+                                        transcript = _fut.result(timeout=30.0)
+                                        log.info("Transcribed: '%s'", transcript)
+                                    except _cf.TimeoutError:
+                                        log.error("STT transcription timed out after 30s")
+                                        transcript = ""
+                            except Exception as e:
+                                log.error("STT recording/transcription failed: %s", e)
 
                 if mic_error is not None:
                     _mic_msg = "Không tìm thấy hoặc không thể sử dụng microphone đã cấu hình."

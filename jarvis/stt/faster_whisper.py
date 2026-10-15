@@ -139,12 +139,13 @@ class FasterWhisperSTTEngine:
                 is_mock=True,
             )
 
-        if audio_float.size == 0:
+        from jarvis.audio.dsp import calculate_rms
+        if audio_float.size == 0 or calculate_rms(audio_float) < 0.003:
             return TranscriptionResult(
                 text="",
                 language=self.config.language,
                 confidence=0.0,
-                duration_ms=0.0,
+                duration_ms=(time.monotonic() - t0) * 1000,
             )
 
         try:
