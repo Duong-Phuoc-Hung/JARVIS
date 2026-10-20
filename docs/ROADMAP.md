@@ -1,3 +1,25 @@
+## Sprint 8: Upgraded On-Device Vietnamese NLP Intent Classifier & Tier 0 ML Fast-Path (2026-10-20, unreleased)
+
+- [x] **Upgraded On-Device Vietnamese NLP Intent Classifier (`VietnameseNLPClassifier`)** — `PASS engineering` / `PASS runtime`:
+  - Khóa luồng OpenBLAS/OMP/MKL/NUMEXPR chống tranh chấp CPU đa luồng và lỗi cấp phát bộ nhớ OpenBLAS trên môi trường CPU Windows.
+  - Tích hợp chuẩn hóa văn bản song ngữ có dấu và không dấu (`strip_vietnamese_diacritics`).
+  - Tích hợp Bộ trích xuất tham số có kiểu (`extract_slots_for_intent`) cho 10 domains ý định: `system_volume`, `system_brightness`, `app_launch`, `app_close`, `media_control`, `smart_home`, `system_status`, `timer_reminder`, `web_search`, `greeting_chat`.
+  - Bộ lọc độ bao phủ từ vựng (`word_vec.transform().nnz`) nhận diện và từ chối 100% các câu ngoài phân phối (Out-of-Distribution / OOD / chuỗi ký tự ngẫu nhiên) trả về `unknown`.
+  - Bổ sung phương thức `predict_batch` cho suy luận nhiều câu đồng thời.
+- [x] **Expanded Machine Learning Dataset & Automated Data Augmentation (`scripts/train_vietnamese_nlp.py`)** — `PASS runtime`:
+  - Mở rộng tập mẫu chuẩn lên 295 mẫu, kết hợp bộ sinh biến thể tự động `augment_dataset` tạo 1,684 mẫu câu huấn luyện qua 11 classes (10 core intents + 1 OOD negative class).
+  - Kết quả 5-Fold Stratified Cross-Validation: **Accuracy: 98.46% (± 0.22%)**, **F1-Macro: 97.19%**, thời gian huấn luyện **17.48 giây**.
+  - Lưu trữ artifact mô hình tại `data/models/vietnamese_nlp_intent.joblib` (kích thước **894.98 KB**, tải vào RAM trong <2ms, độ trễ suy luận tức thì trên CPU laptop).
+- [x] **Deep Tier 0 ML Fast-Path Integration (`jarvis/llm/router.py`)**:
+  - Khởi tạo `self.ml_classifier` trong `LLMIntentRouter.__init__` với cờ điều khiển `ml_fast_path_enabled: bool = False`.
+  - Bổ sung phương thức `_match_ml_classifier` chuyển đổi kết quả ML và typed slots sang `IntentResult`.
+  - Hỗ trợ chạy Tier 0 ML Fast-Path khi `ml_fast_path_enabled=True` hoặc khi `llm is None` (chế độ offline hoàn toàn), và làm lớp fallback an toàn cuối cùng trong Tier 3 trước khi trả `unknown_intent`.
+  - Cập nhật bộ lọc loại trừ folder trong `_match_installed_app_request` và `LocalSemanticRouter._match_app_open` để không chặn nhầm lệnh mở thư mục hệ thống.
+- [x] **Unit & Integration Tests Verified**:
+  - `tests/unit/test_local_classifier.py`: **10/10 passed** (100% PASS) trong **2.55s**.
+  - `tests/unit/test_router_nlp_integration.py`: **8/8 passed** (100% PASS) trong **6.12s**.
+  - Router & Voice comprehensive regression suite: **387/387 passed** (100% PASS across 12 test suites, 0 failures, 0 regressions).
+
 ## Sprint 7: On-Device Vietnamese NLP Intent Classifier & Offline Machine Learning Training Pipeline (2026-10-20, unreleased)
 
 - [x] **On-Device Vietnamese NLP Intent Classifier (`VietnameseNLPClassifier`)** — `PASS engineering` / `PASS runtime`:

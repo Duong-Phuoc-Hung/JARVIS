@@ -430,6 +430,20 @@ class LocalSemanticRouter:
                 response_text=f"Đã đặt âm lượng hệ thống thành {level}%, thưa Ngài.",
             )
 
+        # F. Ambiguous volume commands (e.g. "điều chỉnh âm lượng", "dieu chinh am luong", "vặn loa")
+        # Follows H-08 truthfulness contract: asks clarification without executing or changing hardware
+        if any(norm == k or norm.startswith(k + " ") for k in ("dieu chinh am luong", "chinh am luong", "van loa", "dieu chinh loa", "chinh loa")) and num is None and not is_down and not is_up:
+            return IntentResult(
+                action_name="system_volume",
+                parameters={"clarify": True},
+                confidence=1.0,
+                source="rule_fallback",
+                response_text=(
+                    "Ngài muốn tăng âm lượng, giảm âm lượng, tắt tiếng, bật tiếng, "
+                    "hay đặt một mức âm lượng cụ thể? Xin nói rõ hơn, thưa Ngài."
+                ),
+            )
+
         return None
 
     # --------------------------------------------------------------------------
@@ -805,7 +819,18 @@ class LocalSemanticRouter:
                 response_text="Đã chụp ảnh màn hình và lưu ra Desktop cho Ngài.",
             )
 
-        # Lock / Screen Off
+        # Lock / Abort Power
+        if any(k in norm for k in ("huy tat may", "huy lenh tat may", "dung tat may", "abort shutdown")):
+            return IntentResult(
+                action_name="system_power",
+                parameters={"action": "abort"},
+                confidence=1.0,
+                source="rule_fallback",
+                response_text="Đang hủy lệnh tắt máy cho Ngài.",
+                danger_level="LOW",
+                requires_confirmation=False,
+            )
+
         if any(k in norm for k in ("khoa man hinh", "khoa may", "lock screen")):
             return IntentResult(
                 action_name="system_power",
@@ -844,8 +869,18 @@ class LocalSemanticRouter:
             return None
 
         raw_target = m.group(1).strip()
-        # Exclude web / search / youtube / workspace / music commands
-        if any(raw_target.startswith(prefix) for prefix in ("youtube", "web", "website", "trang web", "du an", "project", "workspace", "nhac", "bai hat")):
+        # Exclude web / search / youtube / workspace / music / folder / hardware / mic / audio / IoT / dashboard commands
+        if any(raw_target.startswith(prefix) for prefix in (
+            "youtube", "web", "website", "trang web", "du an", "project", "workspace",
+            "nhac", "bai hat", "documents", "downloads", "desktop", "thu muc", "folder",
+            "mic", "micro", "loa", "am thanh", "am luong", "tieng", "den", "quat",
+            "dieu hoa", "wifi", "bluetooth", "man hinh", "may tinh", "camera", "webcam",
+            "dashboard",
+        )):
+            return None
+
+        tokens = set(raw_target.split())
+        if tokens & {"mic", "micro", "microphone", "loa", "speaker", "tat"}:
             return None
 
         app_map: dict[str, str] = {
@@ -891,9 +926,15 @@ class LocalSemanticRouter:
             else:
                 return None
 
+        params = {"app_name": canonical_app}
+        if canonical_app == "Settings":
+            params["app"] = "ms-settings:"
+        else:
+            params["installed_only"] = True
+
         return IntentResult(
             action_name="app_open",
-            parameters={"app_name": canonical_app, "installed_only": True},
+            parameters=params,
             confidence=1.0,
             source="rule_fallback",
             response_text=f"Đang mở ứng dụng {canonical_app} cho Ngài.",
@@ -905,6 +946,16 @@ class LocalSemanticRouter:
 
     def _match_notes(self, clean: str, norm: str) -> IntentResult | None:
         """Matches personal note taking and quick memos with typed slot extraction."""
+        # List notes check
+        if any(k in norm for k in ("xem ghi chu", "doc ghi chu", "danh sach ghi chu", "list note", "show note", "mo ghi chu")):
+            return IntentResult(
+                action_name="note_list",
+                parameters={},
+                confidence=1.0,
+                source="rule_fallback",
+                response_text="Đây là danh sách ghi chú của Ngài.",
+            )
+
         if not any(k in norm for k in ("ghi chu", "luu ghi chu", "tao ghi chu", "note lai", "take note", "add note")):
             return None
 
@@ -1126,13 +1177,7 @@ class HybridSemanticRouter:
                 res.confidence = max(res.confidence, score)
                 res.source = "hybrid_fast_path"
                 return res
-            return IntentResult(
-                action_name="system_volume",
-                parameters={"delta": 10},
-                confidence=score,
-                source="hybrid_fast_path",
-                response_text="Đang điều chỉnh âm lượng cho Ngài.",
-            )
+            return None
 
         if cat == "brightness":
             res = self.local_router._match_brightness(clean, norm)
@@ -1140,13 +1185,7 @@ class HybridSemanticRouter:
                 res.confidence = max(res.confidence, score)
                 res.source = "hybrid_fast_path"
                 return res
-            return IntentResult(
-                action_name="system_brightness",
-                parameters={"delta": 10},
-                confidence=score,
-                source="hybrid_fast_path",
-                response_text="Đang điều chỉnh độ sáng màn hình cho Ngài.",
-            )
+            return None
 
         if cat == "media":
             res = self.local_router._match_media(clean, norm)
@@ -1154,13 +1193,7 @@ class HybridSemanticRouter:
                 res.confidence = max(res.confidence, score)
                 res.source = "hybrid_fast_path"
                 return res
-            return IntentResult(
-                action_name="spotify",
-                parameters={"command": "play", "query": ""},
-                confidence=score,
-                source="hybrid_fast_path",
-                response_text="Đang mở Spotify và phát nhạc cho Ngài.",
-            )
+            return None
 
         if cat == "app_launch":
             res = self.local_router._match_app_launch(clean, norm)

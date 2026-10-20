@@ -480,7 +480,12 @@ def run_packaging(args: argparse.Namespace) -> int:
     # 4. Optional Pre-build Tests
     if not args.skip_tests:
         print("\n[*] Running pre-build unit test gate...")
-        test_res = subprocess.run([sys.executable, "-m", "pytest", "tests/unit/test_build_installer_version.py", "-q"], cwd=ROOT)
+        test_cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+        test_res = subprocess.run(
+            [sys.executable, "-m", "pytest", "tests/unit/test_build_installer_version.py", "-q"],
+            cwd=ROOT,
+            creationflags=test_cflags,
+        )
         if test_res.returncode != 0:
             print("[-] Pre-build test gate failed. Aborting build.")
             return 1

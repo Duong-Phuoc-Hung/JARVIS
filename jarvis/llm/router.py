@@ -21,6 +21,7 @@ from urllib.parse import urlencode
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import ActionResult, RequesterContext
 from jarvis.llm.client import LLMClient, LLMResponse
+from jarvis.llm.local_classifier import VietnameseNLPClassifier
 from jarvis.llm.models import IntentResult
 from jarvis.llm.rules_catalog import get_default_rules
 from jarvis.llm.semantic_router import LocalSemanticRouter
@@ -281,13 +282,20 @@ class LLMIntentRouter:
         dispatcher: ActionDispatcher | None = None,
         fast_path_enabled: bool = True,
         memory_manager: Any | None = None,
+        ml_fast_path_enabled: bool = False,
     ) -> None:
         self.llm = llm_client
         self.dispatcher = dispatcher
         self.fast_path_enabled = fast_path_enabled
+        self.ml_fast_path_enabled = ml_fast_path_enabled
         self.memory_manager = memory_manager
         self._memory_manager = memory_manager
         self.semantic_router: LocalSemanticRouter = LocalSemanticRouter()
+        try:
+            self.ml_classifier: VietnameseNLPClassifier = VietnameseNLPClassifier()
+        except Exception as _e:
+            logger.debug("Failed initializing VietnameseNLPClassifier: %s", _e)
+            self.ml_classifier = None
 
         # Compiled Deterministic Rule Engine for Substring Matching
         self.rule_engine: dict[str, IntentResult] = get_default_rules()
@@ -1354,7 +1362,7 @@ class LLMIntentRouter:
         # Workspace/project and web service commands share the same "mở/open" prefix but are
         # not application launches. Leave them for the workspace / web rule families.
         if qualifier is None and re.match(
-            r"^(?:dự\s+án|du\s+an|project|workspace|repo|code|xem\s+youtube|youtube|xem\s+video|trang\s+web|web|website)\b", target, re.IGNORECASE
+            r"^(?:dự\s+án|du\s+an|project|workspace|repo|code|xem\s+youtube|youtube|xem\s+video|trang\s+web|web|website|documents|downloads|desktop|thư\s*mục|thu\s*muc|folder)\b", target, re.IGNORECASE
         ):
             return None
         if qualifier:
@@ -2074,6 +2082,12 @@ class LLMIntentRouter:
                     )
                     return res
 
+            # Tier 0.5: Local Machine Learning Fast-Path (<1.5ms) - when enabled or when LLM is unavailable
+            if getattr(self, "ml_fast_path_enabled", False) and hasattr(self, "ml_classifier") and self.ml_classifier and self.ml_classifier.is_trained:
+                ml_res = self._match_ml_classifier(text, clean, clean_lower, clean_lower_stripped)
+                if ml_res is not None:
+                    return ml_res
+
         # 2. TIER 2: LLM Semantic Reasoning
         if self.llm is None:
             return IntentResult(
@@ -2216,6 +2230,12 @@ class LLMIntentRouter:
                         danger_level=intent.danger_level,
                     )
 
+            # Local ML classifier check before unknown (when ML fast path enabled)
+            if getattr(self, "ml_fast_path_enabled", False) and hasattr(self, "ml_classifier") and self.ml_classifier and self.ml_classifier.is_trained:
+                ml_res = self._match_ml_classifier(text, clean, clean_lower, clean_lower_stripped)
+                if ml_res is not None:
+                    return ml_res
+
             return IntentResult(
                 action_name="unknown_intent",
                 parameters={"raw_text": text, "error": str(exc)},
@@ -2224,6 +2244,192 @@ class LLMIntentRouter:
                 raw_text=text,
                 response_text="Tôi chưa hiểu lệnh này, vui lòng thử cách khác",
             )
+
+    def _match_ml_classifier(
+        self,
+        text: str,
+        clean: str,
+        clean_lower: str,
+        clean_lower_stripped: str | None = None,
+    ) -> IntentResult | None:
+        """
+        Tier 0 ML Fast-Path: uses on-device VietnameseNLPClassifier to classify intent
+        and extract typed slots with sub-millisecond local latency.
+        """
+        if not hasattr(self, "ml_classifier") or self.ml_classifier is None:
+            return None
+        if not self.ml_classifier.is_trained:
+            return None
+
+        ml_res = self.ml_classifier.predict(clean)
+        if ml_res.intent == "unknown" or ml_res.confidence < 0.45:
+            return None
+
+        intent = ml_res.intent
+        slots = ml_res.slots
+
+        if intent == "system_volume":
+            if "target_level" in slots:
+                lvl = slots["target_level"]
+                return IntentResult(
+                    action_name="system_volume",
+                    parameters={"level": lvl},
+                    confidence=ml_res.confidence,
+                    source="ml_local_fast_path",
+                    raw_text=text,
+                    response_text=f"Đã đặt âm lượng hệ thống thành {lvl}%, thưa Ngài.",
+                )
+            if slots.get("action") == "mute":
+                return IntentResult(
+                    action_name="system_volume",
+                    parameters={"mute": True},
+                    confidence=ml_res.confidence,
+                    source="ml_local_fast_path",
+                    raw_text=text,
+                    response_text="Đã tắt tiếng hệ thống, thưa Ngài.",
+                )
+            if slots.get("action") == "unmute":
+                return IntentResult(
+                    action_name="system_volume",
+                    parameters={"mute": False},
+                    confidence=ml_res.confidence,
+                    source="ml_local_fast_path",
+                    raw_text=text,
+                    response_text="Đã bật lại âm thanh hệ thống cho Ngài.",
+                )
+            delta = slots.get("delta", 10)
+            action_desc = "tăng" if delta > 0 else "giảm"
+            return IntentResult(
+                action_name="system_volume",
+                parameters={"delta": delta},
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text=f"Đã {action_desc} âm lượng hệ thống, thưa Ngài.",
+            )
+
+        elif intent == "system_brightness":
+            if "target_level" in slots:
+                lvl = slots["target_level"]
+                return IntentResult(
+                    action_name="system_brightness",
+                    parameters={"level": lvl},
+                    confidence=ml_res.confidence,
+                    source="ml_local_fast_path",
+                    raw_text=text,
+                    response_text=f"Đã chỉnh độ sáng màn hình thành {lvl}%, thưa Ngài.",
+                )
+            delta = slots.get("delta", 10)
+            action_desc = "tăng" if delta > 0 else "giảm"
+            return IntentResult(
+                action_name="system_brightness",
+                parameters={"delta": delta},
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text=f"Đã {action_desc} độ sáng màn hình, thưa Ngài.",
+            )
+
+        elif intent == "app_launch":
+            app = slots.get("app_name", "app")
+            if self._is_negated_h07_launch_target("app_open", {"app_name": app}, clean_lower, clean_lower_stripped):
+                return None
+            res = self._make_app_intent(app)
+            if self._is_negated_h07_launch_target(res.action_name, res.parameters, clean_lower, clean_lower_stripped):
+                return None
+            res.confidence = ml_res.confidence
+            res.source = "ml_local_fast_path"
+            res.raw_text = text
+            return res
+
+        elif intent == "app_close":
+            app = slots.get("app_name")
+            target = slots.get("target", "current")
+            params = {"app_name": app} if app else {"target": target}
+            return IntentResult(
+                action_name="app_close",
+                parameters=params,
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text=f"Đang đóng ứng dụng {app or target} cho Ngài.",
+            )
+
+        elif intent == "media_control":
+            cmd = slots.get("action", "play")
+            return IntentResult(
+                action_name="media_control",
+                parameters={"command": cmd},
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text=f"Đang thực hiện lệnh {cmd} trình phát nhạc cho Ngài.",
+            )
+
+        elif intent == "smart_home":
+            dev = slots.get("device", "light")
+            state = slots.get("state", "on")
+            loc = slots.get("location", "living_room")
+            service = "turn_on" if state == "on" else "turn_off"
+            params = {
+                "domain": dev,
+                "service": service,
+                "entity_id": f"{dev}.{loc}",
+            }
+            if "temperature" in slots:
+                params["temperature"] = slots["temperature"]
+            return IntentResult(
+                action_name="home_assistant_call",
+                parameters=params,
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text=f"Đang {'bật' if state == 'on' else 'tắt'} {dev} tại {loc} cho Ngài.",
+            )
+
+        elif intent == "system_status":
+            comp = slots.get("component", "all")
+            return IntentResult(
+                action_name="hardware_status_query",
+                parameters={"component": comp},
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text="Đang kiểm tra tình trạng hệ thống phần cứng cho Ngài.",
+            )
+
+        elif intent == "timer_reminder":
+            return IntentResult(
+                action_name="reminder",
+                parameters=slots,
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text="Đã ghi nhận lịch hẹn và lời nhắc cho Ngài.",
+            )
+
+        elif intent == "web_search":
+            query = slots.get("query", clean)
+            return IntentResult(
+                action_name="web_search",
+                parameters={"query": query},
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text=f"Đang tìm kiếm thông tin về '{query}' cho Ngài.",
+            )
+
+        elif intent == "greeting_chat":
+            return IntentResult(
+                action_name="generic_llm_response",
+                parameters={"reply": "Xin chào Ngài! Tôi là JARVIS, trợ lý AI luôn sẵn sàng hỗ trợ Ngài."},
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text="Xin chào Ngài! Tôi là JARVIS, trợ lý AI luôn sẵn sàng hỗ trợ Ngài.",
+            )
+
+        return None
 
     def execute_intent(
         self,

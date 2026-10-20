@@ -5,6 +5,7 @@ On-Device Machine Learning Intent Classifier for Vietnamese Natural Language.
 Provides:
   - Dual Word & Sub-word Character N-Gram TF-IDF Vectorization (handles typos and morphology).
   - Calibrated Linear/Logistic Classification with honest probabilistic confidence.
+  - Built-in Typed Slot-Filling Engine for 10 core Vietnamese intent domains.
   - Windows Atomic Persistence for serialized model weights (.joblib).
   - Fast, offline, zero-network intent resolution (<1.5ms per query).
   - Cross-validation evaluation and model inspection.
@@ -16,16 +17,23 @@ import os
 import re
 import threading
 import time
-from dataclasses import dataclass
+import unicodedata
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+# Safeguard against multi-threaded BLAS/OpenMP contention and memory fragmentation on Windows CPU
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 
 import joblib
 import numpy as np
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, f1_score
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.pipeline import FeatureUnion, Pipeline
 
@@ -33,6 +41,55 @@ logger = logging.getLogger("jarvis.llm.local_classifier")
 
 DEFAULT_MODEL_DIR = Path("data/models")
 DEFAULT_MODEL_PATH = DEFAULT_MODEL_DIR / "vietnamese_nlp_intent.joblib"
+
+_TABLE_SRC = (
+    "àáảãạăằắẳẵặâầấẩẫậ"
+    "èéẻẽẹêềếểễệ"
+    "ìíỉĩị"
+    "òóỏõọôồốổỗộơờớởỡợ"
+    "ùúủũụưừứửữự"
+    "ỳýỷỹỵ"
+    "đ"
+    "ÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬ"
+    "ÈÉẺẼẸÊỀẾỂỄỆ"
+    "ÌÍỈĨỊ"
+    "ÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢ"
+    "ÙÚỦŨỤƯỪỨỬỮỰ"
+    "ỲÝỶỸỴ"
+    "Đ"
+)
+_TABLE_DST = (
+    "a" * 17
+    + "e" * 11
+    + "i" * 5
+    + "o" * 17
+    + "u" * 11
+    + "y" * 5
+    + "d"
+    + "A" * 17
+    + "E" * 11
+    + "I" * 5
+    + "O" * 17
+    + "U" * 11
+    + "Y" * 5
+    + "D"
+)
+_VI_TRANS_TABLE = str.maketrans(_TABLE_SRC, _TABLE_DST)
+_COMBINING_DIACRITICS_RE = re.compile(r"[\u0300-\u036f]")
+
+
+def strip_vietnamese_diacritics(text: str) -> str:
+    """Strips all Vietnamese tone marks and normalizes đ/Đ to d/D."""
+    if not text:
+        return ""
+    if text.isascii():
+        return text
+    res = text.translate(_VI_TRANS_TABLE)
+    if not res.isascii():
+        nfd = unicodedata.normalize("NFD", res)
+        d_mapped = nfd.replace("đ", "d").replace("Đ", "D")
+        res = _COMBINING_DIACRITICS_RE.sub("", d_mapped)
+    return res
 
 
 def normalize_vietnamese_text(text: str) -> str:
@@ -52,12 +109,234 @@ class ClassificationResult:
     confidence: float
     all_scores: dict[str, float]
     latency_ms: float
+    slots: dict[str, Any] = field(default_factory=dict)
+
+
+def extract_slots_for_intent(intent: str, text: str) -> dict[str, Any]:
+    """
+    Extracts typed parameters/slots from a natural language Vietnamese command
+    based on the classified intent domain. Supports both accented and unaccented input.
+    """
+    clean_lower = text.lower().strip()
+    clean_stripped = strip_vietnamese_diacritics(clean_lower)
+    combined = f"{clean_lower} {clean_stripped}"
+    slots: dict[str, Any] = {}
+
+    if intent == "system_volume":
+        pct_match = re.search(r"(\d{1,3})\s*%", clean_lower)
+        if pct_match:
+            slots["target_level"] = max(0, min(100, int(pct_match.group(1))))
+            slots["action"] = "set"
+        else:
+            lvl_match = re.search(r"(?:lên|xuống|ở|mức|len|xuong|o|muc)\s*(\d{1,3})\b", combined)
+            if lvl_match:
+                slots["target_level"] = max(0, min(100, int(lvl_match.group(1))))
+                slots["action"] = "set"
+
+        if any(w in combined for w in ["tắt tiếng", "tat tieng", "tắt âm", "tat am", "mute", "tắt loa", "tat loa"]):
+            slots["action"] = "mute"
+        elif any(w in combined for w in ["bật lại tiếng", "bat lai tieng", "bật tiếng", "bat tieng", "unmute"]):
+            slots["action"] = "unmute"
+        elif any(w in combined for w in ["max", "hết cỡ", "het co", "tối đa", "toi da"]):
+            slots["target_level"] = 100
+            slots["action"] = "set"
+        elif any(w in combined for w in ["bao nhiêu", "bao nhieu", "mức nào", "muc nao"]):
+            slots["action"] = "query"
+        elif "action" not in slots:
+            if any(w in combined for w in ["tăng", "tang", "to hơn", "to hon", "to lên", "to len", "bật to", "bat to"]):
+                slots["action"] = "increase"
+                slots["delta"] = 10
+            elif any(w in combined for w in ["giảm", "giam", "nhỏ lại", "nho lai", "nhỏ đi", "nho di", "hạ", "ha", "nhỏ tiếng", "nho tieng"]):
+                slots["action"] = "decrease"
+                slots["delta"] = -10
+
+    elif intent == "system_brightness":
+        pct_match = re.search(r"(\d{1,3})\s*%", clean_lower)
+        if pct_match:
+            slots["target_level"] = max(0, min(100, int(pct_match.group(1))))
+            slots["action"] = "set"
+        else:
+            lvl_match = re.search(r"(?:lên|xuống|ở|mức|len|xuong|o|muc)\s*(\d{1,3})\b", combined)
+            if lvl_match:
+                slots["target_level"] = max(0, min(100, int(lvl_match.group(1))))
+                slots["action"] = "set"
+
+        if any(w in combined for w in ["max", "hết cỡ", "het co", "tối đa", "toi da", "sáng nhất", "sang nhat"]):
+            slots["target_level"] = 100
+            slots["action"] = "set"
+        elif any(w in combined for w in ["tối nhất", "toi nhat", "thấp nhất", "thap nhat"]):
+            slots["target_level"] = 10
+            slots["action"] = "set"
+        elif any(w in combined for w in ["bao nhiêu", "bao nhieu"]):
+            slots["action"] = "query"
+        elif "action" not in slots:
+            if any(w in combined for w in ["tăng", "tang", "sáng lên", "sang len", "sáng hơn", "sang hon", "chói", "choi"]):
+                slots["action"] = "increase"
+                slots["delta"] = 10
+            elif any(w in combined for w in ["giảm", "giam", "tối đi", "toi di", "tối bớt", "toi bot", "hạ", "ha"]):
+                slots["action"] = "decrease"
+                slots["delta"] = -10
+
+    elif intent == "app_launch":
+        app_catalog = [
+            ("chrome", ["google chrome", "chrome", "trình duyệt", "trinh duyet"]),
+            ("vscode", ["visual studio code", "vs code", "vscode", "trình soạn thảo", "trinh soan thao"]),
+            ("spotify", ["spotify", "nhạc", "nhac"]),
+            ("notepad", ["notepad", "ghi chép", "ghi chep", "sổ tay", "so tay"]),
+            ("calc", ["calculator", "calc", "máy tính cầm tay", "may tinh cam tay", "máy tính tính toán", "may tinh"]),
+            ("excel", ["microsoft excel", "excel", "bảng tính", "bang tinh"]),
+            ("word", ["microsoft word", "word", "văn bản", "van ban"]),
+            ("telegram", ["telegram"]),
+            ("zalo", ["zalo"]),
+            ("settings", ["cài đặt", "cai dat", "settings", "windows settings"]),
+            ("taskmgr", ["task manager", "quản lý tác vụ", "quan ly tac vu", "taskmgr"]),
+            ("explorer", ["file explorer", "quản lý file", "quan ly file", "tập tin", "tap tin", "ổ đĩa", "o dia"]),
+            ("terminal", ["terminal", "powershell", "cmd", "dòng lệnh", "dong lenh"]),
+        ]
+        for canonical, aliases in app_catalog:
+            if any(alias in combined for alias in aliases):
+                slots["app_name"] = canonical
+                break
+        if "app_name" not in slots:
+            m = re.search(r"(?:mở|bật|chạy|khởi động|vào|mo|bat|chay|khoi dong|vao)\s+(?:ứng dụng\s+|phần mềm\s+|ung dung\s+|phan mem\s+)?([a-zA-Z0-9_\-\s]+)", combined)
+            if m:
+                slots["app_name"] = m.group(1).strip()
+
+    elif intent == "app_close":
+        if "chrome" in combined or "trình duyệt" in combined or "trinh duyet" in combined:
+            slots["app_name"] = "chrome"
+        elif "vscode" in combined or "visual studio code" in combined:
+            slots["app_name"] = "vscode"
+        elif "spotify" in combined:
+            slots["app_name"] = "spotify"
+        elif "notepad" in combined:
+            slots["app_name"] = "notepad"
+        elif "tab" in combined:
+            slots["target"] = "tab"
+        elif any(w in combined for w in ["cửa sổ", "cua so", "window"]):
+            slots["target"] = "window"
+        elif any(w in combined for w in ["tất cả", "tat ca", "desktop", "ẩn hết", "an het", "thu nhỏ", "thu nho"]):
+            slots["target"] = "all"
+        else:
+            slots["target"] = "current"
+
+    elif intent == "media_control":
+        if any(w in combined for w in ["tiếp tục", "tiep tuc", "resume", "phát tiếp", "phat tiep"]):
+            slots["action"] = "resume"
+        elif any(w in combined for w in ["tạm dừng", "tam dung", "pause"]):
+            slots["action"] = "pause"
+        elif any(w in combined for w in ["tắt nhạc", "tat nhac", "dừng nhạc", "dung nhac", "dừng bài", "dung bai", "ngừng phát", "ngung phat"]):
+            slots["action"] = "stop"
+        elif any(w in combined for w in ["tiếp theo", "tiep theo", "kế tiếp", "ke tiep", "next"]):
+            slots["action"] = "next"
+        elif any(w in combined for w in ["trước đó", "truoc do", "quay lại", "quay lai", "previous", "lùi bài", "lui bai"]):
+            slots["action"] = "previous"
+        elif any(w in combined for w in ["bài gì", "bai gi", "tên là gì", "ten la gi", "bài nào", "bai nao"]):
+            slots["action"] = "query"
+        else:
+            slots["action"] = "play"
+
+    elif intent == "smart_home":
+        # Device
+        if any(w in combined for w in ["đèn", "den", "ánh sáng", "anh sang"]):
+            slots["device"] = "light"
+        elif any(w in combined for w in ["quạt", "quat"]):
+            slots["device"] = "fan"
+        elif any(w in combined for w in ["điều hòa", "dieu hoa", "máy lạnh", "may lanh", "ac"]):
+            slots["device"] = "climate"
+        elif any(w in combined for w in ["rèm", "rem"]):
+            slots["device"] = "cover"
+        elif any(w in combined for w in ["công tắc", "cong tac", "ổ cắm", "o cam"]):
+            slots["device"] = "switch"
+
+        # Location
+        if any(w in combined for w in ["phòng khách", "phong khach"]):
+            slots["location"] = "living_room"
+        elif any(w in combined for w in ["phòng ngủ", "phong ngu"]):
+            slots["location"] = "bedroom"
+        elif any(w in combined for w in ["bàn làm việc", "ban lam viec", "phòng làm việc", "phong lam viec"]):
+            slots["location"] = "office"
+        elif any(w in combined for w in ["bếp", "bep", "phòng bếp", "phong bep"]):
+            slots["location"] = "kitchen"
+
+        # State
+        if any(w in combined for w in ["bật", "bat", "mở", "mo"]):
+            slots["state"] = "on"
+        elif any(w in combined for w in ["tắt", "tat", "đóng", "dong"]):
+            slots["state"] = "off"
+
+        # Climate temperature
+        temp_match = re.search(r"(\d{1,2})\s*(?:độ|do)\b", combined)
+        if temp_match:
+            slots["temperature"] = int(temp_match.group(1))
+
+    elif intent == "timer_reminder":
+        dur_match = re.search(r"(\d+(?:\.\d+)?)\s*(phút|tiếng|giờ|giây|phut|tieng|gio|giay)", combined)
+        if dur_match:
+            val = float(dur_match.group(1))
+            unit = dur_match.group(2)
+            if "giờ" in unit or "tiếng" in unit or "gio" in unit or "tieng" in unit:
+                slots["duration_seconds"] = val * 3600.0
+            elif "phút" in unit or "phut" in unit:
+                slots["duration_seconds"] = val * 60.0
+            else:
+                slots["duration_seconds"] = val
+            slots["type"] = "timer"
+
+        clock_match = re.search(r"(\d{1,2})\s*(?:giờ|h|gio)(?:\s*(\d{1,2}))?", combined)
+        if clock_match:
+            slots["target_time"] = f"{clock_match.group(1)}h{clock_match.group(2) or '00'}"
+            slots["type"] = "alarm"
+
+        msg_match = re.search(r"(?:nhắc tôi|lời nhắc|nhắc|nhac toi|loi nhac|nhac)\s+(?:là\s+|la\s+)?(.+)", clean_lower)
+        if msg_match:
+            slots["message"] = msg_match.group(1).strip()
+            slots["type"] = "reminder"
+
+    elif intent == "web_search":
+        m = re.search(
+            r"(?:tìm kiếm|tra cứu|tra google|tìm trên mạng|tìm|tim kiem|tra cuu|tim tren mang|tim)\s+(?:thông tin\s+(?:về\s+)?|thong tin\s+(?:ve\s+)?)?(.+)",
+            clean_lower,
+        )
+        if m:
+            slots["query"] = m.group(1).strip()
+        else:
+            slots["query"] = clean_lower
+
+    elif intent == "system_status":
+        if any(w in combined for w in ["cpu", "nhiệt độ", "nhiet do"]):
+            slots["component"] = "cpu"
+        elif any(w in combined for w in ["ram", "bộ nhớ", "bo nho"]):
+            slots["component"] = "ram"
+        elif any(w in combined for w in ["pin", "sạc", "sac", "battery"]):
+            slots["component"] = "battery"
+        elif any(w in combined for w in ["ổ đĩa", "o dia", "dung lượng", "dung luong", "ổ c", "o c"]):
+            slots["component"] = "disk"
+        else:
+            slots["component"] = "all"
+
+    elif intent == "greeting_chat":
+        if any(w in combined for w in ["chào", "chao", "hello", "hi"]):
+            slots["type"] = "greeting"
+        elif any(w in combined for w in ["cảm ơn", "cam on", "thank you", "thanks"]):
+            slots["type"] = "thanks"
+        elif any(w in combined for w in ["tạm biệt", "tam biet", "bye", "hẹn gặp lại", "hen gap lai"]):
+            slots["type"] = "farewell"
+        elif any(w in combined for w in ["khỏe không", "khoe khong", "thế nào", "the nao", "ổn không", "on khong"]):
+            slots["type"] = "checkin"
+        else:
+            slots["type"] = "chat"
+
+    return slots
+
+    return slots
 
 
 class VietnameseNLPClassifier:
     """
     On-device Machine Learning Natural Language Intent Classifier.
     Trained locally on Vietnamese speech and text command corpora.
+    Includes built-in typed slot-filling and sub-millisecond inference.
     """
 
     def __init__(
@@ -119,7 +398,7 @@ class VietnameseNLPClassifier:
             raise ValueError("Training requires at least 2 distinct intent classes.")
 
         # Dual Feature Extractor: Word N-Grams (1-2) + Character N-Grams (2-5)
-        # Word n-grams capture phrases; char n-grams handle typos, accents, and compounding.
+        # Word n-grams capture semantic phrases; char_wb n-grams capture typos, accents, and compounding.
         features = FeatureUnion([
             ("word_ngram", TfidfVectorizer(
                 ngram_range=(1, 2),
@@ -189,7 +468,7 @@ class VietnameseNLPClassifier:
                 logger.error("Cannot save: model is not trained.")
                 return False
             payload = {
-                "version": 1,
+                "version": 2,
                 "trained_at": time.time(),
                 "pipeline": self.pipeline,
                 "classes": self.classes_,
@@ -202,7 +481,7 @@ class VietnameseNLPClassifier:
 
         try:
             joblib.dump(payload, tmp_path, compress=3)
-            # Retry loop for Windows OS lock handling
+            # Retry loop for Windows OS file lock handling
             for attempt in range(5):
                 try:
                     tmp_path.replace(out_path)
@@ -223,13 +502,13 @@ class VietnameseNLPClassifier:
 
     def predict(self, raw_text: str) -> ClassificationResult:
         """
-        Classifies an input text utterance into an intent category.
+        Classifies an input text utterance into an intent category and extracts typed slots.
 
         Args:
             raw_text: User input query in Vietnamese.
 
         Returns:
-            ClassificationResult with predicted intent and confidence.
+            ClassificationResult with predicted intent, confidence, and typed slots.
         """
         t0 = time.monotonic()
         clean = normalize_vietnamese_text(raw_text)
@@ -242,21 +521,44 @@ class VietnameseNLPClassifier:
                     confidence=0.0,
                     all_scores={},
                     latency_ms=dur_ms,
+                    slots={},
                 )
+
+            # Check word vocabulary coverage: valid commands must have at least 1 recognized word/ngram
+            feat_union = getattr(self.pipeline, "named_steps", {}).get("features")
+            if feat_union is not None and hasattr(feat_union, "transformer_list"):
+                word_vec = feat_union.transformer_list[0][1]
+                if word_vec.transform([clean]).nnz == 0:
+                    dur_ms = (time.monotonic() - t0) * 1000.0
+                    return ClassificationResult(
+                        intent="unknown",
+                        confidence=0.0,
+                        all_scores={},
+                        latency_ms=dur_ms,
+                        slots={},
+                    )
 
             probs = self.pipeline.predict_proba([clean])[0]
             classes = self.classes_
 
         top_idx = int(np.argmax(probs))
         top_confidence = float(probs[top_idx])
-        top_intent = classes[top_idx] if top_confidence >= self.min_confidence else "unknown"
+        raw_intent = classes[top_idx]
+        top_intent = raw_intent if (top_confidence >= self.min_confidence and raw_intent != "unknown") else "unknown"
 
         scores_dict = {cls_name: float(p) for cls_name, p in zip(classes, probs)}
         dur_ms = (time.monotonic() - t0) * 1000.0
+
+        slots = extract_slots_for_intent(top_intent, raw_text) if top_intent != "unknown" else {}
 
         return ClassificationResult(
             intent=top_intent,
             confidence=top_confidence,
             all_scores=scores_dict,
             latency_ms=dur_ms,
+            slots=slots,
         )
+
+    def predict_batch(self, texts: list[str]) -> list[ClassificationResult]:
+        """Fast batch classification for multiple utterances."""
+        return [self.predict(t) for t in texts]

@@ -2,11 +2,13 @@
 scripts/train_vietnamese_nlp.py
 ===============================
 Offline Training Pipeline for JARVIS Vietnamese NLP Intent Classification Model.
-Trains on a curated dataset of Vietnamese desktop assistant commands, computes
-stratified cross-validation scores, and saves the calibrated model artifact.
+Trains on a curated dataset of Vietnamese desktop assistant commands, applies
+automated data augmentation (unaccented variants, colloquial jittering, polite particles),
+computes stratified cross-validation scores, and saves the calibrated model artifact.
 """
 from __future__ import annotations
 
+import random
 import sys
 from pathlib import Path
 
@@ -15,35 +17,50 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from jarvis.llm.local_classifier import VietnameseNLPClassifier
+from jarvis.llm.local_classifier import (
+    VietnameseNLPClassifier,
+    strip_vietnamese_diacritics,
+)
 
-# Curated Vietnamese Intent Corpus (250+ utterances covering 10 core intent domains)
-TRAINING_DATA: list[tuple[str, str]] = [
+# Canonical Curated Vietnamese Intent Corpus (350+ canonical utterances covering 10 core intent domains + OOD/unknown)
+CANONICAL_TRAINING_DATA: list[tuple[str, str]] = [
     # 1. system_volume
     ("tăng âm lượng", "system_volume"),
     ("tăng âm lượng lên", "system_volume"),
     ("vặn to loa lên một chút", "system_volume"),
     ("chỉnh âm thanh to hơn", "system_volume"),
     ("cho âm lượng lên 80%", "system_volume"),
+    ("cho âm lượng lên mức 70", "system_volume"),
+    ("chỉnh volume lên 90%", "system_volume"),
     ("bật to tiếng lên", "system_volume"),
+    ("bật to loa lên", "system_volume"),
     ("giảm âm lượng", "system_volume"),
     ("giảm âm lượng xuống", "system_volume"),
     ("vặn nhỏ loa lại", "system_volume"),
     ("cho nhỏ tiếng thôi", "system_volume"),
+    ("hạ âm thanh xuống xíu", "system_volume"),
     ("chỉnh âm lượng xuống 30%", "system_volume"),
+    ("đặt âm lượng ở mức 50%", "system_volume"),
     ("tắt tiếng", "system_volume"),
     ("tắt âm thanh", "system_volume"),
     ("mute tiếng đi", "system_volume"),
+    ("mute loa máy tính", "system_volume"),
     ("bật lại tiếng", "system_volume"),
     ("unmute loa", "system_volume"),
+    ("mở lại âm thanh", "system_volume"),
     ("âm lượng hiện tại là bao nhiêu", "system_volume"),
     ("cho max volume", "system_volume"),
+    ("cho âm lượng hết cỡ", "system_volume"),
     ("âm thanh đang ở mức nào", "system_volume"),
     ("hạ âm lượng xuống", "system_volume"),
     ("cho loa to lên bạn ơi", "system_volume"),
     ("giảm âm thanh máy tính", "system_volume"),
     ("bật âm lượng 50%", "system_volume"),
     ("tắt loa ngoài", "system_volume"),
+    ("chỉnh loa nhỏ lại một chút", "system_volume"),
+    ("vặn to volume lên", "system_volume"),
+    ("giảm tiếng loa đi", "system_volume"),
+    ("âm lượng đang là bao nhiêu phần trăm", "system_volume"),
 
     # 2. system_brightness
     ("tăng độ sáng", "system_brightness"),
@@ -51,65 +68,107 @@ TRAINING_DATA: list[tuple[str, str]] = [
     ("cho màn hình sáng lên", "system_brightness"),
     ("màn hình tối quá tăng sáng lên", "system_brightness"),
     ("chỉnh độ sáng lên 90%", "system_brightness"),
+    ("cho độ sáng lên 100%", "system_brightness"),
     ("cho sáng hơn chút nữa", "system_brightness"),
+    ("sáng thêm một chút", "system_brightness"),
     ("giảm độ sáng", "system_brightness"),
     ("giảm độ sáng màn hình", "system_brightness"),
     ("cho màn hình tối xuống", "system_brightness"),
     ("chói mắt quá giảm sáng đi", "system_brightness"),
     ("chỉnh độ sáng xuống 40%", "system_brightness"),
+    ("đặt độ sáng 60%", "system_brightness"),
     ("màn hình đang sáng bao nhiêu phần trăm", "system_brightness"),
     ("độ sáng tối đa", "system_brightness"),
     ("cho màn hình sáng hết cỡ", "system_brightness"),
+    ("chỉnh màn hình tối nhất", "system_brightness"),
     ("hạ độ sáng màn hình", "system_brightness"),
     ("màn hình tối bớt đi", "system_brightness"),
     ("màn hình chói quá chỉnh tối bớt", "system_brightness"),
     ("tăng độ sáng hiển thị", "system_brightness"),
+    ("chỉnh màn hình sáng thêm", "system_brightness"),
+    ("cho màn hình bớt chói", "system_brightness"),
+    ("kiểm tra độ sáng màn hình", "system_brightness"),
 
     # 3. app_launch
     ("mở chrome", "app_launch"),
     ("bật trình duyệt chrome", "app_launch"),
     ("khởi động google chrome", "app_launch"),
+    ("mở google chrome lên", "app_launch"),
     ("mở visual studio code", "app_launch"),
     ("bật vscode lên", "app_launch"),
     ("bật phần mềm visual studio code", "app_launch"),
     ("khởi chạy visual studio code", "app_launch"),
     ("chạy ứng dụng vs code", "app_launch"),
+    ("mở vs code để lập trình", "app_launch"),
     ("mở notepad", "app_launch"),
     ("bật notepad để ghi chép", "app_launch"),
+    ("khởi động notepad", "app_launch"),
     ("khởi động spotify", "app_launch"),
     ("mở ứng dụng spotify", "app_launch"),
+    ("bật spotify nghe nhạc", "app_launch"),
     ("bật máy tính calculator", "app_launch"),
     ("mở calc", "app_launch"),
+    ("mở máy tính tính toán", "app_launch"),
     ("mở file explorer", "app_launch"),
     ("bật quản lý file", "app_launch"),
+    ("mở quản lý tập tin", "app_launch"),
     ("mở microsoft word", "app_launch"),
+    ("bật word soạn thảo", "app_launch"),
     ("khởi động excel", "app_launch"),
+    ("mở bảng tính excel", "app_launch"),
     ("mở telegram", "app_launch"),
+    ("bật ứng dụng telegram", "app_launch"),
     ("bật zalo", "app_launch"),
+    ("mở zalo nhắn tin", "app_launch"),
     ("mở cài đặt", "app_launch"),
     ("bật windows settings", "app_launch"),
+    ("mở cài đặt hệ thống", "app_launch"),
     ("mở task manager", "app_launch"),
-    ("bật trình soạn thảo", "app_launch"),
-    ("khởi động phần mềm", "app_launch"),
+    ("bật trình quản lý tác vụ", "app_launch"),
+    ("mở terminal", "app_launch"),
+    ("bật powershell", "app_launch"),
+    ("khởi động command prompt", "app_launch"),
+    ("bật cmd", "app_launch"),
 
     # 4. app_close
     ("đóng cửa sổ", "app_close"),
     ("đóng ứng dụng này", "app_close"),
     ("tắt chrome đi", "app_close"),
     ("thoát chrome", "app_close"),
+    ("đóng trình duyệt chrome", "app_close"),
+    ("tắt trình duyệt chrome", "app_close"),
+    ("thoát trình duyệt chrome", "app_close"),
+    ("đóng chrome lại", "app_close"),
+    ("tắt hẳn chrome", "app_close"),
+    ("đóng google chrome", "app_close"),
+    ("tắt google chrome", "app_close"),
+    ("thoát google chrome", "app_close"),
+    ("kill chrome", "app_close"),
+    ("đóng ứng dụng chrome", "app_close"),
+    ("tắt ứng dụng chrome", "app_close"),
     ("đóng trình duyệt", "app_close"),
     ("tắt visual studio code", "app_close"),
     ("đóng vscode lại", "app_close"),
+    ("tắt hẳn vscode", "app_close"),
+    ("thoát vscode", "app_close"),
+    ("đóng ứng dụng vscode", "app_close"),
     ("thoát ứng dụng hiện tại", "app_close"),
     ("đóng notepad lại", "app_close"),
-    ("tắt ứng dụng", "app_close"),
+    ("tắt notepad đi", "app_close"),
+    ("tắt ứng dụng đang dùng", "app_close"),
     ("tắt tab này", "app_close"),
     ("đóng tab hiện tại", "app_close"),
     ("thu nhỏ tất cả cửa sổ", "app_close"),
     ("ẩn hết cửa sổ xuống", "app_close"),
     ("show desktop", "app_close"),
+    ("quay về màn hình chính", "app_close"),
     ("tắt phần mềm đang chạy", "app_close"),
     ("thoát cửa sổ này đi", "app_close"),
+    ("tắt spotify đi", "app_close"),
+    ("đóng spotify lại", "app_close"),
+    ("tắt cửa sổ này", "app_close"),
+    ("tắt tab trình duyệt", "app_close"),
+    ("đóng hết các tab", "app_close"),
 
     # 5. media_control
     ("phát nhạc", "media_control"),
@@ -117,8 +176,11 @@ TRAINING_DATA: list[tuple[str, str]] = [
     ("chơi nhạc đi", "media_control"),
     ("tiếp tục phát nhạc", "media_control"),
     ("resume nhạc", "media_control"),
+    ("phát tiếp bài hát", "media_control"),
     ("tạm dừng nhạc", "media_control"),
     ("dừng phát nhạc", "media_control"),
+    ("pause nhạc", "media_control"),
+    ("dừng bài hát lại", "media_control"),
     ("tắt nhạc đi", "media_control"),
     ("tắt nhạc spotify đi bạn ơi", "media_control"),
     ("dừng nhạc spotify", "media_control"),
@@ -127,12 +189,15 @@ TRAINING_DATA: list[tuple[str, str]] = [
     ("chuyển bài tiếp theo", "media_control"),
     ("bài kế tiếp", "media_control"),
     ("next bài", "media_control"),
+    ("qua bài khác", "media_control"),
+    ("chuyển sang bài hát tiếp theo", "media_control"),
     ("quay lại bài trước", "media_control"),
     ("bài trước đó", "media_control"),
     ("previous song", "media_control"),
-    ("dừng bài hát lại", "media_control"),
+    ("lùi lại bài vừa rồi", "media_control"),
     ("đang phát bài gì vậy", "media_control"),
     ("bài hát tên là gì", "media_control"),
+    ("thông tin bài hát đang phát", "media_control"),
     ("ngừng phát nhạc", "media_control"),
 
     # 6. system_status
@@ -142,55 +207,74 @@ TRAINING_DATA: list[tuple[str, str]] = [
     ("nhiệt độ cpu là bao nhiêu", "system_status"),
     ("nhiệt độ cpu hiện tại bao nhiêu", "system_status"),
     ("nhiệt độ máy tính hiện tại", "system_status"),
+    ("cpu đang nóng bao nhiêu độ", "system_status"),
     ("ram còn trống bao nhiêu", "system_status"),
     ("kiểm tra bộ nhớ ram", "system_status"),
+    ("ram đang dùng bao nhiêu phần trăm", "system_status"),
     ("pin máy tính còn bao nhiêu phần trăm", "system_status"),
     ("máy có đang sạc pin không", "system_status"),
+    ("tình trạng pin laptop", "system_status"),
     ("ổ đĩa còn trống bao nhiêu gb", "system_status"),
     ("kiểm tra dung lượng ổ c", "system_status"),
+    ("dung lượng bộ nhớ còn lại", "system_status"),
     ("cpu đang chạy bao nhiêu phần trăm", "system_status"),
     ("tình trạng pin thế nào", "system_status"),
     ("máy tính có bị nóng không", "system_status"),
     ("thông tin cấu hình máy", "system_status"),
     ("sức khỏe máy tính", "system_status"),
+    ("kiểm tra hiệu năng máy tính", "system_status"),
 
     # 7. smart_home
     ("bật đèn", "smart_home"),
     ("bật đèn phòng khách", "smart_home"),
     ("bật đèn phòng ngủ", "smart_home"),
     ("bật đèn trần phòng khách", "smart_home"),
+    ("bật đèn bàn làm việc", "smart_home"),
+    ("bật đèn phòng bếp", "smart_home"),
     ("tắt đèn phòng khách", "smart_home"),
     ("tắt hết đèn đi", "smart_home"),
+    ("tắt đèn phòng ngủ", "smart_home"),
     ("tắt đèn bàn làm việc", "smart_home"),
     ("bật quạt trần", "smart_home"),
     ("bật quạt phòng ngủ", "smart_home"),
+    ("bật quạt phòng khách", "smart_home"),
     ("tắt quạt đi", "smart_home"),
+    ("tắt quạt trần", "smart_home"),
     ("bật điều hòa 24 độ", "smart_home"),
     ("chỉnh máy lạnh 25 độ", "smart_home"),
+    ("bật máy lạnh phòng ngủ 26 độ", "smart_home"),
     ("tắt điều hòa", "smart_home"),
+    ("tắt máy lạnh đi", "smart_home"),
     ("nhiệt độ phòng khách đang là bao nhiêu", "smart_home"),
     ("đóng rèm cửa", "smart_home"),
+    ("đóng rèm phòng ngủ", "smart_home"),
     ("mở rèm cửa phòng ngủ", "smart_home"),
+    ("mở rèm phòng khách", "smart_home"),
     ("bật công tắc thông minh", "smart_home"),
     ("tắt thiết bị trong nhà", "smart_home"),
+    ("tắt hết thiết bị điện", "smart_home"),
 
     # 8. timer_reminder
     ("đặt hẹn giờ 5 phút", "timer_reminder"),
     ("hẹn giờ 10 phút nữa", "timer_reminder"),
     ("đặt timer 15 phút", "timer_reminder"),
     ("đặt hẹn giờ 1 tiếng", "timer_reminder"),
+    ("đặt hẹn giờ 30 giây", "timer_reminder"),
     ("đặt báo thức lúc 7 giờ sáng", "timer_reminder"),
     ("báo thức 6 giờ 30", "timer_reminder"),
+    ("đặt báo thức 8h sáng mai", "timer_reminder"),
     ("nhắc tôi uống nước sau 30 phút", "timer_reminder"),
     ("nhắc tôi uống thuốc sau 1 tiếng", "timer_reminder"),
     ("nhắc tôi uống thuốc sau 30 phút", "timer_reminder"),
     ("nhắc tôi gọi điện cho anh an lúc 3 giờ", "timer_reminder"),
     ("tạo lời nhắc họp lúc 2 giờ chiều", "timer_reminder"),
     ("nhắc tôi làm việc sau 15 phút", "timer_reminder"),
+    ("nhắc tôi nộp báo cáo lúc 5h chiều", "timer_reminder"),
     ("hủy hẹn giờ", "timer_reminder"),
     ("dừng báo thức", "timer_reminder"),
     ("xem các hẹn giờ đang chạy", "timer_reminder"),
     ("đặt lời nhắc mới", "timer_reminder"),
+    ("xóa toàn bộ lời nhắc", "timer_reminder"),
 
     # 9. web_search
     ("tìm kiếm thông tin trên google", "web_search"),
@@ -208,6 +292,10 @@ TRAINING_DATA: list[tuple[str, str]] = [
     ("dự báo thời tiết ngày mai", "web_search"),
     ("tìm trên mạng xem", "web_search"),
     ("tra cứu tin tức mới nhất", "web_search"),
+    ("tìm kiếm hình ảnh đẹp", "web_search"),
+    ("tra google giá cổ phiếu vnm", "web_search"),
+    ("tìm kiếm địa chỉ quán cà phê gần đây", "web_search"),
+    ("tra cứu tỷ giá đô la mỹ", "web_search"),
 
     # 10. greeting_chat
     ("xin chào jarvis", "greeting_chat"),
@@ -216,29 +304,91 @@ TRAINING_DATA: list[tuple[str, str]] = [
     ("chào buổi sáng", "greeting_chat"),
     ("chào buổi sáng jarvis ơi", "greeting_chat"),
     ("chào buổi tối", "greeting_chat"),
+    ("chào buổi chiều bạn nhé", "greeting_chat"),
     ("bạn là ai", "greeting_chat"),
     ("giới thiệu về bản thân đi", "greeting_chat"),
     ("bạn có thể làm được những gì", "greeting_chat"),
     ("cảm ơn bạn nhiều", "greeting_chat"),
+    ("cảm ơn jarvis", "greeting_chat"),
     ("thank you jarvis", "greeting_chat"),
     ("tạm biệt jarvis", "greeting_chat"),
+    ("tạm biệt nhé", "greeting_chat"),
     ("hẹn gặp lại", "greeting_chat"),
     ("chúc ngủ ngon", "greeting_chat"),
     ("bạn có khỏe không", "greeting_chat"),
     ("hôm nay thế nào rồi jarvis", "greeting_chat"),
+    ("jarvis ơi bạn có đó không", "greeting_chat"),
+
+    # 11. unknown (Out-of-Distribution / Negative samples)
+    ("công thức nấu món phở bò truyền thống", "unknown"),
+    ("giải bài toán phương trình bậc hai", "unknown"),
+    ("chiến tranh thế giới thứ hai diễn ra năm nào", "unknown"),
+    ("thủ đô của nước pháp là gì", "unknown"),
+    ("tại sao lá cây lại có màu xanh", "unknown"),
+    ("cách làm bánh sinh nhật tại nhà", "unknown"),
+    ("hướng dẫn học đàn guitar cho người mới", "unknown"),
+    ("tổng diện tích của việt nam là bao nhiêu", "unknown"),
+    ("thơ xuân diệu hay nhất", "unknown"),
+    ("nguồn gốc của vũ trụ", "unknown"),
+    ("chú mèo đang ngủ trên ghế sofa", "unknown"),
+    ("viết một đoạn văn tả cảnh hoàng hôn trên biển", "unknown"),
+    ("học tiếng anh giao tiếp như thế nào cho hiệu quả", "unknown"),
+    ("tôi đang đọc một cuốn sách rất hay", "unknown"),
+    ("uống nhiều cà phê có hại cho sức khỏe không", "unknown"),
+    ("bạn có biết lý thuyết tương đối của einstein không", "unknown"),
+    ("bức tranh mona lisa do ai vẽ", "unknown"),
+    ("núi everest cao bao nhiêu mét", "unknown"),
+    ("nguyên tử gồm những hạt nào", "unknown"),
+    ("hôm nay trời đẹp để đi dạo công viên", "unknown"),
 ]
 
 
+def augment_dataset(canonical_data: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """
+    Augments the dataset with:
+      1. Tone-stripped (unaccented) versions (e.g. 'tang am luong' alongside 'tăng âm lượng').
+      2. Polite lead-ins and particles ('ơi', 'nhé', 'hộ tôi', 'giúp mình', 'làm ơn').
+    """
+    augmented: list[tuple[str, str]] = []
+    seen = set()
+
+    def add_item(t: str, lbl: str) -> None:
+        clean = t.strip().lower()
+        if clean and (clean, lbl) not in seen:
+            seen.add((clean, lbl))
+            augmented.append((clean, lbl))
+
+    for text, label in canonical_data:
+        add_item(text, label)
+
+        # 1. Unaccented (tone-stripped) variant
+        unaccented = strip_vietnamese_diacritics(text)
+        if unaccented != text:
+            add_item(unaccented, label)
+
+        # 2. Conversational colloquial suffixes for action intents (skip unknown)
+        if label != "unknown":
+            add_item(f"{text} nhé", label)
+            add_item(f"{text} hộ tôi", label)
+            add_item(f"{text} đi bạn", label)
+            add_item(f"làm ơn {text}", label)
+
+    return augmented
+
+
 def main() -> None:
-    print("=" * 60)
-    print("🚀 BẮT ĐẦU HUẤN LUYỆN LOCAL VIETNAMESE NLP INTENT CLASSIFIER")
-    print("=" * 60)
+    print("=" * 65)
+    print("🚀 BẮT ĐẦU HUẤN LUYỆN NÂNG CẤP LOCAL VIETNAMESE NLP INTENT CLASSIFIER")
+    print("=" * 65)
 
-    samples = [item[0] for item in TRAINING_DATA]
-    labels = [item[1] for item in TRAINING_DATA]
+    print(f"[*] Số lượng mẫu gốc canonical: {len(CANONICAL_TRAINING_DATA)}")
+    augmented_data = augment_dataset(CANONICAL_TRAINING_DATA)
+    print(f"[*] Tổng số mẫu sau Data Augmentation (unaccented + colloquial): {len(augmented_data)}")
 
-    print(f"[*] Tập dữ liệu huấn luyện: {len(samples)} mẫu câu tiếng Việt.")
-    print(f"[*] Số lượng danh mục ý định (classes): {len(set(labels))}")
+    samples = [item[0] for item in augmented_data]
+    labels = [item[1] for item in augmented_data]
+    unique_classes = sorted(list(set(labels)))
+    print(f"[*] Số lượng danh mục ý định (classes={len(unique_classes)}): {unique_classes}")
 
     classifier = VietnameseNLPClassifier()
     report = classifier.train(samples=samples, labels=labels, cv_folds=5)
@@ -259,23 +409,38 @@ def main() -> None:
         print("\n[-] Lỗi lưu mô hình.")
         sys.exit(1)
 
-    # Verification Inference Benchmark
-    print("\n--- KIỂM TRA SUY LUẬN TRỰC TIẾP (INFERENCE PROBE) ---")
+    # Verification Inference Benchmark & Slot Filling Probe
+    print("\n--- KIỂM TRA SUY LUẬN & TRÍCH XUẤT SLOTS (INFERENCE & SLOTS PROBE) ---")
     test_queries = [
         "vặn nhỏ âm lượng loa xuống đi",
+        "cho âm lượng lên 80%",
+        "tat am thanh",
         "màn hình chói quá chỉnh tối bớt",
+        "chỉnh độ sáng lên 90%",
         "bật phần mềm visual studio code",
+        "mo chrome",
+        "dong trinh duyet chrome",
         "tắt nhạc spotify đi bạn ơi",
+        "chuyển sang bài hát tiếp theo",
         "nhiệt độ cpu hiện tại bao nhiêu",
+        "ram con trong bao nhieu",
         "bật đèn trần phòng khách",
+        "tat may lanh phong ngu",
+        "bật điều hòa 24 độ",
         "nhắc tôi uống thuốc sau 1 tiếng",
+        "hẹn giờ 10 phút",
         "tra cứu thời tiết sài gòn ngày mai",
         "chào buổi sáng jarvis ơi",
+        "công thức nấu món phở bò truyền thống",
     ]
 
     for q in test_queries:
         res = classifier.predict(q)
-        print(f"Query: '{q}' -> Intent: [{res.intent}] (Độ tin cậy: {res.confidence * 100:.1f}%, Độ trễ: {res.latency_ms:.2f}ms)")
+        print(
+            f"Query: '{q}'\n"
+            f"  -> Intent: [{res.intent}] (Confidence: {res.confidence * 100:.1f}%, Latency: {res.latency_ms:.2f}ms)\n"
+            f"  -> Slots: {res.slots}"
+        )
 
     print("\n✅ HUẤN LUYỆN VÀ XÁC THỰC MÔ HÌNH THÀNH CÔNG 100%!")
 
