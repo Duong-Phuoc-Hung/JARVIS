@@ -12,28 +12,47 @@ import logging
 import os
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("jarvis.skills.macro_recorder")
 
+_save_lock = threading.Lock()
 _MACROS_FILE: Path | None = None  # resolved at runtime
 
 
+def _get_macros_file() -> Path:
+    global _MACROS_FILE
+    if _MACROS_FILE is not None:
+        return _MACROS_FILE
+    _apd = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+    base = Path(_apd) / "JARVIS" if _apd else Path.home() / ".jarvis"
+    return base / "logs" / "macros.json"
+
+
 def _load_macros() -> dict[str, list[dict]]:
-    _MACROS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    if not _MACROS_FILE.exists():
+    macros_file = _get_macros_file()
+    if not macros_file.exists():
         return {}
     try:
-        return json.loads(_MACROS_FILE.read_text(encoding="utf-8"))
-    except Exception:
+        data = json.loads(macros_file.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return data
+        return {}
+    except Exception as exc:
+        log.warning("Failed to load macros from %s: %s", macros_file, exc)
         return {}
 
 
 def _save_macros(macros: dict[str, list[dict]]) -> None:
-    _MACROS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _MACROS_FILE.write_text(json.dumps(macros, indent=2, ensure_ascii=False), encoding="utf-8")
+    macros_file = _get_macros_file()
+    try:
+        from jarvis.utils.atomic_io import atomic_write_json
+        atomic_write_json(macros_file, macros, lock=_save_lock, indent=2, ensure_ascii=False)
+    except Exception as exc:
+        log.warning("Failed to save macros to %s: %s", macros_file, exc)
 
 
 def _execute_step(step: dict) -> dict:

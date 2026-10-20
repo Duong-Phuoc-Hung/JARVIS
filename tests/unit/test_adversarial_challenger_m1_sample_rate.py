@@ -308,25 +308,27 @@ def test_both_input_stream_and_rec_fail_raises_device_unavailable(app_instance):
 def test_energy_cutoff_truthfulness(app_instance):
     """
     Verify energy-based silence cutoff:
-    - If user starts speaking (RMS > 0.015), has_speech_started becomes True.
-    - If followed by 7 consecutive silent chunks (RMS <= 0.015), recording terminates early.
+    - Initial silent calibration chunks establish ambient noise floor.
+    - User speaks (440 Hz tone within bandpass 80-4000Hz, RMS > 0.018), has_speech_started becomes True.
+    - Followed by 5 consecutive silent chunks (RMS <= 0.010, per app.py:1344), recording terminates early.
     """
     chunk_size = int(16000 * 0.15)  # 2400 samples
-    speech_chunk = np.full((chunk_size, 1), 0.1, dtype=np.float32)  # RMS = 0.1 > 0.015
-    silent_chunk = np.zeros((chunk_size, 1), dtype=np.float32)     # RMS = 0.0 <= 0.015
+    t = np.arange(chunk_size) / 16000.0
+    speech_chunk = (0.2 * np.sin(2 * np.pi * 440.0 * t)).astype(np.float32).reshape(-1, 1)
+    silent_chunk = np.zeros((chunk_size, 1), dtype=np.float32)
 
-    # Sequence: 1 silent chunk, 2 speech chunks, then 7 silent chunks -> total 10 chunks
-    stream_chunks = [silent_chunk] + [speech_chunk] * 2 + [silent_chunk] * 7 + [silent_chunk] * 5
+    # Sequence: 2 silent chunks (noise floor calibration), 2 speech chunks, then 5 silent chunks (cutoff)
+    stream_chunks = [silent_chunk] * 2 + [speech_chunk] * 2 + [silent_chunk] * 5 + [silent_chunk] * 5
 
-    with patch("sounddevice.InputStream") as mock_stream:
+    with patch("sounddevice.InputStream") as mock_stream, patch("sounddevice.rec") as mock_rec:
         mock_inst = MagicMock()
         mock_inst.read.side_effect = [(c, False) for c in stream_chunks]
         mock_stream.return_value.__enter__.return_value = mock_inst
 
         arr = app_instance.record_audio(duration_s=4.0)
-        # Should have stopped after 1 + 2 + 7 = 10 chunks (not reaching the full 26 chunks for 4.0s)
-        assert mock_inst.read.call_count == 10
-        assert len(arr) == 10 * chunk_size
+        # Should have stopped after 2 + 2 + 5 = 9 chunks (early cutoff at 5 chunks, not reaching 26 chunks for 4.0s)
+        assert mock_inst.read.call_count == 9
+        assert len(arr) == 9 * chunk_size
 
 
 def test_no_ghost_intent_on_hardware_failure(app_instance):
@@ -392,4 +394,230 @@ def test_real_config_manager_integration():
     assert len(prepare_stt_audio(capture)) == 1600
     cfg.set("stt.sample_rate", None)
     assert len(app.record_audio(duration_s=0.1)) == 1600
+
+
+# ============================================================================
+# 6. Empirical Adversarial Challenge: Silence, Frequencies, Waveforms, Rates
+# ============================================================================
+
+def test_adversarial_silence_boundary_4_chunks_no_early_cutoff(app_instance):
+    """
+    Stress-test silence chunk boundary:
+    app.py:1344 specifies `if silence_chunks_after_speech >= 5: break`.
+    If speech is followed by exactly 4 silent chunks, recording must NOT cut off early.
+    Total: 2 calibration + 2 speech + 4 silence = 8 chunks (duration_s=1.2s -> max 8 chunks).
+    Asserts mock_inst.read.call_count == 8 (no premature exit at 4 silence chunks).
+    """
+    chunk_size = int(16000 * 0.15)
+    t = np.arange(chunk_size) / 16000.0
+    speech_chunk = (0.2 * np.sin(2 * np.pi * 440.0 * t)).astype(np.float32).reshape(-1, 1)
+    silent_chunk = np.zeros((chunk_size, 1), dtype=np.float32)
+
+    stream_chunks = [silent_chunk] * 2 + [speech_chunk] * 2 + [silent_chunk] * 4
+
+    with patch("sounddevice.InputStream") as mock_stream, patch("sounddevice.rec") as mock_rec:
+        mock_inst = MagicMock()
+        mock_inst.read.side_effect = [(c, False) for c in stream_chunks]
+        mock_stream.return_value.__enter__.return_value = mock_inst
+
+        arr = app_instance.record_audio(duration_s=1.2)
+        assert mock_inst.read.call_count == 8
+        assert len(arr) == 8 * chunk_size
+
+
+def test_adversarial_intermittent_speech_resets_silence_counter(app_instance):
+    """
+    Stress-test silence counter reset:
+    Speech -> 3 silent chunks -> Intermittent speech -> 3 silent chunks.
+    Because silence never consecutively reaches 5 chunks, the counter resets to 0
+    on each speech burst and recording continues until max_chunks.
+    Total: 2 cal + 1 speech + 3 silence + 1 speech + 3 silence = 10 chunks (duration_s=1.5s).
+    Asserts mock_inst.read.call_count == 10.
+    """
+    chunk_size = int(16000 * 0.15)
+    t = np.arange(chunk_size) / 16000.0
+    speech_chunk = (0.2 * np.sin(2 * np.pi * 440.0 * t)).astype(np.float32).reshape(-1, 1)
+    silent_chunk = np.zeros((chunk_size, 1), dtype=np.float32)
+
+    stream_chunks = (
+        [silent_chunk] * 2 +
+        [speech_chunk] * 1 +
+        [silent_chunk] * 3 +
+        [speech_chunk] * 1 +
+        [silent_chunk] * 3
+    )
+
+    with patch("sounddevice.InputStream") as mock_stream, patch("sounddevice.rec") as mock_rec:
+        mock_inst = MagicMock()
+        mock_inst.read.side_effect = [(c, False) for c in stream_chunks]
+        mock_stream.return_value.__enter__.return_value = mock_inst
+
+        arr = app_instance.record_audio(duration_s=1.5)
+        assert mock_inst.read.call_count == 10
+        assert len(arr) == 10 * chunk_size
+
+
+def test_adversarial_continuous_silence_runs_full_duration(app_instance):
+    """
+    Stress-test pure silence (user never speaks):
+    has_speech_started remains False. Silence cutoff rule (silence_chunks_after_speech >= 5)
+    must NEVER trigger when speech has not started.
+    Recording must faithfully capture the full duration without truncating prematurely.
+    Total: 10 silent chunks (duration_s=1.5s).
+    """
+    chunk_size = int(16000 * 0.15)
+    silent_chunk = np.zeros((chunk_size, 1), dtype=np.float32)
+    stream_chunks = [silent_chunk] * 10
+
+    with patch("sounddevice.InputStream") as mock_stream, patch("sounddevice.rec") as mock_rec:
+        mock_inst = MagicMock()
+        mock_inst.read.side_effect = [(c, False) for c in stream_chunks]
+        mock_stream.return_value.__enter__.return_value = mock_inst
+
+        arr = app_instance.record_audio(duration_s=1.5)
+        assert mock_inst.read.call_count == 10
+        assert len(arr) == 10 * chunk_size
+
+
+def test_adversarial_multi_frequency_speech_waveform(app_instance):
+    """
+    Stress-test multi-frequency speech signal:
+    Composite waveform of realistic speech formants (300 Hz, 1200 Hz, 2500 Hz).
+    All components fall within 80-4000 Hz speech passband.
+    Verifies that multi-frequency waveforms trigger speech detection and cutoff correctly.
+    """
+    chunk_size = int(16000 * 0.15)
+    t = np.arange(chunk_size) / 16000.0
+    multi_freq_speech = (
+        0.10 * np.sin(2 * np.pi * 300.0 * t) +
+        0.10 * np.sin(2 * np.pi * 1200.0 * t) +
+        0.05 * np.sin(2 * np.pi * 2500.0 * t)
+    ).astype(np.float32).reshape(-1, 1)
+    silent_chunk = np.zeros((chunk_size, 1), dtype=np.float32)
+
+    # 2 cal + 2 multi-freq speech + 5 silence (cutoff) + 5 extra
+    stream_chunks = [silent_chunk] * 2 + [multi_freq_speech] * 2 + [silent_chunk] * 5 + [silent_chunk] * 5
+
+    with patch("sounddevice.InputStream") as mock_stream, patch("sounddevice.rec") as mock_rec:
+        mock_inst = MagicMock()
+        mock_inst.read.side_effect = [(c, False) for c in stream_chunks]
+        mock_stream.return_value.__enter__.return_value = mock_inst
+
+        arr = app_instance.record_audio(duration_s=4.0)
+        assert mock_inst.read.call_count == 9
+        assert len(arr) == 9 * chunk_size
+
+
+def test_adversarial_out_of_band_sub_bass_rejection(app_instance):
+    """
+    Stress-test out-of-band rejection:
+    A 25 Hz sub-audible AC rumble (e.g. HVAC / fan rumble) at moderate amplitude.
+    The 4th-order Butterworth bandpass filter (80 Hz lowcut) attenuates 25 Hz,
+    keeping filtered RMS below the speech threshold (0.018).
+    Speech must NOT be triggered, and stream must NOT cut off as if speech ended.
+    """
+    chunk_size = int(16000 * 0.15)
+    t = np.arange(chunk_size) / 16000.0
+    rumble_chunk = (0.04 * np.sin(2 * np.pi * 25.0 * t)).astype(np.float32).reshape(-1, 1)
+    silent_chunk = np.zeros((chunk_size, 1), dtype=np.float32)
+
+    # 2 cal + 4 rumble chunks + 4 silent chunks (duration 1.5s = 10 chunks)
+    stream_chunks = [silent_chunk] * 2 + [rumble_chunk] * 4 + [silent_chunk] * 4
+
+    with patch("sounddevice.InputStream") as mock_stream, patch("sounddevice.rec") as mock_rec:
+        mock_inst = MagicMock()
+        mock_inst.read.side_effect = [(c, False) for c in stream_chunks]
+        mock_stream.return_value.__enter__.return_value = mock_inst
+
+        arr = app_instance.record_audio(duration_s=1.5)
+        # Should NOT cut off at chunk 8 (which would happen if rumble was detected as speech);
+        # reads all 10 chunks because speech was never detected
+        assert mock_inst.read.call_count == 10
+        assert len(arr) == 10 * chunk_size
+
+
+def test_adversarial_dc_bias_with_noise_attenuation(app_instance):
+    """
+    Stress-test DC bias vs AC speech:
+    A high DC bias (0.35) with tiny ambient noise (0.002).
+    Because std > 1e-5, mean subtraction in filter_bandpass removes the 0.35 DC bias,
+    leaving only ~0.002 RMS, far below speech threshold.
+    Speech is not falsely triggered by DC bias.
+    """
+    chunk_size = int(16000 * 0.15)
+    np.random.seed(42)
+    dc_noise = (0.35 + np.random.normal(0, 0.002, (chunk_size, 1))).astype(np.float32)
+    silent_chunk = np.zeros((chunk_size, 1), dtype=np.float32)
+
+    stream_chunks = [silent_chunk] * 2 + [dc_noise] * 4 + [silent_chunk] * 4
+
+    with patch("sounddevice.InputStream") as mock_stream, patch("sounddevice.rec") as mock_rec:
+        mock_inst = MagicMock()
+        mock_inst.read.side_effect = [(c, False) for c in stream_chunks]
+        mock_stream.return_value.__enter__.return_value = mock_inst
+
+        arr = app_instance.record_audio(duration_s=1.5)
+        # All 10 chunks read because DC bias was filtered out and never triggered speech
+        assert mock_inst.read.call_count == 10
+        assert len(arr) == 10 * chunk_size
+
+
+@pytest.mark.parametrize("target_sr,speech_freq", [
+    (8000, 300.0),
+    (22050, 440.0),
+    (44100, 1000.0),
+    (48000, 1000.0),
+])
+def test_adversarial_energy_cutoff_across_sample_rates(app_instance, target_sr, speech_freq):
+    """
+    Stress-test energy cutoff across diverse sample rates (8kHz, 22.05kHz, 44.1kHz, 48kHz).
+    Verifies that chunk sizing, AcousticFrontEnd sample rate binding, and 5-chunk
+    silence cutoff operate invariantly regardless of sampling frequency.
+    """
+    chunk_size = int(target_sr * 0.15)
+    t = np.arange(chunk_size) / float(target_sr)
+    speech_chunk = (0.2 * np.sin(2 * np.pi * speech_freq * t)).astype(np.float32).reshape(-1, 1)
+    silent_chunk = np.zeros((chunk_size, 1), dtype=np.float32)
+
+    # 2 cal + 2 speech + 5 silence (cutoff) + 5 extra
+    stream_chunks = [silent_chunk] * 2 + [speech_chunk] * 2 + [silent_chunk] * 5 + [silent_chunk] * 5
+
+    with patch("sounddevice.InputStream") as mock_stream, patch("sounddevice.rec") as mock_rec:
+        mock_inst = MagicMock()
+        mock_inst.read.side_effect = [(c, False) for c in stream_chunks]
+        mock_stream.return_value.__enter__.return_value = mock_inst
+
+        arr = app_instance.record_audio(duration_s=4.0, sample_rate=target_sr)
+        # Always terminates at exactly 9 chunks (2 + 2 + 5)
+        assert mock_inst.read.call_count == 9
+        assert len(arr) == 9 * chunk_size
+
+
+def test_adversarial_mock_isolation_protects_host_hardware(app_instance):
+    """
+    Stress-test mock isolation:
+    Guarantees that when sounddevice.InputStream and sounddevice.rec are patched,
+    no unmocked PortAudio stream, device query, or real hardware recording executes.
+    Verifies zero hardware side effects during automated test suite runs.
+    """
+    with patch("sounddevice.InputStream") as mock_stream, \
+         patch("sounddevice.rec") as mock_rec, \
+         patch("sounddevice.wait") as mock_wait, \
+         patch("sounddevice.play") as mock_play:
+
+        mock_inst = MagicMock()
+        mock_inst.read.return_value = (np.zeros((2400, 1), dtype=np.float32), False)
+        mock_stream.return_value.__enter__.return_value = mock_inst
+
+        app_instance.record_audio(duration_s=0.3)
+
+        # InputStream was entered and cleaned up
+        mock_stream.assert_called_once()
+        mock_stream.return_value.__enter__.assert_called_once()
+        mock_stream.return_value.__exit__.assert_called_once()
+        # Fallback rec and unmocked sound playback were never touched
+        mock_rec.assert_not_called()
+        mock_wait.assert_not_called()
+        mock_play.assert_not_called()
+
 

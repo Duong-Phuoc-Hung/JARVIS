@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +53,8 @@ class MobileFileBridge:
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.max_size_bytes = max_file_size_mb * 1024 * 1024
         self.telegram = telegram_controller
+        self._lock = threading.Lock()
+        self._save_lock = threading.Lock()
         self.rate_limiter = TokenBucketRateLimiter(
             rate_limit_config or RateLimitConfig(requests_per_minute=15, burst_limit=3),
             channel_name="mobile_bridge",
@@ -376,15 +379,16 @@ class MobileFileBridge:
             "size": size,
             "timestamp": datetime.datetime.now().isoformat(),
         }
-        history = self.get_file_transfer_history()
-        history.insert(0, record)
-        history = history[:200]  # Keep last 200
         log_path = _get_transfer_log_path()
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            log_path.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
-        except Exception:
-            pass
+        with self._save_lock:
+            history = self.get_file_transfer_history()
+            history.insert(0, record)
+            history = history[:200]  # Keep last 200
+            try:
+                from jarvis.utils.atomic_io import atomic_write_json
+                atomic_write_json(log_path, history, indent=2, ensure_ascii=False)
+            except Exception as exc:
+                log.warning("Mobile transfer log save error: %s", exc)
 
 
 __all__ = ["MobileFileBridge"]

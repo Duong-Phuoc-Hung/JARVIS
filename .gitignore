@@ -62,6 +62,7 @@ Desktop.ini
 .DS_Store
 
 # Teamwork agent workspaces
+.agents/teamwork/
 .agents/teamwork_preview_*/
 .agents/victory_auditor_*/
 .agents/worker_*/

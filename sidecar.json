@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "description": "JARVIS Scheduled Automation Sidecar Daemon Specification",
+  "enabled": true,
+  "timezone": "Asia/Ho_Chi_Minh",
+  "schedule": {
+    "cron": "0 9 * * *",
+    "target_time": "09:00:00",
+    "tolerance_window_minutes": 15,
+    "catch_up_if_missed": true
+  },
+  "execution_policy": {
+    "mode": "sequential",
+    "timeout_seconds": 900,
+    "max_retries": 3,
+    "retry_backoff_seconds": 60,
+    "run_on_battery": false,
+    "min_battery_percent": 25.0
+  },
+  "tasks": [
+    {
+      "id": "autonomous_tech_radar_sync",
+      "name": "Autonomous Academic Tech Radar & Open-Source Sync",
+      "action": "jarvis.web.tech_radar.TechRadarAggregator.sync_all",
+      "description": "Run jarvis.web.tech_radar.TechRadarAggregator.sync_all() to fetch ArXiv papers and GitHub trending",
+      "enabled": true,
+      "priority": 1,
+      "timeout_seconds": 300,
+      "parameters": {
+        "sources": [
+          "arxiv",
+          "github_trending"
+        ],
+        "categories": [
+          "cs.AI",
+          "cs.CL",
+          "cs.SD",
+          "cs.HC"
+        ],
+        "max_papers": 10,
+        "max_repos": 5,
+        "query": "voice biometrics OR streaming speech recognition OR low-latency acoustic"
+      }
+    },
+    {
+      "id": "system_health_check",
+      "name": "Continuous System & Storage Health Verification",
+      "action": "system_health_check",
+      "description": "Verify database integrity, vector store status, and disk persistence health",
+      "enabled": true,
+      "priority": 2,
+      "timeout_seconds": 180,
+      "parameters": {
+        "verify_database_integrity": true,
+        "verify_vector_store_status": true,
+        "verify_disk_persistence_health": true,
+        "alert_on_failure": true
+      }
+    },
+    {
+      "id": "learning_vault_consolidation",
+      "name": "Continuous Learning Vault Consolidation",
+      "action": "learning_vault_consolidation",
+      "description": "Consolidate continuous learning blips into memory graph",
+      "enabled": true,
+      "priority": 3,
+      "timeout_seconds": 420,
+      "parameters": {
+        "consolidate_blips": true,
+        "memory_graph_sync": true,
+        "synthesize_new_skills": true
+      }
+    }
+  ],
+  "error_handling": {
+    "policy": "fail_closed",
+    "notify_on_failure": true,
+    "max_consecutive_failures": 3,
+    "fallback_action": "log_and_alert"
+  },
+  "telemetry": {
+    "log_file": "logs/sidecar.log",
+    "history_store": "logs/sidecar_history.json",
+    "publish_event_bus": true,
+    "dashboard_integration": {
+      "enabled": true,
+      "status_endpoint": "/api/sidecar/status",
+      "trigger_endpoint": "/api/sidecar/trigger"
+    }
+  }
+}

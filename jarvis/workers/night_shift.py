@@ -86,6 +86,7 @@ class NightShiftWorker:
         self.is_mock = is_mock
         self._tasks: dict[str, NightShiftTask] = {}
         self._lock = threading.RLock()
+        self._save_lock = threading.Lock()
         self._timers: dict[str, threading.Timer] = {}
 
         if sandbox is not None:
@@ -330,7 +331,8 @@ class NightShiftWorker:
             base_dir = Path(local_app_data) / "JARVIS" / "logs" if local_app_data else Path.home() / ".jarvis" / "logs"
             base_dir.mkdir(parents=True, exist_ok=True)
             report_file = base_dir / f"night_report_{task.task_id}.md"
-            report_file.write_text(report, encoding="utf-8")
+            from jarvis.utils.atomic_io import atomic_write_text
+            atomic_write_text(report_file, report, encoding="utf-8")
             log.info("Night shift report saved: %s", report_file)
         except Exception as exc:
             log.debug("Report save error: %s", exc)
@@ -341,12 +343,14 @@ class NightShiftWorker:
 
     def _save_tasks(self) -> None:
         tasks_file = _get_tasks_file()
-        tasks_file.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            data = {tid: asdict(task) for tid, task in self._tasks.items()}
-            tasks_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-        except Exception as exc:
-            log.warning("Night shift tasks save error: %s", exc)
+        with self._save_lock:
+            with self._lock:
+                data = {tid: asdict(task) for tid, task in self._tasks.items()}
+            try:
+                from jarvis.utils.atomic_io import atomic_write_json
+                atomic_write_json(tasks_file, data, indent=2, ensure_ascii=False)
+            except Exception as exc:
+                log.warning("Night shift tasks save error: %s", exc)
 
     def _load_tasks(self) -> None:
         tasks_file = _get_tasks_file()
@@ -354,8 +358,11 @@ class NightShiftWorker:
             return
         try:
             raw = json.loads(tasks_file.read_text(encoding="utf-8"))
-            for tid, d in raw.items():
-                self._tasks[tid] = NightShiftTask(**{k: v for k, v in d.items() if k in NightShiftTask.__dataclass_fields__})
+            if isinstance(raw, dict):
+                with self._lock:
+                    for tid, d in raw.items():
+                        if isinstance(d, dict):
+                            self._tasks[tid] = NightShiftTask(**{k: v for k, v in d.items() if k in NightShiftTask.__dataclass_fields__})
         except Exception as exc:
             log.warning("Night shift tasks load error: %s", exc)
 

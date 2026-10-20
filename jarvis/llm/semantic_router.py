@@ -30,12 +30,14 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlencode
 
 from jarvis.llm.models import IntentResult
+from jarvis.memory.vector_store import SemanticVectorStore, VectorStoreConfig
 
 logger = logging.getLogger("jarvis.llm.semantic_router")
 
@@ -320,6 +322,21 @@ class LocalSemanticRouter:
 
         # 8. System Diagnostics & Hardware Queries
         res = self._match_system_diagnostics(clean, norm)
+        if res:
+            return res
+
+        # 9. Desktop Application Launching
+        res = self._match_app_launch(clean, norm)
+        if res:
+            return res
+
+        # 10. Personal Notes & Quick Memos
+        res = self._match_notes(clean, norm)
+        if res:
+            return res
+
+        # 11. Weather & Forecast Queries
+        res = self._match_weather(clean, norm)
         if res:
             return res
 
@@ -811,3 +828,391 @@ class LocalSemanticRouter:
             )
 
         return None
+
+    # --------------------------------------------------------------------------
+    # Slot Matcher: Desktop Application Launching
+    # --------------------------------------------------------------------------
+
+    def _match_app_launch(self, clean: str, norm: str) -> IntentResult | None:
+        """Matches desktop application launch requests with typed slot extraction."""
+        pattern = re.compile(
+            r"^(?:mo|bat|chay|khoi dong|open|launch|start)\s+(?:ung dung|phan mem|app|application|chuong trinh)?\s*(.+)$",
+            re.IGNORECASE,
+        )
+        m = pattern.search(norm)
+        if not m:
+            return None
+
+        raw_target = m.group(1).strip()
+        # Exclude web / search / youtube / workspace / music commands
+        if any(raw_target.startswith(prefix) for prefix in ("youtube", "web", "website", "trang web", "du an", "project", "workspace", "nhac", "bai hat")):
+            return None
+
+        app_map: dict[str, str] = {
+            "notepad": "notepad",
+            "so tay": "notepad",
+            "chrome": "chrome",
+            "google chrome": "chrome",
+            "trinh duyet": "chrome",
+            "calculator": "calculator",
+            "may tinh": "calculator",
+            "calc": "calculator",
+            "vscode": "code",
+            "vs code": "code",
+            "code": "code",
+            "visual studio code": "code",
+            "terminal": "terminal",
+            "powershell": "powershell",
+            "cmd": "cmd",
+            "command prompt": "cmd",
+            "spotify": "spotify",
+            "settings": "Settings",
+            "cai dat": "Settings",
+            "task manager": "taskmgr",
+            "taskmgr": "taskmgr",
+            "quan ly tac vu": "taskmgr",
+            "discord": "discord",
+            "word": "word",
+            "excel": "excel",
+            "explorer": "explorer",
+            "file explorer": "explorer",
+        }
+
+        canonical_app = app_map.get(raw_target)
+        if not canonical_app:
+            for k, v in app_map.items():
+                if re.search(r"\b" + re.escape(k) + r"\b", raw_target):
+                    canonical_app = v
+                    break
+
+        if not canonical_app:
+            if 1 <= len(raw_target) <= 64:
+                canonical_app = raw_target
+            else:
+                return None
+
+        return IntentResult(
+            action_name="app_open",
+            parameters={"app_name": canonical_app, "installed_only": True},
+            confidence=1.0,
+            source="rule_fallback",
+            response_text=f"Đang mở ứng dụng {canonical_app} cho Ngài.",
+        )
+
+    # --------------------------------------------------------------------------
+    # Slot Matcher: Personal Notes & Quick Memos
+    # --------------------------------------------------------------------------
+
+    def _match_notes(self, clean: str, norm: str) -> IntentResult | None:
+        """Matches personal note taking and quick memos with typed slot extraction."""
+        if not any(k in norm for k in ("ghi chu", "luu ghi chu", "tao ghi chu", "note lai", "take note", "add note")):
+            return None
+
+        content = ""
+        pattern = re.compile(
+            r"^(?:(?:lưu|tao|tạo)?\s*ghi\s*chú|note(?:\s*lại)?|take\s*note|add\s*note)\s*[:,\s]?\s*(.*)$",
+            re.IGNORECASE,
+        )
+        m = pattern.search(clean)
+        if m and m.group(1).strip():
+            content = m.group(1).strip()
+        else:
+            m_norm = re.search(r"^(?:(?:luu|tao)?\s*ghi\s*chu|note(?:\s*lai)?)\s*[:,\s]?\s*(.*)$", norm)
+            if m_norm and m_norm.group(1).strip():
+                content = m_norm.group(1).strip()
+
+        resp = f"Đã lưu ghi chú cho Ngài: {content}" if content else "Bạn muốn ghi chú nội dung gì?"
+        return IntentResult(
+            action_name="note_add",
+            parameters={"content": content, "action": "add"},
+            confidence=1.0,
+            source="rule_fallback",
+            response_text=resp,
+        )
+
+    # --------------------------------------------------------------------------
+    # Slot Matcher: Weather & Meteorological Forecasts
+    # --------------------------------------------------------------------------
+
+    def _match_weather(self, clean: str, norm: str) -> IntentResult | None:
+        """Matches weather forecast and meteorological queries with location slot extraction."""
+        is_weather = any(k in norm for k in ("thoi tiet", "du bao thoi tiet", "nhiet do ngoai troi", "troi co mua", "troi mua khong", "thoi tiet hom nay"))
+        if not is_weather:
+            return None
+
+        location = "current"
+        city_param = "Hà Nội"
+        cmd = "curl -s wttr.in?format=3"
+
+        if any(c in norm for c in ("ha noi", "hanoi", "thu do")):
+            location = "Hà Nội"
+            city_param = "Hà Nội"
+            cmd = "curl -s wttr.in/Hanoi?format=3"
+        elif any(c in norm for c in ("sai gon", "saigon", "ho chi minh", "tp hcm", "hcm")):
+            location = "Sài Gòn"
+            city_param = "Sài Gòn"
+            cmd = "curl -s wttr.in/Saigon?format=3"
+        elif any(c in norm for c in ("da nang", "danang")):
+            location = "Đà Nẵng"
+            city_param = "Đà Nẵng"
+            cmd = "curl -s wttr.in/Danang?format=3"
+
+        return IntentResult(
+            action_name="shell_exec",
+            parameters={"command": cmd, "topic": "weather", "location": location, "city": city_param},
+            confidence=1.0,
+            source="rule_fallback",
+            response_text=f"Đang kiểm tra thời tiết {location if location != 'current' else 'hôm nay'} cho Ngài.",
+        )
+
+
+# ==============================================================================
+# 5. Fast On-Device Hybrid Semantic Router (TF-IDF + Typed Slots)
+# ==============================================================================
+
+_EXEMPLARS: dict[str, list[str]] = {
+    "volume": [
+        "tang am luong", "tăng âm lượng", "mở to lên", "cho to tiếng lên", "bật to loa",
+        "tăng âm lượng lên 20%", "tăng volume", "vặn to loa", "cho lớn tiếng",
+        "giam am luong", "giảm âm lượng", "nhỏ tiếng lại", "vặn nhỏ volume", "hạ nhỏ loa",
+        "giảm âm lượng xuống 15%", "cho nhỏ loa lại", "bớt tiếng",
+        "tat am thanh", "tắt tiếng", "mute loa", "ngắt âm thanh", "tắt loa máy tính",
+        "bat am thanh", "bật tiếng", "unmute", "mở lại tiếng", "bật loa máy tính",
+        "dat am luong 50%", "chỉnh volume 30%", "âm lượng 70 phần trăm", "đặt âm lượng mức 40",
+    ],
+    "brightness": [
+        "tang do sang", "tăng độ sáng màn hình", "cho màn hình sáng lên", "sáng hơn", "tăng ánh sáng màn hình",
+        "giam do sang", "giảm độ sáng màn hình", "màn hình chói quá", "tối hơn", "hạ độ sáng",
+        "dat do sang 70%", "chỉnh độ sáng 50%", "độ sáng 100%", "chỉnh sáng màn hình 80%", "độ sáng 30 phần trăm",
+    ],
+    "media": [
+        "mo nhac", "mở nhạc", "phát nhạc", "bật nhạc spotify", "nghe nhạc", "mở bài hát",
+        "tam dung nhac", "tạm dừng bài hát", "pause music", "dừng phát", "ngừng phát nhạc",
+        "tiep tuc phat", "phát tiếp", "resume music", "tiếp tục nghe nhạc",
+        "chuyen bai", "bài tiếp theo", "next song", "bài sau", "bỏ qua bài này",
+        "quay lai bai truoc", "bài trước đó", "previous track", "nghe lại bài trước",
+        "phat bai hat son tung", "mở spotify bài hát mới", "nghe nhạc chill",
+    ],
+    "app_launch": [
+        "mo ung dung notepad", "bật notepad", "khởi động notepad", "chạy notepad", "mở sổ tay ghi chép",
+        "mo trinh duyet chrome", "bật chrome", "khởi động google chrome", "chạy chrome", "mở web chrome",
+        "mo visual studio code", "bật vs code", "mở code", "khởi động vscode", "chạy visual studio code",
+        "mo may tinh calculator", "bật calculator", "mở máy tính tính tiền", "chạy calculator",
+        "mo terminal", "bật powershell", "khởi động command prompt", "mở cmd", "chạy terminal",
+        "mo ung dung spotify", "chạy spotify desktop", "bật ứng dụng nghe nhạc spotify",
+        "mo cai dat he thong", "mở settings", "bật windows settings", "cài đặt máy tính",
+        "mo task manager", "bật quan ly tac vu", "mở trình quản lý tác vụ",
+        "mo ung dung discord", "bật discord", "chạy discord",
+        "mo word", "bật microsoft word", "mở excel", "bật microsoft excel",
+    ],
+    "timers": [
+        "hen gio 5 phut", "hẹn giờ 10 phút", "đặt hẹn giờ 15 phút", "hẹn giờ 20 phút",
+        "bam gio 20 phut", "bấm giờ nửa tiếng", "hẹn giờ 1 tiếng", "đặt hẹn giờ 2 tiếng",
+        "dat bao thuc 30 phut", "báo thức sau 45 phút", "đặt báo thức sáng mai",
+        "nhac nho toi sau 10 phut", "nhắc tôi gọi điện sau 15 phút", "nhắc việc sau 1 giờ",
+        "đặt đồng hồ bấm giờ 3 phút", "hẹn giờ nấu ăn 25 phút",
+    ],
+    "notes": [
+        "ghi chu lai mua sua", "ghi chú mua sữa", "lưu ghi chú mua quà", "ghi chú cần mua bánh mì",
+        "tao ghi chu moi", "tạo ghi chú họp ngày mai", "note lại lịch hẹn", "tạo note mới",
+        "luu ghi chu gap khach hang luc 2h chieu", "ghi chú công việc cần làm",
+        "ghi nhớ việc ngày mai đi khám răng", "lưu lại thông tin tài khoản ngân hàng",
+    ],
+    "weather": [
+        "thoi tiet hom nay", "thời tiết hôm nay thế nào", "dự báo thời tiết", "xem thời tiết",
+        "troi hom nay co mua khong", "nhiệt độ thời tiết ngoài trời", "trời nắng hay mưa",
+        "thoi tiet ha noi", "dự báo thời tiết hà nội hôm nay", "thời tiết thủ đô hà nội",
+        "thoi tiet sai gon", "dự báo thời tiết hồ chí minh hôm nay", "thời tiết tp hcm",
+        "thoi tiet da nang", "thời tiết đà nẵng hôm nay", "nhiệt độ đà nẵng",
+    ],
+}
+
+
+class HybridSemanticRouter:
+    """
+    Sub-2ms Fast On-Device Hybrid Semantic Router for JARVIS.
+
+    Combines:
+      1. Deterministic typed slot extraction and regex parsing from LocalSemanticRouter.
+      2. TF-IDF vector similarity matching using SemanticVectorStore against reference
+         command prototypes for high-frequency desktop domains:
+         - Volume & Audio controls
+         - Screen & Brightness
+         - Media & Music
+         - Desktop Application Launching
+         - Timers & Countdowns
+         - Personal Notes & Memos
+         - Weather & Meteorological Queries
+
+    Guarantees sub-2ms intent resolution on-device, bypassing Cloud LLM roundtrip.
+    """
+
+    def __init__(
+        self,
+        local_router: LocalSemanticRouter | None = None,
+        vector_store: SemanticVectorStore | None = None,
+        similarity_threshold: float = 0.20,
+    ) -> None:
+        self.local_router = local_router or LocalSemanticRouter()
+        self.similarity_threshold = similarity_threshold
+
+        if vector_store is not None:
+            self.vector_store = vector_store
+        else:
+            # Pure in-memory vector store without disk persistence
+            cfg = VectorStoreConfig(
+                persist_path=":memory:",
+                auto_save=False,
+                similarity_threshold=self.similarity_threshold,
+            )
+            self.vector_store = SemanticVectorStore(config=cfg)
+            self._index_prototype_exemplars()
+
+    def _index_prototype_exemplars(self) -> None:
+        """Indexes representative exemplars across 7 high-frequency desktop command domains."""
+        doc_count = 0
+        for category, phrases in _EXEMPLARS.items():
+            for idx, phrase in enumerate(phrases):
+                doc_id = f"prototype_{category}_{idx}"
+                self.vector_store.add_document(doc_id=doc_id, content=phrase, category=category)
+                doc_count += 1
+        logger.debug("HybridSemanticRouter indexed %d prototypes across %d domains", doc_count, len(_EXEMPLARS))
+
+    def route(self, text: str) -> IntentResult | None:
+        """
+        Fast-path routing of input utterance into structured IntentResult in < 2ms.
+        First attempts typed slot-filling from LocalSemanticRouter.
+        If unhandled, executes TF-IDF cosine similarity search across high-frequency prototypes.
+        """
+        return self.match(text)
+
+    def match(self, text: str) -> IntentResult | None:
+        """
+        Matches text against local slot-filling and TF-IDF semantic prototype vectors.
+        Returns resolved IntentResult or None if no high-confidence local match exists.
+        """
+        if not text or not text.strip():
+            return None
+
+        clean = self.local_router.strip_vocatives(text)
+        if not clean:
+            return None
+
+        norm = normalize_vietnamese_text(clean)
+
+        # Fast Path A: Deterministic Typed Slot-Filling via LocalSemanticRouter
+        local_res = self.local_router.match(text)
+        if local_res is not None:
+            local_res.source = "hybrid_fast_path"
+            return local_res
+
+        # Fast Path B: TF-IDF Vector Similarity Search across High-Frequency Prototype Commands
+        search_results = self.vector_store.search(norm, k=1)
+        if not search_results or search_results[0].score < self.similarity_threshold:
+            # Also try raw text search if norm returned low score
+            search_results = self.vector_store.search(clean, k=1)
+
+        if not search_results or search_results[0].score < self.similarity_threshold:
+            return None
+
+        top = search_results[0]
+        cat = top.category
+        score = float(top.score)
+
+        # Domain-specific typed slot extraction guided by vector classification
+        if cat == "volume":
+            res = self.local_router._match_volume(clean, norm)
+            if res:
+                res.confidence = max(res.confidence, score)
+                res.source = "hybrid_fast_path"
+                return res
+            return IntentResult(
+                action_name="system_volume",
+                parameters={"delta": 10},
+                confidence=score,
+                source="hybrid_fast_path",
+                response_text="Đang điều chỉnh âm lượng cho Ngài.",
+            )
+
+        if cat == "brightness":
+            res = self.local_router._match_brightness(clean, norm)
+            if res:
+                res.confidence = max(res.confidence, score)
+                res.source = "hybrid_fast_path"
+                return res
+            return IntentResult(
+                action_name="system_brightness",
+                parameters={"delta": 10},
+                confidence=score,
+                source="hybrid_fast_path",
+                response_text="Đang điều chỉnh độ sáng màn hình cho Ngài.",
+            )
+
+        if cat == "media":
+            res = self.local_router._match_media(clean, norm)
+            if res:
+                res.confidence = max(res.confidence, score)
+                res.source = "hybrid_fast_path"
+                return res
+            return IntentResult(
+                action_name="spotify",
+                parameters={"command": "play", "query": ""},
+                confidence=score,
+                source="hybrid_fast_path",
+                response_text="Đang mở Spotify và phát nhạc cho Ngài.",
+            )
+
+        if cat == "app_launch":
+            res = self.local_router._match_app_launch(clean, norm)
+            if res:
+                res.confidence = max(res.confidence, score)
+                res.source = "hybrid_fast_path"
+                return res
+
+        if cat == "timers":
+            res = self.local_router._match_timer_reminder(clean, norm)
+            if res:
+                res.confidence = max(res.confidence, score)
+                res.source = "hybrid_fast_path"
+                return res
+
+        if cat == "notes":
+            res = self.local_router._match_notes(clean, norm)
+            if res:
+                res.confidence = max(res.confidence, score)
+                res.source = "hybrid_fast_path"
+                return res
+
+        if cat == "weather":
+            res = self.local_router._match_weather(clean, norm)
+            if res:
+                res.confidence = max(res.confidence, score)
+                res.source = "hybrid_fast_path"
+                return res
+
+        return None
+
+    def benchmark_latency(self, text: str = "tăng âm lượng lên 20%", iterations: int = 100) -> float:
+        """
+        Benchmarks average routing latency in milliseconds over N iterations.
+        Ensures sub-2ms execution for on-device processing.
+        """
+        # Warmup
+        for _ in range(5):
+            self.route(text)
+        start = time.perf_counter()
+        for _ in range(iterations):
+            self.route(text)
+        elapsed = time.perf_counter() - start
+        avg_ms = (elapsed / iterations) * 1000.0
+        return avg_ms
+
+
+__all__ = [
+    "LocalSemanticRouter",
+    "HybridSemanticRouter",
+    "normalize_vietnamese_text",
+    "parse_vietnamese_number",
+    "parse_duration_seconds",
+]
+

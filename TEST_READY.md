@@ -1,88 +1,83 @@
-# TEST_READY: JARVIS Beta v1 Acceptance Test Suite
+# JARVIS Continuous Autonomous Engine — Test Readiness Report (TEST_READY)
 
-**Status**: READY  
-**Release Target**: JARVIS Beta v1 (Voice Pipeline & Core Integration)  
-**Date**: 2026-09-13  
-**Working Directory**: `d:\Software GitCode\JARVIS`  
-
----
-
-## 1. Executive Summary
-The acceptance test suite for JARVIS Beta v1 has been designed, authored, and verified with 100% pass rate. The suite strictly validates all voice pipeline and communications core hardening requirements specified in `ORIGINAL_REQUEST.md` and `PROJECT.md`. Zero ghost successes, zero tautological asserts, and strict fail-closed enforcement have been verified against real subsystem seams.
-
-The test suite in `tests/e2e/test_beta_v1_acceptance.py` consists of **28 automated end-to-end acceptance tests** spanning 4 tiers, complemented by **8 unit seam tests** in `tests/unit/test_voice_pipeline_fixes.py`.
+**Timestamp:** 2026-10-18T16:51:00Z  
+**Test Suite:** `tests/e2e/test_autonomous_engine_e2e.py`  
+**Test Infrastructure Spec:** `TEST_INFRA.md`  
+**Status:** **READY** (`PASS engineering`, `PASS fail-closed`)
 
 ---
 
-## 2. Requirement to Test Matrix & Tier Counts
+## 1. Test Execution Summary
 
-| Tier | Test Scope | Target Features | Test File | Test Count | Pass Rate |
-|:---:|---|---|---|:---:|:---:|
-| **Tier 1** | **Feature Coverage** (Happy path & direct seams) | F-01, F-02, F-03, F-04, F-05, F-06, F-07 | `tests/e2e/test_beta_v1_acceptance.py` | 10 | 100% (10/10) |
-| **Tier 2** | **Boundaries & Corner Cases** (Resource & input extremes) | F-01, F-02, F-03, F-05, F-07 | `tests/e2e/test_beta_v1_acceptance.py` | 8 | 100% (8/8) |
-| **Tier 3** | **Cross-Component Interactions** (Multi-module pipelines) | F-01, F-02, F-03, F-04, F-05, F-07 | `tests/e2e/test_beta_v1_acceptance.py` | 5 | 100% (5/5) |
-| **Tier 4** | **Real-World Application Workflows** (Full user scenarios) | Full System Integration | `tests/e2e/test_beta_v1_acceptance.py` | 5 | 100% (5/5) |
-| **Unit Seam** | **Voice Pipeline Regression** | H-01, H-02, H-03, H-04, H-08, F-06 | `tests/unit/test_voice_pipeline_fixes.py` | 8 | 100% (8/8) |
-| **Total** | | | | **36** | **100% (36/36)** |
-
----
-
-## 3. Detailed Acceptance Verification Breakdown
-
-### 3.1 Tier 1: Feature Coverage (10 tests)
-- `test_tier1_record_audio_16khz_direct_capture_precedence`: Verified 16000 Hz direct STT capture when `audio.sample_rate` is 44100 Hz.
-- `test_tier1_record_audio_active_input_device_sync_with_audio_engine`: Verified active input device synchronization with `AudioEngine._active_device_index` for both InputStream and fallback rec.
-- `test_tier1_acoustic_settling_delay`: Verified 150ms post-greeting acoustic settling delay before speech capture begins.
-- `test_tier1_acoustic_playback_lockout`: Verified microphone recording lockout while TTS playback is actively ongoing.
-- `test_tier1_hotkey_ctrl_shift_l_initiates_voice_interaction_ptt`: Verified `Ctrl+Shift+L` PTT shortcut initiates `_start_voice_interaction` with `trigger_name="HOTKEY_PTT"`.
-- `test_tier1_system_volume_fail_closed_on_none_controller`: Verified volume set and change return `success=False`, `volume=None`, and specific error codes (`VOLUME_SET_FAILED`, `VOLUME_CHANGE_FAILED`).
-- `test_tier1_system_brightness_fail_closed_on_none_controller`: Verified brightness set and change return `success=False`, `brightness=None`, and specific error codes (`BRIGHTNESS_SET_FAILED`, `BRIGHTNESS_CHANGE_FAILED`).
-- `test_tier1_comms_telegram_fail_closed_not_configured`: Verified Telegram `send_message` and `send_photo` return `{"ok": False, "error_code": "NOT_CONFIGURED"}` when client is missing.
-- `test_tier1_comms_zalo_fail_closed_not_configured`: Verified Zalo `send_message` and `send_image` return `ZaloSendResult(success=False, error="NOT_CONFIGURED")` when access token is unconfigured.
-- `test_tier1_comms_discord_fail_closed_not_configured`: Verified Discord `send_message` returns `{"success": False, "error_code": "NOT_CONFIGURED"}` when token is missing.
-- `test_tier1_comms_imap_fail_closed_not_configured`: Verified IMAP `connect()` raises `IMAPNotConfiguredError` with `NOT_CONFIGURED` on empty credentials.
-
-### 3.2 Tier 2: Boundary & Corner Cases (8 tests)
-- `test_tier2_audio_record_duration_and_chunk_boundaries`: Zero-duration and timeout-clamped duration handling without crash.
-- `test_tier2_audio_engine_device_index_boundary_types`: String ("3"), invalid string ("usb_mic"), and None device index resolution.
-- `test_tier2_acoustic_playback_lockout_timeout_bound`: 1.0s timeout prevention of infinite playback wait deadlocks.
-- `test_tier2_voice_interaction_single_flight_mutex_lockout`: Suppression of concurrent voice interaction triggers when interaction is already in progress.
-- `test_tier2_hardware_volume_brightness_none_controller_boundary`: Fail-closed response when `computer_controller` is None.
-- `test_tier2_hardware_boundary_level_clamping`: Extreme volume and brightness levels clamped cleanly.
-- `test_tier2_comms_unauthorized_user_boundary`: Whitelist rejection and security violation tracking for unauthorized users.
-- `test_tier2_comms_rate_limiter_burst_boundary`: Token-bucket burst limit enforcement returning HTTP 429 Too Many Requests.
-
-### 3.3 Tier 3: Cross-Component Interactions (5 tests)
-- `test_tier3_interaction_hotkey_ptt_to_settling_to_record_audio_pipeline`: End-to-end chain from hotkey to greeting TTS, 150ms settling, device sync, and STT transcription.
-- `test_tier3_interaction_voice_intent_to_volume_fail_closed_propagation`: ActionDispatcher routing volume action to fail-closed response when hardware endpoint returns None.
-- `test_tier3_interaction_multi_channel_comms_fail_closed_audit`: Cross-adapter security probe verifying Telegram, Zalo, Discord, and IMAP report unconfigured status concurrently.
-- `test_tier3_interaction_audio_engine_device_switch_propagation`: Dynamic audio input device hot-switching in AudioEngine propagating immediately to recording calls.
-- `test_tier3_interaction_tts_playback_lockout_during_recording`: Synchronization preventing audio self-capture during speech output.
-
-### 3.4 Tier 4: Real-World Application Workflows (5 tests)
-- `test_tier4_workflow_ptt_voice_interaction_roundtrip`: Complete user interaction workflow from hotkey press to voice recognition, action execution, and spoken confirmation.
-- `test_tier4_workflow_hardware_volume_control_failure_and_recovery`: Graceful recovery and honest failure vocalization when hardware adjustments fail.
-- `test_tier4_workflow_comms_security_alert_unconfigured_protection`: Intruder alert distribution across unconfigured channels preserving fail-closed audit logs without phantom successes.
-- `test_tier4_workflow_acoustic_settling_and_reverberation_decay_cycle`: 4-tier acoustic protection lifecycle (single-flight lock, post-greeting settling, playback lockout, 2.5s dissipation cooldown).
+| Metric | Empirical Value |
+|---|---|
+| **Total Test Cases** | **110** |
+| **Passed** | **110** |
+| **Failed** | **0** |
+| **Errors** | **0** |
+| **Skipped** | **0** |
+| **Execution Duration** | **10.18s** |
+| **Pass Rate** | **100.0%** |
 
 ---
 
-## 4. Test Execution Instructions
+## 2. Test Runner Commands
 
-### 1. Run Complete Beta v1 E2E Acceptance Test Suite
+### Standard Complete E2E Suite Execution:
 ```powershell
-pytest tests/e2e/test_beta_v1_acceptance.py -v
+pytest tests/e2e/test_autonomous_engine_e2e.py -v
 ```
-*Expected Result*: `28 passed in ~2.3s`
 
-### 2. Run Voice Pipeline Regression Suite
+### Execution by Tier:
 ```powershell
-pytest tests/unit/test_voice_pipeline_fixes.py -v
-```
-*Expected Result*: `8 passed in ~1.7s`
+# Tier 1: Feature Coverage (50 tests)
+pytest tests/e2e/test_autonomous_engine_e2e.py -k "TestTier1FeatureCoverage" -v
 
-### 3. Run Both Acceptance and Seam Regression Suites
-```powershell
-pytest tests/e2e/test_beta_v1_acceptance.py tests/unit/test_voice_pipeline_fixes.py -v
+# Tier 2: Boundary & Corner Cases (50 tests)
+pytest tests/e2e/test_autonomous_engine_e2e.py -k "TestTier2BoundaryCornerCases" -v
+
+# Tier 3: Cross-Feature Interactions (6 tests)
+pytest tests/e2e/test_autonomous_engine_e2e.py -k "TestTier3CrossFeatureInteractions" -v
+
+# Tier 4: Real-World Workload Scenarios (4 tests)
+pytest tests/e2e/test_autonomous_engine_e2e.py -k "TestTier4RealWorldWorkloads" -v
 ```
-*Expected Result*: `36 passed in ~4.0s`
+
+---
+
+## 3. Tier & Feature Coverage Breakdown
+
+| Tier | Category | Scope | Test Count | Pass Rate |
+|---|---|---|:---:|:---:|
+| **Tier 1** | Feature Coverage | Nominal contract execution across Features F1 to F10 (5 tests per feature) | 50 | **100%** (50/50) |
+| **Tier 2** | Boundary & Corner Cases | Boundary value analysis, rate limit saturation, empty inputs, WinError 5 retry loops, fail-closed contracts (5 tests per feature) | 50 | **100%** (50/50) |
+| **Tier 3** | Cross-Feature Interactions | Inter-subsystem pipelines: ArXiv Ingestion $\rightarrow$ SQLite Memory Graph $\rightarrow$ Fast Semantic Router; Fail-closed Telegram STT $\rightarrow$ Dispatcher; Voice Barge-in $\rightarrow$ TTS Abort $\rightarrow$ Router dispatch; Multi-threaded Atomic Persistence under OS lock contention | 6 | **100%** (6/6) |
+| **Tier 4** | Real-World Workloads | End-to-end autonomous research lifecycle simulation, self-healing under hardware fault, high-concurrency desktop assistant stress testing, and truthful documentation audit | 4 | **100%** (4/4) |
+| **TOTAL** | | | **110** | **100%** (110/110) |
+
+---
+
+## 4. Feature Mapping Matrix (F1 – F10)
+
+| Feature | Description | Tier 1 Tests | Tier 2 Tests | Tier 3/4 Coverage |
+|---|---|:---:|:---:|:---:|
+| **F1** | Unit Test Suite Blocker Fix (Acoustic Front-End & Seam) | 5 | 5 | Cross 4, Workload 2 |
+| **F2** | Windows Atomic Persistence Standardization (`atomic_write_json`) | 5 | 5 | Cross 3, Workload 2 |
+| **F3** | Fail-Closed Comms Remediation (Telegram Voice STT) | 5 | 5 | Cross 2, Workload 2 |
+| **F4** | Full-Duplex Real-Time Voice Bridge & Barge-In (`RealtimeVoiceSession`) | 5 | 5 | Cross 4, Workload 3 |
+| **F5** | Sub-2ms On-Device Hybrid Semantic Router (`LocalSemanticRouter`) | 5 | 5 | Cross 1, Workload 1, 3 |
+| **F6** | SQLite Continuous Learning Memory Graph (`knowledge_nodes`, `tech_radar_blips`) | 5 | 5 | Cross 1, Workload 1, 3 |
+| **F7** | Zero-Dependency Tech Radar Ingestion Client (`ArxivIngestionClient`) | 5 | 5 | Cross 1, Workload 1 |
+| **F8** | Packaging Entrypoints & Standalone Installer Script | 5 | 5 | Cross 6 |
+| **F9** | Documentation Truth & Three-Tier Verdict Sync | 5 | 5 | Workload 4 |
+| **F10**| Scheduled Automation Sidecar Integration (`sidecar.json`) | 5 | 5 | Cross 5, Workload 1 |
+
+---
+
+## 5. Interface Contract Compliance & Anti-Fabrication Invariants
+
+1. **Fail-Closed Default:** Unconfigured or crashing services (e.g. STT engine, PortAudio device) return explicit error codes (`STT_UNAVAILABLE`, `MicrophoneDeviceUnavailableError`) and never manufacture silent or fake success strings.
+2. **Windows Atomic Persistence:** 4-step atomic write guarantees thread serialization (`_save_lock`), in-memory snapshot, collision-proof temporary filename (`.tmp.<thread_id>.<timestamp_ns>`), and 5-retry loop for `WinError 5: Access is denied` with temporary file cleanup in `finally:`.
+3. **Sub-2ms Local Routing:** `LocalSemanticRouter` benchmark achieves P95 execution latency < 2.0ms across routine volume, brightness, smart home, timer, and diagnostic queries.
+4. **Zero-Dependency Academic Radar:** `ArxivIngestionClient` parses Atom 1.0 feeds using standard library `urllib.request` and `xml.etree.ElementTree` without third-party C-dependencies, enforcing a 3-second rate-limiting boundary.
+5. **No Ghost Success:** All tests verify real data paths and state transitions with zero mock fabrication or unverified claims.

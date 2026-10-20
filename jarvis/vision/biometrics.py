@@ -18,6 +18,7 @@ import json
 import logging
 import math
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -126,6 +127,8 @@ class FaceEmbeddingStorage:
         self.storage_path = Path(_raw)
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
         self.enrolled_faces: dict[str, list[float]] = {}
+        self._lock = threading.Lock()
+        self._save_lock = threading.Lock()
         self._load()
 
     def _load(self) -> None:
@@ -135,7 +138,8 @@ class FaceEmbeddingStorage:
             data = json.loads(self.storage_path.read_text(encoding="utf-8"))
         except Exception as exc:
             log.warning("Failed to load face embeddings from %s: %s", self.storage_path, exc)
-            self.enrolled_faces = {}
+            with self._lock:
+                self.enrolled_faces = {}
             return
 
         if not isinstance(data, dict):
@@ -143,7 +147,8 @@ class FaceEmbeddingStorage:
                 "Face embedding store at %s has invalid root type %s; ignoring",
                 self.storage_path, type(data).__name__,
             )
-            self.enrolled_faces = {}
+            with self._lock:
+                self.enrolled_faces = {}
             return
 
         validated: dict[str, list[float]] = {}
@@ -160,26 +165,22 @@ class FaceEmbeddingStorage:
                 "Skipped %d invalid/corrupt embedding entries while loading %s",
                 skipped, self.storage_path,
             )
-        self.enrolled_faces = validated
+        with self._lock:
+            self.enrolled_faces = validated
 
     def save(self) -> bool:
-        """Atomically persists the current store (temp file + os.replace) so a crash or
-        write failure mid-save can never leave a partially-written or truncated file -
-        the previous valid store is preserved untouched."""
-        tmp_path = self.storage_path.with_name(self.storage_path.name + ".tmp")
-        try:
-            payload = json.dumps(self.enrolled_faces, indent=2)
-            tmp_path.write_text(payload, encoding="utf-8")
-            os.replace(tmp_path, self.storage_path)
-            return True
-        except Exception as exc:
-            log.error("Failed to save face embeddings to %s: %s", self.storage_path, exc)
+        """Atomically persists current store following AGENTS.md Section 3 Windows
+        Atomic Persistence standards."""
+        with self._save_lock:
+            with self._lock:
+                snapshot = dict(self.enrolled_faces)
             try:
-                if tmp_path.exists():
-                    tmp_path.unlink()
-            except OSError:
-                pass
-            return False
+                from jarvis.utils.atomic_io import atomic_write_json
+                atomic_write_json(self.storage_path, snapshot, indent=2)
+                return True
+            except Exception as exc:
+                log.error("Failed to save face embeddings to %s: %s", self.storage_path, exc)
+                return False
 
     def add_face(self, label: str, embedding: np.ndarray) -> bool:
         """Validates label/embedding, then persists. On save failure, the in-memory
@@ -194,23 +195,30 @@ class FaceEmbeddingStorage:
             log.warning("add_face rejected: invalid embedding for label %r", norm_label)
             return False
 
-        had_previous = norm_label in self.enrolled_faces
-        previous_value = self.enrolled_faces.get(norm_label)
-        self.enrolled_faces[norm_label] = validated.tolist()
+        with self._lock:
+            had_previous = norm_label in self.enrolled_faces
+            previous_value = self.enrolled_faces.get(norm_label)
+            self.enrolled_faces[norm_label] = validated.tolist()
+
         if self.save():
             return True
 
-        if had_previous:
-            self.enrolled_faces[norm_label] = previous_value  # type: ignore[assignment]
-        else:
-            del self.enrolled_faces[norm_label]
+        with self._lock:
+            if had_previous:
+                self.enrolled_faces[norm_label] = previous_value  # type: ignore[assignment]
+            else:
+                del self.enrolled_faces[norm_label]
         return False
 
     def get_embeddings(self) -> list[np.ndarray]:
-        return [np.array(v, dtype=np.float64) for v in self.enrolled_faces.values()]
+        with self._lock:
+            faces = list(self.enrolled_faces.values())
+        return [np.array(v, dtype=np.float64) for v in faces]
 
     def get_labeled_embeddings(self) -> dict[str, np.ndarray]:
-        return {label: np.array(v, dtype=np.float64) for label, v in self.enrolled_faces.items()}
+        with self._lock:
+            faces = dict(self.enrolled_faces)
+        return {label: np.array(v, dtype=np.float64) for label, v in faces.items()}
 
 
 class BiometricsEngine:

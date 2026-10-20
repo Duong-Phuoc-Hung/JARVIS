@@ -23,6 +23,16 @@ log = logging.getLogger("jarvis.smart_home.discovery")
 _REGISTRY_FILE: Path | None = None  # resolved at runtime
 
 
+def _get_registry_file() -> Path:
+    global _REGISTRY_FILE
+    if _REGISTRY_FILE is not None:
+        return _REGISTRY_FILE
+    import os as _os
+    _apd = _os.environ.get("LOCALAPPDATA") or _os.environ.get("APPDATA")
+    base = Path(_apd) / "JARVIS" if _apd else Path.home() / ".jarvis"
+    return base / "smart_home" / "devices.json"
+
+
 @dataclass
 class DiscoveredDevice:
     device_id: str
@@ -61,6 +71,7 @@ class SmartHomeDiscovery:
         self.is_mock = is_mock
         self._devices: dict[str, DiscoveredDevice] = {}
         self._lock = threading.Lock()
+        self._save_lock = threading.Lock()
         self._bg_thread: threading.Thread | None = None
         self._running = False
         self._load_registry()
@@ -269,23 +280,30 @@ class SmartHomeDiscovery:
     # ------------------------------------------------------------------
 
     def _save_registry(self) -> None:
-        _REGISTRY_FILE.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            data = {did: asdict(d) for did, d in self._devices.items()}
-            _REGISTRY_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-        except Exception as exc:
-            log.warning("Smart home registry save error: %s", exc)
+        reg_file = _get_registry_file()
+        with self._save_lock:
+            with self._lock:
+                data = {did: asdict(d) for did, d in self._devices.items()}
+            try:
+                from jarvis.utils.atomic_io import atomic_write_json
+                atomic_write_json(reg_file, data, indent=2, ensure_ascii=False)
+            except Exception as exc:
+                log.warning("Smart home registry save error: %s", exc)
 
     def _load_registry(self) -> None:
-        if not _REGISTRY_FILE.exists():
+        reg_file = _get_registry_file()
+        if not reg_file.exists():
             return
         try:
-            raw = json.loads(_REGISTRY_FILE.read_text(encoding="utf-8"))
-            for did, d in raw.items():
-                self._devices[did] = DiscoveredDevice(**{
-                    k: v for k, v in d.items()
-                    if k in DiscoveredDevice.__dataclass_fields__
-                })
+            raw = json.loads(reg_file.read_text(encoding="utf-8"))
+            if isinstance(raw, dict):
+                with self._lock:
+                    for did, d in raw.items():
+                        if isinstance(d, dict):
+                            self._devices[did] = DiscoveredDevice(**{
+                                k: v for k, v in d.items()
+                                if k in DiscoveredDevice.__dataclass_fields__
+                            })
         except Exception as exc:
             log.warning("Smart home registry load error: %s", exc)
 

@@ -251,17 +251,42 @@ class TelegramBotController:
             self.security_violations.append(user_id)
             return {"status": 403, "error": "Forbidden: Unauthorized User ID", "rejected": True}
 
-        transcribed_text = ""
-        if self.stt_engine and hasattr(self.stt_engine, "transcribe"):
-            try:
-                transcribed_text = self.stt_engine.transcribe(voice_bytes)
-            except Exception as exc:
-                log.error("Voice transcription failed: %s", exc)
-                transcribed_text = "Lệnh thoại đã nhận"
-        else:
-            transcribed_text = "Lệnh thoại đã nhận"
+        if not voice_bytes:
+            return {
+                "ok": False,
+                "status": 400,
+                "error_code": "STT_UNAVAILABLE",
+                "message": "Voice transcription service offline or not configured.",
+            }
 
-        return self.handle_inbound_message(user_id=user_id, text=transcribed_text, chat_id=chat_id)
+        if not (self.stt_engine and hasattr(self.stt_engine, "transcribe")):
+            return {
+                "ok": False,
+                "status": 503,
+                "error_code": "STT_UNAVAILABLE",
+                "message": "Voice transcription service offline or not configured.",
+            }
+
+        try:
+            transcribed_text = self.stt_engine.transcribe(voice_bytes)
+        except Exception as exc:
+            log.error("Voice transcription failed: %s", exc)
+            return {
+                "ok": False,
+                "status": 503,
+                "error_code": "STT_UNAVAILABLE",
+                "message": "Voice transcription service offline or not configured.",
+            }
+
+        if not isinstance(transcribed_text, str) or not transcribed_text.strip():
+            return {
+                "ok": False,
+                "status": 503,
+                "error_code": "STT_UNAVAILABLE",
+                "message": "Voice transcription service offline or not configured.",
+            }
+
+        return self.handle_inbound_message(user_id=user_id, text=transcribed_text.strip(), chat_id=chat_id)
 
     def send_message(
         self,

@@ -19,6 +19,11 @@ from jarvis.llm.client import (
     TokenUsage,
     ToolCall,
 )
+from jarvis.llm.local_classifier import (
+    ClassificationResult,
+    VietnameseNLPClassifier,
+    normalize_vietnamese_text,
+)
 from jarvis.llm.router import (
     IntentResult,
     LLMIntentRouter,
@@ -28,6 +33,7 @@ from jarvis.llm.router import (
 
 __all__ = [
     "ChatMessage",
+    "ClassificationResult",
     "IntentResult",
     "LLMAuthenticationError",
     "LLMClient",
@@ -41,6 +47,8 @@ __all__ = [
     "LLMTimeoutError",
     "TokenUsage",
     "ToolCall",
+    "VietnameseNLPClassifier",
     "build_jarvis_system_prompt",
     "generate_tool_schema_from_dispatcher",
+    "normalize_vietnamese_text",
 ]

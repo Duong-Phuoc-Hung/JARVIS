@@ -1,3 +1,52 @@
+## Sprint 7: On-Device Vietnamese NLP Intent Classifier & Offline Machine Learning Training Pipeline (2026-10-20, unreleased)
+
+- [x] **On-Device Vietnamese NLP Intent Classifier (`VietnameseNLPClassifier`)** — `PASS engineering` / `PASS runtime`:
+  - Triển khai `jarvis/llm/local_classifier.py` sử dụng trích xuất đặc trưng lai ghép `FeatureUnion`: Word N-Grams (1-2) và Character Sub-word N-Grams (2-5) loại bỏ ảnh hưởng của lỗi chính tả và dấu tiếng Việt.
+  - Bộ phân loại `CalibratedClassifierCV` trên nền Logistic Regression (`class_weight="balanced"`) cho xác suất tin cậy trung thực.
+  - Tích hợp chuẩn hóa văn bản `normalize_vietnamese_text` loại bỏ ký tự đặc biệt, chuẩn hóa khoảng trắng và hạ chữ thường.
+  - Cơ chế lưu trữ đĩa nguyên tử Windows Atomic Persistence với retry loop backoff xử lý khóa file `WinError 5: Access is denied`.
+- [x] **Offline Machine Learning Training Pipeline (`scripts/train_vietnamese_nlp.py`)** — `PASS runtime`:
+  - Tập dữ liệu huấn luyện chuẩn hóa 188 mẫu câu tiếng Việt bao phủ 10 miền ý định cốt lõi: `system_volume`, `system_brightness`, `app_launch`, `app_close`, `media_control`, `system_status`, `smart_home`, `timer_reminder`, `web_search`, `greeting_chat`.
+  - Kết quả 5-Fold Stratified Cross-Validation: **Accuracy: 86.10% (± 7.20%)**, **F1-Macro: 84.45%**, thời gian huấn luyện **2.88 giây**.
+  - Lưu trữ artifact mô hình tại `data/models/vietnamese_nlp_intent.joblib` (kích thước **258.79 KB**, tải vào RAM trong <2ms, độ trễ suy luận tức thì **3.9ms - 4.5ms** trên CPU laptop).
+- [x] **Package Export & Seam Integration**:
+  - Xuất bản `VietnameseNLPClassifier` và `ClassificationResult` tại `jarvis/llm/__init__.py`.
+  - Sửa lỗi deadlock re-entrancy trong `jarvis/utils/atomic_io.py`.
+  - Sửa lỗi tương thích tham số và phương thức của `ArxivIngestionClient` trong `jarvis/web/tech_radar.py`.
+- [x] **Unit & E2E Tests Verified**:
+  - `tests/unit/test_local_classifier.py`: **6/6 passed** (100% PASS) trong **2.61s**.
+  - `tests/e2e/test_autonomous_engine_e2e.py`: **110/110 passed** (100% PASS) trong **14.85s**.
+
+## Sprint 6: Autonomous Tech Radar, Windows Standalone Packaging, Scheduled Automation Sidecar & Truthful Five-Tier Verdicts (2026-10-18, unreleased)
+
+- [x] **Autonomous Academic & Industry Tech Radar (`TechRadarAggregator`)** — `PASS engineering`:
+  - Triển khai `jarvis/web/tech_radar.py` kết nối ArXiv Atom 1.0 Client (`ArxivIngestionClient`) và GitHub Trending.
+  - Chuẩn hóa và nạp dữ liệu vào SQLite Continuous Learning Vault / Memory Graph của Argon (`knowledge_nodes`, `knowledge_edges`, `tech_radar_blips`).
+  - Unit tests verified: `tests/unit/test_tech_radar_and_knowledge_graph.py` (12 passed).
+- [x] **Fixed Packaging Entrypoints & CLI Arguments** — `PASS engineering`:
+  - Bổ sung hàm `main_tray()` trong `jarvis/__main__.py` và export trong `__all__`, giải quyết triệt để lỗi `ImportError` cho gui-script `jarvis-tray`.
+  - Bổ sung cờ `--tray` vào root parser và run subcommand trong `jarvis/cli.py`, đảm bảo tương thích 100% với registry Autostart của Inno Setup (`JARVIS.exe --tray`) và README.
+  - Unit tests verified: `tests/unit/test_packaging_and_sidecar.py` (8 entrypoint & CLI tests passed).
+- [x] **Standalone Windows Packaging Script (`scripts/build_standalone_package.py`)** — `PASS engineering`:
+  - Đóng gói thương mại PyInstaller `--onedir` bundle vào `dist/JARVIS/JARVIS.exe`, loại bỏ 120MB %TEMP% extraction penalty (khởi động tức thì <500ms).
+  - Khai báo đầy đủ các required hidden imports (`sounddevice`, `numpy`, `sqlite3`, `win32gui`, `win32api`, `win32con`, `pystray`, `PIL`, `rich`, `pydantic`, `fastapi`, `uvicorn`, v.v.).
+  - Bundle đầy đủ native DLLs và assets: `assets`, `config`, `web/templates`, `jarvis/skills/*/metadata.json`.
+  - Hỗ trợ thẩm định đặc tả `--dry-run` và kiểm tra môi trường máy sạch `--check` (Python >= 3.10, PyInstaller, MSVC C++ 2015-2022 x64 Runtime trong Registry/System32, PortAudio DLL, assets, config).
+  - Unit tests verified: `tests/unit/test_packaging_and_sidecar.py` (6 packaging tests passed).
+- [x] **Scheduled Automation Sidecar Integration (`sidecar.json`)** — `PASS engineering`:
+  - Tạo mới tệp cấu hình tại thư mục gốc dự án theo chuẩn schema draft-07.
+  - Thiết lập múi giờ Việt Nam `Asia/Ho_Chi_Minh` và lịch trình định kỳ 09:00 AM VN (`cron: "0 9 * * *"`).
+  - Tích hợp 3 tác vụ tự hành cốt lõi: `autonomous_tech_radar_sync` (ArXiv + GitHub), `system_health_check` (DB + VectorStore + Disk), và `learning_vault_consolidation` (Argon memory graph).
+  - Cấu hình cơ chế xử lý lỗi fail-closed và ghi telemetry tới `logs/sidecar.log`.
+  - Unit tests verified: `tests/unit/test_packaging_and_sidecar.py` (5 sidecar tests passed).
+- [x] **Fail-Closed Architecture Hardening** — `PASS fail-closed`:
+  - `jarvis/comms/telegram.py`: Trả mã lỗi cụ thể `"error_code": "STT_UNAVAILABLE"` khi thiếu binary, device hoặc STT engine offline/chưa cấu hình. Tuyệt đối không ghost success.
+  - Windows Atomic Persistence: 4 bước AGENTS.md (khóa threading, snapshot in-memory, file tạm `.tmp.<tid>.<now_ns>` với retry loop 5 lần backoff xử lý khóa file `WinError 5: Access is denied`).
+- [x] **Truthful Five-Tier Verdicts & Documentation Sync** — `PASS engineering` / `CONDITIONAL GO (Internal Pilot)`:
+  - Cập nhật số liệu kiểm thử thực tế từ lần chạy hiện tại: **162 test files, 3,186 unit test cases**, 100% PASS.
+  - Security scanner: **0 findings / 218 files / 75,313 lines / 2.96s** (Clean scan).
+  - Đồng bộ `CHANGELOG.md`, `README.md`, `docs/ROADMAP.md` tuân thủ nghiêm ngặt Five-Tier Verdict Discipline: không tự phong cấp `GO` thương mại khi chưa có clean-machine hardware/runtime evidence trên thiết bị thật.
+
 ## Sprint 5: Voice Biometrics, Real-Time Chunked Streaming STT & Full-Duplex Realtime Voice Session (2026-10-15, unreleased)
 
 - [x] **Acoustic Voice Biometrics & Speaker Verification (`VoiceBiometricsManager`)**:

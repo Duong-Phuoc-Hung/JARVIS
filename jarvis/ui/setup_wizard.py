@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,8 @@ class SetupWizard:
         self.interactive = interactive
         self.config_path = config_path or Path(os.environ.get("LOCALAPPDATA", ".")) / "JARVIS" / "config.json"
         self.selected_settings: dict[str, Any] = {}
+        self._lock = threading.Lock()
+        self._save_lock = threading.Lock()
 
     def run(self) -> dict[str, Any]:
         """Execute the full setup wizard flow."""
@@ -111,8 +114,8 @@ class SetupWizard:
         mic_working = False
         rms_level = 0.0
         try:
-            import sounddevice as sd
             import numpy as np
+            import sounddevice as sd
             print("  Đang kiểm tra tín hiệu micro (thu âm 1.5s)...")
             rec_data = sd.rec(int(16000 * 1.5), samplerate=16000, channels=1, dtype="float32", device=selected_idx)
             sd.wait()
@@ -220,18 +223,18 @@ class SetupWizard:
         print("-" * 70)
         print("BƯỚC 5/5: LƯU CẤU HÌNH HỆ THỐNG")
         print("-" * 70)
-        try:
-            self.config_path.parent.mkdir(parents=True, exist_ok=True)
-            self.config_path.write_text(
-                json.dumps(self.selected_settings, indent=2, ensure_ascii=False),
-                encoding="utf-8"
-            )
-            print(f"✓ Cấu hình đã được lưu an toàn tại: {self.config_path}\n")
-            return True
-        except Exception as exc:
-            logger.error(f"Failed to persist configuration: {exc}")
-            print(f"✗ Không thể lưu file cấu hình: {exc}\n")
-            return False
+        with self._save_lock:
+            with self._lock:
+                snapshot = dict(self.selected_settings)
+            try:
+                from jarvis.utils.atomic_io import atomic_write_json
+                atomic_write_json(self.config_path, snapshot, indent=2, ensure_ascii=False)
+                print(f"✓ Cấu hình đã được lưu an toàn tại: {self.config_path}\n")
+                return True
+            except Exception as exc:
+                logger.error(f"Failed to persist configuration: {exc}")
+                print(f"✗ Không thể lưu file cấu hình: {exc}\n")
+                return False
 
     def _print_completion(self) -> None:
         print("=" * 70)

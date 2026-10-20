@@ -134,6 +134,7 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
         config_path: str | None = None,
         headless: bool = False,
         no_hot_reload: bool = False,
+        config: ConfigManager | None = None,
     ) -> None:
         self.config_path = config_path
         self.headless = headless
@@ -143,7 +144,7 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
         self._lock = threading.RLock()
 
         # 1. Core Framework Foundation
-        self.config = ConfigManager(config_path=self.config_path)
+        self.config = config if config is not None else ConfigManager(config_path=self.config_path)
         self.event_bus = EventBus()
         self.dispatcher = ActionDispatcher(event_bus=self.event_bus, config=self.config)
         self.plugin_registry = PluginRegistry(self.dispatcher)
@@ -209,6 +210,10 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
         self.worker_notifications: WorkerNotificationDispatcher | None = None
         self.subagent_manager: SubAgentManager | None = None
         self.worker_pool: SubAgentManager | None = None  # Alias
+        self.realtime_voice_session: Any | None = None
+        self.voice_session: Any | None = None  # Alias
+        self.hybrid_router: Any | None = None
+        self._barge_in_consecutive: int = 0
 
         self._initialized: bool = False
         self.welcome_executed = False
@@ -341,6 +346,45 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                 log.warning("Streaming STT initialization warning: %s", e_stt)
                 self.streaming_stt = None
 
+            # 5c. Full-Duplex Realtime Voice Session Bridge
+            try:
+                from jarvis.voice.realtime import (
+                    RealtimeSessionConfig,
+                    RealtimeVoiceSession,
+                    RealtimeVoiceState,
+                )
+                if not hasattr(RealtimeVoiceSession, "on_audio_chunk"):
+                    RealtimeVoiceSession.on_audio_chunk = RealtimeVoiceSession.feed_audio
+
+                voice_cfg = self.config.get("voice.realtime", {})
+                rt_config = RealtimeSessionConfig(
+                    sample_rate=int(self.config.get("audio.sample_rate", 16000)),
+                    enable_barge_in=bool(voice_cfg.get("enable_barge_in", True)),
+                    enable_biometrics=bool(voice_cfg.get("enable_biometrics", True)),
+                    barge_in_threshold=float(voice_cfg.get("barge_in_threshold", 0.025)),
+                    barge_in_confirm_frames=int(voice_cfg.get("barge_in_confirm_frames", 3)),
+                )
+
+                def _stt_factory(**kwargs):
+                    if self.streaming_stt:
+                        return self.streaming_stt.create_session(**kwargs)
+                    from jarvis.stt.streaming import StreamingSTTSession
+                    return StreamingSTTSession(engine=self.stt_engine, **kwargs)
+
+                self.realtime_voice_session = RealtimeVoiceSession(
+                    stt_session_factory=_stt_factory,
+                    tts_manager=self.tts_manager,
+                    overlay=self.overlay,
+                    biometrics_manager=getattr(self, "voice_biometrics", None),
+                    config=rt_config,
+                    on_utterance_complete=lambda text: self.process_text_command(text, requester="voice"),
+                )
+                self.voice_session = self.realtime_voice_session
+            except Exception as e_voice:
+                log.warning("Realtime voice session initialization warning: %s", e_voice)
+                self.realtime_voice_session = None
+                self.voice_session = None
+
             # 6. Screen Vision Subsystem (R3)
             vis_cfg = self.config.get("vision", {})
             self.vision_manager = ScreenVisionManager(
@@ -387,6 +431,16 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                 dispatcher=self.dispatcher,
                 memory_manager=self.memory_manager,
             )
+
+            # 9b. Fast On-Device Hybrid Semantic Router (< 2ms)
+            try:
+                from jarvis.llm.semantic_router import HybridSemanticRouter
+                self.hybrid_router = HybridSemanticRouter()
+                if self.llm_router and hasattr(self.llm_router, "semantic_router"):
+                    self.llm_router.semantic_router = self.hybrid_router
+            except Exception as e_hr:
+                log.warning("Hybrid Semantic Router initialization warning: %s", e_hr)
+                self.hybrid_router = None
 
             # 10. Hardware Reporter Subsystem (F-20, F-21, F-22)
             hw_cfg = self.config.get("hardware", {})
@@ -442,28 +496,9 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                 on_gesture=self._on_gesture_event,
             )
 
-            # 14. AudioEngine with Multi-Subscriber Dispatch
+            # 14. AudioEngine with Multi-Subscriber Dispatch & Full-Duplex Barge-In Bridge
             def _on_audio_blocks_dispatch(block: np.ndarray, timestamp: float | None = None) -> None:
-                now = timestamp if timestamp is not None else time.monotonic()
-                if self.tts_manager and self.tts_manager.is_in_echo_window(current_time=now, cooldown_s=2.5):
-                    # Acoustic Echo Suppression: drop incoming microphone frames while TTS is speaking or in cooldown
-                    if self.wake_word_detector:
-                        try:
-                            self.wake_word_detector.suppress_until(now + 0.1)
-                        except Exception:
-                            pass
-                    return
-
-                if self.gesture_detector:
-                    try:
-                        self.gesture_detector.feed_audio_block(block, timestamp=timestamp)
-                    except Exception as e:
-                        log.debug("Gesture detector audio feed exception: %s", e)
-                if self.wake_word_detector:
-                    try:
-                        self.wake_word_detector.feed_audio_block(block, timestamp=timestamp)
-                    except Exception as e:
-                        log.debug("Wake word detector audio feed exception: %s", e)
+                self.on_audio_chunk(block, timestamp=timestamp)
 
             self.audio_engine = AudioEngine(
                 sample_rate=int(self.config.get("audio.sample_rate", 44100)),
@@ -689,6 +724,95 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
             log.info("All JARVIS Core & Autonomous Agentic Subsystems successfully initialized.")
             self._initialized = True
             return self
+
+    def on_audio_chunk(self, block: np.ndarray, timestamp: float | None = None) -> None:
+        """
+        Full-duplex audio chunk processor with acoustic barge-in detection.
+        Dispatches incoming microphone frames to:
+          1. RealtimeVoiceSession.on_audio_chunk() (even when TTS is active).
+          2. Acoustic barge-in check: when tts_manager.is_playing is True,
+             calculates RMS of bandpassed speech. If RMS > 0.025 for 3 consecutive
+             chunks, interrupts TTS immediately via self.tts_manager.stop() and
+             transitions RealtimeVoiceSession to LISTENING state.
+          3. Multi-subscriber dispatch (GestureDetector, WakeWordDetector).
+        """
+        now = timestamp if timestamp is not None else time.monotonic()
+
+        # 1. Forward microphone audio chunk to RealtimeVoiceSession (Full-Duplex)
+        session = getattr(self, "realtime_voice_session", None) or getattr(self, "voice_session", None)
+        if session:
+            try:
+                if hasattr(session, "on_audio_chunk"):
+                    session.on_audio_chunk(block)
+                elif hasattr(session, "feed_audio"):
+                    session.feed_audio(block)
+            except Exception as exc:
+                log.debug("Realtime voice session on_audio_chunk error: %s", exc)
+
+        # 2. Acoustic Barge-In Check during active TTS playback
+        is_tts_playing = bool(self.tts_manager and getattr(self.tts_manager, "is_playing", False))
+        if is_tts_playing:
+            try:
+                from jarvis.audio.dsp import calculate_rms, speech_bandpass_filter
+                sr = int(self.config.get("audio.sample_rate", 16000)) if self.config else 16000
+                filtered = speech_bandpass_filter(block, sample_rate=sr)
+                rms = calculate_rms(filtered)
+                if rms > 0.025:
+                    self._barge_in_consecutive += 1
+                    if self._barge_in_consecutive >= 3:
+                        log.info(
+                            "Acoustic barge-in confirmed (RMS=%.4f > 0.025 for 3 consecutive chunks). Stopping TTS!",
+                            rms,
+                        )
+                        self._barge_in_consecutive = 0
+                        # Trigger immediate TTS interruption
+                        if hasattr(self.tts_manager, "stop"):
+                            self.tts_manager.stop()
+                        elif hasattr(self.tts_manager, "interrupt"):
+                            self.tts_manager.interrupt()
+
+                        # Transition session state to LISTENING and begin accumulating speech buffer
+                        if session:
+                            try:
+                                from jarvis.voice.realtime import RealtimeVoiceState
+                                target_state = RealtimeVoiceState.LISTENING
+                            except Exception:
+                                target_state = "listening"
+
+                            if hasattr(session, "set_state"):
+                                session.set_state(target_state)
+                            elif hasattr(session, "_transition_to"):
+                                session._transition_to(target_state)
+
+                            if hasattr(session, "start_listening"):
+                                session.start_listening()
+                            elif hasattr(session, "_init_stt_session"):
+                                session._init_stt_session()
+                else:
+                    self._barge_in_consecutive = 0
+            except Exception as e_barge:
+                log.debug("Acoustic barge-in check exception: %s", e_barge)
+        else:
+            self._barge_in_consecutive = 0
+
+        # 3. Wake word echo suppression (only when TTS is playing and NOT barged in)
+        if is_tts_playing and self.wake_word_detector:
+            try:
+                self.wake_word_detector.suppress_until(now + 0.1)
+            except Exception:
+                pass
+
+        # 4. Multi-subscriber dispatch to gesture and wake word detectors
+        if self.gesture_detector:
+            try:
+                self.gesture_detector.feed_audio_block(block, timestamp=timestamp)
+            except Exception as e:
+                log.debug("Gesture detector audio feed exception: %s", e)
+        if self.wake_word_detector:
+            try:
+                self.wake_word_detector.feed_audio_block(block, timestamp=timestamp)
+            except Exception as e:
+                log.debug("Wake word detector audio feed exception: %s", e)
 
     def _register_default_hotkeys(self) -> None:
         """Register default system-wide keyboard shortcuts."""
@@ -1923,11 +2047,19 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
 
         # 4. Intent Routing
         intent_result = None
-        if not is_autonomous_plan and self.llm_router:
-            try:
-                intent_result = self.llm_router.parse_intent(clean_text)
-            except Exception as e:
-                log.error("LLM Intent Router failed: %s", e)
+        if not is_autonomous_plan:
+            # Fast-path On-Device Hybrid Semantic Router (< 2ms)
+            if hasattr(self, "hybrid_router") and self.hybrid_router:
+                try:
+                    intent_result = self.hybrid_router.route(clean_text)
+                except Exception as e_hr:
+                    log.debug("Hybrid router routing error: %s", e_hr)
+
+            if intent_result is None and self.llm_router:
+                try:
+                    intent_result = self.llm_router.parse_intent(clean_text)
+                except Exception as e:
+                    log.error("LLM Intent Router failed: %s", e)
 
         # Check if intent router mapped to planner
         if intent_result and intent_result.action_name in ("planner_execute_task", "autonomous_plan"):

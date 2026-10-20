@@ -17,8 +17,9 @@ import json
 import logging
 import sqlite3
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Optional
 from urllib.parse import urlparse
 
 logger = logging.getLogger("jarvis.memory.sqlite_store")
@@ -161,6 +162,52 @@ class SQLiteMemoryStore:
                         );
                     """)
                     conn.execute("CREATE INDEX IF NOT EXISTS idx_learned_workflows_pattern ON learned_workflows(trigger_pattern);")
+
+                    # 7. Knowledge Nodes Table: Continuous Learning Graph Entities
+                    conn.execute("""
+                        CREATE TABLE IF NOT EXISTS knowledge_nodes (
+                            node_id TEXT PRIMARY KEY,
+                            label TEXT,
+                            node_type TEXT,
+                            properties TEXT,
+                            created_at TEXT,
+                            updated_at TEXT
+                        );
+                    """)
+                    conn.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_nodes_type ON knowledge_nodes(node_type);")
+
+                    # 8. Knowledge Edges Table: Directed relations with CASCADE delete
+                    conn.execute("""
+                        CREATE TABLE IF NOT EXISTS knowledge_edges (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            source_id TEXT,
+                            target_id TEXT,
+                            relation TEXT,
+                            weight REAL DEFAULT 1.0,
+                            properties TEXT,
+                            created_at TEXT,
+                            FOREIGN KEY(source_id) REFERENCES knowledge_nodes(node_id) ON DELETE CASCADE,
+                            FOREIGN KEY(target_id) REFERENCES knowledge_nodes(node_id) ON DELETE CASCADE
+                        );
+                    """)
+                    conn.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_edges_pair ON knowledge_edges(source_id, target_id);")
+
+                    # 9. Tech Radar Blips Table: ThoughtWorks-style Tech Radar taxonomy
+                    conn.execute("""
+                        CREATE TABLE IF NOT EXISTS tech_radar_blips (
+                            blip_id TEXT PRIMARY KEY,
+                            title TEXT,
+                            ring TEXT,
+                            quadrant TEXT,
+                            summary TEXT,
+                            url TEXT,
+                            source TEXT,
+                            published TEXT,
+                            tags TEXT,
+                            created_at TEXT
+                        );
+                    """)
+                    conn.execute("CREATE INDEX IF NOT EXISTS idx_tech_radar_quadrant_ring ON tech_radar_blips(quadrant, ring);")
             finally:
                 conn.close()
 
@@ -776,6 +823,300 @@ class SQLiteMemoryStore:
             finally:
                 conn.close()
 
+    # ── Continuous Learning Knowledge Graph & Tech Radar API ─────────────────
+
+    def add_knowledge_node(
+        self,
+        node_id: str,
+        label: str,
+        node_type: str,
+        properties: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Inserts or updates an entity node in the continuous learning knowledge graph.
+        """
+        clean_id = str(node_id).strip()
+        if not clean_id:
+            raise ValueError("node_id must not be empty")
+
+        now = datetime.now(timezone.utc).isoformat()
+        props_json = json.dumps(properties or {}, ensure_ascii=False)
+
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                with conn:
+                    conn.execute("""
+                        INSERT INTO knowledge_nodes (node_id, label, node_type, properties, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(node_id) DO UPDATE SET
+                            label = excluded.label,
+                            node_type = excluded.node_type,
+                            properties = excluded.properties,
+                            updated_at = excluded.updated_at;
+                    """, (
+                        clean_id,
+                        str(label).strip(),
+                        str(node_type).strip(),
+                        props_json,
+                        now,
+                        now,
+                    ))
+            finally:
+                conn.close()
+
+    def add_knowledge_edge(
+        self,
+        source_id: str,
+        target_id: str,
+        relation: str,
+        weight: float = 1.0,
+        properties: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Inserts a directed relationship edge between two knowledge nodes.
+        Requires foreign keys: source_id and target_id must already exist in knowledge_nodes.
+        """
+        clean_source = str(source_id).strip()
+        clean_target = str(target_id).strip()
+        if not clean_source or not clean_target:
+            raise ValueError("source_id and target_id must not be empty")
+
+        now = datetime.now(timezone.utc).isoformat()
+        props_json = json.dumps(properties or {}, ensure_ascii=False)
+
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                with conn:
+                    conn.execute("""
+                        INSERT INTO knowledge_edges (source_id, target_id, relation, weight, properties, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?);
+                    """, (
+                        clean_source,
+                        clean_target,
+                        str(relation).strip(),
+                        float(weight),
+                        props_json,
+                        now,
+                    ))
+            finally:
+                conn.close()
+
+    def delete_knowledge_node(self, node_id: str) -> bool:
+        """
+        Deletes a node from knowledge_nodes. Cascades to knowledge_edges automatically.
+        """
+        clean_id = str(node_id).strip()
+        if not clean_id:
+            return False
+
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                with conn:
+                    cursor = conn.execute(
+                        "DELETE FROM knowledge_nodes WHERE node_id = ?;",
+                        (clean_id,),
+                    )
+                    return cursor.rowcount > 0
+            finally:
+                conn.close()
+
+    def record_tech_radar_blip(
+        self,
+        blip_id: str,
+        title: str,
+        ring: str,
+        quadrant: str,
+        summary: str,
+        url: str,
+        source: str = "arxiv",
+        published: str = "",
+        tags: Optional[List[str]] = None,
+    ) -> None:
+        """
+        Inserts or updates a Tech Radar blip item.
+        """
+        clean_id = str(blip_id).strip()
+        if not clean_id:
+            raise ValueError("blip_id must not be empty")
+
+        now = datetime.now(timezone.utc).isoformat()
+        tags_json = json.dumps(tags if tags is not None else [], ensure_ascii=False)
+
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                with conn:
+                    conn.execute("""
+                        INSERT INTO tech_radar_blips (
+                            blip_id, title, ring, quadrant, summary, url, source, published, tags, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(blip_id) DO UPDATE SET
+                            title = excluded.title,
+                            ring = excluded.ring,
+                            quadrant = excluded.quadrant,
+                            summary = excluded.summary,
+                            url = excluded.url,
+                            source = excluded.source,
+                            published = excluded.published,
+                            tags = excluded.tags;
+                    """, (
+                        clean_id,
+                        str(title).strip(),
+                        str(ring).strip().lower(),
+                        str(quadrant).strip().lower(),
+                        str(summary).strip(),
+                        str(url).strip(),
+                        str(source).strip(),
+                        str(published).strip(),
+                        tags_json,
+                        now,
+                    ))
+            finally:
+                conn.close()
+
+    def query_tech_radar(
+        self,
+        quadrant: Optional[str] = None,
+        ring: Optional[str] = None,
+    ) -> List[dict[str, Any]]:
+        """
+        Queries Tech Radar blips with optional quadrant and ring filtering.
+        """
+        conditions: list[str] = []
+        params: list[Any] = []
+
+        if quadrant is not None and str(quadrant).strip():
+            conditions.append("LOWER(quadrant) = LOWER(?)")
+            params.append(str(quadrant).strip())
+
+        if ring is not None and str(ring).strip():
+            conditions.append("LOWER(ring) = LOWER(?)")
+            params.append(str(ring).strip())
+
+        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        sql = f"SELECT * FROM tech_radar_blips {where_clause} ORDER BY created_at DESC;"
+
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                cursor = conn.execute(sql, tuple(params))
+                results: list[dict[str, Any]] = []
+                for row in cursor.fetchall():
+                    item = dict(row)
+                    try:
+                        item["tags"] = json.loads(item["tags"]) if item.get("tags") else []
+                    except Exception:
+                        item["tags"] = []
+                    results.append(item)
+                return results
+            finally:
+                conn.close()
+
+    def get_knowledge_graph(
+        self,
+        node_id: Optional[str] = None,
+        depth: int = 1,
+    ) -> dict[str, List[dict[str, Any]]]:
+        """
+        Retrieves the entire knowledge graph or a neighborhood subgraph around node_id up to depth hops.
+        Returns:
+            {"nodes": [...], "edges": [...]}
+        """
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                if not node_id:
+                    cursor_nodes = conn.execute("SELECT * FROM knowledge_nodes ORDER BY created_at ASC;")
+                    nodes: list[dict[str, Any]] = []
+                    for row in cursor_nodes.fetchall():
+                        node = dict(row)
+                        try:
+                            node["properties"] = json.loads(node["properties"]) if node.get("properties") else {}
+                        except Exception:
+                            node["properties"] = {}
+                        nodes.append(node)
+
+                    cursor_edges = conn.execute("SELECT * FROM knowledge_edges ORDER BY id ASC;")
+                    edges: list[dict[str, Any]] = []
+                    for row in cursor_edges.fetchall():
+                        edge = dict(row)
+                        try:
+                            edge["properties"] = json.loads(edge["properties"]) if edge.get("properties") else {}
+                        except Exception:
+                            edge["properties"] = {}
+                        edges.append(edge)
+
+                    return {"nodes": nodes, "edges": edges}
+
+                clean_node_id = str(node_id).strip()
+                visited_nodes: set[str] = {clean_node_id}
+                frontier: set[str] = {clean_node_id}
+                collected_edge_ids: set[int] = set()
+
+                actual_depth = max(1, depth)
+                for _ in range(actual_depth):
+                    if not frontier:
+                        break
+                    placeholders = ",".join("?" for _ in frontier)
+                    frontier_list = list(frontier)
+                    cursor = conn.execute(f"""
+                        SELECT id, source_id, target_id FROM knowledge_edges
+                        WHERE source_id IN ({placeholders}) OR target_id IN ({placeholders});
+                    """, tuple(frontier_list + frontier_list))
+
+                    next_frontier: set[str] = set()
+                    for edge_row in cursor.fetchall():
+                        edge_id = edge_row["id"]
+                        src = edge_row["source_id"]
+                        tgt = edge_row["target_id"]
+                        collected_edge_ids.add(edge_id)
+                        if src not in visited_nodes:
+                            next_frontier.add(src)
+                            visited_nodes.add(src)
+                        if tgt not in visited_nodes:
+                            next_frontier.add(tgt)
+                            visited_nodes.add(tgt)
+                    frontier = next_frontier
+
+                if not visited_nodes:
+                    return {"nodes": [], "edges": []}
+
+                node_placeholders = ",".join("?" for _ in visited_nodes)
+                cursor_nodes = conn.execute(
+                    f"SELECT * FROM knowledge_nodes WHERE node_id IN ({node_placeholders}) ORDER BY created_at ASC;",
+                    tuple(visited_nodes),
+                )
+                nodes_res: list[dict[str, Any]] = []
+                for row in cursor_nodes.fetchall():
+                    node = dict(row)
+                    try:
+                        node["properties"] = json.loads(node["properties"]) if node.get("properties") else {}
+                    except Exception:
+                        node["properties"] = {}
+                    nodes_res.append(node)
+
+                edges_res: list[dict[str, Any]] = []
+                if collected_edge_ids:
+                    edge_placeholders = ",".join("?" for _ in collected_edge_ids)
+                    cursor_edges = conn.execute(
+                        f"SELECT * FROM knowledge_edges WHERE id IN ({edge_placeholders}) ORDER BY id ASC;",
+                        tuple(collected_edge_ids),
+                    )
+                    for row in cursor_edges.fetchall():
+                        edge = dict(row)
+                        try:
+                            edge["properties"] = json.loads(edge["properties"]) if edge.get("properties") else {}
+                        except Exception:
+                            edge["properties"] = {}
+                        edges_res.append(edge)
+
+                return {"nodes": nodes_res, "edges": edges_res}
+            finally:
+                conn.close()
+
     def close(self) -> None:
-        """No-op for connection-per-call architecture, provided for lifecycle symmetry."""
-        pass
+        """Cleanly releases any allocated store resources."""
+        return None

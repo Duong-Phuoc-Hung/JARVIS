@@ -10,6 +10,8 @@ import hashlib
 import logging
 import os
 import sys
+import threading
+import time
 import wave
 from pathlib import Path
 
@@ -35,6 +37,8 @@ class TTSAudioCache:
 
         self.enabled = enabled
         self._is_closed: bool = False
+        self._lock = threading.Lock()
+        self._save_lock = threading.Lock()
         if self.enabled:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -131,42 +135,48 @@ class TTSAudioCache:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             path = self.get_cache_path(text, voice_id, model_id, output_format)
 
-        import threading
-        import time
-        thread_id = threading.get_ident()
-        ts = time.time_ns()
-        tmp_path = path.parent / f".tmp_{path.stem}_{thread_id}_{ts}.wav"
-        try:
-            with wave.open(str(tmp_path), "wb") as wf:
-                wf.setnchannels(1)       # Mono
-                wf.setsampwidth(2)      # 16-bit
-                wf.setframerate(sample_rate)
-                wf.writeframes(pcm_bytes)
+        return self.save_wav_atomic(path, pcm_bytes, sample_rate=sample_rate)
+
+    def save_wav_atomic(
+        self,
+        dest_path: Path | str,
+        pcm_bytes: bytes,
+        sample_rate: int = 24000,
+        channels: int = 1,
+        sampwidth: int = 2,
+    ) -> Path:
+        """Atomically saves PCM bytes as a standard WAV file following AGENTS.md Section 3 standards."""
+        path = Path(dest_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with self._save_lock:
+            thread_id = threading.get_ident()
+            ts = time.time_ns()
+            tmp_path = path.parent / f".tmp.{thread_id}.{ts}"
             try:
-                tmp_path.replace(path)
-            except (PermissionError, FileExistsError, OSError):
-                # On Windows, if another thread replaced it simultaneously, verify valid target exists
-                if path.is_file() and path.stat().st_size >= 44:
-                    if tmp_path.is_file():
-                        try:
-                            tmp_path.unlink(missing_ok=True)
-                        except Exception:
-                            pass
-                    return path
-                time.sleep(0.01)
-                tmp_path.replace(path)
-            log.debug("Saved cached WAV atomically to %s", path)
-            return path
-        except Exception as e:
-            if tmp_path.is_file():
-                try:
-                    tmp_path.unlink(missing_ok=True)
-                except Exception:
-                    pass
-            if path.is_file() and path.stat().st_size >= 44:
+                with wave.open(str(tmp_path), "wb") as wf:
+                    wf.setnchannels(channels)
+                    wf.setsampwidth(sampwidth)
+                    wf.setframerate(sample_rate)
+                    wf.writeframes(pcm_bytes)
+                for attempt in range(1, 6):
+                    try:
+                        tmp_path.replace(path)
+                        break
+                    except (PermissionError, FileExistsError, OSError) as exc:
+                        if path.is_file() and path.stat().st_size >= 44:
+                            break
+                        if attempt == 5:
+                            log.error("Failed to replace WAV file after 5 attempts on %s: %s", path, exc)
+                            raise
+                        time.sleep(0.02 * attempt)
+                log.debug("Saved cached WAV atomically to %s", path)
                 return path
-            log.warning("Could not write cache file %s: %s", path, e)
-            raise
+            finally:
+                if tmp_path.exists():
+                    try:
+                        tmp_path.unlink()
+                    except OSError:
+                        pass
 
 
     def put(
@@ -295,3 +305,49 @@ class LocalTTSCache(TTSAudioCache):
         output_format: str = "pcm_24000",
     ) -> bytes | None:
         return self.get_bytes(text, voice_id, model_id, output_format)
+
+
+def save_wav_atomic(
+    dest_path: Path | str,
+    pcm_bytes: bytes,
+    sample_rate: int = 24000,
+    channels: int = 1,
+    sampwidth: int = 2,
+    lock: threading.Lock | None = None,
+) -> Path:
+    """Module-level helper to atomically save PCM bytes as a standard WAV file."""
+    path = Path(dest_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    effective_lock = lock if lock is not None else threading.Lock()
+    with effective_lock:
+        thread_id = threading.get_ident()
+        ts = time.time_ns()
+        tmp_path = path.parent / f".tmp.{thread_id}.{ts}"
+        try:
+            with wave.open(str(tmp_path), "wb") as wf:
+                wf.setnchannels(channels)
+                wf.setsampwidth(sampwidth)
+                wf.setframerate(sample_rate)
+                wf.writeframes(pcm_bytes)
+            for attempt in range(1, 6):
+                try:
+                    tmp_path.replace(path)
+                    break
+                except (PermissionError, FileExistsError, OSError) as exc:
+                    if path.is_file() and path.stat().st_size >= 44:
+                        break
+                    if attempt == 5:
+                        log.error("Failed to replace WAV file after 5 attempts on %s: %s", path, exc)
+                        raise
+                    time.sleep(0.02 * attempt)
+            log.debug("Saved cached WAV atomically to %s", path)
+            return path
+        finally:
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+
+
+__all__ = ["TTSAudioCache", "LocalTTSCache", "save_wav_atomic"]

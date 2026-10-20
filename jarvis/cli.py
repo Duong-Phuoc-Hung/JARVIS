@@ -207,6 +207,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="INFO",
         help="Console logging level (default: INFO).",
     )
+    parser.add_argument(
+        "--tray",
+        action="store_true",
+        help="Launch JARVIS directly in Windows System Tray mode.",
+    )
 
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
@@ -221,6 +226,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--headless",
         action="store_true",
         help="Run without system tray icon in headless background mode.",
+    )
+    run_cmd.add_argument(
+        "--tray",
+        action="store_true",
+        help="Launch JARVIS directly in Windows System Tray mode.",
     )
 
     # Command: health-check / health
@@ -565,13 +575,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if single_instance_result == SingleInstanceResult.CHECK_FAILED:
             return 1
+        is_tray = getattr(args, "tray", False)
+        headless = False if is_tray else getattr(args, "headless", False)
         try:
             from jarvis.core.app import JarvisApp
             app = JarvisApp(
                 config_path=args.config,
-                headless=getattr(args, "headless", False),
+                headless=headless,
                 no_hot_reload=getattr(args, "no_hot_reload", False),
             )
             return app.run()
         finally:
             _release_single_instance_mutex()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

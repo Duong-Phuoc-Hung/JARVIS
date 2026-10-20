@@ -56,6 +56,7 @@ class SkillRegistry:
         self.dispatcher = dispatcher
         self._skills: dict[str, SkillDefinition] = {}
         self._lock = threading.RLock()
+        self._save_lock = threading.Lock()
         # Runtime invocation telemetry lives outside the packaged skill tree
         # (see jarvis.skills.telemetry) -- injectable for deterministic
         # tests; defaults to a file under JARVIS's writable per-user data
@@ -357,12 +358,17 @@ class SkillRegistry:
                 skill_dir = self.skills_dir / name
                 skill_dir.mkdir(parents=True, exist_ok=True)
                 module_file = skill_dir / "__init__.py"
-                module_file.write_text(skill_def.entrypoint_code, encoding="utf-8")
-
                 meta_file = skill_dir / "metadata.json"
-                meta_file.write_text(
-                    json.dumps(skill_def.metadata.to_manifest_dict(), indent=2, ensure_ascii=False),
-                    encoding="utf-8",
+
+                from jarvis.utils.atomic_io import atomic_write_json, atomic_write_text
+
+                atomic_write_text(module_file, skill_def.entrypoint_code, lock=self._save_lock, encoding="utf-8")
+                atomic_write_json(
+                    meta_file,
+                    skill_def.metadata.to_manifest_dict(),
+                    lock=self._save_lock,
+                    indent=2,
+                    ensure_ascii=False,
                 )
 
                 loaded = self._import_skill_module(name, module_file, skill_def.metadata)

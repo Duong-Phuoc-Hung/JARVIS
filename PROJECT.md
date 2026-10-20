@@ -1,74 +1,140 @@
-# Project: JARVIS Comprehensive Security Audit, Hardening & Tooling Sprint
+# Project: JARVIS Continuous Autonomous Self-Upgrading & Research Engine
 
 ## Architecture
-JARVIS is an autonomous AI voice assistant and desktop automation platform for Windows 11 (Python 3.13).
-- **Core Subsystems (`jarvis/core/`)**: EventBus, ActionDispatcher, JarvisApp lifecycle, ConfigManager, Logger, RunawayGuard.
-- **Security & Safety (`jarvis/security/`, `jarvis/automation/safety_gate.py`, `jarvis/planner/safety_interceptor.py`)**: SafetyInterceptor, AccessControl, TokenSecurity, JobObject sandbox, AST validation.
-- **Automation & OS Control (`jarvis/automation/`, `jarvis/browser/`, `jarvis/os_control/`)**: ComputerController, ShellAssistant, BrowserController, DesktopAutomation.
-- **Communications & Web (`jarvis/comms/`, `jarvis/web/`)**: TelegramBot, DiscordBot, Zalo, IMAP, WebSearch, TTLCache.
-- **LLM & Speech (`jarvis/llm/`, `jarvis/stt/`, `jarvis/tts/`)**: Intent routing, Tool calling schemas, Whisper STT, TTS manager.
+The system architecture integrates five core subsystems to transition JARVIS into an autonomous, self-upgrading, commercial-grade personal AI assistant on Windows 10/11:
+1. **Continuous Academic & Industry Tech Radar (`jarvis/web/tech_radar.py` & `jarvis/memory/sqlite_store.py`):**
+   - Autonomous ingestion client querying ArXiv Atom 1.0 (`cs.AI`, `cs.CL`, `cs.SD`, `eess.AS`), IEEE, and GitHub Trending feeds via zero-dependency `urllib.request` and `xml.etree.ElementTree`.
+   - SQLite Continuous Learning Memory Graph (`knowledge_nodes`, `knowledge_edges`, `tech_radar_blips`) in WAL mode with relational indexing.
+2. **Windows Atomic Persistence Layer (`jarvis/utils/atomic_io.py` & core stores):**
+   - Strict 4-step Windows atomic persistence: thread serialization via `_save_lock = threading.Lock()`, fast RAM snapshot under `with self._lock:`, collision-proof temporary file `.tmp.<thread_id>.<timestamp_ns>`, and 5-retry loop for `WinError 5: Access is denied` with exponential backoff (`time.sleep(0.02 * attempt)`) and cleanup in `finally:`.
+3. **Low-Latency Voice & Hybrid Routing Subsystem (`jarvis/voice/`, `jarvis/audio/`, `jarvis/llm/`):**
+   - Full-duplex `RealtimeVoiceSession` bridged to `AudioEngine` in `jarvis/core/app.py`.
+   - Continuous barge-in via Acoustic Front-End (AFE) bandpass filter and RMS voice activity detection, eliminating blocking half-duplex turn-taking and reducing E2E turn latency to < 500ms.
+   - Sub-2ms on-device Hybrid Semantic Router combining TF-IDF cosine similarity and typed slot extraction to bypass cloud LLMs for 90%+ local commands.
+4. **Test-Time Compute (TTC) Sandbox & Self-Healing Loop (`tests/unit/`, `jarvis/core/`):**
+   - Clean-machine unit test execution across all 156 test suites (3,072 tests) with 100% pass rate.
+   - Seam-first TDD patch for unmocked hardware calls and acoustic DC attenuation.
+   - Fail-closed error signaling across all communications and hardware adapters.
+5. **Commercial Standalone Packaging & Automation Sidecar (`installer/`, `scripts/`, `sidecar.json`):**
+   - Windows standalone application bundle (`--onedir` with Inno Setup) eliminating `%TEMP%` extraction overhead.
+   - Fixed entrypoints: `main_tray` in `jarvis/__main__.py` and `--tray` in `jarvis/cli.py`.
+   - Scheduled Automation Sidecar (`sidecar.json`) running daily at 09:00 AM VN (`Asia/Ho_Chi_Minh`).
+   - Truthful documentation synchronization under Five-Tier Verdict Discipline.
 
-## Feature Inventory & Vulnerability Catalog
-| # | Defect ID | Severity | Description | Module / File | Milestone | Status |
-|---|-----------|:--------:|-------------|---------------|:---------:|:------:|
-| 1 | VULN-CAT1-01 | Critical | Shell Injection via `shell=True` fallback in `ShellAssistant` | `jarvis/automation/shell_assistant.py` | M1 | RESOLVED |
-| 2 | VULN-CAT1-02 | Critical | Unrestricted Shell Execution Sink (`shell_exec` missing from `HIGH_RISK_ACTIONS`) | `jarvis/plugins/shell.py`, `jarvis/planner/safety_interceptor.py` | M1 | RESOLVED |
-| 3 | VULN-CAT1-03 | High | Path traversal in `BrowserActionExecutor.download_file` | `jarvis/browser/actions.py` | M1 | RESOLVED |
-| 4 | VULN-CAT1-04 | High | Arbitrary directory deletion without canonical boundary check | `jarvis/automation/shell_assistant.py` | M1 | RESOLVED |
-| 5 | VULN-CAT1-05 | Medium | Rate limiter state explosion / memory leak (uncalled `cleanup_idle`) | `jarvis/comms/rate_limiter.py` | M1 | RESOLVED |
-| 6 | VULN-CAT2-01 | Critical | Unauthenticated Web Dashboard with Wildcard CORS (`*`) leaking `/api/config` and `/api/logs` | `jarvis/ui/dashboard.py` | M1 | RESOLVED |
-| 7 | VULN-CAT2-02 | High | Hardcoded DEBUG level in rotating file handler on disk | `jarvis/core/logger.py` | M1 | RESOLVED |
-| 8 | VULN-CAT2-03 | High | API keys in URL query params leaking into `RequestException` messages | `jarvis/web/weather.py`, `jarvis/vision/screen.py` | M1 | RESOLVED |
-| 9 | VULN-CAT2-04 | Medium | Plaintext credentials in env override warning and `ConfigNode.__repr__` | `jarvis/core/config.py` | M1 | RESOLVED |
-| 10 | VULN-CAT3-01 | Critical | LIFO race condition and pending confirmation hijacking in `_handle_safety_gate_confirm` | `jarvis/core/app.py`, `jarvis/automation/safety_gate.py` | M1 | RESOLVED |
-| 11 | VULN-CAT3-02 | High | Safety gate token replay and lifecycle gap | `jarvis/automation/safety_gate.py` | M1 | RESOLVED |
-| 12 | VULN-CAT3-03 | Critical | Unauthenticated remote skill execution (`!exec`) & screenshot exfiltration | `jarvis/comms/discord.py` | M1 | RESOLVED |
-| 13 | VULN-CAT3-04 | High | Ambient privilege escalation via unauthenticated system and voice contexts | `jarvis/core/app.py`, `jarvis/core/models.py` | M1 | RESOLVED |
-| 14 | VULN-CAT3-05 | High | Missing safety interception for VM termination, subagent spawning, sandbox code | `jarvis/planner/safety_interceptor.py`, `jarvis/automation/vm.py` | M1 | RESOLVED |
-| 15 | VULN-CAT4-01 | High | `idna==2.10` vulnerable to CVE-2024-3651 & CVE-2026-45409 DoS | `requirements.txt:33`, `pyproject.toml:34` | M1 | RESOLVED |
-| 16 | VULN-CAT4-02 | High | Missing `keyring` in `requirements.txt` bypassing Windows Credential Manager | `requirements.txt:34`, `jarvis/security/secrets.py:48-54` | M1 | RESOLVED |
-| 17 | VULN-CAT4-03 | Medium | Outdated dependency bounds in requirements | `requirements.txt`, `pyproject.toml` | M1 | RESOLVED |
-| 18 | VULN-CAT5-01 | Medium | Raw exception interpolation leaking paths & internals to voice/chat users | `jarvis/vision/screen.py`, `jarvis/comms/zalo.py`, `jarvis/comms/discord.py` | M1 | RESOLVED |
-| 19 | VULN-CAT5-02 | Medium | Action handlers returning raw exception strings | `jarvis/core/dispatcher.py` | M1 | RESOLVED |
-| 20 | VULN-CAT5-03 | High | PromptGuard `wrap_untrusted_context` unescaped XML breakout | `jarvis/security/prompt_guard.py` | M1 | RESOLVED |
-| 21 | VULN-CAT5-04 | High | Sandbox AST validator omitting `importlib` and `builtins` | `jarvis/sandbox/validator.py` | M1 | RESOLVED |
-| 22 | VULN-CAT5-05 | Low | Package exports missing `secrets.py` in `jarvis/security/__init__.py` | `jarvis/security/__init__.py` | M1 | RESOLVED |
-| 23 | SEC-TEST-01 | N/A | Add 21+ new security-focused tests in `tests/unit/test_security_hardening.py` | `tests/unit/test_security_hardening.py` | M2 | DONE |
-| 24 | SEC-TOOL-01 | N/A | Build standalone security scanner with `--help`, AST/regex rules, exit code 0 | `tools/security_scanner.py` | M3 | DONE |
-| 25 | SEC-DOC-01 | N/A | Update `AUDIT_FRAMEWORK.md`, `CHANGELOG.md`, `docs/ROADMAP.md`, 3+ commits, push | Repository root & docs/ | M4 | DONE |
+---
+
+## Feature Inventory
+| # | Feature | Description | Milestone | Source |
+|---|---------|-------------|-----------|--------|
+| F1 | Unit Test Suite Blocker Fix | Patch `tests/unit/test_adversarial_challenger_m1_sample_rate.py` (mock `sounddevice.rec`, synthesize active sine wave, align silence chunks to 5) so all 156 test suites pass 100%. | M1 | Survey (Codebase) |
+| F2 | Windows Atomic Persistence Standardization | Refactor 9 non-compliant/partial modules (`vision/biometrics.py`, `skills/telemetry.py`, `skills/macro_recorder/`, `smart_home/discovery.py`, `skills/registry.py`, `workers/night_shift.py`, `comms/mobile_bridge.py`, `ui/setup_wizard.py`, `tts/cache.py`) to strict 4-step Section 3 AGENTS.md pattern. | M2 | Survey (Codebase) |
+| F3 | Fail-Closed Comms Remediation | Fix `jarvis/comms/telegram.py` `handle_inbound_voice` to return `STT_UNAVAILABLE` on transcription error instead of hardcoded fake text `"Lệnh thoại đã nhận"`. | M1 | Survey (Codebase) |
+| F4 | Full-Duplex Real-Time Voice Bridge & Barge-In | Bridge `RealtimeVoiceSession` to `jarvis/core/app.py`, remove unconditional mic frame dropping at lines 448-455, enable live barge-in during TTS playback, cutting E2E turn latency to < 500ms. | M4 | Survey (Tech Radar) |
+| F5 | Sub-2ms On-Device Hybrid Semantic Router | Combine TF-IDF cosine similarity from `SemanticVectorStore` with typed slot extraction from `LocalSemanticRouter` in `jarvis/llm/semantic_router.py` to route local actions in < 2ms without cloud LLM roundtrip. | M4 | Survey (Tech Radar) |
+| F6 | SQLite Continuous Learning Memory Graph | Add tables `knowledge_nodes`, `knowledge_edges`, and `tech_radar_blips` with foreign-key cascades, WAL mode, and typed search queries in `jarvis/memory/sqlite_store.py`. | M3 | Survey (Tech Radar) |
+| F7 | Zero-Dependency Tech Radar Ingestion Client | Implement `ArxivIngestionClient` and GitHub Trending scraper in `jarvis/web/tech_radar.py` using `urllib.request` and `xml.etree.ElementTree` without third-party C-dependencies. | M3 | Survey (Tech Radar) |
+| F8 | Packaging Entrypoints & Standalone Installer Script | Add missing `main_tray` to `jarvis/__main__.py` and `--tray` flag to `jarvis/cli.py`. Build standalone `--onedir` packaging script (`scripts/build_standalone_package.py`) with clean-machine compatibility. | M5 | Survey (Spec Miner) |
+| F9 | Documentation Truth & Three-Tier Verdict Sync | Synchronize `CHANGELOG.md`, `README.md`, and `docs/ROADMAP.md` with true empirical numbers (156 test files, 3,072 tests, 0 security findings) and strict verdict tiers. | M5 | Survey (Spec Miner) |
+| F10 | Scheduled Automation Sidecar Integration | Create `sidecar.json` configured for daily 09:00 AM VN (`Asia/Ho_Chi_Minh`) to autonomously execute radar scans, health checks, and continuous learning updates. | M5 | Survey (Spec Miner) |
+| F11 | Comprehensive E2E Testing Suite (Tiers 1-4) & Adversarial Hardening (Tier 5) | Independent opaque-box test suite verifying all R1-R5 features across 4 tiers (55+ test cases) followed by Tier 5 adversarial stress testing and coverage audit. | M6 | Survey & Dual Track |
+
+---
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
-|---|------|-------|-------------|:------:|
-| M0 | Survey & 5-Category Security Audit | 3 parallel Explorers scanning all 200 source files, dependencies, security modules | none | DONE |
-| M1 | Vulnerability Remediation & Patching | Clean minimal fixes for all 22 discovered vulnerabilities, no cheat workarounds, tests pass | M0 | DONE |
-| M2 | Security Test Suite Upgrade | 21+ new security unit tests added in tests/unit/, maintain ≥2,694 passing tests | M1 | DONE |
-| M3 | Automated Security Scanner Tool | Build standalone security scanner in `tools/security_scanner.py` with docs & tests | M0, M1 | DONE |
-| M4 | Documentation, Verification & Git Push | Update AUDIT_FRAMEWORK, CHANGELOG, ROADMAP, ≥3 commits after 7e973e4, push to origin/main | M1, M2, M3 | DONE |
+|---|------|-------|-------------|--------|
+| M1 | Test Suite Self-Healing & Fail-Closed Remediation | Fix test hang in `test_adversarial_challenger_m1_sample_rate.py`; fix Telegram `handle_inbound_voice` fail-closed flaw; achieve 100% unit test suite pass rate (156 files, 3,072 tests). | none | DONE |
+| M2 | Windows Atomic Persistence Standardization | Implement shared helper or standardize 9 modules (`vision/biometrics`, `skills/telemetry`, `skills/macro_recorder`, `smart_home/discovery`, `skills/registry`, `workers/night_shift`, `comms/mobile_bridge`, `ui/setup_wizard`, `tts/cache`) to strict Section 3 AGENTS.md pattern. | M1 | DONE |
+| M3 | Continuous Learning Vault & Tech Radar Ingestion | Implement `knowledge_nodes`, `knowledge_edges`, and `tech_radar_blips` in `jarvis/memory/sqlite_store.py`; implement `ArxivIngestionClient` in `jarvis/web/tech_radar.py` and verify paper ingestion into memory graph. | M1 | DONE |
+| M4 | Low-Latency Voice Pipeline & Fast Semantic Router | Connect `RealtimeVoiceSession` to `jarvis/core/app.py`, remove mic drop on echo window, integrate continuous barge-in, implement Sub-2ms On-Device Hybrid Semantic Router in `jarvis/llm/semantic_router.py`. | M1 | DONE |
+| M5 | Commercial Packaging, Sidecar Automation & Documentation Truth | Fix `main_tray` and `--tray`; create `scripts/build_standalone_package.py`; create `sidecar.json` (daily 09:00 AM VN); sync `CHANGELOG.md`, `README.md`, `docs/ROADMAP.md` under Five-Tier Verdict Discipline. | M1, M2, M3, M4 | IN_PROGRESS |
+| M6 | E2E Test Suite Pass (100%) & Adversarial Coverage Hardening | Run opaque-box E2E test suite (Tiers 1-4) until 100% pass; execute Tier 5 adversarial stress testing, gap analysis, and coverage verification. | M1, M2, M3, M4, M5, TEST_READY.md | PLANNED |
 
-## Interface & Security Contracts
-### Safety Interceptor & Action Confirmation Contract
-- High-risk and destructive actions (`shell_exec`, `shell_execute`, `shell_command`, `sandbox_execute_code`, `sandbox_python_exec`, file deletion, shutdown, reboot, VM destruction) MUST trigger confirmation requests.
-- Confirmation tokens MUST enforce a strictly monotonic TTL expiration and cannot be reused or bypassed via parameter injection.
-- Fail-closed semantics: Any invalid or expired token must result in denial.
+---
 
-### Sanitization & Shell Safety Contract
-- No user/STT/LLM supplied strings may be passed directly to shell command execution without strict tokenization, allowlisting, and rejection of chaining operators (`&`, `|`, `;`, `>`, `<`, `^`).
-- Path operations must resolve canonical paths and ensure they do not traverse outside designated workspace/cache boundaries.
+## Interface Contracts
 
-### Information Disclosure & Logging Contract
-- Logging calls and exception handlers must mask credentials, tokens, passwords, and sensitive system internals.
-- Debug mode must default to False in production configuration.
-- Local web dashboard endpoints (`/api/config`, `/api/logs`) must NOT use wildcard CORS and must redact secrets. Origin strictly limited to loopback addresses.
+### 1. Acoustic Front-End & App Seam (`jarvis.audio.dsp` ↔ `jarvis.core.app`)
+- Function: `app.record_audio(duration_s: float = 4.0, target_device: Optional[int] = None) -> np.ndarray`
+- Contract:
+  - Synthetic test audio must contain frequency content within passband ($80\text{ Hz} - 4000\text{ Hz}$).
+  - Audio recording fallback block must check `sounddevice.rec` mock before calling real host device.
+  - Silence cutoff triggers when `silence_chunks_after_speech >= 5`.
 
-## Code Layout
-- `jarvis/core/`: Application orchestrator, event bus, action dispatcher, configuration, and logging.
-- `jarvis/security/`: Safety interceptor, credential manager, sandbox, AST validator.
-- `jarvis/automation/`: Desktop automation, safety gate, shell assistant.
-- `jarvis/comms/`: Communication adapters (Telegram, Discord, Zalo, Email).
-- `jarvis/web/`: Web search, scraping, cache.
-- `tools/`: Standalone developer and security tools (`tools/security_scanner.py`).
-- `tests/unit/`: Pytest unit and security test suite.
-- `docs/AUDIT_FRAMEWORK.md`: Security audit criteria and results.
-- `CHANGELOG.md`: Project change log.
-- `docs/ROADMAP.md`: Master project roadmap.
+### 2. Comms Fail-Closed Contract (`jarvis.comms.telegram`)
+- Function: `telegram.handle_inbound_voice(voice_file_path: Path) -> dict`
+- Contract:
+  - If STT is unconfigured, missing, or throws an exception, MUST return `{"ok": False, "error_code": "STT_UNAVAILABLE", "message": "Voice transcription service offline or not configured."}`.
+  - MUST NEVER return hardcoded synthetic text `"Lệnh thoại đã nhận"`.
+
+### 3. Windows Atomic File Persistence Contract (`jarvis.utils.atomic_io`)
+- Helper: `atomic_write_json(path: Path, data: Any, lock: Optional[threading.Lock] = None, indent: int = 2) -> None`
+- Contract:
+  - Acquire `lock` if provided.
+  - Snapshot data into JSON string in RAM.
+  - Write to unique temporary file `.tmp.<thread_id>.<timestamp_ns>` in same directory.
+  - Execute `tmp_path.replace(path)` with up to 5 retries on `PermissionError` / `WinError 5` with `time.sleep(0.02 * attempt)`.
+  - In `finally:`, unlink `tmp_path` if it still exists.
+
+### 4. Continuous Learning Memory Graph (`jarvis.memory.sqlite_store`)
+- Methods:
+  - `add_knowledge_node(node_id: str, label: str, node_type: str, properties: dict) -> None`
+  - `add_knowledge_edge(source_id: str, target_id: str, relation: str, weight: float = 1.0, properties: dict = None) -> None`
+  - `record_tech_radar_blip(blip_id: str, title: str, ring: str, quadrant: str, summary: str, url: str, source: str) -> None`
+  - `query_tech_radar(quadrant: Optional[str] = None, ring: Optional[str] = None) -> List[dict]`
+
+### 5. ArXiv Tech Radar Ingestion (`jarvis.web.tech_radar`)
+- Class: `ArxivIngestionClient`
+- Method: `fetch_latest_papers(categories: List[str] = ["cs.AI", "cs.CL", "cs.SD", "eess.AS"], max_results: int = 10) -> List[dict]`
+- Contract:
+  - Returns structured list of dicts: `[{"id": str, "title": str, "authors": List[str], "summary": str, "category": str, "published": str, "pdf_url": str}]`.
+  - Zero third-party dependencies (pure `urllib.request` + `xml.etree.ElementTree`).
+  - Rate limited to 1 request per 3 seconds.
+
+### 6. Full-Duplex Real-Time Voice Bridge (`jarvis.voice.realtime` ↔ `jarvis.core.app`)
+- Class: `RealtimeVoiceSession`
+- Contract:
+  - In `jarvis/core/app.py`, microphone frames arriving during TTS playback are passed to `RealtimeVoiceSession.on_audio_chunk()`.
+  - If RMS of bandpassed speech exceeds barge-in threshold ($> 0.025$) for $\ge 3$ consecutive frames, TTS playback is immediately aborted via `tts_manager.stop()`, state transitions from `SPEAKING` to `LISTENING`, and speech stream begins buffer accumulation.
+
+### 7. Scheduled Automation Sidecar (`sidecar.json`)
+- Schema:
+  ```json
+  {
+    "version": "1.0",
+    "enabled": true,
+    "schedule": {
+      "cron": "0 9 * * *",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "description": "Daily 09:00 AM VN automated radar scan and self-upgrade check"
+    },
+    "tasks": [
+      {
+        "id": "tech_radar_scan",
+        "action": "run_radar_ingestion",
+        "params": {"sources": ["arxiv", "github_trending"], "max_papers": 10}
+      },
+      {
+        "id": "system_health_self_check",
+        "action": "run_unit_health_check",
+        "params": {"test_target": "tests/unit/", "timeout_s": 120}
+      },
+      {
+        "id": "continuous_learning_upgrade",
+        "action": "update_knowledge_graph",
+        "params": {"auto_link": true}
+      }
+    ]
+  }
+  ```
+
+---
+
+## Code Layout & Ownership Boundaries
+To ensure clean isolation and avoid write contention across workers:
+- **Milestone 1 Worker**: Owns `tests/unit/test_adversarial_challenger_m1_sample_rate.py`, `jarvis/comms/telegram.py`.
+- **Milestone 2 Worker**: Owns `jarvis/utils/atomic_io.py`, `jarvis/vision/biometrics.py`, `jarvis/skills/telemetry.py`, `jarvis/skills/macro_recorder/__init__.py`, `jarvis/smart_home/discovery.py`, `jarvis/skills/registry.py`, `jarvis/workers/night_shift.py`, `jarvis/comms/mobile_bridge.py`, `jarvis/ui/setup_wizard.py`, `jarvis/tts/cache.py`, and unit tests `tests/unit/test_windows_atomic_persistence.py`.
+- **Milestone 3 Worker**: Owns `jarvis/memory/sqlite_store.py`, `jarvis/web/tech_radar.py`, and unit tests `tests/unit/test_tech_radar_and_knowledge_graph.py`.
+- **Milestone 4 Worker**: Owns `jarvis/core/app.py` (voice barge-in bridge), `jarvis/llm/semantic_router.py`, and unit tests `tests/unit/test_realtime_voice_bridge.py`.
+- **Milestone 5 Worker**: Owns `jarvis/__main__.py`, `jarvis/cli.py`, `scripts/build_standalone_package.py`, `sidecar.json`, `CHANGELOG.md`, `README.md`, `docs/ROADMAP.md`.
+- **E2E Testing Track**: Owns `tests/e2e/test_autonomous_engine_e2e.py`, `TEST_INFRA.md`, and `TEST_READY.md`.

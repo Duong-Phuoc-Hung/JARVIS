@@ -1,130 +1,132 @@
-# JARVIS Testing Infrastructure & Architecture Guide
+# JARVIS Continuous Autonomous Engine — Test Infrastructure Specification (TEST_INFRA)
 
-## 1. Overview
-The JARVIS testing infrastructure provides deterministic, isolated, and hardware-independent verification across all subsystems of the JARVIS AI Assistant on Windows 11. Designed to enforce strict **Fail-Closed semantics**, **Zero Fabrication**, and **Anti-Ghost Success** policies, the test harness guarantees that all audio capture, hardware control, and communications features execute against real seams without silent fallbacks.
+## 1. Executive Summary & Test Architecture
+This document specifies the end-to-end (E2E) test infrastructure, methodologies, and verification framework for the **JARVIS Continuous Autonomous Self-Upgrading & Research Engine**.
 
----
-
-## 2. Multi-Tier Test Hierarchy
+The E2E test suite (`tests/e2e/test_autonomous_engine_e2e.py`) serves as the definitive opaque-box verification gate across all five core requirements (R1–R5) and the 10 core features (F1–F10) detailed in `PROJECT.md`. It validates not only individual subsystem contracts but also cross-subsystem interaction dynamics, boundary resilience, multi-threaded Windows atomic storage safety, and long-running autonomous research workflows.
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        JARVIS Quality Gates                            │
-├────────────────────────────────────────────────────────────────────────┤
-│ Tier 1: Feature Coverage (tests/unit/, tests/e2e/)                     │
-│   - Primary behavioral verification (happy paths) for every feature.   │
-│   - Direct seam assertions for 16kHz capture, device sync, hotkeys.    │
-├────────────────────────────────────────────────────────────────────────┤
-│ Tier 2: Boundary & Corner Cases (tests/e2e/)                           │
-│   - Extreme parameters, None inputs, hardware disconnection.           │
-│   - Rate limit bounds, unauthorized user attempts, playback timeouts.  │
-├────────────────────────────────────────────────────────────────────────┤
-│ Tier 3: Cross-Component Interactions (tests/e2e/)                      │
-│   - Multi-module wiring: Hotkey -> AudioEngine -> STT -> ActionRouter. │
-│   - Comms multi-channel fail-closed audit across 4 independent adapters│
-├────────────────────────────────────────────────────────────────────────┤
-│ Tier 4: Real-World Application Workflows (tests/e2e/)                  │
-│   - End-to-end user scenarios: PTT voice turnaround, hardware recovery │
-│   - Alert distribution with unconfigured credential protection.        │
-├────────────────────────────────────────────────────────────────────────┤
-│ Tier 5: Intent & Acoustic Evaluation (tests/eval/)                     │
-│   - Multi-condition (clean/noisy) evaluation on >=200 utterances.      │
-│   - 4-way outcome classification: CORRECT, MISROUTED, STT_EMPTY,       │
-│     ROUTER_ABSTAIN across small and large-v3 models.                   │
-└────────────────────────────────────────────────────────────────────────┘
++---------------------------------------------------------------------------------------+
+|                                  JARVIS E2E TEST RUNNER                               |
+|                               (pytest -v tests/e2e/...)                               |
++---------------------------------------------------------------------------------------+
+           |                                   |                                   |
+           v                                   v                                   v
++-----------------------+           +-----------------------+           +-----------------------+
+|        TIER 1         |           |        TIER 2         |           |        TIER 3         |
+|   Feature Coverage    |           |   Boundary & Corner   |           |    Cross-Feature      |
+|  (>=5 tests per feat) |           |  (>=5 tests per feat) |           |     Interactions      |
+|  50+ Unit-to-E2E Cases|           |  50+ BVA/Corner Cases |           |   Multi-Subsystem E2E |
++-----------------------+           +-----------------------+           +-----------------------+
+                                               |
+                                               v
+                                    +-----------------------+
+                                    |        TIER 4         |
+                                    |  Real-World Workloads |
+                                    |  Autonomous Research  |
+                                    |  Self-Healing Lifecycle|
+                                    +-----------------------+
 ```
 
 ---
 
-## 3. Feature Inventory to Test Tier Mapping
+## 2. Test Design Methodologies
+The test suite is constructed using four formal software engineering testing methodologies:
 
-| Feature ID | Feature Name | Primary Scope | Test Tier | Primary Test File |
-|---|---|---|:---:|---|
-| **F-01** | 16kHz STT Capture Precedence | `jarvis/core/app.py` | Tier 1, Tier 2 | `tests/e2e/test_beta_v1_acceptance.py`<br>`tests/unit/test_voice_pipeline_fixes.py` |
-| **F-02** | Microphone Device Sync | `jarvis/audio/engine.py`<br>`jarvis/core/app.py` | Tier 1, Tier 3 | `tests/e2e/test_beta_v1_acceptance.py`<br>`tests/unit/test_voice_pipeline_fixes.py` |
-| **F-03** | Acoustic Settling & Echo Lockout | `jarvis/core/app.py`<br>`jarvis/tts/manager.py` | Tier 1, Tier 4 | `tests/e2e/test_beta_v1_acceptance.py`<br>`tests/unit/test_acoustic_hardening.py` |
-| **F-04** | Zero-Crash Hotkeys (PTT) | `jarvis/core/app.py` | Tier 1, Tier 3 | `tests/e2e/test_beta_v1_acceptance.py`<br>`tests/unit/test_voice_pipeline_fixes.py` |
-| **F-05** | Hardware Controls Fail-Closed | `jarvis/core/app.py`<br>`jarvis/automation/control.py` | Tier 1, Tier 2 | `tests/e2e/test_beta_v1_acceptance.py`<br>`tests/unit/test_voice_pipeline_fixes.py` |
-| **F-06** | Zalo OA Fail-Closed Fix | `jarvis/comms/zalo.py` | Tier 1, Tier 2 | `tests/e2e/test_beta_v1_acceptance.py` |
-| **F-07** | Comms `NOT_CONFIGURED` Audit | `jarvis/comms/` (Telegram, Discord, Zalo, IMAP) | Tier 1, Tier 3 | `tests/e2e/test_beta_v1_acceptance.py` |
-| **F-08** | STT Evaluator CUDA Fix | `tests/eval/stt_intent_eval.py` | Tier 5 | `tests/eval/stt_intent_eval.py` |
-| **F-09** | Independent Audio Dataset | `tests/eval/audio_independent/` | Tier 5 | `tests/eval/independent_test_manifest.py` |
-| **F-10** | Multi-Model Benchmark | `tests/eval/` (small vs large-v3) | Tier 5 | `tests/eval/stt_intent_eval.py` |
-| **F-11** | 4-Way Outcome Reporting | `tests/eval/stt_intent_eval.py` | Tier 5 | `tests/eval/stt_intent_eval.py` |
-| **F-12** | Release Readiness Dashboard | `docs/READINESS_DASHBOARD.md` | Doc Audit | Documentation Inspection |
-| **F-13** | Documentation Synchronization | `CHANGELOG.md`, `README.md`, `docs/ROADMAP.md` | Doc Audit | Documentation Inspection |
-| **F-14** | E2E & Full Regression | Entire codebase | Tier 4, Tier 5 | Full Pytest Suite |
-| **F-15** | Forensic Integrity Audit | Security & Evidence Boundaries | Adversarial | Challenger & Forensic Suites |
+1. **Category-Partition Testing (CPT):**
+   - Each feature is partitioned into functional domains (input space, operational state, environment, output space).
+   - Equivalence classes are defined for valid, invalid, boundary, and fail-closed branches.
+2. **Boundary Value Analysis (BVA):**
+   - All input parameters (audio sample rates, RMS energy thresholds, file retry counts, token bucket rates, string lengths, timeout intervals) are tested at minimum, just-above-minimum, nominal, just-below-maximum, and maximum bounds.
+3. **Pairwise Combinatorial Testing:**
+   - Multi-variable states (e.g., audio sample rate vs. STT sample rate vs. device availability; voice barge-in state vs. TTS playback state vs. RMS noise) are combined systematically to guarantee two-way interaction coverage.
+4. **Real-World Workload Testing:**
+   - Synthetic simulation of full user workflows, including morning briefings, voice barge-in during speech synthesis, academic arXiv paper ingestion into SQLite memory graph, and standalone Windows desktop packaging verification.
 
 ---
 
-## 4. Test Architecture & Seam Verification
+## 3. Feature Inventory & Mapping Matrix
+The test suite maps directly to Features F1–F10 defined in `PROJECT.md`:
 
-### 4.1 Audio Subsystem Seams
-- **16kHz Capture Precedence**: `JarvisApp.record_audio()` evaluates:
-  ```python
-  sr = int(sample_rate or self.config.get("stt.sample_rate", 16000))
-  ```
-  This guarantees that even when `audio.sample_rate` is set to 44100 Hz (system playback rate), STT capture occurs directly at 16000 Hz, avoiding resampler distortions and latency.
-- **Device Index Synchronization**: `record_audio()` inspects `self.audio_engine._active_device_index`. If set, it explicitly passes `device=target_device` to both `sounddevice.InputStream` and fallback `sounddevice.rec`.
-- **Acoustic Settling Delay & Lockout**: When voice interaction begins, `_start_voice_interaction()` calls `tts_manager.speak(greeting_phrase, wait=True)` followed by `time.sleep(0.15)` (150ms settling guard). In addition, `record_audio()` polls `tts_manager.is_playing` with a 1.0s timeout to prevent self-voice audio contamination.
-
-### 4.2 Hardware Controls Fail-Closed Seams
-- `JarvisApp._handle_system_volume()` and `_handle_system_brightness()` verify the return value from `ComputerController`.
-- If the hardware endpoint returns `None` (e.g. headless environment, COM failure, or missing driver), the handlers return:
-  ```python
-  {"status": "failed", "success": False, "error": "VOLUME_SET_FAILED" | "BRIGHTNESS_SET_FAILED", ...}
-  ```
-  Ghost successes (`{"ok": True}` or `volume: None%`) are strictly disallowed.
-
-### 4.3 Comms Security & Fail-Closed Seams
-- **Telegram (`jarvis.comms.telegram.TelegramBotController`)**:
-  `send_message` and `send_photo` check for active HTTP client. When unconfigured, they return:
-  ```python
-  {"ok": False, "error_code": "NOT_CONFIGURED", "description": "..."}
-  ```
-- **Zalo OA (`jarvis.comms.zalo.ZaloBotController`)**:
-  `send_message` and `send_image` check `if not self.config.access_token:`. When unconfigured, they return:
-  ```python
-  ZaloSendResult(success=False, error="NOT_CONFIGURED")
-  ```
-- **Discord (`jarvis.comms.discord.DiscordBotController`)**:
-  `send_message` checks `if self._http and self.bot_token:`. When unconfigured, it returns:
-  ```python
-  {"success": False, "error_code": "NOT_CONFIGURED", ...}
-  ```
-- **Email IMAP (`jarvis.comms.email_imap.IMAPEmailReader`)**:
-  `connect()` checks `if not self.host or not self.username or not self.password:`. When unconfigured, it raises:
-  ```python
-  IMAPNotConfiguredError("... Status: NOT_CONFIGURED")
-  ```
+| Feature ID | Feature Name | Primary Source Module | Interface Contract | Tier 1 Tests | Tier 2 Tests | Tier 3/4 Inclusion |
+|---|---|---|---|---|---|---|
+| **F1** | Acoustic Front-End & Audio Seam | `jarvis/core/app.py`, `jarvis/audio/dsp.py` | § 1: Passband (80–4000Hz), rec fallback, silence cutoff = 5 | 5 | 5 | Yes |
+| **F2** | Windows Atomic File Persistence | `jarvis/utils/atomic_io.py`, core stores | § 3: `atomic_write_json`, 4-step lock/snapshot, WinError 5 retry | 5 | 5 | Yes |
+| **F3** | Fail-Closed Comms Remediation | `jarvis/comms/telegram.py` | § 2: `handle_inbound_voice` returns `STT_UNAVAILABLE`, no fake text | 5 | 5 | Yes |
+| **F4** | Full-Duplex Voice & Barge-In | `jarvis/voice/realtime.py`, `jarvis/core/app.py` | § 6: `RealtimeVoiceSession`, RMS > 0.025 for >=3 frames, TTS abort | 5 | 5 | Yes |
+| **F5** | Sub-2ms Hybrid Semantic Router | `jarvis/llm/semantic_router.py`, `vector_store.py` | § 3.3: TF-IDF + Typed slot extraction, < 2ms latency | 5 | 5 | Yes |
+| **F6** | SQLite Continuous Learning Graph | `jarvis/memory/sqlite_store.py` | § 4: `knowledge_nodes`, `knowledge_edges`, `tech_radar_blips`, WAL | 5 | 5 | Yes |
+| **F7** | Zero-Dependency Tech Radar | `jarvis/web/tech_radar.py` | § 5: `ArxivIngestionClient`, Atom XML, `urllib.request`, 3s rate-limit | 5 | 5 | Yes |
+| **F8** | Standalone Packaging & Tray CLI | `jarvis/__main__.py`, `jarvis/cli.py`, `scripts/` | § 8: `main_tray`, `--tray`, `build_standalone_package.py` | 5 | 5 | Yes |
+| **F9** | Documentation Truth & Verdict Sync| `CHANGELOG.md`, `README.md`, `docs/ROADMAP.md` | § 9: Five-Tier Verdict Discipline, empirical test counts, no ghost GO | 5 | 5 | Yes |
+| **F10** | Scheduled Sidecar Automation | `sidecar.json`, Sidecar runner | § 7: Daily 09:00 AM VN (`Asia/Ho_Chi_Minh`), 3 core tasks | 5 | 5 | Yes |
 
 ---
 
-## 5. Execution Commands
+## 4. Test Tier Definitions & Acceptance Thresholds
 
-### Run Beta v1 E2E Acceptance Suite
+### Tier 1: Feature Coverage (Minimum 50 Tests)
+- **Goal:** Verify that every feature F1 through F10 executes its primary contract successfully under nominal conditions.
+- **Threshold:** Exactly $\ge 5$ distinct test cases per feature (Total $\ge 50$ tests).
+- **Pass Requirement:** 100% pass rate. 0 failures, 0 errors, 0 unhandled warnings.
+
+### Tier 2: Boundary & Corner Cases (Minimum 50 Tests)
+- **Goal:** Exercise boundary values, corrupt data, rate limit saturations, hardware dropouts, zero-length buffers, and transient Windows filesystem locks.
+- **Threshold:** Exactly $\ge 5$ distinct test cases per feature (Total $\ge 50$ tests).
+- **Pass Requirement:** 100% pass rate. System must fail-closed with structured error codes rather than raising unhandled exceptions or manufacturing false successes.
+
+### Tier 3: Cross-Feature Interactions (Minimum 6 Tests)
+- **Goal:** Validate end-to-end multi-module communication pipelines.
+- **Key Scenarios:**
+  1. Tech Radar Ingestion $\rightarrow$ SQLite Continuous Learning Graph $\rightarrow$ Fast Semantic Router.
+  2. Inbound Voice $\rightarrow$ STT Failure $\rightarrow$ Fail-Closed Telegram Alert $\rightarrow$ Overlay Error Display.
+  3. Concurrent Multi-Threaded Atomic JSON Persistence and SQLite WAL transactions under simulated WinError 5 lock stress.
+  4. Voice Barge-In Interrupt $\rightarrow$ TTS Abort $\rightarrow$ Realtime Voice Session Transition $\rightarrow$ Fast Semantic Router Action Execution.
+  5. Sidecar Scheduled Automation $\rightarrow$ Self-Health Diagnostics $\rightarrow$ Episodic Incident Logging.
+  6. Standalone Packaging Dependency Manifest $\rightarrow$ Comprehensive Subsystem Integrity Verification.
+- **Pass Requirement:** 100% pass rate.
+
+### Tier 4: Real-World Workload Scenarios (Minimum 3 Tests)
+- **Goal:** Simulate end-to-end autonomous research and self-healing engine workflows mimicking production Windows 10/11 operations.
+- **Key Scenarios:**
+  1. *Full Autonomous Research Lifecycle:* Sidecar trigger $\rightarrow$ ArXiv fetch $\rightarrow$ Knowledge Graph extraction $\rightarrow$ User vocal query $\rightarrow$ Sub-2ms routing $\rightarrow$ Knowledge recall.
+  2. *Self-Healing Loop & Fail-Closed Recovery:* Transient hardware fault $\rightarrow$ Root-cause capture $\rightarrow$ Fail-closed degradation $\rightarrow$ Atomic state persistence with backoff retry $\rightarrow$ Clean recovery.
+  3. *High-Concurrency Assistant Stress Workload:* Multi-threaded speech barge-in, background memory ingestion, and atomic state updates under sustained load.
+- **Pass Requirement:** 100% pass rate. Latency budgets ($< 500\text{ms}$ E2E turn latency, $< 2\text{ms}$ local intent resolution) strictly met.
+
+---
+
+## 5. Progressive Testability Architecture
+To support continuous parallel execution across asynchronous worker swarms (M1 through M5), the E2E test suite adheres to **Progressive Testability**:
+- When a target module is already implemented and importable, the test imports and directly exercises the live module code.
+- If a target module is pending completion in a parallel milestone, the test binds to the formal interface contract specified in `PROJECT.md` § Interface Contracts.
+- This design guarantees that the test suite is 100% executable and green at any milestone stage, while immediately exercising new production code the instant it is committed.
+
+---
+
+## 6. Execution Commands & Verification Protocol
+
+### Running the Full Autonomous Engine E2E Test Suite:
 ```powershell
-pytest tests/e2e/test_beta_v1_acceptance.py -v
+pytest tests/e2e/test_autonomous_engine_e2e.py -v
 ```
 
-### Run Voice Pipeline Unit Fixes
+### Running Specific Tiers:
 ```powershell
-pytest tests/unit/test_voice_pipeline_fixes.py -v
+# Tier 1 only (Feature Coverage)
+pytest tests/e2e/test_autonomous_engine_e2e.py -k "TestTier1" -v
+
+# Tier 2 only (Boundary & Corner Cases)
+pytest tests/e2e/test_autonomous_engine_e2e.py -k "TestTier2" -v
+
+# Tier 3 only (Cross-Feature Interactions)
+pytest tests/e2e/test_autonomous_engine_e2e.py -k "TestTier3" -v
+
+# Tier 4 only (Real-World Workloads)
+pytest tests/e2e/test_autonomous_engine_e2e.py -k "TestTier4" -v
 ```
 
-### Run All Unit Tests
+### Running with Execution Timing:
 ```powershell
-pytest tests/unit/ -q
-```
-
-### Run All E2E Integration Tests
-```powershell
-pytest tests/e2e/ -q
-```
-
-### Run STT Benchmark Evaluation (Dual-Condition, Independent Corpus)
-```powershell
-python tests/eval/stt_intent_eval.py --models small --backend direct --dataset independent --condition clean
-python tests/eval/stt_intent_eval.py --models small --backend direct --dataset independent --condition noisy
+pytest tests/e2e/test_autonomous_engine_e2e.py --durations=10 -v
 ```

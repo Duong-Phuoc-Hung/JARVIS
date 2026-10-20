@@ -66,6 +66,7 @@ class SkillTelemetryStore:
     def __init__(self, store_path: str | Path | None = None) -> None:
         self.store_path = Path(store_path) if store_path is not None else _default_telemetry_path()
         self._lock = threading.Lock()
+        self._save_lock = threading.Lock()
 
     def _load_all_locked(self) -> dict[str, dict[str, Any]]:
         """Load the full telemetry map. Caller must hold self._lock. Never raises."""
@@ -88,25 +89,18 @@ class SkillTelemetryStore:
 
     def _write_all_locked(self, data: dict[str, dict[str, Any]]) -> bool:
         """
-        Atomically write the full telemetry map. Caller must hold self._lock.
+        Atomically write the full telemetry map following AGENTS.md Section 3.
+        Caller holds self._lock for in-memory protection; self._save_lock
+        serializes disk writes.
         Never raises -- returns False on failure so record_invocation() can
         still hand back the updated in-memory counters even when disk
         persistence is unavailable (e.g. a read-only data directory).
         """
         try:
-            self.store_path.parent.mkdir(parents=True, exist_ok=True)
-            tmp_path = self.store_path.with_suffix(self.store_path.suffix + ".tmp")
-            tmp_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-            os.replace(tmp_path, self.store_path)
+            from jarvis.utils.atomic_io import atomic_write_json
+            atomic_write_json(self.store_path, data, lock=self._save_lock, indent=2, ensure_ascii=False)
             return True
         except (OSError, TypeError, ValueError) as exc:
-            # OSError: disk/permission failure (tmp write or the same-directory
-            # atomic replace never touches self.store_path until the write
-            # already fully succeeded, so a failure here can never destroy a
-            # previously-valid store). TypeError/ValueError: guards json.dumps()
-            # itself in case a non-JSON-serializable value ever ends up in
-            # `data` -- this must degrade gracefully too, never propagate out
-            # of a telemetry write and interrupt skill execution.
             logger.warning("Failed to persist skill telemetry to %s: %s", self.store_path, exc)
             return False
 

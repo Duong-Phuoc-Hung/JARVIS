@@ -1,6 +1,17 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Current verified snapshot (2026-10-15), source **5.2.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-10-20), source **5.2.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- **Sprint 7 On-Device Vietnamese NLP Intent Classifier & Offline Machine Learning Training Pipeline**:
+  - Mô hình Machine Learning phân loại ý định tiếng Việt cục bộ (`VietnameseNLPClassifier`): Kiến trúc trích xuất đặc trưng lai ghép Dual N-Grams (Word n-grams 1-2 kết hợp Character sub-word n-grams 2-5) loại bỏ nhạy cảm với lỗi chính tả/gõ sai dấu, bộ phân loại `CalibratedClassifierCV` trên nền Logistic Regression cho xác suất tin cậy trung thực.
+  - Huấn luyện trực tiếp trên phần cứng máy tính: Pipeline huấn luyện `scripts/train_vietnamese_nlp.py` đạt **86.10% CV Accuracy** (± 7.20%) và **84.45% F1-macro** qua 5-Fold Stratified Cross-Validation chỉ trong **2.88 giây**.
+  - Siêu nhẹ & Siêu tốc: File trọng số mô hình serialized `data/models/vietnamese_nlp_intent.joblib` chỉ **258.79 KB**, tải vào bộ nhớ trong <2ms, suy luận tức thì trong **3.9ms - 4.5ms** trên CPU máy tính mà không cần kết nối mạng hay gọi API bên ngoài.
+  - Phân loại chuẩn xác 10 miền ý định cốt lõi: Âm lượng hệ thống (`system_volume`), độ sáng màn hình (`system_brightness`), khởi chạy ứng dụng (`app_launch`), đóng cửa sổ (`app_close`), điều khiển nhạc (`media_control`), trạng thái phần cứng (`system_status`), nhà thông minh (`smart_home`), hẹn giờ/báo thức (`timer_reminder`), tìm kiếm web (`web_search`), và giao tiếp xã giao (`greeting_chat`).
+- **Sprint 6 Autonomous Tech Radar, Windows Standalone Packaging & Scheduled Automation Sidecar**:
+  - Comprehensive Academic & Industry Tech Radar (`TechRadarAggregator`): Tự động quét và phân tích tài liệu học thuật SOTA từ ArXiv Atom 1.0 và open-source GitHub Trending, chuẩn hóa và nạp trực tiếp vào SQLite Continuous Learning Vault / Memory Graph của Argon (`knowledge_nodes`, `knowledge_edges`, `tech_radar_blips`).
+  - Fixed Packaging Entrypoints & CLI Arguments: Khắc phục triệt để lỗi entrypoint GUI `main_tray()` trong `jarvis/__main__.py` (khắc phục `ImportError` của gui-script `jarvis-tray`) và đối số `--tray` trong `jarvis/cli.py` (khắc phục crash autostart registry `JARVIS.exe --tray`).
+  - Standalone Windows Packaging Script (`scripts/build_standalone_package.py`): Đóng gói thương mại độc lập PyInstaller `--onedir` bundle vào `dist/JARVIS/JARVIS.exe`, triệt tiêu 120MB %TEMP% extraction penalty (khởi động tức thì <500ms), bundle đầy đủ native DLLs và assets. Hỗ trợ thẩm định `--dry-run` và kiểm tra môi trường máy sạch `--check`.
+  - Scheduled Automation Sidecar (`sidecar.json`): Cấu hình chạy ngầm tự hành định kỳ 09:00 AM VN (`Asia/Ho_Chi_Minh`), điều phối 3 tác vụ `autonomous_tech_radar_sync`, `system_health_check`, và `learning_vault_consolidation` với cơ chế fail-closed ghi log tới `logs/sidecar.log`.
+  - Fail-Closed Telegram STT (`STT_UNAVAILABLE`): Chuẩn hóa xử lý âm thanh Telegram khi STT offline/chưa cấu hình, loại bỏ hoàn toàn ghost success.
 - **Sprint 5 Voice Biometrics, Streaming STT & Full-Duplex Realtime Voice Session**:
   - Nhận diện sinh trắc học giọng nói người nói (`VoiceBiometricsManager`): Trích xuất vector đặc trưng 64 chiều (Mel filterbank, spectral centroid/spread/flux, harmonic subband ratios) trên mặt cầu đơn vị, so khớp cosine distance, và lưu trữ đĩa nguyên tử an toàn Windows Atomic Persistence (retry loop WinError 5). Cổng xác thực trực tiếp tại `JARVISApp._start_voice_interaction` ngăn chặn người lạ kích hoạt trợ lý.
   - Nhận dạng giọng nói luồng theo khối thời gian thực (`StreamingSTTEngine` & `StreamingSTTSession`): Tiếp nhận audio 100ms - 200ms qua ring buffer, phát giả thuyết từng phần (`on_partial`) cập nhật HUD theo nhịp `step_interval_s = 0.25s`, hiển thị chữ chạy thời gian thực trên Overlay HUD ngay khi người dùng nói, và chốt phiên âm (`on_final`) khi gặp ngắt câu tự nhiên `silence_cutoff_s = 0.75s`.
@@ -28,8 +39,8 @@ Current verified snapshot (2026-10-15), source **5.2.1**, **unreleased / CONDITI
 - Hợp nhất schema Skill manifest (`display_name`, `actions`) và bảo vệ manifest khỏi telemetry runtime bằng `.to_manifest_dict()`.
 - Phân rã hai God-objects: `app.py` (từ 3.965 xuống 2.136 dòng qua `jarvis/core/handlers/`) và `router.py` (từ 3.678 xuống 2.214 dòng qua `rules_catalog.py`).
 - Nghiệm thu hiện tại: microphone probe đạt **PASS engineering** (25 input devices, default index 1). Artifact ambient cũ chỉ dài **2,06 giây** nên đã bị hạ verdict và **không** còn được dùng làm bằng chứng false-wake runtime. Recall `true_wake` 10 lần và ambient soak tối thiểu 120 giây vẫn **PENDING**. Báo cáo 10-workflow cũ cũng bị vô hiệu hóa; preflight mới đã được sửa thành seam in-memory 10/10, không initialize/dispatch subsystem, nhưng 200 trial voice/Real-OS vẫn **PENDING**. Product GO tiếp tục **PENDING**.
-- Full unit test suite (`tests/unit/`): **153 test files, 100% PASS, 0 failures**.
-- Security scanner: **0 findings / 210 files / 70.475 lines / 1,93s**.
+- Full unit test suite (`tests/unit/`): **162 test files, 3,186 unit tests, 100% PASS, 0 failures**.
+- Security scanner: **0 findings / 218 files / 75,313 lines / 2.96s** (Clean scan).
 
 Wake-word hardening trước đó (2026-10-04), source **5.2.1**:
 
@@ -341,9 +352,31 @@ không có cơ chế bảo vệ nào phía sau. Không bao giờ chạy tự đ�
 
 ### Cách 2: Bản Standalone Portable (ZIP)
 Nếu bạn không muốn cài đặt vào Program Files:
-1. Tải file ZIP `JARVIS_v5.1.0_windows_x64.zip` từ trang Releases.
+1. Tải file ZIP `JARVIS_v5.2.1_windows_x64.zip` từ trang Releases (hoặc tự tạo trực tiếp từ mã nguồn bằng lệnh `python scripts/build_standalone_package.py`).
 2. Giải nén vào thư mục tùy chọn (ví dụ: `D:\JARVIS\`).
-3. Chạy `JARVIS.exe` hoặc `JARVIS.exe --tray`.
+3. Chạy `JARVIS.exe` hoặc `JARVIS.exe --tray` để khởi chạy ứng dụng trực tiếp vào khay hệ thống mà không cần cài đặt Python.
+
+### 🚀 Khởi Chạy Từ Dòng Lệnh (CLI & Source Execution)
+Sau khi cài đặt hoặc trong môi trường phát triển:
+```powershell
+# Khởi chạy daemon trợ lý mặc định:
+python -m jarvis
+
+# Khởi chạy trực tiếp vào khay hệ thống (System Tray mode):
+JARVIS.exe --tray
+# hoặc từ mã nguồn:
+python -m jarvis --tray
+python -m jarvis.cli --tray
+
+# Khởi chạy entrypoint GUI chuẩn (được cài đặt qua pip/wheel):
+jarvis-tray
+
+# Chẩn đoán sức khỏe phần cứng và 17 phân hệ:
+python -m jarvis health-check
+
+# Mở trung tâm điều khiển tương tác (Terminal Control Center):
+python -m jarvis menu
+```
 
 ### 🔐 Chữ Ký Số Authenticode & Bảo Mật Binary (Code Signing)
 Toàn bộ các bản phát hành nhị phân (`JARVIS.exe` standalone và bộ cài đặt `JARVIS_Setup_*.exe`) đều được gắn chữ ký số Windows Authenticode (mã băm SHA-256) tự động trong pipeline GitHub Actions CI nhằm bảo vệ tính toàn vẹn mã nguồn (code integrity) và ngăn chặn mã độc can thiệp/chỉnh sửa trái phép (tamper detection).
@@ -376,7 +409,7 @@ python -m playwright install chromium
 
 ### Chạy bộ kiểm thử (Running Test Suites)
 
-JARVIS bao gồm hơn 2.000 bài kiểm thử tự động cùng các bộ kiểm chuẩn chuyên biệt cho Product Beta v1 và browser automation:
+JARVIS bao gồm 162 test files với hơn 3.186 bài kiểm thử tự động cùng các bộ kiểm chuẩn chuyên biệt:
 
 ```powershell
 # 1. Chạy bộ kiểm thử chấp nhận E2E Beta v1 (28 tests qua 4 tầng kiểm thử):
