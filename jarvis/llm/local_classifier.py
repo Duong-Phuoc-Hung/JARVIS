@@ -327,7 +327,86 @@ def extract_slots_for_intent(intent: str, text: str) -> dict[str, Any]:
         else:
             slots["type"] = "chat"
 
-    return slots
+    elif intent == "window_management":
+        if any(w in combined for w in ["trái", "trai", "sang trái", "sang trai", "bên trái", "ben trai", "nửa trái", "nua trai"]):
+            slots["action"] = "snap_left"
+        elif any(w in combined for w in ["phải", "phai", "sang phải", "sang phai", "bên phải", "ben phai", "nửa phải", "nua phai"]):
+            slots["action"] = "snap_right"
+        elif any(w in combined for w in ["phóng to", "phong to", "cực đại", "cuc dai", "toàn màn hình", "toan man hinh", "maximize"]):
+            slots["action"] = "maximize"
+        elif any(w in combined for w in ["thu nhỏ", "thu nho", "ẩn", "an", "minimize"]):
+            slots["action"] = "minimize"
+        elif any(w in combined for w in ["khôi phục", "khoi phuc", "restore"]):
+            slots["action"] = "restore"
+        elif any(w in combined for w in ["chuyển", "chuyen", "đổi", "doi", "tiếp theo", "tiep theo", "alt tab"]):
+            slots["action"] = "switch_task"
+        else:
+            slots["action"] = "manage"
+
+    elif intent == "file_management":
+        if any(w in combined for w in ["tải về", "tai ve", "download", "downloads"]):
+            slots["target"] = "downloads"
+        elif any(w in combined for w in ["thùng rác", "thung rac", "recycle bin", "trash"]):
+            slots["target"] = "recycle_bin"
+            if any(w in combined for w in ["dọn", "don", "xóa", "xoa", "empty", "làm sạch", "lam sach"]):
+                slots["action"] = "empty"
+        elif any(w in combined for w in ["tài liệu", "tai lieu", "documents", "document"]):
+            slots["target"] = "documents"
+        elif any(w in combined for w in ["màn hình chính", "man hinh chinh", "desktop"]):
+            slots["target"] = "desktop"
+        elif any(w in combined for w in ["dọn rác", "don rac", "file tạm", "file tam", "temp"]):
+            slots["target"] = "clean_temp"
+            slots["action"] = "clean"
+        else:
+            slots["target"] = "explorer"
+
+    elif intent == "clipboard_action":
+        if any(w in combined for w in ["sao chép", "sao chep", "copy"]):
+            slots["action"] = "copy"
+        elif any(w in combined for w in ["dán", "dan", "paste"]):
+            slots["action"] = "paste"
+        elif any(w in combined for w in ["xóa", "xoa", "clear"]):
+            slots["action"] = "clear"
+        elif any(w in combined for w in ["đọc", "doc", "xem", "nội dung", "noi dung"]):
+            slots["action"] = "read"
+        else:
+            slots["action"] = "read"
+
+    elif intent == "network_control":
+        if any(w in combined for w in ["tốc độ", "toc do", "speed", "băng thông", "bang thong", "ping"]):
+            slots["query_type"] = "speed_test"
+        elif any(w in combined for w in ["địa chỉ ip", "dia chi ip", "ip"]):
+            slots["query_type"] = "ip_address"
+        elif any(w in combined for w in ["wifi", "wai phai", "sóng", "song"]):
+            slots["query_type"] = "wifi_info"
+        else:
+            slots["query_type"] = "status"
+
+    elif intent == "system_power":
+        if any(w in combined for w in ["khóa", "khoa", "lock"]):
+            slots["action"] = "lock"
+        elif any(w in combined for w in ["ngủ đông", "ngu dong", "hibernate"]):
+            slots["action"] = "hibernate"
+        elif any(w in combined for w in ["ngủ", "ngu", "sleep"]):
+            slots["action"] = "sleep"
+        elif any(w in combined for w in ["hủy", "huy", "cancel"]):
+            slots["action"] = "cancel_shutdown"
+        elif any(w in combined for w in ["tắt máy", "tat may", "shutdown"]):
+            slots["action"] = "shutdown_timer"
+            dur_match = re.search(r"(\d+(?:\.\d+)?)\s*(phút|tiếng|giờ|giây|phut|tieng|gio|giay)", combined)
+            if dur_match:
+                val = float(dur_match.group(1))
+                unit = dur_match.group(2)
+                if "giờ" in unit or "tiếng" in unit or "gio" in unit or "tieng" in unit:
+                    slots["delay_seconds"] = int(val * 3600)
+                elif "phút" in unit or "phut" in unit:
+                    slots["delay_seconds"] = int(val * 60)
+                else:
+                    slots["delay_seconds"] = int(val)
+            else:
+                slots["delay_seconds"] = 0
+        else:
+            slots["action"] = "power"
 
     return slots
 
@@ -348,6 +427,7 @@ class VietnameseNLPClassifier:
         self.min_confidence = float(min_confidence)
         self.pipeline: Pipeline | None = None
         self.classes_: list[str] = []
+        self.onnx_engine: Any = None
         self._lock = threading.Lock()
         self._load_if_exists()
 
@@ -366,6 +446,16 @@ class VietnameseNLPClassifier:
                 data = joblib.load(self.model_path)
                 self.pipeline = data["pipeline"]
                 self.classes_ = list(data["classes"])
+            try:
+                onnx_path = self.model_path.with_suffix(".onnx")
+                if onnx_path.exists():
+                    from jarvis.nlp.onnx_engine import ONNXIntentClassifier
+                    self.onnx_engine = ONNXIntentClassifier(onnx_path, self.classes_)
+                    logger.info("Loaded ONNX acceleration engine from %s", onnx_path)
+            except Exception as _oe:
+                logger.debug("ONNX acceleration skipped: %s", _oe)
+                self.onnx_engine = None
+
             logger.info("Loaded Vietnamese NLP classifier from %s (classes=%d)", self.model_path, len(self.classes_))
             return True
         except Exception as e:
@@ -538,15 +628,18 @@ class VietnameseNLPClassifier:
                         slots={},
                     )
 
-            probs = self.pipeline.predict_proba([clean])[0]
-            classes = self.classes_
-
-        top_idx = int(np.argmax(probs))
-        top_confidence = float(probs[top_idx])
-        raw_intent = classes[top_idx]
-        top_intent = raw_intent if (top_confidence >= self.min_confidence and raw_intent != "unknown") else "unknown"
-
-        scores_dict = {cls_name: float(p) for cls_name, p in zip(classes, probs)}
+            if self.onnx_engine is not None and self.onnx_engine.is_ready and feat_union is not None:
+                feat_vec = feat_union.transform([clean]).toarray().astype(np.float32)
+                raw_intent, top_confidence, scores_dict = self.onnx_engine.predict_proba(feat_vec)
+                top_intent = raw_intent if (top_confidence >= self.min_confidence and raw_intent != "unknown") else "unknown"
+            else:
+                probs = self.pipeline.predict_proba([clean])[0]
+                classes = self.classes_
+                top_idx = int(np.argmax(probs))
+                top_confidence = float(probs[top_idx])
+                raw_intent = classes[top_idx]
+                top_intent = raw_intent if (top_confidence >= self.min_confidence and raw_intent != "unknown") else "unknown"
+                scores_dict = {cls_name: float(p) for cls_name, p in zip(classes, probs)}
         dur_ms = (time.monotonic() - t0) * 1000.0
 
         slots = extract_slots_for_intent(top_intent, raw_text) if top_intent != "unknown" else {}

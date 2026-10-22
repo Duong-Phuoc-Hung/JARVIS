@@ -1,87 +1,130 @@
+"""
+scripts/argon_boundary_analysis.py
+==================================
+Argon Boundary Probability & Tail Latency Analysis across 15 Intent Domains.
+Examines:
+  1. Multiclass probability margins on ambiguous/borderline utterances.
+  2. High-resolution latency tail percentiles (p50, p90, p95, p99, p99.9) on CPU.
+"""
+from __future__ import annotations
+
 import os
 import sys
-sys.path.insert(0, os.path.abspath("."))
 import time
+from pathlib import Path
+
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import numpy as np
 from jarvis.llm.local_classifier import VietnameseNLPClassifier
 
+
 def analyze_boundary_probabilities():
-    print("=" * 65)
-    print("REA x ARGON DEEP-DIVE: BOUNDARY PROBABILITIES & LATENCY TAIL")
-    print("=" * 65)
+    print("=" * 68)
+    print("🔬 REA x ARGON DEEP-DIVE: 15-DOMAIN BOUNDARY PROBABILITIES & LATENCY TAIL")
+    print("=" * 68)
 
     clf = VietnameseNLPClassifier()
 
-    # Ambiguous, borderline, and challenging edge cases
     boundary_cases = [
         # Volume vs Brightness border
         ("cho to lên một chút", "system_volume"),
         ("tối quá không thấy gì", "system_brightness"),
         ("sáng quá chói mắt", "system_brightness"),
         ("cho lớn hết cỡ", "system_volume"),
+
         # App vs Smart Home border
         ("bật quạt", "smart_home"),
         ("mở quạt trần", "smart_home"),
-        ("chạy máy tính", "app_launch"),  # 'calculator' vs 'pc'
+        ("chạy máy tính", "app_launch"),
         ("mở ứng dụng đèn", "app_launch"),
-        # Web Search vs Greeting Chat vs Unknown border
+
+        # Window vs App Close border
+        ("thu nhỏ cửa sổ này", "window_management"),
+        ("đóng cửa sổ này đi", "app_close"),
+        ("chia đôi màn hình sang trái", "window_management"),
+
+        # File vs App Launch border
+        ("mở thư mục tải về", "file_management"),
+        ("mở file explorer", "app_launch"),
+        ("dọn dẹp thùng rác", "file_management"),
+
+        # Clipboard vs System border
+        ("sao chép đoạn này", "clipboard_action"),
+        ("dán vào đây", "clipboard_action"),
+        ("xóa clipboard", "clipboard_action"),
+
+        # Network vs System Status border
+        ("kiểm tra kết nối mạng wifi", "network_control"),
+        ("đo tốc độ internet", "network_control"),
+        ("kiểm tra tình trạng máy tính", "system_status"),
+
+        # Power vs App Close border
+        ("khóa màn hình máy tính", "system_power"),
+        ("cho máy tính đi ngủ", "system_power"),
+        ("hẹn giờ tắt máy tính sau 30 phút", "system_power"),
+
+        # Web Search vs Greeting vs Unknown
         ("hôm nay trời thế nào bạn ơi", "web_search"),
         ("bạn là ai thế", "greeting_chat"),
-        ("chào buổi sáng jarvis", "greeting_chat"),
         ("nghĩ gì về cuộc sống", "unknown"),
-        # OOD & Noise
-        ("qwertyuiop123", "unknown"),
-        ("hôm nay 12345 !@#$", "unknown"),
+        ("qwertyuiop123456", "unknown"),
     ]
 
-    print("\n[1] BORDER CLASS PROBABILITY DISTRIBUTIONS:")
+    print("\n[1] 15-DOMAIN BORDER CLASS PROBABILITY DISTRIBUTIONS:")
+    correct_count = 0
     for text, expected in boundary_cases:
         res = clf.predict(text)
         sorted_scores = sorted(res.all_scores.items(), key=lambda x: x[1], reverse=True)[:3]
         top3_str = ", ".join([f"{k}: {v*100:.1f}%" for k, v in sorted_scores])
-        match_symbol = "✅" if res.intent == expected or (expected == "unknown" and res.confidence < 0.45) else "⚠️"
+        is_match = (res.intent == expected) or (expected == "unknown" and res.confidence < 0.45)
+        if is_match:
+            correct_count += 1
+        match_symbol = "✅" if is_match else "⚠️"
         print(f"  {match_symbol} Utterance: '{text}'")
         print(f"     Expected: {expected} | Actual: {res.intent} (conf: {res.confidence:.3f})")
-        print(f"     Top-3 Distribution: [{top3_str}]")
-        print(f"     Slots Extracted: {res.slots}")
+        print(f"     Top-3: [{top3_str}]")
 
-    # Latency Tail Analysis (500 iterations)
-    print("\n[2] HIGH-RESOLUTION LATENCY TAIL PROFILE (N=500):")
+    print(f"\n  Boundary Accuracy: {correct_count}/{len(boundary_cases)} ({correct_count / len(boundary_cases) * 100:.1f}%)")
+
+    # High-resolution Latency Tail Analysis (2,500 iterations)
+    print("\n[2] HIGH-RESOLUTION LATENCY TAIL PROFILE (N=2,500 RUNS ON PHYSICAL CPU):")
     sample_queries = [
         "tăng âm lượng lên 20%",
         "bat den phong khach",
         "mở google chrome",
         "thời tiết hôm nay",
-        "báo thức sau 15 phút",
+        "chia đôi màn hình sang trái",
     ]
-    warmup_n = 20
-    bench_n = 500
 
     # Warmup
-    for _ in range(warmup_n):
-        for q in sample_queries:
-            clf.predict(q)
+    for q in sample_queries:
+        _ = clf.predict(q)
 
-    latencies_us = []
-    for _ in range(bench_n):
+    all_latencies: list[float] = []
+    N_ROUNDS = 500  # 500 * 5 = 2,500 queries
+    for _ in range(N_ROUNDS):
         for q in sample_queries:
-            t0 = time.perf_counter_ns()
+            t0 = time.perf_counter()
             _ = clf.predict(q)
-            latencies_us.append((time.perf_counter_ns() - t0) / 1000.0)  # microseconds
+            all_latencies.append((time.perf_counter() - t0) * 1000.0)
 
-    latencies_ms = np.array(latencies_us) / 1000.0
+    arr = np.array(all_latencies)
+    print(f"  - Total Real Runs:   {len(arr):,}")
+    print(f"  - Mean Latency:      {np.mean(arr):.2f} ms")
+    print(f"  - p50 (Median):      {np.percentile(arr, 50):.2f} ms")
+    print(f"  - p90:               {np.percentile(arr, 90):.2f} ms")
+    print(f"  - p95:               {np.percentile(arr, 95):.2f} ms")
+    print(f"  - p99:               {np.percentile(arr, 99):.2f} ms")
+    print(f"  - p99.9:             {np.percentile(arr, 99.9):.2f} ms")
+    print(f"  - Max Jitter:        {np.max(arr):.2f} ms")
+    print("\n✅ ARGON BOUNDARY & LATENCY TAIL ANALYSIS COMPLETE!")
 
-    print(f"  - Sample Count: {len(latencies_ms)} executions across {len(sample_queries)} distinct domains")
-    print(f"  - Mean Latency:   {np.mean(latencies_ms):.3f} ms")
-    print(f"  - p50 (Median):   {np.percentile(latencies_ms, 50):.3f} ms")
-    print(f"  - p90:            {np.percentile(latencies_ms, 90):.3f} ms")
-    print(f"  - p95:            {np.percentile(latencies_ms, 95):.3f} ms")
-    print(f"  - p99:            {np.percentile(latencies_ms, 99):.3f} ms")
-    print(f"  - Max Jitter:     {np.max(latencies_ms):.3f} ms")
-
-    print("\n" + "=" * 65)
-    print("REA DEEP-DIVE COMPLETE: ZERO RUNAWAY JITTER, STABLE BOUNDARIES")
-    print("=" * 65)
 
 if __name__ == "__main__":
     analyze_boundary_probabilities()

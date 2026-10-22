@@ -546,12 +546,17 @@ class LLMIntentRouter:
                 ),
             ),
             (
-                re.compile(r"(?:bật|mở|turn\s*on)\s+(?:điều\s*hòa|máy\s*lạnh|ac|climate)", re.IGNORECASE),
+                re.compile(r"(?:bật|mở|turn\s*on)\s+(?:điều\s*hòa|máy\s*lạnh|ac|climate)(?:\s*(?:ở\s*mức\s*|lên\s*)?(\d{1,2}(?:\.\d+)?)\s*(?:độ|c|degree)?)?", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="home_assistant_call",
-                    parameters={"domain": "climate", "service": "turn_on", "entity_id": "climate.ac_unit"},
+                    parameters={
+                        "domain": "climate",
+                        "service": "turn_on",
+                        "entity_id": "climate.ac_unit",
+                        **({"temperature": int(float(m.group(1)))} if m.group(1) else {}),
+                    },
                     source="rule_fallback",
-                    response_text="Đang bật điều hòa cho Ngài.",
+                    response_text=f"Đang bật điều hòa{' ' + m.group(1) + ' độ' if m.group(1) else ''} cho Ngài.",
                 ),
             ),
             (
@@ -1890,16 +1895,47 @@ class LLMIntentRouter:
         """Alias for parse_intent()."""
         return self.parse_intent(text, available_actions=available_actions, context=context, force_llm=force_llm)
 
+    def parse_multi_intent(
+        self,
+        text: str,
+        available_actions: list[str] | None = None,
+        context: dict[str, Any] | None = None,
+        force_llm: bool = False,
+    ) -> list[IntentResult]:
+        """
+        Parses user query into one or more sequential IntentResults.
+        Supports compound multi-action sentences (e.g. 'tắt đèn phòng khách và bật điều hòa 24 độ').
+        """
+        if not text:
+            return [self.parse_intent(text)]
+        from jarvis.nlp.multi_intent import split_compound_utterance
+        clauses = split_compound_utterance(text.strip())
+        if len(clauses) <= 1:
+            return [self.parse_intent(text, available_actions=available_actions, context=context, force_llm=force_llm)]
+        results: list[IntentResult] = []
+        for cl in clauses:
+            res = self.parse_intent(
+                cl,
+                available_actions=available_actions,
+                context=context,
+                force_llm=force_llm,
+                _is_sub_clause=True,
+            )
+            results.append(res)
+        return results
+
     def parse_intent(
         self,
         text: str,
         available_actions: list[str] | None = None,
         context: dict[str, Any] | None = None,
         force_llm: bool = False,
+        _is_sub_clause: bool = False,
     ) -> IntentResult:
         """
         Parses user voice/text query into structured tool calling IntentResult.
         Executes Two-Tier pipeline: Fast Rules -> LLM Tool Call -> Fallback Rules.
+        Supports compound multi-intent sentences when _is_sub_clause is False.
         """
         # Guard: None input (e.g. STT silence/timeout returning None)
         if text is None:
@@ -1912,6 +1948,43 @@ class LLMIntentRouter:
                 response_text="",  # Silence → no TTS; caller decides UX
             )
         clean = text.strip()
+
+        # Compound Multi-Intent Pre-check: If this is the root query and not forced LLM
+        if not _is_sub_clause and not force_llm and clean:
+            try:
+                from jarvis.nlp.multi_intent import split_compound_utterance
+                clauses = split_compound_utterance(clean)
+                if len(clauses) > 1:
+                    sub_results: list[IntentResult] = []
+                    for cl in clauses:
+                        sub_res = self.parse_intent(
+                            cl,
+                            available_actions=available_actions,
+                            context=context,
+                            force_llm=force_llm,
+                            _is_sub_clause=True,
+                        )
+                        sub_results.append(sub_res)
+
+                    # Only promote to compound action if all sub-clauses resolve to known, non-unknown intents
+                    if all(r.action_name != "unknown_intent" for r in sub_results):
+                        min_conf = min(r.confidence for r in sub_results)
+                        resp_parts = [r.response_text for r in sub_results if r.response_text]
+                        combined_resp = "; ".join(resp_parts) if resp_parts else "Đã thực hiện các yêu cầu cho Ngài."
+                        return IntentResult(
+                            action_name="compound_multi_action",
+                            parameters={
+                                "actions": [r.to_dict() for r in sub_results],
+                                "count": len(sub_results),
+                            },
+                            confidence=min_conf,
+                            source="multi_intent_decomposer",
+                            raw_text=text,
+                            response_text=combined_resp,
+                        )
+            except Exception as _e:
+                logger.debug("Compound intent decomposition skipped: %s", _e)
+
         clean_lower_full = clean.lower()  # Full text — safe for plain substring 'in' checks
         # Truncate for REGEX only to prevent ReDoS on long inputs (e.g. 50KB adversarial strings).
         # Dict-key _match_rule_key uses simple 'in' substring checks which are O(n) safe.
@@ -2429,6 +2502,60 @@ class LLMIntentRouter:
                 response_text="Xin chào Ngài! Tôi là JARVIS, trợ lý AI luôn sẵn sàng hỗ trợ Ngài.",
             )
 
+        elif intent == "window_management":
+            act = slots.get("action", "manage")
+            return IntentResult(
+                action_name="window_control",
+                parameters=slots,
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text=f"Đang thực hiện điều khiển cửa sổ ({act}) cho Ngài.",
+            )
+
+        elif intent == "file_management":
+            tgt = slots.get("target", "downloads")
+            return IntentResult(
+                action_name="file_management",
+                parameters=slots,
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text=f"Đang mở và quản lý tập tin ({tgt}) cho Ngài.",
+            )
+
+        elif intent == "clipboard_action":
+            act = slots.get("action", "read")
+            return IntentResult(
+                action_name="clipboard_action",
+                parameters=slots,
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text=f"Đang thực hiện thao tác clipboard ({act}) cho Ngài.",
+            )
+
+        elif intent == "network_control":
+            return IntentResult(
+                action_name="network_diagnostics",
+                parameters=slots,
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text="Đang kiểm tra và chẩn đoán kết nối mạng cho Ngài.",
+            )
+
+        elif intent == "system_power":
+            act = slots.get("action", "lock")
+            return IntentResult(
+                action_name="system_power",
+                parameters=slots,
+                confidence=ml_res.confidence,
+                source="ml_local_fast_path",
+                raw_text=text,
+                response_text=f"Đang thực hiện lệnh nguồn hệ thống ({act}) cho Ngài.",
+            )
+
         return None
 
     def execute_intent(
@@ -2445,6 +2572,30 @@ class LLMIntentRouter:
                 error_code="DISPATCHER_UNAVAILABLE",
             )
 
+        if intent.action_name == "compound_multi_action":
+            sub_actions = intent.parameters.get("actions", [])
+            results = []
+            all_ok = True
+            for act_dict in sub_actions:
+                sub_intent = IntentResult(
+                    action_name=act_dict.get("action_name", "unknown_intent"),
+                    parameters=act_dict.get("parameters", {}),
+                    confidence=act_dict.get("confidence", 1.0),
+                    source=act_dict.get("source", "multi_intent"),
+                    raw_text=act_dict.get("raw_text", ""),
+                    response_text=act_dict.get("response_text"),
+                )
+                sub_res = self.execute_intent(sub_intent, requester=requester)
+                results.append(sub_res)
+                if not sub_res.success:
+                    all_ok = False
+            return ActionResult(
+                action_name="compound_multi_action",
+                success=all_ok,
+                data={"results": [r.to_dict() if hasattr(r, "to_dict") else str(r) for r in results]},
+                requester=requester if isinstance(requester, str) else requester.requester_id,
+            )
+
         if intent.action_name == "generic_llm_response":
             return ActionResult(
                 action_name="generic_llm_response",
@@ -2452,6 +2603,18 @@ class LLMIntentRouter:
                 data={"reply": intent.parameters.get("reply", "")},
                 requester=requester if isinstance(requester, str) else requester.requester_id,
             )
+
+        if intent.action_name == "unknown_intent" or intent.confidence < 0.45:
+            try:
+                from jarvis.nlp.automation.unrecognized_collector import UnrecognizedTurnCollector
+                UnrecognizedTurnCollector().record_turn(
+                    raw_text=intent.raw_text,
+                    confidence=intent.confidence,
+                    source=intent.source,
+                    classified_intent=intent.action_name,
+                )
+            except Exception as _ce:
+                logger.debug("Failed logging unrecognized turn: %s", _ce)
 
         if intent.action_name == "unknown_intent":
             return ActionResult(
