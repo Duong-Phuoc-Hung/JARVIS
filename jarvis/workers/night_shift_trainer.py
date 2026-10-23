@@ -89,44 +89,22 @@ class NightShiftReport:
 
 def get_canonical_intent_dataset() -> list[tuple[str, str]]:
     """Returns canonical multi-domain intent classification pairs with balanced class distribution."""
+    canonical: list[tuple[str, str]] = []
+    try:
+        import sys
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent.parent
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        from scripts.train_vietnamese_nlp import CANONICAL_TRAINING_DATA
+        canonical = list(CANONICAL_TRAINING_DATA)
+    except Exception:
+        canonical = []
+
     from jarvis.nlp.automation.evaluator_gate import GOLDEN_REGRESSION_TESTS
     from jarvis.nlp.joint_tagger import build_default_joint_dataset
     base_joint = [(d[0], d[1]) for d in build_default_joint_dataset()]
-    extra_samples = [
-        # system_volume
-        ("vặn to lên", "system_volume"), ("cho nhỏ tiếng", "system_volume"), ("bật max loa", "system_volume"), ("hạ âm thanh", "system_volume"),
-        # system_brightness
-        ("màn hình sáng quá", "system_brightness"), ("chỉnh sáng màn hình 50%", "system_brightness"), ("hạ độ sáng xuống", "system_brightness"),
-        # app_launch
-        ("mở word soạn thảo", "app_launch"), ("bật excel", "app_launch"), ("chạy google chrome", "app_launch"),
-        # app_close
-        ("tắt word", "app_close"), ("đóng excel", "app_close"), ("tắt notepad", "app_close"), ("thoát visual studio code", "app_close"),
-        # media_control
-        ("dừng nhạc", "media_control"), ("bật bài hát", "media_control"), ("phát tiếp", "media_control"), ("tua bài", "media_control"),
-        # smart_home
-        ("bật đèn ngủ", "smart_home"), ("tắt đèn bàn", "smart_home"), ("bật điều hòa 26 độ", "smart_home"), ("tắt quạt trần", "smart_home"),
-        # system_status
-        ("kiểm tra cpu", "system_status"), ("nhiệt độ máy tính", "system_status"), ("dung lượng ram còn bao nhiêu", "system_status"),
-        # timer_reminder
-        ("hẹn giờ 10 phút", "timer_reminder"), ("nhắc tôi họp lúc 2 giờ", "timer_reminder"), ("đặt báo thức 6 giờ", "timer_reminder"),
-        # web_search
-        ("tìm kiếm giá vàng", "web_search"), ("tra cứu tin tức", "web_search"), ("google thời tiết đà nẵng", "web_search"),
-        # greeting_chat
-        ("xin chào jarvis", "greeting_chat"), ("chào bạn nhé", "greeting_chat"), ("bạn tên là gì", "greeting_chat"), ("rất vui được gặp bạn", "greeting_chat"),
-        # window_management
-        ("chia đôi màn hình", "window_management"), ("thu nhỏ cửa sổ", "window_management"), ("toàn màn hình", "window_management"),
-        # file_management
-        ("mở thư mục documents", "file_management"), ("xóa file rác", "file_management"), ("tìm tệp tin", "file_management"),
-        # clipboard_action
-        ("sao chép văn bản", "clipboard_action"), ("copy đoạn này", "clipboard_action"), ("dán vào đây", "clipboard_action"), ("copy link này", "clipboard_action"),
-        # network_control
-        ("kiểm tra mạng wifi", "network_control"), ("ping google.com", "network_control"), ("quét ip mạng", "network_control"),
-        # system_power
-        ("tắt máy tính đi", "system_power"), ("khởi động lại máy", "system_power"), ("cho máy tính ngủ", "system_power"),
-        # unknown
-        ("công thức làm bánh bông lan", "unknown"), ("thủ đô nước mỹ là gì", "unknown"), ("kể chuyện hài đi", "unknown"), ("hôm nay trời đẹp nhỉ", "unknown"),
-    ]
-    return base_joint + list(GOLDEN_REGRESSION_TESTS) + extra_samples
+    return canonical + base_joint + list(GOLDEN_REGRESSION_TESTS)
 
 
 class NightShiftTrainer:
@@ -220,6 +198,27 @@ class NightShiftTrainer:
             if label not in ("greeting_chat", "unknown"):
                 augmented.add((f"jarvis {text}", label))
                 augmented.add((f"{text} giúp tôi", label))
+                augmented.add((f"{text} nhé", label))
+                augmented.add((f"{text} hộ tôi", label))
+                augmented.add((f"làm ơn {text}", label))
+
+        # 4. Phonetic loan words for common desktop software
+        phonetic_loanwords = [
+            ("chrome", ["cờ rôm", "chôm"]),
+            ("excel", ["ét xel", "ếch xel"]),
+            ("word", ["quốt", "uốt"]),
+            ("spotify", ["sì po ti phai", "sờ po ti phai"]),
+            ("vscode", ["vê ét cốt", "ve et code"]),
+        ]
+        extra_phonetics: list[tuple[str, str]] = []
+        for text, label in list(augmented):
+            for canonical, phonetics in phonetic_loanwords:
+                if canonical in text:
+                    for ph in phonetics:
+                        extra_phonetics.append((text.replace(canonical, ph), label))
+
+        for t, l in extra_phonetics:
+            augmented.add((t, l))
 
         return list(augmented)
 

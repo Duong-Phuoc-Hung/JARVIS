@@ -1032,6 +1032,31 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
             description="Closes the active browser or editor tab (Ctrl+W)",
         )
         self.dispatcher.register_action(
+            name="tab_control",
+            handler=self._handle_tab_control,
+            description="Controls browser or editor tabs (close_tab Ctrl+W, new_tab Ctrl+T)",
+        )
+        self.dispatcher.register_action(
+            name="file_save",
+            handler=self._handle_file_save,
+            description="Saves currently active document or workspace file (Ctrl+S)",
+        )
+        self.dispatcher.register_action(
+            name="window_control",
+            handler=self._handle_window_control,
+            description="Controls active window zoom and scaling (zoom_in, zoom_out, reset_zoom)",
+        )
+        self.dispatcher.register_action(
+            name="terminal_control",
+            handler=self._handle_terminal_control,
+            description="Sends control signals to foreground terminal (interrupt Ctrl+C)",
+        )
+        self.dispatcher.register_action(
+            name="browser_control",
+            handler=self._handle_browser_control,
+            description="Controls browser navigation and reloading (reload F5)",
+        )
+        self.dispatcher.register_action(
             name="page_scroll",
             handler=self._handle_page_scroll,
             description="Scrolls current page up or down",

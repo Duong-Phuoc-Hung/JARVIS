@@ -196,7 +196,8 @@ class SpeculativePreRouter:
         if len(clean) < 4 or len(clean.split()) < 2:
             return None
 
-        self.total_partials_processed += 1
+        with self._lock:
+            self.total_partials_processed += 1
 
         # Check for immediate cancellation markers
         for marker in _CANCELLATION_MARKERS:
@@ -307,9 +308,13 @@ class SpeculativePreRouter:
             return None, False
 
         # Match against speculative candidate
-        if candidate and not candidate.is_expired():
-            if candidate.action_name == final_res.action_name:
-                self.speculative_hits += 1
+        if candidate and not candidate.is_expired() and clean_final:
+            if (
+                candidate.action_name == final_res.action_name
+                and final_res.action_name not in ("unknown", "unknown_intent", "cancelled")
+            ):
+                with self._lock:
+                    self.speculative_hits += 1
                 # Attach pre-warmed payload directly to execution parameters
                 final_res.parameters["_speculative_hit"] = True
                 final_res.parameters["_prewarmed_payload"] = candidate.prewarmed_payload

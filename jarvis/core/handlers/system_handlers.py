@@ -624,6 +624,69 @@ class SystemHandlersMixin(BaseActionService):
             return {"status": "success" if ok else "failed", "success": ok, "message": msg}
         return {"status": "failed", "success": False, "message": "Computer controller unavailable"}
 
+    def _handle_file_save(self, **kwargs) -> dict[str, Any]:
+        """Saves current document or workspace file (Ctrl+S)."""
+        if self.computer_controller and hasattr(self.computer_controller, "send_hotkey"):
+            ok = bool(self.computer_controller.send_hotkey("ctrl", "s"))
+            msg = "Đã lưu tài liệu đang làm việc, thưa Ngài." if ok else "Không thể lưu tệp tin."
+            if self.tts_manager and ok:
+                self.tts_manager.speak(msg, wait=False)
+            return {"status": "success" if ok else "failed", "success": ok, "message": msg}
+        return {"status": "failed", "success": False, "error_code": "KEYBOARD_UNAVAILABLE", "message": "Computer controller unavailable"}
+
+    def _handle_tab_control(self, action: str = "close_tab", **kwargs) -> dict[str, Any]:
+        """Controls browser or editor tabs (close_tab: Ctrl+W, new_tab: Ctrl+T)."""
+        act = kwargs.get("action", action)
+        if act == "new_tab":
+            return self._handle_new_tab(**kwargs)
+        return self._handle_close_tab(**kwargs)
+
+    def _handle_window_control(self, action: str = "zoom_in", **kwargs) -> dict[str, Any]:
+        """Controls active window zoom and scaling (zoom_in, zoom_out, reset_zoom)."""
+        act = kwargs.get("action", action)
+        if not (self.computer_controller and hasattr(self.computer_controller, "send_hotkey")):
+            return {"status": "failed", "success": False, "error_code": "KEYBOARD_UNAVAILABLE", "message": "Computer controller unavailable"}
+
+        if act == "zoom_in":
+            ok = bool(self.computer_controller.send_hotkey("ctrl", "add") or self.computer_controller.send_hotkey("ctrl", "="))
+            msg = "Đã phóng to màn hình, thưa Ngài." if ok else "Không thể phóng to."
+        elif act == "zoom_out":
+            ok = bool(self.computer_controller.send_hotkey("ctrl", "subtract") or self.computer_controller.send_hotkey("ctrl", "-"))
+            msg = "Đã thu nhỏ màn hình, thưa Ngài." if ok else "Không thể thu nhỏ."
+        elif act in ("reset_zoom", "zoom_reset"):
+            ok = bool(self.computer_controller.send_hotkey("ctrl", "0"))
+            msg = "Đã đặt lại tỷ lệ màn hình, thưa Ngài." if ok else "Không thể đặt lại tỷ lệ."
+        else:
+            return {"status": "failed", "success": False, "error_code": "INVALID_ACTION", "message": f"Unsupported window control action: {act}"}
+
+        if self.tts_manager and ok:
+            self.tts_manager.speak(msg, wait=False)
+        return {"status": "success" if ok else "failed", "success": ok, "message": msg}
+
+    def _handle_terminal_control(self, action: str = "interrupt", **kwargs) -> dict[str, Any]:
+        """Sends control signals to foreground terminal (interrupt: Ctrl+C)."""
+        act = kwargs.get("action", action)
+        if not (self.computer_controller and hasattr(self.computer_controller, "send_hotkey")):
+            return {"status": "failed", "success": False, "error_code": "KEYBOARD_UNAVAILABLE", "message": "Computer controller unavailable"}
+
+        if act == "interrupt":
+            ok = bool(self.computer_controller.send_hotkey("ctrl", "c"))
+            msg = "Đã gửi tín hiệu dừng lệnh tới dòng lệnh, thưa Ngài." if ok else "Không thể gửi tín hiệu dừng lệnh."
+        else:
+            return {"status": "failed", "success": False, "error_code": "INVALID_ACTION", "message": f"Unsupported terminal action: {act}"}
+
+        if self.tts_manager and ok:
+            self.tts_manager.speak(msg, wait=False)
+        return {"status": "success" if ok else "failed", "success": ok, "message": msg}
+
+    def _handle_browser_control(self, action: str = "reload", **kwargs) -> dict[str, Any]:
+        """Controls browser navigation and reloading (reload: F5)."""
+        act = kwargs.get("action", action)
+        if act in ("reload", "refresh"):
+            return self._handle_page_refresh(**kwargs)
+        return {"status": "failed", "success": False, "error_code": "INVALID_ACTION", "message": f"Unsupported browser action: {act}"}
+
+
 
     def _handle_web_open(self, url: str | None = None, target: str | None = None, query: str | None = None, site: str | None = None, **kwargs) -> dict[str, Any]:
         """Opens target website or search query in browser."""

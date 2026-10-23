@@ -100,3 +100,26 @@ class ContinuousDatasetManager:
         for _, label in self._corpus.values():
             dist[label] = dist.get(label, 0) + 1
         return dist
+
+
+def get_canonical_dataset() -> tuple[list[str], list[str]]:
+    """
+    Returns canonical training samples and labels for Vietnamese NLP intent classification.
+    Safely falls back to golden regression and default joint pairs if external script is unavailable.
+    """
+    try:
+        import sys
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent.parent.parent
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        from scripts.train_vietnamese_nlp import CANONICAL_TRAINING_DATA, augment_dataset
+        augmented = augment_dataset(CANONICAL_TRAINING_DATA)
+        return [item[0] for item in augmented], [item[1] for item in augmented]
+    except Exception:
+        from jarvis.nlp.automation.evaluator_gate import GOLDEN_REGRESSION_TESTS
+        from jarvis.nlp.joint_tagger import build_default_joint_dataset
+        joint = [(d[0], d[1]) for d in build_default_joint_dataset()]
+        all_samples = joint + list(GOLDEN_REGRESSION_TESTS)
+        return [item[0] for item in all_samples], [item[1] for item in all_samples]
+

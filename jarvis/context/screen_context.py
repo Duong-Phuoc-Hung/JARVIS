@@ -101,7 +101,7 @@ def classify_app_and_subcontext(process_name: str, title: str) -> tuple[str, str
     sub_context = "general"
 
     if category == "browser":
-        if "youtube" in title_lower:
+        if any(w in title_lower for w in ["youtube", "twitch", "netflix", "bilibili", "soundcloud", "zing mp3", "nhaccuatui"]):
             sub_context = "youtube_video"
         elif any(w in title_lower for w in ["google docs", "google sheets", "notion", "word online"]):
             sub_context = "web_document"
@@ -265,10 +265,10 @@ class AWACIEngine:
         clean_text = text.lower().strip()
         params = dict(current_params or {})
 
-        # 1. Stop / Pause ("dừng lại", "tạm dừng", "dừng", "pause", "stop")
+        # 1. Stop / Pause ("dừng lại", "tạm dừng", "dừng", "pause", "stop", "dừng video")
         if clean_text in [
             "dừng lại", "dung lai", "tạm dừng", "tam dung", "dừng", "dung", "pause", "stop",
-            "ngừng", "ngung", "ngừng lại", "ngung lai"
+            "ngừng", "ngung", "ngừng lại", "ngung lai", "dừng video", "dung video", "tạm dừng video", "tam dung video"
         ]:
             if win_ctx.app_category == "browser" and win_ctx.sub_context == "youtube_video":
                 return (
@@ -292,9 +292,10 @@ class AWACIEngine:
                     0.99,
                 )
 
-        # 2. Resume / Play ("tiếp tục", "phát tiếp", "chạy tiếp", "resume", "play")
+        # 2. Resume / Play ("tiếp tục", "phát tiếp", "chạy tiếp", "resume", "play", "phát video")
         if clean_text in [
-            "tiếp tục", "tiep tuc", "phát tiếp", "phat tiep", "chạy tiếp", "chay tiep", "play", "resume"
+            "tiếp tục", "tiep tuc", "phát tiếp", "phat tiep", "chạy tiếp", "chay tiep", "play", "resume",
+            "phát video", "phat video", "tiếp tục video", "tiep tuc video"
         ]:
             if win_ctx.app_category == "browser" and win_ctx.sub_context == "youtube_video":
                 return (
@@ -312,7 +313,7 @@ class AWACIEngine:
                 )
 
         # 3. Zoom In / Zoom Out ("phóng to", "thu nhỏ", "to lên", "nhỏ lại")
-        if clean_text in ["phóng to", "phong to", "to lên", "to len", "zoom in"]:
+        if clean_text in ["phóng to", "phong to", "to lên", "to len", "zoom in", "phóng to lên", "phong to len"]:
             if win_ctx.app_category in ("browser", "code_editor", "document_editor"):
                 return (
                     "window_control",
@@ -321,7 +322,7 @@ class AWACIEngine:
                     0.98,
                 )
 
-        if clean_text in ["thu nhỏ", "thu nho", "nhỏ lại", "nho lai", "zoom out"]:
+        if clean_text in ["thu nhỏ", "thu nho", "nhỏ lại", "nho lai", "zoom out", "thu nhỏ lại", "thu nho lai"]:
             if win_ctx.app_category in ("browser", "code_editor", "document_editor"):
                 return (
                     "window_control",
@@ -330,8 +331,11 @@ class AWACIEngine:
                     0.98,
                 )
 
-        # 4. Save File ("lưu lại", "lưu file", "lưu tệp", "save", "save file")
-        if clean_text in ["lưu lại", "luu lai", "lưu file", "luu file", "lưu tệp", "luu tep", "save", "save file"]:
+        # 4. Save File ("lưu lại", "lưu file", "lưu tệp", "save", "save file", "lưu tài liệu", "lưu code")
+        if clean_text in [
+            "lưu lại", "luu lai", "lưu file", "luu file", "lưu tệp", "luu tep", "save", "save file",
+            "lưu tài liệu", "luu tai lieu", "lưu code", "luu code", "save code"
+        ]:
             if win_ctx.app_category in ("code_editor", "document_editor") or (
                 win_ctx.app_category == "browser" and win_ctx.sub_context == "web_document"
             ):
@@ -342,13 +346,23 @@ class AWACIEngine:
                     0.98,
                 )
 
-        # 5. Close Tab ("đóng tab", "dong tab", "tắt tab", "tat tab", "close tab")
-        if clean_text in ["đóng tab", "dong tab", "tắt tab", "tat tab", "close tab"]:
+        # 5. Close Tab ("đóng tab", "dong tab", "tắt tab", "tat tab", "close tab", "đóng thẻ", "tắt thẻ")
+        if clean_text in ["đóng tab", "dong tab", "tắt tab", "tat tab", "close tab", "đóng thẻ", "dong the", "tắt thẻ", "tat the"]:
             if win_ctx.app_category in ("browser", "code_editor"):
                 return (
                     "tab_control",
                     {"action": "close_tab", "context_routed": True, "app": win_ctx.process_name},
                     f"Đang đóng tab hiện tại trên {win_ctx.process_name} cho Ngài.",
+                    0.98,
+                )
+
+        # 5b. New Tab ("tab mới", "thẻ mới", "mở tab mới", "new tab")
+        if clean_text in ["tab mới", "tab moi", "thẻ mới", "the moi", "mở tab mới", "mo tab moi", "new tab", "tạo tab mới", "tao tab moi"]:
+            if win_ctx.app_category in ("browser", "code_editor"):
+                return (
+                    "tab_control",
+                    {"action": "new_tab", "context_routed": True, "app": win_ctx.process_name},
+                    f"Đang mở tab mới trên {win_ctx.process_name} cho Ngài.",
                     0.98,
                 )
 

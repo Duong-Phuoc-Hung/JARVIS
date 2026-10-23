@@ -287,9 +287,11 @@ class StreamingSTTEngine:
         self,
         base_engine: Any | None = None,
         config: StreamingConfig | None = None,
+        speculative_router: Any | None = None,
     ) -> None:
         self.base_engine = base_engine
         self.config = config or StreamingConfig()
+        self.speculative_router = speculative_router
 
     def _default_transcribe(self, audio: np.ndarray, language: str) -> str:
         """Dispatches transcription to underlying base engine or mock."""
@@ -312,13 +314,17 @@ class StreamingSTTEngine:
         on_final: Callable[[str], None] | None = None,
         on_speech_start: Callable[[], None] | None = None,
         override_config: StreamingConfig | None = None,
+        speculative_router: Any | None = None,
     ) -> StreamingSTTSession:
         """Creates a new active StreamingSTTSession."""
         cfg = override_config or self.config
+        spec_router = speculative_router if speculative_router is not None else self.speculative_router
         return StreamingSTTSession(
             transcriber_fn=self._default_transcribe,
             config=cfg,
             on_partial=on_partial,
             on_final=on_final,
             on_speech_start=on_speech_start,
+            speculative_router=spec_router,
         )
+

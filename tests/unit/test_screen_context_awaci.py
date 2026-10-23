@@ -243,3 +243,107 @@ def test_awaci_fail_closed_on_invalid_context():
     res = router.route("dừng lại", window_context=invalid_ctx)
     # Notice without context, "dừng lại" has no AWACI match, falls through to normal pipeline
     assert res.source != "awaci_context"
+
+
+def test_awaci_new_tab_and_streaming_domains():
+    """Verify AWACI supports multimedia streaming domains, new tab, and Vietnamese synonyms."""
+    engine = AWACIEngine()
+
+    # Twitch in Chrome
+    cat, sub = classify_app_and_subcontext("chrome.exe", "Twitch - Live Stream - Google Chrome")
+    assert cat == "browser"
+    assert sub == "youtube_video"
+
+    # Netflix in Edge
+    cat, sub = classify_app_and_subcontext("msedge.exe", "Stranger Things - Netflix - Microsoft Edge")
+    assert cat == "browser"
+    assert sub == "youtube_video"
+
+    ctx_stream = WindowContext(
+        hwnd=50,
+        title="Live Stream - Twitch - Google Chrome",
+        process_name="chrome.exe",
+        app_category="browser",
+        sub_context="youtube_video",
+        is_valid=True,
+    )
+
+    # "dừng video"
+    res_pause = engine.disambiguate_intent("dừng video", "unknown", context=ctx_stream)
+    assert res_pause is not None
+    assert res_pause[0] == "media_control"
+    assert res_pause[1]["command"] == "pause"
+
+    # "phát video"
+    res_play = engine.disambiguate_intent("phát video", "unknown", context=ctx_stream)
+    assert res_play is not None
+    assert res_play[0] == "media_control"
+    assert res_play[1]["command"] == "play"
+
+    # "mở tab mới"
+    res_new_tab = engine.disambiguate_intent("mở tab mới", "unknown", context=ctx_stream)
+    assert res_new_tab is not None
+    assert res_new_tab[0] == "tab_control"
+    assert res_new_tab[1]["action"] == "new_tab"
+
+    # "đóng thẻ"
+    res_close_the = engine.disambiguate_intent("đóng thẻ", "unknown", context=ctx_stream)
+    assert res_close_the is not None
+    assert res_close_the[0] == "tab_control"
+    assert res_close_the[1]["action"] == "close_tab"
+
+
+def test_jarvis_app_awaci_actions_registered():
+    """Verify that file_save, tab_control, window_control, terminal_control, browser_control are all registered in JarvisApp."""
+    from jarvis.core.dispatcher import ActionDispatcher
+    from jarvis.core.handlers.system_handlers import SystemHandlersMixin
+    from unittest.mock import MagicMock
+
+    class MockApp(SystemHandlersMixin):
+        def __init__(self):
+            self.computer_controller = MagicMock()
+            self.tts_manager = None
+            self.dispatcher = ActionDispatcher()
+
+    app = MockApp()
+    # Register actions
+    app.dispatcher.register_action("file_save", app._handle_file_save)
+    app.dispatcher.register_action("tab_control", app._handle_tab_control)
+    app.dispatcher.register_action("window_control", app._handle_window_control)
+    app.dispatcher.register_action("terminal_control", app._handle_terminal_control)
+    app.dispatcher.register_action("browser_control", app._handle_browser_control)
+
+    # 1. file_save
+    app.computer_controller.send_hotkey.return_value = True
+    res_save = app.dispatcher.dispatch_action("file_save", {})
+    assert res_save.success is True
+    app.computer_controller.send_hotkey.assert_called_with("ctrl", "s")
+
+    # 2. tab_control (new_tab)
+    app.computer_controller.send_hotkey.return_value = True
+    res_new_tab = app.dispatcher.dispatch_action("tab_control", {"action": "new_tab"})
+    assert res_new_tab.success is True
+    app.computer_controller.send_hotkey.assert_called_with("ctrl", "t")
+
+    # 3. tab_control (close_tab)
+    app.computer_controller.close_tab.return_value = True
+    res_close_tab = app.dispatcher.dispatch_action("tab_control", {"action": "close_tab"})
+    assert res_close_tab.success is True
+    app.computer_controller.close_tab.assert_called_once()
+
+    # 4. window_control (zoom_in)
+    app.computer_controller.send_hotkey.return_value = True
+    res_zoom = app.dispatcher.dispatch_action("window_control", {"action": "zoom_in"})
+    assert res_zoom.success is True
+
+    # 5. terminal_control (interrupt)
+    res_term = app.dispatcher.dispatch_action("terminal_control", {"action": "interrupt"})
+    assert res_term.success is True
+    app.computer_controller.send_hotkey.assert_called_with("ctrl", "c")
+
+    # 6. browser_control (reload)
+    app.computer_controller.refresh_page.return_value = True
+    res_reload = app.dispatcher.dispatch_action("browser_control", {"action": "reload"})
+    assert res_reload.success is True
+    app.computer_controller.refresh_page.assert_called_once()
+

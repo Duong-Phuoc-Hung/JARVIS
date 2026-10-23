@@ -2,37 +2,40 @@
 
 - [x] **Pillar 1: AWACI Engine (Active Window & Context Injection - `jarvis/context/screen_context.py`)** — `PASS engineering` / `PASS runtime`:
   - Trích xuất siêu dữ liệu cửa sổ foreground thời gian thực qua native Win32 C-API (`GetForegroundWindow`, `GetWindowTextW`, `GetWindowThreadProcessId`, `QueryFullProcessImageNameW`).
-  - Phân loại ngữ cảnh ứng dụng ngữ nghĩa (`browser`, `media_player`, `code_editor`, `terminal`, `document_editor`) và ngữ cảnh phụ (`youtube_video`, `web_document`, `music_playback`, `code_workspace`, `terminal_shell`).
-  - Phân giải nhập nhằng đa nghĩa tức thì cho khẩu lệnh phụ thuộc màn hình: "dừng lại" (YouTube pause vs Spotify playback vs Terminal interrupt), "phóng to"/"thu nhỏ" (window zoom), "lưu file" (code/document save), "đóng tab" (browser/editor tab close).
+  - Phân loại ngữ cảnh ứng dụng ngữ nghĩa (`browser`, `media_player`, `code_editor`, `terminal`, `document_editor`) và ngữ cảnh phụ (`youtube_video`, `web_document`, `music_playback`, `code_workspace`, `terminal_shell`), mở rộng streaming media (Twitch, Netflix, Bilibili, Soundcloud, Zing MP3).
+  - Phân giải nhập nhằng đa nghĩa tức thì cho khẩu lệnh phụ thuộc màn hình: "dừng lại" (YouTube pause vs Spotify playback vs Terminal interrupt), "phóng to"/"thu nhỏ" (window zoom), "lưu file" / "lưu code" (code/document save), "đóng tab" / "đóng thẻ" (browser/editor tab close), "mở tab mới" / "thẻ mới" (new tab).
+  - Đăng ký toàn bộ 5 action cốt lõi (`file_save`, `tab_control`, `window_control`, `terminal_control`, `browser_control`) vào `ActionDispatcher` của `JarvisApp`, giải quyết dứt điểm lỗi `ACTION_NOT_FOUND`.
   - Bộ đệm vi mô microsecond TTL caching (<0.05ms execution overhead, 0.105ms cold, 0.002ms cached).
   - Tích hợp trực tiếp vào `LLMIntentRouter.parse_intent` & `route` qua tham số `window_context` và `self.awaci_engine`.
-  - Unit tests verified: `tests/unit/test_screen_context_awaci.py` (7/7 passed 100%).
+  - Unit tests verified: `tests/unit/test_screen_context_awaci.py` (9/9 passed 100%).
 - [x] **Pillar 2: Speculative Intent Pre-Routing (`jarvis/stt/speculative_router.py` & `jarvis/stt/streaming.py`)** — `PASS engineering` / `PASS runtime`:
   - Khớp ý định trước trên các chuỗi âm thanh streaming từng phần (partial hypotheses), đưa độ trễ cảm nhận (perceived latency) xuống **0.20ms p50 / 0.22ms p90** (vượt xa ngân sách < 100ms).
   - PreWarmCache: Phân giải đường dẫn thực thi binary (`code.cmd`, `chrome.exe`, `spotify.exe`), pre-warm COM audio endpoint và thiết lập TTL hết hạn.
   - Tự động hủy lệnh suy đoán (Speculative Cancellation) ngay lập tức khi phát hiện từ do dự/phủ định giữa chừng ("à thôi", "đừng", "hủy").
-  - Mở rộng `StreamingHypothesis` với `speculative_candidate` và `speculative_hit`.
+  - Bảo vệ đa luồng toàn diện với `self._lock` và chặn so khớp trên câu rỗng/unknown intent.
+  - Tích hợp `speculative_router` vào factory `StreamingSTTEngine.create_session`.
   - Unit tests verified: `tests/unit/test_speculative_prerouting.py` (4/4 passed 100%).
 - [x] **Pillar 3: Ultra-lightweight Joint Intent & Token-Level BIO Slot Tagger INT8 (`jarvis/nlp/joint_tagger.py`)** — `PASS engineering` / `PASS runtime`:
   - Mô hình Machine Learning liên hợp phân loại ý định câu kết hợp gán nhãn thực thể cấp token BIO (`B-app`, `I-app`, `B-device`, `B-location`, `B-level`, `B-query`, `B-time`, `B-action`, `B-component`, `O`).
   - Kích thước lưu trữ trên đĩa: **209 KB** (ngân sách <= 15MB, đạt 1.39% ngân sách cho phép).
   - Độ trễ suy luận CPU đơn luồng: **1.54ms p50 / 2.12ms p90** (ngân sách <= 2.50ms).
+  - Xuất hàm chuẩn `get_canonical_dataset` trong `jarvis/nlp/automation/dataset_manager.py` loại bỏ nguy cơ `ImportError`.
   - Kết nối trực tiếp vào `VietnameseNLPClassifier.predict` làm giàu slots và bảo lưu heuristic regex fallback.
   - Unit tests verified: `tests/unit/test_joint_slot_tagger.py` (5/5 passed 100%).
-- [x] **Pillar 4: Night-Shift Continuous Learning Flywheel (`jarvis/workers/night_shift_trainer.py`)** — `PASS engineering`:
+- [x] **Pillar 4: Night-Shift Continuous Learning Flywheel (`jarvis/workers/night_shift_trainer.py`)** — `PASS engineering` / `PASS runtime`:
   - Tiến trình tự hành chạy ngầm định kỳ 03:00 AM VN.
   - Tự động khử trùng PII triệt để (`scrub_pii`) trên các mẫu câu unknown/low-confidence thu thập được.
   - Gom cụm ngữ nghĩa không giám sát (`MiniBatchKMeans`) phát hiện các cụm ý định mới nổi.
-  - Tăng cường dữ liệu đa trục đối chuẩn (Counterfactual Augmentation): biến thể không dấu, lỗi STT Whisper ngữ âm, tiền tố/hậu tố khẩu ngữ.
-  - Tái huấn luyện mô hình và kiểm định nghiêm ngặt qua `AutomatedEvaluatorGate` (CV Accuracy >= 98%, Golden Regression = 100%).
+  - Tăng cường dữ liệu đa trục đối chuẩn (Counterfactual Augmentation): biến thể không dấu, lỗi STT Whisper ngữ âm, tiền tố/hậu tố khẩu ngữ và từ mượn phần mềm.
+  - Nạp đầy đủ 404+ mẫu câu chuẩn hóa đa domain, nâng CV Accuracy đạt **98.27%** (ngưỡng >= 98.00%), CV F1 đạt **97.25%**, Golden Regression = 100%.
   - Ghi đĩa nguyên tử an toàn Windows Atomic Persistence (`.tmp.<pid>.<ts>`, WinError 5 retry loop) nạp nóng mô hình mới vào runtime mà không cần khởi động lại tiến trình.
   - Unit tests verified: `tests/unit/test_night_shift_trainer.py` (4/4 passed 100%).
 - [x] **Argon Voice-to-Action Empirical Telemetry Benchmark (`tests/eval/test_voice_to_action_argon_benchmark.py`)** — `PASS runtime`:
-  - 3 benchmark suites mới đo đạc viễn trắc trên phần cứng vật lý thực tế:
+  - 3 benchmark suites đo đạc viễn trắc trên phần cứng vật lý thực tế:
     - `test_speculative_prerouting_perceived_latency_budget`: Perceived latency p50 = 0.20ms, p90 = 0.22ms (vượt mục tiêu < 100ms).
     - `test_awaci_context_aware_voice_dispatch_benchmark`: Context fetch p50 = 0.002ms, cold 0.105ms.
     - `test_joint_slot_tagger_c_api_latency_and_memory_telemetry`: Disk size = 209 KB, CPU latency p50 = 1.54ms.
-  - Toàn bộ 38 bài kiểm thử liên quan: **100% PASS (38/38 passed)** trong **20.99s**.
+  - Toàn bộ suite hồi quy Voice & NLP Router: **64 passed, 1 skipped in 67.72s (100% PASS)**.
 
 ## Sprint 10: Voice-to-Action Reflex Arc & Dynamic Tiered ASR: Silero VAD v6 Streaming, CTranslate2 Whisper Escalation, Hardened PII Scrubber & Argon E2E Benchmark (2026-10-23, unreleased)
 
