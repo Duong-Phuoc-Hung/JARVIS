@@ -1,5 +1,7 @@
 ## Sprint 12: Next-Gen Speech Frontiers & Spoken Disfluency Self-Correction Engine (Levelt Model) (2026-10-23, v5.4.0)
 
+- [x] **Argon Deep Neural MoE+MLA & JARVIS Reflex Synthesis Monograph (`docs/research/argon_deep_neural_and_reflex_synthesis.md`)** — `PASS engineering`:
+  - Khảo tả toán học Multi-Head Latent Attention (MLA) giảm 84.37% KV-Cache, Top-K SwiGLU Mixture-of-Experts (MoE) 25M/95M tham số, QK-Normalization triệt tiêu logit drift, In-Process GRPO Reinforcement Learning không cần mạng Critic, và định hình Vỏ não Phân tầng 4 Cấp độ (Hierarchical Quad-Tier Cortex cho v5.5.0).
 - [x] **Argon Sovereign v4.0 Next-Gen Speech Frontiers Monograph (`docs/research/argon_next_generation_speech_frontiers.md`)** — `PASS engineering`:
   - Khảo sát học thuật SOTA 2024–2026 và tranh biện phản biện biện chứng đối kháng (Thesis <-> Antithesis <-> Synthesis) trên 5 giới hạn công nghệ:
     1. Frontier 1: Spoken Disfluency Repair & Self-Correction trong giao tiếp tự nhiên.
