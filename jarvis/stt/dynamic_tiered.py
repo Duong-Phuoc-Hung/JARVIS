@@ -91,6 +91,7 @@ class DynamicTieredASREngine(BaseSTTEngine):
         tiny_engine: BaseSTTEngine | None = None,
         large_engine_factory: Callable[[], BaseSTTEngine] | None = None,
         cleanup_callback: Callable[[], None] | None = None,
+        contextual_biaser: Any | None = None,
     ) -> None:
         """
         Initialize DynamicTieredASREngine.
@@ -143,6 +144,14 @@ class DynamicTieredASREngine(BaseSTTEngine):
         self._cleanup_callback: Callable[[], None] | None = cleanup_callback
         self._lock = threading.RLock()
         self._large_v3_lock = threading.Lock()
+
+        if contextual_biaser is None:
+            try:
+                from jarvis.stt.contextual_biaser import ContextualPromptBiaser
+                contextual_biaser = ContextualPromptBiaser()
+            except Exception as _e_bias:
+                contextual_biaser = None
+        self.contextual_biaser = contextual_biaser
 
         log.info(
             "DynamicTieredASREngine initialized (device=%s, compute=%s, small=%s, tiny=%s, large=%s)",
@@ -351,7 +360,13 @@ class DynamicTieredASREngine(BaseSTTEngine):
             initial_tier = self.small_model_size
             initial_engine = self._get_small_engine()
 
-        # 4. Execute Initial Tier
+        # 4. Contextual Biasing & Initial Tier Execution
+        if "initial_prompt" not in kwargs or kwargs.get("initial_prompt") is None:
+            if getattr(self, "contextual_biaser", None) is not None:
+                bias_prompt = self.contextual_biaser.get_bias_prompt()
+                if bias_prompt:
+                    kwargs["initial_prompt"] = bias_prompt
+
         try:
             initial_metrics = initial_engine.transcribe_with_metrics(arr, language=language, **kwargs)
         except Exception as tier_exc:

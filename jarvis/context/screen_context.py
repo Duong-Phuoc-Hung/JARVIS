@@ -159,6 +159,10 @@ class AWACIEngine:
             self._last_fetch_time = now
             return ctx
 
+    # Convenience alias for active window context retrieval
+    get_active_window_context = get_current_window_context
+
+
     def _get_process_name(self, pid: int) -> str:
         """Resolves process executable name from PID with cache."""
         now = time.monotonic()

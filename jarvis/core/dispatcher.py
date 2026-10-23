@@ -325,6 +325,7 @@ class ActionDispatcher:
         bypass_security: bool = False,
         safety_interceptor: Any | None = None,
         config: Any | None = None,
+        voice_gate: Any | None = None,
     ) -> None:
         self.event_bus = event_bus or EventBus()
         self._actions: dict[str, ActionDefinition] = {}
@@ -350,6 +351,7 @@ class ActionDispatcher:
             from jarvis.planner.safety_interceptor import SafetyGateInterceptor
             safety_interceptor = SafetyGateInterceptor()
         self.safety_interceptor = safety_interceptor
+        self.voice_gate = voice_gate
 
     def register_action(
         self,
@@ -423,6 +425,14 @@ class ActionDispatcher:
         (planner, dispatcher) instead of each holding its own.
         """
         self.safety_interceptor = interceptor
+        if hasattr(interceptor, "voice_gate") and interceptor.voice_gate is not None:
+            self.voice_gate = interceptor.voice_gate
+
+    def set_voice_gate(self, voice_gate: Any) -> None:
+        """Sets or updates the VoiceBiometricsGate acoustic authority evaluator."""
+        self.voice_gate = voice_gate
+        if hasattr(self.safety_interceptor, "voice_gate"):
+            self.safety_interceptor.voice_gate = voice_gate
 
     def _evaluate_safety_gate(
         self,
@@ -432,17 +442,69 @@ class ActionDispatcher:
         context: RequesterContext,
     ) -> ActionResult | None:
         """
-        Primary destructive-action enforcement point, shared by both
+        Primary destructive-action and acoustic-authority enforcement point, shared by both
         `dispatch_action` and `dispatch_action_async`. Returns None if the
         action may proceed to handler execution (either it is not
         classified as high-risk, or a valid, exactly-matching confirmation
-        token was supplied). Otherwise returns a failed ActionResult and
-        the handler must NOT run.
+        token was supplied, and speaker voice authority is satisfied).
+        Otherwise returns a failed ActionResult and the handler must NOT run.
 
         This check runs unconditionally -- it is NOT affected by
         `self.bypass_security`, which only ever bypasses RBAC/privilege
         checks (see __init__).
         """
+        # 1. Acoustic Voice Authority Gate for Voice Requesters or when speaker info is provided
+        if self.voice_gate is not None:
+            speaker_similarity = None
+            if hasattr(context, "speaker_similarity"):
+                speaker_similarity = getattr(context, "speaker_similarity")
+            elif hasattr(context, "metadata") and isinstance(context.metadata, dict):
+                speaker_similarity = context.metadata.get("speaker_similarity")
+            if speaker_similarity is None and isinstance(payload, dict):
+                speaker_similarity = payload.get("_speaker_similarity")
+
+            is_voice_request = bool(
+                context.requester_id in ("user_voice", "voice")
+                or (hasattr(context, "metadata") and isinstance(context.metadata, dict) and context.metadata.get("voice"))
+                or (speaker_similarity is not None)
+                or (isinstance(payload, dict) and payload.get("_voice_gate"))
+            )
+
+            if is_voice_request:
+                is_auth, status_code, score = self.voice_gate.verify_intent_authority(
+                    action_name=action_name,
+                    payload=payload,
+                    speaker_similarity=speaker_similarity,
+                    context=context,
+                )
+                if not is_auth:
+                    logger.warning(
+                        "Voice authority gate DENIED '%s' (requester=%s, similarity=%.4f < 0.70): %s",
+                        action_name, context.requester_id, score, status_code,
+                    )
+                    self.event_bus.publish(
+                        "security.unauthorized_voice",
+                        action_name=action_name,
+                        requester_id=context.requester_id,
+                        status=status_code,
+                        similarity=score,
+                    )
+                    return ActionResult(
+                        action_name=action_name,
+                        success=False,
+                        error=(
+                            f"Từ chối thực thi lệnh '{action_name}': Không đủ thẩm quyền âm học "
+                            f"(Speaker Similarity: {score:.2f} < 0.70 - {status_code}), thưa Ngài."
+                        ),
+                        error_code="UNAUTHORIZED_VOICE",
+                        data={
+                            "voice_status": status_code,
+                            "similarity": score,
+                            "required_threshold": 0.70,
+                        },
+                        requester=context.requester_id,
+                    )
+
         if not self.safety_interceptor.is_high_risk(action_name, payload):
             return None
 

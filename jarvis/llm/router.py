@@ -305,6 +305,16 @@ class LLMIntentRouter:
             logger.debug("Failed initializing AWACIEngine: %s", _e)
             self.awaci_engine = None
 
+        self.history: list[dict[str, Any]] = []
+        try:
+            from jarvis.llm.local_reasoner import ArgonNanoLocalReasoner
+            self.local_reasoner: ArgonNanoLocalReasoner | None = ArgonNanoLocalReasoner(
+                awaci_engine=self.awaci_engine
+            )
+        except Exception as _e_reasoner:
+            logger.debug("Failed initializing ArgonNanoLocalReasoner: %s", _e_reasoner)
+            self.local_reasoner = None
+
         # Compiled Deterministic Rule Engine for Substring Matching
         self.rule_engine: dict[str, IntentResult] = get_default_rules()
 
@@ -1954,6 +1964,31 @@ class LLMIntentRouter:
             results.append(res)
         return results
 
+    def _record_turn_history(self, intent: IntentResult) -> None:
+        """Records a valid structured intent turn into local conversation history."""
+        if not hasattr(self, "history") or not isinstance(self.history, list):
+            self.history = []
+        if intent.action_name and intent.action_name not in ("unknown_intent", "generic_llm_response"):
+            self.history.append({
+                "action_name": intent.action_name,
+                "parameters": dict(intent.parameters) if isinstance(intent.parameters, dict) else {},
+                "confidence": float(intent.confidence),
+                "raw_text": intent.raw_text,
+            })
+            if len(self.history) > 30:
+                self.history = self.history[-30:]
+
+    def record_history(self, turn: dict[str, Any] | IntentResult) -> None:
+        """Public API to record an interaction turn for multi-turn anaphora reasoning."""
+        if isinstance(turn, IntentResult):
+            self._record_turn_history(turn)
+        elif isinstance(turn, dict):
+            if not hasattr(self, "history") or not isinstance(self.history, list):
+                self.history = []
+            self.history.append(dict(turn))
+            if len(self.history) > 30:
+                self.history = self.history[-30:]
+
     def parse_intent(
         self,
         text: str,
@@ -2150,7 +2185,7 @@ class LLMIntentRouter:
                     current_params=None,
                     context=win_ctx,
                 )
-                if awaci_match is not None:
+                if awaci_match is not None and isinstance(awaci_match, (tuple, list)) and len(awaci_match) == 4:
                     act_name, act_params, resp_text, conf = awaci_match
                     return IntentResult(
                         action_name=act_name,
@@ -2199,10 +2234,14 @@ class LLMIntentRouter:
                     res.raw_text = text
                     if res.response_text is None:
                         res.response_text = self.get_natural_response(res.action_name, res.parameters, text)
+                    if not _is_sub_clause:
+                        self._record_turn_history(res)
                     return res
 
             installed_intent = self._match_installed_app_request(text)
             if installed_intent is not None:
+                if not _is_sub_clause:
+                    self._record_turn_history(installed_intent)
                 return installed_intent
 
             # Fast Local Semantic Slot Matcher (Home Assistant, Volume, Brightness, Media, Windows, Timers)
@@ -2215,6 +2254,8 @@ class LLMIntentRouter:
                         sem_res.raw_text = text
                         if sem_res.response_text is None:
                             sem_res.response_text = self.get_natural_response(sem_res.action_name, sem_res.parameters, text)
+                        if not _is_sub_clause:
+                            self._record_turn_history(sem_res)
                         return sem_res
 
             # Then check sorted rule dictionary keys — full text, O(n) substring checks are fast
@@ -2236,13 +2277,50 @@ class LLMIntentRouter:
                         confirmation_prompt=intent.confirmation_prompt,
                         danger_level=intent.danger_level,
                     )
+                    if not _is_sub_clause:
+                        self._record_turn_history(res)
                     return res
 
             # Tier 0.5: Local Machine Learning Fast-Path (<1.5ms) - when enabled or when LLM is unavailable
             if getattr(self, "ml_fast_path_enabled", False) and hasattr(self, "ml_classifier") and self.ml_classifier and self.ml_classifier.is_trained:
                 ml_res = self._match_ml_classifier(text, clean, clean_lower, clean_lower_stripped)
                 if ml_res is not None:
+                    if not _is_sub_clause:
+                        self._record_turn_history(ml_res)
                     return ml_res
+
+        # Tier 1.5 / Tier 2 In-Process Local Offline Reasoner (Argon Sovereign Native Nano)
+        # Fast local CPU heuristic and slot reasoning (<5ms, 0 MB VRAM)
+        if not force_llm and getattr(self, "local_reasoner", None) is not None:
+            try:
+                hist = None
+                if isinstance(context, dict) and "history" in context:
+                    hist = context.get("history")
+                elif hasattr(self, "history") and isinstance(self.history, list):
+                    hist = self.history
+
+                w_ctx = window_context
+                if w_ctx is None and self.awaci_engine is not None and getattr(self, "awaci_enabled", True):
+                    try:
+                        if hasattr(self.awaci_engine, "get_active_window_context"):
+                            w_ctx = self.awaci_engine.get_active_window_context()
+                        elif hasattr(self.awaci_engine, "get_current_window_context"):
+                            w_ctx = self.awaci_engine.get_current_window_context()
+                    except Exception:
+                        w_ctx = None
+
+                local_res = self.local_reasoner.reason(
+                    clean,
+                    context=context,
+                    history=hist,
+                    awaci_context=w_ctx,
+                )
+                if local_res is not None and local_res.confidence >= self.local_reasoner.confidence_threshold:
+                    if not _is_sub_clause:
+                        self._record_turn_history(local_res)
+                    return local_res
+            except Exception as _e_loc:
+                logger.debug("ArgonNanoLocalReasoner exception: %s", _e_loc)
 
         # 2. TIER 2: LLM Semantic Reasoning
         if self.llm is None:
@@ -2306,6 +2384,8 @@ class LLMIntentRouter:
                         llm_response=llm_resp,
                         response_text=self.get_natural_response(top_tool.name, params, text),
                     )
+                    if not _is_sub_clause:
+                        self._record_turn_history(res)
                     return res
                 reply = llm_resp.content or ""
                 return IntentResult(
@@ -2390,7 +2470,29 @@ class LLMIntentRouter:
             if getattr(self, "ml_fast_path_enabled", False) and hasattr(self, "ml_classifier") and self.ml_classifier and self.ml_classifier.is_trained:
                 ml_res = self._match_ml_classifier(text, clean, clean_lower, clean_lower_stripped)
                 if ml_res is not None:
+                    if not _is_sub_clause:
+                        self._record_turn_history(ml_res)
                     return ml_res
+
+            if getattr(self, "local_reasoner", None) is not None:
+                try:
+                    hist = None
+                    if isinstance(context, dict) and "history" in context:
+                        hist = context.get("history")
+                    elif hasattr(self, "history") and isinstance(self.history, list):
+                        hist = self.history
+                    local_res = self.local_reasoner.reason(
+                        clean,
+                        context=context,
+                        history=hist,
+                        awaci_context=window_context,
+                    )
+                    if local_res is not None and local_res.confidence >= self.local_reasoner.confidence_threshold:
+                        if not _is_sub_clause:
+                            self._record_turn_history(local_res)
+                        return local_res
+                except Exception as _e_loc:
+                    logger.debug("ArgonNanoLocalReasoner fallback exception: %s", _e_loc)
 
             return IntentResult(
                 action_name="unknown_intent",
@@ -2655,14 +2757,18 @@ class LLMIntentRouter:
                 error_code="DISPATCHER_UNAVAILABLE",
             )
 
-        if intent.action_name == "compound_multi_action":
+        if intent.action_name in ("compound_multi_action", "declarative_macro_dag"):
             sub_actions = intent.parameters.get("actions", [])
             results = []
-            all_ok = True
-            for act_dict in sub_actions:
+            accumulated_ctx: dict[str, Any] = {}
+            for idx, act_dict in enumerate(sub_actions, start=1):
+                params = dict(act_dict.get("parameters", {}))
+                for k, v in accumulated_ctx.items():
+                    if k not in params:
+                        params[k] = v
                 sub_intent = IntentResult(
                     action_name=act_dict.get("action_name", "unknown_intent"),
-                    parameters=act_dict.get("parameters", {}),
+                    parameters=params,
                     confidence=act_dict.get("confidence", 1.0),
                     source=act_dict.get("source", "multi_intent"),
                     raw_text=act_dict.get("raw_text", ""),
@@ -2671,10 +2777,27 @@ class LLMIntentRouter:
                 sub_res = self.execute_intent(sub_intent, requester=requester)
                 results.append(sub_res)
                 if not sub_res.success:
-                    all_ok = False
+                    logger.warning(
+                        "Compound macro step %d ('%s') failed: %s. Aborting remaining steps.",
+                        idx, sub_intent.action_name, sub_res.error,
+                    )
+                    return ActionResult(
+                        action_name="compound_multi_action",
+                        success=False,
+                        error=f"Bước {idx} ('{sub_intent.action_name}') thất bại: {sub_res.error}",
+                        error_code=f"STEP_{idx}_FAILED",
+                        data={"failed_step": idx, "results": [r.to_dict() if hasattr(r, "to_dict") else str(r) for r in results]},
+                        requester=requester if isinstance(requester, str) else requester.requester_id,
+                    )
+                if hasattr(sub_res, "data") and isinstance(sub_res.data, dict):
+                    if "hwnd" in sub_res.data:
+                        accumulated_ctx["hwnd"] = sub_res.data["hwnd"]
+                    if "app_name" in sub_res.data:
+                        accumulated_ctx["app_name"] = sub_res.data["app_name"]
+
             return ActionResult(
                 action_name="compound_multi_action",
-                success=all_ok,
+                success=True,
                 data={"results": [r.to_dict() if hasattr(r, "to_dict") else str(r) for r in results]},
                 requester=requester if isinstance(requester, str) else requester.requester_id,
             )

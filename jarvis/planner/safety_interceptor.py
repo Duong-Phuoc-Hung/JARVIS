@@ -111,12 +111,14 @@ class SafetyGateInterceptor:
         safety_gate: SafetyGate | None = None,
         timeout_seconds: float = 30.0,
         custom_high_risk_actions: set[str] | None = None,
+        voice_gate: Any | None = None,
     ) -> None:
         self.safety_gate = safety_gate or SafetyGate(timeout_seconds=timeout_seconds)
         self.timeout_seconds = float(timeout_seconds)
         self.high_risk_actions = set(self.HIGH_RISK_ACTIONS)
         if custom_high_risk_actions:
             self.high_risk_actions.update(custom_high_risk_actions)
+        self.voice_gate = voice_gate
         # Pending-action binding layer: SafetyGate's bare token contract
         # (see jarvis/automation/safety_gate.py) does not itself bind a
         # token to a specific (action_name, parameters) pair or enforce
@@ -128,6 +130,30 @@ class SafetyGateInterceptor:
         # unaffected).
         self._consumed_tokens: set[str] = set()
         self._verify_lock = threading.RLock()
+
+    def verify_voice_authority(
+        self,
+        action_name: str,
+        parameters: Any = None,
+        speaker_similarity: float | None = None,
+        speaker_audio: Any | None = None,
+        context: Any | None = None,
+    ) -> tuple[bool, str, float]:
+        """
+        Verifies acoustic authority against VoiceBiometricsGate.
+        Returns (is_authorized, status_code, similarity_score).
+        """
+        if self.voice_gate is None:
+            return True, "VOICE_GATE_UNCONFIGURED", 1.0
+        payload = parameters if isinstance(parameters, dict) else {}
+        return self.voice_gate.verify_intent_authority(
+            action_name=action_name,
+            payload=payload,
+            speaker_similarity=speaker_similarity,
+            speaker_audio=speaker_audio,
+            context=context,
+        )
+
 
     def is_high_risk(
         self,

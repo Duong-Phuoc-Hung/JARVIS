@@ -327,6 +327,7 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
             # 5a. Acoustic Voice Biometrics (Speaker Verification Gate)
             try:
                 from jarvis.audio.biometrics import VoiceBiometricsManager
+                from jarvis.audio.voiceprint import VoiceBiometricsGate, DEFAULT_MASTER_SIMILARITY_THRESHOLD
                 biometrics_cfg = self.config.get("audio.biometrics", {})
                 bio_path = biometrics_cfg.get("path") or str(get_jarvis_data_dir() / "voiceprints.json")
                 self.voice_biometrics = VoiceBiometricsManager(
@@ -334,9 +335,15 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                     default_threshold=float(biometrics_cfg.get("threshold", 0.80)),
                     allow_unregistered_when_empty=bool(biometrics_cfg.get("allow_unregistered_when_empty", True)),
                 )
+                self.voice_biometrics_gate = VoiceBiometricsGate(
+                    manager=self.voice_biometrics,
+                    threshold=float(biometrics_cfg.get("authority_threshold", DEFAULT_MASTER_SIMILARITY_THRESHOLD)),
+                )
             except Exception as e_bio:
                 log.warning("Voice biometrics initialization warning: %s", e_bio)
                 self.voice_biometrics = None
+                self.voice_biometrics_gate = None
+
 
             # 5b. Real-Time Streaming STT Engine
             try:
@@ -595,6 +602,10 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
             # resolved against one authoritative pending-confirmation store
             # (see jarvis/core/dispatcher.py's destructive-action safety gate).
             self.dispatcher.set_safety_interceptor(self.safety_interceptor)
+            if getattr(self, "voice_biometrics_gate", None) is not None:
+                self.safety_interceptor.voice_gate = self.voice_biometrics_gate
+                self.dispatcher.set_voice_gate(self.voice_biometrics_gate)
+
             self.reflection_engine = SelfReflectionEngine()
             self.planner_engine = ReActTaskEngine(
                 dispatcher=self.dispatcher,
@@ -1605,10 +1616,10 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                             )
                             transcript = ""
                         else:
-                            # Speaker Voice Biometrics Verification Gate:
-                            # If enrolled profiles exist, verify candidate voice before executing any commands
+                            # Speaker Voice Biometrics: Extract acoustic voiceprint similarity against master profile
                             raw_samples = audio_flat.samples if isinstance(audio_flat, CapturedAudio) else audio_flat
                             voice_bio = getattr(self, "voice_biometrics", None)
+                            self._last_voice_similarity = 1.0
                             if (
                                 voice_bio
                                 and getattr(voice_bio, "enrolled_speakers", None)
@@ -1616,27 +1627,8 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                                 and getattr(raw_samples, "size", 0) > 0
                             ):
                                 verified, speaker, score = voice_bio.verify_speaker(raw_samples)
-                                if not verified:
-                                    log.warning(
-                                        "Voice biometrics rejected speaker '%s' (similarity=%.3f below threshold)",
-                                        speaker, score,
-                                    )
-                                    if self.overlay:
-                                        self.overlay.show_response(
-                                            "(từ chối sinh trắc học)",
-                                            "Không nhận diện được giọng nói của chủ nhân. Lệnh bị từ chối.",
-                                        )
-                                    if self.tray_controller:
-                                        self.tray_controller.update_status(TrayStatus.ACTIVE)
-                                    self.log_interaction(
-                                        trigger=trigger_name,
-                                        input_text="(biometrics_rejected)",
-                                        action="none",
-                                        response="Không nhận diện được giọng nói của chủ nhân.",
-                                        status="rejected",
-                                    )
-                                    return
-                                log.info("Voice biometrics verified speaker '%s' (similarity=%.3f)", speaker, score)
+                                self._last_voice_similarity = float(score)
+                                log.info("Voice biometrics speaker '%s' score=%.3f (authority threshold=0.70)", speaker, score)
 
                             try:
                                 # Timeout guard: STT must complete within 30s or we abort
@@ -2120,10 +2112,14 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                 elif matched_action == "generic_llm_response":
                     response_text = intent_result.parameters.get("reply", "")
                 else:
+                    req_ctx = RequesterContext.user(requester_id=requester, authenticated=True)
+                    if str(requester).lower().startswith("voice") or str(requester).lower() == "user_voice":
+                        req_ctx.metadata["voice"] = True
+                        req_ctx.metadata["speaker_similarity"] = getattr(self, "_last_voice_similarity", 1.0)
                     action_result = self.dispatcher.dispatch_action(
                         action_name=matched_action,
                         payload=intent_result.parameters,
-                        requester=RequesterContext.user(requester_id=requester, authenticated=True),
+                        requester=req_ctx,
                     )
                     # Status must derive from action_result.success, not from
                     # "no Python exception occurred" -- see CLAUDE.md's

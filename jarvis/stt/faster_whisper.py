@@ -57,11 +57,19 @@ class FasterWhisperSTTEngine:
         self,
         config: FasterWhisperConfig | None = None,
         is_mock: bool = False,
+        contextual_biaser: Any | None = None,
     ) -> None:
         self.config = config or FasterWhisperConfig()
         self.is_mock = is_mock
         self._model: Any | None = None
         self._lock = threading.Lock()
+        if contextual_biaser is None:
+            try:
+                from jarvis.stt.contextual_biaser import ContextualPromptBiaser
+                contextual_biaser = ContextualPromptBiaser()
+            except Exception:
+                contextual_biaser = None
+        self.contextual_biaser = contextual_biaser
         log.info(
             "FasterWhisperSTTEngine initialized (model=%s, device=%s, available=%s)",
             self.config.model_size,
@@ -112,6 +120,8 @@ class FasterWhisperSTTEngine:
         language: str | None = None,
         *,
         source_sample_rate: int = 16000,
+        initial_prompt: str | None = None,
+        **kwargs: Any,
     ) -> TranscriptionResult:
         """
         Transcribe PCM audio bytes to text.
@@ -121,6 +131,7 @@ class FasterWhisperSTTEngine:
                 defaults to 16000 Hz; WAV headers supply their own source rate.
             language: Override language detection (None = auto-detect)
             source_sample_rate: Actual raw-input rate; rejected if invalid.
+            initial_prompt: Optional contextual bias prompt (caps at <= 15 tokens).
 
         Returns:
             TranscriptionResult with text, language, confidence, duration_ms
@@ -130,9 +141,16 @@ class FasterWhisperSTTEngine:
         from jarvis.stt.engine import prepare_stt_audio
         audio_float = prepare_stt_audio(audio_bytes, source_sample_rate)
 
+        # Contextual initial prompt resolution
+        if initial_prompt is None:
+            if getattr(self, "contextual_biaser", None) is not None:
+                initial_prompt = self.contextual_biaser.get_bias_prompt() or self.config.initial_prompt
+            else:
+                initial_prompt = self.config.initial_prompt
+
         if self.is_mock:
             return TranscriptionResult(
-                text="[Mock transcription — xin chào JARVIS]",
+                text=f"[Mock transcription — xin chào JARVIS | prompt: {initial_prompt}]" if initial_prompt else "[Mock transcription — xin chào JARVIS]",
                 language="vi",
                 confidence=0.95,
                 duration_ms=(time.monotonic() - t0) * 1000,
@@ -156,9 +174,9 @@ class FasterWhisperSTTEngine:
             segments_gen, info = model.transcribe(
                 audio_float,
                 language=lang,
-                beam_size=cfg.beam_size,
-                vad_filter=cfg.vad_filter,
-                initial_prompt=cfg.initial_prompt,
+                beam_size=kwargs.get("beam_size", cfg.beam_size),
+                vad_filter=kwargs.get("vad_filter", cfg.vad_filter),
+                initial_prompt=initial_prompt,
             )
 
             segments: list[TranscriptionSegment] = []
@@ -219,8 +237,11 @@ class FasterWhisperSTTEngine:
             )
 
 
+FasterWhisperEngine = FasterWhisperSTTEngine
+
 __all__ = [
     "FasterWhisperSTTEngine",
+    "FasterWhisperEngine",
     "FasterWhisperConfig",
     "TranscriptionResult",
     "TranscriptionSegment",

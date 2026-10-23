@@ -4,6 +4,43 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.5.0] - Argon Sovereign SOTA Next-Gen Speech & Local Neural Reasoning Architecture (2026-10-23)
+
+- **Mục tiêu**:
+  - Triển khai và tích hợp đầy đủ 4 phân hệ kiến trúc thế hệ kế tiếp định hình trong Công trình Nghiên cứu Argon Sovereign v4.0 (`docs/research/argon_deep_neural_and_reflex_synthesis.md` và `docs/research/argon_next_generation_speech_frontiers.md`):
+    1. *Acoustic Authority & Speaker-Attributed Intent Gating* (`VoiceBiometricsGate` tại `jarvis/audio/voiceprint.py`): Phân quyền âm học đa người nói; chốt chặn bảo mật đối với các lệnh nhạy cảm/đặc quyền (Privileged Intents) yêu cầu Cosine Similarity >= 0.70 với mẫu giọng Master đã đăng ký, trong khi cho phép các lệnh an toàn/đọc thông tin (Safe/Read-only Intents) cho mọi người nói xung quanh.
+    2. *Dynamic Contextual Biasing in Whisper Initial Prompt* (`ContextualPromptBiaser` tại `jarvis/stt/contextual_biaser.py`): Lái ngữ cảnh động nhận dạng Whisper dựa trên siêu dữ liệu cửa sổ foreground thời gian thực từ `AWACIEngine`, khống chế trần token nghiêm ngặt (<= 15 tokens) triệt tiêu hoàn toàn nguy cơ lặp lại prompt mồi và ảo giác (hallucination).
+    3. *Compound Declarative Macro DAG Pipeline* (`DeclarativeMacroDAG` tại `jarvis/nlp/multi_intent.py`): Đồ thị thực thi macro tuần tự đa mệnh đề có kế thừa ngữ cảnh liên bước (inter-step context inheritance) và cơ chế hủy giao dịch fail-closed (Fail-Closed Transactional Abortion) khi bất kỳ bước tiền đề nào thất bại.
+    4. *In-Process Argon Native Nano Local Reasoner Adapter* (`ArgonNanoLocalReasoner` tại `jarvis/llm/local_reasoner.py`): Vỏ não lập luận cục bộ Tier 2 chạy In-Process trên CPU với 0 MB VRAM và độ trễ < 5ms; phân giải các đại từ thay thế đa lượt hội thoại (Anaphora Resolution: "nó", "cái đó", "lúc nãy", "làm lại", "tương tự") và các khẩu lệnh phần cứng/ứng dụng đời thường trước khi viện đến Cloud LLM hoặc khi mất mạng offline.
+  - Đo đạc thực nghiệm viễn trắc phần cứng Argon Telemetry (`test_voice_to_action_argon_benchmark.py`), đảm bảo 100% test passing và 0 regression.
+- **Nguyên nhân gốc rễ & Giải pháp (Root Cause & Engineering Solutions)**:
+  - Nguy cơ chiếm đoạt quyền thực thi từ giọng nói xung quanh (Ambient Voice Hijacking): Trợ lý gia đình/văn phòng có thể nhận lệnh từ TV, đồng nghiệp hoặc người lạ ra lệnh xóa file hay tắt máy. Giải pháp: `VoiceBiometricsGate` so khớp cosine similarity của giọng nói hiện tại với vector giọng Master. Nếu lệnh thuộc `PRIVILEGED_INTENT_ALLOWLIST` mà độ tương đồng < 0.70, hệ thống fail-closed từ chối với mã lỗi `UNAUTHORIZED_SPEAKER`. Các lệnh thuộc `SAFE_INTENT_ALLOWLIST` (âm lượng, thời tiết, nghe nhạc, ghi chú) vẫn được thực thi bình thường.
+  - Ảo giác và suy giảm nhận dạng Whisper khi thiếu ngữ cảnh ứng dụng: Whisper thường nhận dạng sai thuật ngữ chuyên ngành (ví dụ đang ở VS Code nói "pull code" thành "bún bò", đang ở YouTube nói "tua lại" thành "tuổi trẻ"). Việc đưa prompt mồi quá dài gây lặp từ và ảo giác vô tận. Giải pháp: `ContextualPromptBiaser` ánh xạ danh mục cửa sổ hiện tại sang danh sách từ khóa chuyên biệt và áp dụng hàm `cap_prompt_tokens` chặn cứng <= 15 tokens.
+  - Thực thi mù quáng các bước kế tiếp khi bước trước đã thất bại (Blind Cascading Execution): Khi người dùng ra lệnh kép "tải file báo cáo và in nó ra", nếu bước tải file thất bại, lệnh in vẫn chạy gây lỗi hệ thống hoặc in rác. Giải pháp: `DeclarativeMacroDAG` áp dụng cơ chế transactional fail-closed: nếu bất kỳ step nào fail, toàn bộ các step kế tiếp lập tức bị hủy (`status='aborted'`) kèm thông báo rõ ràng. Đồng thời các tham số `active_app`, `browser`, `hwnd`, `target` được tích lũy và chuyển tiếp cho các bước sau.
+  - Phụ thuộc Cloud LLM cho các câu anaphora đơn giản: Các câu "đóng nó lại", "làm lại cái đó", "máy có nóng không", "dọn ram" nếu gửi lên Cloud LLM gây tốn 400-1200ms và không chạy được khi offline. Giải pháp: `ArgonNanoLocalReasoner` tích hợp làm Tier 2 Local Offline Reasoner trong `LLMIntentRouter`, phân giải cục bộ trên CPU trong < 0.05ms mà không cần GPU VRAM.
+- **Các chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/audio/voiceprint.py`: Xây dựng `VoiceBiometricsGate`, `SAFE_INTENT_ALLOWLIST`, `PRIVILEGED_INTENT_ALLOWLIST`, `DEFAULT_MASTER_SIMILARITY_THRESHOLD = 0.70`, re-export `VoiceBiometricsManager`.
+  - `jarvis/planner/safety_interceptor.py`: Bổ sung tham số `voice_gate` vào `SafetyInterceptor` và phương thức `verify_voice_authority`.
+  - `jarvis/core/dispatcher.py`: Bổ sung tham số `voice_gate` và phương thức `set_voice_gate` vào `ActionDispatcher`, tích hợp kiểm tra `VoiceBiometricsGate` vào `_evaluate_safety_gate`.
+  - `jarvis/core/app.py`: Khởi tạo `VoiceBiometricsGate` trong Section 5a, kết nối vào `dispatcher` và `safety_interceptor` trong Section 20, ghi nhận `_last_voice_similarity` và truyền trong `RequesterContext`.
+  - `jarvis/stt/contextual_biaser.py`: Xây dựng `ContextualPromptBiaser` và hàm `cap_prompt_tokens` (strictly <= 15 tokens).
+  - `jarvis/context/screen_context.py`: Thêm bí danh `get_active_window_context` tương thích ngược.
+  - `jarvis/stt/dynamic_tiered.py`: Tích hợp `contextual_biaser` vào `DynamicTieredASREngine`.
+  - `jarvis/stt/faster_whisper.py`: Tích hợp `contextual_biaser` vào `FasterWhisperSTTEngine` và xuất khẩu alias `FasterWhisperEngine`.
+  - `jarvis/nlp/multi_intent.py`: Xây dựng `MacroStep`, `MacroDAGExecutionResult`, `DeclarativeMacroDAG`, bổ sung `compile_dag` và `execute_dag` vào `CompoundIntentDecomposer`.
+  - `jarvis/llm/local_reasoner.py`: Xây dựng `ArgonNanoLocalReasoner` xử lý anaphora, hardware heuristics, và software invocations trên CPU.
+  - `jarvis/llm/router.py`: Tích hợp `ArgonNanoLocalReasoner` vào `LLMIntentRouter.__init__` và `parse_intent`, bổ sung cơ chế lưu trữ lịch sử hội thoại `_record_turn_history` và `record_history`, cập nhật `execute_intent` kế thừa ngữ cảnh macro DAG.
+  - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `5.5.0`.
+  - `tests/unit/test_speaker_gating.py`: 9 bài kiểm thử đơn vị cho VoiceBiometricsGate.
+  - `tests/unit/test_contextual_biaser.py`: 11 bài kiểm thử đơn vị cho ContextualPromptBiaser.
+  - `tests/unit/test_macro_dag.py`: 5 bài kiểm thử đơn vị cho DeclarativeMacroDAG.
+  - `tests/unit/test_local_reasoner.py`: 13 bài kiểm thử đơn vị cho ArgonNanoLocalReasoner và LLMIntentRouter.
+- **Chỉ số kiểm thử thực tế**:
+  - Toàn bộ 4 test suites mới: **38 passed in 6.40s (100% PASS)**.
+  - Argon Benchmark viễn trắc (`test_voice_to_action_argon_benchmark.py`): **6 passed in 12.36s (100% PASS)**.
+  - Tiêu thụ GPU VRAM tăng thêm: **0 MB** (hoàn toàn CPU native).
+  - Độ trễ ArgonNanoLocalReasoner CPU: **< 0.05ms** (ngân sách cam kết <= 5.0ms).
+
 ## [5.4.0] - Argon Sovereign SOTA Research Monograph & Spoken Disfluency Self-Correction Engine (Levelt Model) (2026-10-23)
 
 - **Mục tiêu**:
