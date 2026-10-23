@@ -220,3 +220,27 @@ class TestASREngineContextualBiasingWiring:
         res = engine.transcribe(dummy_bytes)
         assert res.is_mock is True
         assert "Trình duyệt:" in res.text
+
+    def test_cap_prompt_tokens_strips_trailing_punctuation(self) -> None:
+        """Trailing commas, semicolons, and colons are cleanly stripped when truncated."""
+        p = "Lập trình: code, visual studio, file, debug, extra, overflow"
+        # Cap to 5 tokens: ['Lập', 'trình', ':', 'code', ',']
+        capped = cap_prompt_tokens(p, max_tokens=5)
+        assert count_tokens(capped) <= 5
+        assert not capped.endswith(",")
+        assert not capped.endswith(":")
+
+    def test_cap_prompt_tokens_empty_or_zero_budget(self) -> None:
+        assert cap_prompt_tokens("", max_tokens=15) == ""
+        assert cap_prompt_tokens("Lập trình code", max_tokens=0) == ""
+        assert cap_prompt_tokens("Lập trình code", max_tokens=-1) == ""
+
+    def test_faster_whisper_engine_caps_caller_supplied_prompt(self) -> None:
+        """Caller-supplied initial prompt exceeding 15 tokens is strictly capped."""
+        long_p = "Một hai ba bốn năm sáu bảy tám chín mười mười_một mười_hai mười_ba mười_bốn mười_lăm mười_sáu mười_bảy"
+        engine = FasterWhisperEngine(is_mock=True)
+        res = engine.transcribe(b"\x00" * 32000, initial_prompt=long_p)
+        assert res.is_mock is True
+        # Extract prompt from mock text: [Mock transcription — xin chào JARVIS | prompt: ...]
+        prompt_in_mock = res.text.split("prompt: ")[-1].rstrip("]")
+        assert count_tokens(prompt_in_mock) <= 15

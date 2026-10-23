@@ -14,6 +14,7 @@ Validates:
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import MagicMock
 import pytest
 
 from jarvis.core.dispatcher import ActionDispatcher
@@ -195,3 +196,63 @@ class TestDeclarativeMacroDAG:
         dag = decomposer.compile_dag("mở chrome rồi đóng lại", router_parser=mock_router_parser)
         assert len(dag.steps) == 2
         assert dag.steps[1].inherited_context.get("app_name") == "chrome"
+
+    def test_context_inheritance_replaces_placeholder_current(self) -> None:
+        """When sub-intent has app_name='current', it is correctly overwritten by preceding app."""
+        def mock_parser_with_placeholder(clause: str) -> IntentResult:
+            if "mở notepad" in clause:
+                return IntentResult(
+                    action_name="app_open",
+                    parameters={"app_name": "notepad"},
+                    raw_text=clause,
+                )
+            if "đóng nó" in clause:
+                return IntentResult(
+                    action_name="app_close",
+                    parameters={"app_name": "current", "target": "current"},
+                    raw_text=clause,
+                )
+            return IntentResult(action_name="unknown", parameters={})
+
+        text = "mở notepad sau đó đóng nó"
+        dag = DeclarativeMacroDAG.compile(text, router_parser=mock_parser_with_placeholder)
+        assert len(dag.steps) == 2
+        assert dag.steps[0].parameters.get("app_name") == "notepad"
+        # Step 2 placeholder 'current' replaced by 'notepad'
+        assert dag.steps[1].parameters.get("app_name") == "notepad"
+        assert dag.steps[1].inherited_context.get("app_name") == "notepad"
+
+    def test_router_execute_intent_with_typed_intent_objects(self) -> None:
+        """LLMIntentRouter.execute_intent supports list of IntentResult objects in actions parameter."""
+        dispatcher = ActionDispatcher()
+        calls = []
+
+        def handle_action_1(**kwargs):
+            calls.append(1)
+            return ActionResult(action_name="app_open", success=True, data={"hwnd": 111, "app_name": "calc"})
+
+        def handle_action_2(**kwargs):
+            calls.append(kwargs.get("app_name"))
+            return ActionResult(action_name="window_control", success=True)
+
+        dispatcher.register_action("app_open", handle_action_1)
+        dispatcher.register_action("window_control", handle_action_2)
+
+        from jarvis.llm.client import LLMClient
+        mock_llm = MagicMock(spec=LLMClient)
+        from jarvis.llm.router import LLMIntentRouter
+        router = LLMIntentRouter(llm_client=mock_llm, dispatcher=dispatcher)
+
+        # Compound intent containing typed IntentResult items instead of raw dicts
+        compound = IntentResult(
+            action_name="compound_multi_action",
+            parameters={
+                "actions": [
+                    IntentResult(action_name="app_open", parameters={"app_name": "calc"}),
+                    IntentResult(action_name="window_control", parameters={"action": "maximize"}),
+                ]
+            },
+        )
+        res = router.execute_intent(compound)
+        assert res.success is True
+        assert calls == [1, "calc"]

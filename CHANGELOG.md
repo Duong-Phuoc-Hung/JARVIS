@@ -21,23 +21,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Các chỉnh sửa kỹ thuật chi tiết theo từng file**:
   - `jarvis/audio/voiceprint.py`: Xây dựng `VoiceBiometricsGate`, `SAFE_INTENT_ALLOWLIST`, `PRIVILEGED_INTENT_ALLOWLIST`, `DEFAULT_MASTER_SIMILARITY_THRESHOLD = 0.70`, re-export `VoiceBiometricsManager`.
   - `jarvis/planner/safety_interceptor.py`: Bổ sung tham số `voice_gate` vào `SafetyInterceptor` và phương thức `verify_voice_authority`.
-  - `jarvis/core/dispatcher.py`: Bổ sung tham số `voice_gate` và phương thức `set_voice_gate` vào `ActionDispatcher`, tích hợp kiểm tra `VoiceBiometricsGate` vào `_evaluate_safety_gate`.
-  - `jarvis/core/app.py`: Khởi tạo `VoiceBiometricsGate` trong Section 5a, kết nối vào `dispatcher` và `safety_interceptor` trong Section 20, ghi nhận `_last_voice_similarity` và truyền trong `RequesterContext`.
-  - `jarvis/stt/contextual_biaser.py`: Xây dựng `ContextualPromptBiaser` và hàm `cap_prompt_tokens` (strictly <= 15 tokens).
-  - `jarvis/context/screen_context.py`: Thêm bí danh `get_active_window_context` tương thích ngược.
-  - `jarvis/stt/dynamic_tiered.py`: Tích hợp `contextual_biaser` vào `DynamicTieredASREngine`.
-  - `jarvis/stt/faster_whisper.py`: Tích hợp `contextual_biaser` vào `FasterWhisperSTTEngine` và xuất khẩu alias `FasterWhisperEngine`.
-  - `jarvis/nlp/multi_intent.py`: Xây dựng `MacroStep`, `MacroDAGExecutionResult`, `DeclarativeMacroDAG`, bổ sung `compile_dag` và `execute_dag` vào `CompoundIntentDecomposer`.
-  - `jarvis/llm/local_reasoner.py`: Xây dựng `ArgonNanoLocalReasoner` xử lý anaphora, hardware heuristics, và software invocations trên CPU.
-  - `jarvis/llm/router.py`: Tích hợp `ArgonNanoLocalReasoner` vào `LLMIntentRouter.__init__` và `parse_intent`, bổ sung cơ chế lưu trữ lịch sử hội thoại `_record_turn_history` và `record_history`, cập nhật `execute_intent` kế thừa ngữ cảnh macro DAG.
+  - `jarvis/core/app.py`: Khởi tạo `VoiceBiometricsGate` trong Section 5a, kết nối vào `dispatcher` và `safety_interceptor` trong Section 20, siết chặt cơ chế fail-closed mặc định (similarity = 0.0 khi có enrolled profiles) ngăn chặn unauthenticated voice bypass.
+  - `jarvis/core/dispatcher.py`: Bổ sung tham số `voice_gate` và `set_voice_gate`, mở rộng nhận diện tiền tố requester ID `voice*`, tích hợp kiểm tra `VoiceBiometricsGate` vào `_evaluate_safety_gate`.
+  - `jarvis/audio/voiceprint.py`: Xây dựng `VoiceBiometricsGate`, `SAFE_INTENT_ALLOWLIST`, `PRIVILEGED_INTENT_ALLOWLIST`, `DEFAULT_MASTER_SIMILARITY_THRESHOLD = 0.70`, tinh chỉnh phân định thao tác file tránh false-positive trên đường dẫn file an toàn.
+  - `jarvis/stt/contextual_biaser.py`: Xây dựng `ContextualPromptBiaser` và hàm `cap_prompt_tokens` (strictly <= 15 tokens) kèm cơ chế tự động dọn dẹp dấu câu kết thúc (,;:).
+  - `jarvis/stt/dynamic_tiered.py`: Tích hợp `contextual_biaser` vào `DynamicTieredASREngine`, áp dụng trần 15 tokens cho cả prompt do caller cung cấp.
+  - `jarvis/stt/faster_whisper.py`: Tích hợp `contextual_biaser` vào `FasterWhisperSTTEngine`, xuất khẩu alias `FasterWhisperEngine`, đảm bảo prompt mồi không vượt quá 15 tokens.
+  - `jarvis/nlp/multi_intent.py`: Xây dựng `MacroStep`, `MacroDAGExecutionResult`, `DeclarativeMacroDAG`, bổ sung `compile_dag` và `execute_dag` vào `CompoundIntentDecomposer`, hỗ trợ kế thừa ngữ cảnh thay thế placeholder ('current', 'nó').
+  - `jarvis/llm/local_reasoner.py`: Xây dựng `ArgonNanoLocalReasoner` xử lý anaphora (bao gồm "làm lại cái này", "đóng cái đó"), hardware heuristics ("dọn ram"), trích xuất tên bài hát Spotify, và hỗ trợ lịch sử dạng IntentResult/dict trên CPU.
+  - `jarvis/llm/router.py`: Tích hợp `ArgonNanoLocalReasoner` vào `LLMIntentRouter.__init__` (hỗ trợ dependency injection) và `parse_intent`, bổ sung `_record_turn_history` và `record_history`, cập nhật `execute_intent` kế thừa ngữ cảnh macro DAG đa dạng kiểu dữ liệu.
   - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `5.5.0`.
-  - `tests/unit/test_speaker_gating.py`: 9 bài kiểm thử đơn vị cho VoiceBiometricsGate.
-  - `tests/unit/test_contextual_biaser.py`: 11 bài kiểm thử đơn vị cho ContextualPromptBiaser.
-  - `tests/unit/test_macro_dag.py`: 5 bài kiểm thử đơn vị cho DeclarativeMacroDAG.
-  - `tests/unit/test_local_reasoner.py`: 13 bài kiểm thử đơn vị cho ArgonNanoLocalReasoner và LLMIntentRouter.
+  - `tests/unit/test_speaker_gating.py`: 12 bài kiểm thử đơn vị cho VoiceBiometricsGate và ActionDispatcher.
+  - `tests/unit/test_contextual_biaser.py`: 14 bài kiểm thử đơn vị cho ContextualPromptBiaser và FasterWhisperEngine.
+  - `tests/unit/test_macro_dag.py`: 7 bài kiểm thử đơn vị cho DeclarativeMacroDAG và context inheritance.
+  - `tests/unit/test_local_reasoner.py`: 19 bài kiểm thử đơn vị cho ArgonNanoLocalReasoner và LLMIntentRouter.
 - **Chỉ số kiểm thử thực tế**:
-  - Toàn bộ 4 test suites mới: **38 passed in 6.40s (100% PASS)**.
-  - Argon Benchmark viễn trắc (`test_voice_to_action_argon_benchmark.py`): **6 passed in 12.36s (100% PASS)**.
+  - Toàn bộ 4 test suites mới: **52 passed in 7.02s (100% PASS)**.
+  - Argon Benchmark viễn trắc (`test_voice_to_action_argon_benchmark.py`): **6 passed in 14.08s (100% PASS)**.
+  - Hồi quy toàn bộ test suite unit: **571 passed, 1 skipped, 15 subtests passed in 38.64s**.
   - Tiêu thụ GPU VRAM tăng thêm: **0 MB** (hoàn toàn CPU native).
   - Độ trễ ArgonNanoLocalReasoner CPU: **< 0.05ms** (ngân sách cam kết <= 5.0ms).
 

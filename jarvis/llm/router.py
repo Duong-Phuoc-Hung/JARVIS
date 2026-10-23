@@ -284,6 +284,7 @@ class LLMIntentRouter:
         memory_manager: Any | None = None,
         ml_fast_path_enabled: bool = False,
         awaci_enabled: bool = True,
+        local_reasoner: Any | None = None,
     ) -> None:
         self.llm = llm_client
         self.dispatcher = dispatcher
@@ -306,14 +307,17 @@ class LLMIntentRouter:
             self.awaci_engine = None
 
         self.history: list[dict[str, Any]] = []
-        try:
-            from jarvis.llm.local_reasoner import ArgonNanoLocalReasoner
-            self.local_reasoner: ArgonNanoLocalReasoner | None = ArgonNanoLocalReasoner(
-                awaci_engine=self.awaci_engine
-            )
-        except Exception as _e_reasoner:
-            logger.debug("Failed initializing ArgonNanoLocalReasoner: %s", _e_reasoner)
-            self.local_reasoner = None
+        if local_reasoner is not None:
+            self.local_reasoner = local_reasoner
+        else:
+            try:
+                from jarvis.llm.local_reasoner import ArgonNanoLocalReasoner
+                self.local_reasoner = ArgonNanoLocalReasoner(
+                    awaci_engine=self.awaci_engine
+                )
+            except Exception as _e_reasoner:
+                logger.debug("Failed initializing ArgonNanoLocalReasoner: %s", _e_reasoner)
+                self.local_reasoner = None
 
         # Compiled Deterministic Rule Engine for Substring Matching
         self.rule_engine: dict[str, IntentResult] = get_default_rules()
@@ -2761,18 +2765,34 @@ class LLMIntentRouter:
             sub_actions = intent.parameters.get("actions", [])
             results = []
             accumulated_ctx: dict[str, Any] = {}
-            for idx, act_dict in enumerate(sub_actions, start=1):
-                params = dict(act_dict.get("parameters", {}))
+            for idx, act_item in enumerate(sub_actions, start=1):
+                if isinstance(act_item, dict):
+                    act_name = act_item.get("action_name", "unknown_intent")
+                    params = dict(act_item.get("parameters", {}))
+                    conf = float(act_item.get("confidence", 1.0))
+                    src = act_item.get("source", "multi_intent")
+                    raw = act_item.get("raw_text", "")
+                    resp_txt = act_item.get("response_text")
+                elif hasattr(act_item, "action_name"):
+                    act_name = getattr(act_item, "action_name")
+                    params = dict(getattr(act_item, "parameters", {})) if isinstance(getattr(act_item, "parameters", None), dict) else {}
+                    conf = float(getattr(act_item, "confidence", 1.0))
+                    src = getattr(act_item, "source", "multi_intent")
+                    raw = getattr(act_item, "raw_text", "")
+                    resp_txt = getattr(act_item, "response_text", None)
+                else:
+                    continue
+
                 for k, v in accumulated_ctx.items():
-                    if k not in params:
+                    if k not in params or params.get(k) in ("current", "this", "it", "nó", ""):
                         params[k] = v
                 sub_intent = IntentResult(
-                    action_name=act_dict.get("action_name", "unknown_intent"),
+                    action_name=act_name,
                     parameters=params,
-                    confidence=act_dict.get("confidence", 1.0),
-                    source=act_dict.get("source", "multi_intent"),
-                    raw_text=act_dict.get("raw_text", ""),
-                    response_text=act_dict.get("response_text"),
+                    confidence=conf,
+                    source=src,
+                    raw_text=raw,
+                    response_text=resp_txt,
                 )
                 sub_res = self.execute_intent(sub_intent, requester=requester)
                 results.append(sub_res)

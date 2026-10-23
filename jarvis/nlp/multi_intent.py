@@ -308,9 +308,13 @@ class DeclarativeMacroDAG:
 
             # 2. Inherit active app for window controls (maximize, minimize, close)
             if action_name in ("window_control", "app_close"):
-                if active_app and not params.get("app_name") and not params.get("app"):
+                current_app = params.get("app_name") or params.get("app")
+                if active_app and (not current_app or current_app in ("current", "this", "it", "nó", "cửa sổ này", "cái này")):
                     inherited["app_name"] = active_app
                     params["app_name"] = active_app
+                    if "target" in params or "target" in inherited:
+                        params["target"] = active_app
+                        inherited["target"] = active_app
                 if active_hwnd and not params.get("hwnd"):
                     inherited["hwnd"] = active_hwnd
                     params["hwnd"] = active_hwnd
@@ -347,9 +351,9 @@ class DeclarativeMacroDAG:
         accumulated_context: dict[str, Any] = {}
 
         for step in self.steps:
-            # Inject dynamically accumulated context from earlier steps if missing
+            # Inject dynamically accumulated context from earlier steps if missing or placeholder
             for k, v in accumulated_context.items():
-                if k not in step.parameters:
+                if k not in step.parameters or step.parameters.get(k) in ("current", "this", "it", "nó", ""):
                     step.parameters[k] = v
                     step.inherited_context[k] = v
 

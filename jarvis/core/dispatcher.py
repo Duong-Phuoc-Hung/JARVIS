@@ -465,6 +465,7 @@ class ActionDispatcher:
 
             is_voice_request = bool(
                 context.requester_id in ("user_voice", "voice")
+                or str(context.requester_id or "").lower().startswith("voice")
                 or (hasattr(context, "metadata") and isinstance(context.metadata, dict) and context.metadata.get("voice"))
                 or (speaker_similarity is not None)
                 or (isinstance(payload, dict) and payload.get("_voice_gate"))

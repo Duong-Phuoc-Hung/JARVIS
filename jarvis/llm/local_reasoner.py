@@ -84,8 +84,11 @@ class ArgonNanoLocalReasoner:
         awaci_context: WindowContext | None = None,
     ) -> IntentResult | None:
         """Resolves pronoun references ('nó', 'cái này', 'lúc nãy', 'làm lại')."""
-        # A. Repetition: "làm lại cái đó", "làm lại", "lặp lại"
-        if re.search(r"^(?:jarvis[,\s]*)?(?:làm\s*lại(?:\s*cái\s*(?:đó|nay))?|lặp\s*lại(?:\s*lệnh)?|thực\s*hiện\s*lại)[.!?]?$", clean_lower):
+        # A. Repetition: "làm lại cái này", "làm lại cái đó", "làm lại", "lặp lại"
+        if re.search(
+            r"^(?:jarvis[,\s]*)?(?:làm\s*lại(?:\s*cái\s*(?:đó|do|này|nay|đây|day))?|lặp\s*lại(?:\s*(?:cái\s*(?:đó|do|này|nay)|lệnh))?|thực\s*hiện\s*lại(?:\s*cái\s*(?:đó|này))?|chạy\s*lại(?:\s*lệnh)?)[.!?]?$",
+            clean_lower,
+        ):
             last_intent = self._get_last_meaningful_intent(history)
             if last_intent is not None:
                 return IntentResult(
@@ -97,8 +100,11 @@ class ArgonNanoLocalReasoner:
                     response_text="Đang thực hiện lại hành động vừa rồi cho Ngài.",
                 )
 
-        # B. Close current / referred item: "đóng nó lại", "tắt nó đi", "thoát cái này"
-        if re.search(r"\b(?:đóng|dong|tắt|tat|thoát|thoat)\s+(?:nó|no|cái\s*này|cai\s*nay|cửa\s*sổ\s*này|cửa\s*sổ\s*đó)\b", clean_lower):
+        # B. Close current / referred item: "đóng nó lại", "tắt nó đi", "thoát cái này", "đóng cái đó"
+        if re.search(
+            r"\b(?:đóng|dong|tắt|tat|thoát|thoat)\s+(?:nó|no|cái\s*(?:này|nay|đó|do|kia)|cửa\s*sổ\s*(?:này|nay|đó|do))\b",
+            clean_lower,
+        ):
             # Target from active window
             app_target = "current"
             win_ctx = self._get_window_context(awaci_context)
@@ -171,8 +177,8 @@ class ArgonNanoLocalReasoner:
                 response_text="Đang kiểm tra nhiệt độ và cảm biến phần cứng cho Ngài.",
             )
 
-        # Memory cleaning: "dọn dẹp ram", "giải phóng bộ nhớ", "máy lag quá"
-        if any(k in clean_lower for k in ("dọn dẹp ram", "don dep ram", "giải phóng ram", "máy lag", "may lag", "giải phóng bộ nhớ")):
+        # Memory cleaning: "dọn dẹp ram", "dọn ram", "giải phóng bộ nhớ", "máy lag quá"
+        if any(k in clean_lower for k in ("dọn dẹp ram", "don dep ram", "dọn ram", "don ram", "giải phóng ram", "máy lag", "may lag", "giải phóng bộ nhớ", "tối ưu ram")):
             return IntentResult(
                 action_name="healing_watchdog_heal",
                 parameters={"auto_kill": False},
@@ -197,19 +203,24 @@ class ArgonNanoLocalReasoner:
 
     def _resolve_app_heuristics(self, clean_lower: str, raw_text: str) -> IntentResult | None:
         """Resolves descriptive software invocations ('phần mềm nghe nhạc', 'trình duyệt')."""
-        # Music player descriptive: "bật phần mềm nghe nhạc", "mở trình phát nhạc", "bật bài gì đó nghe đi"
-        if any(k in clean_lower for k in ("nghe nhạc", "nghe nhac", "phần mềm nghe nhạc", "trình phát nhạc", "bật nhạc lên")):
+        if any(k in clean_lower for k in ("nghe nhạc", "nghe nhac", "phần mềm nghe nhạc", "trình phát nhạc", "bật nhạc", "bat nhac", "mở nhạc", "mo nhac", "phát nhạc", "phat nhac", "bật bài", "bat bai", "phát bài", "phat bai", "mở bài", "mo bai")) or clean_lower.startswith(("bật bài ", "phát bài ", "mở bài ")):
+            query = ""
+            m_song = re.search(r"(?:bài\s*(?:hát)?|bài|nhạc)\s+([a-zA-Z0-9\s_à-ỹÀ-Ỹ]+)$", raw_text.strip(), re.IGNORECASE)
+            if m_song:
+                candidate = m_song.group(1).strip()
+                if candidate.lower() not in ("lên", "đi", "nghe", "cho tôi", "nhé", "nào", "nữa", "lên đi"):
+                    query = candidate
             return IntentResult(
                 action_name="spotify",
-                parameters={"query": "", "action": "play"},
+                parameters={"query": query, "action": "play"},
                 confidence=0.85,
                 source="argon_nano_local_reasoner",
                 raw_text=raw_text,
-                response_text="Đang phát nhạc trên Spotify cho Ngài.",
+                response_text="Đang phát nhạc trên Spotify cho Ngài." if not query else f"Đang phát bài {query} trên Spotify cho Ngài.",
             )
 
-        # Web browser / video viewing: "mở trình duyệt xem video", "vào mạng xem phim", "lên youtube"
-        if any(k in clean_lower for k in ("lên youtube", "len youtube", "xem youtube", "vào mạng", "trình duyệt xem")):
+        # Web browser / video viewing: "mở trình duyệt xem video", "vào mạng xem phim", "lên youtube", "mở youtube"
+        if any(k in clean_lower for k in ("lên youtube", "len youtube", "xem youtube", "vào mạng", "trình duyệt xem", "mở youtube", "mo youtube", "bật youtube", "bat youtube")):
             return IntentResult(
                 action_name="app_open",
                 parameters={"app_name": "chrome", "installed_only": True},
@@ -219,8 +230,8 @@ class ArgonNanoLocalReasoner:
                 response_text="Đang mở trình duyệt cho Ngài.",
             )
 
-        # Coding / programming: "mở công cụ gõ code", "vào visual studio"
-        if any(k in clean_lower for k in ("gõ code", "go code", "lập trình", "lap trinh", "công cụ code")):
+        # Coding / programming: "mở công cụ gõ code", "vào visual studio", "viết code"
+        if any(k in clean_lower for k in ("gõ code", "go code", "lập trình", "lap trinh", "công cụ code", "viết code", "viet code", "mở code", "mo code")):
             return IntentResult(
                 action_name="app_open",
                 parameters={"app_name": "vscode", "installed_only": True},
@@ -232,7 +243,7 @@ class ArgonNanoLocalReasoner:
 
         return None
 
-    def _get_last_meaningful_intent(self, history: list[dict[str, Any]] | None) -> dict[str, Any] | None:
+    def _get_last_meaningful_intent(self, history: list[Any] | None) -> dict[str, Any] | None:
         """Extracts the most recent actionable intent from conversation history."""
         if not history:
             return None
@@ -241,6 +252,16 @@ class ArgonNanoLocalReasoner:
                 act = turn.get("action_name")
                 if act and act not in ("unknown_intent", "generic_llm_response"):
                     return turn
+            elif hasattr(turn, "action_name"):
+                act = getattr(turn, "action_name")
+                if act and act not in ("unknown_intent", "generic_llm_response"):
+                    params = dict(getattr(turn, "parameters", {})) if isinstance(getattr(turn, "parameters", None), dict) else {}
+                    return {
+                        "action_name": act,
+                        "parameters": params,
+                        "confidence": float(getattr(turn, "confidence", 1.0)),
+                        "raw_text": getattr(turn, "raw_text", ""),
+                    }
         return None
 
     def _get_window_context(self, override_ctx: WindowContext | None) -> WindowContext | None:

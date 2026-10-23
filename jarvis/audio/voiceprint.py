@@ -116,9 +116,11 @@ class VoiceBiometricsGate:
         if clean_action == "file_management":
             if not isinstance(payload, dict):
                 return True  # Fail-closed if payload unspecified
-            op = str(payload.get("action") or payload.get("operation") or "").strip().lower()
-            if op in ("delete", "remove", "erase", "truncate", "drop", "clean"):
+            op = str(payload.get("action") or payload.get("operation") or payload.get("file_action") or "").strip().lower()
+            if op in ("delete", "remove", "erase", "truncate", "drop", "clean", "xóa", "xoa", "delete_file", "delete_folder"):
                 return True
+            if op in ("read", "open", "view", "list", "search", "get", "stat", "check"):
+                return False
             # Check parameter strings for delete keywords
             payload_str = str(payload).lower()
             if any(k in payload_str for k in ("delete", "remove", "xóa", "xoa")):

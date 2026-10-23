@@ -55,26 +55,27 @@ def count_tokens(text: str) -> int:
 def cap_prompt_tokens(prompt: str, max_tokens: int = MAX_INITIAL_PROMPT_TOKENS) -> str:
     """
     Strictly caps prompt text to at most max_tokens tokens.
-    Guarantees no prompt regurgitation hallucination by truncating excess tokens.
+    Guarantees no prompt regurgitation hallucination by truncating excess tokens
+    and cleanly stripping trailing punctuation.
     """
-    if not prompt or not prompt.strip():
+    if not prompt or not prompt.strip() or max_tokens <= 0:
         return ""
 
     tokens = re.findall(r"\w+|[^\w\s]", prompt.strip(), re.UNICODE)
     if len(tokens) <= max_tokens:
-        return prompt.strip()
+        return prompt.strip().rstrip(",;: ")
 
     # Reconstruct string with capped tokens
     capped_tokens = tokens[:max_tokens]
     result: list[str] = []
     for i, tok in enumerate(capped_tokens):
-        if i > 0 and tok not in (",", ".", ":", ";", "!", "?") and not result[-1].endswith((":")):
+        if i > 0 and tok not in (",", ".", ":", ";", "!", "?") and not result[-1].endswith(":"):
             result.append(" ")
         elif i > 0 and result[-1].endswith(":") and not tok.startswith(" "):
             result.append(" ")
         result.append(tok)
 
-    return "".join(result).strip()
+    return "".join(result).strip().rstrip(",;: ")
 
 
 class ContextualPromptBiaser:

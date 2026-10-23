@@ -228,3 +228,37 @@ class TestSafetyInterceptorVoiceGating:
         )
         assert ok is True
         assert status == "SAFE_INTENT_ALLOWED"
+
+    def test_file_read_with_delete_in_path_is_safe(self, voice_gate: VoiceBiometricsGate) -> None:
+        """Reading/opening a file whose path contains 'delete' must not be misclassified as privileged."""
+        is_auth, status, score = voice_gate.verify_intent_authority(
+            action_name="file_management",
+            payload={"action": "open", "path": "docs/how_to_delete_cache.txt"},
+            speaker_similarity=0.20,
+        )
+        assert is_auth is True
+        assert status == "SAFE_INTENT_ALLOWED"
+
+    def test_file_vietnamese_xoa_is_privileged(self, voice_gate: VoiceBiometricsGate) -> None:
+        """Vietnamese deletion action 'xóa' is recognized as privileged and rejected for low similarity."""
+        is_auth, status, score = voice_gate.verify_intent_authority(
+            action_name="file_management",
+            payload={"action": "xóa", "target": "data.db"},
+            speaker_similarity=0.30,
+        )
+        assert is_auth is False
+        assert status == "UNAUTHORIZED_VOICE"
+
+    def test_dispatcher_catches_voice_prefix_without_metadata(self, voice_gate: VoiceBiometricsGate) -> None:
+        """Requester ID 'voice_client' or 'voice:terminal' is intercepted by voice gate even without metadata."""
+        dispatcher = ActionDispatcher(voice_gate=voice_gate)
+
+        def mock_power(**kwargs):
+            return ActionResult(action_name="system_power", success=True)
+
+        dispatcher.register_action("system_power", mock_power)
+
+        req_ctx = RequesterContext(requester_id="voice_client", metadata={})
+        res = dispatcher.dispatch_action("system_power", payload={"action": "shutdown"}, requester=req_ctx)
+        assert res.success is False
+        assert res.error_code == "UNAUTHORIZED_VOICE"

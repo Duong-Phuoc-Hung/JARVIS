@@ -1619,10 +1619,11 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                             # Speaker Voice Biometrics: Extract acoustic voiceprint similarity against master profile
                             raw_samples = audio_flat.samples if isinstance(audio_flat, CapturedAudio) else audio_flat
                             voice_bio = getattr(self, "voice_biometrics", None)
-                            self._last_voice_similarity = 1.0
+                            has_enrolled = bool(voice_bio and getattr(voice_bio, "enrolled_speakers", None) and len(voice_bio.enrolled_speakers) > 0)
+                            # Fail-closed default: if enrolled profiles exist, unauthenticated voice starts at 0.0 similarity
+                            self._last_voice_similarity = 0.0 if has_enrolled else (1.0 if (voice_bio and getattr(voice_bio, "allow_unregistered_when_empty", True)) else 0.0)
                             if (
-                                voice_bio
-                                and getattr(voice_bio, "enrolled_speakers", None)
+                                has_enrolled
                                 and raw_samples is not None
                                 and getattr(raw_samples, "size", 0) > 0
                             ):
@@ -2115,7 +2116,10 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                     req_ctx = RequesterContext.user(requester_id=requester, authenticated=True)
                     if str(requester).lower().startswith("voice") or str(requester).lower() == "user_voice":
                         req_ctx.metadata["voice"] = True
-                        req_ctx.metadata["speaker_similarity"] = getattr(self, "_last_voice_similarity", 1.0)
+                        voice_bio = getattr(self, "voice_biometrics", None)
+                        has_enrolled = bool(voice_bio and getattr(voice_bio, "enrolled_speakers", None) and len(voice_bio.enrolled_speakers) > 0)
+                        default_sim = 0.0 if has_enrolled else (1.0 if (voice_bio and getattr(voice_bio, "allow_unregistered_when_empty", True)) else 0.0)
+                        req_ctx.metadata["speaker_similarity"] = getattr(self, "_last_voice_similarity", default_sim)
                     action_result = self.dispatcher.dispatch_action(
                         action_name=matched_action,
                         payload=intent_result.parameters,

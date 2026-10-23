@@ -147,6 +147,9 @@ class FasterWhisperSTTEngine:
                 initial_prompt = self.contextual_biaser.get_bias_prompt() or self.config.initial_prompt
             else:
                 initial_prompt = self.config.initial_prompt
+        if initial_prompt:
+            from jarvis.stt.contextual_biaser import cap_prompt_tokens
+            initial_prompt = cap_prompt_tokens(initial_prompt, 15)
 
         if self.is_mock:
             return TranscriptionResult(

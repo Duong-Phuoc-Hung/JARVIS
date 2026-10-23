@@ -366,6 +366,9 @@ class DynamicTieredASREngine(BaseSTTEngine):
                 bias_prompt = self.contextual_biaser.get_bias_prompt()
                 if bias_prompt:
                     kwargs["initial_prompt"] = bias_prompt
+        if kwargs.get("initial_prompt"):
+            from jarvis.stt.contextual_biaser import cap_prompt_tokens
+            kwargs["initial_prompt"] = cap_prompt_tokens(str(kwargs["initial_prompt"]), 15)
 
         try:
             initial_metrics = initial_engine.transcribe_with_metrics(arr, language=language, **kwargs)

@@ -223,3 +223,56 @@ def test_router_offline_fallback_to_local_reasoner() -> None:
     assert res.action_name == "app_open"
     assert res.parameters.get("app_name") == "calc"
     assert res.source == "argon_nano_local_reasoner"
+
+
+def test_anaphora_repetition_accented_cai_nay(local_reasoner: ArgonNanoLocalReasoner) -> None:
+    """Matches Vietnamese accented phrase 'làm lại cái này'."""
+    history = [{"action_name": "app_open", "parameters": {"app_name": "calc"}, "confidence": 0.95}]
+    res = local_reasoner.reason("làm lại cái này", history=history)
+    assert res is not None
+    assert res.action_name == "app_open"
+    assert res.parameters.get("app_name") == "calc"
+
+
+def test_anaphora_close_that_app(local_reasoner: ArgonNanoLocalReasoner) -> None:
+    """Matches 'đóng cái đó' and 'tắt cái đó'."""
+    history = [{"action_name": "app_open", "parameters": {"app_name": "spotify"}, "confidence": 0.95}]
+    res = local_reasoner.reason("đóng cái đó", history=history)
+    assert res is not None
+    assert res.action_name == "app_close"
+
+
+def test_system_heuristic_don_ram(local_reasoner: ArgonNanoLocalReasoner) -> None:
+    """Matches short colloquial query 'dọn ram'."""
+    res = local_reasoner.reason("dọn ram")
+    assert res is not None
+    assert res.action_name == "healing_watchdog_heal"
+
+
+def test_app_heuristic_song_query_extraction(local_reasoner: ArgonNanoLocalReasoner) -> None:
+    """Extracts song title into parameters['query'] when given 'bật bài [X]'."""
+    res = local_reasoner.reason("bật bài Nơi này có anh")
+    assert res is not None
+    assert res.action_name == "spotify"
+    assert res.parameters.get("query") == "Nơi này có anh"
+    assert "Nơi này có anh" in res.response_text
+
+
+def test_history_with_typed_intent_result_objects(local_reasoner: ArgonNanoLocalReasoner) -> None:
+    """Extracts last intent when history elements are typed IntentResult objects."""
+    typed_history = [
+        IntentResult(action_name="app_open", parameters={"app_name": "vlc"}, confidence=0.90),
+    ]
+    res = local_reasoner.reason("làm lại", history=typed_history)
+    assert res is not None
+    assert res.action_name == "app_open"
+    assert res.parameters.get("app_name") == "vlc"
+
+
+def test_router_custom_local_reasoner_injection() -> None:
+    """Custom local_reasoner injected via LLMIntentRouter constructor is preserved."""
+    mock_llm = MagicMock(spec=LLMClient)
+    custom_reasoner = ArgonNanoLocalReasoner(confidence_threshold=0.50)
+    router = LLMIntentRouter(llm_client=mock_llm, local_reasoner=custom_reasoner)
+    assert router.local_reasoner is custom_reasoner
+    assert router.local_reasoner.confidence_threshold == 0.50
