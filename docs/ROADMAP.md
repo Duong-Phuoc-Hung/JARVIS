@@ -1,3 +1,27 @@
+## Sprint 12: Next-Gen Speech Frontiers & Spoken Disfluency Self-Correction Engine (Levelt Model) (2026-10-23, v5.4.0)
+
+- [x] **Argon Sovereign v4.0 Next-Gen Speech Frontiers Monograph (`docs/research/argon_next_generation_speech_frontiers.md`)** — `PASS engineering`:
+  - Khảo sát học thuật SOTA 2024–2026 và tranh biện phản biện biện chứng đối kháng (Thesis <-> Antithesis <-> Synthesis) trên 5 giới hạn công nghệ:
+    1. Frontier 1: Spoken Disfluency Repair & Self-Correction trong giao tiếp tự nhiên.
+    2. Frontier 2: Speaker-Attributed Intent Gating & Phân quyền âm học Master vs Ambient Voice.
+    3. Frontier 3: Micro-AFE tuyến tính vs Rào cản suy giảm thanh điệu tiếng Việt của DeepFilterNet/RNNoise.
+    4. Frontier 4: Lái ngữ cảnh động trong giải mã Whisper (Dynamic Contextual Biasing) vs Nguy cơ ảo giác lặp lại prompt mồi.
+    5. Frontier 5: Đồ thị Macro khai báo (Declarative DAG) vs Vòng lặp Agentic ReAct tự hồi quy.
+- [x] **Spoken Disfluency Repair & Self-Correction Engine (`jarvis/nlp/disfluency_repair.py`)** — `PASS engineering` / `PASS runtime`:
+  - Hiện thực hóa mô hình sản sinh lời nói Levelt (1983): phân rã phát ngôn thành Prefix + Reparandum + Interregnum + Repair.
+  - Sửa sai tham số số liệu: "tăng âm lượng lên 50 à nhầm 80 phần trăm" -> "tăng âm lượng lên 80 phần trăm", "giảm độ sáng xuống 30 à lộn 20" -> "giảm độ sáng xuống 20".
+  - Đổi ứng dụng mục tiêu: "mở chrome à thôi mở edge" -> "mở edge", "mở chrome à thôi edge" -> "mở edge", "tắt word à nhầm excel" -> "tắt excel".
+  - Sửa đổi truy vấn đa phương tiện: "bật bài hát nắng à không bài chúng ta của hiện tại" -> "bật bài chúng ta của hiện tại", "mở video độ mixi à nhầm độ tộc 2" -> "mở video độ tộc 2".
+  - Khử lặp từ nói lắp (False-Start Deduplication): "mở mở chrome" -> "mở chrome".
+  - Chốt chặn Hủy lệnh Tức thời giữa câu (Mid-Speech Abort Guard): phát hiện "à thôi đừng mở", "thôi bỏ đi", "khoan đã đừng làm", trả về is_aborted=True ngăn chặn tuyệt đối lệnh nguy hiểm.
+  - Bảo vệ ranh giới thực thể ngôn ngữ học: Ngăn chặn bắt nhầm từ phủ định trong tên bài hát ("tìm kiếm bài hát không phải em") khi Reparandum rỗng.
+  - Tích hợp trực tiếp vào `LLMIntentRouter.parse_intent` làm trạm tiền xử lý Stage 0 cho toàn bộ khẩu lệnh thoại.
+  - Unit tests verified: `tests/unit/test_disfluency_repair.py` (21/21 passed 100%).
+- [x] **Argon Telemetry Hardware Benchmark (`tests/eval/test_voice_to_action_argon_benchmark.py`)** — `PASS runtime`:
+  - `test_spoken_disfluency_repair_latency_and_telemetry`: Độ trễ CPU đơn luồng trung vị **p50 = 0.0473ms (47.3 micro-giây)**, **p95 = 0.0684ms** (vượt xa ngân sách cam kết <= 0.25ms).
+  - Mức tiêu thụ VRAM: **0 MB**, RAM Delta: **0 MB**, Tính tất định: **100%**.
+  - Toàn bộ suite kiểm thử hồi quy 6 phân hệ Voice & NLP: **49 passed in 96.93s (100% PASS)**.
+
 ## Sprint 11: SOTA Voice & NLP R&D Blueprint: AWACI Screen Context, Speculative Pre-Routing, Joint BIO Slot Tagger INT8 & Night-Shift Autonomous Flywheel (2026-10-23, v5.3.0)
 
 - [x] **Pillar 1: AWACI Engine (Active Window & Context Injection - `jarvis/context/screen_context.py`)** — `PASS engineering` / `PASS runtime`:

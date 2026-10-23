@@ -1980,6 +1980,32 @@ class LLMIntentRouter:
             )
         clean = text.strip()
 
+        # Frontier 1: Spoken Acoustic Phonetics Normalization and Disfluency Self-Correction
+        if not _is_sub_clause and clean:
+            try:
+                from jarvis.nlp.phonetic_normalizer import normalize_phonetic_stt
+                from jarvis.nlp.disfluency_repair import repair_spoken_disfluency
+
+                # 1. Phonetic normalizer (reconstruct transliterated loan words)
+                clean = normalize_phonetic_stt(clean)
+
+                # 2. Spoken Disfluency Self-Correction & Mid-Speech Abort Guard
+                disfluency_result = repair_spoken_disfluency(clean)
+                if disfluency_result.is_aborted:
+                    logger.info('Spoken command explicitly aborted mid-speech by user: %r', text)
+                    return IntentResult(
+                        action_name='unknown_intent',
+                        parameters={},
+                        confidence=1.0,
+                        source='disfluency_abort_guard',
+                        raw_text=text,
+                        response_text='Đã hủy thao tác theo yêu cầu của Ngài.',
+                    )
+                if disfluency_result.has_disfluency:
+                    clean = disfluency_result.repaired_text
+            except Exception as _ex:
+                logger.debug('Disfluency and phonetic pre-cleaning skipped: %s', _ex)
+
         # Compound Multi-Intent Pre-check: If this is the root query and not forced LLM
         if not _is_sub_clause and not force_llm and clean:
             try:
