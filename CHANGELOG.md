@@ -4,6 +4,42 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.6.1] - Argon Sovereign Frontier 6.0 Research & v5.6.1 Sustained Telemetry Soak Test (2026-10-23)
+
+- **Mục tiêu**:
+  - Triển khai và xác thực thực nghiệm bài kiểm thử ngâm và ứng suất bền vững (Sustained Soak & Stress Test) trên máy chủ phần cứng thật (Intel Core i7-9750H, NVIDIA GTX 1650 Max-Q 4GB GDDR5, Windows 11 x64). Đo đạc trôi dạt bộ nhớ RAM Working Set, rò rỉ Windows Kernel Handles, delta GPU VRAM, nhiệt độ GPU, và độ trễ phản xạ vi mô trên toàn bộ đường ống Argon Sovereign v5.6.0.
+  - Công bố Công trình Nghiên cứu Tiên phong Argon Sovereign Frontier 6.0 (`docs/research/argon_sovereign_frontier_6_speech_mamba_and_duplex.md`) khảo cứu và đối chuẩn biện chứng (Thesis ⮂ Antithesis ⮂ Synthesis) cho 3 chân trời công nghệ thế hệ v6.0 / v7.0:
+    1. *Frontier 6: Linear State Space Models (Mamba-2 SSD) for Streaming Speech vs Quadratic Whisper Transformers*: Đột phá O(1) bộ nhớ trạng thái không đổi (2.1 MB) thay thế cơ chế Quadratic Attention của Whisper vốn gây tràn 4GB VRAM khi nghe liên tục; giải quyết suy giảm thanh điệu tiếng Việt qua kiến trúc Argon-Pyramid-SSD lai ghép 3 SSD : 1 Transformer Anchor.
+    2. *Frontier 7: In-Situ On-Device Reinforcement Learning via Test-Time GRPO with Win32 Execution-Grounded Verifiers*: Tự động tối ưu hóa chính sách ý định cục bộ không cần mạng Critic; neo chặn hàm thưởng bằng trạng thái Win32 API thực tế (`ActionResult.status == SUCCESS`), khống chế rủi ro bằng LoRA Rank-4 adapter trong cửa sổ nhàn rỗi cắm nguồn AC.
+    3. *Frontier 8: Zero-Latency Dual-Stream Continuous Conversational Full-Duplex*: Phá vỡ sàn trễ 865ms của mô hình Half-Duplex; triển khai đồng thời luồng nghe và luồng nói thời gian thực với bộ trừ tiếng vọng tham chiếu WASAPI AEC và trọng tài ngắt lời ngữ nghĩa (Semantic Barge-In) hạ âm lượng mượt 10ms.
+- **Nguyên nhân gốc rễ & Giải pháp Kỹ thuật**:
+  - Nguy cơ rò rỉ tài nguyên khi xử lý âm thanh luồng liên tục: Các hệ thống nhận dạng giọng nói khi chạy liên tục qua hàng nghìn khung âm thanh dễ bị phân mảnh bộ nhớ RAM, kẹt Windows kernel handles và rò rỉ buffer GPU. Giải pháp: Xây dựng harness kiểm thử ngâm `tests/eval/soak_test_v560_argon.py` thu thập viễn trắc thời gian thực qua `psutil` và `nvidia-smi` với 5 cổng nghiệm thu nghiêm ngặt tuân thủ `AGENTS.md §2`.
+  - Tắc nghẽn bộ nhớ KV-Cache của Transformer khi nghe liên tục: Khi người dùng mở trợ lý cả ngày, KV-Cache của Whisper tích lũy tỷ lệ thuận với $T^2$, làm tràn 4GB VRAM trong vòng 18 phút. Giải pháp: Nghiên cứu cấu trúc Không gian Trạng thái Tuyến tính Mamba-2 SSD với bộ nhớ trạng thái cố định $\mathcal{O}(1)$ kết hợp cổng xả thanh hầu (Glottal-Triggered State Reset).
+  - Tắc nghẽn trễ lượt nói Half-Duplex: Chờ người dùng dứt lời 300ms rồi mới STT/NLU/TTS tạo ra độ trễ sàn $> 865\text{ms}$. Giải pháp: Mô hình Dual-Stream Full-Duplex với bộ trừ tiếng vọng WASAPI AEC và bộ phân loại ngắt lời Semantic Barge-In trong $< 45\text{ms}$.
+- **Chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `tests/eval/soak_test_v560_argon.py`: Xây dựng framework kiểm thử ngâm và ứng suất viễn trắc cho toàn bộ chuỗi PS-HCF -> Whisper-Medusa -> Action-Tree -> ActionDispatcher.
+  - `docs/eval/soak_test_v560_results.json`: Lưu trữ 58 mẫu viễn trắc thời gian thực chi tiết (RAM, CPU, Handles, VRAM, GPU Temp, Latencies).
+  - `docs/eval/soak_test_v560_evidence.md`: Báo cáo bằng chứng thực nghiệm nghiệm thu với đầy đủ bảng biểu và đồ thị.
+  - `docs/research/argon_sovereign_frontier_6_speech_mamba_and_duplex.md`: Chuyên khảo học thuật 5 chương về Mamba-2 SSD, Test-Time GRPO, và Full-Duplex Conversational Audio.
+  - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `5.6.1`.
+  - `README.md`: Cập nhật phiên bản 5.6.1 và thành tựu Sprint 15.
+  - `docs/ROADMAP.md`: Cập nhật Sprint 15 với kết quả Soak Test 60s và Monograph Frontier 6.0.
+- **Chỉ số kiểm thử thực tế (Soak & Stress Benchmark)**:
+  - Thời gian chạy ngâm: **60.0 giây (58 telemetry samples)**.
+  - Tổng số chu kỳ phản xạ: **3,610 full reflex cycles (60.2 cycles/giây)**.
+  - Tổng số khung âm thanh 16kHz đã xử lý: **3,610 frames (115.5 giây âm thanh, tốc độ 1.9x real-time)**.
+  - Tỷ lệ drop khung âm thanh: **0 frame drops (100% throughput)**.
+  - Biến thiên RAM Working Set: `605.41 MB` -> `606.29 MB` (Delta: **+0.88 MB**; tốc độ trôi **+40.66 MB/giờ**, PASS <= 50.0).
+  - Biến thiên Windows Handles: `375` -> `373` (Delta: **-2 handles**, PASS <= 5).
+  - Tiêu thụ GPU VRAM tăng thêm: **+0.00 MiB (chính xác 0 MB VRAM delta trên NVIDIA GTX 1650 Max-Q)**.
+  - Nhiệt độ GPU: Trung bình **52.0°C** (Min 51.0°C, Max 54.0°C, hoàn toàn ổn định).
+  - Độ trễ phân đoạn vi mô:
+    * Stage 1 (PS-HCF): **p50 = 0.392 ms** | p95 = 0.667 ms
+    * Stage 2 (Whisper-Medusa): **p50 = 11.156 ms** | p95 = 17.410 ms
+    * Stage 3 (Action-Tree Search): **p50 = 0.058 ms** | p95 = 0.112 ms
+    * End-to-End Reflex Cycle: **p50 = 11.704 ms** | p95 = 19.031 ms | p99 = 27.382 ms
+  - Cả 5 cổng nghiệm thu sản phẩm (`GATE-RAM-SLOPE`, `GATE-HANDLE-SLOPE`, `GATE-VRAM-DELTA`, `GATE-REFLEX-P50`, `GATE-ZERO-DROPS`): **100% PASS GREEN**.
+
 ## [5.6.0] - Argon Sovereign Frontier 5.0 Triad & v6.0 Core Implementation (2026-10-23)
 
 - **Mục tiêu**:

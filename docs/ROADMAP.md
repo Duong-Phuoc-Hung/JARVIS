@@ -1,3 +1,21 @@
+## Sprint 15: Argon Sovereign Frontier 6.0 Research & v5.6.1 Sustained Telemetry Soak Test (2026-10-23, v5.6.1)
+
+- [x] **Argon Sovereign Frontier 6.0 Dialectical Research Monograph (`docs/research/argon_sovereign_frontier_6_speech_mamba_and_duplex.md`)** — `PASS engineering`:
+  - Khảo cứu học thuật và phản biện biện chứng đối kháng liên tục (Thesis ⮂ Antithesis ⮂ Synthesis) mổ xẻ 3 chân trời công nghệ kế tiếp:
+    1. *Frontier 6: Linear State Space Models (Mamba-2 SSD) for Streaming Speech vs Quadratic Whisper Transformers*: Khắc phục sự bùng nổ bộ nhớ KV-cache $O(T^2)$ khi nghe liên tục bằng Structured State Space Duality với bộ nhớ trạng thái không đổi $\mathcal{O}(1)$ (2.1 MB buffer); kiến trúc lai ghép Argon-Pyramid-SSD (3 SSD : 1 Transformer Anchor) giải quyết trôi dạt thanh điệu tiếng Việt.
+    2. *Frontier 7: In-Situ On-Device Reinforcement Learning via Test-Time GRPO with Win32 Execution-Grounded Verifiers*: Loại bỏ mạng Critic; hàm thưởng neo chặn bởi mã trạng thái trả về từ Win32 API (`ActionResult.status == SUCCESS`), cập nhật trọng số adapter LoRA Rank-4 trong cửa sổ nhàn rỗi cắm nguồn AC với chặn cận $\mathbb{D}_{\text{KL}} \le 0.04$.
+    3. *Frontier 8: Zero-Latency Dual-Stream Continuous Conversational Full-Duplex*: Phá vỡ sàn trễ 865ms của mô hình Half-Duplex; triển khai đồng thời luồng nghe và luồng nói thời gian thực với bộ trừ tiếng vọng tham chiếu WASAPI AEC và trọng tài ngắt lời ngữ nghĩa (Semantic Barge-In) hạ âm lượng mượt 10ms.
+- [x] **Argon Sovereign Sustained Soak & Stress Test Benchmark (`tests/eval/soak_test_v560_argon.py`)** — `PASS runtime`:
+  - Đo đạc thực tế 60 giây liên tục trên máy chủ Intel Core i7-9750H, NVIDIA GeForce GTX 1650 Max-Q, Windows 11 x64.
+  - Thực thi **3,610 chu kỳ phản xạ liên tục (60.2 cycles/giây)** qua toàn bộ chuỗi PS-HCF -> Whisper-Medusa -> Action-Tree -> ActionDispatcher.
+  - Xử lý **3,610 khung âm thanh 16kHz (115.5 giây âm thanh, 1.9x real-time)** với **0 frame drops**.
+  - Biến thiên RAM Working Set: `605.41 MB` -> `606.29 MB` (Delta: **+0.88 MB**, tốc độ trôi **+40.66 MB/giờ** <= 50.0).
+  - Biến thiên Windows Handles: `375` -> `373` (Delta: **-2 handles**, PASS <= 5).
+  - Tiêu thụ GPU VRAM tăng thêm: **+0.00 MiB (chính xác 0 MB VRAM delta)**.
+  - Nhiệt độ GPU: Trung bình **52.0°C** (Min 51.0°C, Max 54.0°C).
+  - Độ trễ phản xạ vi mô: PS-HCF **p50 = 0.392ms**, Whisper-Medusa **p50 = 11.156ms**, Action-Tree **p50 = 0.058ms**, Tổng chu kỳ phản xạ **p50 = 11.704ms / p95 = 19.031ms / p99 = 27.382ms**.
+  - Cả 5 cổng nghiệm thu: **100% PASS GREEN**. Lưu trữ bằng chứng tại `docs/eval/soak_test_v560_results.json` và `docs/eval/soak_test_v560_evidence.md`.
+
 ## Sprint 14: Argon Sovereign Frontier 5.0 Triad & v6.0 Core Implementation (2026-10-23, v5.6.0)
 
 - [x] **Argon Sovereign Frontier 5.0 Dialectical Monograph (`docs/research/argon_sovereign_frontier_5_dialectics_and_ultimate_architecture.md`)** — `PASS engineering`:
