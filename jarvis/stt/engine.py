@@ -24,7 +24,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 import time
-from typing import Any
+from typing import Any, NamedTuple
 
 import numpy as np
 
@@ -402,6 +402,14 @@ class VADSegmenter:
 # Abstract Base STT Engine
 # ============================================================================
 
+class STTMetricsResult(NamedTuple):
+    """Acoustic metrics container for speech transcription."""
+    text: str
+    avg_logprob: float
+    no_speech_prob: float
+    duration_ms: float
+
+
 class BaseSTTEngine(ABC):
     """Abstract interface that all STT providers must implement."""
 
@@ -426,6 +434,26 @@ class BaseSTTEngine(ABC):
             str: Transcribed speech text (empty string on silence or error).
         """
         pass
+
+    def transcribe_with_metrics(
+        self,
+        audio: np.ndarray | bytes | Path | io.BytesIO | str,
+        language: str = "vi",
+        **kwargs: Any,
+    ) -> STTMetricsResult:
+        """
+        Transcribe audio and return text with acoustic metrics (avg_logprob, no_speech_prob, duration_ms).
+        Default implementation delegates to transcribe() and measures execution duration.
+        """
+        t0 = time.perf_counter()
+        text = self.transcribe(audio, language=language, **kwargs)
+        dur = (time.perf_counter() - t0) * 1000.0
+        return STTMetricsResult(
+            text=str(text),
+            avg_logprob=-0.2 if text else -1.0,
+            no_speech_prob=0.05 if text else 0.95,
+            duration_ms=dur,
+        )
 
     @abstractmethod
     def is_available(self) -> bool:
@@ -662,18 +690,20 @@ class FasterWhisperSTT(BaseSTTEngine):
                             log.warning("FasterWhisperSTT model load error: %s", e)
         return self._model
 
-    def transcribe(
+    def transcribe_with_metrics(
         self,
         audio: np.ndarray | bytes | Path | io.BytesIO | str,
         language: str = "vi",
         **kwargs: Any,
-    ) -> str:
+    ) -> STTMetricsResult:
+        t0 = time.perf_counter()
         if not self.is_available():
             raise STTError("faster-whisper is not installed")
 
         arr = prepare_stt_audio(audio, kwargs.pop("source_sample_rate", STT_SAMPLE_RATE))
         if arr.size == 0 or calculate_rms(arr) < 0.001:
-            return ""
+            dur = (time.perf_counter() - t0) * 1000.0
+            return STTMetricsResult(text="", avg_logprob=0.0, no_speech_prob=1.0, duration_ms=dur)
 
         model = self._get_model()
         if model is None:
@@ -715,7 +745,17 @@ class FasterWhisperSTT(BaseSTTEngine):
             )
 
             accepted: list[str] = []
+            accepted_logprobs: list[float] = []
+            accepted_no_speech: list[float] = []
+            all_logprobs: list[float] = []
+            all_no_speech: list[float] = []
+
             for seg in segments:
+                lp = float(getattr(seg, "avg_logprob", -0.5))
+                nsp = float(getattr(seg, "no_speech_prob", 0.0))
+                all_logprobs.append(lp)
+                all_no_speech.append(nsp)
+
                 # Post-filter: anomalous energy / transcript-length ratio
                 # Low-energy audio (<0.005 RMS) producing a long transcript is
                 # a strong hallucination signal not caught by Whisper's own gates.
@@ -725,30 +765,57 @@ class FasterWhisperSTT(BaseSTTEngine):
                     log.warning(
                         "STT hallucination suspected: RMS=%.4f, words=%d, "
                         "no_speech_prob=%.2f, avg_logprob=%.2f — segment discarded: %r",
-                        audio_rms, words_in_seg,
-                        getattr(seg, "no_speech_prob", -1),
-                        getattr(seg, "avg_logprob", -99),
-                        seg.text[:80],
+                        audio_rms, words_in_seg, nsp, lp, seg.text[:80],
                     )
                     continue
 
                 accepted.append(seg.text.strip())
+                accepted_logprobs.append(lp)
+                accepted_no_speech.append(nsp)
 
-            text = " ".join(accepted)
+            text = " ".join(accepted).strip()
+
+            if accepted_logprobs:
+                final_logprob = float(sum(accepted_logprobs) / len(accepted_logprobs))
+                final_no_speech = float(sum(accepted_no_speech) / len(accepted_no_speech))
+            elif all_logprobs:
+                final_logprob = float(sum(all_logprobs) / len(all_logprobs))
+                final_no_speech = float(sum(all_no_speech) / len(all_no_speech))
+            else:
+                final_logprob = 0.0
+                final_no_speech = 1.0 if not text else 0.0
+
+            dur = (time.perf_counter() - t0) * 1000.0
 
             # Log confidence metadata for every transcription (for monitoring)
             if info is not None:
                 log.debug(
-                    "STT: lang=%s prob=%.2f dur=%.1fs RMS=%.4f segments=%d→%d accepted",
+                    "STT: lang=%s prob=%.2f dur=%.1fs RMS=%.4f avg_logprob=%.2f no_speech=%.2f latency=%.1fms segments=%d",
                     getattr(info, "language", language),
                     getattr(info, "language_probability", -1),
                     audio_duration_s,
                     audio_rms,
-                    len(list(segments)) if hasattr(segments, "__len__") else -1,
+                    final_logprob,
+                    final_no_speech,
+                    dur,
                     len(accepted),
                 )
 
-            return text.strip()
+            return STTMetricsResult(
+                text=text,
+                avg_logprob=final_logprob,
+                no_speech_prob=final_no_speech,
+                duration_ms=dur,
+            )
+
+    def transcribe(
+        self,
+        audio: np.ndarray | bytes | Path | io.BytesIO | str,
+        language: str = "vi",
+        **kwargs: Any,
+    ) -> str:
+        metrics = self.transcribe_with_metrics(audio, language=language, **kwargs)
+        return metrics.text
 
 
 # Backward compatibility alias

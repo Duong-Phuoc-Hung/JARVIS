@@ -19,9 +19,29 @@ import struct
 import threading
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 log = logging.getLogger("jarvis.audio.vad")
+
+
+def _find_silero_vad_path() -> Path | None:
+    """Locate Silero VAD v6 ONNX model file on disk."""
+    try:
+        import faster_whisper
+        p = Path(faster_whisper.__file__).parent / "assets" / "silero_vad_v6.onnx"
+        if p.exists():
+            return p
+    except Exception:
+        pass
+    try:
+        import openwakeword
+        p = Path(openwakeword.__file__).parent / "resources" / "models" / "silero_vad.onnx"
+        if p.exists():
+            return p
+    except Exception:
+        pass
+    return None
 
 
 @dataclass
@@ -34,6 +54,8 @@ class VoiceActivityConfig:
     min_silence_duration_ms: int = 600
     max_utterance_ms: int = 15000
     pre_speech_padding_ms: int = 200
+    backend: str = "auto"              # "auto" | "silero" | "webrtcvad" | "energy"
+    silero_threshold: float = 0.50
 
 
 @dataclass
@@ -49,7 +71,7 @@ class SpeechSegment:
 
 class VoiceActivityDetector:
     """
-    Voice Activity Detection with energy-based fallback and optional webrtcvad.
+    Voice Activity Detection with Silero VAD v6 ONNX, webrtcvad, and energy fallback.
     """
 
     def __init__(
@@ -61,31 +83,84 @@ class VoiceActivityDetector:
         self.is_mock = is_mock
         self._lock = threading.Lock()
         self._vad_backend: Any | None = None
+        self._silero_session: Any | None = None
+        self._silero_h: Any | None = None
+        self._silero_c: Any | None = None
         if not is_mock:
             self._init_backend()
+        backend_name = "energy"
+        if self._silero_session is not None:
+            backend_name = "silero_vad_v6"
+        elif self._vad_backend is not None:
+            backend_name = "webrtcvad"
         log.info(
             "VoiceActivityDetector initialized (backend=%s, sr=%d, energy_threshold=%.4f)",
-            "webrtcvad" if self._vad_backend else "energy",
+            backend_name,
             self.config.sample_rate,
             self.config.silence_threshold,
         )
 
     def _init_backend(self) -> None:
-        try:
-            import webrtcvad  # type: ignore[import]
-            self._vad_backend = webrtcvad.Vad(self.config.aggressiveness)
-            log.info("webrtcvad loaded (aggressiveness=%d)", self.config.aggressiveness)
-        except ImportError:
-            log.info("webrtcvad not installed — using energy-based VAD")
-        except Exception as exc:
-            log.warning("webrtcvad init failed (%s) — using energy fallback", exc)
+        if self.config.backend in ("auto", "silero"):
+            try:
+                import onnxruntime as ort
+                import numpy as np
+                model_path = _find_silero_vad_path()
+                if model_path is not None:
+                    opts = ort.SessionOptions()
+                    opts.intra_op_num_threads = 1
+                    opts.inter_op_num_threads = 1
+                    self._silero_session = ort.InferenceSession(
+                        str(model_path), opts, providers=["CPUExecutionProvider"]
+                    )
+                    self._silero_h = np.zeros((1, 1, 128), dtype=np.float32)
+                    self._silero_c = np.zeros((1, 1, 128), dtype=np.float32)
+                    log.info("Silero VAD v6 ONNX loaded from %s (threshold=%.2f)", model_path, self.config.silero_threshold)
+                    return
+            except Exception as e:
+                log.debug("Silero VAD init skipped: %s", e)
+
+        if self.config.backend in ("auto", "webrtcvad"):
+            try:
+                import webrtcvad  # type: ignore[import]
+                self._vad_backend = webrtcvad.Vad(self.config.aggressiveness)
+                log.info("webrtcvad loaded (aggressiveness=%d)", self.config.aggressiveness)
+                return
+            except ImportError:
+                log.info("webrtcvad not installed — using energy-based VAD")
+            except Exception as exc:
+                log.warning("webrtcvad init failed (%s) — using energy fallback", exc)
 
     def is_speech(self, audio_chunk: bytes, sample_rate: int | None = None) -> bool:
         """Returns True if audio_chunk contains speech (PCM 16-bit signed mono)."""
-        if self.is_mock:
+        if self.is_mock or not audio_chunk:
             return False
         sr = sample_rate or self.config.sample_rate
-        if self._vad_backend is not None:
+
+        # 1. Silero VAD neural check if enabled
+        if self._silero_session is not None and self.config.backend != "energy":
+            try:
+                import numpy as np
+                count = len(audio_chunk) // 2
+                if count >= 32:
+                    shorts = np.frombuffer(audio_chunk[: count * 2], dtype=np.int16)
+                    f32 = (shorts.astype(np.float32) / 32768.0).reshape(1, -1)
+                    if f32.shape[1] < 576:
+                        pad = np.zeros((1, 576 - f32.shape[1]), dtype=np.float32)
+                        f32 = np.concatenate([f32, pad], axis=1)
+                    elif f32.shape[1] > 576:
+                        f32 = f32[:, :576]
+
+                    feeds = {"input": f32, "h": self._silero_h, "c": self._silero_c}
+                    out, self._silero_h, self._silero_c = self._silero_session.run(None, feeds)
+                    prob = float(out[0][0])
+                    if prob >= self.config.silero_threshold:
+                        return True
+            except Exception as s_exc:
+                log.debug("Silero VAD inference error: %s", s_exc)
+
+        # 2. webrtcvad check if available
+        if self._vad_backend is not None and self.config.backend != "energy":
             try:
                 frame_ms = self.config.frame_duration_ms
                 expected = int(sr * frame_ms / 1000) * 2
@@ -93,6 +168,8 @@ class VoiceActivityDetector:
                 return bool(self._vad_backend.is_speech(chunk, sr))
             except Exception as exc:
                 log.debug("webrtcvad error: %s", exc)
+
+        # 3. Energy fallback
         return self._energy_is_speech(audio_chunk)
 
     def _energy_is_speech(self, audio_chunk: bytes) -> bool:

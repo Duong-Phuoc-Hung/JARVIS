@@ -24,12 +24,16 @@ from jarvis.nlp.automation.unrecognized_collector import (
 
 
 def test_scrub_pii():
-    text = "Gửi mật khẩu 123456 vào email hung@gmail.com hoặc gọi 0912345678"
+    text = "Gửi mật khẩu 123456 vào email hung@gmail.com hoặc gọi 0912345678 kèm thẻ 1234-5678-9012-3456"
     scrubbed = scrub_pii(text)
     assert "hung@gmail.com" not in scrubbed
     assert "[REDACTED_EMAIL]" in scrubbed
     assert "0912345678" not in scrubbed
     assert "[REDACTED_PHONE]" in scrubbed
+    assert "123456" not in scrubbed
+    assert "[REDACTED_PASSWORD]" in scrubbed
+    assert "1234-5678-9012-3456" not in scrubbed
+    assert "[REDACTED_CARD]" in scrubbed
 
 
 def test_unrecognized_turn_collector_lifecycle():

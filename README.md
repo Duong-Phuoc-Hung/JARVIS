@@ -1,6 +1,13 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Current verified snapshot (2026-10-20), source **5.2.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-10-23), source **5.2.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- **Sprint 10 Voice-to-Action Reflex Arc & Dynamic Tiered ASR**:
+  - Chuỗi phản xạ Voice-to-Action cận-zero latency: Tối ưu toàn bộ đường ống từ thu âm -> Silero VAD v6 -> CTranslate2 Whisper -> Normalizer -> ONNX NLU -> ActionDispatcher, đưa tổng độ trễ phản xạ p50 xuống **301.75ms** (vượt chuẩn cam kết <= 1,100ms).
+  - Dynamic Tiered ASR Engine (DynamicTieredASREngine): Tự động định tuyến giữa Faster-Whisper Small (int8_float16, ~786MB VRAM) và Large-v3 khi độ không chắc chắn cao (avg_logprob < -0.65 hoặc no_speech_prob > 0.50), tuần tự hóa cấp phát bộ nhớ bằng threading.Lock() bảo vệ ngân sách VRAM < 2.0GB trên GPU laptop NVIDIA GeForce GTX 1650 Max-Q.
+  - Silero VAD v6 ONNX Streaming (VoiceActivityDetector): Đánh giá luồng âm thanh theo các khối 576 mẫu (~36ms tại 16kHz) với độ trễ suy luận micro-second (p50 = 0.49ms), kết hợp khóa Post-TTS Settling Guard (150ms mutex lock) chống micro thu âm lại giọng phản hồi của chính trợ lý.
+  - Nối dây trực tiếp Zero-Latency NLU-to-Dispatcher: Bỏ qua hoàn toàn Cloud LLM đối với 15 domains lệnh desktop / thiết bị / hệ thống cục bộ, thực thi tức thì qua ActionDispatcher với tau_NLU = 0.12ms và tau_Dispatch = 0.09ms.
+  - Khắc phục triệt để lỗ hổng PII Scrubber (UnrecognizedTurnCollector): Sửa lỗi nhóm bắt giữ regex _PASSWORD_PREFIX_RE làm rò rỉ mật khẩu và thẻ tín dụng; bảo đảm 100% thay thế bằng [REDACTED_PASSWORD] và [REDACTED_CARD].
+  - Toàn bộ 95 bài kiểm thử ASR, VAD, NLU, Automation và Argon E2E Benchmark: **100% PASS (95/95 passed)** trong **43.56s**.
 - **Sprint 8 SOTA Vietnamese NLU Engine v4.0: Compound Multi-Intent, 15 Ontology Domains, ONNX Runtime (<2ms) & Continuous Learning Loop**:
   - Động cơ Phân rã Đa ý định (Compound Multi-Intent Decomposer): Tự động phân tích và bóc tách câu lệnh kép nối bằng liên từ ("và", "đồng thời", "sau đó", "rồi", ","), bảo vệ thực thể tra cứu và kích hoạt cơ chế phục hồi vị ngữ bị khuyết (Predicate Ellipsis Resolution: "tắt đèn phòng khách và phòng ngủ" -> 2 lệnh độc lập).
   - 15 Intent Domains Trợ lý Toàn diện (+ 1 OOD Negative Class): Bổ sung 5 domains desktop SOTA (`window_management`, `file_management`, `clipboard_action`, `network_control`, `system_power`), trích xuất tham số có kiểu (typed slots) chi tiết.

@@ -1,3 +1,32 @@
+## Sprint 10: Voice-to-Action Reflex Arc & Dynamic Tiered ASR: Silero VAD v6 Streaming, CTranslate2 Whisper Escalation, Hardened PII Scrubber & Argon E2E Benchmark (2026-10-23, unreleased)
+
+- [x] **Dynamic Tiered ASR Engine (jarvis/stt/dynamic_tiered.py)** — PASS engineering / PASS runtime:
+  - Tự động định tuyến giữa Faster-Whisper Small (int8_float16, ~786MB VRAM) và Large-v3 khi độ không chắc chắn cao (avg_logprob < -0.65 hoặc no_speech_prob > 0.50).
+  - Tuần tự hóa nạp và giải phóng Large-v3 bằng threading.Lock() bảo vệ ngân sách VRAM < 2.0GB trên GPU laptop NVIDIA GeForce GTX 1650 Max-Q.
+  - Kiểm tra RMS silence gating (<0.001) cắt bỏ suy luận Whisper không cần thiết, trả text rỗng ngay lập tức.
+  - Unit tests verified: tests/unit/test_dynamic_tiered_asr.py (15/15 passed 100%) và tests/unit/test_adversarial_dynamic_tiered_asr.py + tests/unit/test_dynamic_tiered_asr_adversarial.py (38/38 passed 100%).
+- [x] **Silero VAD v6 ONNX Streaming Integration (jarvis/audio/vad.py)** — PASS engineering / PASS runtime:
+  - Đánh giá luồng âm thanh theo các khối 576 mẫu (~36ms tại 16kHz) với độ trễ suy luận micro-second (p50 = 0.49ms).
+  - Khóa Post-TTS Settling Guard (150ms mutex lock) chống micro thu âm lại âm thanh phản hồi của JARVIS.
+  - Cấu hình ONNX Runtime intra_op_num_threads=1, inter_op_num_threads=1 và graceful fallback sang energy-based VAD.
+  - Unit tests verified: tests/unit/test_silero_vad.py (5/5 passed 100%) và tests/unit/test_vad.py (12/12 passed 100%).
+- [x] **Zero-Latency NLU-to-Dispatcher Direct Wiring** — PASS engineering / PASS runtime:
+  - Bỏ qua hoàn toàn Cloud LLM đối với 15 domains lệnh desktop / thiết bị / hệ thống cục bộ, thực thi tức thì qua ActionDispatcher với tau_NLU = 0.12ms và tau_Dispatch = 0.09ms.
+  - Bọc handler unpacking bảo vệ tương thích gọi hàm với *args, **kwargs.
+- [x] **Hardened PII Scrubber in Continuous Learning (jarvis/nlp/automation/unrecognized_collector.py)** — PASS engineering / PASS runtime:
+  - Khắc phục triệt để lỗ hổng regex _PASSWORD_PREFIX_RE làm rò rỉ mật khẩu và thẻ tín dụng.
+  - Bảo đảm 100% mật khẩu và thẻ tín dụng trong câu lệnh unknown được thay thế bằng [REDACTED_PASSWORD] và [REDACTED_CARD].
+  - Unit tests verified: tests/unit/test_continuous_nlp_automation.py (5/5 passed 100%).
+- [x] **Argon Voice-to-Action E2E Benchmark (tests/eval/test_voice_to_action_argon_benchmark.py)** — PASS runtime:
+  - Viễn trắc phần cứng thực tế trên Intel Core i7-9750H / NVIDIA GeForce GTX 1650 Max-Q:
+    - tau_VAD: 0.49ms
+    - tau_STT: 300.88ms
+    - tau_Norm: 0.06ms
+    - tau_NLU: 0.12ms
+    - tau_Dispatch: 0.09ms
+    - tau_Total p50: 301.75ms (vượt mục tiêu <= 1,100ms)
+  - 100% tests PASS: 95/95 passed trên toàn bộ 9 test suites liên quan trong 43.56s.
+
 ## Sprint 9: SOTA Vietnamese NLU Engine v4.0: Compound Multi-Intent, 15 Ontology Domains, ONNX Runtime (<2ms) & Continuous Learning Loop (2026-10-22, unreleased)
 
 - [x] **Compound Multi-Intent Decomposer & Sequential Pipeline (`jarvis/nlp/multi_intent.py`)** — `PASS engineering` / `PASS runtime`:

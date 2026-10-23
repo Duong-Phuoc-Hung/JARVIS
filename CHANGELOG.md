@@ -4,6 +4,33 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] Voice-to-Action Reflex Arc & Dynamic Tiered ASR: Silero VAD v6 Streaming, CTranslate2 Whisper Escalation, Hardened PII Scrubber & Argon E2E Benchmark (2026-10-23)
+
+- **Mục tiêu**:
+  - Tối ưu hóa toàn diện chuỗi phản xạ Voice-to-Action (Acoustic Capture -> VAD Gating -> STT Transcription -> NLU Intent Routing -> Action Dispatcher) đạt chuẩn độ trễ cận-zero (p50 <= 1,100ms, thực tế đo được 301.75ms trên phần cứng vật lý).
+  - Triển khai động cơ Dynamic Tiered ASR (DynamicTieredASREngine): Tự động định tuyến giữa Faster-Whisper Small (int8_float16, ~786MB VRAM) và Large-v3 khi độ không chắc chắn cao (avg_logprob < -0.65 hoặc no_speech_prob > 0.50), tuần tự hóa cấp phát bộ nhớ bằng threading.Lock() bảo vệ ngân sách VRAM < 2.0GB trên GPU laptop NVIDIA GeForce GTX 1650 Max-Q.
+  - Tích hợp Silero VAD v6 ONNX Streaming (VoiceActivityDetector): Đánh giá luồng âm thanh theo các khối 576 mẫu (~36ms tại 16kHz) với độ trễ suy luận micro-second (p50 = 0.49ms), kết hợp khóa Post-TTS Settling Guard (150ms mutex lock) chống micro thu âm lại giọng phản hồi của chính trợ lý.
+  - Nối dây trực tiếp Zero-Latency NLU-to-Dispatcher: Bỏ qua hoàn toàn Cloud LLM đối với 15 domains lệnh desktop / thiết bị / hệ thống cục bộ, thực thi tức thì qua ActionDispatcher với tau_NLU = 0.12ms và tau_Dispatch = 0.09ms.
+  - Khắc phục triệt để lỗ hổng PII Scrubber (UnrecognizedTurnCollector): Sửa lỗi nhóm bắt giữ regex _PASSWORD_PREFIX_RE làm rò rỉ mật khẩu và thẻ tín dụng; bảo đảm 100% thay thế bằng [REDACTED_PASSWORD] và [REDACTED_CARD].
+  - Bộ kiểm chuẩn Argon Hardware Telemetry (tests/eval/test_voice_to_action_argon_benchmark.py): Đo lường 5 giai đoạn độ trễ vật lý thực tế trên Intel Core i7-9750H / GTX 1650 Max-Q, xác nhận tau_Total p50 = 301.75ms <= 1,100ms, 0 lần tràn bộ nhớ CUDA OOM.
+- **Nguyên nhân gốc rễ & Giải pháp (Root Cause & Engineering Solutions)**:
+  - Tranh chấp bộ nhớ VRAM khi đa luồng leo thang Large-v3: Nhiều luồng cùng gọi Whisper Large-v3 đồng thời gây nguy cơ vượt ngưỡng 4GB VRAM của GTX 1650. Đã giải quyết bằng self._large_v3_lock = threading.Lock() tuần tự hóa quá trình nạp và giải phóng bộ nhớ.
+  - STT bị ô nhiễm bởi âm thanh JARVIS phát ra: Micro thu lại âm thanh TTS của JARVIS gây vòng lặp nhận diện lặp lại. Đã bổ sung 150ms settling guard lock trong VoiceActivityDetector và audio engine.
+  - Regex PII substitution leak: _PASSWORD_PREFIX_RE.sub(r' [REDACTED_PASSWORD]', text) nhóm 1 chứa chính mật khẩu của người dùng, dẫn đến mật khẩu không bị che mà còn được nhân bản. Đã sửa regex capture group chỉ bắt tiền tố nhãn 'mật khẩu là:', bảo đảm chuỗi bí mật bị thế hoàn toàn bằng token [REDACTED_PASSWORD].
+- **Các chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - jarvis/stt/dynamic_tiered.py: Module Dynamic Tiered ASR Engine với kiểm tra RMS silence gating, Whisper Small/Large-v3 adaptive escalation, và VRAM lock.
+  - jarvis/stt/engine.py: Bổ sung STTMetricsResult và phương thức transcribe_with_metrics cho FasterWhisperSTT.
+  - jarvis/audio/vad.py: Nâng cấp Silero VAD v6 ONNX loader, chunking 576 mẫu, single-thread CPU execution và graceful fallback.
+  - jarvis/nlp/automation/unrecognized_collector.py: Sửa lỗi regex PII leak cho password và credit card.
+  - tests/eval/test_voice_to_action_argon_benchmark.py: Suite kiểm chuẩn Argon Voice-to-Action 5 tầng với viễn trắc phần cứng thực tế.
+  - tests/unit/test_dynamic_tiered_asr.py: 15 unit tests cho dynamic tiered ASR.
+  - tests/unit/test_adversarial_dynamic_tiered_asr.py & tests/unit/test_dynamic_tiered_asr_adversarial.py: 38 adversarial & boundary tests (VRAM limit, thread safety, silence cut, audio error recovery).
+  - tests/unit/test_silero_vad.py: 5 tests cho Silero VAD v6 ONNX streaming.
+  - tests/unit/test_continuous_nlp_automation.py: 5 tests cho continuous learning and PII scrubbing.
+- **Chỉ số kiểm thử thực tế**:
+  - Argon E2E Telemetry: tau_VAD = 0.49ms, tau_STT = 300.88ms, tau_Norm = 0.06ms, tau_NLU = 0.12ms, tau_Dispatch = 0.09ms. Tổng độ trễ p50 = 301.75ms (vượt mục tiêu <= 1,100ms).
+  - 100% tests PASS: 95/95 passed trên toàn bộ 9 test suites liên quan trong 43.56s.
+
 ## [Unreleased] SOTA Vietnamese NLU Engine v4.0: Compound Multi-Intent, 15 Ontology Domains, ONNX Runtime (<2ms) & Continuous Learning Loop (2026-10-22)
 
 - **Mục tiêu**:

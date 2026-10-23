@@ -29,7 +29,7 @@ DEFAULT_FEEDBACK_FILE = DEFAULT_FEEDBACK_DIR / "unrecognized_turns.jsonl"
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
 _PHONE_RE = re.compile(r"\b(?:\+?84|0)(?:\d{9}|\d{10})\b")
 _CREDIT_CARD_RE = re.compile(r"\b(?:\d{4}[ -]?){3}\d{4}\b")
-_PASSWORD_PREFIX_RE = re.compile(r"(?:mật khẩu|pass|password|mk|mã pin)\s+(?:là\s+)?(\S+)", re.IGNORECASE)
+_PASSWORD_PREFIX_RE = re.compile(r"((?:mật khẩu|pass|password|mk|mã pin)(?:\s+là)?\s+)(\S+)", re.IGNORECASE)
 
 
 def scrub_pii(text: str) -> str:
@@ -39,7 +39,7 @@ def scrub_pii(text: str) -> str:
     scrubbed = _EMAIL_RE.sub("[REDACTED_EMAIL]", text)
     scrubbed = _PHONE_RE.sub("[REDACTED_PHONE]", scrubbed)
     scrubbed = _CREDIT_CARD_RE.sub("[REDACTED_CARD]", scrubbed)
-    scrubbed = _PASSWORD_PREFIX_RE.sub(r"\1 [REDACTED_PASSWORD]", scrubbed)
+    scrubbed = _PASSWORD_PREFIX_RE.sub(r"\1[REDACTED_PASSWORD]", scrubbed)
     return scrubbed.strip()
 
 
