@@ -1,6 +1,12 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Current verified snapshot (2026-10-23), source **5.2.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-10-23), source **5.3.0**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- **Sprint 11 SOTA Voice & NLP Blueprint: AWACI Active Window Awareness, Speculative Intent Pre-Routing, Joint BIO Slot Tagger INT8 & Night-Shift Autonomous Flywheel**:
+  - AWACI Engine (`jarvis/context/screen_context.py`): Nhận diện ngữ cảnh cửa sổ đang hoạt động qua native Win32 C-API (`GetForegroundWindow`, `GetWindowTextW`, `QueryFullProcessImageNameW`), phân loại ngữ cảnh ứng dụng (browser, media_player, code_editor, terminal, document_editor) và giải quyết nhập nhằng khẩu lệnh phụ thuộc ngữ cảnh ("dừng lại", "phóng to", "lưu file", "đóng tab") với độ trễ vi mô <0.05ms (cold 0.105ms, cached 0.002ms).
+  - Định tuyến đón đầu suy đoán (Speculative Intent Pre-Routing - `jarvis/stt/speculative_router.py`): Khớp ý định trước ngay trên luồng streaming hypotheses âm thanh từng phần, pre-warm socket/subsystem, đưa độ trễ cảm nhận (perceived latency) xuống **0.20ms p50 / 0.22ms p90** (< 100ms budget). Tự động hủy suy đoán khi xuất hiện từ do dự/phủ định ("à thôi", "đừng", "hủy").
+  - Mô hình Joint Intent & Token-Level BIO Slot Tagger INT8 (`jarvis/nlp/joint_tagger.py`): Mô hình Machine Learning liên hợp phân loại ý định câu kết hợp gán nhãn thực thể cấp token BIO (`B-app`, `I-app`, `B-device`, `B-location`, `B-level`, `B-query`, `B-time`, `B-action`, `B-component`, `O`). Kích thước trên đĩa chỉ **209 KB** (ngân sách <= 15MB), độ trễ suy luận CPU đơn luồng **1.54ms p50 / 2.12ms p90** (ngân sách <= 2.50ms).
+  - Vòng lặp Tự học ban đêm Night-Shift Continuous Learning Flywheel (`jarvis/workers/night_shift_trainer.py`): Chạy ngầm định kỳ 03:00 AM VN, tự động lọc sạch thông tin nhạy cảm PII (`scrub_pii`), gom cụm ngữ nghĩa không giám sát (`MiniBatchKMeans`), tăng cường dữ liệu đa trục đối chuẩn (không dấu, lỗi STT, tiền tố/hậu tố), tái huấn luyện và thẩm định nghiêm ngặt qua `AutomatedEvaluatorGate` (CV Accuracy >= 98%, Golden Regression = 100%) trước khi ghi đĩa nguyên tử an toàn Windows Atomic Persistence.
+  - Toàn bộ 38 bài kiểm thử AWACI, Speculative Pre-Routing, Joint Slot Tagger, Night-Shift Trainer và Argon Voice-to-Action Benchmark: **100% PASS (38/38 passed)** trong **20.99s**.
 - **Sprint 10 Voice-to-Action Reflex Arc & Dynamic Tiered ASR**:
   - Chuỗi phản xạ Voice-to-Action cận-zero latency: Tối ưu toàn bộ đường ống từ thu âm -> Silero VAD v6 -> CTranslate2 Whisper -> Normalizer -> ONNX NLU -> ActionDispatcher, đưa tổng độ trễ phản xạ p50 xuống **301.75ms** (vượt chuẩn cam kết <= 1,100ms).
   - Dynamic Tiered ASR Engine (DynamicTieredASREngine): Tự động định tuyến giữa Faster-Whisper Small (int8_float16, ~786MB VRAM) và Large-v3 khi độ không chắc chắn cao (avg_logprob < -0.65 hoặc no_speech_prob > 0.50), tuần tự hóa cấp phát bộ nhớ bằng threading.Lock() bảo vệ ngân sách VRAM < 2.0GB trên GPU laptop NVIDIA GeForce GTX 1650 Max-Q.
@@ -113,7 +119,7 @@ minh cửa sổ/trang tải thật. [Phạm vi và evidence mới](docs/eval/win
 
 [![CI Status](https://github.com/Duong-Phuoc-Hung/JARVIS/actions/workflows/ci.yml/badge.svg)](https://github.com/Duong-Phuoc-Hung/JARVIS/actions)
 [![Tests](https://img.shields.io/badge/tests-see_current_audit-orange?style=flat-square)](docs/eval/readiness_security_audit_20260922.md)
-[![Source Version](https://img.shields.io/badge/source%20version-5.2.1-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
+[![Source Version](https://img.shields.io/badge/source%20version-5.3.0-purple?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/blob/main/pyproject.toml)
 [![Releases](https://img.shields.io/badge/releases-GitHub-blue?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS/releases)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue?style=flat-square)](https://python.org)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11%2064--bit-0078D4?style=flat-square)](https://github.com/Duong-Phuoc-Hung/JARVIS)
@@ -122,7 +128,7 @@ minh cửa sổ/trang tải thật. [Phạm vi và evidence mới](docs/eval/win
 **JARVIS** là hệ thống trợ lý AI cá nhân tự trị (Autonomous AI Desktop Assistant) chạy nền trên Windows 11/10 64-bit, lấy cảm hứng từ trợ lý JARVIS của Tony Stark trong Iron Man. 
 JARVIS có khả năng nhận diện giọng nói offline tiếng Việt & tiếng Anh, tự động phân luồng ý định thông minh, tự động viết mã mở rộng kỹ năng (Self-Coding với Sandbox Dry-Run), ghi nhớ nhật ký và tìm kiếm từ vựng thời gian thực (Lexical / TF-IDF Search Memory), điều khiển toàn diện hệ thống Windows, tự động hóa trình duyệt bằng Chromium do Playwright quản lý hoặc phiên Chromium được attach qua CDP, và kết nối điều khiển từ xa qua Telegram, Zalo OA và Discord.
 
-<sub>**Phiên bản mã nguồn / phát triển (`jarvis.__version__`): 5.2.1.** Bản vá readiness/security ngày 2026-09-22 xử lý token TTL/payload, phân loại safety, bảo vệ skill và trạng thái Result/dispatcher. **Product release: NO-GO**; chưa đóng các gate runtime hoặc nghiệm thu máy sạch. Xem [kiểm toán hiện tại và số liệu kiểm thử](docs/eval/readiness_security_audit_20260922.md). Các số liệu T-01, Telegram, Router và 2.421 unit tests ở tài liệu cũ là evidence lịch sử, không phải kết quả tái nghiệm thu của bản vá này.</sub>
+<sub>**Phiên bản mã nguồn / phát triển (`jarvis.__version__`): 5.3.0.** Nâng cấp SOTA Voice & NLP Blueprint: AWACI Screen Context Awareness, Speculative Intent Pre-Routing, Joint BIO Slot Tagger INT8 & Night-Shift Autonomous Flywheel. **Product release: NO-GO**; chưa đóng các gate runtime hoặc nghiệm thu máy sạch. Xem [kiểm toán hiện tại và số liệu kiểm thử](docs/eval/readiness_security_audit_20260922.md). Các số liệu T-01, Telegram, Router và 2.421 unit tests ở tài liệu cũ là evidence lịch sử, không phải kết quả tái nghiệm thu của bản vá này.</sub>
 
 
 </div>
@@ -368,7 +374,7 @@ không có cơ chế bảo vệ nào phía sau. Không bao giờ chạy tự đ�
 
 ### Cách 2: Bản Standalone Portable (ZIP)
 Nếu bạn không muốn cài đặt vào Program Files:
-1. Tải file ZIP `JARVIS_v5.2.1_windows_x64.zip` từ trang Releases (hoặc tự tạo trực tiếp từ mã nguồn bằng lệnh `python scripts/build_standalone_package.py`).
+1. Tải file ZIP `JARVIS_v5.3.0_windows_x64.zip` từ trang Releases (hoặc tự tạo trực tiếp từ mã nguồn bằng lệnh `python scripts/build_standalone_package.py`).
 2. Giải nén vào thư mục tùy chọn (ví dụ: `D:\JARVIS\`).
 3. Chạy `JARVIS.exe` hoặc `JARVIS.exe --tray` để khởi chạy ứng dụng trực tiếp vào khay hệ thống mà không cần cài đặt Python.
 

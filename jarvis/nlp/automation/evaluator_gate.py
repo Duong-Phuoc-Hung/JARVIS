@@ -86,12 +86,13 @@ class AutomatedEvaluatorGate:
         cv_acc = float(training_report.get("cv_accuracy_mean", 0.0))
         cv_f1 = float(training_report.get("cv_f1_macro_mean", 0.0))
 
-        if cv_acc < self.min_cv_accuracy:
+        import math
+        if math.isnan(cv_acc) or cv_acc < self.min_cv_accuracy:
             rejection_reasons.append(
                 f"CV Accuracy {cv_acc * 100:.2f}% below threshold {self.min_cv_accuracy * 100:.2f}%"
             )
 
-        if cv_f1 < self.min_cv_f1:
+        if math.isnan(cv_f1) or cv_f1 < self.min_cv_f1:
             rejection_reasons.append(
                 f"CV F1-Macro {cv_f1 * 100:.2f}% below threshold {self.min_cv_f1 * 100:.2f}%"
             )

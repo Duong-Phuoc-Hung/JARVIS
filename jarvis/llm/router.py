@@ -283,11 +283,13 @@ class LLMIntentRouter:
         fast_path_enabled: bool = True,
         memory_manager: Any | None = None,
         ml_fast_path_enabled: bool = False,
+        awaci_enabled: bool = True,
     ) -> None:
         self.llm = llm_client
         self.dispatcher = dispatcher
         self.fast_path_enabled = fast_path_enabled
         self.ml_fast_path_enabled = ml_fast_path_enabled
+        self.awaci_enabled = awaci_enabled
         self.memory_manager = memory_manager
         self._memory_manager = memory_manager
         self.semantic_router: LocalSemanticRouter = LocalSemanticRouter()
@@ -296,6 +298,12 @@ class LLMIntentRouter:
         except Exception as _e:
             logger.debug("Failed initializing VietnameseNLPClassifier: %s", _e)
             self.ml_classifier = None
+        try:
+            from jarvis.context.screen_context import AWACIEngine
+            self.awaci_engine: AWACIEngine | None = AWACIEngine()
+        except Exception as _e:
+            logger.debug("Failed initializing AWACIEngine: %s", _e)
+            self.awaci_engine = None
 
         # Compiled Deterministic Rule Engine for Substring Matching
         self.rule_engine: dict[str, IntentResult] = get_default_rules()
@@ -1898,9 +1906,16 @@ class LLMIntentRouter:
         available_actions: list[str] | None = None,
         context: dict[str, Any] | None = None,
         force_llm: bool = False,
+        window_context: Any | None = None,
     ) -> IntentResult:
         """Alias for parse_intent()."""
-        return self.parse_intent(text, available_actions=available_actions, context=context, force_llm=force_llm)
+        return self.parse_intent(
+            text,
+            available_actions=available_actions,
+            context=context,
+            force_llm=force_llm,
+            window_context=window_context,
+        )
 
     def parse_multi_intent(
         self,
@@ -1908,17 +1923,24 @@ class LLMIntentRouter:
         available_actions: list[str] | None = None,
         context: dict[str, Any] | None = None,
         force_llm: bool = False,
+        window_context: Any | None = None,
     ) -> list[IntentResult]:
         """
         Parses user query into one or more sequential IntentResults.
         Supports compound multi-action sentences (e.g. 'tắt đèn phòng khách và bật điều hòa 24 độ').
         """
         if not text:
-            return [self.parse_intent(text)]
+            return [self.parse_intent(text, window_context=window_context)]
         from jarvis.nlp.multi_intent import split_compound_utterance
         clauses = split_compound_utterance(text.strip())
         if len(clauses) <= 1:
-            return [self.parse_intent(text, available_actions=available_actions, context=context, force_llm=force_llm)]
+            return [self.parse_intent(
+                text,
+                available_actions=available_actions,
+                context=context,
+                force_llm=force_llm,
+                window_context=window_context,
+            )]
         results: list[IntentResult] = []
         for cl in clauses:
             res = self.parse_intent(
@@ -1927,6 +1949,7 @@ class LLMIntentRouter:
                 context=context,
                 force_llm=force_llm,
                 _is_sub_clause=True,
+                window_context=window_context,
             )
             results.append(res)
         return results
@@ -1938,6 +1961,7 @@ class LLMIntentRouter:
         context: dict[str, Any] | None = None,
         force_llm: bool = False,
         _is_sub_clause: bool = False,
+        window_context: Any | None = None,
     ) -> IntentResult:
         """
         Parses user voice/text query into structured tool calling IntentResult.
@@ -2085,6 +2109,32 @@ class LLMIntentRouter:
 
         # 1. TIER 1: Fast Rule Check (Sub-millisecond)
         if not force_llm and self.fast_path_enabled:
+            # AWACI Active Window & Screen Context Disambiguation (<0.05ms)
+            if getattr(self, "awaci_enabled", True) and getattr(self, "awaci_engine", None):
+                win_ctx = window_context
+                if win_ctx is None and context and isinstance(context, dict):
+                    win_ctx = context.get("window_context")
+                if isinstance(win_ctx, dict):
+                    from jarvis.context.screen_context import WindowContext
+                    win_ctx = WindowContext(**win_ctx)
+
+                awaci_match = self.awaci_engine.disambiguate_intent(
+                    text=clean_for_regex,
+                    current_intent="unknown",
+                    current_params=None,
+                    context=win_ctx,
+                )
+                if awaci_match is not None:
+                    act_name, act_params, resp_text, conf = awaci_match
+                    return IntentResult(
+                        action_name=act_name,
+                        parameters=act_params,
+                        confidence=conf,
+                        source="awaci_context",
+                        raw_text=text,
+                        response_text=resp_text,
+                    )
+
             installed_intent = self._match_installed_app_request(text, explicit_only=True)
             if installed_intent is not None:
                 return installed_intent

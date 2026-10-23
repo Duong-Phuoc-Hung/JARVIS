@@ -429,6 +429,12 @@ class VietnameseNLPClassifier:
         self.classes_: list[str] = []
         self.onnx_engine: Any = None
         self._lock = threading.Lock()
+        try:
+            from jarvis.nlp.joint_tagger import JointIntentSlotTagger
+            self.joint_tagger: Any = JointIntentSlotTagger()
+        except Exception as _je:
+            logger.debug("JointIntentSlotTagger unavailable: %s", _je)
+            self.joint_tagger = None
         self._load_if_exists()
 
     @property
@@ -531,6 +537,7 @@ class VietnameseNLPClassifier:
         with self._lock:
             self.pipeline = pipeline
             self.classes_ = list(pipeline.classes_)
+            self.onnx_engine = None
 
         report = {
             "num_samples": len(samples),
@@ -628,11 +635,18 @@ class VietnameseNLPClassifier:
                         slots={},
                     )
 
+            used_onnx = False
             if self.onnx_engine is not None and self.onnx_engine.is_ready and feat_union is not None:
-                feat_vec = feat_union.transform([clean]).toarray().astype(np.float32)
-                raw_intent, top_confidence, scores_dict = self.onnx_engine.predict_proba(feat_vec)
-                top_intent = raw_intent if (top_confidence >= self.min_confidence and raw_intent != "unknown") else "unknown"
-            else:
+                try:
+                    feat_vec = feat_union.transform([clean]).toarray().astype(np.float32)
+                    raw_intent, top_confidence, scores_dict = self.onnx_engine.predict_proba(feat_vec)
+                    top_intent = raw_intent if (top_confidence >= self.min_confidence and raw_intent != "unknown") else "unknown"
+                    used_onnx = True
+                except Exception as _oe:
+                    logger.debug("ONNX execution fallback to pipeline: %s", _oe)
+                    self.onnx_engine = None
+
+            if not used_onnx:
                 probs = self.pipeline.predict_proba([clean])[0]
                 classes = self.classes_
                 top_idx = int(np.argmax(probs))
@@ -642,7 +656,22 @@ class VietnameseNLPClassifier:
                 scores_dict = {cls_name: float(p) for cls_name, p in zip(classes, probs)}
         dur_ms = (time.monotonic() - t0) * 1000.0
 
-        slots = extract_slots_for_intent(top_intent, raw_text) if top_intent != "unknown" else {}
+        if top_intent != "unknown":
+            if getattr(self, "joint_tagger", None) and getattr(self.joint_tagger, "is_ready", False):
+                try:
+                    joint_res = self.joint_tagger.predict(raw_text)
+                    slots = dict(joint_res.slots)
+                    regex_slots = extract_slots_for_intent(top_intent, raw_text)
+                    for k, v in regex_slots.items():
+                        if k not in slots or not slots[k]:
+                            slots[k] = v
+                except Exception as _je:
+                    logger.debug("Joint slot extraction fallback: %s", _je)
+                    slots = extract_slots_for_intent(top_intent, raw_text)
+            else:
+                slots = extract_slots_for_intent(top_intent, raw_text)
+        else:
+            slots = {}
 
         return ClassificationResult(
             intent=top_intent,

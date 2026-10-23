@@ -49,6 +49,8 @@ class StreamingHypothesis:
     confidence: float = 1.0
     duration_ms: float = 0.0
     timestamp: float = field(default_factory=time.time)
+    speculative_candidate: Any | None = None
+    speculative_hit: bool = False
 
 
 class StreamingSTTSession:
@@ -64,12 +66,14 @@ class StreamingSTTSession:
         on_partial: Callable[[str], None] | None = None,
         on_final: Callable[[str], None] | None = None,
         on_speech_start: Callable[[], None] | None = None,
+        speculative_router: Any | None = None,
     ) -> None:
         self.transcriber_fn = transcriber_fn
         self.config = config or StreamingConfig()
         self.on_partial = on_partial
         self.on_final = on_final
         self.on_speech_start = on_speech_start
+        self.speculative_router = speculative_router
 
         self._lock = threading.RLock()
         self._is_active = True
@@ -180,6 +184,12 @@ class StreamingSTTSession:
 
             if clean_text and clean_text != self._last_hypothesis:
                 self._last_hypothesis = clean_text
+                spec_cand = None
+                if getattr(self, "speculative_router", None):
+                    try:
+                        spec_cand = self.speculative_router.on_partial_hypothesis(clean_text)
+                    except Exception as e:
+                        logger.debug("Speculative router partial error: %s", e)
                 if self.on_partial:
                     try:
                         self.on_partial(clean_text)
@@ -190,6 +200,7 @@ class StreamingSTTSession:
                     is_final=False,
                     confidence=0.85,
                     duration_ms=dur_ms,
+                    speculative_candidate=spec_cand,
                 )
         except Exception as e:
             logger.warning("Streaming partial transcription error: %s", e)
@@ -212,6 +223,15 @@ class StreamingSTTSession:
                 logger.error("Streaming final transcription error: %s", e)
                 final_text = self._last_hypothesis
 
+        # Speculative resolution
+        spec_intent = None
+        is_hit = False
+        if getattr(self, "speculative_router", None) and final_text:
+            try:
+                spec_intent, is_hit = self.speculative_router.on_final_hypothesis(final_text)
+            except Exception as e:
+                logger.debug("Speculative router final error: %s", e)
+
         # Reset session state for next speech utterance
         self._speech_active = False
         self._consecutive_silence_samples = 0
@@ -230,6 +250,8 @@ class StreamingSTTSession:
             is_final=True,
             confidence=0.95 if final_text else 0.0,
             duration_ms=dur_ms,
+            speculative_candidate=spec_intent,
+            speculative_hit=is_hit,
         )
 
     def finish(self) -> str:

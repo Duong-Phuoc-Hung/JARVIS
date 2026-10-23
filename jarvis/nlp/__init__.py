@@ -3,6 +3,7 @@ jarvis.nlp
 ==========
 Natural Language Understanding and Acoustic Processing Subsystem for JARVIS.
 Includes:
+  - Joint Intent & Token-Level Slot Tagging Engine (JointIntentSlotTagger).
   - Compound Multi-Intent Decomposer & Sequential Pipeline.
   - Vietnamese Acoustic & Phonetic STT Normalizer.
   - High-performance ONNX Runtime Classifier.
@@ -10,6 +11,16 @@ Includes:
 """
 from __future__ import annotations
 
+from jarvis.nlp.joint_tagger import (
+    JointIntentSlotResult,
+    JointIntentSlotTagger,
+    build_default_joint_dataset,
+)
+from jarvis.nlp.phonetic_normalizer import normalize_phonetic_stt
+
 __all__ = [
-    "multi_intent",
+    "JointIntentSlotResult",
+    "JointIntentSlotTagger",
+    "build_default_joint_dataset",
+    "normalize_phonetic_stt",
 ]
