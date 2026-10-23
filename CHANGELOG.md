@@ -28,17 +28,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `jarvis/stt/dynamic_tiered.py`: Tích hợp `contextual_biaser` vào `DynamicTieredASREngine`, áp dụng trần 15 tokens cho cả prompt do caller cung cấp.
   - `jarvis/stt/faster_whisper.py`: Tích hợp `contextual_biaser` vào `FasterWhisperSTTEngine`, xuất khẩu alias `FasterWhisperEngine`, đảm bảo prompt mồi không vượt quá 15 tokens.
   - `jarvis/nlp/multi_intent.py`: Xây dựng `MacroStep`, `MacroDAGExecutionResult`, `DeclarativeMacroDAG`, bổ sung `compile_dag` và `execute_dag` vào `CompoundIntentDecomposer`, hỗ trợ kế thừa ngữ cảnh thay thế placeholder ('current', 'nó').
-  - `jarvis/llm/local_reasoner.py`: Xây dựng `ArgonNanoLocalReasoner` xử lý anaphora (bao gồm "làm lại cái này", "đóng cái đó"), hardware heuristics ("dọn ram"), trích xuất tên bài hát Spotify, và hỗ trợ lịch sử dạng IntentResult/dict trên CPU.
-  - `jarvis/llm/router.py`: Tích hợp `ArgonNanoLocalReasoner` vào `LLMIntentRouter.__init__` (hỗ trợ dependency injection) và `parse_intent`, bổ sung `_record_turn_history` và `record_history`, cập nhật `execute_intent` kế thừa ngữ cảnh macro DAG đa dạng kiểu dữ liệu.
+  - `jarvis/llm/local_reasoner.py`: Xây dựng `ArgonNanoLocalReasoner` xử lý anaphora (bao gồm "làm lại cái này", "đóng cái đó"), hardware heuristics ("dọn ram"), loại trừ 'spotify'/'spotifile' khỏi candidate trích xuất bài hát, và hỗ trợ lịch sử dạng IntentResult/dict trên CPU.
+  - `jarvis/llm/router.py`: Tích hợp `ArgonNanoLocalReasoner` vào `LLMIntentRouter.__init__` (hỗ trợ dependency injection) và `parse_intent`, bổ sung `_record_turn_history` và `record_history`, cập nhật `execute_intent` kế thừa ngữ cảnh macro DAG đa dạng kiểu dữ liệu; chuẩn hóa bóc tách tiền tố xưng hô (`clean_normalized`) trước khi phân rã compound multi-intent (sửa lỗi "Hey JARVIS, dừng nói" bị tách nhầm thành greeting + tts_stop); siết chặt bất biến single-target cho các lệnh mở ứng dụng desktop (báo lỗi `clarify=True` khi phát hiện nhiều ứng dụng ghép `all(app_open)` thay vì mở ồ ạt nhiều phần mềm).
+  - `jarvis/plugins/spotify.py`: Khử từ khóa nền tảng 'spotify'/'spotifile' trong `query`, phát URI bài hát mặc định cho các khẩu lệnh mở nhạc chung ("mở nhạc spotify"), bảo toàn tính đồng nhất 100% URI launch trong ma trận alias H07.
   - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `5.5.0`.
   - `tests/unit/test_speaker_gating.py`: 12 bài kiểm thử đơn vị cho VoiceBiometricsGate và ActionDispatcher.
   - `tests/unit/test_contextual_biaser.py`: 14 bài kiểm thử đơn vị cho ContextualPromptBiaser và FasterWhisperEngine.
   - `tests/unit/test_macro_dag.py`: 7 bài kiểm thử đơn vị cho DeclarativeMacroDAG và context inheritance.
   - `tests/unit/test_local_reasoner.py`: 19 bài kiểm thử đơn vị cho ArgonNanoLocalReasoner và LLMIntentRouter.
 - **Chỉ số kiểm thử thực tế**:
-  - Toàn bộ 4 test suites mới: **52 passed in 7.02s (100% PASS)**.
-  - Argon Benchmark viễn trắc (`test_voice_to_action_argon_benchmark.py`): **6 passed in 14.08s (100% PASS)**.
-  - Hồi quy toàn bộ test suite unit: **571 passed, 1 skipped, 15 subtests passed in 38.64s**.
+  - Toàn bộ test suites Argon mới: **59 passed in 6.25s (100% PASS)**.
+  - Targeted regression suite (Barge-in, Installed App Routing, Spotify H07 Alias Matrix): **102 passed, 25 subtests passed in 30.49s (100% PASS)**.
+  - Argon Benchmark viễn trắc (`test_voice_to_action_argon_benchmark.py`): **6 passed in 10.90s (100% PASS)**.
+  - Hồi quy toàn bộ test suite unit repository: **3,383 passed (100% PASS, exit code 0)**.
   - Tiêu thụ GPU VRAM tăng thêm: **0 MB** (hoàn toàn CPU native).
   - Độ trễ ArgonNanoLocalReasoner CPU: **< 0.05ms** (ngân sách cam kết <= 5.0ms).
 

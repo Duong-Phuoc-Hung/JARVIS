@@ -87,7 +87,7 @@ class SpotifyPlugin(BasePlugin):
             import urllib.parse
             clean_q = re.sub(r"\s+(?:trên|ở|qua|tai|tại)\s+(?:spotify|spotifile)$", "", query, flags=re.IGNORECASE).strip()
             clean_q = re.sub(r"^(?:bài\s*hát|bài|bai|song|nhạc|nhac)\s+", "", clean_q, flags=re.IGNORECASE).strip()
-            if clean_q:
+            if clean_q and clean_q.lower() not in ("spotify", "spotifile"):
                 target = f"spotify:search:{urllib.parse.quote(clean_q)}"
             else:
                 target = (song_uri or self.default_song_uri).strip()

@@ -208,11 +208,11 @@ class ArgonNanoLocalReasoner:
             m_song = re.search(r"(?:bài\s*(?:hát)?|bài|nhạc)\s+([a-zA-Z0-9\s_à-ỹÀ-Ỹ]+)$", raw_text.strip(), re.IGNORECASE)
             if m_song:
                 candidate = m_song.group(1).strip()
-                if candidate.lower() not in ("lên", "đi", "nghe", "cho tôi", "nhé", "nào", "nữa", "lên đi"):
+                if candidate.lower() not in ("lên", "đi", "nghe", "cho tôi", "nhé", "nào", "nữa", "lên đi", "spotify", "spotifile"):
                     query = candidate
             return IntentResult(
                 action_name="spotify",
-                parameters={"query": query, "action": "play"},
+                parameters={"query": query, "action": "play"} if query else {"query": "", "name": "spotify", "action": "play"},
                 confidence=0.85,
                 source="argon_nano_local_reasoner",
                 raw_text=raw_text,

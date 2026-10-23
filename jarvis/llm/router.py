@@ -638,9 +638,9 @@ class LLMIntentRouter:
                         if re.search(r"\b(?:trên|ở|qua|tai|tại)\s+(?:youtube|yt)$", raw_q, re.IGNORECASE)
                         else IntentResult(
                             action_name="spotify",
-                            parameters={"query": raw_q} if raw_q else {"command": "play", "query": ""},
+                            parameters={"query": raw_q} if (raw_q and raw_q.lower() not in ("spotify", "spotifile")) else {"command": "play", "query": "", "name": "spotify"},
                             source="rule_fallback",
-                            response_text=f"Đang mở Spotify và phát {raw_q} cho Ngài." if raw_q else "Đang mở Spotify và phát nhạc cho Ngài.",
+                            response_text=f"Đang mở Spotify và phát {raw_q} cho Ngài." if (raw_q and raw_q.lower() not in ("spotify", "spotifile")) else "Đang mở Spotify và phát nhạc cho Ngài.",
                         )
                     ))(re.sub(r"^(?:bài\s*hát|bai\s*hat|bài|bai|song)\s+", "", m.group(1).strip(), flags=re.IGNORECASE) if (m.lastindex and m.group(1) and m.group(1).strip()) else "")
                 ),
@@ -2045,11 +2045,20 @@ class LLMIntentRouter:
             except Exception as _ex:
                 logger.debug('Disfluency and phonetic pre-cleaning skipped: %s', _ex)
 
+        # Strip common conversational vocatives and filler prefixes (e.g. "jarvis ơi", "ê jarvis", "này jarvis", "làm ơn")
+        clean_normalized = re.sub(
+            r"^(?:(?:ê|này|hey|hi|hello)?\s*jarvis(?:\s*ơi|\s*à|\s*nhe|\s*nhé)?|[êe]|này|làm\s*ơn|hãy\s*giúp\s*(?:tôi|tao|mình)|giúp\s*(?:tôi|tao|mình)\s*(?:với)?|cho\s*hỏi\s*xíu)[,\s]+",
+            "",
+            clean,
+            flags=re.IGNORECASE,
+        ).strip()
+        clean_to_split = clean_normalized if clean_normalized else clean
+
         # Compound Multi-Intent Pre-check: If this is the root query and not forced LLM
-        if not _is_sub_clause and not force_llm and clean:
+        if not _is_sub_clause and not force_llm and clean_to_split:
             try:
                 from jarvis.nlp.multi_intent import split_compound_utterance
-                clauses = split_compound_utterance(clean)
+                clauses = split_compound_utterance(clean_to_split)
                 if len(clauses) > 1:
                     sub_results: list[IntentResult] = []
                     for cl in clauses:
@@ -2061,6 +2070,22 @@ class LLMIntentRouter:
                             _is_sub_clause=True,
                         )
                         sub_results.append(sub_res)
+
+                    # If any sub-clause asked for clarification, prioritize it
+                    clarify_res = next((r for r in sub_results if r.parameters.get("clarify")), None)
+                    if clarify_res is not None:
+                        return clarify_res
+
+                    # Disallow compounding multiple installed application launches (invariant: ask for one app)
+                    if all(r.action_name == "app_open" for r in sub_results):
+                        return IntentResult(
+                            action_name="unknown_intent",
+                            parameters={"raw_text": text, "clarify": True},
+                            confidence=0.0,
+                            source="rule_fallback",
+                            raw_text=text,
+                            response_text="Ngài vui lòng nói tên một ứng dụng cần mở trong một lệnh ngắn.",
+                        )
 
                     # Only promote to compound action if all sub-clauses resolve to known, non-unknown intents
                     if all(r.action_name != "unknown_intent" for r in sub_results):
@@ -2085,17 +2110,11 @@ class LLMIntentRouter:
         # Truncate for REGEX only to prevent ReDoS on long inputs (e.g. 50KB adversarial strings).
         # Dict-key _match_rule_key uses simple 'in' substring checks which are O(n) safe.
         _MAX_REGEX_LEN = 512
-        clean_for_regex = clean[:_MAX_REGEX_LEN] if len(clean) > _MAX_REGEX_LEN else clean
-
-        # Strip common conversational vocatives and filler prefixes (e.g. "jarvis ơi", "ê jarvis", "này jarvis", "làm ơn")
-        clean_normalized = re.sub(
-            r"^(?:(?:ê|này|hey|hi|hello)?\s*jarvis(?:\s*ơi|\s*à|\s*nhe|\s*nhé)?|[êe]|này|làm\s*ơn|hãy\s*giúp\s*(?:tôi|tao|mình)|giúp\s*(?:tôi|tao|mình)\s*(?:với)?|cho\s*hỏi\s*xíu)[,\s]+",
-            "",
-            clean,
-            flags=re.IGNORECASE,
-        ).strip()
-        if clean_normalized:
-            clean_for_regex = clean_normalized[:_MAX_REGEX_LEN]
+        clean_for_regex = (
+            clean_normalized[:_MAX_REGEX_LEN]
+            if clean_normalized
+            else (clean[:_MAX_REGEX_LEN] if len(clean) > _MAX_REGEX_LEN else clean)
+        )
 
         clean_lower = clean_lower_full  # Used for dict rule key matching (full-text safe)
         clean_lower_stripped = (

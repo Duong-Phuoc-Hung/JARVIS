@@ -5,29 +5,30 @@
   - Phân quyền âm học: cho phép các lệnh safe/read-only (`weather`, `time_query`, `system_volume`, `screen_brightness`, `spotify`, `tts_stop`, `note_add`) cho mọi người nói xung quanh.
   - Chốt chặn fail-closed đối với các lệnh privileged (`system_power`, `system_config`, `network_control`, `command_execution`, `payment`, `delete`), yêu cầu Cosine Similarity >= 0.70 với mẫu giọng Master đã đăng ký.
   - Tích hợp trực tiếp vào `ActionDispatcher._evaluate_safety_gate`, `SafetyInterceptor.verify_voice_authority`, `JarvisApp._start_voice_interaction`, và `RequesterContext.speaker_similarity`.
-  - Unit tests verified: `tests/unit/test_speaker_gating.py` (9/9 passed 100%).
+  - Unit tests verified: `tests/unit/test_speaker_gating.py` (12/12 passed 100%).
 - [x] **Dynamic Contextual Biasing in Whisper Initial Prompt (`jarvis/stt/contextual_biaser.py`)** — `PASS engineering` / `PASS runtime`:
   - Trích xuất danh mục ứng dụng foreground và sub-context từ `AWACIEngine`.
   - Bổ sung bộ từ khóa chuyên ngành vào `initial_prompt` của Whisper STT với cơ chế cắt tỉa token cứng (`cap_prompt_tokens` strictly <= 15 tokens) triệt tiêu hoàn toàn nguy cơ lặp lại prompt mồi và ảo giác (hallucination).
   - Tích hợp vào `DynamicTieredASREngine` và `FasterWhisperSTTEngine`.
-  - Unit tests verified: `tests/unit/test_contextual_biaser.py` (11/11 passed 100%).
+  - Unit tests verified: `tests/unit/test_contextual_biaser.py` (14/14 passed 100%).
 - [x] **Compound Declarative Macro DAG Pipeline (`jarvis/nlp/multi_intent.py`)** — `PASS engineering` / `PASS runtime`:
   - Hiện thực hóa `MacroStep`, `MacroDAGExecutionResult`, và `DeclarativeMacroDAG`.
   - Kế thừa ngữ cảnh liên bước (inter-step context inheritance) cho các tham số `active_app`, `browser`, `hwnd`, `target`.
   - Cơ chế hủy giao dịch fail-closed (Fail-Closed Transactional Abortion): Khi bất kỳ bước tiền đề nào thất bại, toàn bộ các bước phụ thuộc tiếp theo lập tức bị hủy (`status='aborted'`) kèm thông báo lỗi rõ ràng.
   - Tích hợp vào `CompoundIntentDecomposer.compile_dag` / `execute_dag` và `LLMIntentRouter.execute_intent`.
-  - Unit tests verified: `tests/unit/test_macro_dag.py` (5/5 passed 100%).
+  - Unit tests verified: `tests/unit/test_macro_dag.py` (7/7 passed 100%).
 - [x] **In-Process Argon Native Nano Local Reasoner Adapter (`jarvis/llm/local_reasoner.py`)** — `PASS engineering` / `PASS runtime`:
   - Vỏ não Tier 2 Local Offline Reasoner chạy in-process trên CPU với 0 MB VRAM và độ trễ < 5ms.
   - Phân giải đại từ thay thế đa lượt hội thoại (Anaphora Resolution: "đóng nó lại", "làm lại cái đó", "phóng to nó", "tương tự với cửa sổ lúc nãy").
   - Phân giải các khẩu lệnh phần cứng và ứng dụng đời thường ("máy có nóng không", "dọn dẹp ram", "cho màn hình nghỉ", "phần mềm nghe nhạc", "lên youtube", "gõ code").
   - Tích hợp trực tiếp vào `LLMIntentRouter.parse_intent` làm bước phân giải Tier 2 trước khi gọi Cloud LLM và chốt chặn fallback offline trước khi trả về `unknown_intent`.
   - Tích hợp lưu trữ lịch sử hội thoại `_record_turn_history` và `record_history` trên `LLMIntentRouter`.
-  - Unit tests verified: `tests/unit/test_local_reasoner.py` (13/13 passed 100%).
+  - Unit tests verified: `tests/unit/test_local_reasoner.py` (19/19 passed 100%).
 - [x] **Argon Benchmark & Empirical Hardware Telemetry (`tests/eval/test_voice_to_action_argon_benchmark.py`)** — `PASS runtime`:
-  - 6/6 test cases pass 100% trong 12.36s.
+  - 6/6 test cases pass 100% trong 10.90s.
   - Tiêu thụ GPU VRAM tăng thêm: **0 MB** (hoàn toàn CPU native).
   - Độ trễ ArgonNanoLocalReasoner CPU: **< 0.05ms** (ngân sách cam kết <= 5.0ms).
+  - Hồi quy toàn bộ test suite unit: **3,383 passed (100% PASS, exit code 0)**.
 
 ## Sprint 12: Next-Gen Speech Frontiers & Spoken Disfluency Self-Correction Engine (Levelt Model) (2026-10-23, v5.4.0)
 
