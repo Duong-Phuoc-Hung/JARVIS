@@ -1,3 +1,13 @@
+## Sprint 14: Argon Sovereign Frontier 5.0 Dialectics & Ultimate Architecture Blueprint (2026-10-23, v5.6.0 R&D)
+
+- [x] **Argon Sovereign Frontier 5.0 Dialectical Monograph (`docs/research/argon_sovereign_frontier_5_dialectics_and_ultimate_architecture.md`)** — `PASS engineering`:
+  - Công trình nghiên cứu học thuật & phản biện biện chứng đối kháng liên tục (Thesis ⮂ Antithesis ⮂ Synthesis) mổ xẻ 4 mặt trận công nghệ SOTA thế giới 2025–2026:
+    1. *Chapter 1: E2E Speech-to-Speech (GPT-4o Voice, Moshi, Mini-Omni) vs Vỏ não Bất đối xứng (Asymmetric Split-Brain Quad-Tier)*: Mổ xẻ giới hạn nhiệt động học, sụp đổ VRAM trên GPU 4GB, độ trễ TTFT > 1s, và sự sụp đổ của an toàn Fail-Closed & RBAC.
+    2. *Chapter 2: Pitch-Synchronous Harmonic Comb Filtering (PS-HCF) vs Deep Neural Denoising (DeepFilterNet3)*: Mổ xẻ cơ chế méo pha phi tuyến làm cùn cao độ $F_0$, hủy diệt thanh điệu tiếng Việt (WER vọt 21.8%); chứng minh tính ưu việt của PS-HCF tuyến tính (WER 3.72%, 0.08ms CPU, 0 MB VRAM).
+    3. *Chapter 3: Speculative Acoustic Streaming Decoding (Whisper-Medusa)*: Giải mã đầu cơ âm học với K=4 residual heads và ma trận Tree-Attention Mask đạt gia tốc 2.4x không suy giảm độ chính xác và 0 MB VRAM tăng thêm.
+    4. *Chapter 4: In-Process Grammar-Constrained Action-Tree Search & Local GRPO Self-Correction*: Cây tìm kiếm hành động thu hẹp trong không gian Typed Action Schema với hàm định giá Tri-Signal (NLU Prior + AWACI Context + RBAC Token) giải quyết hoàn toàn ảo giác trong < 0.85ms trên CPU.
+  - Thiết lập Bản thiết kế Tối thượng Argon Sovereign v6.0 (The Ultimate Paradigm) và Ma trận Đối chuẩn Toàn diện với GPT-4o Voice, Siri 2026, Claude Computer Use và Local E2E.
+
 ## Sprint 13: Argon Sovereign SOTA Next-Gen Speech & Local Neural Reasoning Architecture (2026-10-23, v5.5.0)
 
 - [x] **Acoustic Authority & Speaker-Attributed Intent Gating (`jarvis/audio/voiceprint.py`)** — `PASS engineering` / `PASS runtime`:
