@@ -434,7 +434,14 @@ class LLMIntentRouter:
                     r"(?:phát|mở|nghe)\s+(?:danh\s*sách\s+)?(?:một\s+)?(?:bài\s*hát|nhạc|bài|giai\s*điệu|playlist)(?:\s+(.+))?",
                     re.IGNORECASE,
                 ),
-                lambda m: IntentResult(action_name="spotify", parameters={"query": m.group(1).strip() if m.group(1) else ""}, source="rule_fallback", response_text="Đang phát nhạc trên Spotify cho Ngài."),
+                lambda m: (lambda raw_q: (
+                    (lambda clean_q: IntentResult(
+                        action_name="spotify",
+                        parameters={"query": clean_q},
+                        source="rule_fallback",
+                        response_text=f"Đang phát {clean_q} trên Spotify cho Ngài." if clean_q else "Đang phát nhạc trên Spotify cho Ngài."
+                    ))(re.sub(r"\s+(?:trên|ở|qua|tai|tại)\s+(?:spotify|spotifile)$", "", raw_q, flags=re.IGNORECASE).strip())
+                ))(m.group(1).strip() if (m.lastindex and m.group(1)) else ""),
             ),
             # Screen backlight / screen off
             (

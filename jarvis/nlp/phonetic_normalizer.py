@@ -16,7 +16,7 @@ PHONETIC_REPLACEMENTS: list[tuple[str, str]] = [
     (r"\b(?:cờ\s*rôm|chôm|cơ\s*rôm|co\s*rom)\b", "chrome"),
     (r"\b(?:ét\s*xel|ếch\s*xel|ếch\s*seo|et\s*xel|ech\s*xel|ec\s*xen)\b", "excel"),
     (r"\b(?:quốt|uốt|uôt|quôt)\b", "word"),
-    (r"\b(?:sì\s*po\s*ti\s*phai|sờ\s*po\s*ti\s*phai|sì\s*pót\s*ti\s*phai|xì\s*po\s*ti\s*phai|xờ\s*po\s*ti\s*phai)\b", "spotify"),
+    (r"\b(?:sì\s*po\s*ti\s*phai|sờ\s*po\s*ti\s*phai|sì\s*pót\s*ti\s*phai|xì\s*po\s*ti\s*phai|xờ\s*po\s*ti\s*phai|spotifile|spoti\s*file|spoti\s*phai|spotifai|spotyfy)\b", "spotify"),
     (r"\b(?:phây\s*búc|phây|phây\s*book|phe\s*buc)\b", "facebook"),
     (r"\b(?:vê\s*ét\s*cốt|vê\s*ét\s*code|vi\s*ét\s*cốt|ve\s*et\s*code)\b", "vscode"),
     (r"\b(?:tê\s*lê\s*gam|te\s*le\s*gram|tê\s*lê\s*gram)\b", "telegram"),

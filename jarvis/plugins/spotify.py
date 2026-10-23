@@ -80,7 +80,20 @@ class SpotifyPlugin(BasePlugin):
             except Exception as e:
                 return {"status": "failed", "success": False, "error": str(e)}
 
-        target = (song_uri or self.default_song_uri).strip()
+        query = (kwargs.get("query") or "").strip()
+        clean_q = ""
+        if query and not song_uri:
+            import re
+            import urllib.parse
+            clean_q = re.sub(r"\s+(?:trên|ở|qua|tai|tại)\s+(?:spotify|spotifile)$", "", query, flags=re.IGNORECASE).strip()
+            clean_q = re.sub(r"^(?:bài\s*hát|bài|bai|song|nhạc|nhac)\s+", "", clean_q, flags=re.IGNORECASE).strip()
+            if clean_q:
+                target = f"spotify:search:{urllib.parse.quote(clean_q)}"
+            else:
+                target = (song_uri or self.default_song_uri).strip()
+        else:
+            target = (song_uri or self.default_song_uri).strip()
+
         if not target:
             return {"status": "skipped", "reason": "empty_uri"}
 
@@ -103,10 +116,22 @@ class SpotifyPlugin(BasePlugin):
 
         try:
             if hasattr(os, "startfile"):
-                os.startfile(target)
+                try:
+                    os.startfile(target)
+                except OSError:
+                    if target.startswith("spotify:search:") and clean_q:
+                        import webbrowser
+                        import urllib.parse
+                        webbrowser.open(f"https://open.spotify.com/search/{urllib.parse.quote(clean_q)}")
+                    else:
+                        raise
             else:
                 import webbrowser
-                webbrowser.open(target)
+                if target.startswith("spotify:search:") and clean_q:
+                    import urllib.parse
+                    webbrowser.open(f"https://open.spotify.com/search/{urllib.parse.quote(clean_q)}")
+                else:
+                    webbrowser.open(target)
             return {"status": "started", "success": True, "uri": target}
         except Exception as e:
             return {"status": "error", "message": str(e)}

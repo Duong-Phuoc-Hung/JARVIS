@@ -27,6 +27,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - tests/unit/test_adversarial_dynamic_tiered_asr.py & tests/unit/test_dynamic_tiered_asr_adversarial.py: 38 adversarial & boundary tests (VRAM limit, thread safety, silence cut, audio error recovery).
   - tests/unit/test_silero_vad.py: 5 tests cho Silero VAD v6 ONNX streaming.
   - tests/unit/test_continuous_nlp_automation.py: 5 tests cho continuous learning and PII scrubbing.
+  - jarvis/plugins/spotify.py: Nâng cấp play_track hỗ trợ tìm kiếm bài hát theo từ khóa (query), sinh URI spotify:search:<clean_query> mở trên Spotify Desktop và tự động fallback sang https://open.spotify.com/search/<clean_query> trên trình duyệt web.
+  - jarvis/nlp/phonetic_normalizer.py: Bổ sung các biến thể âm vị và lỗi gõ của Spotify (spotifile, spoti file, spoti phai, spotifai, spotyfy).
+  - jarvis/llm/router.py: Cắt bỏ đuôi chỉ định nền tảng (trên spotify, trên spotifile) để trích xuất tên bài hát sạch sẽ (bài nắng -> nắng).
+  - tests/unit/test_spotify_search_song.py: 5 unit tests kiểm thử YouTube video search, phonetic normalization, Spotify search URI và web fallback.
 - **Chỉ số kiểm thử thực tế**:
   - Argon E2E Telemetry: tau_VAD = 0.49ms, tau_STT = 300.88ms, tau_Norm = 0.06ms, tau_NLU = 0.12ms, tau_Dispatch = 0.09ms. Tổng độ trễ p50 = 301.75ms (vượt mục tiêu <= 1,100ms).
   - 100% tests PASS: 95/95 passed trên toàn bộ 9 test suites liên quan trong 43.56s.
