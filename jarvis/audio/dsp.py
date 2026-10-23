@@ -18,6 +18,14 @@ from typing import Any
 import numpy as np
 
 try:
+    from jarvis.audio.ps_hcf import PitchSynchronousHarmonicFilter, PSHCFResult
+    PS_HCF_AVAILABLE = True
+except ImportError:
+    PitchSynchronousHarmonicFilter = None  # type: ignore[assignment, misc]
+    PSHCFResult = None  # type: ignore[assignment, misc]
+    PS_HCF_AVAILABLE = False
+
+try:
     import scipy.signal as _scipy_signal
     SCIPY_AVAILABLE = True
 except ImportError:
@@ -426,6 +434,7 @@ class AcousticFrontEnd:
         target_rms: float = 0.08,
         min_snr_db: float = 5.5,
         min_speech_ms: float = 120.0,
+        enable_ps_hcf: bool = True,
     ) -> None:
         self.sample_rate = int(sample_rate)
         self.lowcut = float(lowcut)
@@ -433,6 +442,7 @@ class AcousticFrontEnd:
         self.target_rms = float(target_rms)
         self.min_snr_db = float(min_snr_db)
         self.min_speech_ms = float(min_speech_ms)
+        self.enable_ps_hcf = bool(enable_ps_hcf)
         self._sos = None
         if SCIPY_AVAILABLE and _scipy_signal is not None:
             nyq = 0.5 * self.sample_rate
@@ -442,6 +452,17 @@ class AcousticFrontEnd:
                 self._sos = _scipy_signal.butter(
                     4, [low, high], btype="bandpass", fs=self.sample_rate, output="sos"
                 )
+
+        self.ps_hcf = None
+        if self.enable_ps_hcf and PS_HCF_AVAILABLE and PitchSynchronousHarmonicFilter is not None:
+            self.ps_hcf = PitchSynchronousHarmonicFilter(sample_rate=self.sample_rate)
+
+    def filter_ps_hcf(self, samples: np.ndarray | None) -> np.ndarray:
+        """Applies Pitch-Synchronous Harmonic Comb Filtering (PS-HCF) preserving Vietnamese tones."""
+        if not self.enable_ps_hcf or self.ps_hcf is None or samples is None:
+            return samples if samples is not None else np.empty(0, dtype=np.float32)
+        res = self.ps_hcf.filter(samples)
+        return res.samples
 
     def filter_bandpass(self, samples: np.ndarray | None) -> np.ndarray:
         """Filter audio through speech bandpass and eliminate DC bias."""
@@ -508,6 +529,8 @@ class AcousticFrontEnd:
             )
 
         filtered = self.filter_bandpass(audio)
+        if self.enable_ps_hcf:
+            filtered = self.filter_ps_hcf(filtered)
         filt_rms = float(np.sqrt(np.mean(filtered ** 2))) if filtered.size > 0 else 0.0
 
         frame_len = int(self.sample_rate * 0.02)  # 20ms frames

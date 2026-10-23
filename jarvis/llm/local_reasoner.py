@@ -16,6 +16,7 @@ from typing import Any
 
 from jarvis.context.screen_context import AWACIEngine, WindowContext
 from jarvis.llm.models import IntentResult
+from jarvis.planner.action_tree import ActionCandidateNode, InProcessGrammarTreeSearch
 
 logger = logging.getLogger("jarvis.llm.local_reasoner")
 
@@ -30,9 +31,11 @@ class ArgonNanoLocalReasoner:
         self,
         awaci_engine: AWACIEngine | None = None,
         confidence_threshold: float = 0.35,
+        action_tree: InProcessGrammarTreeSearch | None = None,
     ) -> None:
         self.awaci_engine = awaci_engine or AWACIEngine()
         self.confidence_threshold = float(confidence_threshold)
+        self.action_tree = action_tree or InProcessGrammarTreeSearch(confidence_cutoff=self.confidence_threshold)
 
     def reason(
         self,
@@ -73,6 +76,11 @@ class ArgonNanoLocalReasoner:
         app_result = self._resolve_app_heuristics(clean_lower, clean)
         if app_result is not None:
             return app_result
+
+        # 4. In-Process Grammar-Constrained Action-Tree Search (Argon Sovereign v6.0)
+        tree_result = self._resolve_action_tree(clean_lower, clean, awaci_context=awaci_context)
+        if tree_result is not None:
+            return tree_result
 
         return None
 
@@ -276,6 +284,66 @@ class ArgonNanoLocalReasoner:
                     return self.awaci_engine.get_current_window_context()
             except Exception:
                 pass
+        return None
+
+    def _resolve_action_tree(
+        self,
+        clean_lower: str,
+        raw_text: str,
+        awaci_context: WindowContext | None = None,
+    ) -> IntentResult | None:
+        """Resolves intent via In-Process Grammar-Constrained Action-Tree Search."""
+        if self.action_tree is None:
+            return None
+
+        priors: dict[str, float] = {}
+        if re.search(r"\b(?:âm lượng|am luong|chỉnh âm lượng|tăng âm lượng|giảm âm lượng|bật loa|tắt loa)\b", clean_lower):
+            priors["system_volume"] = 0.85
+            priors["system"] = 0.85
+        elif re.search(r"\b(?:độ sáng|do sang|chỉnh độ sáng|tăng độ sáng|giảm độ sáng)\b", clean_lower):
+            priors["screen_brightness"] = 0.85
+            priors["system"] = 0.85
+        elif re.search(r"\b(?:nghe nhạc|nghe nhac|bật nhạc|bat nhac|phát nhạc|phat nhac|bài hát|bai hat|ca khúc|ca khuc|spotify)\b", clean_lower):
+            priors["spotify_play"] = 0.85
+            priors["media"] = 0.85
+        elif re.search(r"\b(?:tắt máy(?:\s*tính)?|tat may|khởi động lại|khoi dong lai|shutdown|reboot)\b", clean_lower):
+            priors["system_power"] = 0.85
+            priors["system"] = 0.85
+        elif re.search(r"\b(?:ghi chú|ghi chu|tạo ghi chú|tao ghi chu|viết ghi chú|viet ghi chu)\b", clean_lower):
+            priors["note_create"] = 0.85
+            priors["productivity"] = 0.85
+        elif re.search(r"\b(?:thời tiết|thoi tiet|dự báo thời tiết|du bao thoi tiet)\b", clean_lower):
+            priors["weather_query"] = 0.85
+            priors["productivity"] = 0.85
+        elif re.search(r"\b(?:tab mới|tab moi|mở tab mới|mo tab moi)\b", clean_lower):
+            priors["tab_new"] = 0.85
+            priors["navigation"] = 0.85
+        elif re.search(r"\b(?:đóng tab|dong tab|tắt tab|tat tab)\b", clean_lower):
+            priors["tab_close"] = 0.85
+            priors["navigation"] = 0.85
+
+        if not priors:
+            return None
+
+        win_ctx = self._get_window_context(awaci_context)
+        win_title = win_ctx.title if win_ctx else ""
+
+        candidate = self.action_tree.search(
+            text=raw_text,
+            nlu_priors=priors,
+            active_window_title=win_title,
+            privilege_level="USER",
+        )
+
+        if candidate is not None and candidate.value_score >= self.confidence_threshold:
+            return IntentResult(
+                action_name=candidate.intent,
+                parameters=candidate.parameters,
+                confidence=candidate.value_score,
+                source="argon_action_tree_search",
+                raw_text=raw_text,
+            )
+
         return None
 
 
