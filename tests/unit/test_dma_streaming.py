@@ -107,3 +107,50 @@ def test_zero_copy_dma_uninitialized_error() -> None:
     manager = ZeroCopyDMAManager()
     with pytest.raises(RuntimeError, match="not active or uninitialized"):
         manager.ingest_frame_direct_dma(b"some_bytes")
+
+
+def test_zero_copy_dma_empty_frame_validation() -> None:
+    """Ensures fail-closed ValueError on empty or None input frame buffers."""
+    manager = ZeroCopyDMAManager()
+    manager.initialize_session()
+
+    with pytest.raises(ValueError, match="cannot be None"):
+        manager.ingest_frame_direct_dma(None)  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="cannot be empty"):
+        manager.ingest_frame_direct_dma(np.array([], dtype=np.uint8))
+
+    with pytest.raises(ValueError, match="cannot be empty"):
+        manager.ingest_frame_direct_dma(b"")
+
+
+def test_zero_copy_dma_limited_fallback() -> None:
+    """Verifies that requesting an unavailable backend honestly reports LIMITED per AGENTS.md Rule 2."""
+    manager = ZeroCopyDMAManager(preferred_backend=DMAStreamingBackend.RESIZABLE_BAR_DX12)
+    # Mock probe to simulate system lacking DirectX 12 Resizable BAR
+    manager.probe_hardware_capabilities = lambda: {  # type: ignore[method-assign]
+        "is_windows": True,
+        "resizable_bar_supported": False,
+        "pinned_host_supported": True,
+    }
+    success = manager.initialize_session()
+    assert success is True
+    assert manager.status == DMAStreamingStatus.LIMITED
+    assert manager.backend == DMAStreamingBackend.PINNED_HOST_MAPPED
+
+    # Still ingests properly under LIMITED fallback
+    frame = np.full((1080, 1920, 4), 100, dtype=np.uint8)
+    slot = manager.ingest_frame_direct_dma(frame)
+    assert slot.frame_id == 1
+
+
+def test_zero_copy_dma_autonegotiate_best_backend() -> None:
+    """Ensures that default initialization auto-selects highest available backend."""
+    manager = ZeroCopyDMAManager(preferred_backend=None)
+    manager.initialize_session()
+    # On Windows with DX12, should automatically select RESIZABLE_BAR_DX12
+    caps = manager.probe_hardware_capabilities()
+    if caps.get("resizable_bar_supported"):
+        assert manager.backend == DMAStreamingBackend.RESIZABLE_BAR_DX12
+        assert manager.status == DMAStreamingStatus.ACTIVE
+

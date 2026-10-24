@@ -111,3 +111,25 @@ def test_compound_macro_composer() -> None:
     assert best_name == "MACRO_BROWSER_NAV"
     assert sim == 1.0
     assert latency_ns < 1_000_000.0  # Under 1 millisecond (in nanoseconds)
+
+
+def test_hd_vsa_empty_registry_and_top_k() -> None:
+    """Verifies safe empty-state query handling without throwing exceptions."""
+    composer = CompoundMacroComposer()
+    query = HyperVector.random(seed=99)
+    name, sim, latency_ns = composer.search_nearest_macro(query)
+    assert name is None
+    assert sim == 0.0
+    assert latency_ns >= 0.0
+
+    memory = composer.memory
+    assert memory.cleanup_search(query, top_k=0) == []
+    assert memory.cleanup_search(query, top_k=-5) == []
+
+
+def test_hd_vsa_empty_steps() -> None:
+    """Verifies that an empty macro sequence encodes to all zeros."""
+    composer = CompoundMacroComposer()
+    zero_macro = composer.encode_sequence_macro([])
+    assert np.all(zero_macro.words == 0)
+

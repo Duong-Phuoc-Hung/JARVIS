@@ -87,3 +87,39 @@ def test_ssd_vocoder_invalid_hidden_dim_fail_closed() -> None:
     invalid_h = np.zeros(128, dtype=np.float32)
     with pytest.raises(ValueError, match="Expected hidden_state dimension 512"):
         vocoder.synthesize_frame(invalid_h)
+
+
+def test_ssd_vocoder_phase_continuity() -> None:
+    """Verifies that synthesis maintains continuous carrier phase across 10ms frame chunks."""
+    vocoder = StateSpaceStreamingVocoder()
+    h = np.random.randn(DEFAULT_HIDDEN_DIM).astype(np.float32) * 0.1
+
+    assert vocoder._phase == 0.0
+    f1 = vocoder.synthesize_frame(h)
+    phase_after_f1 = vocoder._phase
+    assert phase_after_f1 > 0.0
+
+    f2 = vocoder.synthesize_frame(h)
+    phase_after_f2 = vocoder._phase
+    assert phase_after_f2 != phase_after_f1
+
+    # Resetting state resets phase
+    vocoder.reset_state()
+    assert vocoder._phase == 0.0
+
+
+def test_ssd_vocoder_nan_inf_fail_closed() -> None:
+    """Ensures fail-closed exception when NaN or Inf hidden states are provided."""
+    vocoder = StateSpaceStreamingVocoder()
+    h_nan = np.zeros(DEFAULT_HIDDEN_DIM, dtype=np.float32)
+    h_nan[0] = np.nan
+
+    with pytest.raises(ValueError, match="contains NaN or Inf"):
+        vocoder.synthesize_frame(h_nan)
+
+    h_inf = np.zeros(DEFAULT_HIDDEN_DIM, dtype=np.float32)
+    h_inf[0] = np.inf
+
+    with pytest.raises(ValueError, match="contains NaN or Inf"):
+        vocoder.synthesize_frame(h_inf)
+

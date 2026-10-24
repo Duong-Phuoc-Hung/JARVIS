@@ -237,6 +237,8 @@ class HyperdimensionalItemMemory:
         ranked by normalized similarity.
         Executes in microseconds.
         """
+        if top_k <= 0:
+            return []
         with self._lock:
             results: list[Tuple[str, float]] = []
             for name, vec in self._items.items():
@@ -318,6 +320,10 @@ class CompoundMacroComposer:
         """
         t0 = time.perf_counter_ns()
         with self._lock:
+            if not self._macro_registry:
+                t1 = time.perf_counter_ns()
+                return (None, 0.0, float(t1 - t0))
+
             best_name: Optional[str] = None
             best_sim = -1.0
             for name, m_vec in self._macro_registry.items():

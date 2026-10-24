@@ -78,3 +78,27 @@ def test_spiking_saliency_sparse_change_roi_extraction() -> None:
     metrics = engine.get_metrics_snapshot()
     assert metrics["vram_delta_mib"] == 0.00
     assert metrics["total_frames_processed"] == 2
+
+
+def test_spiking_saliency_non_divisible_dimensions() -> None:
+    """Verifies that non-multiple-of-32 screen resolutions (1921x1080, 1366x768) do not crash."""
+    for width, height in [(1921, 1080), (1366, 768), (800, 600), (33, 33)]:
+        engine = NeuromorphicEventSaliencyEngine(width=width, height=height)
+        base = np.zeros((height, width, 3), dtype=np.uint8)
+        engine.process_frame(base)
+
+        dynamic = base.copy()
+        dynamic[height // 2, width // 2, :] = 255
+        res = engine.process_frame(dynamic)
+        assert res.total_pixel_count == width * height
+        assert res.active_pixel_count >= 1
+
+
+def test_spiking_saliency_dimension_mismatch_error() -> None:
+    """Ensures fail-closed exception when frame dimensions do not match engine configuration."""
+    engine = NeuromorphicEventSaliencyEngine(width=1920, height=1080)
+    mismatched_frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+
+    with pytest.raises(ValueError, match="do not match engine dimensions"):
+        engine.process_frame(mismatched_frame)
+

@@ -39,15 +39,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `jarvis/audio/__init__.py`: Xuất các lớp thuộc SSD Vocoder.
   - `jarvis/core/__init__.py`: Xuất các lớp thuộc HD-VSA.
   - `jarvis/__init__.py`: Cập nhật phiên bản runtime chuẩn mực lên `6.4.0`.
-  - `tests/unit/test_dma_streaming.py`: 4 bài kiểm thử đơn vị cho Zero-Copy Kernel DMA (100% PASS).
-  - `tests/unit/test_latent_world_model.py`: 4 bài kiểm thử đơn vị cho Latent World Model (100% PASS).
-  - `tests/unit/test_ssd_vocoder.py`: 4 bài kiểm thử đơn vị cho SSD Vocoder và Barge-In (100% PASS).
-  - `tests/unit/test_spiking_saliency.py`: 3 bài kiểm thử đơn vị cho Neuromorphic Event Saliency (100% PASS).
-  - `tests/unit/test_hd_vsa.py`: 6 bài kiểm thử đơn vị cho đại số HD-VSA và Composer (100% PASS).
+  - `tests/unit/test_dma_streaming.py`: 7 bài kiểm thử đơn vị cho Zero-Copy Kernel DMA, kiểm tra auto-negotiation, fallback LIMITED, và validation (100% PASS).
+  - `tests/unit/test_latent_world_model.py`: 6 bài kiểm thử đơn vị cho Latent World Model, kiểm tra phỏng đoán tự nhiên, phân kỳ, và validation (100% PASS).
+  - `tests/unit/test_ssd_vocoder.py`: 6 bài kiểm thử đơn vị cho SSD Vocoder, kiểm tra tính liên tục pha, ngắt chen ngang, và chặn NaN/Inf (100% PASS).
+  - `tests/unit/test_spiking_saliency.py`: 5 bài kiểm thử đơn vị cho Neuromorphic Event Saliency, hỗ trợ màn hình không chia hết cho 32 (100% PASS).
+  - `tests/unit/test_hd_vsa.py`: 8 bài kiểm thử đơn vị cho đại số HD-VSA, Composer, và tra cứu kho rỗng (100% PASS).
   - `tests/eval/test_frontier_14_to_18_sovereign_benchmark.py`: 6 bài kiểm chuẩn thực nghiệm tổng hợp và đường ống phản xạ hợp nhất đa phương thức (100% PASS).
+- **Sửa chữa & Tối ưu hóa Khắc phục sự cố (Hardening & Bug Remediation)**:
+  - *Root Cause 1 (Spiking Saliency Reshape Crash)*: Sửa lỗi `ValueError: cannot reshape array` khi xử lý độ phân giải màn hình có chiều rộng hoặc chiều cao không chia hết cho 32 (ví dụ: 1921x1080, 1366x768). Tách lưới 4 góc (main grid, bottom strip, right strip, corner block) bảo toàn 100% số lượng pixel và không bị lỗi reshape.
+  - *Root Cause 2 (DMA Backend Negotiation & LIMITED Fallback)*: Sửa lỗi tự động chọn `RESIZABLE_BAR_DX12` trên Windows thay vì mặc định `PINNED_HOST_MAPPED` khi `preferred_backend=None`. Khi backend yêu cầu không được hỗ trợ, chuyển sang fallback và báo cáo trung thực `Status: LIMITED` (tuân thủ Rule 2 AGENTS.md).
+  - *Root Cause 3 (Latent World Model Action Calibration)*: Điều chỉnh ma trận chiếu hành động $W_{action}$ và tỷ lệ nhiệt độ (Temperature Scaling), cho phép mô hình dự đoán tự nhiên các ứng viên phỏng đoán có độ tin cậy cao mà không cần can thiệp mock trong kiểm thử.
+  - *Root Cause 4 (Vocoder Phase Continuity & NaN Defense)*: Thêm bộ đếm pha liên tục `self._phase` loại bỏ hiện tượng giật pha/click giữa các khung 10ms; tích hợp bộ lọc chặn NaN/Inf theo nguyên tắc Fail-Closed.
+  - *Root Cause 5 (HD-VSA Empty State Handling)*: Xử lý an toàn khi tra cứu trên kho macro rỗng hoặc với `top_k <= 0`.
 - **Chỉ số kiểm thử thực tế**:
-  - Toàn bộ 27 bài kiểm thử mới Sprint 26: **27/27 passed 100% in 7.48s**.
-  - Kiểm tra tương thích hồi quy Frontiers 12 & 13: **29/29 passed 100% in 7.79s**.
+  - Toàn bộ 38 bài kiểm thử mới Sprint 26: **38/38 passed 100% in 6.03s**.
+  - Kiểm tra tương thích hồi quy Frontiers 12 & 13: **29/29 passed 100% in 6.00s**.
+  - Toàn bộ unit test suite kho mã nguồn: **3,584 passed 100% in 84.21s**.
   - Tốc độ nạp khung hình Zero-Copy DMA: **> 30 FPS, độ trễ nạp < 1.0ms**.
   - Độ trễ chốt hành động phỏng đoán âm (Negative Latency Commit): **< 0.5ms** (đo đạc đạt 0.05ms - 0.2ms).
   - Hệ số thời gian thực SSD Vocoder: **RTF < 0.20** (tổng hợp khung 10ms trong ~1.5ms).

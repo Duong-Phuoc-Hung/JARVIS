@@ -121,17 +121,31 @@ class NeuromorphicEventSaliencyEngine:
 
     def _to_grayscale(self, image: np.ndarray) -> np.ndarray:
         """Converts RGB/RGBA/BGRA image to single-channel 8-bit luminance with zero allocations."""
+        if image is None:
+            raise ValueError("Input image cannot be None")
+
         if image.ndim == 2:
-            return image
-        if image.ndim == 3:
+            gray = image
+        elif image.ndim == 3:
             # Fast luminance approximation using dominant green channel (59% luminance weight)
             # or fast contiguous extraction
             channels = image.shape[2]
             if channels >= 3:
                 # Channel 1 is Green in both RGB and BGR/BGRA
-                return np.ascontiguousarray(image[:, :, 1])
-        # Flattened buffer fallback
-        return np.asarray(image, dtype=np.uint8).reshape((self.height, self.width))
+                gray = np.ascontiguousarray(image[:, :, 1])
+            elif channels == 1:
+                gray = np.ascontiguousarray(image[:, :, 0])
+            else:
+                raise ValueError(f"Unsupported number of image channels: {channels}")
+        else:
+            # Flattened buffer fallback
+            gray = np.asarray(image, dtype=np.uint8).reshape((self.height, self.width))
+
+        if gray.shape != (self.height, self.width):
+            raise ValueError(
+                f"Image dimensions {gray.shape} do not match engine dimensions ({self.height}, {self.width})"
+            )
+        return gray
 
     def reset_reference(self) -> None:
         """Clears reference frame, triggering a full refresh on next frame."""
@@ -182,7 +196,6 @@ class NeuromorphicEventSaliencyEngine:
             # Update reference to current frame
             self._reference_luminance = gray.copy()
 
-
             sparsity_ratio = active_pixel_count / max(1, self.total_pixels)
 
             # Check if screen is essentially idle / static
@@ -221,29 +234,42 @@ class NeuromorphicEventSaliencyEngine:
         """
         Bins active spikes into spatial macroblocks and clusters contiguous regions.
         Zero-allocation fast sub-grid accumulation.
+        Robust against any screen resolution (divisible or non-divisible by macroblock_size).
         """
         bsize = self.macroblock_size
         h, w = spike_mask.shape
+        gh = (h + bsize - 1) // bsize
+        gw = (w + bsize - 1) // bsize
+
+        block_grid = np.zeros((gh, gw), dtype=np.int32)
         full_h = (h // bsize) * bsize
         full_w = (w // bsize) * bsize
         n_h = h // bsize
         n_w = w // bsize
 
-        # Zero-copy view sum across aligned main grid
-        s_main = spike_mask[:full_h, :full_w].reshape(n_h, bsize, n_w, bsize).sum(axis=(1, 3))
+        # 1. Main aligned grid
+        if n_h > 0 and n_w > 0:
+            block_grid[:n_h, :n_w] = (
+                spike_mask[:full_h, :full_w].reshape(n_h, bsize, n_w, bsize).sum(axis=(1, 3))
+            )
 
-        parts_h = [s_main]
-        if h > full_h:
+        # 2. Bottom boundary strip (if height not a multiple of bsize)
+        if h > full_h and n_w > 0:
             rem_h = h - full_h
-            s_rem_h = spike_mask[full_h:, :full_w].reshape(1, rem_h, n_w, bsize).sum(axis=(1, 3))
-            parts_h.append(s_rem_h)
-        block_grid = np.vstack(parts_h)
+            block_grid[n_h:, :n_w] = (
+                spike_mask[full_h:, :full_w].reshape(1, rem_h, n_w, bsize).sum(axis=(1, 3))
+            )
 
-        if w > full_w:
+        # 3. Right boundary strip (if width not a multiple of bsize)
+        if w > full_w and n_h > 0:
             rem_w = w - full_w
-            grid_total_h = block_grid.shape[0]
-            s_rem_w = spike_mask[:, full_w:].reshape(grid_total_h, -1).sum(axis=1, keepdims=True)
-            block_grid = np.hstack([block_grid, s_rem_w])
+            block_grid[:n_h, n_w:] = (
+                spike_mask[:full_h, full_w:].reshape(n_h, bsize, 1, rem_w).sum(axis=(1, 3))
+            )
+
+        # 4. Corner block (if both height and width not multiples of bsize)
+        if h > full_h and w > full_w:
+            block_grid[n_h:, n_w:] = int(spike_mask[full_h:, full_w:].sum())
 
         active_blocks = block_grid >= MIN_SPIKES_PER_BLOCK
         if not np.any(active_blocks):
@@ -261,7 +287,6 @@ class NeuromorphicEventSaliencyEngine:
 
         total_active = int(block_grid[active_blocks].sum())
         roi_area = max(1, roi_w * roi_h)
-
 
         primary_roi = SaliencyROI(
             x=roi_x,

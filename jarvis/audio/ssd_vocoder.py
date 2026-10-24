@@ -117,6 +117,7 @@ class StateSpaceStreamingVocoder:
 
         # Recurrent state vector x_s in R^{state_dim}
         self._state = np.zeros(self.state_dim, dtype=np.float32)
+        self._phase: float = 0.0
         self._frame_counter: int = 0
         self._is_muted_interrupted: bool = False
         self._lock = threading.Lock()
@@ -124,22 +125,28 @@ class StateSpaceStreamingVocoder:
         self.metrics = SSDVocoderMetrics()
 
     def reset_state(self) -> None:
-        """Resets the internal recurrent state to zero."""
+        """Resets the internal recurrent state and carrier phase to zero."""
         with self._lock:
             self._state.fill(0.0)
+            self._phase = 0.0
             self._frame_counter = 0
             self._is_muted_interrupted = False
 
     def synthesize_frame(self, hidden_state: np.ndarray) -> SSDVocoderFrame:
         """
         Synthesizes a 10ms audio frame directly from a Mamba-2 hidden state vector.
-        Executes in < 1.5ms on CPU.
+        Executes in < 1.5ms on CPU with phase continuity.
         """
+        if hidden_state is None:
+            raise ValueError("hidden_state cannot be None")
+
         t0 = time.perf_counter()
 
         h = np.asarray(hidden_state, dtype=np.float32).ravel()
         if len(h) != self.hidden_dim:
             raise ValueError(f"Expected hidden_state dimension {self.hidden_dim}, got {len(h)}")
+        if np.any(np.isnan(h)) or np.any(np.isinf(h)):
+            raise ValueError("hidden_state contains NaN or Inf values")
 
         with self._lock:
             if self._is_muted_interrupted:
@@ -170,9 +177,11 @@ class StateSpaceStreamingVocoder:
             a_diag = self.A_diag
             c_vec = self.C
 
-            # Sample-rate carrier modulation to generate natural acoustic formants
-            carrier_phase = np.linspace(0, 2 * np.pi * 300 / self.sample_rate * self.frame_samples, self.frame_samples)
+            # Sample-rate carrier modulation with continuous phase across frames
+            phase_delta = 2.0 * np.pi * 350.0 / self.sample_rate
+            carrier_phase = self._phase + np.arange(self.frame_samples, dtype=np.float32) * phase_delta
             carrier = np.sin(carrier_phase).astype(np.float32) * 0.1
+            self._phase = float((self._phase + self.frame_samples * phase_delta) % (2.0 * np.pi))
 
             for s in range(self.frame_samples):
                 # Recurrence: x_{s+1} = A * x_s + B * h_t
@@ -224,8 +233,9 @@ class StateSpaceStreamingVocoder:
         """
         t0 = time.perf_counter()
         with self._lock:
-            # Zero out recurrent state
+            # Zero out recurrent state and phase
             self._state.fill(0.0)
+            self._phase = 0.0
             self._is_muted_interrupted = True
             self.metrics.total_barge_in_interrupts += 1
 

@@ -120,3 +120,37 @@ def test_divergence_discard_fail_closed() -> None:
     assert status == SpeculativeActionStatus.DISCARDED_DIVERGENCE
     assert executed_cand is None
     assert manager._active_candidate is None
+
+
+def test_latent_world_model_validation() -> None:
+    """Verifies fail-closed input dimension and horizon validations."""
+    model = LatentOSWorldModel()
+    z = np.zeros(LATENT_DIM, dtype=np.float32)
+    c = np.zeros(CONTEXT_DIM, dtype=np.float32)
+
+    with pytest.raises(ValueError, match="horizon_step must be >= 1"):
+        model.simulate_future_latent(z, c, horizon_step=0)
+
+    with pytest.raises(ValueError, match="Expected current_latent of shape"):
+        model.simulate_future_latent(np.zeros(10), c)
+
+    with pytest.raises(ValueError, match="Expected context_vector of shape"):
+        model.simulate_future_latent(z, np.zeros(10))
+
+
+def test_negative_latency_intent_dimension_mismatch() -> None:
+    """Verifies fail-closed ValueError on mismatched final intent context vector."""
+    manager = NegativeLatencyExecutionManager()
+    manager._active_candidate = SpeculativeActionCandidate(
+        candidate_id="test_cand_val",
+        action_type="CLICK_COORDINATE",
+        target_coordinates=(0.5, 0.5),
+        command_payload="CLICK",
+        confidence=0.9,
+        predicted_latent=np.zeros(LATENT_DIM, dtype=np.float32),
+        context_signature=np.zeros(CONTEXT_DIM, dtype=np.float32),
+        created_at_ns=time.perf_counter_ns(),
+    )
+    with pytest.raises(ValueError, match="Expected final_intent_context of shape"):
+        manager.commit_turn_finalization(np.zeros(32))
+

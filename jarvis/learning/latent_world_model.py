@@ -109,10 +109,16 @@ class LatentOSWorldModel:
         self,
         latent_dim: int = LATENT_DIM,
         context_dim: int = CONTEXT_DIM,
+        confidence_threshold: float = 0.25,
+        energy_threshold: float = 0.50,
+        temperature: float = 0.35,
         seed: int = 42,
     ) -> None:
         self.latent_dim = latent_dim
         self.context_dim = context_dim
+        self.confidence_threshold = confidence_threshold
+        self.energy_threshold = energy_threshold
+        self.temperature = max(1e-4, float(temperature))
         self.rng = np.random.RandomState(seed)
 
         # Initialize orthogonal projection matrices for transition model M_theta
@@ -129,7 +135,7 @@ class LatentOSWorldModel:
 
         # Action Decoder Heads
         # Head A: Action category logits (8 classes)
-        self.W_action = self._orthogonal_matrix(latent_dim, len(SPECULATIVE_ACTION_TYPES)) * 0.1
+        self.W_action = self._orthogonal_matrix(latent_dim, len(SPECULATIVE_ACTION_TYPES))
         self.b_action = np.zeros(len(SPECULATIVE_ACTION_TYPES), dtype=np.float32)
 
         # Head B: Continuous coordinate regression (x, y)
@@ -164,6 +170,9 @@ class LatentOSWorldModel:
         """
         Predicts future OS latent state \\hat{z}_{t+k} in under 0.2ms on CPU.
         """
+        if horizon_step < 1:
+            raise ValueError(f"horizon_step must be >= 1, got {horizon_step}")
+
         t0 = time.perf_counter()
 
         z = np.asarray(current_latent, dtype=np.float32).ravel()
@@ -190,10 +199,10 @@ class LatentOSWorldModel:
         delta_z = np.dot(hidden_gelu, self.W2) + self.b2
         predicted_latent = z + delta_z
 
-        # Decode action logits
+        # Decode action logits with temperature scaling
         action_logits = np.dot(predicted_latent, self.W_action) + self.b_action
-        # Softmax
-        exp_logits = np.exp(action_logits - np.max(action_logits))
+        scaled_logits = (action_logits - np.max(action_logits)) / self.temperature
+        exp_logits = np.exp(np.clip(scaled_logits, -20.0, 20.0))
         action_probs = exp_logits / np.sum(exp_logits)
         best_action_idx = int(np.argmax(action_probs))
         action_confidence = float(action_probs[best_action_idx])
@@ -210,7 +219,7 @@ class LatentOSWorldModel:
         sim_latency_ms = (t1 - t0) * 1000.0
 
         speculative_candidate: Optional[SpeculativeActionCandidate] = None
-        is_confident = action_confidence >= 0.60 and energy_score < 0.50
+        is_confident = action_confidence >= self.confidence_threshold and energy_score < self.energy_threshold
 
         if is_confident:
             candidate_id = f"spec_act_{int(time.perf_counter_ns())}_{best_action_idx}"
@@ -313,6 +322,10 @@ class NegativeLatencyExecutionManager:
             # Check context similarity (Cosine Similarity)
             c1 = candidate.context_signature
             c2 = np.asarray(final_intent_context, dtype=np.float32).ravel()
+            if len(c2) != self.world_model.context_dim:
+                raise ValueError(
+                    f"Expected final_intent_context of shape ({self.world_model.context_dim},), got ({len(c2)},)"
+                )
 
             norm1 = float(np.linalg.norm(c1))
             norm2 = float(np.linalg.norm(c2))

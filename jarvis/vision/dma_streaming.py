@@ -255,32 +255,60 @@ class ZeroCopyDMAManager:
     def initialize_session(self) -> bool:
         """
         Initializes the streaming ring buffer and attaches to the optimal DMA backend.
+        Auto-negotiates highest-performance hardware capability if preferred_backend is None.
+        Reports LIMITED status if requested hardware backend is unavailable and falling back.
         """
         caps = self.probe_hardware_capabilities()
         with self._lock:
-            # Determine backend
-            if self.preferred_backend == DMAStreamingBackend.RESIZABLE_BAR_DX12 and caps.get("resizable_bar_supported"):
-                self.backend = DMAStreamingBackend.RESIZABLE_BAR_DX12
-                self.status = DMAStreamingStatus.ACTIVE
-            elif (
-                self.preferred_backend == DMAStreamingBackend.DXGI_DUPLICATION_NT_HANDLE
-                and caps.get("dxgi_duplication_supported")
-            ):
-                self.backend = DMAStreamingBackend.DXGI_DUPLICATION_NT_HANDLE
-                self.status = DMAStreamingStatus.ACTIVE
-            elif (
-                self.preferred_backend == DMAStreamingBackend.VULKAN_EXTERNAL_MEMORY
-                and caps.get("vulkan_external_memory_supported")
-            ):
-                self.backend = DMAStreamingBackend.VULKAN_EXTERNAL_MEMORY
-                self.status = DMAStreamingStatus.ACTIVE
-            elif caps.get("pinned_host_supported"):
-                self.backend = DMAStreamingBackend.PINNED_HOST_MAPPED
-                self.status = DMAStreamingStatus.ACTIVE
+            if self.preferred_backend is not None:
+                if self.preferred_backend == DMAStreamingBackend.RESIZABLE_BAR_DX12 and caps.get("resizable_bar_supported"):
+                    self.backend = DMAStreamingBackend.RESIZABLE_BAR_DX12
+                    self.status = DMAStreamingStatus.ACTIVE
+                elif (
+                    self.preferred_backend == DMAStreamingBackend.DXGI_DUPLICATION_NT_HANDLE
+                    and caps.get("dxgi_duplication_supported")
+                ):
+                    self.backend = DMAStreamingBackend.DXGI_DUPLICATION_NT_HANDLE
+                    self.status = DMAStreamingStatus.ACTIVE
+                elif (
+                    self.preferred_backend == DMAStreamingBackend.VULKAN_EXTERNAL_MEMORY
+                    and caps.get("vulkan_external_memory_supported")
+                ):
+                    self.backend = DMAStreamingBackend.VULKAN_EXTERNAL_MEMORY
+                    self.status = DMAStreamingStatus.ACTIVE
+                elif self.preferred_backend == DMAStreamingBackend.PINNED_HOST_MAPPED and caps.get("pinned_host_supported"):
+                    self.backend = DMAStreamingBackend.PINNED_HOST_MAPPED
+                    self.status = DMAStreamingStatus.ACTIVE
+                elif caps.get("pinned_host_supported"):
+                    # Fallback to pinned host, but honestly report LIMITED per AGENTS.md Rule 2
+                    self.backend = DMAStreamingBackend.PINNED_HOST_MAPPED
+                    self.status = DMAStreamingStatus.LIMITED
+                    logger.warning(
+                        "Requested DMA backend %s unavailable; operating in LIMITED fallback",
+                        self.preferred_backend.value,
+                    )
+                else:
+                    self.backend = DMAStreamingBackend.UNAVAILABLE
+                    self.status = DMAStreamingStatus.NOT_SUPPORTED
+                    return False
             else:
-                self.backend = DMAStreamingBackend.UNAVAILABLE
-                self.status = DMAStreamingStatus.NOT_SUPPORTED
-                return False
+                # Auto-detect optimal backend based on hardware capabilities
+                if caps.get("resizable_bar_supported"):
+                    self.backend = DMAStreamingBackend.RESIZABLE_BAR_DX12
+                    self.status = DMAStreamingStatus.ACTIVE
+                elif caps.get("dxgi_duplication_supported"):
+                    self.backend = DMAStreamingBackend.DXGI_DUPLICATION_NT_HANDLE
+                    self.status = DMAStreamingStatus.ACTIVE
+                elif caps.get("vulkan_external_memory_supported"):
+                    self.backend = DMAStreamingBackend.VULKAN_EXTERNAL_MEMORY
+                    self.status = DMAStreamingStatus.ACTIVE
+                elif caps.get("pinned_host_supported"):
+                    self.backend = DMAStreamingBackend.PINNED_HOST_MAPPED
+                    self.status = DMAStreamingStatus.ACTIVE
+                else:
+                    self.backend = DMAStreamingBackend.UNAVAILABLE
+                    self.status = DMAStreamingStatus.NOT_SUPPORTED
+                    return False
 
             self._ring_buffer = ResizableBARRingBuffer(
                 width=self.width,
@@ -295,8 +323,17 @@ class ZeroCopyDMAManager:
         Direct Memory Access ingest path. Writes directly into the pinned host ring slot
         without intermediate allocations. Sub-0.1ms latency SLA.
         """
-        if self.status != DMAStreamingStatus.ACTIVE or self._ring_buffer is None:
-            raise RuntimeError("DMAStreamingSession is not active or uninitialized")
+        if self.status not in (DMAStreamingStatus.ACTIVE, DMAStreamingStatus.LIMITED) or self._ring_buffer is None:
+            raise RuntimeError(
+                f"DMAStreamingSession is not active or uninitialized (current status: {self.status.value})"
+            )
+
+        if source_bytes_or_array is None:
+            raise ValueError("source_bytes_or_array cannot be None")
+        if isinstance(source_bytes_or_array, np.ndarray) and source_bytes_or_array.size == 0:
+            raise ValueError("source_bytes_or_array cannot be empty")
+        if isinstance(source_bytes_or_array, (bytes, bytearray, memoryview)) and len(source_bytes_or_array) == 0:
+            raise ValueError("source_bytes_or_array cannot be empty")
 
         t_start = time.perf_counter()
 
