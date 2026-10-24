@@ -22,6 +22,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `docs/eval/soak_test_v560_evidence.md`: Báo cáo bằng chứng thực nghiệm nghiệm thu với đầy đủ bảng biểu và đồ thị.
   - `docs/research/argon_sovereign_frontier_6_speech_mamba_and_duplex.md`: Chuyên khảo học thuật 5 chương về Mamba-2 SSD, Test-Time GRPO, và Full-Duplex Conversational Audio.
   - `docs/research/argon_model_applicability_and_roadmap_report.md`: Báo cáo nghiên cứu, phản biện đối chuẩn với các mô hình hiện nay (GPT-4o Voice, Gemini Live, Moshi, Claude Computer Use) và Kế hoạch triển khai 4 giai đoạn 2026–2027.
+  - `docs/research/argon_cleanroom_frontier_model_comparative_audit.md`: Chuyên khảo Clean-Room 5 pha (Room A bóc tách khách quan, Room B hợp nhất kiến trúc, JEV đối soát bằng chứng, Haiku Mutation 6 kịch bản đột biến cực đoan) phản biện toàn diện các mô hình mới nổi.
   - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `5.6.1`.
   - `README.md`: Cập nhật phiên bản 5.6.1 và thành tựu Sprint 15.
   - `docs/ROADMAP.md`: Cập nhật Sprint 15 với kết quả Soak Test 60s và Monograph Frontier 6.0.

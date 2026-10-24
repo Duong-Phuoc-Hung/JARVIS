@@ -9,6 +9,10 @@
   - Đối chuẩn phản biện toàn diện với OpenAI GPT-4o Voice, Google Gemini 2.0 Live, Kyutai Moshi, Claude 3.5 Computer Use.
   - Xây dựng Ma trận Khả thi Tích hợp (Cross-Model Feasibility Matrix) cho PS-HCF, Medusa K=4, Action-Tree, Test-Time GRPO và WASAPI Full-Duplex.
   - Thiết lập Kế hoạch Hành động Chiến lược 4 Giai đoạn (Giai đoạn 1: Universal Adapters $\to$ Giai đoạn 2: Lai ghép Mamba-2 & GRPO $\to$ Giai đoạn 3: Hội thoại Full-Duplex $\to$ Giai đoạn 4: Đóng gói thương phẩm v6.0).
+- [x] **Argon Sovereign Clean-Room Comparative Audit & Mutation Stress-Test (`docs/research/argon_cleanroom_frontier_model_comparative_audit.md`)** — `PASS engineering`:
+  - Quy trình Clean-Room 5 pha REA x JEV: Bóc tách Room A các mô hình đang ra mắt (GPT-4o Realtime, Gemini 2.0 Live, DeepSeek-R1, Moshi 7B, Claude 3.7 Computer Use).
+  - Thẩm định bằng chứng JEV loại bỏ marketing hype, xác thực 11.7ms reflex latency và 0 MB VRAM delta của Argon.
+  - Kiểm thử đột biến Haiku Mutation Oracle qua 6 kịch bản hỏng hóc cực đoan (KV-cache 8h explosion, fan noise 55dB, destructive intent privilege breach, air-gapped offline, mechanical keyboard typing, developer slang).
 - [x] **Argon Sovereign Sustained Soak & Stress Test Benchmark (`tests/eval/soak_test_v560_argon.py`)** — `PASS runtime`:
   - Đo đạc thực tế 60 giây liên tục trên máy chủ Intel Core i7-9750H, NVIDIA GeForce GTX 1650 Max-Q, Windows 11 x64.
   - Thực thi **3,610 chu kỳ phản xạ liên tục (60.2 cycles/giây)** qua toàn bộ chuỗi PS-HCF -> Whisper-Medusa -> Action-Tree -> ActionDispatcher.
