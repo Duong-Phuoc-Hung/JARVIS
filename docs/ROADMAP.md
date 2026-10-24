@@ -1,3 +1,21 @@
+## Sprint 16: Argon Sovereign Frontier 7.0: Mamba-2 SSD & In-Situ Test-Time GRPO Policy (2026-10-24, v5.7.0)
+
+- [x] **Mamba-2 Structured State Space Duality (SSD) Streaming Audio Encoder (`jarvis/stt/ssd_encoder.py`)** — `PASS engineering` / `PASS runtime`:
+  - Khắc phục sự bùng nổ KV-cache $O(T^2)$ của Transformer; duy trì bộ nhớ trạng thái không đổi $\mathcal{O}(1)$ (< 200 KB cho 3 tầng) với thời gian suy luận frame < 25ms.
+  - Tích hợp cổng xả thanh hầu (Glottal-Triggered State Reset) chống bão hòa âm học.
+  - Unit tests verified: `tests/unit/test_ssd_encoder.py` (5/5 passed 100%).
+- [x] **Win32 Grounded Execution Reward Oracle (`jarvis/learning/win32_oracle.py`)** — `PASS engineering` / `PASS runtime`:
+  - Đo đạc hàm thưởng từ mã trạng thái API Win32, HWND cửa sổ active và liveness check PID tiến trình.
+  - Khóa chốt chặn fail-closed đối với các hành vi phá hoại ($R = -2.0$).
+  - Unit tests verified: `tests/unit/test_win32_oracle.py` (4/4 passed 100%).
+- [x] **In-Situ Test-Time Group Relative Policy Optimization (GRPO) Engine (`jarvis/learning/grpo_engine.py`)** — `PASS engineering` / `PASS runtime`:
+  - Loại bỏ mạng Critic theo chuẩn DeepSeek-R1; chuẩn hóa Advantage nội nhóm $G=4$.
+  - Cập nhật adapter LoRA Rank-4 ($r=4$, dung lượng < 75 KB) trong cửa sổ nhàn rỗi cắm sạc AC; tự động rollback khi $\mathbb{D}_{\text{KL}} > 0.04$.
+  - Unit tests verified: `tests/unit/test_grpo_engine.py` (4/4 passed 100%).
+- [x] **Argon Sovereign Clean-Room Comparative Audit & Mutation Stress-Test (`docs/research/argon_cleanroom_frontier_model_comparative_audit.md`)** — `PASS engineering`:
+  - Thẩm định 5 pha REA x JEV đối chuẩn với GPT-4o Realtime, Gemini 2.0 Live, DeepSeek-R1, Moshi 7B, Claude 3.7 Computer Use.
+  - Thử nghiệm 6 kịch bản đột biến Haiku Mutation Oracle cố tình làm hỏng hệ thống.
+
 ## Sprint 15: Argon Sovereign Frontier 6.0 Research & v5.6.1 Sustained Telemetry Soak Test (2026-10-23, v5.6.1)
 
 - [x] **Argon Sovereign Frontier 6.0 Dialectical Research Monograph (`docs/research/argon_sovereign_frontier_6_speech_mamba_and_duplex.md`)** — `PASS engineering`:

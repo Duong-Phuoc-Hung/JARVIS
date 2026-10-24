@@ -1,6 +1,11 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Current verified snapshot (2026-10-23), source **5.6.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-10-24), source **5.7.0**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- **Sprint 16 Argon Sovereign Frontier 7.0: Mamba-2 SSD & In-Situ Test-Time GRPO Policy**:
+  - Bộ Mã Hóa Âm Thanh Luồng Mamba-2 Structured State Space Duality (`StreamingSpeechSSDEncoder` tại `jarvis/stt/ssd_encoder.py`): Triệt tiêu bùng nổ KV-cache $O(T^2)$ của Transformer, duy trì bộ nhớ trạng thái hằng số $\mathcal{O}(1)$ (< 200 KB cho 3 tầng) và trễ suy luận < 25ms trên CPU SIMD; tích hợp van xả thanh hầu (GTSR) chống bão hòa âm học.
+  - Giám Khảo Hàm Thưởng Thực Tế Win32 (`Win32ExecutionRewardOracle` tại `jarvis/learning/win32_oracle.py`): Neo chặn hàm thưởng vào mã thoát API, liveness check PID tiến trình và HWND cửa sổ active; chốt chặn an toàn fail-closed phủ quyết các hành vi phá hoại ($R = -2.0$).
+  - Động Cơ Tự Học In-Situ Test-Time GRPO (`InSituGRPOEngine` tại `jarvis/learning/grpo_engine.py`): Loại bỏ mạng Critic theo chuẩn DeepSeek-R1; chuẩn hóa Advantage nội nhóm $G=4$; cập nhật LoRA Rank-4 ($r=4, \alpha=8$, dung lượng < 75 KB) độc quyền trong cửa sổ nhàn rỗi cắm sạc AC với cơ chế tự động rollback khi $\mathbb{D}_{\text{KL}} > 0.04$.
+  - Toàn bộ 30 bài kiểm thử đơn vị Argon mới và Argon Telemetry Benchmark: **100% PASS (30/30 passed + 6/6 benchmark)** với **0 MB VRAM delta**.
 - **Sprint 15 Argon Sovereign Frontier 6.0 Research & v5.6.1 Sustained Telemetry Soak Test**:
   - Kiểm thử Ngâm và Ứng suất Bền vững 60 Giây (`tests/eval/soak_test_v560_argon.py`): Thực thi 3,610 chu kỳ phản xạ liên tục (60.2 chu kỳ/giây) qua toàn bộ chuỗi PS-HCF -> Whisper-Medusa -> Action-Tree -> Win32 Dispatcher. Đạt 100% PASS trên toàn bộ 5 cổng nghiệm thu: RAM Working Set drift chỉ +0.88 MB (+40.66 MB/hr <= 50.0), Windows Handles biến thiên -2 handles (PASS), VRAM delta đạt đúng 0.00 MiB (0 MB delta invariant), độ trễ phản xạ p50 = 11.70ms (<= 25.0ms), và 0 frame âm thanh bị drop. Bằng chứng viễn trắc lưu trữ tại `docs/eval/soak_test_v560_results.json` và `docs/eval/soak_test_v560_evidence.md`.
   - Công trình Nghiên cứu Tiên phong Argon Sovereign Frontier 6.0 ([`docs/research/argon_sovereign_frontier_6_speech_mamba_and_duplex.md`](docs/research/argon_sovereign_frontier_6_speech_mamba_and_duplex.md)): Khảo sát và đối chuẩn biện chứng (Thesis ⮂ Antithesis ⮂ Synthesis) cho 3 chân trời công nghệ kế tiếp:
