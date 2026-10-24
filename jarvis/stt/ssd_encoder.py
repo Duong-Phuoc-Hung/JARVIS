@@ -35,6 +35,8 @@ from typing import Any, Sequence
 
 import numpy as np
 
+from jarvis.stt.crrsp_memory import CRRSPConfig, ContinuousRollingRecurrentMemory
+
 logger = logging.getLogger("jarvis.stt.ssd_encoder")
 
 
@@ -217,12 +219,14 @@ class StreamingSpeechSSDEncoder:
         num_layers: int = 4,
         config: SSDConfig | None = None,
         anchor_interval: int = 3,
+        enable_crrsp: bool = False,
     ) -> None:
         """
         Args:
             num_layers: Total number of recurrent encoder layers.
             config: SSDConfig parameters.
             anchor_interval: Interleave interval for transformer context anchoring (default 3:1).
+            enable_crrsp: Whether to enable Continuous Rolling Recurrent State Persistence memory.
         """
         self.num_layers = max(1, int(num_layers))
         self.config = config or SSDConfig()
@@ -233,20 +237,39 @@ class StreamingSpeechSSDEncoder:
             for i in range(self.num_layers)
         ]
 
+        self.crrsp_memory: ContinuousRollingRecurrentMemory | None = (
+            ContinuousRollingRecurrentMemory(
+                config=CRRSPConfig(d_model=self.config.d_model, d_state=self.config.d_state)
+            )
+            if enable_crrsp
+            else None
+        )
+
     @property
     def total_state_memory_bytes(self) -> int:
         """Returns total memory occupied by recurrent states across all layers."""
-        return sum(layer.persistent_state_memory_bytes for layer in self.layers)
+        base_bytes = sum(layer.persistent_state_memory_bytes for layer in self.layers)
+        if self.crrsp_memory:
+            base_bytes += self.crrsp_memory.buffer_memory_bytes
+        return base_bytes
 
     def reset(self) -> None:
         """Resets all recurrent states across all layers."""
         for layer in self.layers:
             layer.reset_state()
+        if self.crrsp_memory:
+            self.crrsp_memory.reset()
+
+    def finalize_turn(self, turn_transcript: str | None = None) -> None:
+        """Flushes transient acoustic hangover while preserving slow conversational context."""
+        if self.crrsp_memory:
+            self.crrsp_memory.finalize_turn(turn_transcript)
 
     def process_frame(
         self,
         audio_feature: np.ndarray,
         is_glottal_stop: bool = False,
+        f0_hz: float = 0.0,
     ) -> tuple[np.ndarray, dict[str, Any]]:
         """
         Streams a single acoustic feature frame through the stacked encoder.
@@ -254,6 +277,7 @@ class StreamingSpeechSSDEncoder:
         Args:
             audio_feature: 1D float32 vector of shape (d_model,).
             is_glottal_stop: Whether current frame is a glottal pause.
+            f0_hz: Fundamental frequency of current frame (if voiced).
 
         Returns:
             tuple[output_vector, telemetry_dict]
@@ -270,6 +294,12 @@ class StreamingSpeechSSDEncoder:
             layer_latencies.append(step_out.step_latency_ms)
             state_norms.append(step_out.state_norm)
 
+        # Apply continuous rolling recurrent memory if enabled
+        if self.crrsp_memory:
+            current_x = self.crrsp_memory.step_frame(
+                current_x, f0_hz=f0_hz, is_glottal_stop=is_glottal_stop
+            )
+
         total_elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
         telemetry = {
@@ -278,6 +308,7 @@ class StreamingSpeechSSDEncoder:
             "max_state_norm": float(np.max(state_norms)),
             "memory_kb": self.total_state_memory_bytes / 1024.0,
             "is_glottal_reset": is_glottal_stop,
+            "crrsp_enabled": self.crrsp_memory is not None,
         }
 
         return current_x, telemetry

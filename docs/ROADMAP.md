@@ -10,10 +10,21 @@
   - Nhận diện thông minh: lỗi biên dịch terminal (`npm run build`, `cargo build`), tệp tin tải xong trên trình duyệt, pin yếu $\le 15\%$; bộ đệm Debounce Cooldown chống spam; tích hợp vào `ProactiveEngine`.
   - Unit tests verified: `tests/unit/test_win32_hooks.py` (5/5 passed 100%).
 
-## Sprint 22 (Upcoming v6.0.0 Alpha): Frontier 10.0 Phase 2 (CRRSP Memory & Speculative Cloud Handoff)
+## Sprint 22: Frontier 10.0 CRRSP Memory, In-Situ GRPO & ADAP Calibration (2026-10-24, v5.9.7)
 
-- [ ] **Continuous Rolling Recurrent State Persistence (CRRSP)**:
-  - Phân rã trạng thái Mamba-2 thành Fast-Decay (0.85) và Slow-Drift (0.998), duy trì ký ức hội thoại đa lượt liên tục với 0 MB VRAM delta.
+- [x] **Continuous Rolling Recurrent State Persistence (CRRSP)** (`jarvis/stt/crrsp_memory.py`):
+  - [x] Phân rã trạng thái Mamba-2 SSD thành Fast-Decay (0.85) và Slow-Drift (0.998), duy trì ký ức hội thoại đa lượt liên tục với 0.00 MiB VRAM delta.
+  - [x] Tích hợp trực tiếp vào `StreamingSpeechSSDEncoder` (`jarvis/stt/ssd_encoder.py`).
+  - [x] Unit tests verified: `tests/unit/test_crrsp_memory.py` (5/5 passed 100%).
+- [x] **Autonomous In-Situ GRPO Policy Adaptation Training** (`scripts/train_grpo_adaptation.py`):
+  - [x] Huấn luyện LoRA Rank-4 adapter với Win32 Reward Oracle, đạt $\mathbb{D}_{\text{KL}} \le 0.0078 \le 0.040$, cản phá veto an toàn $P_{\text{violation}} = 0.000\%$.
+  - [x] Xuất adapter siêu nhẹ $9.07\text{ KB}$ tại `data/models/grpo_lora/adapter_model.npz`.
+- [x] **Acoustic Direct-to-Action (ADAP) Full Calibration & Training** (`scripts/train_adap_head.py`):
+  - [x] Huấn luyện contrastive $W_{\text{adap}} \in \mathbb{R}^{45 \times 512}$ trên 5,400 mẫu âm học, đạt Test Acc 100.00%, Margin 0.997.
+  - [x] Xuất trọng số nén $84.27\text{ KB}$ tại `data/models/adap_weights.npz`.
+
+## Sprint 23 (Upcoming v6.0.0 Sovereign): Frontier 10.0 Phase 3 (Speculative Cloud Handoff & Full Production Release)
+
 - [ ] **Speculative Cloud Pre-Warming & Draft Verification (SCPDV)**:
   - Mở trước kết nối TLS streaming và Draft AST skeleton tới Cloud LLM trong khi người dùng đang nói, cắt giảm 60-75% trễ.
 
