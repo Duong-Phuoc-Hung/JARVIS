@@ -9,18 +9,50 @@ Features:
 """
 from __future__ import annotations
 
+from jarvis.hardware.eco_governor import (
+    AdaptiveEcoGovernor,
+    EcoLevel,
+    GovernancePolicy,
+)
 from jarvis.hardware.monitor import (
     DiskSmartMetrics,
     DiskSmartStatus,
     HardwareMetrics,
     HardwareMonitor,
 )
+from jarvis.hardware.polyglot_runtime import (
+    ExecutionTelemetry,
+    PolyglotInferenceEngine,
+)
 from jarvis.hardware.reporter import HardwareReporter
+from jarvis.hardware.universal_hal import (
+    AcceleratorBackend,
+    CPUArchitecture,
+    DeviceProfile,
+    HardwareTier,
+    ISACapabilities,
+    PowerProfile,
+    UniversalHardwareAbstractionLayer,
+    get_universal_hal,
+)
 
 __all__ = [
+    "AdaptiveEcoGovernor",
+    "AcceleratorBackend",
+    "CPUArchitecture",
+    "DeviceProfile",
     "DiskSmartMetrics",
     "DiskSmartStatus",
+    "EcoLevel",
+    "ExecutionTelemetry",
+    "GovernancePolicy",
     "HardwareMetrics",
     "HardwareMonitor",
     "HardwareReporter",
+    "HardwareTier",
+    "ISACapabilities",
+    "PolyglotInferenceEngine",
+    "PowerProfile",
+    "UniversalHardwareAbstractionLayer",
+    "get_universal_hal",
 ]
