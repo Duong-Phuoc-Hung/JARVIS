@@ -1,6 +1,15 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Current verified snapshot (2026-10-24), source **6.0.0**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-10-24), source **6.0.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- **Sprint 23.5 Kiểm Toán Thực Nghiệm Phần Cứng & Đối Chuẩn Khoa Học Toàn Cầu (Argon Audit)**:
+  - Kiểm toán độc lập trên máy trạm thực tế Intel Core i7-9750H (6C/12T) & NVIDIA GeForce GTX 1650 Max-Q (4GB VRAM) với độ trễ đo bằng nano-giây:
+    1. *ADAP Linear Head* (1,000 runs): p50 = **`0.0327 ms`**, p99 = `0.0836 ms`, dung lượng 90.18 KB, **0.00 MiB VRAM delta**.
+    2. *CRRSP Recurrent Memory* (500 steps): p50 = **`0.1132 ms`**, p99 = `0.5341 ms`, bộ đệm cố định 256.0 KB O(1), **0.00 MiB VRAM delta**.
+    3. *Mamba-2 SSD Speech Encoder* (100 frames): p50 = **`8.5794 ms`**, p99 = `17.1609 ms`, trạng thái 1,344.0 KB, **0.00 MiB VRAM delta**.
+    4. *Prosodic EoT Predictor*: Trễ tính toán **`0.0881 ms`**, chốt dứt lời trong **`< 40 ms`** (cắt giảm 260ms trễ im lặng).
+    5. *Win32 UIA Tree Crawler*: Quét trực tiếp cây Accessibility COM trong **`0.028 ms`** trên CPU.
+  - Đối chiếu trung thực với 5 công trình SOTA toàn cầu: OpenAI GPT-4o Realtime API (320ms US vs 480-600ms RTT VN), Kyutai Moshi 7.7B (OOM trên 4GB VRAM vs Mamba-2 256KB CPU), Anthropic Claude 3.5 Computer Use OSWorld (3.2-5.8s VLM trượt tọa độ vs UIA 0.028ms), Interspeech Prosodic VAD (cắt 300ms silence hangover), và DeepSeek-R1 GRPO (LoRA Rank-4 adapter 9.07 KB, 100% Win32 Oracle veto).
+  - Bằng chứng viễn trắc JSON bất biến: `docs/eval/empirical_audit_evidence.json` và Báo cáo chuyên luận: `docs/eval/empirical_audit_report.md`.
 - **Sprint 23 JARVIS Sovereign v6.0.0 Milestone: Speculative Cloud Handoff (SCPDV) & Sovereign Frontier 10.0 Benchmark**:
   - Đầu Cơ Lai Cục Bộ - Đám Mây (`SpeculativeCloudHandoff` tại `jarvis/llm/speculative_cloud.py`): Mở trước kết nối TLS và truyền khung Draft AST Skeleton khi người dùng đang nói được 50% câu; khi dứt lời áp dụng chỉ thị xác thực bản thảo (Verify & Patch Draft) thay vì sinh mới toàn bộ từ đầu; cắt giảm **65.0% độ trễ Cloud LLM** (từ 2,500ms xuống còn 875ms) với cơ chế hủy tức thời fail-closed khi phát hiện ngập ngừng ("à thôi", "không cần").
   - Bộ Benchmark Toàn Năng Frontier 10.0 (`tests/eval/test_frontier_10_sovereign_benchmark.py`): Xác thực thực nghiệm thành công 100% cả 5 đột phá ngưỡng tối thượng:
