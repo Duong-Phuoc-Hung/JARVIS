@@ -24,6 +24,7 @@ from jarvis.proactive.health_monitor import SystemHealthMonitor
 from jarvis.proactive.inactivity import InactivityMonitor
 from jarvis.proactive.pomodoro import PomodoroTimer
 from jarvis.proactive.reminders import ReminderScheduler, ScheduledReminder
+from jarvis.proactive.win32_hooks import Win32EventHookCoPilot, ProactiveRule, ProactiveSystemEvent
 
 logger = logging.getLogger("jarvis.proactive.engine")
 
@@ -60,6 +61,8 @@ class ProactiveConfig:
     inactivity_phrase: str = "Thưa Ngài, Ngài có cần hỗ trợ gì không?"
     inactivity_interval_s: float = 10.0
 
+    win32_hooks_enabled: bool = True
+
     @classmethod
     def from_dict(cls, cfg: dict[str, Any] | None) -> ProactiveConfig:
         """Parses flat or nested YAML/JSON config dictionary."""
@@ -81,6 +84,7 @@ class ProactiveConfig:
         pomodoro_cfg = p_cfg.get("pomodoro", p_cfg.get("focus_mode", {}))
         briefing_cfg = p_cfg.get("daily_briefing", {})
         inactivity_cfg = p_cfg.get("inactivity_greeting", p_cfg.get("inactivity", {}))
+        win32_hooks_cfg = p_cfg.get("win32_hooks", {})
 
         return cls(
             enabled=bool(p_cfg.get("enabled", True)),
@@ -112,6 +116,8 @@ class ProactiveConfig:
             inactivity_cooldown_s=float(inactivity_cfg.get("cooldown_seconds", p_cfg.get("inactivity_cooldown_s", 3600.0))),
             inactivity_phrase=str(inactivity_cfg.get("phrase", p_cfg.get("inactivity_phrase", "Thưa Ngài, Ngài có cần hỗ trợ gì không?"))),
             inactivity_interval_s=float(inactivity_cfg.get("check_interval_s", p_cfg.get("inactivity_interval_s", 10.0))),
+            # Win32 Native Event Hooks
+            win32_hooks_enabled=bool(win32_hooks_cfg.get("enabled", p_cfg.get("win32_hooks_enabled", True))),
         )
 
 
@@ -217,8 +223,23 @@ class ProactiveEngine:
             enabled=self.config.enabled and self.config.inactivity_greeting_enabled,
         )
 
+        # 6. Event-Driven Win32 Proactive Co-Pilot
+        self.win32_hooks = Win32EventHookCoPilot(
+            event_callback=self._handle_win32_event,
+        )
+
         self._running = False
         self._lock = threading.RLock()
+
+    def _handle_win32_event(self, event: ProactiveSystemEvent, rule: ProactiveRule) -> None:
+        """Dispatches voice alert and overlay notification for triggered Win32 event rules."""
+        msg = rule.voice_notification_template
+        if self.overlay_callback:
+            try:
+                self.overlay_callback(f"JARVIS: {rule.rule_id}", msg)
+            except Exception as err:
+                logger.debug("Overlay callback failed in win32 hook handler: %s", err)
+        self._handle_tts_dispatch(msg)
 
     def _handle_tts_dispatch(self, text: str) -> None:
         """Internal TTS dispatcher that checks Pomodoro DND suppression if needed."""
@@ -251,6 +272,8 @@ class ProactiveEngine:
                 self.briefing_scheduler.start()
             if self.config.inactivity_greeting_enabled:
                 self.inactivity.start()
+            if self.config.win32_hooks_enabled:
+                self.win32_hooks.start()
 
             self._running = True
             logger.info("ProactiveEngine running.")
@@ -267,6 +290,7 @@ class ProactiveEngine:
             self.pomodoro.stop_worker()
             self.briefing_scheduler.stop()
             self.inactivity.stop()
+            self.win32_hooks.stop()
 
             self._running = False
             logger.info("ProactiveEngine stopped.")
