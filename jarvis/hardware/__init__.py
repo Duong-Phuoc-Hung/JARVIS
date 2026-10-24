@@ -14,11 +14,28 @@ from jarvis.hardware.eco_governor import (
     EcoLevel,
     GovernancePolicy,
 )
+from jarvis.hardware.kernel_telepathy import (
+    FramePresentationToken,
+    HIDPacketType,
+    KernelDeviceDriverHandle,
+    KernelInterceptorBackend,
+    KernelTelepathyEngine,
+    KernelTelepathyStatus,
+    KernelTelepathyTelemetry,
+    USBHIDHardwarePacket,
+)
 from jarvis.hardware.monitor import (
     DiskSmartMetrics,
     DiskSmartStatus,
     HardwareMetrics,
     HardwareMonitor,
+)
+from jarvis.hardware.neuromorphic_lif import (
+    HardwareLIFCoProcessor,
+    LIFCoProcessorBackend,
+    LIFNeuronParameters,
+    NeuromorphicSpikeEvent,
+    NeuromorphicSpikeTrain,
 )
 from jarvis.hardware.polyglot_runtime import (
     ExecutionTelemetry,
@@ -45,14 +62,27 @@ __all__ = [
     "DiskSmartStatus",
     "EcoLevel",
     "ExecutionTelemetry",
+    "FramePresentationToken",
     "GovernancePolicy",
+    "HardwareLIFCoProcessor",
     "HardwareMetrics",
     "HardwareMonitor",
     "HardwareReporter",
     "HardwareTier",
+    "HIDPacketType",
     "ISACapabilities",
+    "KernelDeviceDriverHandle",
+    "KernelInterceptorBackend",
+    "KernelTelepathyEngine",
+    "KernelTelepathyStatus",
+    "KernelTelepathyTelemetry",
+    "LIFCoProcessorBackend",
+    "LIFNeuronParameters",
+    "NeuromorphicSpikeEvent",
+    "NeuromorphicSpikeTrain",
     "PolyglotInferenceEngine",
     "PowerProfile",
     "UniversalHardwareAbstractionLayer",
+    "USBHIDHardwarePacket",
     "get_universal_hal",
 ]

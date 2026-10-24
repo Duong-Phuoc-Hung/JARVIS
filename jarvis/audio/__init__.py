@@ -18,6 +18,12 @@ from jarvis.audio.engine import (
     MicrophoneProbeManager,
 )
 from jarvis.audio.adap_head import ADAPProjectionHead, ADAPPrediction, DEFAULT_REFLEX_ACTIONS
+from jarvis.audio.liquid_dynamics import (
+    LiquidStateSpaceNetwork,
+    LiquidTimeConstantConfig,
+    LiquidTrajectoryMetrics,
+    LTCSolverType,
+)
 from jarvis.audio.mose_head import (
     CANONICAL_180_ACTIONS,
     MoSEPrediction,
@@ -41,6 +47,10 @@ __all__ = [
     "calculate_rms",
     "DEFAULT_REFLEX_ACTIONS",
     "DSPBlockResult",
+    "LiquidStateSpaceNetwork",
+    "LiquidTimeConstantConfig",
+    "LiquidTrajectoryMetrics",
+    "LTCSolverType",
     "MicrophoneProbeManager",
     "MoSEPrediction",
     "MoSEProjectionHead",

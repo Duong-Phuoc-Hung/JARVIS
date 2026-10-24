@@ -12,6 +12,17 @@ Features:
 from __future__ import annotations
 
 from jarvis.core.models import SecurityConfigurationError
+from jarvis.security.formal_verifier import (
+    ActionSynthesisNode,
+    ActionVerb,
+    Counterexample,
+    FirstOrderSMTSolver,
+    PreconditionState,
+    ProofCertificate,
+    SafetyInvariant,
+    VerificationVerdict,
+    VerifiedActionSynthesizer,
+)
 from jarvis.security.path_guard import validate_safe_path
 from jarvis.security.prompt_guard import PromptGuard, SanitizationResult
 from jarvis.security.report import SecurityPrivilegeGate, SecurityReportGenerator
@@ -34,19 +45,28 @@ from jarvis.security.secrets import (
 )
 
 __all__ = [
+    "ActionSynthesisNode",
+    "ActionVerb",
+    "Counterexample",
+    "FirstOrderSMTSolver",
     "HostScanResult",
     "KNOWN_SECRETS",
     "NetworkScanner",
     "NmapScannerWrapper",
     "PacketCapture",
     "PacketCaptureResult",
+    "PreconditionState",
     "PromptGuard",
+    "ProofCertificate",
+    "SafetyInvariant",
     "SanitizationResult",
     "ScanReport",
     "SecurityConfigurationError",
     "SecurityPrivilegeGate",
     "SecurityReportGenerator",
     "TSharkCaptureWrapper",
+    "VerificationVerdict",
+    "VerifiedActionSynthesizer",
     "Vulnerability",
     "VulnerabilitySeverity",
     "delete_secret",
