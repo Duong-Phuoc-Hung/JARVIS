@@ -33,6 +33,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `5.8.0`.
   - `README.md`: Cập nhật snapshot 5.8.0 và tổng hợp thành tựu Sprint 18.
   - `docs/ROADMAP.md`: Cập nhật Sprint 18 hoàn thành Remediation Triad, Full-Duplex, và Universal Adapters.
+  - docs/research/argon_frontier_9_next_generation_upgrades.md: Chuyên khảo học thuật 4 chương về Prosodic EoT Predictor (<40ms), OCR-Free UIAutomation Accessibility Tree Crawler, và Self-Evolving Workflow Synthesis via In-Situ GRPO.
 - **Chỉ số kiểm thử thực tế**:
   - Toàn bộ 50 bài kiểm thử đơn vị Argon: **50/50 passed 100% in 7.26s**.
   - Toàn bộ 6 bài kiểm thử Argon Telemetry Benchmark: **6/6 passed 100% in 11.50s**.

@@ -1,3 +1,12 @@
+## Sprint 19 (Upcoming v5.9.0): Frontier 9.0 Prosodic EoT & Native Win32 UIAutomation
+
+- [x] **Argon Sovereign Frontier 9.0 Research Monograph (docs/research/argon_frontier_9_next_generation_upgrades.md)** — PASS engineering:
+  - Khảo cứu đột phá 3 chân trời kế tiếp: Prosodic Pitch-Tilt End-of-Turn Prediction (<40ms turn finalization), OCR-Free In-Process UIAutomation Tree Crawler (UATC) (<3.5ms on CPU, 0 MB VRAM), và Self-Evolving Macro Synthesis via In-Situ GRPO.
+- [ ] **Prosodic End-of-Turn Predictor (jarvis/audio/eot_predictor.py)** — PENDING engineering:
+  - Triển khai thuật toán đo đạc dF0/dt < -320Hz/s và Spectral Tilt < 0.10 để dứt câu trong <40ms, loại bỏ hoàn toàn bộ đệm chờ 300ms của VAD.
+- [ ] **Native Win32 UIAutomation Tree Crawler (jarvis/context/uia_crawler.py)** — PENDING engineering:
+  - Khai thác COM interface IUIAutomation quét cây Accessibility của mọi ứng dụng Windows trong <3.5ms, click chính xác 100% không cần VLM.
+
 ## Sprint 18: Argon Sovereign Frontier 8.0: Remediation Triad, Full-Duplex & Universal Adapters (2026-10-24, v5.8.0)
 
 - [x] **Dual-Mode Harmonic-Spectral Subtraction (DM-HSS) (`jarvis/audio/ps_hcf.py`)** — `PASS engineering` / `PASS runtime`:
