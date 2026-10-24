@@ -24,6 +24,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `5.9.5`.
   - `README.md`: Cập nhật snapshot 5.9.5 và thành tựu Sprint 19 & Sprint 20.
   - `docs/ROADMAP.md`: Cập nhật Sprint 19 & 20 hoàn thành Prosodic EoT, UIAutomation, và Macro Crystallization.
+  - `docs/research/argon_frontier_10_threshold_breakthroughs_monograph.md`: Chuyên khảo nghiên cứu Frontier 10.0 vạch ra 5 đột phá ngưỡng (ADAP sub-15ms, CRRSP 0 MB, SCPDV 60% latency cut, EWPCP 0.0% CPU, và chứng minh toán học GRPO Contraction Mapping).
 - **Chỉ số kiểm thử thực tế**:
   - Toàn bộ 60 bài kiểm thử đơn vị Argon: **60/60 passed 100% in 11.20s**.
   - Toàn bộ 6 bài kiểm thử Argon Telemetry Benchmark: **6/6 passed 100% in 14.16s**.

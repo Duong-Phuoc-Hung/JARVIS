@@ -1,3 +1,14 @@
+## Sprint 21 (Upcoming v6.0.0 Alpha): Frontier 10.0 Threshold Breakthroughs (ADAP & CRRSP)
+
+- [x] **Argon Sovereign Frontier 10.0 Research Monograph (docs/research/argon_frontier_10_threshold_breakthroughs_monograph.md)** — PASS engineering:
+  - Khảo cứu đột phá 5 ngưỡng giới hạn: Acoustic Direct-to-Action Projection (ADAP <15ms), Continuous Rolling Recurrent State Persistence (CRRSP), Speculative Cloud Pre-warming & Draft Verification, Event-Driven Proactive Win32 Co-Pilot, và Định lý hội tụ đơn điệu của In-Situ GRPO.
+- [ ] **Acoustic Direct-to-Action Projection (jarvis/stt/adap_projector.py)** — PENDING engineering:
+  - Chiếu trực tiếp vector trạng thái Mamba-2 SSD vào ActionTree trong < 1.5ms, đạt trễ phản xạ Speech-to-Action < 15ms không cần sinh Text Tokens.
+- [ ] **Continuous Rolling Recurrent State Persistence (jarvis/stt/crrsp_memory.py)** — PENDING engineering:
+  - Phân rã trạng thái Mamba-2 thành Fast-Decay và Slow-Drift, duy trì ký ức hội thoại đa lượt liên tục với 0 MB VRAM delta.
+- [ ] **Event-Driven Proactive Win32 Co-Pilot (jarvis/core/proactive_copilot.py)** — PENDING engineering:
+  - Bắt sự kiện kernel Windows bằng SetWinEventHook không tốn CPU, chủ động nhắc nhở khi hoàn thành tiến trình.
+
 ## Sprint 20: Self-Evolving Macro Synthesis via In-Situ GRPO (2026-10-24, v5.9.5)
 
 - [x] **Sequential Action Trajectory Miner (`jarvis/learning/macro_miner.py`)** — `PASS engineering` / `PASS runtime`:
