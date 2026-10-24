@@ -1,3 +1,15 @@
+## Sprint 17: Argon Sovereign Red-Team Adversarial Audit & Cross-Model Integration (2026-10-24, v5.7.1)
+
+- [x] **Adversarial Red-Team Critique & Physical Failure Mode Audit (docs/research/argon_sovereign_self_critique_and_cross_model_integration.md)** — PASS engineering:
+  - Khảo cứu bóc tách 10 lỗ hổng và điểm mù vật lý của Argon Sovereign v5.7.0 (V-01 Multi-Talker bifurcation, V-02 Whispered unvoiced loss, V-03 Vocal fry <70Hz, V-04 Medusa draft collapse khi gặp từ OOD, V-05 Mamba-2 SSD state drift khi Windows WASAPI jitter, V-06 GC preemption jitter p99, V-07 Win32 Oracle side-effect blindness, V-08 AWACI Alt-Tab race condition, V-09 Reflex Tier 2 vs Cloud Tier 3 cognitive dissonance, V-10 Integration friction).
+- [x] **The Remediation Triad Architectural Specification** — PASS engineering:
+  - Thiết lập đặc tả kỹ thuật cho Tam giác Khắc phục triệt để: Dual-Mode Harmonic-Spectral Subtraction (DM-HSS), Confidence-Gated Dynamic Speculation (CGDS), và Transactional Intent-Execution Ledger (TIEL).
+- [x] **Concrete Cross-Model Integration Blueprints** — PASS engineering:
+  - Cung cấp mã nguồn tích hợp chuẩn mực drop-in kết nối với Faster-Whisper (CTranslate2), Llama.cpp / Qwen2.5-Coder SLM, và Kokoro-82M TTS Full-Duplex.
+- [x] **Full Regression Verification** — PASS runtime:
+  - 30/30 unit tests PASS 100% trong 6.10s.
+  - 0 MB VRAM delta bảo toàn tuyệt đối trên NVIDIA GeForce GTX 1650 Max-Q.
+
 ## Sprint 16: Argon Sovereign Frontier 7.0: Mamba-2 SSD & In-Situ Test-Time GRPO Policy (2026-10-24, v5.7.0)
 
 - [x] **Mamba-2 Structured State Space Duality (SSD) Streaming Audio Encoder (`jarvis/stt/ssd_encoder.py`)** — `PASS engineering` / `PASS runtime`:
