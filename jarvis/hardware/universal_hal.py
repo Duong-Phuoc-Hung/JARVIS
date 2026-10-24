@@ -389,10 +389,11 @@ class UniversalHardwareAbstractionLayer:
             return 8.0, 3.0
 
     def _probe_gpu(self) -> tuple[str, float, float]:
+        no_window_flag = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
         # 1. Try nvidia-smi
         try:
             cmd = ["nvidia-smi", "--query-gpu=name,memory.total,memory.free", "--format=csv,noheader,nounits"]
-            out = subprocess.check_output(cmd, creationflags=0x08000000, timeout=1.5).decode("utf-8").strip()
+            out = subprocess.check_output(cmd, creationflags=no_window_flag, timeout=1.5).decode("utf-8").strip()
             if out:
                 line = out.split("\n")[0]
                 parts = [p.strip() for p in line.split(",")]
@@ -405,7 +406,12 @@ class UniversalHardwareAbstractionLayer:
         if sys.platform == "win32":
             try:
                 ps_cmd = "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name"
-                out = subprocess.check_output(["powershell", "-NoProfile", "-Command", ps_cmd], creationflags=0x08000000, timeout=1.5).decode("utf-8").strip()
+                creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                out = subprocess.check_output(
+                    ["powershell", "-NoProfile", "-Command", ps_cmd],
+                    creationflags=creationflags,
+                    timeout=1.5,
+                ).decode("utf-8").strip()
                 if out:
                     first_gpu = out.split("\n")[0].strip()
                     # Integrated GPU shares system RAM

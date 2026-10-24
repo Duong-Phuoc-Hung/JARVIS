@@ -50,7 +50,8 @@ def query_nvidia_smi() -> dict[str, any]:
             "--query-gpu=name,memory.total,memory.used,memory.free,temperature.gpu,utilization.gpu",
             "--format=csv,noheader,nounits",
         ]
-        res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
+        res = subprocess.run(cmd, capture_output=True, text=True, check=True, creationflags=flags)
         parts = [p.strip() for p in res.stdout.strip().split(",")]
         return {
             "gpu_name": parts[0],
