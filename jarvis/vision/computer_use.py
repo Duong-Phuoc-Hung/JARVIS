@@ -268,10 +268,16 @@ class UIElementDetector:
         vision_manager: ScreenVisionManager | None = None,
         ocr_engine: DesktopOCR | None = None,
         coordinate_mapper: CoordinateMapper | None = None,
+        ovg_engine: Any | None = None,
     ) -> None:
         self.vision_manager = vision_manager or ScreenVisionManager()
         self.ocr_engine = ocr_engine or DesktopOCR(vision_manager=self.vision_manager)
         self.coord_mapper = coordinate_mapper or CoordinateMapper()
+        if ovg_engine is None:
+            from jarvis.vision.omnipresent_grounding import OmnipresentVisualGroundingEngine
+            self.ovg_engine = OmnipresentVisualGroundingEngine(coord_mapper=self.coord_mapper)
+        else:
+            self.ovg_engine = ovg_engine
 
     # ── Tier 1: Vision LLM Grounding ──────────────────────────────────────────
 
@@ -512,6 +518,43 @@ class UIElementDetector:
 
         return elements
 
+    # ── Tier 3.5: Edge-Native Omnipresent Visual Grounding (Canvas / DirectX) ────
+
+    def detect_via_omnipresent_grounding(
+        self, query: str, image_input: bytes | Any | None, screen_w: int, screen_h: int
+    ) -> list[UIElement]:
+        """
+        Tier 3.5: Extracts interactive UI elements on custom canvas, DirectX, Vulkan,
+        or non-accessible Electron viewports using morphological saliency and canonical anchor matching.
+        """
+        elements: list[UIElement] = []
+        if image_input is None:
+            return elements
+
+        try:
+            res = self.ovg_engine.ground_query(
+                query=query,
+                image_input=image_input,
+                screen_w=screen_w,
+                screen_h=screen_h,
+            )
+            if res.is_grounded and res.bbox is not None:
+                elements.append(
+                    UIElement(
+                        name=query,
+                        element_type=res.element_type,
+                        bbox=res.bbox,
+                        text=None,
+                        confidence=res.confidence,
+                        source="omnipresent_grounding",
+                        metadata={"latency_ms": res.latency_ms},
+                    )
+                )
+        except Exception as exc:
+            logger.debug("Omnipresent visual grounding failed: %s", exc)
+
+        return elements
+
     # ── Tier 4: Template Matching & Synthetic UI Fallback ────────────────────
 
     def detect_via_template_and_heuristics(
@@ -689,6 +732,13 @@ class ComputerUseVision:
             tier3_results = self.detector.detect_via_win32_uia(query, w, h)
             if tier3_results:
                 return tier3_results
+
+        # Tier 3.5: Edge-Native Omnipresent Visual Grounding (Canvas / Non-accessible UI)
+        if preferred_tier is None or preferred_tier == 35 or preferred_tier == 4:
+            if img_bytes:
+                ovg_results = self.detector.detect_via_omnipresent_grounding(query, img_bytes, w, h)
+                if ovg_results:
+                    return ovg_results
 
         # Tier 4: Template Matching / Synthetic Heuristic Fallback
         if preferred_tier is None or preferred_tier == 4:

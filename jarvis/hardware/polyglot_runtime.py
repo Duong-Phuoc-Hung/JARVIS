@@ -233,8 +233,14 @@ class PolyglotInferenceEngine:
         scale_w = max_w / 127.0
         w_q = np.clip(np.round(w / scale_w), -128, 127).astype(np.int8)
 
-        # Integer matrix multiplication
-        out_int32 = np.matmul(x_q.astype(np.int32), w_q.T.astype(np.int32))
+        # Integer matrix multiplication (Utilizing ARM NEON Dot Product when 1D vector)
+        if x_q.ndim == 1:
+            from jarvis.hardware.arm64_sovereignty import ARM64VectorizedKernels
+            out_int32 = np.zeros(w_q.shape[0], dtype=np.int32)
+            for i in range(w_q.shape[0]):
+                out_int32[i] = ARM64VectorizedKernels.neon_dot_product_int8(x_q, w_q[i])
+        else:
+            out_int32 = np.matmul(x_q.astype(np.int32), w_q.T.astype(np.int32))
 
         # Dequantize back to float32
         out_f32 = out_int32.astype(np.float32) * (scale_x * scale_w)

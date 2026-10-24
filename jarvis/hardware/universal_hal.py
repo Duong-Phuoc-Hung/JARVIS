@@ -69,6 +69,7 @@ PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE = 30
 PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE = 31
 PF_AVX2_INSTRUCTIONS_AVAILABLE = 40
 PF_AVX512F_INSTRUCTIONS_AVAILABLE = 41
+PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE = 43
 
 
 class SYSTEM_POWER_STATUS(ctypes.Structure):
@@ -130,6 +131,7 @@ class ISACapabilities:
     has_avx512: bool = False
     has_arm_neon: bool = False
     has_arm_v8: bool = False
+    has_arm_dot_product: bool = False
     has_rdtsc: bool = True
     has_sse2: bool = True
     has_sse42: bool = False
@@ -197,6 +199,7 @@ class DeviceProfile:
                 "avx2": self.isa.has_avx2,
                 "avx512": self.isa.has_avx512,
                 "neon": self.isa.has_arm_neon,
+                "dot_product": self.isa.has_arm_dot_product,
             },
             "power": {
                 "ac_online": self.power.is_ac_connected,
@@ -315,6 +318,7 @@ class UniversalHardwareAbstractionLayer:
         has_avx512 = False
         has_neon = False
         has_v8 = False
+        has_dp = False
         has_sse2 = True
 
         if sys.platform == "win32":
@@ -327,14 +331,17 @@ class UniversalHardwareAbstractionLayer:
                 elif arch == CPUArchitecture.ARM64:
                     has_neon = bool(k32.IsProcessorFeaturePresent(PF_ARM_NEON_INSTRUCTIONS_AVAILABLE))
                     has_v8 = bool(k32.IsProcessorFeaturePresent(PF_ARM_V8_INSTRUCTIONS_AVAILABLE))
+                    has_dp = bool(k32.IsProcessorFeaturePresent(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE))
             except Exception as exc:
                 logger.debug("Win32 IsProcessorFeaturePresent probe warning: %s", exc)
                 # Fallback heuristics
                 has_avx2 = (arch == CPUArchitecture.X86_64)
                 has_neon = (arch == CPUArchitecture.ARM64)
+                has_dp = (arch == CPUArchitecture.ARM64)
         else:
             has_avx2 = (arch == CPUArchitecture.X86_64)
             has_neon = (arch == CPUArchitecture.ARM64)
+            has_dp = (arch == CPUArchitecture.ARM64)
 
         isa = ISACapabilities(
             has_avx=has_avx2,
@@ -342,6 +349,7 @@ class UniversalHardwareAbstractionLayer:
             has_avx512=has_avx512,
             has_arm_neon=has_neon,
             has_arm_v8=has_v8,
+            has_arm_dot_product=has_dp,
             has_sse2=has_sse2,
         )
         return arch, isa
