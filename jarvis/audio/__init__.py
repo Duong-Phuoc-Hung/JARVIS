@@ -23,6 +23,11 @@ from jarvis.audio.mose_head import (
     MoSEPrediction,
     MoSEProjectionHead,
 )
+from jarvis.audio.ssd_vocoder import (
+    SSDVocoderFrame,
+    SSDVocoderSampleRate,
+    StateSpaceStreamingVocoder,
+)
 from jarvis.audio.wake_word import WakeWordScoreEvent
 
 __all__ = [
@@ -42,5 +47,9 @@ __all__ = [
     "NoiseFloorTracker",
     "rms_mono",
     "SchmittTrigger",
+    "SSDVocoderFrame",
+    "SSDVocoderSampleRate",
+    "StateSpaceStreamingVocoder",
     "WakeWordScoreEvent",
 ]
+

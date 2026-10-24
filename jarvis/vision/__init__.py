@@ -26,6 +26,19 @@ from jarvis.vision.hands import (
 )
 from jarvis.vision.ocr import DesktopOCR
 from jarvis.vision.screen import ScreenCaptureResult, ScreenVisionManager
+from jarvis.vision.dma_streaming import (
+    DMABufferFormat,
+    DMAPinnedSlot,
+    DMAStreamingBackend,
+    DMAStreamingStatus,
+    ZeroCopyDMAManager,
+)
+from jarvis.vision.spiking_saliency import (
+    NeuromorphicEventSaliencyEngine,
+    SaliencyROI,
+    SpikingSaliencyResult,
+    SpikingSaliencyStatus,
+)
 from jarvis.vision.visual_verifier import (
     VisualDiffResult,
     VisualVerifier,
@@ -51,6 +64,16 @@ __all__ = [
     "ComputerUseVision",
     "VisualDiffResult",
     "VisualVerifier",
+    "DMABufferFormat",
+    "DMAPinnedSlot",
+    "DMAStreamingBackend",
+    "DMAStreamingStatus",
+    "ZeroCopyDMAManager",
+    "NeuromorphicEventSaliencyEngine",
+    "SaliencyROI",
+    "SpikingSaliencyResult",
+    "SpikingSaliencyStatus",
 ]
+
 
 
