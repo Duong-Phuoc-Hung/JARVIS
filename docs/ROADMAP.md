@@ -5,6 +5,10 @@
     1. *Frontier 6: Linear State Space Models (Mamba-2 SSD) for Streaming Speech vs Quadratic Whisper Transformers*: Khắc phục sự bùng nổ bộ nhớ KV-cache $O(T^2)$ khi nghe liên tục bằng Structured State Space Duality với bộ nhớ trạng thái không đổi $\mathcal{O}(1)$ (2.1 MB buffer); kiến trúc lai ghép Argon-Pyramid-SSD (3 SSD : 1 Transformer Anchor) giải quyết trôi dạt thanh điệu tiếng Việt.
     2. *Frontier 7: In-Situ On-Device Reinforcement Learning via Test-Time GRPO with Win32 Execution-Grounded Verifiers*: Loại bỏ mạng Critic; hàm thưởng neo chặn bởi mã trạng thái trả về từ Win32 API (`ActionResult.status == SUCCESS`), cập nhật trọng số adapter LoRA Rank-4 trong cửa sổ nhàn rỗi cắm nguồn AC với chặn cận $\mathbb{D}_{\text{KL}} \le 0.04$.
     3. *Frontier 8: Zero-Latency Dual-Stream Continuous Conversational Full-Duplex*: Phá vỡ sàn trễ 865ms của mô hình Half-Duplex; triển khai đồng thời luồng nghe và luồng nói thời gian thực với bộ trừ tiếng vọng tham chiếu WASAPI AEC và trọng tài ngắt lời ngữ nghĩa (Semantic Barge-In) hạ âm lượng mượt 10ms.
+- [x] **Argon Sovereign Applicability & Strategic Action Plan (`docs/research/argon_model_applicability_and_roadmap_report.md`)** — `PASS engineering`:
+  - Đối chuẩn phản biện toàn diện với OpenAI GPT-4o Voice, Google Gemini 2.0 Live, Kyutai Moshi, Claude 3.5 Computer Use.
+  - Xây dựng Ma trận Khả thi Tích hợp (Cross-Model Feasibility Matrix) cho PS-HCF, Medusa K=4, Action-Tree, Test-Time GRPO và WASAPI Full-Duplex.
+  - Thiết lập Kế hoạch Hành động Chiến lược 4 Giai đoạn (Giai đoạn 1: Universal Adapters $\to$ Giai đoạn 2: Lai ghép Mamba-2 & GRPO $\to$ Giai đoạn 3: Hội thoại Full-Duplex $\to$ Giai đoạn 4: Đóng gói thương phẩm v6.0).
 - [x] **Argon Sovereign Sustained Soak & Stress Test Benchmark (`tests/eval/soak_test_v560_argon.py`)** — `PASS runtime`:
   - Đo đạc thực tế 60 giây liên tục trên máy chủ Intel Core i7-9750H, NVIDIA GeForce GTX 1650 Max-Q, Windows 11 x64.
   - Thực thi **3,610 chu kỳ phản xạ liên tục (60.2 cycles/giây)** qua toàn bộ chuỗi PS-HCF -> Whisper-Medusa -> Action-Tree -> ActionDispatcher.

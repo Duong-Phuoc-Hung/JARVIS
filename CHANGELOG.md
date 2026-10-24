@@ -21,6 +21,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `docs/eval/soak_test_v560_results.json`: Lưu trữ 58 mẫu viễn trắc thời gian thực chi tiết (RAM, CPU, Handles, VRAM, GPU Temp, Latencies).
   - `docs/eval/soak_test_v560_evidence.md`: Báo cáo bằng chứng thực nghiệm nghiệm thu với đầy đủ bảng biểu và đồ thị.
   - `docs/research/argon_sovereign_frontier_6_speech_mamba_and_duplex.md`: Chuyên khảo học thuật 5 chương về Mamba-2 SSD, Test-Time GRPO, và Full-Duplex Conversational Audio.
+  - `docs/research/argon_model_applicability_and_roadmap_report.md`: Báo cáo nghiên cứu, phản biện đối chuẩn với các mô hình hiện nay (GPT-4o Voice, Gemini Live, Moshi, Claude Computer Use) và Kế hoạch triển khai 4 giai đoạn 2026–2027.
   - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `5.6.1`.
   - `README.md`: Cập nhật phiên bản 5.6.1 và thành tựu Sprint 15.
   - `docs/ROADMAP.md`: Cập nhật Sprint 15 với kết quả Soak Test 60s và Monograph Frontier 6.0.
