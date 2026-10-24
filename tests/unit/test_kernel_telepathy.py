@@ -132,3 +132,35 @@ def test_invalid_packet_rejection() -> None:
     result = engine.inject_hardware_hid_packet(invalid_packet)
     assert result is False
     engine.close()
+
+
+def test_usb_hid_keyboard_modifiers_and_mouse_wheel() -> None:
+    """Verifies keyboard injection with modifiers (Ctrl/Shift) and mouse wheel scrolling."""
+    engine = KernelTelepathyEngine()
+    engine.initialize(force_emulation=True)
+
+    # Scancode 0x06 ('c') with Ctrl modifier (0x01) -> Ctrl+C
+    ok_kb = engine.inject_keyboard_scancode(scancode=0x06, modifiers=0x01)
+    assert ok_kb is True
+
+    # Mouse motion with wheel scrolling (wheel=15)
+    ok_mouse = engine.inject_mouse_motion(dx=0, dy=0, buttons=0, wheel=15)
+    assert ok_mouse is True
+
+    telemetry = engine.get_telemetry()
+    assert telemetry["packets_injected"] == 2
+    engine.close()
+
+
+def test_kernel_driver_handle_reopen_and_close() -> None:
+    """Verifies that multiple open_handle calls close prior handles without resource leaks."""
+    handle = KernelDeviceDriverHandle(device_path=DEFAULT_KMDF_DEVICE_PATH)
+    success1, _ = handle.open_handle()
+    assert success1 is False
+
+    # Second open call should clean up previous attempt cleanly
+    success2, _ = handle.open_handle()
+    assert success2 is False
+    handle.close()
+    assert handle.is_open is False
+

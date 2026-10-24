@@ -106,3 +106,24 @@ def test_neuromorphic_lif_ambient_acoustic_wake_trigger() -> None:
     train_loud = coproc.ingest_audio_pcm(loud_pcm)
     assert train_loud.total_spikes >= 15
     assert train_loud.ambient_wake_triggered is True
+
+
+def test_neuromorphic_lif_nan_inf_robustness() -> None:
+    """Verifies that corrupted audio frames containing NaN or Inf do not brick the processor."""
+    params = LIFNeuronParameters(num_neurons=64)
+    coproc = HardwareLIFCoProcessor(params=params, wake_threshold_spikes=10)
+
+    # Ingest corrupted audio frame containing NaN and Inf
+    corrupted_audio = np.array([np.nan, np.inf, -np.inf, 0.0] * 40, dtype=np.float32)
+    train = coproc.ingest_audio_pcm(corrupted_audio)
+
+    # Membrane potentials must remain finite and uncorrupted
+    assert not np.isnan(coproc.membrane_potentials).any()
+    assert not np.isinf(coproc.membrane_potentials).any()
+
+    # Subsequent valid loud audio must still trigger wake normally
+    clean_loud = np.full(160, 0.9, dtype=np.float32)
+    train_clean = coproc.ingest_audio_pcm(clean_loud)
+    assert train_clean.total_spikes >= 10
+    assert train_clean.ambient_wake_triggered is True
+

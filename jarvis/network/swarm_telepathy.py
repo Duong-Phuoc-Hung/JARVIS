@@ -163,16 +163,53 @@ class ZeroKnowledgeFederatedConsensus:
     def propose_lora_delta(self, round_id: str, delta: LoRARank4AdapterDelta) -> bool:
         """
         Validates and buffers a peer's LoRA Rank-4 delta proposal.
-        Fail-closed: Rejects proposals with invalid commitments or exploding norms.
+        Fail-closed: Rejects proposals with invalid commitments, exploding norms,
+        shape mismatches, or incoherence with existing round parameters.
         """
         with self._lock:
-            # 1. Verify Zero-Knowledge SHA-256 commitment
+            # 1. Structural shape and dimension integrity verification
+            if delta.matrix_a.shape != (delta.rank, delta.dim) or delta.matrix_b.shape != (delta.dim, delta.rank):
+                logger.warning(
+                    "LoRA delta %s matrix shapes (%s, %s) do not match declared (rank=%d, dim=%d).",
+                    delta.adapter_id,
+                    delta.matrix_a.shape,
+                    delta.matrix_b.shape,
+                    delta.rank,
+                    delta.dim,
+                )
+                self._rejected_updates_count += 1
+                return False
+
+            # 2. Check round parameter consistency with existing proposals
+            existing = self._pending_lora_deltas.get(round_id)
+            if existing and len(existing) > 0:
+                base = existing[0]
+                if (
+                    delta.dim != base.dim
+                    or delta.rank != base.rank
+                    or delta.layer_name != base.layer_name
+                ):
+                    logger.warning(
+                        "LoRA delta %s parameters (dim=%d, rank=%d, layer=%s) do not match round %s (dim=%d, rank=%d, layer=%s).",
+                        delta.adapter_id,
+                        delta.dim,
+                        delta.rank,
+                        delta.layer_name,
+                        round_id,
+                        base.dim,
+                        base.rank,
+                        base.layer_name,
+                    )
+                    self._rejected_updates_count += 1
+                    return False
+
+            # 3. Verify Zero-Knowledge SHA-256 commitment
             if not delta.verify_commitment():
                 logger.warning("LoRA delta %s failed cryptographic ZK commitment verification.", delta.adapter_id)
                 self._rejected_updates_count += 1
                 return False
 
-            # 2. Verify Frobenius norm bound (Gradient poisoning defense)
+            # 4. Verify Frobenius norm bound (Gradient poisoning defense)
             norm = delta.compute_frobenius_norm()
             if norm > self.max_norm or math.isnan(norm) or math.isinf(norm):
                 logger.warning(
@@ -220,21 +257,26 @@ class ZeroKnowledgeFederatedConsensus:
 
             # Reconstruct and weight-average full delta weights W = (alpha/r) * (B @ A)
             aggregated_delta_w = np.zeros((dim, dim), dtype=np.float32)
-            for p in proposals:
-                weight = float(p.training_samples) / float(total_samples)
-                w_p = (p.alpha / float(p.rank)) * (p.matrix_b @ p.matrix_a)
-                aggregated_delta_w += weight * w_p
+            try:
+                for p in proposals:
+                    weight = float(p.training_samples) / float(total_samples)
+                    w_p = (p.alpha / float(p.rank)) * (p.matrix_b @ p.matrix_a)
+                    aggregated_delta_w += weight * w_p
 
-            # Truncated SVD to factor back into rank r=4 matrices B and A
-            u, s, vt = np.linalg.svd(aggregated_delta_w, full_matrices=False)
-            u_r = u[:, :rank]
-            s_r = s[:rank]
-            vt_r = vt[:rank, :]
+                # Truncated SVD to factor back into rank r=4 matrices B and A
+                u, s, vt = np.linalg.svd(aggregated_delta_w, full_matrices=False)
+                u_r = u[:, :rank]
+                s_r = s[:rank]
+                vt_r = vt[:rank, :]
 
-            # S = sqrt(s) distribution
-            sqrt_s = np.diag(np.sqrt(s_r))
-            new_b = (u_r @ sqrt_s).astype(np.float32)
-            new_a = (sqrt_s @ vt_r).astype(np.float32) * (float(rank) / alpha)
+                # S = sqrt(s) distribution
+                sqrt_s = np.diag(np.sqrt(np.maximum(0.0, s_r)))
+                new_b = (u_r @ sqrt_s).astype(np.float32)
+                new_a = (sqrt_s @ vt_r).astype(np.float32) * (float(rank) / alpha)
+            except Exception as exc:
+                logger.error("Federated LoRA SVD factorization failed in round %s: %s", round_id, exc)
+                self._rejected_updates_count += 1
+                return None
 
             # Generate new tamper-evident cryptographic commitment
             salt = os.urandom(16).hex()
@@ -271,15 +313,37 @@ class ZeroKnowledgeFederatedConsensus:
         """
         Executes distributed majority voting bundling across 10,000-bit hypervectors.
         Each bit position is set to 1 if more than 50% of peers report 1, else 0.
+        Fail-closed: Returns None if bundles are invalid, empty, or concept keys mismatch.
         """
         if not bundles:
             return None
 
         with self._lock:
-            n_bundles = len(bundles)
+            base = bundles[0]
+            valid_bundles: List[HDVSAConsensusBundle] = []
+            min_bytes = (HD_CONSENSUS_DIMENSION_BITS + 7) // 8
+
+            for b in bundles:
+                if (
+                    isinstance(b.packed_bits, np.ndarray)
+                    and len(b.packed_bits) >= min_bytes
+                    and b.concept_key == base.concept_key
+                ):
+                    valid_bundles.append(b)
+                else:
+                    logger.warning(
+                        "Dropping invalid VSA consensus bundle %s for concept %s",
+                        getattr(b, "bundle_id", "unknown"),
+                        getattr(b, "concept_key", "unknown"),
+                    )
+
+            if not valid_bundles:
+                return None
+
+            n_bundles = len(valid_bundles)
             # Unpack all 10,000 bits into uint8 matrices of shape (n_bundles, 10000)
             unpacked_matrix = np.zeros((n_bundles, HD_CONSENSUS_DIMENSION_BITS), dtype=np.uint8)
-            for i, b in enumerate(bundles):
+            for i, b in enumerate(valid_bundles):
                 unpacked_bits = np.unpackbits(b.packed_bits)[:HD_CONSENSUS_DIMENSION_BITS]
                 unpacked_matrix[i, :] = unpacked_bits
 
@@ -291,7 +355,6 @@ class ZeroKnowledgeFederatedConsensus:
             majority_bits = (bit_sums > threshold).astype(np.uint8)
             consensus_packed = np.packbits(majority_bits)
 
-            base = bundles[0]
             consensus_bundle = HDVSAConsensusBundle(
                 bundle_id=f"hd_consensus_{hashlib.sha256(consensus_packed.tobytes()).hexdigest()[:12]}",
                 source_node_id="SWARM_CONSENSUS",

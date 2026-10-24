@@ -204,3 +204,48 @@ def test_hd_vsa_consensus_majority_voting_bundle() -> None:
 
     assert unpacked_res[0] == 1
     assert unpacked_res[1] == 0
+
+
+def test_swarm_lora_mismatched_dimension_and_layer_rejected() -> None:
+    """Verifies that proposals with mismatched dimensions or layers within a round are rejected."""
+    consensus = ZeroKnowledgeFederatedConsensus()
+    round_id = "round_safety_test"
+
+    # Base valid proposal (dim=32, rank=4, layer=q_proj)
+    delta1 = _make_sample_lora_delta("delta_1", dim=32, rank=4, seed=1)
+    assert consensus.propose_lora_delta(round_id, delta1) is True
+
+    # Proposal with mismatched dim (dim=64) must be rejected
+    delta_bad_dim = _make_sample_lora_delta("delta_bad_dim", dim=64, rank=4, seed=2)
+    assert consensus.propose_lora_delta(round_id, delta_bad_dim) is False
+
+    # Proposal with mismatched matrix shape
+    rng = np.random.RandomState(3)
+    bad_shape_a = rng.randn(4, 16).astype(np.float32)
+    bad_shape_b = rng.randn(32, 4).astype(np.float32)
+    raw = bad_shape_a.tobytes() + bad_shape_b.tobytes() + b"salt" + b"50"
+    zk = hashlib.sha256(raw).hexdigest()
+    delta_bad_shape = LoRARank4AdapterDelta(
+        adapter_id="delta_bad_shape",
+        layer_name=delta1.layer_name,
+        rank=4,
+        dim=32,
+        alpha=8.0,
+        matrix_a=bad_shape_a,
+        matrix_b=bad_shape_b,
+        training_samples=50,
+        blinding_salt="salt",
+        zk_commitment_hash=zk,
+    )
+    assert consensus.propose_lora_delta(round_id, delta_bad_shape) is False
+
+
+def test_swarm_hd_vsa_corrupt_bundle_fail_closed() -> None:
+    """Verifies that truncated or malformed VSA bundles are dropped and don't crash."""
+    consensus = ZeroKnowledgeFederatedConsensus()
+
+    # Truncated bundle (only 10 bytes instead of 1250 bytes)
+    corrupt_bundle = HDVSAConsensusBundle("c1", "n1", "CONCEPT_TEST", np.zeros(10, dtype=np.uint8), 0)
+    result = consensus.aggregate_hd_vsa_consensus([corrupt_bundle])
+    assert result is None
+

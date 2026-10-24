@@ -111,3 +111,24 @@ def test_liquid_state_space_reset_and_dimension_validation() -> None:
     # Mismatched dimension should raise ValueError
     with pytest.raises(ValueError):
         ltc.step(np.ones(12, dtype=np.float32))
+
+
+def test_liquid_state_space_nan_inf_robustness() -> None:
+    """Verifies that non-finite input features do not corrupt internal state or cause divergence."""
+    config = LiquidTimeConstantConfig(hidden_dim=16, input_dim=8)
+    ltc = LiquidStateSpaceNetwork(config)
+
+    # Step with NaN/Inf vector
+    corrupt_x = np.array([np.nan, np.inf, -np.inf, 0.0, 1.0, -1.0, 0.5, -0.5], dtype=np.float32)
+    state = ltc.step(corrupt_x)
+
+    assert not np.isnan(state).any()
+    assert not np.isinf(state).any()
+    assert not np.isnan(ltc.state).any()
+    assert not np.isinf(ltc.state).any()
+
+    # Step again with clean input
+    clean_state = ltc.step(np.ones(8, dtype=np.float32))
+    assert not np.isnan(clean_state).any()
+    assert not np.isinf(clean_state).any()
+

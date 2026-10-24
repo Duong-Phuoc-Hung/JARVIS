@@ -68,10 +68,15 @@ DANGEROUS_COMMAND_PATTERNS: Tuple[re.Pattern[str], ...] = (
     re.compile(r"\bdel\s+.*(/f|/s|/q|\*\.\*)", re.IGNORECASE),
     re.compile(r"\bformat\s+[a-z]:", re.IGNORECASE),
     re.compile(r"\bdiskpart\b", re.IGNORECASE),
-    re.compile(r"\brm\s+-r[fF]?\s+(/|\*)", re.IGNORECASE),
     re.compile(r"\bmkfs\b", re.IGNORECASE),
+    re.compile(r"\brm\s+-(?:[rR][fF]?|[fF][rR]?)\s+(?:/|\*|etc|usr|var|bin)", re.IGNORECASE),
+    re.compile(r"\brm\s+.*--no-preserve-root", re.IGNORECASE),
     re.compile(r":\(\)\s*\{.*:\|:.*\}", re.IGNORECASE),  # Bash fork bomb
-    re.compile(r"[;&|`$]\s*(curl|wget|powershell|cmd).*\|\s*(bash|iex|sh)", re.IGNORECASE),
+    re.compile(r"(?:\b|[;&|`$])\s*(curl|wget|powershell|pwsh|cmd).*\|\s*(bash|iex|sh|powershell|pwsh)", re.IGNORECASE),
+    re.compile(r"\bRemove-Item\s+.*-(?:Recurse|Force)\b", re.IGNORECASE),
+    re.compile(r"\b(?:powershell|pwsh)\s+.*-(?:enc|encodedcommand)\b", re.IGNORECASE),
+    re.compile(r"\b(?:Invoke-Expression|iex)\b\s*[\(\$]", re.IGNORECASE),
+    re.compile(r"\b(?:New-Object\s+Net\.WebClient|Invoke-RestMethod|irm|Invoke-WebRequest|iwr)\b.*\|\s*(?:iex|bash|sh)", re.IGNORECASE),
 )
 
 
@@ -169,21 +174,41 @@ class FirstOrderSMTSolver:
             SafetyInvariant("INV_PERSISTENT_VRAM_ZERO", "Actions must guarantee +0.00 MiB persistent VRAM delta"),
         ]
 
-    def _normalize_path(self, path_str: str) -> str:
-        """Normalizes path representation for canonical prefix comparison."""
+    def _normalize_path(self, path_str: str, base_dir: Optional[str] = None) -> str:
+        """Normalizes path representation for canonical prefix comparison, resolving traversals."""
         cleaned = path_str.strip().replace("/", "\\")
-        # Strip trailing slashes unless root drive
-        if len(cleaned) > 3 and cleaned.endswith("\\"):
-            cleaned = cleaned[:-1]
-        return os.path.normcase(cleaned)
+        if base_dir and not os.path.isabs(cleaned) and not cleaned.startswith("\\\\"):
+            cleaned = os.path.join(base_dir, cleaned)
+        norm = os.path.abspath(os.path.normpath(cleaned))
+        # Strip trailing slashes unless root drive (e.g. C:\)
+        if len(norm) > 3 and norm.endswith("\\"):
+            norm = norm[:-1]
+        return os.path.normcase(norm)
 
-    def _is_path_in_system_roots(self, candidate_path: str) -> bool:
+    def _is_path_in_system_roots(self, candidate_path: str, base_dir: Optional[str] = None) -> bool:
         """Evaluates whether target path lies inside protected system roots."""
-        norm_target = self._normalize_path(candidate_path)
+        norm_target = self._normalize_path(candidate_path, base_dir=base_dir)
         for root in PROTECTED_SYSTEM_ROOTS:
             norm_root = self._normalize_path(root)
             if norm_target == norm_root or norm_target.startswith(norm_root + "\\"):
                 return True
+
+        # Drive-agnostic core Windows system directories (e.g. AnyDrive:\Windows, AnyDrive:\Program Files)
+        drive_pattern = re.compile(
+            r"^[a-z]:\\(windows|program files|program files \(x86\)|recovery|boot|system volume information)(\\|$)",
+            re.IGNORECASE,
+        )
+        if drive_pattern.match(norm_target):
+            return True
+
+        # Host environment SystemRoot / WinDir protection
+        for env_var in ("SystemRoot", "windir", "ProgramFiles", "ProgramFiles(x86)"):
+            env_val = os.environ.get(env_var)
+            if env_val:
+                norm_env = self._normalize_path(env_val)
+                if norm_target == norm_env or norm_target.startswith(norm_env + "\\"):
+                    return True
+
         return False
 
     def solve_hoare_triple(
@@ -201,7 +226,7 @@ class FirstOrderSMTSolver:
         # Invariant 1: System Root Immutability
         axioms_evaluated += 1
         if a.verb in (ActionVerb.FILE_WRITE, ActionVerb.FILE_DELETE, ActionVerb.REGISTRY_WRITE):
-            if self._is_path_in_system_roots(a.target_resource):
+            if self._is_path_in_system_roots(a.target_resource, base_dir=P.working_directory):
                 ce = Counterexample(
                     violated_invariant_id="INV_SYSTEM_ROOT_IMMUTABILITY",
                     reason="Target path is located in an immutable protected system root.",

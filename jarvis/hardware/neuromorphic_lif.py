@@ -170,6 +170,11 @@ class HardwareLIFCoProcessor:
                         f"neuron count {self.params.num_neurons}"
                     )
 
+            # Defensive sanitization against NaN / Inf poisoning from noisy sensors
+            injection_clean = np.nan_to_num(
+                current_injection, copy=False, nan=0.0, posinf=0.0, neginf=0.0
+            ).astype(np.float32)
+
             # Mask neurons currently in refractory state
             non_refractory_mask = self._refractory_countdown <= 0
 
@@ -178,8 +183,14 @@ class HardwareLIFCoProcessor:
             self._V[non_refractory_mask] = (
                 self._alpha * self._V[non_refractory_mask]
                 + (1.0 - self._alpha) * self.params.v_rest
-                + current_injection[non_refractory_mask]
+                + injection_clean[non_refractory_mask]
             )
+
+            # Defensive sanitization for internal membrane potentials
+            if np.isnan(self._V).any() or np.isinf(self._V).any():
+                self._V = np.nan_to_num(
+                    self._V, copy=False, nan=self.params.v_rest, posinf=self.params.v_threshold, neginf=self.params.v_rest
+                )
 
             # Decrement refractory counters
             refractory_active = self._refractory_countdown > 0
@@ -250,17 +261,23 @@ class HardwareLIFCoProcessor:
         else:
             samples_norm = pcm_samples.astype(np.float32)
 
-        # 16-band sub-band acoustic energy extraction (Vectorized chunking)
-        chunk_size = max(1, n_samples // self.params.num_acoustic_bands)
-        band_energies = np.zeros(self.params.num_acoustic_bands, dtype=np.float32)
+        # Defensive sanitization against NaN / Inf in audio samples (silence corrupted frames)
+        samples_norm = np.nan_to_num(samples_norm, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
 
-        for b in range(self.params.num_acoustic_bands):
-            start_idx = b * chunk_size
-            end_idx = min(n_samples, start_idx + chunk_size)
-            if start_idx < end_idx:
-                segment = samples_norm[start_idx:end_idx]
-                rms = float(np.sqrt(np.mean(segment * segment) + 1e-12))
-                band_energies[b] = rms
+        # Sub-band acoustic energy extraction (Fully vectorized C/SIMD chunking)
+        num_bands = self.params.num_acoustic_bands
+        chunk_size = max(1, n_samples // num_bands)
+        valid_len = num_bands * chunk_size
+
+        if valid_len <= n_samples:
+            reshaped = samples_norm[:valid_len].reshape(num_bands, chunk_size)
+            band_energies = np.sqrt(np.mean(reshaped * reshaped, axis=1) + 1e-12).astype(np.float32)
+        else:
+            # Fallback for short sample sequences
+            padded = np.zeros(valid_len, dtype=np.float32)
+            padded[:n_samples] = samples_norm
+            reshaped = padded.reshape(num_bands, chunk_size)
+            band_energies = np.sqrt(np.mean(reshaped * reshaped, axis=1) + 1e-12).astype(np.float32)
 
         # Project acoustic sub-band energy through synaptic matrix into input currents
         # Shape: (num_bands,) @ (num_bands, num_neurons) -> (num_neurons,)

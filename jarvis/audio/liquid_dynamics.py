@@ -140,8 +140,9 @@ class LiquidStateSpaceNetwork:
         Evaluates continuous vector field:
           dh/dt = -[1/tau_0 + f(x)] * h + A * h + B * x
         """
+        x_clean = np.nan_to_num(x, copy=False, nan=0.0, posinf=5.0, neginf=-5.0)
         # Gating non-linearity: sigmoid(W_gate * x + b_gate)
-        gate_logit = self.W_gate @ x + self.b_gate
+        gate_logit = self.W_gate @ x_clean + self.b_gate
         # Numerical clipping for sigmoid stability
         gate_logit = np.clip(gate_logit, -15.0, 15.0)
         gate_activation = 1.0 / (1.0 + np.exp(-gate_logit))
@@ -153,7 +154,7 @@ class LiquidStateSpaceNetwork:
         # Vector field calculation
         leak = -inv_tau_eff * h_curr
         linear_state = self.A @ h_curr
-        input_drive = self.B @ x
+        input_drive = self.B @ x_clean
 
         dh_dt = leak + linear_state + input_drive
         return dh_dt, mean_tau_eff
@@ -162,6 +163,7 @@ class LiquidStateSpaceNetwork:
         """
         Integrates the continuous ODE forward by one time step dt.
         Supports RK4, Semi-Implicit Euler, and Explicit Euler solvers.
+        Precomputes x-dependent input drive and time constants once per step.
         """
         with self._lock:
             dt = dt_override if dt_override is not None else self.config.dt
@@ -177,28 +179,48 @@ class LiquidStateSpaceNetwork:
                         f"Input dimension {x.size} does not match config {self.config.input_dim}"
                     )
 
+            # Defensive sanitization against NaN / Inf poisoning from noisy audio
+            x_clean = np.nan_to_num(x, copy=True, nan=0.0, posinf=5.0, neginf=-5.0).astype(np.float32)
+
             self._prev_h = self._h.copy()
 
+            # Precompute input-dependent terms once per step (constant over [t, t+dt])
+            gate_logit = np.clip(self.W_gate @ x_clean + self.b_gate, -15.0, 15.0)
+            gate_activation = 1.0 / (1.0 + np.exp(-gate_logit))
+            inv_tau_eff = (1.0 / max(1e-4, self.config.base_tau)) + (gate_activation * 5.0)
+            tau_eff = float(1.0 / np.mean(inv_tau_eff))
+            input_drive = self.B @ x_clean
+
             if self.config.solver == LTCSolverType.RUNGE_KUTTA_4:
-                # 4th Order Runge-Kutta Integration
-                k1, tau_eff = self._ode_derivative(self._h, x)
-                k2, _ = self._ode_derivative(self._h + 0.5 * dt * k1, x)
-                k3, _ = self._ode_derivative(self._h + 0.5 * dt * k2, x)
-                k4, _ = self._ode_derivative(self._h + dt * k3, x)
+                # 4th Order Runge-Kutta Integration with precomputed input drive
+                k1 = -inv_tau_eff * self._h + self.A @ self._h + input_drive
+                h2 = self._h + (0.5 * dt) * k1
+                k2 = -inv_tau_eff * h2 + self.A @ h2 + input_drive
+                h3 = self._h + (0.5 * dt) * k2
+                k3 = -inv_tau_eff * h3 + self.A @ h3 + input_drive
+                h4 = self._h + dt * k3
+                k4 = -inv_tau_eff * h4 + self.A @ h4 + input_drive
                 self._h += (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
             elif self.config.solver == LTCSolverType.SEMI_IMPLICIT_EULER:
                 # Semi-Implicit Euler (Stable under larger dt)
-                dh_dt, tau_eff = self._ode_derivative(self._h, x)
+                dh_dt = -inv_tau_eff * self._h + self.A @ self._h + input_drive
                 self._h += dt * dh_dt
             else:
                 # Explicit Euler
-                dh_dt, tau_eff = self._ode_derivative(self._h, x)
+                dh_dt = -inv_tau_eff * self._h + self.A @ self._h + input_drive
                 self._h += dt * dh_dt
+
+            # Defensive sanitization for internal state
+            if np.isnan(self._h).any() or np.isinf(self._h).any():
+                self._h = np.nan_to_num(self._h, copy=False, nan=0.0, posinf=1.0, neginf=-1.0)
 
             # Bounded projection to prevent explosive runaway
             energy = float(0.5 * np.sum(self._h * self._h))
-            if energy > 1000.0:
-                self._h = self._h * (math.sqrt(1000.0 / energy))
+            if not math.isfinite(energy) or energy > 1000.0:
+                if math.isfinite(energy) and energy > 0.0:
+                    self._h = self._h * (math.sqrt(1000.0 / energy))
+                else:
+                    self._h.fill(0.0)
                 energy = 1000.0
 
             # Calculate phase trajectory metrics

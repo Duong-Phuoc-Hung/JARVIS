@@ -148,6 +148,10 @@ class KernelDeviceDriverHandle:
         Fail-closed: Returns (False, Status) with explicit cause if inaccessible.
         """
         with self._lock:
+            # Clean up any existing open handle to prevent leaks
+            if self._handle != INVALID_HANDLE_VALUE and self._handle != 0:
+                self.close()
+
             if not self._is_windows:
                 logger.info("Kernel telepathy requires Windows NT kernel; defaulting to LIMITED.")
                 return False, KernelTelepathyStatus.LIMITED
@@ -161,6 +165,10 @@ class KernelDeviceDriverHandle:
 
             try:
                 kernel32 = ctypes.windll.kernel32
+                kernel32.CreateFileW.restype = ctypes.c_void_p
+                kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+                kernel32.CloseHandle.restype = ctypes.c_int
+
                 handle = kernel32.CreateFileW(
                     self.device_path,
                     GENERIC_READ | GENERIC_WRITE,
@@ -170,7 +178,8 @@ class KernelDeviceDriverHandle:
                     FILE_ATTRIBUTE_NORMAL,
                     None,
                 )
-                if handle == INVALID_HANDLE_VALUE or handle == 0:
+                invalid_vals = (None, 0, INVALID_HANDLE_VALUE, 0xFFFFFFFFFFFFFFFF, -1)
+                if handle in invalid_vals or handle == ctypes.c_void_p(-1).value:
                     err = kernel32.GetLastError()
                     logger.info(
                         "KMDF telepathy driver not loaded at %s (WinError %d). Entering LIMITED fallback.",
@@ -191,7 +200,7 @@ class KernelDeviceDriverHandle:
     def close(self) -> None:
         """Safely closes open driver handles."""
         with self._lock:
-            if self._handle != INVALID_HANDLE_VALUE and self._handle != 0:
+            if self._handle != INVALID_HANDLE_VALUE and self._handle != 0 and self._handle is not None:
                 try:
                     if self._is_windows:
                         ctypes.windll.kernel32.CloseHandle(self._handle)
@@ -349,12 +358,18 @@ class KernelTelepathyEngine:
 
             return success
 
-    def inject_keyboard_scancode(self, scancode: int, key_up: bool = False) -> bool:
+    def inject_keyboard_scancode(
+        self,
+        scancode: int,
+        key_up: bool = False,
+        modifiers: int = 0,
+    ) -> bool:
         """
         Formats and injects an 8-byte standard USB HID keyboard report packet.
-        Byte 0: Modifiers, Byte 1: Reserved, Bytes 2-7: Scancodes.
+        Byte 0: Modifiers (Ctrl, Shift, Alt, Win), Byte 1: Reserved, Bytes 2-7: Scancodes.
         """
         payload = bytearray(8)
+        payload[0] = modifiers & 0xFF
         if not key_up:
             payload[2] = scancode & 0xFF
 
@@ -366,17 +381,24 @@ class KernelTelepathyEngine:
         )
         return self.inject_hardware_hid_packet(packet)
 
-    def inject_mouse_motion(self, dx: int, dy: int, buttons: int = 0) -> bool:
+    def inject_mouse_motion(
+        self,
+        dx: int,
+        dy: int,
+        buttons: int = 0,
+        wheel: int = 0,
+    ) -> bool:
         """
         Formats and injects a 4-byte standard USB HID relative mouse report packet.
-        Byte 0: Button mask, Byte 1: X displacement, Byte 2: Y displacement, Byte 3: Wheel.
+        Byte 0: Button mask, Byte 1: X displacement, Byte 2: Y displacement, Byte 3: Wheel displacement.
         """
         # Clamp relative delta to signed int8 (-127 to 127)
         dx_clamped = max(-127, min(127, dx)) & 0xFF
         dy_clamped = max(-127, min(127, dy)) & 0xFF
+        wheel_clamped = max(-127, min(127, wheel)) & 0xFF
         button_mask = buttons & 0x07
 
-        payload = bytes([button_mask, dx_clamped, dy_clamped, 0])
+        payload = bytes([button_mask, dx_clamped, dy_clamped, wheel_clamped])
         packet = USBHIDHardwarePacket(
             packet_type=HIDPacketType.MOUSE_RELATIVE,
             payload_bytes=payload,
