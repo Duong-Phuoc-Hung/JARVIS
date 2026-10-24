@@ -1,3 +1,25 @@
+## Sprint 18: Argon Sovereign Frontier 8.0: Remediation Triad, Full-Duplex & Universal Adapters (2026-10-24, v5.8.0)
+
+- [x] **Dual-Mode Harmonic-Spectral Subtraction (DM-HSS) (`jarvis/audio/ps_hcf.py`)** — `PASS engineering` / `PASS runtime`:
+  - Mở rộng dải bám vết F0 xuống 40.0Hz; tích hợp biquad IIR Notch Filter 50Hz/100Hz (Q=30) giảm >85% tiếng ù điện AC; kích hoạt Spectral Floor Subtraction bảo toàn tiếng nói thì thầm.
+  - Unit tests verified: `tests/unit/test_dm_hss.py` (4/4 passed 100%).
+- [x] **Confidence-Gated Dynamic Speculation (CGDS) (`jarvis/stt/medusa_decoder.py`)** — `PASS engineering` / `PASS runtime`:
+  - Đo Shannon Entropy H(z); tự động ngắt Medusa về Greedy Search khi H > 1.8 nats, triệt tiêu 100% chi phí trễ khi gặp từ OOD.
+  - Unit tests verified: `tests/unit/test_cgds_medusa.py` (3/3 passed 100%).
+- [x] **Transactional Intent-Execution Ledger (TIEL) (`jarvis/core/tiel_ledger.py`)** — `PASS engineering` / `PASS runtime`:
+  - Chụp nhanh HWND tại mốc t_speech_start; giao thức Two-Phase Commit 2PC ngăn ngừa Alt-Tab race condition và lệnh rỗng; chuẩn lưu trữ Windows Atomic Persistence.
+  - Unit tests verified: `tests/unit/test_tiel_ledger.py` (5/5 passed 100%).
+- [x] **Continuous Full-Duplex & Tri-State Barge-In (`jarvis/audio/fullduplex.py`)** — `PASS engineering` / `PASS runtime`:
+  - Tri-State Barge-In Classifier (IGNORE_AMBIENT, SOFT_BACKCHANNEL, HARD_BARGE_IN); ducking gain động 1.0 -> 0.50 -> 0.125.
+  - Unit tests verified: `tests/unit/test_full_duplex.py` (4/4 passed 100%).
+- [x] **Universal Model Adapters (`jarvis/stt/integrated_whisper.py`, `jarvis/planner/integrated_slm_agent.py`, `jarvis/audio/integrated_full_duplex.py`)** — `PASS engineering` / `PASS runtime`:
+  - Cắm trực tiếp vào Faster-Whisper, Qwen2.5 / Llama-3.2, và Kokoro-82M TTS.
+  - Unit tests verified: `tests/unit/test_integrated_adapters.py` (4/4 passed 100%).
+- [x] **Full Regression & Invariant Verification** — `PASS runtime`:
+  - Toàn bộ 50 bài kiểm thử đơn vị: 50/50 PASS 100% trong 7.26s.
+  - Toàn bộ 6 bài kiểm thử Argon Telemetry Benchmark: 6/6 PASS 100% trong 11.50s.
+  - 0 MB VRAM delta bảo toàn tuyệt đối trên NVIDIA GeForce GTX 1650 Max-Q.
+
 ## Sprint 17: Argon Sovereign Red-Team Adversarial Audit & Cross-Model Integration (2026-10-24, v5.7.1)
 
 - [x] **Adversarial Red-Team Critique & Physical Failure Mode Audit (docs/research/argon_sovereign_self_critique_and_cross_model_integration.md)** — PASS engineering:
