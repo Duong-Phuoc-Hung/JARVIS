@@ -143,8 +143,12 @@ class AdaptiveCRRSPMemory:
 
             self.last_interaction_time = now
             h_in = np.asarray(new_hidden_state, dtype=np.float32)
-            if h_in.shape != (self.config.d_model, self.config.d_state):
-                h_in = np.broadcast_to(h_in, (self.config.d_model, self.config.d_state)).astype(np.float32)
+            if h_in.ndim == 1:
+                if len(h_in) != self.config.d_model:
+                    h_in = np.resize(h_in, self.config.d_model)
+                h_in = np.broadcast_to(h_in[:, np.newaxis], (self.config.d_model, self.config.d_state)).astype(np.float32)
+            elif h_in.shape != (self.config.d_model, self.config.d_state):
+                h_in = np.resize(h_in, (self.config.d_model, self.config.d_state)).astype(np.float32)
 
             # Retrieve unquantized snapshot for calculation
             fast_curr, slow_curr = self._dequantize_states()

@@ -17,18 +17,30 @@ from jarvis.audio.engine import (
     AudioEngineMode,
     MicrophoneProbeManager,
 )
+from jarvis.audio.adap_head import ADAPProjectionHead, ADAPPrediction, DEFAULT_REFLEX_ACTIONS
+from jarvis.audio.mose_head import (
+    CANONICAL_180_ACTIONS,
+    MoSEPrediction,
+    MoSEProjectionHead,
+)
 from jarvis.audio.wake_word import WakeWordScoreEvent
 
 __all__ = [
-    "AudioDSPProcessor",
-    "DSPBlockResult",
-    "NoiseFloorTracker",
-    "SchmittTrigger",
-    "calculate_rms",
-    "rms_mono",
+    "ADAPPrediction",
+    "ADAPProjectionHead",
     "AudioDeviceInfo",
+    "AudioDSPProcessor",
     "AudioEngine",
     "AudioEngineMode",
+    "CANONICAL_180_ACTIONS",
+    "calculate_rms",
+    "DEFAULT_REFLEX_ACTIONS",
+    "DSPBlockResult",
     "MicrophoneProbeManager",
+    "MoSEPrediction",
+    "MoSEProjectionHead",
+    "NoiseFloorTracker",
+    "rms_mono",
+    "SchmittTrigger",
     "WakeWordScoreEvent",
 ]

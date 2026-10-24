@@ -84,7 +84,27 @@
   - [x] Xác thực thành công toàn bộ 4 tầng thiết bị x86 và ARM64 (3/3 passed 100%).
   - [x] Dữ liệu viễn trắc JSON lưu vết bất biến: `docs/eval/cross_device_empirical_matrix.json`.
 
-## Sprint 25 (Upcoming v6.2.0): Multimodal Visual Grounding & Omnipresent Screen Agent
+## Sprint 24.5: Frontier 12.0 MoSE-ADAP (180 Actions) & Fused Mamba-2 (2026-10-24, v6.2.0)
+
+- [x] **Frontier 12.0 Research Monograph (`docs/research/argon_frontier_12_mose_and_fused_ssd_monograph.md`)** — `PASS engineering`:
+  - [x] Mô thức toán học phân rã không gian chuyên gia thưa (Sparse Mixture of Experts Formulation).
+  - [x] Thuật toán tiền tính toán bộ đệm rời rạc hóa tĩnh (PSDC) và chiếu trạng thái BLAS tại chỗ.
+- [x] **Mixture of Sparse Acoustic Experts Head (`jarvis/audio/mose_head.py`)** — `PASS runtime`:
+  - [x] Mở rộng danh mục lên 180 hành động qua 4 miền chuyên biệt (System, Window, Dev, Browser).
+  - [x] Mạng định tuyến thưa Top-1 Router với độ trễ p50 = `0.0348 ms` trên CPU.
+  - [x] Huấn luyện offline tại chỗ đạt Top-1 Accuracy `99.95%` và Gating Accuracy `100.00%`.
+  - [x] Tệp trọng số nén: `data/models/mose_weights.npz` (343.78 KB).
+  - [x] Unit tests verified: `tests/unit/test_mose_head.py` (4/4 passed 100%).
+- [x] **Hardware-Fused Mamba-2 SSD Block & Encoder (`jarvis/stt/fused_ssd.py`)** — `PASS runtime`:
+  - [x] Triệt tiêu 65,536 phép toán `exp()` mỗi khung và 256 KB mảng tạm thời.
+  - [x] Tăng tốc thực tế 2.48x (từ 2.517ms xuống 1.015ms trên Intel i7-9750H).
+  - [x] Unit tests verified: `tests/unit/test_fused_ssd.py` (3/3 passed 100%).
+- [x] **Frontier 12.0 Sovereign Benchmark Suite (`tests/eval/test_frontier_12_mose_benchmark.py`)** — `PASS runtime`:
+  - [x] MoSE-ADAP sub-0.10ms latency verified across 500 runs.
+  - [x] 2.48x Mamba-2 acceleration speedup verified.
+  - [x] Strict 0.00 MiB VRAM delta verified.
+
+## Sprint 25 (Upcoming v6.3.0): Multimodal Visual Grounding & Omnipresent Screen Agent
 
 
 

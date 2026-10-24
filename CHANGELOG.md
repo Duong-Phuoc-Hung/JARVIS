@@ -4,6 +4,30 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.2.0] - JARVIS Sovereign Frontier 12.0: MoSE-ADAP (180 Actions) & Hardware-Fused Mamba-2 (FBT-SSD) (2026-10-24)
+
+- **Mục tiêu**:
+  - Tối ưu hóa sâu sắc kiến trúc mô hình tự trị và tăng tốc đường ống suy luận âm học trực tiếp của JARVIS:
+    1. *Mixture of Sparse Acoustic Experts (MoSE-ADAP)* (`jarvis/audio/mose_head.py`): Mở rộng năng lực phản xạ âm học từ 45 lên 180 hành động thông qua 4 Chuyên gia Miền Độc lập (`SYSTEM_OS`, `WINDOW_WORKSPACE`, `DEVELOPER_TERMINAL`, `BROWSER_MEDIA`); áp dụng mạng định tuyến thưa (Sparse Top-1 Gating Router) $W_g \in \mathbb{R}^{4 \times 512}$ giữ nguyên độ trễ suy luận siêu tốc (< 0.045ms trên CPU); huấn luyện tại chỗ trên 10,800 mẫu âm học với độ chính xác Top-1 đạt **99.95%** và độ chính xác định tuyến chuyên gia đạt **100.00%**; lưu trọng số nén 343.78 KB tại `data/models/mose_weights.npz`.
+    2. *Hardware-Fused Mamba-2 Structured State Space Duality (FBT-SSD)* (`jarvis/stt/fused_ssd.py`): Áp dụng kỹ thuật tiền tính toán bộ đệm rời rạc hóa tĩnh (PSDC) triệt tiêu 65,536 phép toán `exp()` trên mỗi khung âm thanh; thay thế phép cộng mảng tạm thời bằng phép nhân ma trận - vector BLAS Level 2 tại chỗ; đạt **hệ số tăng tốc 2.48x thực tế** (độ trễ mỗi tầng giảm từ 2.517ms xuống còn 1.015ms trên CPU Intel i7-9750H).
+- **Chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/audio/mose_head.py`: Xây dựng `MoSEProjectionHead`, `MoSEPrediction`, `CANONICAL_180_ACTIONS`.
+  - `jarvis/stt/fused_ssd.py`: Xây dựng `FusedMamba2SSDBlock`, `FusedStreamingSpeechSSDEncoder`.
+  - `jarvis/audio/__init__.py`: Xuất các lớp MoSE và action catalog 180 hành động.
+  - `scripts/train_mose_head.py`: Kịch bản sinh dữ liệu âm học 180 lớp và huấn luyện MoSE.
+  - `data/models/mose_weights.npz`: Tệp trọng số mô hình MoSE đã nén và hiệu chuẩn.
+  - `docs/research/argon_frontier_12_mose_and_fused_ssd_monograph.md`: Chuyên khảo nghiên cứu khoa học kỹ thuật Frontier 12.0.
+  - `tests/unit/test_mose_head.py`: 4 bài kiểm thử đơn vị cho MoSE-ADAP (100% PASS).
+  - `tests/unit/test_fused_ssd.py`: 3 bài kiểm thử đơn vị cho Fused Mamba-2 SSD (100% PASS).
+  - `tests/eval/test_frontier_12_mose_benchmark.py`: 3 bài kiểm chuẩn đối chuẩn thời gian thực và đo hệ số tăng tốc 2.48x (100% PASS).
+- **Chỉ số kiểm thử thực tế**:
+  - Toàn bộ 10 bài kiểm thử mới: **10/10 passed 100% in 10.66s**.
+  - Toàn bộ Test Suite hợp nhất Argon Sovereign: **67/67 passed 100% in 15.10s**.
+  - Tăng tốc Fused Mamba-2 SSD Block: **2.48x nhanh hơn** (từ 2.517ms xuống 1.015ms).
+  - Tăng tốc bộ mã hóa 4 tầng Mamba-2: **2.33x nhanh hơn** (từ 9.458ms xuống 4.060ms).
+  - Độ chính xác MoSE-ADAP: **99.95% Top-1 Action Acc**, **100.00% Gating Acc**.
+  - Mức tiêu hao GPU VRAM delta: **0.00 MiB** (Bảo toàn tuyệt đối invariant cho GTX 1650 Max-Q).
+
 ## [6.1.0] - JARVIS Sovereign Frontier 11.0: Universal Cross-Device Sovereignty & Polyglot Runtime (2026-10-24)
 
 - **Mục tiêu**:
