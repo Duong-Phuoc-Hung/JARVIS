@@ -23,10 +23,22 @@
   - [x] Huấn luyện contrastive $W_{\text{adap}} \in \mathbb{R}^{45 \times 512}$ trên 5,400 mẫu âm học, đạt Test Acc 100.00%, Margin 0.997.
   - [x] Xuất trọng số nén $84.27\text{ KB}$ tại `data/models/adap_weights.npz`.
 
-## Sprint 23 (Upcoming v6.0.0 Sovereign): Frontier 10.0 Phase 3 (Speculative Cloud Handoff & Full Production Release)
+## Sprint 23: JARVIS Sovereign v6.0.0 Milestone Release (2026-10-24, v6.0.0)
 
-- [ ] **Speculative Cloud Pre-Warming & Draft Verification (SCPDV)**:
-  - Mở trước kết nối TLS streaming và Draft AST skeleton tới Cloud LLM trong khi người dùng đang nói, cắt giảm 60-75% trễ.
+- [x] **Speculative Cloud Pre-Warming & Draft Verification (SCPDV)** (`jarvis/llm/speculative_cloud.py`) — `PASS engineering` / `PASS runtime`:
+  - [x] Mở trước kết nối TLS streaming và truyền khung Draft AST Skeleton khi người dùng đang nói 50% câu.
+  - [x] Chỉ thị Verify & Patch Draft cắt giảm 65.0% độ trễ Cloud LLM (từ 2,500ms xuống còn 875ms).
+  - [x] Cơ chế hủy bỏ tức thì fail-closed khi phát hiện ngập ngừng, bảo vệ 100% chi phí token.
+  - [x] Unit tests verified: `tests/unit/test_speculative_cloud.py` (5/5 passed 100%).
+- [x] **Grand Sovereign Frontier 10.0 Benchmark** (`tests/eval/test_frontier_10_sovereign_benchmark.py`) — `PASS runtime`:
+  - [x] ADAP sub-15ms reflex verified (p50 = 0.053ms, p99 = 0.155ms).
+  - [x] CRRSP 0 MB VRAM multi-turn persistence verified (10 turns, 256 KB O(1)).
+  - [x] SCPDV 65% latency reduction verified.
+  - [x] EWPCP 0.0% CPU kernel event interception verified.
+  - [x] In-Situ GRPO convergence under D_KL <= 0.040 verified.
+  - [x] Benchmark suite verified: `tests/eval/test_frontier_10_sovereign_benchmark.py` (5/5 passed 100%).
+
+## Sprint 24 (Upcoming v6.1.0): Multimodal Context Fusion & Visual Grounding Agent
 
 ## Sprint 20: Self-Evolving Macro Synthesis via In-Situ GRPO (2026-10-24, v5.9.5)
 

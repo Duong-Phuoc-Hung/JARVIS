@@ -93,7 +93,7 @@ class TestWin32EventHookCoPilot:
         assert len(triggered_rules) == 1
 
         # Simulate time passage beyond cooldown
-        rule.last_triggered_s -= 15.0
+        copilot.rules[0].last_triggered_s -= 15.0
 
         # Event 3: After cooldown elapsed -> Triggers again
         copilot.inject_simulated_event(3, "TEST", 100, "burst_event update 3", "test.exe")

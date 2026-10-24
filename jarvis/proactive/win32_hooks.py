@@ -25,6 +25,7 @@ Mathematical & Architectural Principles:
 """
 from __future__ import annotations
 
+import copy
 import ctypes
 import logging
 import re
@@ -168,7 +169,8 @@ class Win32EventHookCoPilot:
         rules: Sequence[ProactiveRule] | None = None,
         event_callback: Callable[[ProactiveSystemEvent, ProactiveRule], None] | None = None,
     ) -> None:
-        self.rules: list[ProactiveRule] = list(rules or DEFAULT_PROACTIVE_RULES)
+        raw_rules = rules if rules is not None else DEFAULT_PROACTIVE_RULES
+        self.rules: list[ProactiveRule] = [copy.deepcopy(r) for r in raw_rules]
         self.event_callback = event_callback
         self._lock = threading.Lock()
         self._is_running = False
