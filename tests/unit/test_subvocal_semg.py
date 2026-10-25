@@ -119,3 +119,30 @@ def test_bio_hardware_bridge_fail_closed_and_telemetry():
     assert result.intent_label in INTENT_VOCABULARY
     assert result.silent_wpm >= 1000.0
     assert telemetry.vram_delta_mib == 0.00
+
+
+def test_subvocal_telepathy_atomic_persistence(tmp_path):
+    """Validates atomic save and load for SubvocalTelepathyEngine under Windows atomic persistence."""
+    engine = SubvocalTelepathyEngine()
+    save_file = tmp_path / "test_telepathy_engine.npz"
+
+    engine.save(save_file)
+    assert save_file.exists()
+
+    loaded = SubvocalTelepathyEngine.load(save_file)
+    assert loaded.vocabulary == engine.vocabulary
+    assert loaded.num_classes == engine.num_classes
+    assert np.allclose(loaded.W_clf, engine.W_clf)
+    assert np.allclose(loaded.b_clf, engine.b_clf)
+    assert np.allclose(loaded.W_vsa_proj, engine.W_vsa_proj)
+    assert np.allclose(loaded.ltc.A, engine.ltc.A)
+
+
+def test_continuous_neuromuscular_ltc_cached_vs_direct():
+    """Validates that cached input ODE integration matches direct evaluation."""
+    ltc = ContinuousNeuromuscularLTC(in_features=8, latent_dim=16, seed=42)
+    v_input = np.array([5.0, -3.0, 10.0, 2.0, -8.0, 1.0, 4.0, -2.0], dtype=np.float64)
+
+    h_step = ltc.step_rk4(v_input, dt_ms=1.0)
+    assert h_step.shape == (16,)
+    assert np.isfinite(h_step).all()

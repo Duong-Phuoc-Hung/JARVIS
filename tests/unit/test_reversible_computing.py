@@ -234,6 +234,57 @@ def test_reversible_vsa_engine():
     assert len(ancilla) == 3
     assert np.array_equal(ancilla[0].words, v1.words)
 
-    # 4. Permutation Entropy
+    # 4. Lossless Unbundling
+    unbundled = engine.unbundle_with_ancilla(bundle, ancilla)
+    assert len(unbundled) == 3
+    for orig, rec in zip([v1, v2, v3], unbundled):
+        assert np.array_equal(orig.words, rec.words)
+
+    # 5. Permutation Entropy
     pe = engine.compute_permutation_entropy(v1)
     assert 0.0 <= pe <= 1.0
+
+
+def test_landauer_entropy_tracker_actual_dissipation_alert():
+    """Validates Landauer tracker handling of actual non-ideal dissipation and threshold alerting."""
+    tracker = LandauerEntropyTracker(temperature_kelvin=300.0, dissipation_alert_threshold_joules=1.0e-17)
+
+    # Dissipation exceeds Landauer theoretical bound
+    heat = tracker.record_bit_erasure(1, actual_heat_joules=5.0e-17)
+    assert heat == 5.0e-17
+    telemetry = tracker.get_telemetry()
+    assert telemetry.alert_triggered is True
+    assert "exceeded" in str(telemetry.alert_reason)
+
+    # Attempting to record dissipation below Landauer bound clamps to physical minimum
+    min_bound = tracker.landauer_bound_per_bit
+    clamped_heat = tracker.record_bit_erasure(1, actual_heat_joules=1.0e-25)
+    assert np.isclose(clamped_heat, min_bound, rtol=1e-5)
+
+
+def test_reversible_block_type_sanitization():
+    """Validates ReversibleBlock input array sanitization across lists, tuples, and integer types."""
+    block = ReversibleBlock()
+    x1_list = [1.0, 2.0, 3.0]
+    x2_list = [4.0, 5.0, 6.0]
+
+    y1, y2 = block.forward(x1_list, x2_list)
+    assert isinstance(y1, np.ndarray)
+    assert isinstance(y2, np.ndarray)
+
+    rec_x1, rec_x2 = block.inverse(y1, y2)
+    assert np.allclose(rec_x1, [1.0, 2.0, 3.0])
+    assert np.allclose(rec_x2, [4.0, 5.0, 6.0])
+
+
+def test_permutation_entropy_validation():
+    """Validates error checking on invalid order (< 2) or delay (< 1) in permutation entropy."""
+    engine = ReversibleVSAEngine()
+    v = HyperVector.from_seed("TEST_ENTROPY")
+
+    with pytest.raises(ValueError, match="order must be >= 2"):
+        engine.compute_permutation_entropy(v, order=1)
+
+    with pytest.raises(ValueError, match="delay must be >= 1"):
+        engine.compute_permutation_entropy(v, delay=0)
+

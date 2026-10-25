@@ -28,17 +28,26 @@ Architectural Principles:
 """
 from __future__ import annotations
 
+import io
 import logging
 import math
 import platform
+import threading
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
+try:
+    from scipy.signal import lfilter as _scipy_lfilter
+except ImportError:
+    _scipy_lfilter = None
+
 from jarvis.core.hd_vsa import HD_DIMENSION_BITS, HD_UINT64_WORDS, HyperVector
 from jarvis.ui.terminal.theme import StatusLevel
+from jarvis.utils.atomic_io import atomic_write_bytes
 
 logger = logging.getLogger("jarvis.audio.subvocal_semg")
 
@@ -115,6 +124,9 @@ class SubvocalSignalFilter:
     @staticmethod
     def _apply_biquad(x: np.ndarray, b: np.ndarray, a: np.ndarray) -> np.ndarray:
         """Applies 2nd-order IIR biquad filter along 1D time series."""
+        if _scipy_lfilter is not None:
+            return _scipy_lfilter(b, a, x).astype(np.float64)
+
         y = np.zeros_like(x, dtype=np.float64)
         for i in range(len(x)):
             x0 = x[i]
@@ -225,24 +237,37 @@ class ContinuousNeuromuscularLTC:
         # State vector h(t)
         self.h: np.ndarray = np.zeros(latent_dim, dtype=np.float64)
 
-    def _ode_rhs(self, h_val: np.ndarray, v_input: np.ndarray) -> np.ndarray:
-        """Evaluates dh/dt."""
-        # Non-linear input gating: f(V) = sigmoid(W_gate * V + b)
-        gate = 1.0 / (1.0 + np.exp(-np.clip(self.W_gate @ v_input + self.b_gate, -20.0, 20.0)))
-        effective_inv_tau = (1.0 / self.tau_base) + gate
-        dh_dt = -effective_inv_tau * h_val + (self.A @ h_val) + (self.B @ v_input)
+    def _ode_rhs(
+        self,
+        h_val: np.ndarray,
+        v_input: Optional[np.ndarray] = None,
+        effective_inv_tau: Optional[np.ndarray] = None,
+        b_v: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        """Evaluates dh/dt, accepting precomputed effective_inv_tau and b_v for speed."""
+        if effective_inv_tau is None or b_v is None:
+            if v_input is None:
+                raise ValueError("Must provide either v_input or (effective_inv_tau, b_v)")
+            gate = 1.0 / (1.0 + np.exp(-np.clip(self.W_gate @ v_input + self.b_gate, -20.0, 20.0)))
+            effective_inv_tau = (1.0 / self.tau_base) + gate
+            b_v = self.B @ v_input
+        dh_dt = -effective_inv_tau * h_val + (self.A @ h_val) + b_v
         return dh_dt
 
     def step_rk4(self, v_input: np.ndarray, dt_ms: float = 1.0) -> np.ndarray:
-        """Integrates one time step via Runge-Kutta 4th Order."""
+        """Integrates one time step via Runge-Kutta 4th Order with cached input terms."""
         v = np.asarray(v_input, dtype=np.float64)
         h = self.h
         dt = dt_ms
 
-        k1 = self._ode_rhs(h, v)
-        k2 = self._ode_rhs(h + 0.5 * dt * k1, v)
-        k3 = self._ode_rhs(h + 0.5 * dt * k2, v)
-        k4 = self._ode_rhs(h + dt * k3, v)
+        gate = 1.0 / (1.0 + np.exp(-np.clip(self.W_gate @ v + self.b_gate, -20.0, 20.0)))
+        effective_inv_tau = (1.0 / self.tau_base) + gate
+        b_v = self.B @ v
+
+        k1 = self._ode_rhs(h, effective_inv_tau=effective_inv_tau, b_v=b_v)
+        k2 = self._ode_rhs(h + 0.5 * dt * k1, effective_inv_tau=effective_inv_tau, b_v=b_v)
+        k3 = self._ode_rhs(h + 0.5 * dt * k2, effective_inv_tau=effective_inv_tau, b_v=b_v)
+        k4 = self._ode_rhs(h + dt * k3, effective_inv_tau=effective_inv_tau, b_v=b_v)
 
         self.h = h + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
         return self.h.copy()
@@ -289,12 +314,56 @@ class SubvocalTelepathyEngine:
         # Classification projection from latent space to intent logits
         self.W_clf: np.ndarray = self._rng.normal(0.0, 0.5, size=(self.num_classes, self.ltc.latent_dim))
         self.b_clf: np.ndarray = np.zeros(self.num_classes, dtype=np.float64)
+        self._save_lock: threading.Lock = threading.Lock()
 
         # Hyperdimensional projection: latent_dim -> 10,000-bit HyperVector
         # Packed into HD_UINT64_WORDS (157 uint64 words)
         self.W_vsa_proj: np.ndarray = self._rng.normal(
             0.0, 1.0, size=(HD_DIMENSION_BITS, self.ltc.latent_dim)
         )
+
+    def save(self, path: Union[str, Path]) -> None:
+        """
+        Saves telepathy engine weights and projections using Windows Atomic Persistence.
+        Guarantees thread-safety under _save_lock.
+        """
+        buf = io.BytesIO()
+        np.savez_compressed(
+            buf,
+            vocabulary=np.array(self.vocabulary, dtype=object),
+            W_clf=self.W_clf,
+            b_clf=self.b_clf,
+            W_vsa_proj=self.W_vsa_proj,
+            latent_dim=self.ltc.latent_dim,
+            in_features=self.ltc.in_features,
+            tau_base=self.ltc.tau_base,
+            A=self.ltc.A,
+            B=self.ltc.B,
+            W_gate=self.ltc.W_gate,
+            b_gate=self.ltc.b_gate,
+        )
+        data = buf.getvalue()
+        atomic_write_bytes(path, data, lock=self._save_lock)
+
+    @classmethod
+    def load(cls, path: Union[str, Path]) -> SubvocalTelepathyEngine:
+        """Loads telepathy engine and LTC model from disk using atomic persistence."""
+        with np.load(path, allow_pickle=True) as data:
+            vocab = [str(x) for x in data["vocabulary"]]
+            latent_dim = int(data["latent_dim"])
+            in_features = int(data["in_features"])
+            tau_base = float(data["tau_base"])
+            ltc = ContinuousNeuromuscularLTC(in_features=in_features, latent_dim=latent_dim, tau_base=tau_base)
+            ltc.A = data["A"]
+            ltc.B = data["B"]
+            ltc.W_gate = data["W_gate"]
+            ltc.b_gate = data["b_gate"]
+
+            engine = cls(ltc_network=ltc, vocabulary=vocab)
+            engine.W_clf = data["W_clf"]
+            engine.b_clf = data["b_clf"]
+            engine.W_vsa_proj = data["W_vsa_proj"]
+            return engine
 
     def decode_trajectory(
         self,
@@ -495,9 +564,10 @@ class BioHardwareBridge:
         return self._status
 
     def _probe_windows_serial(self) -> bool:
-        """Probes Windows Registry HARDWARE\\DEVICEMAP\\SERIALCOMM for OpenBCI."""
+        """Probes Windows Registry HARDWARE\\DEVICEMAP\\SERIALCOMM and USB descriptors for OpenBCI."""
         try:
             import winreg
+            # 1. Check SERIALCOMM mapping
             serial_path = r"HARDWARE\DEVICEMAP\SERIALCOMM"
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, serial_path) as key:
                 num_values = winreg.QueryInfoKey(key)[1]
@@ -507,6 +577,19 @@ class BioHardwareBridge:
                     if "FTDI" in val_name.upper() or "OPENBCI" in val_name.upper():
                         self._detected_devices.append(f"{val_data} ({val_name})")
                         return True
+
+            # 2. Check FTDIBUS / USB device enumerations for OpenBCI dongle (VID 0403)
+            for enum_path in (r"SYSTEM\CurrentControlSet\Enum\FTDIBUS", r"SYSTEM\CurrentControlSet\Enum\USB"):
+                try:
+                    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, enum_path) as enum_key:
+                        num_subkeys = winreg.QueryInfoKey(enum_key)[0]
+                        for j in range(num_subkeys):
+                            subkey_name = winreg.EnumKey(enum_key, j).upper()
+                            if "VID_0403" in subkey_name and ("6001" in subkey_name or "6015" in subkey_name or "OPENBCI" in subkey_name):
+                                self._detected_devices.append(f"OpenBCI Cyton Dongle ({subkey_name})")
+                                return True
+                except Exception:
+                    pass
         except Exception as ex:
             logger.debug("Windows serial scan exception: %s", ex)
         return False

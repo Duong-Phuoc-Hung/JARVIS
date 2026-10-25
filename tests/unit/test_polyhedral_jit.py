@@ -116,3 +116,44 @@ def test_jit_compiled_function_vector_add_and_scale():
         jit_fn.execute_vector_add(a, np.ones(10, dtype=np.float32))
 
     jit_fn.close()
+
+
+def test_jit_compiled_function_empty_arrays_n0():
+    """Validates that n=0 empty arrays execute safely without native memory access violations."""
+    jit_fn = JITCompiledFunction()
+
+    empty_a = np.array([], dtype=np.float32)
+    empty_b = np.array([], dtype=np.float32)
+    empty_out = np.array([], dtype=np.float32)
+
+    # 1. Dot product with n=0 returns 0.0
+    dot_res = jit_fn.execute_dot_product(empty_a, empty_b)
+    assert dot_res == 0.0
+
+    # 2. Vector add with n=0 returns empty array without access violation
+    add_res = jit_fn.execute_vector_add(empty_a, empty_b, empty_out)
+    assert len(add_res) == 0
+
+    # 3. Vector scale with n=0 returns empty array
+    scale_res = jit_fn.execute_vector_scale(empty_a, 2.5, empty_out)
+    assert len(scale_res) == 0
+
+    jit_fn.close()
+
+
+def test_machine_code_crystallizer_arm64_bytes():
+    """Validates ARM64 machine code generation and non-empty instruction streams."""
+    c = MachineCodeCrystallizer()
+    arm_dot = c.get_arm64_dot_product_bytes()
+    arm_add = c.get_arm64_vector_add_bytes()
+    arm_scale = c.get_arm64_vector_scale_bytes()
+
+    assert len(arm_dot) > 0
+    assert len(arm_add) > 0
+    assert len(arm_scale) > 0
+
+    # Ret instruction (0xC0, 0x03, 0x5F, 0xD6) at end of each ARM64 function
+    arm_ret = bytes([0xC0, 0x03, 0x5F, 0xD6])
+    assert arm_dot.endswith(arm_ret)
+    assert arm_add.endswith(arm_ret)
+    assert arm_scale.endswith(arm_ret)

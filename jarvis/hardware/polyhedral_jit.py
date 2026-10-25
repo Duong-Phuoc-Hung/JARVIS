@@ -355,7 +355,7 @@ class MachineCodeCrystallizer:
         """
         return bytes([
             0x45, 0x85, 0xC9,              # test r9d, r9d
-            0x74, 0x1F,                    # jz .done (+31 bytes)
+            0x74, 0x1E,                    # jz .done (+30 bytes)
             # .loop:
             0xF3, 0x0F, 0x10, 0x01,        # movss xmm0, [rcx]
             0xF3, 0x0F, 0x58, 0x02,        # addss xmm0, [rdx]
@@ -395,14 +395,88 @@ class MachineCodeCrystallizer:
             0xC3                           # ret
         ])
 
-    def crystallize(self, kernel_type: str) -> CrystallizedMemory:
+    @staticmethod
+    def get_arm64_dot_product_bytes() -> bytes:
+        """
+        AArch64 / ARM64 Native Machine Code for:
+          float dot_product(const float* a, const float* b, int n)
+        AAPCS64 Calling Convention:
+          X0 = a (float*)
+          X1 = b (float*)
+          W2 = n (int)
+          Returns in S0 (float)
+        """
+        return bytes([
+            0x00, 0x00, 0x27, 0x1E,  # fmov s0, wzr
+            0xC2, 0x00, 0x00, 0x34,  # cbz w2, .done (+24 bytes)
+            # .loop:
+            0x01, 0x44, 0x40, 0xBC,  # ldr s1, [x0], #4
+            0x22, 0x44, 0x40, 0xBC,  # ldr s2, [x1], #4
+            0x20, 0x00, 0x02, 0x1F,  # fmadd s0, s1, s2, s0
+            0x42, 0x04, 0x00, 0x71,  # subs w2, w2, #1
+            0x61, 0xFF, 0xFF, 0x54,  # b.ne .loop (-20 bytes)
+            # .done:
+            0xC0, 0x03, 0x5F, 0xD6,  # ret
+        ])
+
+    @staticmethod
+    def get_arm64_vector_add_bytes() -> bytes:
+        """
+        AArch64 / ARM64 Native Machine Code for:
+          void vector_add(const float* a, const float* b, float* c, int n)
+        AAPCS64 Calling Convention:
+          X0 = a (float*)
+          X1 = b (float*)
+          X2 = c (float*)
+          W3 = n (int)
+        """
+        return bytes([
+            0xE3, 0x00, 0x00, 0x34,  # cbz w3, .done (+28 bytes)
+            # .loop:
+            0x00, 0x44, 0x40, 0xBC,  # ldr s0, [x0], #4
+            0x21, 0x44, 0x40, 0xBC,  # ldr s1, [x1], #4
+            0x00, 0x28, 0x21, 0x1E,  # fadd s0, s0, s1
+            0x40, 0x44, 0x00, 0xBC,  # str s0, [x2], #4
+            0x63, 0x04, 0x00, 0x71,  # subs w3, w3, #1
+            0x41, 0xFF, 0xFF, 0x54,  # b.ne .loop (-24 bytes)
+            # .done:
+            0xC0, 0x03, 0x5F, 0xD6,  # ret
+        ])
+
+    @staticmethod
+    def get_arm64_vector_scale_bytes() -> bytes:
+        """
+        AArch64 / ARM64 Native Machine Code for:
+          void vector_scale(const float* a, float alpha, float* c, int n)
+        AAPCS64 Calling Convention:
+          X0 = a (float*)
+          S0 = alpha (float)
+          X1 = c (float*)
+          W2 = n (int)
+        """
+        return bytes([
+            0xC2, 0x00, 0x00, 0x34,  # cbz w2, .done (+24 bytes)
+            # .loop:
+            0x01, 0x44, 0x40, 0xBC,  # ldr s1, [x0], #4
+            0x21, 0x28, 0x20, 0x1E,  # fmul s1, s1, s0
+            0x21, 0x44, 0x00, 0xBC,  # str s1, [x1], #4
+            0x42, 0x04, 0x00, 0x71,  # subs w2, w2, #1
+            0x61, 0xFF, 0xFF, 0x54,  # b.ne .loop (-20 bytes)
+            # .done:
+            0xC0, 0x03, 0x5F, 0xD6,  # ret
+        ])
+
+    def crystallize(self, kernel_type: str, arch: Optional[str] = None) -> CrystallizedMemory:
         """Allocates executable memory and writes the corresponding native machine code."""
+        target_arch = (arch or platform.machine()).lower()
+        is_arm = target_arch in ("arm64", "aarch64")
+
         if kernel_type == "dot_product":
-            code = self.get_x86_64_dot_product_bytes()
+            code = self.get_arm64_dot_product_bytes() if is_arm else self.get_x86_64_dot_product_bytes()
         elif kernel_type == "vector_add":
-            code = self.get_x86_64_vector_add_bytes()
+            code = self.get_arm64_vector_add_bytes() if is_arm else self.get_x86_64_vector_add_bytes()
         elif kernel_type == "vector_scale":
-            code = self.get_x86_64_vector_scale_bytes()
+            code = self.get_arm64_vector_scale_bytes() if is_arm else self.get_x86_64_vector_scale_bytes()
         else:
             raise ValueError(f"Unknown kernel type: {kernel_type}")
 

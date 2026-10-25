@@ -240,10 +240,12 @@ class LandauerEntropyTracker:
         self,
         bits_erased: int,
         probabilities: Optional[Sequence[float]] = None,
+        actual_heat_joules: Optional[float] = None,
     ) -> float:
         """
         Records an irreversible bit erasure. Computes exact entropy generation
-        Delta S and minimum dissipated heat Q_dissipated >= k_B * T * ln(2) * bits_erased.
+        Delta S and dissipated heat Q_dissipated >= k_B * T * ln(2) * bits_erased.
+        Emits alert if thermal dissipation exceeds Landauer bound or dissipation threshold.
         """
         if bits_erased < 0:
             raise ValueError(f"bits_erased cannot be negative, got {bits_erased}")
@@ -253,27 +255,50 @@ class LandauerEntropyTracker:
         if probabilities is not None:
             # Rigorous Shannon entropy calculation Delta S = -k_B * sum(p * ln(p))
             probs = np.array(probabilities, dtype=np.float64)
-            if not np.isclose(np.sum(probs), 1.0, atol=1e-5):
-                probs = probs / np.sum(probs)
+            if np.any(probs < 0.0):
+                raise ValueError("Probabilities cannot be negative")
+            sum_p = np.sum(probs)
+            if sum_p <= 0.0:
+                raise ValueError("Sum of probabilities must be strictly positive")
+            if not np.isclose(sum_p, 1.0, atol=1e-5):
+                probs = probs / sum_p
             # Avoid log(0)
             valid_p = probs[probs > 1e-15]
             shannon_nats = -np.sum(valid_p * np.log(valid_p))
-            delta_s = K_BOLTZMANN * shannon_nats * bits_erased
+            delta_s = K_BOLTZMANN * float(shannon_nats) * bits_erased
         else:
             # Standard uniform binary erasure: Delta S = k_B * ln(2) per bit
             delta_s = K_BOLTZMANN * math.log(2.0) * bits_erased
 
-        heat_joules = delta_s * self.temperature_kelvin
+        min_heat_joules = delta_s * self.temperature_kelvin
+        if actual_heat_joules is not None:
+            if actual_heat_joules < min_heat_joules:
+                # Thermodynamic second law enforcement: cannot dissipate less than Landauer limit
+                logger.warning(
+                    "Reported dissipation %.3e J is below Landauer minimum %.3e J; clamping to limit.",
+                    actual_heat_joules,
+                    min_heat_joules,
+                )
+                heat_joules = min_heat_joules
+            else:
+                heat_joules = float(actual_heat_joules)
+        else:
+            heat_joules = min_heat_joules
+
         self._erased_bits += bits_erased
         self._total_entropy_j_k += delta_s
         self._total_heat_joules += heat_joules
 
-        if self._total_heat_joules > self.dissipation_alert_threshold_joules:
+        landauer_bound_total = self.landauer_bound_per_bit * self._erased_bits
+        if (
+            self._total_heat_joules > self.dissipation_alert_threshold_joules
+            or self._total_heat_joules > landauer_bound_total * 1.5
+        ):
             self._alert_active = True
             self._alert_message = (
                 f"Thermal dissipation {self._total_heat_joules:.3e} J exceeded "
-                f"threshold {self.dissipation_alert_threshold_joules:.3e} J "
-                f"across {self._erased_bits} erased bits"
+                f"threshold {self.dissipation_alert_threshold_joules:.3e} J / Landauer bound "
+                f"{landauer_bound_total:.3e} J across {self._erased_bits} erased bits"
             )
             logger.warning(self._alert_message)
 
@@ -421,28 +446,32 @@ class ReversibleBlock:
     def _default_g(x: np.ndarray) -> np.ndarray:
         return np.sin(x)
 
-    def forward(self, x1: np.ndarray, x2: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def forward(self, x1: Any, x2: Any) -> Tuple[np.ndarray, np.ndarray]:
         """
         Additive forward coupling:
           y1 = x1 + F(x2)
           y2 = x2 + G(y1)
         """
-        if x1.shape != x2.shape:
-            raise ValueError(f"x1 and x2 must have identical shapes, got {x1.shape} and {x2.shape}")
-        y1 = x1 + self.F(x2)
-        y2 = x2 + self.G(y1)
+        x1_arr = np.asarray(x1, dtype=np.float64)
+        x2_arr = np.asarray(x2, dtype=np.float64)
+        if x1_arr.shape != x2_arr.shape:
+            raise ValueError(f"x1 and x2 must have identical shapes, got {x1_arr.shape} and {x2_arr.shape}")
+        y1 = x1_arr + self.F(x2_arr)
+        y2 = x2_arr + self.G(y1)
         return (y1, y2)
 
-    def inverse(self, y1: np.ndarray, y2: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def inverse(self, y1: Any, y2: Any) -> Tuple[np.ndarray, np.ndarray]:
         """
         Analytical inverse coupling:
           x2 = y2 - G(y1)
           x1 = y1 - F(x2)
         """
-        if y1.shape != y2.shape:
-            raise ValueError(f"y1 and y2 must have identical shapes, got {y1.shape} and {y2.shape}")
-        x2 = y2 - self.G(y1)
-        x1 = y1 - self.F(x2)
+        y1_arr = np.asarray(y1, dtype=np.float64)
+        y2_arr = np.asarray(y2, dtype=np.float64)
+        if y1_arr.shape != y2_arr.shape:
+            raise ValueError(f"y1 and y2 must have identical shapes, got {y1_arr.shape} and {y2_arr.shape}")
+        x2 = y2_arr - self.G(y1_arr)
+        x1 = y1_arr - self.F(x2)
         return (x1, x2)
 
     def verify_zero_drift(
@@ -545,12 +574,30 @@ class ReversibleVSAEngine:
         self.entropy_tracker.record_reversible_op("vsa_bundle_ancilla", bit_width=HD_DIMENSION_BITS)
         return (bundle, ancilla)
 
+    def unbundle_with_ancilla(
+        self, bundle: HyperVector, ancilla: Sequence[HyperVector]
+    ) -> List[HyperVector]:
+        """
+        Lossless Ancilla Unbundling:
+        Recovers the exact constituent vectors preserved in the ancilla register.
+        Preserves information conservation with Delta S = 0.
+        """
+        if not ancilla:
+            raise ValueError("Ancilla vector register cannot be empty")
+        reconstructed = list(ancilla)
+        self.entropy_tracker.record_reversible_op("vsa_unbundle_ancilla", bit_width=HD_DIMENSION_BITS)
+        return reconstructed
+
     @staticmethod
     def compute_permutation_entropy(v: HyperVector, order: int = 3, delay: int = 1) -> float:
         """
         Bandt-Pompe Permutation Entropy of the hypervector word stream.
         Quantifies the dynamical complexity / disorder of the hypervector signature.
         """
+        if order < 2:
+            raise ValueError(f"Permutation entropy order must be >= 2, got {order}")
+        if delay < 1:
+            raise ValueError(f"Embedding delay must be >= 1, got {delay}")
         data = v.words.astype(np.float64)
         n = len(data)
         if n < (order - 1) * delay + 1:

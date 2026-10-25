@@ -42,14 +42,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `jarvis/learning/__init__.py`: Xuất các lớp Quantum Tensor Policy và Simulated Quantum Annealer.
   - `jarvis/audio/__init__.py`: Xuất các lớp Subvocal sEMG và Telepathy Engine.
   - `jarvis/__init__.py`: Nâng phiên bản chuẩn mực lên `8.0.0`.
-  - `tests/unit/test_reversible_computing.py`: 7 bài kiểm thử đơn vị cho Thermodynamic Reversible Computing (100% PASS).
-  - `tests/unit/test_photonic_bridge.py`: 5 bài kiểm thử đơn vị cho Coherent Photonic Tensor Core (100% PASS).
-  - `tests/unit/test_quantum_tensor_policy.py`: 5 bài kiểm thử đơn vị cho Quantum Tensor Policy & PIMC Annealer (100% PASS).
-  - `tests/unit/test_subvocal_semg.py`: 5 bài kiểm thử đơn vị cho Subvocal sEMG & BCI Telepathy (100% PASS).
-  - `tests/unit/test_polyhedral_jit.py`: 5 bài kiểm thử đơn vị cho Polyhedral JIT Compiler (100% PASS).
+  - `tests/unit/test_reversible_computing.py`: 10 bài kiểm thử đơn vị cho Thermodynamic Reversible Computing (100% PASS).
+  - `tests/unit/test_photonic_bridge.py`: 7 bài kiểm thử đơn vị cho Coherent Photonic Tensor Core (100% PASS).
+  - `tests/unit/test_quantum_tensor_policy.py`: 8 bài kiểm thử đơn vị cho Quantum Tensor Policy & PIMC Annealer (100% PASS).
+  - `tests/unit/test_subvocal_semg.py`: 7 bài kiểm thử đơn vị cho Subvocal sEMG & BCI Telepathy (100% PASS).
+  - `tests/unit/test_polyhedral_jit.py`: 7 bài kiểm thử đơn vị cho Polyhedral JIT Compiler (100% PASS).
   - `tests/eval/test_frontier_24_to_28_omniscient_benchmark.py`: 6 bài kiểm chuẩn thực nghiệm tổng hợp và chu trình phản xạ toàn diện Omniscient Symbiont (100% PASS).
+  - **Sửa lỗi & Tối ưu hóa kiểm toán (Hardening Fixes)**:
+    - Triệt tiêu lỗi vi phạm truy cập bộ nhớ native `Access Violation` trong `get_x86_64_vector_add_bytes` khi mảng rỗng ($n=0$) bằng cách điều chỉnh độ lệch bước nhảy `jz` từ `0x1F` về `0x1E` (+30 bytes), bổ sung bytecode ARM64 gốc.
+    - Sửa logic ghi nhận sự kiện vượt rào cản năng lượng lượng tử `tunneling_events_count` trong `SimulatedQuantumAnnealer`.
+    - Bổ sung phương thức phục hồi `unbundle_with_ancilla` và xác thực miền đầu vào trong `ReversibleVSAEngine`.
+    - Bổ sung chuẩn ghi đĩa nguyên tử `Windows Atomic Persistence` (`save`/`load` với `_save_lock` và retry loop) cho `MatrixProductStatePolicy` và `SubvocalTelepathyEngine`.
+    - Chuẩn hóa phân tầng verdict theo AGENTS.md Rule 2 và Rule 5: ghi nhận trung thực `PASS fail-closed (runtime evidence PENDING)` cho `PhotonicHardwareBridge` và `BioHardwareBridge` khi chưa có phần cứng vật lý chuyên dụng.
 - **Chỉ số kiểm thử thực tế**:
-  - Toàn bộ 33 bài kiểm thử mới Milestone 8.0.0: **33/33 passed 100% in 6.44s**.
+  - Toàn bộ 45 bài kiểm thử Milestone 8.0.0 (39 unit + 6 eval): **45/45 passed 100% in 11.58s**.
   - Kiểm tra tương thích hồi quy toàn bộ eval suite (Frontiers 10 đến 28): **83/83 passed 100% in 15.15s**.
   - Độ trễ chu trình phản xạ Omniscient Symbiont toàn trình: **< 25.0ms** (thực tế ~12ms).
   - Tốc độ nhận thức ý định câm sEMG: **> 1,000 wpm**.

@@ -186,30 +186,30 @@
   - [x] Bộ giám sát Entropy Landauer `LandauerEntropyTracker`: tính toán entropy xóa bit $\Delta S = -k_B \sum p \ln p$ và giới hạn tản nhiệt Landauer $Q \ge k_B T \ln 2$.
   - [x] Tái chế bộ nhớ đoạn nhiệt `AdiabaticMemoryRecycler` theo mô hình Bennett compute-uncompute với phép mở cuộn giải tích $x = f^{-1}(y)$, đạt 0 net footprint cho backward pass.
   - [x] Khối phần dư khả nghịch `ReversibleBlock` với phép ghép cộng $y_1 = x_1 + F(x_2), y_2 = x_2 + G(y_1)$ và nghịch đảo giải tích chính xác, triệt tiêu độ trôi số học ($< 10^{-7}$).
-  - [x] Động cơ HD-VSA khả nghịch `ReversibleVSAEngine` bảo tồn thông tin qua liên kết XOR và lưu trữ ancilla.
-  - [x] Unit tests verified: `tests/unit/test_reversible_computing.py` (7/7 passed 100%).
-- [x] **Frontier 25.0: Coherent Photonic-Accelerated Tensor-Core Matrix Multiplications (`jarvis/hardware/photonic_bridge.py`)** — `PASS runtime`:
-  - [x] Lưới giao thoa kế Mach-Zehnder (MZI Mesh) qua phân rã Clements giải tích ma trận đơn vị $N \times N$ thành $N(N-1)/2$ tế bào MZI 2-mode và $N$ bộ dịch pha đường chéo với sai số Frobenius $< 10^{-12}$.
-  - [x] Nhân tensor quang tử `PhotonicTensorCore` tính toán $Y = UX$ và phân rã SVD $W = U \Sigma V^H$ qua tán xạ quang thụ động trong ống dẫn sóng silicon với độ trễ thời gian bay quang $\tau = L / v_{\text{group}} < 10\text{ ps}$ ($n_{\text{eff}} = 3.45$).
-  - [x] Cầu nối phần cứng quang học fail-closed `PhotonicHardwareBridge`: phát hiện bộ tăng tốc quang PCIe qua PCI vendor ID / Registry; trả về `StatusLevel.LIMITED` khi không có phần cứng vật lý và giả lập vector hóa AVX2 với zero synthetic data.
-  - [x] Unit tests verified: `tests/unit/test_photonic_bridge.py` (5/5 passed 100%).
+  - [x] Động cơ HD-VSA khả nghịch `ReversibleVSAEngine` bảo tồn thông tin qua liên kết XOR và lưu trữ/phục hồi ancilla (`unbundle_with_ancilla`).
+  - [x] Unit tests verified: `tests/unit/test_reversible_computing.py` (10/10 passed 100%).
+- [x] **Frontier 25.0: Coherent Photonic-Accelerated Tensor-Core Matrix Multiplications (`jarvis/hardware/photonic_bridge.py`)** — `PASS fail-closed (runtime evidence PENDING)`:
+  - [x] Lưới giao thoa kế Mach-Zehnder (MZI Mesh) qua phân rã Clements giải tích ma trận đơn vị $N \times N$ ($N \ge 1$) thành tế bào MZI 2-mode và bộ dịch pha đường chéo với sai số Frobenius $< 10^{-12}$.
+  - [x] Nhân tensor quang tử `PhotonicTensorCore` tính toán $Y = UX$ và phân rã SVD $W = U \Sigma V^H$ (kể cả ma trận chữ nhật) qua tán xạ quang thụ động trong ống dẫn sóng silicon với độ trễ thời gian bay quang $\tau = L / v_{\text{group}} < 10\text{ ps}$ ($n_{\text{eff}} = 3.45$).
+  - [x] Cầu nối phần cứng quang học fail-closed `PhotonicHardwareBridge`: phát hiện bộ tăng tốc quang PCIe (Lightmatter, Optalysys, Intel Silicon Photonics) qua PCI vendor ID / Registry; trả về `StatusLevel.LIMITED` khi không có phần cứng vật lý và giả lập vector hóa AVX2 với zero synthetic data.
+  - [x] Unit tests verified: `tests/unit/test_photonic_bridge.py` (7/7 passed 100%).
 - [x] **Frontier 26.0: Quantum-Inspired Tensor Networks & Quantum Annealing Policy Search (`jarvis/learning/quantum_tensor_policy.py`)** — `PASS runtime`:
-  - [x] Chính sách ma trận tích tensor (MPS / Tensor Train) `MatrixProductStatePolicy` phân rã phân bố hành động $K$ bước $P(a_1, \dots, a_K)$ thành chuỗi tensor 1D $A^{(1)}[a_1] \dots A^{(K)}[a_K]$.
+  - [x] Chính sách ma trận tích tensor (MPS / Tensor Train) `MatrixProductStatePolicy` phân rã phân bố hành động $K$ bước $P(a_1, \dots, a_K)$ thành chuỗi tensor 1D $A^{(1)}[a_1] \dots A^{(K)}[a_K]$, hỗ trợ lấy mẫu tham lam khi nhiệt độ $\le 0.0$ và lưu trữ nguyên tử Windows Atomic Persistence.
   - [x] Chuẩn hóa trực giao SVD với cắt cụt số chiều liên kết $\chi \le 32$ và ước tính entropy vướng víu von Neumann $S_k = -\sum s_i^2 \ln(s_i^2)$ tại mỗi vết cắt.
-  - [x] Bộ ủ lượng tử mô phỏng `SimulatedQuantumAnnealer` triển khai Path-Integral Monte Carlo (PIMC) với phân rã Trotter-Suzuki ($P$ replica) và điện trường ngang $\Gamma(t) = \Gamma_0(1 - t/T)$, vượt qua các hố năng lượng phi lồi để tối ưu hóa lịch trình macro Win32 trong thời gian đa thức $O(\text{poly})$.
-  - [x] Unit tests verified: `tests/unit/test_quantum_tensor_policy.py` (5/5 passed 100%).
-- [x] **Frontier 27.0: Sub-Vocal Electromyography (sEMG) & Non-Invasive BCI Telepathy (`jarvis/audio/subvocal_semg.py`)** — `PASS runtime`:
-  - [x] Bộ lọc tín hiệu cơ điện vi thanh 8 kênh `SubvocalSignalFilter` ($1\mu\text{V} - 50\mu\text{V}$) với bộ lọc triệt tần notch biquad 50/60Hz, dải thông Butterworth bậc 4 20-450Hz và khử nhiễu wavelet DWT ngưỡng mềm VisuShrink.
-  - [x] Không gian trạng thái thần kinh cơ liên tục `ContinuousNeuromuscularLTC` giải phương trình vi phân biến thiên thời gian lỏng (LTC-ODE) qua tích phân RK4.
-  - [x] Động cơ thần giao cách cảm không phát âm `SubvocalTelepathyEngine` giải mã quỹ đạo tiềm ẩn thành token ý định câm và siêu vector HD-VSA 10,000-bit với tốc độ suy nghĩ câm **$> 1,000\text{ wpm}$** không cần rung dây thanh âm.
-  - [x] Cầu nối điện sinh học fail-closed `BioHardwareBridge` hỗ trợ OpenBCI Cyton / Serial COM ADC, báo cáo `StatusLevel.LIMITED` và cung cấp máy phát dạng sóng offline MUAP.
-  - [x] Unit tests verified: `tests/unit/test_subvocal_semg.py` (5/5 passed 100%).
+  - [x] Bộ ủ lượng tử mô phỏng `SimulatedQuantumAnnealer` triển khai Path-Integral Monte Carlo (PIMC) với phân rã Trotter-Suzuki ($P$ replica) và điện trường ngang $\Gamma(t) = \Gamma_0(1 - t/T)$, theo dõi chính xác các sự kiện xuyên hầm năng lượng phi lồi (tunneling events > 0) để tối ưu hóa lịch trình macro Win32 trong thời gian đa thức $O(\text{poly})$.
+  - [x] Unit tests verified: `tests/unit/test_quantum_tensor_policy.py` (8/8 passed 100%).
+- [x] **Frontier 27.0: Sub-Vocal Electromyography (sEMG) & Non-Invasive BCI Telepathy (`jarvis/audio/subvocal_semg.py`)** — `PASS fail-closed (runtime evidence PENDING)`:
+  - [x] Bộ lọc tín hiệu cơ điện vi thanh 8 kênh `SubvocalSignalFilter` ($1\mu\text{V} - 50\mu\text{V}$) với bộ lọc triệt tần notch biquad 50/60Hz, dải thông Butterworth bậc 4 20-450Hz, tăng tốc `scipy.signal.lfilter` và khử nhiễu wavelet DWT ngưỡng mềm VisuShrink.
+  - [x] Không gian trạng thái thần kinh cơ liên tục `ContinuousNeuromuscularLTC` giải phương trình vi phân biến thiên thời gian lỏng (LTC-ODE) qua tích phân RK4 với bộ đệm chiếu đầu vào tối ưu.
+  - [x] Động cơ thần giao cách cảm không phát âm `SubvocalTelepathyEngine` giải mã quỹ đạo tiềm ẩn thành token ý định câm và siêu vector HD-VSA 10,000-bit với tốc độ suy nghĩ câm **$> 1,000\text{ wpm}$** không cần rung dây thanh âm, hỗ trợ Windows Atomic Persistence.
+  - [x] Cầu nối điện sinh học fail-closed `BioHardwareBridge` hỗ trợ OpenBCI Cyton / Serial COM ADC qua SERIALCOMM và FTDIBUS VID 0403, báo cáo `StatusLevel.LIMITED` và cung cấp máy phát dạng sóng offline MUAP.
+  - [x] Unit tests verified: `tests/unit/test_subvocal_semg.py` (7/7 passed 100%).
 - [x] **Frontier 28.0: Self-Assembling Polyhedral JIT Compiler & Autonomous Machine Code Crystallizer (`jarvis/hardware/polyhedral_jit.py`)** — `PASS runtime`:
   - [x] Miền lặp đa diện affine `PolyhedralIterationDomain` biểu diễn không gian vòng lặp lồng nhau $\mathbf{A}\vec{i} + \vec{b} \ge \vec{0}$, xác định bao lồi và tập điểm nguyên.
   - [x] Bộ lập lịch bộ nhớ đệm affine `AffineCacheScheduler` tính toán ma trận biến đổi unimodular $\mathbf{T}$ ($|\det(\mathbf{T})| = 1$) và kích thước khối $\vec{s}$ tối ưu hóa tái sử dụng dòng cache L1 (triệt tiêu khoảng cách tái sử dụng về 0).
-  - [x] Bộ kết tinh mã máy `MachineCodeCrystallizer` cấp phát trực tiếp bộ nhớ thực thi qua Win32 `VirtualAlloc(PAGE_EXECUTE_READWRITE)` và phát sinh bytecode x86-64 gốc (dot product, vector add, vector scale) với RAII giải phóng `VirtualFree`.
-  - [x] Hàm biên dịch JIT `JITCompiledFunction` đóng gói con trỏ bộ nhớ gốc thành `ctypes.CFUNCTYPE`, thực thi với 100% IPC và 0 chi phí runtime Python.
-  - [x] Unit tests verified: `tests/unit/test_polyhedral_jit.py` (5/5 passed 100%).
+  - [x] Bộ kết tinh mã máy `MachineCodeCrystallizer` cấp phát trực tiếp bộ nhớ thực thi qua Win32 `VirtualAlloc(PAGE_EXECUTE_READWRITE)` và phát sinh bytecode x86-64 và ARM64 gốc (dot product, vector add với bước nhảy an toàn $n=0$, vector scale) với RAII giải phóng `VirtualFree`.
+  - [x] Hàm biên dịch JIT `JITCompiledFunction` đóng gói con trỏ bộ nhớ gốc thành `ctypes.CFUNCTYPE`, thực thi an toàn với cả mảng rỗng ($n=0$) với 100% IPC và 0 chi phí runtime Python.
+  - [x] Unit tests verified: `tests/unit/test_polyhedral_jit.py` (7/7 passed 100%).
 - [x] **Consolidated Empirical Benchmark Suite (`tests/eval/test_frontier_24_to_28_omniscient_benchmark.py`)** — `PASS runtime`:
   - [x] Toàn bộ 6 bài kiểm chuẩn thực nghiệm tổng hợp và chu trình phản xạ toàn diện Omniscient Symbiont (6/6 passed 100%).
 

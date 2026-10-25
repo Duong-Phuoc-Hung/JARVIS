@@ -29,12 +29,17 @@ Architectural Principles:
 """
 from __future__ import annotations
 
+import io
 import logging
 import math
+import threading
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
+
+from jarvis.utils.atomic_io import atomic_write_bytes
 
 logger = logging.getLogger("jarvis.learning.quantum_tensor_policy")
 
@@ -80,6 +85,7 @@ class MatrixProductStatePolicy:
         self.physical_dim: int = physical_dim
         self.max_bond_dim: int = max_bond_dim
         self._rng: np.random.RandomState = np.random.RandomState(seed or 42)
+        self._save_lock: threading.Lock = threading.Lock()
 
         # Initialize core tensors: A^(k) with shape (chi_{k-1}, physical_dim, chi_k)
         # where chi_0 = chi_K = 1
@@ -222,13 +228,17 @@ class MatrixProductStatePolicy:
                 probs = np.ones(d, dtype=np.float64) / float(d)
 
             # Apply temperature scaling if needed
-            if temperature != 1.0 and temperature > 0.0:
+            if temperature <= 0.0:
+                # Deterministic greedy argmax selection
+                chosen_action = int(np.argmax(probs))
+            elif temperature != 1.0:
                 logits = np.log(np.maximum(probs, 1e-15)) / temperature
                 exp_logits = np.exp(logits - np.max(logits))
                 probs = exp_logits / np.sum(exp_logits)
+                chosen_action = int(rand_gen.choice(d, p=probs))
+            else:
+                chosen_action = int(rand_gen.choice(d, p=probs))
 
-            # Sample choice
-            chosen_action = int(rand_gen.choice(d, p=probs))
             actions.append(chosen_action)
 
             # Advance left vector, normalizing to prevent underflow
@@ -238,6 +248,37 @@ class MatrixProductStatePolicy:
                 vec = vec / norm_v
 
         return actions
+
+    def save(self, path: Union[str, Path]) -> None:
+        """
+        Saves MPS policy core tensors and metadata to disk using Windows Atomic Persistence.
+        Guarantees thread-safe write via _save_lock and atomic file replacement.
+        """
+        buf = io.BytesIO()
+        cores_dict = {f"core_{k}": self.cores[k] for k in range(len(self.cores))}
+        np.savez_compressed(
+            buf,
+            num_stages=self.num_stages,
+            physical_dim=self.physical_dim,
+            max_bond_dim=self.max_bond_dim,
+            entanglement_entropies=np.array(self._entanglement_entropies, dtype=np.float64),
+            **cores_dict,
+        )
+        data = buf.getvalue()
+        atomic_write_bytes(path, data, lock=self._save_lock)
+
+    @classmethod
+    def load(cls, path: Union[str, Path]) -> MatrixProductStatePolicy:
+        """Loads MPS policy core tensors from disk using atomic persistence conventions."""
+        with np.load(path) as data:
+            num_stages = int(data["num_stages"])
+            physical_dim = int(data["physical_dim"])
+            max_bond_dim = int(data["max_bond_dim"])
+            policy = cls(num_stages=num_stages, physical_dim=physical_dim, max_bond_dim=max_bond_dim)
+            policy.cores = [data[f"core_{k}"] for k in range(num_stages)]
+            if "entanglement_entropies" in data:
+                policy._entanglement_entropies = [float(x) for x in data["entanglement_entropies"]]
+            return policy
 
     def get_telemetry(self) -> MPSTelemetry:
         """Returns tensor train architecture and entanglement telemetry."""
@@ -364,10 +405,12 @@ class SimulatedQuantumAnnealer:
                         curr_cost = e_flip
                         replica_costs[p] = curr_cost
 
+                        # If classical cost increased, this was an uphill quantum barrier tunneling step
+                        if delta_e_cost > 0.0:
+                            tunneling_events += 1
+
                         # Check if this flip produced a new overall global best
                         if curr_cost < best_energy:
-                            if delta_e_cost > 0.0:
-                                tunneling_events += 1
                             best_energy = curr_cost
                             best_spins = spins[p].copy()
                     else:

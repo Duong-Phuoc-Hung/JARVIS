@@ -135,3 +135,36 @@ def test_photonic_hardware_bridge_fail_closed_and_telemetry():
     Y, metrics = bridge.execute_matrix_multiplication(mesh, X)
     assert Y.shape == (4, 4)
     assert metrics.vram_delta_mib == 0.00
+
+
+def test_mzi_mesh_dimension_one_and_rectangular_svd():
+    """Validates 1-mode optical systems (N=1) and rectangular matrix SVD factorization."""
+    # 1. 1x1 unitary (pure phase shifter)
+    U_1x1 = np.array([[np.exp(1j * 0.75)]], dtype=np.complex128)
+    mesh_1 = MZIMesh.decompose(U_1x1)
+    assert mesh_1.dimension == 1
+    assert len(mesh_1.cells) == 0
+    rec_1 = mesh_1.reconstruct_unitary()
+    assert np.allclose(rec_1, U_1x1, atol=1e-12)
+
+    # 2. Rectangular 4x6 matrix SVD factorization
+    core = PhotonicTensorCore(dimension=4)
+    rng = np.random.RandomState(42)
+    W_rect = rng.normal(0.0, 1.0, size=(4, 6))
+    mesh_U, s, mesh_V = core.factorize_general_matrix(W_rect)
+    assert mesh_U.dimension == 4
+    assert mesh_V.dimension == 6
+    assert len(s) == 4
+
+
+def test_photonic_tensor_core_zero_signal():
+    """Validates that all-zero optical input vectors do not cause log(0) domain errors in SNR."""
+    core = PhotonicTensorCore(dimension=4, phase_noise_std=0.005)
+    U = _generate_random_unitary(4, seed=77)
+    mesh = MZIMesh.decompose(U)
+    X_zero = np.zeros((4, 2), dtype=np.complex128)
+
+    Y, metrics = core.forward_unitary(mesh, X_zero, simulate_phase_noise=True)
+    assert np.allclose(Y, 0.0)
+    assert metrics.signal_to_noise_ratio_db == 100.0
+    assert metrics.vram_delta_mib == 0.00

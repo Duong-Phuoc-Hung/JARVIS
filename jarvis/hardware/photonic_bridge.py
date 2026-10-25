@@ -101,8 +101,8 @@ class MZIMesh:
         cells: List[MZICell],
         diagonal_phases: np.ndarray,
     ) -> None:
-        if dimension <= 1:
-            raise ValueError(f"Mesh dimension must be >= 2, got {dimension}")
+        if dimension < 1:
+            raise ValueError(f"Mesh dimension must be >= 1, got {dimension}")
         self.dimension: int = dimension
         self.cells: List[MZICell] = list(cells)
         self.diagonal_phases: np.ndarray = np.asarray(diagonal_phases, dtype=np.complex128)
@@ -119,6 +119,10 @@ class MZIMesh:
         if U_arr.ndim != 2 or U_arr.shape[0] != U_arr.shape[1]:
             raise ValueError(f"Matrix must be square, got shape {U_arr.shape}")
         N = U_arr.shape[0]
+        if N < 1:
+            raise ValueError("Matrix dimension must be >= 1")
+        if N == 1:
+            return cls(dimension=1, cells=[], diagonal_phases=np.array([U_arr[0, 0]], dtype=np.complex128))
 
         # Verify unitarity: U @ U^H = I
         identity_check = U_arr @ U_arr.conj().T
@@ -261,7 +265,7 @@ class PhotonicTensorCore:
             diff = (U_noisy - U_ideal) @ X_arr
             sig_power = float(np.sum(np.abs(U_ideal @ X_arr) ** 2))
             noise_power = float(np.sum(np.abs(diff) ** 2))
-            if noise_power > 1e-15:
+            if noise_power > 1e-15 and sig_power > 1e-15:
                 snr_db = 10.0 * math.log10(sig_power / noise_power)
             else:
                 snr_db = 100.0
@@ -384,7 +388,7 @@ class PhotonicHardwareBridge:
                 num_subkeys, _, _ = winreg.QueryInfoKey(pci_key)
                 for i in range(num_subkeys):
                     subkey_name = winreg.EnumKey(pci_key, i)
-                    # Check for Lightmatter, Optalysys, or specialized Intel Silicon Photonics
+                    # Check for Lightmatter, Optalysys, Intel Silicon Photonics, or Celestial AI
                     if "VEN_1F5C" in subkey_name.upper():
                         self._detected_devices.append(f"Lightmatter Envise ({subkey_name})")
                         return True
@@ -393,6 +397,9 @@ class PhotonicHardwareBridge:
                         return True
                     if "VEN_1E8A" in subkey_name.upper():
                         self._detected_devices.append(f"Celestial AI Photonic Fabric ({subkey_name})")
+                        return True
+                    if "VEN_8086" in subkey_name.upper() and ("OPTICAL" in subkey_name.upper() or "PHOTONIC" in subkey_name.upper() or "DEV_09C4" in subkey_name.upper()):
+                        self._detected_devices.append(f"Intel Silicon Photonics Accelerator ({subkey_name})")
                         return True
         except Exception as ex:
             logger.debug("Windows PCI registry scan exception: %s", ex)
@@ -411,6 +418,14 @@ class PhotonicHardwareBridge:
                         if vendor_id in (PCI_VENDOR_LIGHTMATTER, PCI_VENDOR_OPTALYSYS, PCI_VENDOR_LUMINOUS_CELESTIAL):
                             self._detected_devices.append(f"Optical Device ({dev}, Vendor={vendor_id})")
                             return True
+                        if vendor_id == PCI_VENDOR_INTEL:
+                            dev_file = os.path.join(sysfs_pci, dev, "device")
+                            if os.path.exists(dev_file):
+                                with open(dev_file, "r", encoding="utf-8") as df:
+                                    device_id = df.read().strip().lower()
+                                if device_id in ("0x09c4", "0x0b30"):
+                                    self._detected_devices.append(f"Intel Silicon Photonics ({dev}, Device={device_id})")
+                                    return True
             except Exception as ex:
                 logger.debug("Linux sysfs scan exception: %s", ex)
         return False

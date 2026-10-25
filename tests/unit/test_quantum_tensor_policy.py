@@ -119,3 +119,39 @@ def test_quantum_annealing_macro_scheduling():
 
     assert result.best_energy < result.initial_energy or result.best_energy < 50.0
     assert result.vram_delta_mib == 0.00
+
+
+def test_quantum_annealing_tunneling_events_non_zero():
+    """Validates that uphill barrier tunneling events are accurately recorded during PIMC annealing."""
+    annealer = SimulatedQuantumAnnealer(num_spins=8, num_replicas=8, gamma_0=3.0, seed=42)
+    # Define a barrier function where escaping requires uphill flips
+    def barrier_cost(sigma: np.ndarray) -> float:
+        return float(-np.sum(sigma) + 5.0 * (1 if np.sum(sigma) == 0 else 0))
+
+    result = annealer.optimize_macro_schedule(barrier_cost, steps=60)
+    assert result.tunneling_events_count > 0, "Tunneling events must be > 0 when crossing barrier"
+
+
+def test_mps_greedy_zero_temperature_sampling():
+    """Validates deterministic greedy argmax sampling when temperature <= 0.0."""
+    policy = MatrixProductStatePolicy(num_stages=3, physical_dim=4, max_bond_dim=8, seed=42)
+    seq1 = policy.sample_action_sequence(temperature=0.0)
+    seq2 = policy.sample_action_sequence(temperature=0.0)
+    assert seq1 == seq2, "Greedy sampling with temperature=0.0 must be strictly deterministic"
+
+
+def test_mps_atomic_persistence(tmp_path):
+    """Validates atomic save and load for MatrixProductStatePolicy under Windows atomic persistence."""
+    policy = MatrixProductStatePolicy(num_stages=4, physical_dim=6, max_bond_dim=16, seed=42)
+    save_file = tmp_path / "test_mps_policy.npz"
+
+    policy.save(save_file)
+    assert save_file.exists()
+
+    loaded = MatrixProductStatePolicy.load(save_file)
+    assert loaded.num_stages == policy.num_stages
+    assert loaded.physical_dim == policy.physical_dim
+    assert loaded.max_bond_dim == policy.max_bond_dim
+    for k in range(policy.num_stages):
+        assert np.allclose(loaded.cores[k], policy.cores[k])
+
