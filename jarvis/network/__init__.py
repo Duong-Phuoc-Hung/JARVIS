@@ -9,6 +9,14 @@ Features:
 """
 from __future__ import annotations
 
+from jarvis.network.minkowski_concurrency import (
+    CausalSeparation,
+    DispatchBatchResult,
+    Minkowski4Vector,
+    MinkowskiEvent,
+    MinkowskiSpacetimeMetric,
+    RelativisticEventDispatcher,
+)
 from jarvis.network.swarm_telepathy import (
     HD_CONSENSUS_DIMENSION_BITS,
     HDVSAConsensusBundle,
@@ -23,9 +31,15 @@ from jarvis.network.swarm_telepathy import (
 )
 
 __all__ = [
+    "CausalSeparation",
+    "DispatchBatchResult",
     "HD_CONSENSUS_DIMENSION_BITS",
     "HDVSAConsensusBundle",
     "LoRARank4AdapterDelta",
+    "Minkowski4Vector",
+    "MinkowskiEvent",
+    "MinkowskiSpacetimeMetric",
+    "RelativisticEventDispatcher",
     "SovereignSwarmMeshManager",
     "SwarmMeshStatus",
     "SwarmNodeIdentity",

@@ -26,6 +26,14 @@ from jarvis.security.formal_verifier import (
 from jarvis.security.path_guard import validate_safe_path
 from jarvis.security.prompt_guard import PromptGuard, SanitizationResult
 from jarvis.security.report import SecurityPrivilegeGate, SecurityReportGenerator
+from jarvis.security.retrocausal_engine import (
+    CheckpointType,
+    RetrocausalRollbackEngine,
+    RetrocausalTransaction,
+    ShadowPageForkManager,
+    SpeculativeExecutionResult,
+    VirtualStatePage,
+)
 from jarvis.security.scanner import (
     HostScanResult,
     NetworkScanner,
@@ -47,6 +55,7 @@ from jarvis.security.secrets import (
 __all__ = [
     "ActionSynthesisNode",
     "ActionVerb",
+    "CheckpointType",
     "Counterexample",
     "FirstOrderSMTSolver",
     "HostScanResult",
@@ -58,15 +67,20 @@ __all__ = [
     "PreconditionState",
     "PromptGuard",
     "ProofCertificate",
+    "RetrocausalRollbackEngine",
+    "RetrocausalTransaction",
     "SafetyInvariant",
     "SanitizationResult",
     "ScanReport",
     "SecurityConfigurationError",
     "SecurityPrivilegeGate",
     "SecurityReportGenerator",
+    "ShadowPageForkManager",
+    "SpeculativeExecutionResult",
     "TSharkCaptureWrapper",
     "VerificationVerdict",
     "VerifiedActionSynthesizer",
+    "VirtualStatePage",
     "Vulnerability",
     "VulnerabilitySeverity",
     "delete_secret",
