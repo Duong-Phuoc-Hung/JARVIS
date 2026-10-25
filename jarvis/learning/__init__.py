@@ -14,13 +14,23 @@ from jarvis.learning.latent_world_model import (
     LatentOSWorldModel,
     NegativeLatencyExecutionManager,
 )
+from jarvis.learning.quantum_tensor_policy import (
+    AnnealingScheduleResult,
+    MatrixProductStatePolicy,
+    MPSTelemetry,
+    SimulatedQuantumAnnealer,
+)
 
 __all__ = [
-    "LATENT_DIM",
+    "AnnealingScheduleResult",
     "CONTEXT_DIM",
-    "SpeculativeActionStatus",
-    "SpeculativeActionCandidate",
-    "LatentPredictionResult",
+    "LATENT_DIM",
     "LatentOSWorldModel",
+    "LatentPredictionResult",
+    "MatrixProductStatePolicy",
+    "MPSTelemetry",
     "NegativeLatencyExecutionManager",
+    "SimulatedQuantumAnnealer",
+    "SpeculativeActionCandidate",
+    "SpeculativeActionStatus",
 ]

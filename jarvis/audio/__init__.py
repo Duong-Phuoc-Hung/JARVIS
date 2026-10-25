@@ -34,6 +34,16 @@ from jarvis.audio.ssd_vocoder import (
     SSDVocoderSampleRate,
     StateSpaceStreamingVocoder,
 )
+from jarvis.audio.subvocal_semg import (
+    BioHardwareBridge,
+    BioHardwareBridgeTelemetry,
+    ContinuousNeuromuscularLTC,
+    FilterBankConfig,
+    OfflineNeuromuscularSignalGenerator,
+    SubvocalIntentResult,
+    SubvocalSignalFilter,
+    SubvocalTelepathyEngine,
+)
 from jarvis.audio.wake_word import WakeWordScoreEvent
 
 __all__ = [
@@ -43,10 +53,14 @@ __all__ = [
     "AudioDSPProcessor",
     "AudioEngine",
     "AudioEngineMode",
+    "BioHardwareBridge",
+    "BioHardwareBridgeTelemetry",
     "CANONICAL_180_ACTIONS",
     "calculate_rms",
+    "ContinuousNeuromuscularLTC",
     "DEFAULT_REFLEX_ACTIONS",
     "DSPBlockResult",
+    "FilterBankConfig",
     "LiquidStateSpaceNetwork",
     "LiquidTimeConstantConfig",
     "LiquidTrajectoryMetrics",
@@ -55,11 +69,15 @@ __all__ = [
     "MoSEPrediction",
     "MoSEProjectionHead",
     "NoiseFloorTracker",
+    "OfflineNeuromuscularSignalGenerator",
     "rms_mono",
     "SchmittTrigger",
     "SSDVocoderFrame",
     "SSDVocoderSampleRate",
     "StateSpaceStreamingVocoder",
+    "SubvocalIntentResult",
+    "SubvocalSignalFilter",
+    "SubvocalTelepathyEngine",
     "WakeWordScoreEvent",
 ]
 
