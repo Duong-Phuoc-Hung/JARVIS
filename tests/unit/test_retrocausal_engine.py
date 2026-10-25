@@ -180,6 +180,45 @@ def test_retrocausal_windows_atomic_persistence():
         restored = RetrocausalRollbackEngine.load(save_file)
         assert restored._commit_count == 1
         assert restored.fork_mgr.get_slot("counter") == 43
+        # Validate complete transaction ledger restoration
+        assert len(restored.ledger) == 1
+        assert restored.ledger[0].action_id == "act_inc"
+        assert restored.ledger[0].verified_safe is True
+        assert restored.ledger[0].state_delta == {"counter": 43}
+        assert len(restored.fork_mgr._checkpoints) >= 1
+
+
+def test_retrocausal_rollback_to_checkpoint_restores_past_state():
+    """Validates Feynman-Stueckelberg negative-time rollback to a prior virtual checkpoint."""
+    engine = RetrocausalRollbackEngine()
+    engine.fork_mgr.set_canonical_slot("database_state", "PRISTINE_V1")
+    engine.fork_mgr.set_canonical_slot("user_balance", 1000)
+
+    # Checkpoint 0
+    engine.fork_mgr.create_checkpoint("ckpt_baseline")
+
+    # Mutate canonical state
+    engine.fork_mgr.set_canonical_slot("database_state", "MUTATED_V2")
+    engine.fork_mgr.set_canonical_slot("user_balance", 200)
+
+    assert engine.fork_mgr.get_slot("database_state") == "MUTATED_V2"
+    assert engine.fork_mgr.get_slot("user_balance") == 200
+
+    # Execute negative-time rollback to ckpt_baseline
+    rollback_success = engine.rollback_to_checkpoint("ckpt_baseline")
+    assert rollback_success is True
+
+    # State restored identically to past checkpoint (t - Delta t)
+    assert engine.fork_mgr.get_slot("database_state") == "PRISTINE_V1"
+    assert engine.fork_mgr.get_slot("user_balance") == 1000
+
+    # Rollback recorded in ledger
+    assert len(engine.ledger) == 1
+    assert engine.ledger[0].action_id == "rollback_to_ckpt_baseline"
+    assert engine.ledger[0].checkpoint_id == "ckpt_baseline"
+
+    # Rollback to non-existent checkpoint returns False
+    assert engine.rollback_to_checkpoint("non_existent_ckpt") is False
 
 
 def test_retrocausal_edge_cases():
@@ -194,3 +233,7 @@ def test_retrocausal_edge_cases():
     # Committing non-existent branch raises KeyError
     with pytest.raises(KeyError):
         mgr.commit_fork_to_canonical("unknown_branch")
+
+    # Writing to non-existent branch raises KeyError
+    with pytest.raises(KeyError):
+        mgr.write_speculative_slot("unknown_branch", "slot", 123)

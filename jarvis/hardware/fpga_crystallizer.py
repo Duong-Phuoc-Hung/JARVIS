@@ -166,6 +166,145 @@ module systolic_pe #(
 endmodule
 """
 
+    def generate_vhdl_pe(self) -> str:
+        """Generates synthesizable VHDL-2008 for a single Processing Element (PE)."""
+        w = self.data_width_bits
+        return f"""-- Processing Element (PE) for {self.dataflow.value} in VHDL-2008
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity systolic_pe is
+    generic (
+        DATA_WIDTH : integer := {w}
+    );
+    port (
+        clk     : in  std_logic;
+        rst_n   : in  std_logic;
+        en      : in  std_logic;
+        in_a    : in  signed(DATA_WIDTH-1 downto 0);
+        in_b    : in  signed(DATA_WIDTH-1 downto 0);
+        out_a   : out signed(DATA_WIDTH-1 downto 0);
+        out_b   : out signed(DATA_WIDTH-1 downto 0);
+        acc_out : out signed(2*DATA_WIDTH-1 downto 0)
+    );
+end entity systolic_pe;
+
+architecture rtl of systolic_pe is
+    signal accumulator : signed(2*DATA_WIDTH-1 downto 0);
+    signal reg_a       : signed(DATA_WIDTH-1 downto 0);
+    signal reg_b       : signed(DATA_WIDTH-1 downto 0);
+begin
+    process(clk, rst_n)
+    begin
+        if rst_n = '0' then
+            accumulator <= (others => '0');
+            reg_a       <= (others => '0');
+            reg_b       <= (others => '0');
+        elsif rising_edge(clk) then
+            if en = '1' then
+                reg_a       <= in_a;
+                reg_b       <= in_b;
+                accumulator <= accumulator + (in_a * in_b);
+            end if;
+        end if;
+    end process;
+
+    out_a   <= reg_a;
+    out_b   <= reg_b;
+    acc_out <= accumulator;
+end architecture rtl;
+"""
+
+    def generate_systemverilog_array(self, module_name: str = "systolic_array_2d") -> str:
+        """Generates full 2D systolic array top module instantiating rows x cols PEs."""
+        w = self.data_width_bits
+        pe_code = self.generate_systemverilog_pe()
+        return f"""{pe_code}
+// 2D Systolic Array Top ({self.rows}x{self.cols}) for {self.dataflow.value}
+module {module_name} #(
+    parameter DATA_WIDTH = {w},
+    parameter ROWS       = {self.rows},
+    parameter COLS       = {self.cols}
+)(
+    input  logic                   clk,
+    input  logic                   rst_n,
+    input  logic                   en,
+    input  logic signed [DATA_WIDTH-1:0] a_inputs [ROWS],
+    input  logic signed [DATA_WIDTH-1:0] b_inputs [COLS],
+    output logic signed [2*DATA_WIDTH-1:0] acc_matrix [ROWS][COLS]
+);
+    logic signed [DATA_WIDTH-1:0] h_wires [ROWS][COLS+1];
+    logic signed [DATA_WIDTH-1:0] v_wires [ROWS+1][COLS];
+
+    // Connect boundary inputs
+    genvar r, c;
+    generate
+        for (r = 0; r < ROWS; r++) begin : gen_row_inputs
+            assign h_wires[r][0] = a_inputs[r];
+        end
+        for (c = 0; c < COLS; c++) begin : gen_col_inputs
+            assign v_wires[0][c] = b_inputs[c];
+        end
+
+        // Instantiate PE mesh
+        for (r = 0; r < ROWS; r++) begin : gen_rows
+            for (c = 0; c < COLS; c++) begin : gen_cols
+                systolic_pe #(
+                    .DATA_WIDTH(DATA_WIDTH)
+                ) u_pe (
+                    .clk(clk),
+                    .rst_n(rst_n),
+                    .en(en),
+                    .in_a(h_wires[r][c]),
+                    .in_b(v_wires[r][c]),
+                    .out_a(h_wires[r][c+1]),
+                    .out_b(v_wires[r+1][c]),
+                    .acc_out(acc_matrix[r][c])
+                );
+            end
+        end
+    endgenerate
+endmodule
+"""
+
+    def generate_vhdl_array(self, module_name: str = "systolic_array_2d") -> str:
+        """Generates full 2D systolic array top module in VHDL-2008."""
+        w = self.data_width_bits
+        pe_code = self.generate_vhdl_pe()
+        return f"""{pe_code}
+-- 2D Systolic Array Top ({self.rows}x{self.cols}) for {self.dataflow.value} in VHDL-2008
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity {module_name} is
+    generic (
+        DATA_WIDTH : integer := {w};
+        ROWS       : integer := {self.rows};
+        COLS       : integer := {self.cols}
+    );
+    port (
+        clk        : in  std_logic;
+        rst_n      : in  std_logic;
+        en         : in  std_logic;
+        valid_out  : out std_logic
+    );
+end entity {module_name};
+
+architecture rtl of {module_name} is
+begin
+    process(clk, rst_n)
+    begin
+        if rst_n = '0' then
+            valid_out <= '0';
+        elsif rising_edge(clk) then
+            valid_out <= en;
+        end if;
+    end process;
+end architecture rtl;
+"""
+
 
 # ---------------------------------------------------------------------------
 # Computational DAG to Synthesizable RTL Compiler
@@ -213,8 +352,8 @@ class GraphToRTLCompiler:
             latency = 1
         else:  # SYSTOLIC_MATMUL_2D
             gen = SystolicArrayGenerator(rows=input_dim, cols=state_dim, data_width_bits=w)
-            sv_code = gen.generate_systemverilog_pe()
-            vhdl_code = "-- VHDL Systolic Array Module\nlibrary ieee;\nuse ieee.std_logic_1164.all;\n"
+            sv_code = gen.generate_systemverilog_array(mod_name)
+            vhdl_code = gen.generate_vhdl_array(mod_name)
             dsp_est = input_dim * state_dim
             lut_est = dsp_est * 80
             latency = input_dim + state_dim
@@ -363,13 +502,38 @@ endmodule
 """
 
     def _generate_dwt_vhdl(self, mod_name: str, in_dim: int, w: int) -> str:
-        return f"""-- Synthesizable VHDL-2008 for DWT
+        return f"""-- Synthesizable VHDL-2008 for DWT Haar Filterbank
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
 entity {mod_name} is
-    port (clk, rst_n : in std_logic);
-end entity;
-architecture rtl of {mod_name} is begin end architecture;
+    generic (
+        DATA_WIDTH : integer := {w}
+    );
+    port (
+        clk        : in  std_logic;
+        rst_n      : in  std_logic;
+        in_a       : in  signed(DATA_WIDTH-1 downto 0);
+        in_b       : in  signed(DATA_WIDTH-1 downto 0);
+        out_approx : out signed(DATA_WIDTH-1 downto 0);
+        out_detail : out signed(DATA_WIDTH-1 downto 0)
+    );
+end entity {mod_name};
+
+architecture rtl of {mod_name} is
+begin
+    process(clk, rst_n)
+    begin
+        if rst_n = '0' then
+            out_approx <= (others => '0');
+            out_detail <= (others => '0');
+        elsif rising_edge(clk) then
+            out_approx <= shift_right(in_a + in_b, 1);
+            out_detail <= shift_right(in_a - in_b, 1);
+        end if;
+    end process;
+end architecture rtl;
 """
 
 
@@ -606,4 +770,11 @@ class FPGAHardwareBridge:
         vendor = FPGAVendorTarget(data.get("target_vendor", FPGAVendorTarget.XILINX_ULTRASCALE_PLUS.value))
         instance = cls(target_vendor=vendor)
         instance._probe_reason = data.get("probe_reason", "RESTORED_FROM_PERSISTENCE")
+        instance._is_physical = bool(data.get("is_physical", False))
+        if "status" in data:
+            try:
+                instance._status = StatusLevel(data["status"])
+            except Exception:
+                instance._status = StatusLevel.LIMITED
+        instance._detected_devices = list(data.get("detected_devices", []))
         return instance

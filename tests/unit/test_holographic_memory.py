@@ -65,11 +65,16 @@ def test_mera_entanglement_entropy_calculation():
     entropy_prod = mera.compute_entanglement_entropy(product_state, cut_index=32)
     assert entropy_prod == 0.0
 
-    # Highly entangled / random state has non-zero entanglement entropy
+    # Highly entangled / random state has non-zero entanglement entropy across any cut
     rng = np.random.RandomState(42)
     random_state = rng.normal(0.0, 1.0, size=dim)
     entropy_rand = mera.compute_entanglement_entropy(random_state, cut_index=32)
     assert entropy_rand > 0.0
+
+    # Non-divisor cuts (3, 7, 15) must compute valid positive entropy without crashing
+    for cut in [3, 7, 15, 23]:
+        s_cut = mera.compute_entanglement_entropy(random_state, cut_index=cut)
+        assert s_cut > 0.0
 
 
 def test_optical_fourier_hologram_engine_recording_and_reconstruction():
@@ -154,8 +159,8 @@ def test_bekenstein_hawking_information_bound_tracker():
 
 
 def test_holographic_memory_windows_atomic_persistence():
-    """Validates thread-safe Windows Atomic Persistence save/load round-trip."""
-    mem = HolographicAssociativeMemory(grid_dim=32, seed=42)
+    """Validates thread-safe Windows Atomic Persistence save/load round-trip with custom seed and MERA layers."""
+    mem = HolographicAssociativeMemory(grid_dim=32, seed=999)
     mem.store("kernel_entry", "INT_HANDLER_SYSCALL_DISPATCH")
     mem.store("vocal_token", "AFFIRMATIVE_PROCEED")
 
@@ -169,11 +174,48 @@ def test_holographic_memory_windows_atomic_persistence():
         assert len(restored.engine.stored_records) == 2
         assert "kernel_entry" in restored.engine.stored_records
         assert "vocal_token" in restored.engine.stored_records
+        assert restored.seed == 999
 
         # Query restored memory
         res = restored.retrieve("INT_HANDLER_SYSCALL_DISPATCH")
         assert res.matched_key == "kernel_entry"
         assert res.confidence > 0.5
+
+
+def test_holographic_memory_erase_and_overwrite_no_bit_leak():
+    """Validates that overwriting a key or erasing it properly updates bound tracker and volume tensor."""
+    mem = HolographicAssociativeMemory(grid_dim=32)
+    mem.store("k1", "DATA_INITIAL")
+    bits_1 = mem.bound_tracker.current_stored_bits
+    assert bits_1 > 0
+
+    # Overwrite same key: bit count should not double
+    mem.store("k1", "DATA_UPDATED")
+    bits_2 = mem.bound_tracker.current_stored_bits
+    assert bits_2 == bits_1
+
+    # Erase key: bits should be released
+    erased = mem.erase("k1")
+    assert erased is True
+    assert mem.bound_tracker.current_stored_bits == 0
+    assert len(mem.engine.stored_records) == 0
+
+    # Erasing non-existent key returns False
+    assert mem.erase("non_existent") is False
+
+
+def test_holographic_memory_clear():
+    """Validates clear() resets records, volume tensor, and releases all bits."""
+    mem = HolographicAssociativeMemory(grid_dim=32)
+    mem.store("item1", "HELLO")
+    mem.store("item2", "WORLD")
+    assert len(mem.engine.stored_records) == 2
+    assert mem.bound_tracker.current_stored_bits > 0
+
+    mem.clear()
+    assert len(mem.engine.stored_records) == 0
+    assert mem.bound_tracker.current_stored_bits == 0
+    assert np.all(mem.engine.volume_tensor == 0.0)
 
 
 def test_holographic_memory_edge_cases():
@@ -191,3 +233,10 @@ def test_holographic_memory_edge_cases():
     # Non-power of 2 boundary dimension should raise ValueError
     with pytest.raises(ValueError):
         MERATensorNetwork(boundary_dim=30)
+
+    # MERA decode with mismatched bulk state dimension pads/truncates safely
+    mera = MERATensorNetwork(boundary_dim=32)
+    decoded_short = mera.decode(np.array([1.0, 2.0]))
+    assert decoded_short.shape == (32,)
+    decoded_long = mera.decode(np.ones(100))
+    assert decoded_long.shape == (32,)

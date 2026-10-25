@@ -149,6 +149,53 @@ def test_fpga_bridge_windows_atomic_persistence():
         assert restored._status == StatusLevel.LIMITED
 
 
+def test_fpga_bridge_persistence_restores_complete_telemetry():
+    """Validates that save/load faithfully restores _is_physical, _status, and _detected_devices."""
+    bridge = FPGAHardwareBridge(target_vendor=FPGAVendorTarget.XILINX_ULTRASCALE_PLUS)
+    bridge._detected_devices = [{"vendor_id": "10EE", "device_id": "0001", "name": "Fake UltraScale"}]
+    bridge._is_physical = True
+    bridge._status = StatusLevel.READY
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        save_file = os.path.join(tmpdir, "fpga_telemetry.json")
+        bridge.save(save_file)
+        restored = FPGAHardwareBridge.load(save_file)
+
+        assert restored.target_vendor == FPGAVendorTarget.XILINX_ULTRASCALE_PLUS
+        assert restored._is_physical is True
+        assert restored._status == StatusLevel.READY
+        assert len(restored._detected_devices) == 1
+        assert restored._detected_devices[0]["name"] == "Fake UltraScale"
+
+
+def test_graph_to_rtl_compiler_complete_vhdl_generation():
+    """Validates that DWT Haar and Systolic kernels generate complete, non-stub synthesizable VHDL."""
+    compiler = GraphToRTLCompiler(data_width_bits=16)
+    dwt_mod = compiler.compile_kernel(ComputationalKernelType.DWT_HAAR_FILTERBANK, input_dim=8)
+
+    assert "entity kernel_dwt_haar_filterbank_8x16 is" in dwt_mod.vhdl_code
+    assert "port (" in dwt_mod.vhdl_code
+    assert "in_a" in dwt_mod.vhdl_code
+    assert "in_b" in dwt_mod.vhdl_code
+    assert "out_approx" in dwt_mod.vhdl_code
+    assert "out_detail" in dwt_mod.vhdl_code
+    assert "architecture rtl of kernel_dwt_haar_filterbank_8x16 is" in dwt_mod.vhdl_code
+    assert "out_approx <= shift_right(in_a + in_b, 1);" in dwt_mod.vhdl_code
+
+
+def test_systolic_array_2d_grid_generation():
+    """Validates 2D systolic array full mesh generation in SystemVerilog and VHDL."""
+    gen = SystolicArrayGenerator(rows=4, cols=4, data_width_bits=16)
+    sv_array = gen.generate_systemverilog_array("my_systolic_4x4")
+    vhdl_array = gen.generate_vhdl_array("my_systolic_4x4")
+
+    assert "module my_systolic_4x4" in sv_array
+    assert "u_pe" in sv_array
+    assert "entity my_systolic_4x4 is" in vhdl_array
+    assert "architecture rtl of my_systolic_4x4 is" in vhdl_array
+    assert "entity systolic_pe is" in vhdl_array
+
+
 def test_fpga_crystallizer_edge_cases():
     """Validates edge cases: invalid dimensions, empty inputs."""
     with pytest.raises(ValueError):

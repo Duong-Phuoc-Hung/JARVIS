@@ -127,6 +127,7 @@ def test_bio_stimulator_windows_atomic_persistence():
     bridge = BioStimulatorHardwareBridge()
     bridge.reflex_engine.trigger_reflex("CONFIRM_ACTION", confidence=0.95)
     bridge.reflex_engine.trigger_reflex("SWITCH_WINDOW", confidence=0.88)
+    bridge.reflex_engine.trigger_reflex("CANCEL_TASK", confidence=0.90)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         save_path = os.path.join(tmpdir, "stimulator_calibration.json")
@@ -136,6 +137,14 @@ def test_bio_stimulator_windows_atomic_persistence():
         restored = BioStimulatorHardwareBridge.load(save_path)
         assert isinstance(restored, BioStimulatorHardwareBridge)
         assert restored._status == StatusLevel.LIMITED
+        # Verify complete history restoration
+        assert len(restored.reflex_engine.history) == 3
+        assert restored.reflex_engine.history[0].intent_label == "CONFIRM_ACTION"
+        assert restored.reflex_engine.history[0].phosphene.pattern_type == PhosphenePatternType.CONFIRMATION_FLASH
+        assert restored.reflex_engine.history[1].intent_label == "SWITCH_WINDOW"
+        assert restored.reflex_engine.history[1].phosphene.pattern_type == PhosphenePatternType.DIRECTION_ARROW
+        assert restored.reflex_engine.history[2].intent_label == "CANCEL_TASK"
+        assert restored.reflex_engine.history[2].phosphene.pattern_type == PhosphenePatternType.TACTILE_PULSE
 
 
 def test_temporal_interference_edge_cases():
@@ -150,3 +159,25 @@ def test_temporal_interference_edge_cases():
 
     with pytest.raises(ValueError):
         TemporalInterferenceModel(carrier_f1_hz=2000.0, beat_delta_f_hz=250.0)
+
+    # Waveform synthesis invalid duration or amplitude
+    model = TemporalInterferenceModel()
+    with pytest.raises(ValueError):
+        model.synthesize_waveform(duration_ms=0.0)
+
+    with pytest.raises(ValueError):
+        model.synthesize_waveform(duration_ms=-10.0)
+
+    with pytest.raises(ValueError):
+        model.synthesize_waveform(amplitude_1_v_m=-1.0)
+
+
+def test_retinotopic_singularity_guard():
+    """Validates conformal map singularity handling at z = -a."""
+    gen = PhospheneVisualGenerator(k=17.0, a=0.75)
+    # Singularity occurs when r = a and theta = pi (z = -a)
+    u_sing, v_sing = gen.visual_field_to_cortex(r_deg=0.75, theta_rad=math.pi)
+    assert not math.isnan(u_sing)
+    assert not math.isinf(u_sing)
+    assert not math.isnan(v_sing)
+    assert not math.isinf(v_sing)

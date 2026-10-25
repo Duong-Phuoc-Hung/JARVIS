@@ -162,7 +162,10 @@ class MinkowskiSpacetimeMetric:
         Theorem: In relativistic spacetime, events that are SPACE_LIKE separated
         have zero causal interaction ([E_1, E_2] = 0). They commute provably,
         allowing lock-free concurrent execution with 0 ms consensus latency.
+        Events with explicit dependency declarations cannot commute.
         """
+        if e1.event_id in e2.dependencies or e2.event_id in e1.dependencies:
+            return False
         return self.classify_separation(e1.coord, e2.coord) == CausalSeparation.SPACE_LIKE
 
     def lorentz_gamma(self, velocity_mps: float) -> float:
@@ -296,35 +299,47 @@ class RelativisticEventDispatcher:
     ) -> List[List[MinkowskiEvent]]:
         """
         Partitions an arbitrary set of events into parallel batches:
-        Within each batch, ALL pairs of events are SPACE_LIKE separated.
+        Within each batch, ALL pairs of events are SPACE_LIKE separated and commute ([E_i, E_j] = 0).
         Therefore, every event in a batch can execute concurrently without any locks!
-        Batches are ordered causally.
+        Batches strictly preserve relativistic light cone causal order: an event ev can never
+        execute in a batch before or simultaneously with any event that causally precedes it.
         """
         if not event_list:
             return []
 
-        # Sort by ct ascending
-        sorted_events = sorted(event_list, key=lambda e: e.coord.ct)
+        # Sort by ct ascending, tie-break deterministically by event_id
+        sorted_events = sorted(event_list, key=lambda e: (e.coord.ct, e.event_id))
+        event_lookup = {e.event_id: e for e in sorted_events}
         batches: List[List[MinkowskiEvent]] = []
+        batch_map: Dict[str, int] = {}
 
         for ev in sorted_events:
+            min_batch_idx = 0
+            for prev_ev_id, b_idx in batch_map.items():
+                prev_ev = event_lookup[prev_ev_id]
+                # If prev_ev causally precedes ev (time-like/light-like or explicit dependency),
+                # ev must execute in a strictly later batch (b_idx + 1 or higher)
+                if not self.metric.can_commute(prev_ev, ev):
+                    min_batch_idx = max(min_batch_idx, b_idx + 1)
+
+            # Try to place ev in existing batch >= min_batch_idx
             placed = False
-            for batch in batches:
-                # Check if ev commutes with every member in this batch
-                can_add = True
-                for member in batch:
-                    if not self.metric.can_commute(ev, member):
-                        can_add = False
-                        break
-                if can_add:
+            for b_idx in range(min_batch_idx, len(batches)):
+                batch = batches[b_idx]
+                if all(self.metric.can_commute(ev, member) for member in batch):
                     batch.append(ev)
+                    batch_map[ev.event_id] = b_idx
                     placed = True
                     break
 
             if not placed:
+                while len(batches) < min_batch_idx:
+                    batches.append([])
                 batches.append([ev])
+                batch_map[ev.event_id] = len(batches) - 1
 
-        return batches
+        # Return non-empty batches preserving causal order
+        return [b for b in batches if b]
 
     def dispatch_concurrent(
         self,

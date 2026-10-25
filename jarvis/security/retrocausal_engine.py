@@ -187,6 +187,42 @@ class ShadowPageForkManager:
 
             self._checkpoints[checkpoint_id] = state_snapshot
 
+    def restore_checkpoint(self, checkpoint_id: str, branch_id: Optional[str] = None) -> bool:
+        """
+        Reverses time to a prior virtual checkpoint (t - Delta t), restoring canonical
+        or branch page state under Feynman-Stueckelberg time-reversal operator.
+        """
+        with self._lock:
+            if checkpoint_id not in self._checkpoints:
+                return False
+            snapshot = self._checkpoints[checkpoint_id]
+            target_branch = branch_id or self.canonical_branch_id
+            t_ns = time.perf_counter_ns()
+
+            if target_branch == self.canonical_branch_id:
+                self._canonical_pages.clear()
+                for k, val in snapshot.items():
+                    self._canonical_pages[k] = VirtualStatePage(
+                        slot_id=k,
+                        value=copy.deepcopy(val),
+                        version=1,
+                        modified_at_ns=t_ns,
+                        owner_branch_id=self.canonical_branch_id,
+                    )
+            else:
+                if target_branch not in self._shadow_forks:
+                    self._shadow_forks[target_branch] = {}
+                self._shadow_forks[target_branch].clear()
+                for k, val in snapshot.items():
+                    self._shadow_forks[target_branch][k] = VirtualStatePage(
+                        slot_id=k,
+                        value=copy.deepcopy(val),
+                        version=1,
+                        modified_at_ns=t_ns,
+                        owner_branch_id=target_branch,
+                    )
+            return True
+
     def collapse_and_purge_fork(self, branch_id: str) -> Dict[str, Any]:
         """
         Instantaneously purges a speculative shadow fork upon invariant safety violation.
@@ -269,7 +305,7 @@ class RetrocausalRollbackEngine:
         """
         t0_ns = time.perf_counter_ns()
         branch_id = f"shadow_{action.action_id}_{t0_ns}"
-        ckpt_id = f"ckpt_pre_{action.action_id}"
+        ckpt_id = f"ckpt_pre_{action.action_id}_{t0_ns}"
 
         # 1. Create CoW shadow fork and checkpoint
         self.fork_mgr.create_checkpoint(ckpt_id)
@@ -355,6 +391,33 @@ class RetrocausalRollbackEngine:
             counterexample=counterexample,
         )
 
+    def rollback_to_checkpoint(self, checkpoint_id: str) -> bool:
+        """
+        Rolls back canonical state to a previous virtual checkpoint (t - Delta t).
+        Logs the retrocausal rollback event into the transaction ledger.
+        """
+        t_ns = time.perf_counter_ns()
+        success = self.fork_mgr.restore_checkpoint(checkpoint_id)
+        if success:
+            with self._lock:
+                tx = RetrocausalTransaction(
+                    transaction_id=f"tx_rollback_{t_ns}",
+                    action_id=f"rollback_to_{checkpoint_id}",
+                    branch_id=self.fork_mgr.canonical_branch_id,
+                    timestamp_ns=t_ns,
+                    speculative=False,
+                    verified_safe=True,
+                    checkpoint_id=checkpoint_id,
+                    state_delta={},
+                    collapsed=False,
+                    collapse_reason="MANUAL_OR_POLICY_RETROCAUSAL_ROLLBACK",
+                )
+                self.ledger.append(tx)
+                if len(self.ledger) > 1000:
+                    self.ledger.pop(0)
+            logger.info("Successfully rolled back canonical state to checkpoint %s", checkpoint_id)
+        return success
+
     def get_telemetry(self) -> Dict[str, Any]:
         """Provides verification and collapse metrics."""
         with self._lock:
@@ -387,6 +450,7 @@ class RetrocausalRollbackEngine:
                         "speculative": tx.speculative,
                         "verified_safe": tx.verified_safe,
                         "checkpoint_id": tx.checkpoint_id,
+                        "state_delta": tx.state_delta,
                         "collapsed": tx.collapsed,
                         "collapse_reason": tx.collapse_reason,
                     })
@@ -403,6 +467,7 @@ class RetrocausalRollbackEngine:
                     "committed_count": self._commit_count,
                     "collapse_count": self._collapse_count,
                     "canonical_state": canonical_dump,
+                    "checkpoints": dict(self.fork_mgr._checkpoints),
                     "transactions": serialized_txs,
                 }
 
@@ -421,8 +486,27 @@ class RetrocausalRollbackEngine:
         instance = cls()
         instance._commit_count = data.get("committed_count", 0)
         instance._collapse_count = data.get("collapse_count", 0)
+        instance.fork_mgr._checkpoints = data.get("checkpoints", {})
 
         for k, pdata in data.get("canonical_state", {}).items():
             instance.fork_mgr.set_canonical_slot(k, pdata.get("value"))
+
+        for tx_data in data.get("transactions", []):
+            try:
+                tx = RetrocausalTransaction(
+                    transaction_id=tx_data["transaction_id"],
+                    action_id=tx_data["action_id"],
+                    branch_id=tx_data["branch_id"],
+                    timestamp_ns=tx_data["timestamp_ns"],
+                    speculative=tx_data.get("speculative", False),
+                    verified_safe=tx_data.get("verified_safe", False),
+                    checkpoint_id=tx_data.get("checkpoint_id", ""),
+                    state_delta=tx_data.get("state_delta", {}),
+                    collapsed=tx_data.get("collapsed", False),
+                    collapse_reason=tx_data.get("collapse_reason"),
+                )
+                instance.ledger.append(tx)
+            except Exception as ex:
+                logger.warning("Failed to restore transaction record: %s", ex)
 
         return instance

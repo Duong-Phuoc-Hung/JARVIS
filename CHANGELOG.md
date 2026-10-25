@@ -46,21 +46,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `jarvis/audio/__init__.py`: Xuất toàn diện các lớp Frontier 31.0.
   - `jarvis/security/__init__.py`: Xuất toàn diện các lớp Frontier 33.0.
   - `jarvis/__init__.py`: Nâng phiên bản chuẩn mực lên `9.0.0`.
-  - `tests/unit/test_holographic_memory.py`: 8 bài kiểm thử đơn vị cho Frontier 29.0 Holographic Memory (100% PASS).
-  - `tests/unit/test_minkowski_concurrency.py`: 8 bài kiểm thử đơn vị cho Frontier 30.0 Minkowski Concurrency (100% PASS).
-  - `tests/unit/test_cortical_telepathy.py`: 7 bài kiểm thử đơn vị cho Frontier 31.0 Cortical Telepathy (100% PASS).
-  - `tests/unit/test_fpga_crystallizer.py`: 7 bài kiểm thử đơn vị cho Frontier 32.0 FPGA Crystallizer (100% PASS).
-  - `tests/unit/test_retrocausal_engine.py`: 7 bài kiểm thử đơn vị cho Frontier 33.0 Retrocausal Engine (100% PASS).
+  - `tests/unit/test_holographic_memory.py`: 10 bài kiểm thử đơn vị cho Frontier 29.0 Holographic Memory (100% PASS).
+  - `tests/unit/test_minkowski_concurrency.py`: 10 bài kiểm thử đơn vị cho Frontier 30.0 Minkowski Concurrency (100% PASS).
+  - `tests/unit/test_cortical_telepathy.py`: 8 bài kiểm thử đơn vị cho Frontier 31.0 Cortical Telepathy (100% PASS).
+  - `tests/unit/test_fpga_crystallizer.py`: 10 bài kiểm thử đơn vị cho Frontier 32.0 FPGA Crystallizer (100% PASS).
+  - `tests/unit/test_retrocausal_engine.py`: 8 bài kiểm thử đơn vị cho Frontier 33.0 Retrocausal Engine (100% PASS).
   - `tests/eval/test_frontier_29_to_33_transcendent_benchmark.py`: 6 bài kiểm chuẩn thực nghiệm tổng hợp và chu trình phản xạ Kỳ dị Siêu việt (100% PASS).
   - **Sửa lỗi & Tối ưu hóa kiểm toán (Hardening Fixes)**:
     - Triệt tiêu hoàn toàn deadlock đa luồng khi ghi đĩa bằng cách chuẩn hóa `self._save_lock: threading.RLock = threading.RLock()` trên tất cả 5 module, tương thích với cơ chế re-entrant của `atomic_write_json`.
     - Tối ưu hóa quét Windows PNP Registry qua `winreg`: giới hạn số lượng subkey duyệt qua (bounded scan <= 40-100 keys) và ưu tiên tra cứu trực tiếp `SERIALCOMM`, cắt giảm độ trễ probe phần cứng từ 10s xuống < 1ms.
     - Chuẩn hóa bộ lọc phối hợp Fourier quang học (optical matched-filter cross-correlation) trong `HolographicAssociativeMemory` với độ lệch chuẩn hóa chính xác, đạt 1.0 cho khớp tự tương quan và < 0.3 cho các mẫu phân kỳ.
-    - Sửa logic tính toán độ trễ đồng thuận trong `RelativisticEventDispatcher`: đối với các biến cố độc lập hoặc dạng không gian, độ trễ consensus đạt chính xác 0.0 ms.
-    - Tích hợp chuẩn xác phương thức `synthesize_and_verify` của `VerifiedActionSynthesizer` vào `RetrocausalRollbackEngine`, xử lý cả phán quyết `PROVED_UNSAFE` và `COUNTEREXAMPLE_FOUND`.
+    - Khắc phục `MERATensorNetwork.compute_entanglement_entropy`: thay thế phép chia kích thước biên tùy tiện bằng ước số gần nhất chính xác của `boundary_dim`, triệt tiêu lỗi `ValueError: cannot reshape array of size 64 into shape (3,61)` trên các vết cắt không chia hết.
+    - Chuẩn hóa lưu trữ nguyên tử Windows Atomic Persistence trong `HolographicAssociativeMemory`: tuần tự hóa và phục hồi toàn vẹn các ma trận tầng MERA ($U$ disentanglers và $W$ isometries) cùng giá trị `seed`; khắc phục rò rỉ bit khi ghi đè khóa (key overwrite) và bổ sung phương thức `erase(key)` cùng `clear()`.
+    - Sửa logic phân vùng biến cố `RelativisticEventDispatcher.partition_into_commuting_batches`: áp đặt tính đơn điệu của nón ánh sáng nhân quả tiền nhiệm và kiểm tra phụ thuộc khai báo tường minh (`e1.event_id in e2.dependencies`), ngăn chặn triệt để biến cố tương lai chạy trước hoặc đồng thời với tiền nhiệm nhân quả.
+    - Bổ sung rào chắn suy biến ánh xạ bảo giác Schwartz trong `PhospheneVisualGenerator`: kẹp khoảng cách $|z + a| \ge 10^{-9}$ và kẹp số mũ $\text{Re}(w/k) \le 100.0$ triệt tiêu tràn số học `OverflowError`.
+    - Chuẩn hóa khôi phục trạng thái `BioStimulatorHardwareBridge.load()`: giải tuần tự và phục hồi toàn bộ chuỗi sự kiện `SomaticReflexEvent` vào `reflex_engine.history`, cùng các cờ `_is_physical`, `_status`, và danh sách `_detected_devices`.
+    - Hoàn thiện trình biên dịch RTL trong `SystolicArrayGenerator` và `GraphToRTLCompiler`: xuất mã SystemVerilog và VHDL-2008 tổng hợp được hoàn chỉnh cho mảng tâm thu 2D (`generate_vhdl_pe`, `generate_systemverilog_array`, `generate_vhdl_array`) và bộ lọc DWT Haar (`_generate_dwt_vhdl`), không để lại chuỗi rỗng/stub; phục hồi đầy đủ viễn trắc phần cứng trong `FPGAHardwareBridge.load()`.
+    - Triển khai phục hồi checkpoint dòng thời gian âm trong `ShadowPageForkManager.restore_checkpoint(checkpoint_id, branch_id)` và `RetrocausalRollbackEngine.rollback_to_checkpoint(checkpoint_id)`; cấp phát ID checkpoint duy nhất theo nano-giây và lưu trữ phục hồi toàn vẹn `state_delta` trên toàn bộ sổ cái giao dịch.
     - Bảo toàn nghiêm ngặt bất biến AGENTS.md Rule 2 và Rule 5: ghi nhận trung thực `PASS fail-closed (runtime evidence PENDING)` cho `BioStimulatorHardwareBridge` và `FPGAHardwareBridge`.
 - **Chỉ số kiểm thử thực tế**:
-  - Toàn bộ 43 bài kiểm thử Milestone 9.0.0 (37 unit + 6 eval): **43/43 passed 100% in 8.13s**.
+  - Toàn bộ 52 bài kiểm thử Milestone 9.0.0 (46 unit + 6 eval): **52/52 passed 100% in 7.88s**.
   - Kiểm tra tương thích hồi quy toàn bộ eval suite: **89/89 passed 100% in 19.42s**.
   - Độ trễ chu trình phản xạ Transcendent Singularity toàn trình: **< 25.0ms** (thực tế ~11ms).
   - Độ trễ tra cứu quang học liên kết O(1): **< 1.0 ns** (mô phỏng thời gian bay quang học 1mm ~ 3.33 ps).

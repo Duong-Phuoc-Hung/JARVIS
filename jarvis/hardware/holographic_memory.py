@@ -208,6 +208,7 @@ class MERATensorNetwork:
         self.boundary_dim: int = boundary_dim
         self.num_layers: int = num_layers
         self.bond_dim: int = bond_dim
+        self.seed: int = seed
         self.rng: np.random.RandomState = np.random.RandomState(seed)
         self.layers: List[MERAEntanglementLayer] = []
 
@@ -273,11 +274,19 @@ class MERATensorNetwork:
         Holographic reconstruction: decodes bulk top state back into boundary representation.
         Backward expansion: h_l = U_l^T W_l h_{l+1}.
         """
-        current = np.asarray(bulk_state, dtype=np.float64).flatten()
+        top_dim = self.layers[-1].out_dimension if self.layers else self.boundary_dim
+        raw = np.asarray(bulk_state, dtype=np.float64).flatten()
+        if len(raw) != top_dim:
+            padded = np.zeros(top_dim, dtype=np.float64)
+            copy_len = min(len(raw), top_dim)
+            padded[:copy_len] = raw[:copy_len]
+            raw = padded
+
+        current = raw
         for layer in reversed(self.layers):
-            # Isometric adjoint expansion
+            # Isometric adjoint expansion: (in_dim, out_dim) @ (out_dim,) -> (in_dim,)
             expanded = layer.W_isometries @ current
-            # Disentangler adjoint invert
+            # Disentangler adjoint invert: (in_dim, in_dim) @ (in_dim,) -> (in_dim,)
             current = layer.U_disentanglers.T @ expanded
 
         return current
@@ -298,19 +307,26 @@ class MERATensorNetwork:
         if norm > 1e-12:
             x = x / norm
 
-        # Partial trace over subsystem B
+        # Partial trace over subsystem B:
+        # Find exact divisor of boundary_dim closest to cut_index
         cut = max(1, min(cut_index, self.boundary_dim - 1))
-        # Gram Schmidt Schmidt decomposition via SVD of reshaped state
-        # Find factors of boundary_dim close to cut
-        dim_A = cut
-        dim_B = self.boundary_dim // cut if (self.boundary_dim % cut == 0) else self.boundary_dim - cut
-        matrix_repr = x[:dim_A * dim_B].reshape((dim_A, dim_B))
+        divisors = [d for d in range(2, self.boundary_dim) if self.boundary_dim % d == 0]
+        if not divisors:
+            dim_A = 1
+            dim_B = self.boundary_dim
+        else:
+            dim_A = min(divisors, key=lambda d: abs(d - cut))
+            dim_B = self.boundary_dim // dim_A
+
+        matrix_repr = x.reshape((dim_A, dim_B))
 
         # Singular values give Schmidt coefficients
         try:
             _, s, _ = np.linalg.svd(matrix_repr, full_matrices=False)
             probs = s ** 2
-            probs = probs / np.sum(probs)
+            sum_p = np.sum(probs)
+            if sum_p > 1e-12:
+                probs = probs / sum_p
             # Von Neumann entropy
             nonzero_p = probs[probs > 1e-15]
             entropy = -float(np.sum(nonzero_p * np.log2(nonzero_p)))
@@ -496,6 +512,7 @@ class HolographicAssociativeMemory:
         seed: int = 42,
     ) -> None:
         self.grid_dim: int = grid_dim
+        self.seed: int = seed
         self.mera: MERATensorNetwork = MERATensorNetwork(
             boundary_dim=grid_dim,
             num_layers=3,
@@ -542,6 +559,15 @@ class HolographicAssociativeMemory:
             pattern_2d = np.resize(pattern_2d, (self.grid_dim, self.grid_dim))
 
         with self._lock:
+            # If key already exists, release old bits and remove previous interference
+            if key in self.engine.stored_records:
+                old_rec = self.engine.stored_records[key]
+                self.engine.volume_tensor = np.maximum(
+                    0.0, self.engine.volume_tensor - old_rec.interference_pattern
+                )
+                old_bits = float(self.grid_dim * self.grid_dim * 8)
+                self.bound_tracker.release_bits(old_bits)
+
             # Determine angular multiplexing reference angle
             index = len(self.engine.stored_records)
             ref_angle = (index + 1) * self._angle_step_rad
@@ -561,6 +587,29 @@ class HolographicAssociativeMemory:
             record.bit_entropy,
         )
         return record
+
+    def erase(self, key: str) -> bool:
+        """
+        Erases a stored hologram from memory, subtracting its interference pattern
+        from the volume tensor and releasing its Bekenstein-Hawking bound bits.
+        """
+        with self._lock:
+            if key not in self.engine.stored_records:
+                return False
+            rec = self.engine.stored_records.pop(key)
+            self.engine.volume_tensor = np.maximum(
+                0.0, self.engine.volume_tensor - rec.interference_pattern
+            )
+            record_bits = float(self.grid_dim * self.grid_dim * 8)
+            self.bound_tracker.release_bits(record_bits)
+            return True
+
+    def clear(self) -> None:
+        """Clears all stored holograms and resets volume tensor and bound tracker."""
+        with self._lock:
+            self.engine.stored_records.clear()
+            self.engine.volume_tensor.fill(0.0)
+            self.bound_tracker.release_bits(self.bound_tracker.current_stored_bits)
 
     def retrieve(self, query: Union[np.ndarray, Sequence[float], str]) -> AssociativeRetrievalResult:
         """
@@ -659,8 +708,20 @@ class HolographicAssociativeMemory:
                         "bit_entropy": rec.bit_entropy,
                     }
 
+                mera_layers = []
+                for l in self.mera.layers:
+                    mera_layers.append({
+                        "scale_level": l.scale_level,
+                        "in_dimension": l.in_dimension,
+                        "out_dimension": l.out_dimension,
+                        "U_disentanglers": l.U_disentanglers.tolist(),
+                        "W_isometries": l.W_isometries.tolist(),
+                    })
+
                 payload = {
                     "grid_dim": self.grid_dim,
+                    "seed": self.seed,
+                    "mera_layers": mera_layers,
                     "aperture_area_m2": self.bound_tracker.aperture_area_m2,
                     "max_capacity_bits": self.bound_tracker.max_capacity_bits,
                     "current_stored_bits": self.bound_tracker.current_stored_bits,
@@ -687,7 +748,23 @@ class HolographicAssociativeMemory:
             grid_dim=data.get("grid_dim", DEFAULT_HOLOGRAM_DIM),
             aperture_area_m2=data.get("aperture_area_m2", 1.0e-6),
             max_capacity_bits_override=data.get("max_capacity_bits"),
+            seed=data.get("seed", 42),
         )
+
+        # Restore exact MERA tensor network layers if saved
+        if "mera_layers" in data:
+            restored_layers = []
+            for l_data in data["mera_layers"]:
+                restored_layers.append(
+                    MERAEntanglementLayer(
+                        scale_level=l_data["scale_level"],
+                        in_dimension=l_data["in_dimension"],
+                        out_dimension=l_data["out_dimension"],
+                        U_disentanglers=np.array(l_data["U_disentanglers"], dtype=np.float64),
+                        W_isometries=np.array(l_data["W_isometries"], dtype=np.float64),
+                    )
+                )
+            instance.mera.layers = restored_layers
 
         instance.bound_tracker.current_stored_bits = float(data.get("current_stored_bits", 0.0))
         instance.engine.volume_tensor = np.array(data.get("volume_tensor"), dtype=np.float64)

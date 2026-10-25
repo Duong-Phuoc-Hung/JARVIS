@@ -139,6 +139,12 @@ class TemporalInterferenceModel:
         """
         Synthesizes the dual carrier fields and analytical envelope over duration_ms.
         """
+        if duration_ms <= 0.0:
+            raise ValueError(f"duration_ms must be strictly positive, got {duration_ms}")
+        if amplitude_1_v_m < 0.0 or amplitude_2_v_m < 0.0:
+            raise ValueError(
+                f"Amplitudes must be non-negative, got A1={amplitude_1_v_m}, A2={amplitude_2_v_m}"
+            )
         num_samples = int(duration_ms * 1e-3 * self.sampling_rate_hz)
         num_samples = max(num_samples, 100)
         t = np.linspace(0.0, duration_ms * 1e-3, num_samples, endpoint=False)
@@ -205,7 +211,11 @@ class PhospheneVisualGenerator:
           w = k * ln(r * exp(j*theta) + a).
         """
         z = r_deg * np.exp(1j * theta_rad)
-        w = self.k * np.log(z + self.a)
+        mapped = z + self.a
+        # Guard against singularity at z + a = 0
+        if np.abs(mapped) < 1e-9:
+            mapped = 1e-9 + 0j
+        w = self.k * np.log(mapped)
         return float(np.real(w)), float(np.imag(w))
 
     def cortex_to_visual_field(self, u_mm: float, v_mm: float) -> Tuple[float, float]:
@@ -213,8 +223,10 @@ class PhospheneVisualGenerator:
         Inverse conformal map from cortical coordinates to visual field:
           z = exp(w / k) - a.
         """
-        w = u_mm + 1j * v_mm
-        z = np.exp(w / self.k) - self.a
+        # Guard against exp overflow by clamping real component
+        clamped_u = max(-100.0, min(100.0, u_mm / self.k))
+        w_scaled = clamped_u + 1j * (v_mm / self.k)
+        z = np.exp(w_scaled) - self.a
         r = float(np.abs(z))
         theta = float(np.angle(z))
         return r, theta
@@ -301,11 +313,12 @@ class ClosedLoopSomaticReflexEngine:
         t0 = time.perf_counter()
 
         # 1. Select phosphene pattern based on intent
-        if "CONFIRM" in intent_label.upper() or "YES" in intent_label.upper():
+        lbl = str(intent_label or "").upper()
+        if "CONFIRM" in lbl or "YES" in lbl:
             ptype = PhosphenePatternType.CONFIRMATION_FLASH
-        elif "NAVIGATE" in intent_label.upper() or "SWITCH" in intent_label.upper():
+        elif "NAVIGATE" in lbl or "SWITCH" in lbl:
             ptype = PhosphenePatternType.DIRECTION_ARROW
-        elif "CANCEL" in intent_label.upper() or "STOP" in intent_label.upper():
+        elif "CANCEL" in lbl or "STOP" in lbl:
             ptype = PhosphenePatternType.TACTILE_PULSE
         else:
             ptype = PhosphenePatternType.ATTENTION_RETICLE
@@ -490,6 +503,7 @@ class BioStimulatorHardwareBridge:
                     "is_physical": self._is_physical,
                     "status": self._status.value,
                     "probe_reason": self._probe_reason,
+                    "detected_devices": list(self._detected_devices),
                     "history": events_data,
                 }
 
@@ -507,4 +521,51 @@ class BioStimulatorHardwareBridge:
 
         instance = cls()
         instance._probe_reason = data.get("probe_reason", "RESTORED_FROM_PERSISTENCE")
+        instance._is_physical = bool(data.get("is_physical", False))
+        if "status" in data:
+            try:
+                instance._status = StatusLevel(data["status"])
+            except Exception:
+                instance._status = StatusLevel.LIMITED
+        instance._detected_devices = list(data.get("detected_devices", []))
+
+        # Restore reflex history
+        for item in data.get("history", []):
+            try:
+                p_data = item.get("phosphene", {})
+                pattern_type_val = p_data.get("pattern_type", PhosphenePatternType.CONFIRMATION_FLASH.value)
+                try:
+                    ptype = PhosphenePatternType(pattern_type_val)
+                except Exception:
+                    ptype = PhosphenePatternType.CONFIRMATION_FLASH
+
+                cortical_coords_raw = p_data.get("cortical_target_coords_mm", [0.0, 0.0, 1.5])
+                cortical_coords = (
+                    float(cortical_coords_raw[0]) if len(cortical_coords_raw) > 0 else 0.0,
+                    float(cortical_coords_raw[1]) if len(cortical_coords_raw) > 1 else 0.0,
+                    float(cortical_coords_raw[2]) if len(cortical_coords_raw) > 2 else 1.5,
+                )
+
+                phosphene = PhosphenePercept(
+                    pattern_type=ptype,
+                    cortical_target_coords_mm=cortical_coords,
+                    visual_field_azimuth_deg=float(p_data.get("azimuth_deg", 0.0)),
+                    visual_field_elevation_deg=float(p_data.get("elevation_deg", 0.0)),
+                    generation_latency_ms=float(p_data.get("generation_latency_ms", 0.0)),
+                    sensation_duration_ms=40.0 if ptype == PhosphenePatternType.CONFIRMATION_FLASH else 80.0,
+                    intensity_normalized=float(p_data.get("intensity", 1.0)),
+                )
+
+                ev = SomaticReflexEvent(
+                    intent_label=item.get("intent_label", ""),
+                    semg_confidence=float(item.get("semg_confidence", 0.0)),
+                    phosphene=phosphene,
+                    ti_waveform_summary=item.get("ti_summary", {}),
+                    total_reflex_loop_ms=float(item.get("total_reflex_loop_ms", 0.0)),
+                    timestamp=float(item.get("timestamp", time.time())),
+                )
+                instance.reflex_engine.history.append(ev)
+            except Exception as ex:
+                logger.warning("Failed to restore reflex history event: %s", ex)
+
         return instance

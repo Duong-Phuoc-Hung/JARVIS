@@ -187,3 +187,53 @@ def test_minkowski_edge_cases():
 
     with pytest.raises(ValueError):
         MinkowskiSpacetimeMetric(c=-10.0)
+
+
+def test_causal_dependency_cannot_commute():
+    """Validates that explicit event dependencies prevent commutativity even if coordinates are space-like."""
+    metric = MinkowskiSpacetimeMetric(c=100.0)
+
+    # 2 events with space-like separation
+    e1 = MinkowskiEvent(
+        event_id="e_dep_1",
+        coord=Minkowski4Vector(ct=0.0, x=0.0, y=0.0, z=0.0),
+        payload={"action": "step_1"},
+        author_node_id="node_a",
+    )
+    e2 = MinkowskiEvent(
+        event_id="e_dep_2",
+        coord=Minkowski4Vector(ct=1.0, x=5000.0, y=0.0, z=0.0),
+        payload={"action": "step_2"},
+        author_node_id="node_b",
+        dependencies=["e_dep_1"],
+    )
+
+    # Spatial interval is space-like:
+    assert metric.classify_separation(e1.coord, e2.coord) == CausalSeparation.SPACE_LIKE
+    # But because e2 depends on e1, can_commute MUST return False
+    assert metric.can_commute(e1, e2) is False
+    assert metric.can_commute(e2, e1) is False
+
+
+def test_relativistic_event_dispatcher_preserves_causal_light_cone_order():
+    """Validates that time-like causal successors are always placed in later batches than predecessors."""
+    dispatcher = RelativisticEventDispatcher(c=100.0)
+
+    # e1 at t=0, x=0
+    e1 = dispatcher.record_event("e_base", {"v": 1}, timestamp_s=0.0, coords=(0, 0, 0))
+    # e2 at t=0.5, x=100000 (space-like to e1 and e3)
+    e2 = dispatcher.record_event("e_isolated", {"v": 2}, timestamp_s=0.5, coords=(100000, 0, 0))
+    # e3 at t=2.0, x=10 (time-like future of e1)
+    e3 = dispatcher.record_event("e_causal_future", {"v": 3}, timestamp_s=2.0, coords=(10, 0, 0))
+
+    batches = dispatcher.partition_into_commuting_batches([e1, e2, e3])
+
+    # e1 and e3 cannot commute because e3 is in the time-like future of e1
+    # Thus e1 and e3 must be in strictly separate batches with e1 appearing before e3
+    batch_indices = {}
+    for idx, batch in enumerate(batches):
+        for ev in batch:
+            batch_indices[ev.event_id] = idx
+
+    assert batch_indices["e_base"] < batch_indices["e_causal_future"]
+    assert "e_isolated" in batch_indices
