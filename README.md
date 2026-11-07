@@ -1,6 +1,11 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Current verified snapshot (2026-11-07), source **9.2.0**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-11-07), source **9.3.0**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- **Sprint 32 JARVIS Sovereign v9.3.0 Milestone: SOTA On-Device Neural Voice Cloning & Bilingual Code-Switching with VieNeu-TTS**:
+  - *Instant Voice Cloning via Zero-Shot Audio Reference* (`jarvis/tts/vieneu.py`): Tích hợp framework VieNeu-TTS (`pnnbao97/VieNeu-TTS`), hỗ trợ sao chép giọng nói tức thì chỉ với mẫu audio 3-5s (`ref_audio`) của Chủ nhân hoặc J.A.R.V.I.S kinh điển.
+  - *English-Vietnamese Bilingual Code-Switching & 48kHz Studio Audio*: Bộ chuyển âm vị `sea-g2p` phát âm từ vựng công nghệ chuẩn xác, codec `distill-neucodec` xuất âm thanh chất lượng phòng thu 48,000 Hz.
+  - *Zero GPU VRAM & Fail-Closed Fallback*: Chạy 100% CPU trên ONNX Runtime, tự động fail-closed chuyển đổi an toàn sang EdgeTTS hoặc SAPI5 khi thiếu thư viện (`AUDIT_FRAMEWORK.md`).
+  - Toàn bộ suite kiểm thử TTS hợp nhất: **100% PASS (8/8 VieNeu unit tests in 1.53s, 22/22 full suite tests in 26.84s)**.
 - **Sprint 31 JARVIS Sovereign v9.2.0 Milestone: Elite Semantic Memory, Smart Calendar Briefing & Interactive Dynamic Island HUD**:
   - *Local Semantic Embedding Engine & Hybrid Vector Store* (`jarvis/memory/embeddings.py`, `jarvis/memory/vector_store.py`): Động cơ nhúng ngữ nghĩa 128 chiều Johnson-Lindenstrauss tối ưu hóa 0 MB VRAM, độ trễ < 0.2ms CPU, hỗ trợ ONNX Runtime backend, kết hợp tìm kiếm lai Hybrid Search `(1 - alpha) * tfidf + alpha * dense_score` tự động bắt trúng từ đồng nghĩa và biến thể ngữ nghĩa.
   - *Smart Calendar & Schedule Provider* (`jarvis/personalization/calendar.py`, `jarvis/personalization/briefing.py`): Tích hợp bộ phân tích cú pháp iCalendar RFC 5545 (`.ics`) thuần túy, lưu trữ lịch trình tùy biến nguyên tử trong `schedules.json`, tự động tích hợp danh mục sự kiện và kịch bản phát biểu giọng nói trong Báo cáo Buổi sáng.

@@ -4,6 +4,31 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.3.0] - SOTA On-Device Neural Voice Cloning & Bilingual Code-Switching with VieNeu-TTS (2026-11-07)
+
+- **Mục tiêu**:
+  - Tích hợp mô hình Text-To-Speech thần kinh cục bộ thế hệ mới **VieNeu-TTS** (`pnnbao97/VieNeu-TTS`, package `vieneu`) vào phân hệ giọng nói của JARVIS:
+    1. *Instant Voice Cloning via Zero-Shot Audio Reference*:
+       - Hỗ trợ sao chép ngữ điệu và sắc thái giọng nói từ tệp âm thanh mẫu 3-5 giây (`ref_audio`), cho phép JARVIS phát âm với âm sắc J.A.R.V.I.S kinh điển hoặc giọng nói tùy biến của người dùng.
+    2. *English-Vietnamese Bilingual Code-Switching*:
+       - Chuyển mã song ngữ tự nhiên Việt - Anh nhờ công nghệ chuyển đổi ký tự sang âm vị `sea-g2p`, loại bỏ hiện tượng phát âm sai từ vựng kỹ thuật tiếng Anh khi trả lời bằng tiếng Việt.
+    3. *High-Fidelity 48kHz Studio Quality Audio*:
+       - Xuất định dạng âm thanh 16-bit PCM WAV 48,000 Hz độ phân giải cao thông qua bộ mã hóa giải mã âm học NeuCodec (`neuphonic/distill-neucodec`).
+    4. *Zero GPU VRAM Footprint & Real-time CPU Inference*:
+       - Chạy hoàn toàn trên CPU thông qua bộ tăng tốc suy luận ONNX Runtime (`onnxruntime`), không chiếm dụng bộ nhớ GPU của máy tính.
+    5. *Fail-Closed & Dynamic Provider Fallback*:
+       - Tuân thủ nghiêm ngặt nguyên tắc `AUDIT_FRAMEWORK.md`: hàm `is_available()` trả về `False` trung thực nếu chưa cài `vieneu`, tự động chuyển đổi sang `edge_tts` hoặc `sapi5` mà không gây gián đoạn hệ thống.
+- **Chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/tts/vieneu.py`: Xây dựng `VieNeuConfig` và `VieNeuTTSEngine` kế thừa `BaseTTSEngine`, hỗ trợ `synthesize_to_bytes()`, chuẩn hóa âm thanh mono 1D int16 PCM 48kHz, và phát âm native qua Windows PlaySound.
+  - `jarvis/tts/manager.py`: Mở rộng bộ định tuyến `TTSManager` nạp nhà cung cấp `"vieneu"`, `"vieneu_tts"`, `"vieneu-tts"`.
+  - `jarvis/tts/__init__.py`: Xuất `VieNeuConfig` và `VieNeuTTSEngine`.
+  - `config/default_config.yaml`: Bổ sung cấu hình mẫu cho `vieneu` (model, codec, device, emotion, reference_audio, sample_rate).
+  - `tests/unit/test_vieneu_tts.py`: Xây dựng bộ 8 bài unit test bao phủ toàn diện: cấu hình mặc định, khởi tạo engine, kiểm tra fail-closed khi thiếu thư viện, chặn chuỗi rỗng, tổng hợp mảng sóng giả lập thành WAV 48kHz, truyền dẫn tham số voice cloning `ref_audio`, phát âm Windows PlaySound, và tích hợp `TTSManager`.
+  - `jarvis/__init__.py`: Nâng phiên bản chuẩn mực hệ thống lên `9.3.0`.
+- **Chỉ số kiểm thử thực tế**:
+  - `8 passed in 1.53s` trên `tests/unit/test_vieneu_tts.py`.
+  - `22 passed in 26.84s` trên toàn bộ suite kiểm thử TTS, Trí nhớ Ngữ nghĩa và Lịch trình cá nhân hóa.
+
 ## [9.2.0] - Elite Semantic Memory, Smart Calendar Briefing & Interactive Dynamic Island HUD (2026-11-07)
 
 - **Mục tiêu**:

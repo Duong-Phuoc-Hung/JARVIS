@@ -9,6 +9,7 @@ from jarvis.tts.elevenlabs import ElevenLabsTTS
 from jarvis.tts.engine import TTSEngine
 from jarvis.tts.fallback import SAPI5FallbackTTS
 from jarvis.tts.manager import TTSManager
+from jarvis.tts.vieneu import VieNeuConfig, VieNeuTTSEngine
 
 __all__ = [
     "BaseTTSEngine",
@@ -19,4 +20,6 @@ __all__ = [
     "SAPI5FallbackTTS",
     "TTSManager",
     "TTSEngine",
+    "VieNeuConfig",
+    "VieNeuTTSEngine",
 ]

@@ -104,7 +104,16 @@ gesture:
         - "show_overlay"      # Mở giao diện JARVIS chat
 
 tts:
-  provider: "edge_tts"         # "edge_tts" (miễn phí, giọng Việt tự nhiên) | "elevenlabs" | "sapi5"
+  provider: "edge_tts"         # "edge_tts" (miễn phí, giọng Việt tự nhiên) | "vieneu" (SOTA on-device neural voice cloning 48kHz) | "elevenlabs" | "sapi5"
+  vieneu:
+    model_name: "pnnbao-ump/VieNeu-TTS-0.3B"  # HuggingFace model repo
+    codec_repo: "neuphonic/distill-neucodec"
+    device: "cpu"                             # "cpu" hoặc "cuda"
+    emotion: "natural"                        # "natural" | "storytelling"
+    reference_audio: ""                       # Đường dẫn file .wav mẫu (3-5s) để clone giọng J.A.R.V.I.S / cá nhân
+    sample_rate: 48000                        # 48kHz high-fidelity studio output
+    speed: 1.0
+    enabled: true
   elevenlabs:
     api_key: ""               # Loaded from .env ELEVENLABS_API_KEY
     voice_id: ""              # Loaded from .env ELEVENLABS_VOICE_ID

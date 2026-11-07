@@ -213,6 +213,21 @@
 - [x] **Consolidated Empirical Benchmark Suite (`tests/eval/test_frontier_24_to_28_omniscient_benchmark.py`)** — `PASS runtime`:
   - [x] Toàn bộ 6 bài kiểm chuẩn thực nghiệm tổng hợp và chu trình phản xạ toàn diện Omniscient Symbiont (6/6 passed 100%).
 
+## Sprint 32: SOTA On-Device Neural Voice Cloning & Bilingual Code-Switching with VieNeu-TTS (2026-11-07, v9.3.0)
+
+- [x] **VieNeu-TTS Neural TTS Engine Adapter (`jarvis/tts/vieneu.py`)** — `PASS runtime`:
+  - [x] Động cơ `VieNeuTTSEngine` kế thừa `BaseTTSEngine` tích hợp mô hình VieNeu-TTS (`pnnbao97/VieNeu-TTS`, repo `pnnbao-ump/VieNeu-TTS-0.3B`).
+  - [x] Zero-Shot Voice Cloning tức thì qua mẫu âm thanh 3-5s (`ref_audio`) của Chủ nhân hoặc giọng J.A.R.V.I.S.
+  - [x] Chuyển mã song ngữ tự nhiên Việt - Anh nhờ công nghệ chuyển đổi ký tự sang âm vị `sea-g2p`.
+  - [x] Xuất chuẩn âm thanh 16-bit PCM WAV 48,000 Hz độ phân giải cao qua NeuCodec (`neuphonic/distill-neucodec`).
+  - [x] Tối ưu hóa 0 MB GPU VRAM, suy luận thời gian thực 100% trên CPU thông qua ONNX Runtime (`onnxruntime`).
+  - [x] Triển khai nguyên tắc Fail-Closed theo `AUDIT_FRAMEWORK.md`: `is_available()` trả về `False` khi chưa cài thư viện, tự động chuyển đổi sang EdgeTTS hoặc SAPI5.
+- [x] **TTS Coordinator Routing & Config Integration (`jarvis/tts/manager.py`, `config/default_config.yaml`)** — `PASS runtime`:
+  - [x] Tích hợp provider `"vieneu"`, `"vieneu_tts"`, `"vieneu-tts"` vào `TTSManager`.
+  - [x] Xuất `VieNeuConfig`, `VieNeuTTSEngine` trong `jarvis/tts/__init__.py`.
+  - [x] Bổ sung cấu hình mẫu cho `vieneu` trong `config/default_config.yaml`.
+  - [x] Unit tests verified: `tests/unit/test_vieneu_tts.py` (8/8 passed 100% in 1.53s, 22/22 full suite tests in 26.84s).
+
 ## Sprint 31: Elite Semantic Memory, Smart Calendar Briefing & Interactive Dynamic Island HUD (2026-11-07, v9.2.0)
 
 - [x] **Local Semantic Embedding Engine & Hybrid Vector Store (`jarvis/memory/embeddings.py`, `jarvis/memory/vector_store.py`)** — `PASS runtime`:

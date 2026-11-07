@@ -89,6 +89,9 @@ class TTSManager:
             provider = self.config.get("provider", "elevenlabs").lower()
             if provider == "edge_tts" or provider == "edge":
                 self.primary_engine = EdgeTTS(self.config.get("edge_tts", {}))
+            elif provider in ("vieneu", "vieneu_tts", "vieneu-tts"):
+                from jarvis.tts.vieneu import VieNeuTTSEngine
+                self.primary_engine = VieNeuTTSEngine(self.config.get("vieneu", {}))
             elif provider == "sapi5":
                 self.primary_engine = self.fallback_engine
             else:
