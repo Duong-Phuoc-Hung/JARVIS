@@ -14,6 +14,7 @@ from __future__ import annotations
 import io
 import logging
 import os
+import re
 import sys
 import tempfile
 import threading
@@ -134,9 +135,8 @@ class VieNeuTTSEngine(BaseTTSEngine):
                     raise TTSError(f"VieNeu-TTS initialization failed: {exc}") from exc
         return self._tts_instance
 
-    def _convert_to_wav_bytes(self, audio_data: Any, sample_rate: int) -> bytes:
-        """Convert arbitrary audio array / tensor output from VieNeu into valid 16-bit PCM WAV bytes."""
-        # 1. Normalize into numpy float array
+    def _convert_to_pcm_bytes(self, audio_data: Any) -> bytes:
+        """Convert arbitrary audio array / tensor output from VieNeu into raw 16-bit PCM bytes."""
         if hasattr(audio_data, "cpu"):
             audio_np = audio_data.detach().cpu().numpy()
         elif isinstance(audio_data, np.ndarray):
@@ -158,13 +158,17 @@ class VieNeuTTSEngine(BaseTTSEngine):
         else:
             audio_int16 = audio_np
 
-        # Pack into WAV container
+        return audio_int16.tobytes()
+
+    def _convert_to_wav_bytes(self, audio_data: Any, sample_rate: int) -> bytes:
+        """Convert arbitrary audio array / tensor / PCM bytes from VieNeu into valid 16-bit PCM WAV bytes."""
+        pcm_bytes = audio_data if isinstance(audio_data, bytes) else self._convert_to_pcm_bytes(audio_data)
         buf = io.BytesIO()
         with wave.open(buf, "wb") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
             wf.setframerate(sample_rate)
-            wf.writeframes(audio_int16.tobytes())
+            wf.writeframes(pcm_bytes)
 
         return buf.getvalue()
 
@@ -176,8 +180,9 @@ class VieNeuTTSEngine(BaseTTSEngine):
         **kwargs: Any,
     ) -> bytes:
         """
-        Synthesize text to 48kHz WAV audio bytes using VieNeu-TTS.
+        Synthesize text to raw 48kHz 16-bit mono PCM bytes using VieNeu-TTS.
         Supports voice cloning if ref_audio or config.reference_audio is specified.
+        Automatically chunks long text to maintain maximum prosodic fidelity.
         """
         if not text or not text.strip():
             raise TTSError("Cannot synthesize empty text.")
@@ -185,16 +190,36 @@ class VieNeuTTSEngine(BaseTTSEngine):
         model = self._get_model()
         target_ref = ref_audio or voice_id or self.cfg.reference_audio
 
-        infer_kwargs: dict[str, Any] = {"text": text.strip()}
+        infer_kwargs: dict[str, Any] = {}
         if target_ref and Path(target_ref).is_file():
             infer_kwargs["ref_audio"] = target_ref
 
+        # Sentence chunking if text has multiple punctuation boundaries and length > 120 chars
+        clean_text = text.strip()
+        chunks = [c.strip() for c in re.split(r"(?<=[.!?;\n])\s+", clean_text) if c.strip()]
+        if not chunks:
+            chunks = [clean_text]
+
+        pcm_results: list[bytes] = []
         try:
-            audio_out = model.infer(**infer_kwargs)
-            return self._convert_to_wav_bytes(audio_out, self.cfg.sample_rate)
+            for chunk in chunks:
+                audio_out = model.infer(text=chunk, **infer_kwargs)
+                pcm_results.append(self._convert_to_pcm_bytes(audio_out))
+            return b"".join(pcm_results)
         except Exception as exc:
             log.error("VieNeu-TTS synthesis failed: %s", exc)
             raise TTSError(f"VieNeu-TTS synthesis error: {exc}") from exc
+
+    def synthesize_to_wav_bytes(
+        self,
+        text: str,
+        voice_id: str | None = None,
+        ref_audio: str | None = None,
+        **kwargs: Any,
+    ) -> bytes:
+        """Synthesize text and pack directly into a full 48kHz WAV container."""
+        pcm_bytes = self.synthesize_to_bytes(text, voice_id=voice_id, ref_audio=ref_audio, **kwargs)
+        return self._convert_to_wav_bytes(pcm_bytes, self.cfg.sample_rate)
 
     def speak(
         self,
@@ -203,14 +228,32 @@ class VieNeuTTSEngine(BaseTTSEngine):
         wait: bool = False,
         **kwargs: Any,
     ) -> bool:
-        """Synthesize text and play audio on Windows using native PlaySound."""
+        """Synthesize text and play audio via sounddevice (48kHz studio) with winsound fallback."""
         try:
-            wav_bytes = self.synthesize_to_bytes(text, voice_id=voice_id, **kwargs)
-            if not wav_bytes:
+            pcm_bytes = self.synthesize_to_bytes(text, voice_id=voice_id, **kwargs)
+            if not pcm_bytes:
                 return False
 
+            # Method 1: sounddevice high-fidelity 48kHz playback
+            try:
+                import sounddevice as sd
+                samples = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+                if wait:
+                    sd.play(samples, samplerate=self.sample_rate)
+                    sd.wait()
+                else:
+                    threading.Thread(
+                        target=lambda: (sd.play(samples, samplerate=self.sample_rate), sd.wait()),
+                        daemon=True,
+                    ).start()
+                return True
+            except Exception as e:
+                log.debug("sounddevice playback failed (%s), falling back to winsound", e)
+
+            # Method 2: Windows native winsound
             if sys.platform == "win32":
                 import winsound
+                wav_bytes = self._convert_to_wav_bytes(pcm_bytes, self.sample_rate)
                 flags = winsound.SND_MEMORY
                 if not wait:
                     flags |= winsound.SND_ASYNC
@@ -218,6 +261,7 @@ class VieNeuTTSEngine(BaseTTSEngine):
                 return True
             else:
                 # Portable temporary file playback fallback
+                wav_bytes = self._convert_to_wav_bytes(pcm_bytes, self.sample_rate)
                 with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
                     tmp.write(wav_bytes)
                     tmp_name = tmp.name

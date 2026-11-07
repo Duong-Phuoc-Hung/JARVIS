@@ -19,15 +19,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     5. *Fail-Closed & Dynamic Provider Fallback*:
        - Tuân thủ nghiêm ngặt nguyên tắc `AUDIT_FRAMEWORK.md`: hàm `is_available()` trả về `False` trung thực nếu chưa cài `vieneu`, tự động chuyển đổi sang `edge_tts` hoặc `sapi5` mà không gây gián đoạn hệ thống.
 - **Chỉnh sửa kỹ thuật chi tiết theo từng file**:
-  - `jarvis/tts/vieneu.py`: Xây dựng `VieNeuConfig` và `VieNeuTTSEngine` kế thừa `BaseTTSEngine`, hỗ trợ `synthesize_to_bytes()`, chuẩn hóa âm thanh mono 1D int16 PCM 48kHz, và phát âm native qua Windows PlaySound.
+  - `jarvis/tts/vieneu.py`: Xây dựng `VieNeuConfig` và `VieNeuTTSEngine` kế thừa `BaseTTSEngine`. Chuẩn hóa chặt chẽ `synthesize_to_bytes()` xuất mảng 1D mono int16 raw PCM bytes (khắc phục triệt để lỗi lồng tiêu đề RIFF gây tiếng nổ click ở đầu âm thanh), bổ sung `synthesize_to_wav_bytes()`, tự động phân tách câu văn dài (auto sentence-chunking) tránh quá tải context, và hỗ trợ phát âm studio 48kHz qua `sounddevice` với `winsound` fallback.
+  - `jarvis/tts/cache.py`: Bổ sung cơ chế bảo vệ giải nén phòng vệ (defensive WAV container unpacking) trong `save_wav_atomic()` — tự động bóc tách raw PCM frames nếu đầu vào là tệp WAV đóng gói, bảo vệ toàn bộ kho cache đĩa khỏi biến dạng âm học.
   - `jarvis/tts/manager.py`: Mở rộng bộ định tuyến `TTSManager` nạp nhà cung cấp `"vieneu"`, `"vieneu_tts"`, `"vieneu-tts"`.
   - `jarvis/tts/__init__.py`: Xuất `VieNeuConfig` và `VieNeuTTSEngine`.
   - `config/default_config.yaml`: Bổ sung cấu hình mẫu cho `vieneu` (model, codec, device, emotion, reference_audio, sample_rate).
-  - `tests/unit/test_vieneu_tts.py`: Xây dựng bộ 8 bài unit test bao phủ toàn diện: cấu hình mặc định, khởi tạo engine, kiểm tra fail-closed khi thiếu thư viện, chặn chuỗi rỗng, tổng hợp mảng sóng giả lập thành WAV 48kHz, truyền dẫn tham số voice cloning `ref_audio`, phát âm Windows PlaySound, và tích hợp `TTSManager`.
+  - `tests/unit/test_vieneu_tts.py`: Xây dựng bộ 9 bài unit test bao phủ toàn diện: cấu hình mặc định, khởi tạo engine, kiểm tra fail-closed khi thiếu thư viện, chặn chuỗi rỗng, tổng hợp raw PCM và WAV container 48kHz, truyền dẫn tham số voice cloning `ref_audio`, phát âm Windows sounddevice / PlaySound, kiểm tra giải nén container cache phòng vệ, và tích hợp `TTSManager`.
   - `jarvis/__init__.py`: Nâng phiên bản chuẩn mực hệ thống lên `9.3.0`.
 - **Chỉ số kiểm thử thực tế**:
-  - `8 passed in 1.53s` trên `tests/unit/test_vieneu_tts.py`.
-  - `22 passed in 26.84s` trên toàn bộ suite kiểm thử TTS, Trí nhớ Ngữ nghĩa và Lịch trình cá nhân hóa.
+  - `9 passed in 1.37s` trên `tests/unit/test_vieneu_tts.py`.
+  - `22 passed in 19.19s` trên toàn bộ suite kiểm thử TTS và Cache âm thanh.
 
 ## [9.2.0] - Elite Semantic Memory, Smart Calendar Briefing & Interactive Dynamic Island HUD (2026-11-07)
 

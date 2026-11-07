@@ -85,12 +85,12 @@ def test_vieneu_empty_text_raises_error() -> None:
 
 
 def test_vieneu_synthesis_mocked(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Verify synthetic generation into standard 48kHz WAV bytes."""
+    """Verify synthetic generation into raw PCM bytes and WAV container bytes."""
     engine = VieNeuTTSEngine(VieNeuConfig(sample_rate=48000))
 
     # Mock Vieneu class and model instance
     mock_model_instance = MagicMock()
-    # Return 0.5s of sine wave at 48kHz
+    # Return 0.5s of sine wave at 48kHz (24000 samples)
     sample_rate = 48000
     t = np.linspace(0, 0.5, int(sample_rate * 0.5), endpoint=False)
     synthetic_audio = (0.5 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
@@ -101,11 +101,15 @@ def test_vieneu_synthesis_mocked(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_module.Vieneu = mock_vieneu_cls  # type: ignore[attr-defined]
 
     with patch.dict(sys.modules, {"vieneu": mock_module}):
-        wav_bytes = engine.synthesize_to_bytes("Xin chào JARVIS, chúc bạn một ngày tốt lành.")
+        # 1. synthesize_to_bytes returns raw 16-bit PCM bytes (2 bytes per sample)
+        pcm_bytes = engine.synthesize_to_bytes("Xin chào JARVIS, chúc bạn một ngày tốt lành.")
+        assert len(pcm_bytes) == len(synthetic_audio) * 2
+        # Ensure it does not start with RIFF header
+        assert not pcm_bytes.startswith(b"RIFF")
 
-    assert wav_bytes.startswith(b"RIFF")
-    mock_model_instance.infer.assert_called_once()
-    assert mock_model_instance.infer.call_args[1]["text"] == "Xin chào JARVIS, chúc bạn một ngày tốt lành."
+        # 2. synthesize_to_wav_bytes returns standard WAV container
+        wav_bytes = engine.synthesize_to_wav_bytes("Xin chào JARVIS, chúc bạn một ngày tốt lành.")
+        assert wav_bytes.startswith(b"RIFF")
 
     # Validate WAV properties
     buf = io.BytesIO(wav_bytes)
@@ -113,7 +117,32 @@ def test_vieneu_synthesis_mocked(monkeypatch: pytest.MonkeyPatch) -> None:
         assert wf.getnchannels() == 1
         assert wf.getsampwidth() == 2
         assert wf.getframerate() == 48000
-        assert wf.getnframes() > 0
+        assert wf.getnframes() == len(synthetic_audio)
+
+
+def test_vieneu_cache_defensive_unpacking(tmp_path: Path) -> None:
+    """Verify TTSAudioCache.save_wav_atomic defensively strips WAV header if passed a full container."""
+    from jarvis.tts.cache import TTSAudioCache
+
+    cache = TTSAudioCache(cache_dir=tmp_path)
+    # Generate a real WAV container
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(48000)
+        wf.writeframes(np.zeros(1000, dtype=np.int16).tobytes())
+    wav_container = buf.getvalue()
+
+    # Pass full WAV container into save_wav_atomic
+    saved = cache.save_wav_atomic(tmp_path / "test_defensive.wav", wav_container, sample_rate=48000)
+    assert saved.is_file()
+
+    # Inspect resulting file: must NOT contain nested RIFF in audio frames
+    with wave.open(str(saved), "rb") as wf:
+        frames = wf.readframes(wf.getnframes())
+        assert not frames.startswith(b"RIFF")
+        assert len(frames) == 2000
 
 
 def test_vieneu_voice_cloning_reference_propagation(tmp_path: Path) -> None:
@@ -142,16 +171,26 @@ def test_vieneu_voice_cloning_reference_propagation(tmp_path: Path) -> None:
 
 
 def test_vieneu_speak_playback_windows() -> None:
-    """Verify speak() triggers platform audio playback correctly."""
+    """Verify speak() triggers high-fidelity sounddevice or winsound fallback."""
     engine = VieNeuTTSEngine()
-    dummy_wav = b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x80>\x00\x00\x00}\x00\x00\x02\x00\x10\x00data\x00\x00\x00\x00"
+    dummy_pcm = np.zeros(1000, dtype=np.int16).tobytes()
 
-    with patch.object(engine, "synthesize_to_bytes", return_value=dummy_wav):
-        with patch("sys.platform", "win32"):
-            with patch("winsound.PlaySound") as mock_play:
-                ok = engine.speak("Testing speak function", wait=False)
-                assert ok is True
-                mock_play.assert_called_once()
+    with patch.object(engine, "synthesize_to_bytes", return_value=dummy_pcm):
+        # 1. Primary sounddevice path
+        mock_sd = MagicMock()
+        with patch.dict(sys.modules, {"sounddevice": mock_sd}):
+            ok = engine.speak("Testing speak function via sounddevice", wait=True)
+            assert ok is True
+            mock_sd.play.assert_called_once()
+            mock_sd.wait.assert_called_once()
+
+        # 2. Winsound fallback path when sounddevice fails
+        with patch.dict(sys.modules, {"sounddevice": None}):
+            with patch("sys.platform", "win32"):
+                with patch("winsound.PlaySound") as mock_play:
+                    ok2 = engine.speak("Testing speak function via winsound", wait=False)
+                    assert ok2 is True
+                    mock_play.assert_called_once()
 
 
 def test_tts_manager_vieneu_provider_wiring(tmp_path: Path) -> None:

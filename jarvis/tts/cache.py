@@ -148,6 +148,18 @@ class TTSAudioCache:
         """Atomically saves PCM bytes as a standard WAV file following AGENTS.md Section 3 standards."""
         path = Path(dest_path)
         path.parent.mkdir(parents=True, exist_ok=True)
+        # Defensive normalization: unpack incoming WAV container if already wrapped
+        if pcm_bytes.startswith(b"RIFF") and len(pcm_bytes) >= 44:
+            try:
+                import io
+                with wave.open(io.BytesIO(pcm_bytes), "rb") as rwf:
+                    channels = rwf.getnchannels()
+                    sampwidth = rwf.getsampwidth()
+                    sample_rate = rwf.getframerate()
+                    pcm_bytes = rwf.readframes(rwf.getnframes())
+            except Exception as err:
+                log.debug("Could not unpack incoming WAV container in save_wav_atomic: %s", err)
+
         with self._save_lock:
             thread_id = threading.get_ident()
             ts = time.time_ns()
