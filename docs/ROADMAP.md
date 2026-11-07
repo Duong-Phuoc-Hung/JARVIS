@@ -226,7 +226,10 @@
   - [x] Tích hợp provider `"vieneu"`, `"vieneu_tts"`, `"vieneu-tts"` vào `TTSManager`.
   - [x] Xuất `VieNeuConfig`, `VieNeuTTSEngine` trong `jarvis/tts/__init__.py`.
   - [x] Bổ sung cấu hình mẫu cho `vieneu` trong `config/default_config.yaml`.
-  - [x] Unit tests verified: `tests/unit/test_vieneu_tts.py` (8/8 passed 100% in 1.53s, 22/22 full suite tests in 26.84s).
+  - [x] Chuẩn hóa mảng 1D mono int16 raw PCM bytes, khắc phục triệt để lỗi nổ click/pop, giải nén container phòng vệ và tự động phân tách câu dài (auto sentence-chunking).
+  - [x] Triệt tiêu `shell=True` trong `shell_assistant.py` (CWE-78), nâng cấp n-gram hashing sang SHA-256 (CWE-328), so sánh cam kết ZK hằng thời gian `hmac.compare_digest()`.
+  - [x] Xuất bản tài liệu hướng dẫn kỹ thuật và vận hành toàn diện: [`docs/PERSONAL_AI_AND_VOICE_CLONING_GUIDE.md`](docs/PERSONAL_AI_AND_VOICE_CLONING_GUIDE.md).
+  - [x] Unit tests verified: `tests/unit/test_vieneu_tts.py` (9/9 passed 100% in 1.37s, 77/77 full regression suite tests in 23.40s).
 
 ## Sprint 31: Elite Semantic Memory, Smart Calendar Briefing & Interactive Dynamic Island HUD (2026-11-07, v9.2.0)
 

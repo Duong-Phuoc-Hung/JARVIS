@@ -28,10 +28,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `jarvis/automation/shell_assistant.py`: Triệt tiêu cờ `shell=True`, chuyển sang gọi trực tiếp `cmd.exe /c` với `shell=False` loại bỏ hoàn toàn bề mặt tấn công Command Chaining Injection (CWE-78).
   - `jarvis/memory/embeddings.py`: Nâng cấp hàm băm đặc trưng n-gram từ `MD5` sang `SHA-256`, loại bỏ cảnh báo hàm băm yếu (CWE-328).
   - `jarvis/network/swarm_telepathy.py`: Nâng cấp xác thực cam kết ZK commitment sang `hmac.compare_digest()`, kháng tấn công kênh bên đo lường thời gian (Timing Side-Channel Attack).
+  - `docs/PERSONAL_AI_AND_VOICE_CLONING_GUIDE.md`: Biên soạn toàn văn chuyên luận tài liệu kỹ thuật và cẩm nang vận hành chi tiết: hướng dẫn thiết lập danh tính, báo cáo điều hành, động cơ nhúng ngữ nghĩa Johnson-Lindenstrauss, và quy trình clone giọng nói VieNeu-TTS 48kHz.
   - `jarvis/__init__.py`: Nâng phiên bản chuẩn mực hệ thống lên `9.3.0`.
 - **Chỉ số kiểm thử thực tế**:
   - `9 passed in 1.37s` trên `tests/unit/test_vieneu_tts.py`.
-  - `22 passed in 19.19s` trên toàn bộ suite kiểm thử TTS và Cache âm thanh.
+  - `77 passed in 23.40s` trên toàn bộ suite kiểm thử cốt lõi (TTS, Trí nhớ Ngữ nghĩa, Lịch trình, Mini HUD, Bảo mật, Shell Assistant).
 
 ## [9.2.0] - Elite Semantic Memory, Smart Calendar Briefing & Interactive Dynamic Island HUD (2026-11-07)
 
