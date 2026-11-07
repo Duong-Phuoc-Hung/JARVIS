@@ -1,0 +1,16 @@
+{
+  "name": "usb_backup",
+  "display_name": "Smart USB Auto-Backup",
+  "version": "1.0.0",
+  "description": "Detects connected USB drives and automatically creates compressed, timestamped ZIP backups of source directories.",
+  "category": "system",
+  "author": "jarvis_team",
+  "actions": ["backup", "detect"],
+  "tags": ["backup", "usb", "storage", "archive", "zip"],
+  "parameters_schema": {
+    "source": {"type": "string", "description": "Source folder path to compress and back up", "default": ""},
+    "target_drive": {"type": "string", "description": "Target drive or directory, defaults to first detected USB", "default": ""},
+    "action": {"type": "string", "description": "backup or detect", "default": "backup"},
+    "notify": {"type": "boolean", "description": "Trigger desktop toast notification on completion", "default": true}
+  }
+}

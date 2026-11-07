@@ -1,0 +1,15 @@
+{
+  "name": "contract_scanner",
+  "display_name": "Legal Contract Risk Scanner",
+  "version": "1.0.0",
+  "description": "Scans business contracts to spot legal penalty traps, unilateral termination clauses, automatic renewals, and liability disclaimers.",
+  "category": "legal",
+  "author": "jarvis_team",
+  "actions": ["scan", "audit"],
+  "tags": ["contract", "legal", "risk", "clauses", "law", "scanner"],
+  "parameters_schema": {
+    "text": {"type": "string", "description": "Raw contract text to analyze", "default": ""},
+    "file_path": {"type": "string", "description": "Local path to contract text file", "default": ""},
+    "action": {"type": "string", "description": "scan or audit", "default": "scan"}
+  }
+}

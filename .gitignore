@@ -74,3 +74,7 @@ downloads/
 # External untracked binaries & scratch files
 flowkit-main/
 user_prompt_last.txt
+
+# Local tool caches and artifacts
+graphify-out/
+.security-audit/

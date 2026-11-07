@@ -1,0 +1,14 @@
+{
+  "name": "smart_clipboard",
+  "display_name": "Smart Clipboard Companion",
+  "version": "1.0.0",
+  "description": "Inspects and enhances clipboard content automatically: pretty-prints JSON, strips URL tracking params, analyzes traceback errors.",
+  "category": "productivity",
+  "author": "jarvis_team",
+  "actions": ["inspect", "clean_url", "format_json"],
+  "tags": ["clipboard", "json", "formatter", "url_cleaner", "productivity"],
+  "parameters_schema": {
+    "action": {"type": "string", "description": "Action name: inspect, clean_url, format_json", "default": "inspect"},
+    "notify": {"type": "boolean", "description": "Trigger desktop toast notification on modification", "default": true}
+  }
+}

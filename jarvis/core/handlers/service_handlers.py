@@ -348,19 +348,48 @@ class ServiceHandlersMixin(BaseActionService):
 
 
     def _handle_morning_briefing(self, city: str | None = None, **kwargs) -> dict[str, Any]:
-        """Generates comprehensive morning briefing."""
-        if self.web_hub:
-            briefing = self.web_hub.generate_morning_briefing(city=city)
-            if self.overlay and "overlay_bullets" in briefing:
-                self.overlay.show_response("Morning Briefing", "\n".join(briefing["overlay_bullets"]))
+        """Generates comprehensive executive morning briefing tailored to user profile."""
+        try:
+            from jarvis.personalization.briefing import ExecutiveBriefingEngine
+            engine = ExecutiveBriefingEngine(memory_manager=getattr(self, "memory_manager", None))
+            report = engine.generate_morning_briefing()
+
+            spoken_summary = report.speech_script
+            overlay_text = report.summary_markdown
+
+            if self.web_hub:
+                try:
+                    web_briefing = self.web_hub.generate_morning_briefing(city=city)
+                    if web_briefing and "overlay_bullets" in web_briefing:
+                        bullets = web_briefing["overlay_bullets"]
+                        overlay_text += "\n\n### 🌐 Điểm Tin Trực Tuyến\n" + "\n".join(f"- {b}" for b in bullets[:3])
+                except Exception as exc:
+                    log.debug("Web hub briefing supplemental fetch skipped: %s", exc)
+
+            if self.overlay:
+                self.overlay.show_response("Morning Briefing", overlay_text)
+
             return {
-                "status": "ERROR" if briefing.get("success") is False else "SUCCESS",
-                "success": briefing.get("success") is not False,
-                "code": "BRIEFING_PARTIAL" if briefing.get("success") is False else "OK",
-                "briefing": briefing,
-                "message": briefing.get("spoken_summary", "Chào buổi sáng thưa Ngài."),
+                "status": "SUCCESS",
+                "success": True,
+                "code": "OK",
+                "report": report.summary_markdown,
+                "message": spoken_summary,
             }
-        return {"status": "failed", "message": "Web intelligence hub unavailable"}
+        except Exception as exc:
+            log.warning("Executive briefing generation fallback: %s", exc)
+            if self.web_hub:
+                briefing = self.web_hub.generate_morning_briefing(city=city)
+                if self.overlay and "overlay_bullets" in briefing:
+                    self.overlay.show_response("Morning Briefing", "\n".join(briefing["overlay_bullets"]))
+                return {
+                    "status": "ERROR" if briefing.get("success") is False else "SUCCESS",
+                    "success": briefing.get("success") is not False,
+                    "code": "BRIEFING_PARTIAL" if briefing.get("success") is False else "OK",
+                    "briefing": briefing,
+                    "message": briefing.get("spoken_summary", "Chào buổi sáng Chủ nhân."),
+                }
+            return {"status": "failed", "message": f"Briefing error: {exc}"}
 
 
     def _handle_proactive_reminder(

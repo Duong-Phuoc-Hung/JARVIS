@@ -1,0 +1,16 @@
+{
+  "name": "desktop_notifier",
+  "display_name": "Desktop Toast Notifier",
+  "version": "1.0.0",
+  "description": "Dispatches native Windows 11 Desktop Toast notifications with sound presets and custom messages.",
+  "category": "system",
+  "author": "jarvis_team",
+  "actions": ["notify", "test"],
+  "tags": ["notification", "toast", "windows", "alert", "audio"],
+  "parameters_schema": {
+    "title": {"type": "string", "description": "Toast header title"},
+    "message": {"type": "string", "description": "Toast body message"},
+    "sound": {"type": "string", "description": "Sound preset: default, im, mail, reminder, sms, alarm, call", "default": "Default"},
+    "action": {"type": "string", "description": "Action name: notify or test", "default": "notify"}
+  }
+}

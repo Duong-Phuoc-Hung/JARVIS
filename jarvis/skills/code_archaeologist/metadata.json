@@ -1,0 +1,22 @@
+{
+  "name": "code_archaeologist",
+  "display_name": "Codebase Archaeologist & AST Health Inspector",
+  "description": "Phân tích tĩnh AST mã nguồn Python, tính toán độ phức tạp Cyclomatic Complexity, phát hiện điểm nóng nợ kỹ thuật và đánh giá độ phủ docstring.",
+  "version": "1.0.0",
+  "category": "developer_tools",
+  "tags": ["ast", "code", "complexity", "refactor", "lint", "python", "developer"],
+  "inputs": [
+    {
+      "name": "target_path",
+      "type": "string",
+      "description": "Đường dẫn file hoặc thư mục dự án cần phân tích AST",
+      "default": "D:/Software GitCode/JARVIS/jarvis"
+    },
+    {
+      "name": "max_files",
+      "type": "int",
+      "description": "Số lượng tệp Python tối đa được quét",
+      "default": 25
+    }
+  ]
+}

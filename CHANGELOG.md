@@ -4,6 +4,49 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.1.0] - Personal AI Companion & Autonomous Identity Layer (2026-11-07)
+
+- **Mục tiêu**:
+  - Triển khai và hợp nhất toàn diện Tầng Đồng hành AI Cá nhân hóa (Personal AI Companion & Autonomous Identity Layer) biến JARVIS thành một Trợ lý AI Cá nhân thực thụ (True Personal AI Companion) mang phong cách J.A.R.V.I.S của Tony Stark:
+    1. *UserProfile & UserProfileManager* (`jarvis/personalization/profile.py`):
+       - Quản lý danh tính người dùng (`user_name`, `honorific` ví dụ `Chủ nhân`, `Boss`, `Anh Hưng`), phong cách giao tiếp (`PersonaTone`: `IRON_MAN_WITTY`, `FORMAL_CONCISE`, `FRIENDLY_HELPFUL`), thư mục dự án ưa thích, ứng dụng ưu tiên, và nguyên tắc tùy biến của chủ nhân.
+       - Tuân thủ nghiêm ngặt Chuẩn lưu trữ nguyên tử Windows Atomic Persistence (`atomic_write_json`, thread-safe `_save_lock = threading.RLock()`, RAM snapshot dưới `_cache_lock`).
+       - Tự động sinh lời chào theo thời gian trong ngày (`generate_greeting()`) và prompt tiêm nạp cá nhân hóa (`generate_system_persona_prompt()`).
+    2. *Personal Onboarding Wizard* (`jarvis/personalization/onboarding.py`):
+       - Trình hướng dẫn thiết lập danh tính tương tác CLI (`jarvis onboarding`) và chế độ headless tự động (`--auto`) giúp làm quen với chủ nhân và khởi tạo profile cá nhân hóa ngay từ lần chạy đầu tiên.
+    3. *Executive Briefing Engine* (`jarvis/personalization/briefing.py`):
+       - Động cơ tổng hợp báo cáo điều hành buổi sáng (`jarvis briefing`, `--speak`), quét thời gian thực tài nguyên phần cứng (CPU, RAM, Ổ cứng, Pin), tổng hợp trạng thái Git repositories đang phát triển trong workspace, và tạo kịch bản phát âm súc tích cho TTS.
+    4. *Mini Floating Ambient HUD (Dynamic Island)* (`jarvis/ui/mini_hud.py`):
+       - Giao diện Dynamic Island thu nhỏ bán trong suốt dạng viên con nhộng (pill), có thể kéo thả tự do, hiển thị xung nhịp Arc Reactor và trạng thái (IDLE, LISTENING, THINKING, SPEAKING, ALERT) cùng chỉ số phần cứng thời gian thực.
+       - Tiêu thụ 0% CPU lúc rảnh rỗi và 0.00 MiB VRAM GPU, hỗ trợ tự phục hồi headless an toàn cho môi trường test/CI.
+    5. *Tích hợp Hệ thống Lõi & Router LLM*:
+       - `jarvis/llm/router.py`: Bổ sung tiêm nạp tự động `user_profile.generate_system_persona_prompt()` vào `build_jarvis_system_prompt()`, đảm bảo mọi phản hồi LLM luôn tuân thủ danh xưng và phong thái được cấu hình.
+       - `jarvis/core/app.py`: Tự động kích hoạt câu chào mở màn theo danh tính chủ nhân từ `UserProfileManager.generate_greeting()` khi khởi động daemon.
+       - `jarvis/core/handlers/service_handlers.py`: Nâng cấp handler `_handle_morning_briefing` kết nối trực tiếp với `ExecutiveBriefingEngine`.
+       - `jarvis/ui/terminal/app.py`: Hiển thị thông tin người đồng hành (`Companion For: <honorific> <user_name> (JARVIS)`) trên tiêu đề Terminal Control Center.
+       - `jarvis/cli.py`: Bổ sung 3 lệnh CLI: `onboarding`, `briefing`, `mini-hud`.
+    6. *Bộ kỹ năng mở rộng (Extended Skills)*:
+       - Bổ sung 13 kỹ năng chuyên sâu: `anki_generator`, `code_archaeologist`, `command_palette`, `contract_scanner`, `deep_search`, `desktop_notifier`, `health_twin`, `price_tracker`, `smart_clipboard`, `smart_downloads`, `smart_renamer`, `usb_backup`, `video_summarizer`.
+- **Chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/personalization/__init__.py`: Xuất master models và functions.
+  - `jarvis/personalization/profile.py`: Cài đặt `PersonaTone`, `UserProfile`, `UserProfileManager`, `get_user_profile_manager`.
+  - `jarvis/personalization/onboarding.py`: Cài đặt `PersonalOnboardingWizard`.
+  - `jarvis/personalization/briefing.py`: Cài đặt `BriefingReport`, `ExecutiveBriefingEngine`.
+  - `jarvis/ui/mini_hud.py`: Cài đặt `HUDState`, `MiniAmbientHUD`.
+  - `jarvis/llm/router.py`: Cập nhật `build_jarvis_system_prompt` nạp `user_profile`.
+  - `jarvis/core/app.py`: Kết nối lời chào khởi động với `profile.generate_greeting()`.
+  - `jarvis/core/handlers/service_handlers.py`: Tích hợp `ExecutiveBriefingEngine` vào service handler.
+  - `jarvis/ui/terminal/app.py`: Cập nhật `_status_header` hiển thị chủ nhân.
+  - `jarvis/cli.py`: Bổ sung subcommands `onboarding`, `briefing`, `mini-hud`.
+  - `tests/unit/test_user_profile.py`: 6 bài test xác minh đầy đủ chu trình profile, serialization, greeting, prompt injection, và Windows atomic persistence.
+  - `tests/unit/test_executive_briefing.py`: 4 bài test xác minh vitals, git scan, TTS speech script, và fail-closed fallback.
+  - `tests/unit/test_mini_hud.py`: 2 bài test xác minh headless safety và lifecycle.
+  - `tests/unit/test_extended_skills.py`: 16 bài test kiểm tra 13 kỹ năng mở rộng.
+- **Chỉ số kiểm thử thực tế**:
+  - `28 passed in 6.19s` trên toàn bộ suite kiểm thử cá nhân hóa và kỹ năng mở rộng.
+  - `164 passed, 1 skipped in 82.81s` trên router và P0 regression test suite.
+  - `6 passed in 8.31s` trên omniscient benchmark suite.
+
 ## [9.0.0] - JARVIS Sovereign Frontiers 29.0 - 33.0: The Transcendent Singularity (2026-10-25)
 
 - **Mục tiêu**:

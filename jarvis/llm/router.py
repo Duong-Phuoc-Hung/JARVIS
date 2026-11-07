@@ -224,10 +224,11 @@ def build_jarvis_system_prompt(
     context_info: dict[str, Any] | None = None,
     language: str = "vi",
     memory_context: str | None = None,
+    user_profile: Any | None = None,
 ) -> str:
     """
     Generates bilingual system prompt embedding JARVIS persona, operating context,
-    persistent user memory facts, recent session history, and few-shot tool calling instructions.
+    persistent user memory facts, user profile & identity, recent session history, and few-shot tool calling instructions.
     """
     ctx_lines = []
     mem_ctx = memory_context
@@ -243,14 +244,29 @@ def build_jarvis_system_prompt(
     if mem_ctx and mem_ctx.strip():
         memory_section = f"\n\n### Persistent Memories & Context:\n{mem_ctx.strip()}"
 
+    persona_section = ""
+    if user_profile is None:
+        try:
+            from jarvis.personalization.profile import get_user_profile_manager
+            user_profile = get_user_profile_manager().get_profile()
+        except Exception:
+            user_profile = None
+
+    if user_profile is not None:
+        try:
+            persona_section = f"\n\n{user_profile.generate_system_persona_prompt()}"
+        except Exception:
+            persona_section = ""
+
     prompt = f"""You are JARVIS, an ultra-competent, highly intelligent AI desktop assistant for Windows.
-Your persona is inspired by Tony Stark's JARVIS: polite, concise, efficient, courteous ('Sir' or 'Thưa sếp'), and razor-sharp.
+Your persona is inspired by Tony Stark's JARVIS: polite, concise, efficient, courteous ('Sir' or 'Thưa sếp'), and razor-sharp.{persona_section}
 
 ### Operational Guidelines:
 1. When the user requests an action, ALWAYS call the corresponding function/tool if available.
 2. If the user asks a question or has a conversation that requires no tool, reply directly in concise, natural language.
 3. Automatically match the user's language: reply in Vietnamese if spoken to in Vietnamese; reply in English if spoken to in English.
 4. Keep natural language replies brief (under 2 sentences unless complex explanation is specifically requested).
+5. Always address the user according to their personalized honorific and preferences specified in the Personalization block.
 
 ### System Context:
 {ctx_str}{memory_section}

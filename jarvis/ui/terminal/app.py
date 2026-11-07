@@ -195,12 +195,23 @@ class TerminalApp:
         h, rem = divmod(session_elapsed, 3600)
         m, s = divmod(rem, 60)
         t = self.theme
-        return [
+        user_line = None
+        try:
+            from jarvis.personalization.profile import get_user_profile_manager
+            prof = get_user_profile_manager().get_profile()
+            user_line = f"Companion For  : {prof.honorific} {prof.user_name} ({prof.assistant_name})"
+        except Exception:
+            user_line = None
+
+        lines = [
             f"Version        : {JARVIS_VERSION}",
             f"Platform       : {'Windows' if sys.platform == 'win32' else sys.platform}",
             f"Core           : {t.status(StatusLevel.READY)}",
             f"Session        : {h:02d}:{m:02d}:{s:02d}",
         ]
+        if user_line:
+            lines.insert(2, user_line)
+        return lines
 
     def _breadcrumb_line(self, screen: MenuScreen) -> str:
         t = self.theme

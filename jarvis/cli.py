@@ -271,6 +271,34 @@ def build_parser() -> argparse.ArgumentParser:
         help="Comment out plaintext secrets in .env upon successful migration.",
     )
 
+    # Command: onboarding
+    onb_cmd = subparsers.add_parser(
+        "onboarding",
+        help="Launch the Personal AI Onboarding Wizard to configure personal identity.",
+    )
+    onb_cmd.add_argument(
+        "--auto",
+        action="store_true",
+        help="Run onboarding in automated headless mode.",
+    )
+
+    # Command: briefing
+    bf_cmd = subparsers.add_parser(
+        "briefing",
+        help="Generate and deliver the Executive Morning Briefing.",
+    )
+    bf_cmd.add_argument(
+        "--speak",
+        action="store_true",
+        help="Vocalize briefing via TTS synthesis.",
+    )
+
+    # Command: mini-hud
+    subparsers.add_parser(
+        "mini-hud",
+        help="Launch the floating mini ambient HUD dynamic island.",
+    )
+
     return parser
 
 
@@ -561,6 +589,34 @@ def main(argv: Sequence[str] | None = None) -> int:
         except Exception as exc:
             _safe_print(f"[-] Migration error: {exc}")
             return 1
+
+    elif args.command == "onboarding":
+        from jarvis.personalization.onboarding import PersonalOnboardingWizard
+        wizard = PersonalOnboardingWizard(interactive=not getattr(args, "auto", False))
+        wizard.run()
+        return 0
+
+    elif args.command == "briefing":
+        from jarvis.personalization.briefing import ExecutiveBriefingEngine
+        engine = ExecutiveBriefingEngine()
+        report = engine.generate_morning_briefing()
+        _safe_print(report.summary_markdown)
+        if getattr(args, "speak", False):
+            engine.speak_briefing(report)
+        return 0
+
+    elif args.command == "mini-hud":
+        from jarvis.ui.mini_hud import MiniAmbientHUD
+        hud = MiniAmbientHUD()
+        hud.start()
+        _safe_print("[+] Mini Ambient HUD dynamic island activated.")
+        _safe_print("[*] Nhấn phím Ctrl + C trong terminal này để đóng HUD.")
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            hud.stop()
+            return 0
 
     else:
         # Default or 'run' command

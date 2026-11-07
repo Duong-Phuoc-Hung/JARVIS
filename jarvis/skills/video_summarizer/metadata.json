@@ -1,0 +1,46 @@
+{
+  "name": "video_summarizer",
+  "display_name": "Local Video & Podcast Summarizer",
+  "description": "Trích xuất phụ đề/văn bản từ video, podcast hoặc tệp SRT/VTT và tổng hợp báo cáo luận điểm cốt lõi, mốc thời gian và hành động đề xuất bằng tiếng Việt.",
+  "version": "1.0.0",
+  "category": "ai_research",
+  "tags": ["video", "youtube", "podcast", "summary", "srt", "vtt", "transcript"],
+  "inputs": [
+    {
+      "name": "input_text",
+      "type": "string",
+      "description": "Đoạn văn bản phụ đề thô hoặc transcript của video",
+      "default": ""
+    },
+    {
+      "name": "file_path",
+      "type": "string",
+      "description": "Đường dẫn tệp phụ đề cục bộ (.srt, .vtt, .txt)",
+      "default": ""
+    },
+    {
+      "name": "source_url",
+      "type": "string",
+      "description": "Link URL của video/podcast (YouTube/Bilibili/Spotify)",
+      "default": ""
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "description": "Tiêu đề video/nội dung cần tóm tắt",
+      "default": "Video Kiến Thức"
+    },
+    {
+      "name": "export_markdown",
+      "type": "bool",
+      "description": "Tự động xuất kết quả thành tệp Markdown lưu vào ổ cứng",
+      "default": false
+    },
+    {
+      "name": "output_dir",
+      "type": "string",
+      "description": "Thư mục lưu trữ tệp Markdown xuất ra",
+      "default": "D:/Software GitCode/JARVIS/data/summaries"
+    }
+  ]
+}

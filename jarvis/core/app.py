@@ -2309,9 +2309,18 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
         # Startup self-introduction speech
         if self.tts_manager:
             try:
+                profile_greeting = None
+                try:
+                    from jarvis.personalization.profile import get_user_profile_manager
+                    profile = get_user_profile_manager().get_profile()
+                    profile_greeting = profile.generate_greeting()
+                except Exception:
+                    profile_greeting = None
+
                 startup_greeting = (
                     self.config.get("tts.welcome.startup_phrase")
                     or self.config.get("welcome.startup_greeting")
+                    or profile_greeting
                     or "Hệ thống đã sẵn sàng, thưa Ngài. Tôi là JARVIS."
                 )
                 self.tts_manager.speak(startup_greeting, wait=False)

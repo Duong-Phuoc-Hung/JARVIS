@@ -1,0 +1,16 @@
+{
+  "name": "deep_search",
+  "display_name": "Deep Web Research & Synthesizer",
+  "version": "1.0.0",
+  "description": "Performs deep web research, extracts multi-source technical content, and synthesizes structured academic reports with numbered citations.",
+  "category": "research",
+  "author": "jarvis_team",
+  "actions": ["search", "synthesize"],
+  "tags": ["research", "search", "synthesis", "perplexity", "citations"],
+  "parameters_schema": {
+    "query": {"type": "string", "description": "Research question or topic to investigate"},
+    "max_results": {"type": "integer", "description": "Maximum number of substantive sources to gather", "default": 5},
+    "save_path": {"type": "string", "description": "Optional markdown file path to save report", "default": ""},
+    "notify": {"type": "boolean", "description": "Trigger desktop toast notification on completion", "default": true}
+  }
+}

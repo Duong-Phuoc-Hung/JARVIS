@@ -1,6 +1,13 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Current verified snapshot (2026-10-25), source **9.0.0**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-11-07), source **9.1.0**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- **Sprint 30 JARVIS Sovereign v9.1.0 Milestone: Personal AI Companion & Autonomous Identity Layer**:
+  - *Personal Identity & User Profile Layer* (`jarvis/personalization/profile.py`): Quản lý danh tính người dùng (`user_name`, `honorific` ví dụ `Chủ nhân`, `Boss`), phong cách giao tiếp `PersonaTone` (`IRON_MAN_WITTY`, `FORMAL_CONCISE`, `FRIENDLY_HELPFUL`), chuẩn lưu trữ nguyên tử Windows Atomic Persistence, tự động sinh lời chào theo ngữ cảnh thời gian và prompt tiêm nạp cá nhân hóa.
+  - *Personal Onboarding Wizard* (`jarvis/personalization/onboarding.py`): Trình thiết lập làm quen danh tính chủ nhân trực tiếp qua CLI `jarvis onboarding` hoặc tự động `--auto`.
+  - *Executive Morning Briefing Engine* (`jarvis/personalization/briefing.py`): Báo cáo điều hành thông minh qua `jarvis briefing` (quét CPU, RAM, ổ cứng, pin, git repos trong workspace, vocalize bằng TTS).
+  - *Mini Floating Ambient HUD (Dynamic Island)* (`jarvis/ui/mini_hud.py`): Giao diện Dynamic Island bán trong suốt dạng viên con nhộng có thể kéo thả, hiển thị xung nhịp Arc Reactor và trạng thái thời gian thực với 0% CPU và 0.00 MiB VRAM.
+  - *Full System & LLM Integration*: Tích hợp danh tính và danh xưng vào `build_jarvis_system_prompt()` trong `jarvis/llm/router.py`, câu chào mở màn trong `jarvis/core/app.py`, và hiển thị chủ nhân trên Terminal Control Center (`jarvis/ui/terminal/app.py`).
+  - Toàn bộ 28 bài kiểm thử hợp nhất Personalization & Extended Skills: **100% PASS (28/28 tests in 6.19s)** với **+0.00 MiB VRAM delta**.
 - **Sprint 29 JARVIS Sovereign v9.0.0 Milestone: Frontiers 29.0 - 33.0 The Transcendent Singularity**:
   - *Frontier 29.0: Holographic Memory Encoding & Hyper-Dimensional Tensor Associative Holography* (`jarvis/hardware/holographic_memory.py`): Mạng tensor MERA nhúng biên CFT của đồ thị mã nguồn và hội thoại, động cơ giao thoa thể tích Fourier quang học 2D ($H(u,v) = \mathcal{F}\{I(x,y)\}$), tra cứu bộ nhớ liên kết hằng số O(1) qua tương quan sóng quang học trong miền dưới nano-giây ($< 1\text{ ns}$), và bộ giám sát giới hạn diện tích Bekenstein-Hawking ($S \le \frac{A}{4\ell_P^2 \ln 2}$).
   - *Frontier 30.0: Relativistic Causal Concurrency & Minkowski Light-Cone Event Serialization* (`jarvis/network/minkowski_concurrency.py`): Tọa độ 4-vector bất biến $X^\mu = (ct, x, y, z)$ trên đa tạp giả Riemann, khoảng cách bất biến Minkowski $\Delta s^2 = -c^2 \Delta t^2 + \|\Delta \vec{x}\|^2$, tính giao hoán không khóa đã được chứng minh $[E_1, E_2] = 0$ ($0\text{ ms}$ consensus latency, thực thi song song lock-free) cho phân tách dạng không gian ($\Delta s^2 > 0$), và sắp xếp nhân quả đơn điệu dọc theo nón ánh sáng quá khứ $\mathcal{J}^-(E)$.

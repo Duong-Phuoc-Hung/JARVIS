@@ -1,0 +1,19 @@
+{
+  "name": "health_twin",
+  "display_name": "Local Health Biomarker Twin",
+  "version": "1.0.0",
+  "description": "Evaluates clinical blood test biomarkers against standard reference ranges with privacy-first local analytics.",
+  "category": "health",
+  "author": "jarvis_team",
+  "actions": ["analyze", "evaluate"],
+  "tags": ["health", "medical", "biomarkers", "lab_report", "privacy"],
+  "parameters_schema": {
+    "metrics": {"type": "object", "description": "Biomarker dictionary mapping name to numeric values", "default": {}},
+    "glucose": {"type": "number", "description": "Fasting blood glucose level (mmol/L)"},
+    "cholesterol": {"type": "number", "description": "Total cholesterol level (mmol/L)"},
+    "triglycerides": {"type": "number", "description": "Triglycerides level (mmol/L)"},
+    "uric_acid": {"type": "number", "description": "Uric acid level (umol/L)"},
+    "ast": {"type": "number", "description": "AST / SGOT enzyme level (U/L)"},
+    "alt": {"type": "number", "description": "ALT / SGPT enzyme level (U/L)"}
+  }
+}

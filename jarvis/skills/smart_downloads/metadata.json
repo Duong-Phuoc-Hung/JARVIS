@@ -1,0 +1,16 @@
+{
+  "name": "smart_downloads",
+  "display_name": "Smart Downloads Organizer",
+  "version": "1.0.0",
+  "description": "Automatically scans and organizes the Downloads folder into classified categories (Documents, Pictures, Code, Audio, Video, Archives).",
+  "category": "file_management",
+  "author": "jarvis_team",
+  "actions": ["organize", "scan"],
+  "tags": ["downloads", "organizer", "cleanup", "file_management"],
+  "parameters_schema": {
+    "directory": {"type": "string", "description": "Source directory to organize, defaults to user Downloads folder", "default": ""},
+    "action": {"type": "string", "description": "organize or scan", "default": "organize"},
+    "dry_run": {"type": "boolean", "description": "Scan without moving files", "default": false},
+    "notify": {"type": "boolean", "description": "Trigger desktop toast notification on completion", "default": true}
+  }
+}

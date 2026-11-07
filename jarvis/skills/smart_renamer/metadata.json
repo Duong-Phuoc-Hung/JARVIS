@@ -1,0 +1,16 @@
+{
+  "name": "smart_renamer",
+  "display_name": "Smart Document Renamer",
+  "version": "1.0.0",
+  "description": "Inspects document headers to generate clean, descriptive filenames for ambiguously named files.",
+  "category": "file_management",
+  "author": "jarvis_team",
+  "actions": ["suggest", "rename"],
+  "tags": ["rename", "documents", "organizer", "file_management"],
+  "parameters_schema": {
+    "path": {"type": "string", "description": "Specific file path to rename", "default": ""},
+    "directory": {"type": "string", "description": "Directory to scan and rename", "default": ""},
+    "action": {"type": "string", "description": "suggest or rename", "default": "suggest"},
+    "auto_rename": {"type": "boolean", "description": "Automatically apply suggested renames", "default": false}
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "anki_generator",
+  "display_name": "Anki Flashcard Generator",
+  "version": "1.0.0",
+  "description": "Extracts definitions, Q&A pairs, and technical terms from notes or transcripts to generate Anki-compatible TSV flashcard decks.",
+  "category": "education",
+  "author": "jarvis_team",
+  "actions": ["generate", "extract"],
+  "tags": ["anki", "flashcards", "study", "spaced_repetition", "learning", "education"],
+  "parameters_schema": {
+    "text": {"type": "string", "description": "Raw lecture notes or textbook text", "default": ""},
+    "file_path": {"type": "string", "description": "Path to text file", "default": ""},
+    "deck_name": {"type": "string", "description": "Name of the Anki deck", "default": "JARVIS_Study_Deck"},
+    "output_file": {"type": "string", "description": "Destination path for generated TSV file", "default": ""}
+  }
+}

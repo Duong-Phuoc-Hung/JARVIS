@@ -213,6 +213,32 @@
 - [x] **Consolidated Empirical Benchmark Suite (`tests/eval/test_frontier_24_to_28_omniscient_benchmark.py`)** — `PASS runtime`:
   - [x] Toàn bộ 6 bài kiểm chuẩn thực nghiệm tổng hợp và chu trình phản xạ toàn diện Omniscient Symbiont (6/6 passed 100%).
 
+## Sprint 30: Personal AI Companion & Autonomous Identity Layer (2026-11-07, v9.1.0)
+
+- [x] **User Profile & Identity Manager (`jarvis/personalization/profile.py`)** — `PASS runtime`:
+  - [x] Quản lý danh tính người dùng (`user_name`, `honorific` ví dụ `Chủ nhân`, `Boss`), phong cách giao tiếp `PersonaTone` (`IRON_MAN_WITTY`, `FORMAL_CONCISE`, `FRIENDLY_HELPFUL`), thư mục dự án ưa thích, ứng dụng ưu tiên, và nguyên tắc tùy biến của chủ nhân.
+  - [x] Tuân thủ nghiêm ngặt Chuẩn lưu trữ nguyên tử Windows Atomic Persistence (`atomic_write_json`, thread-safe `_save_lock = threading.RLock()`, RAM snapshot dưới `_cache_lock`).
+  - [x] Tự động sinh lời chào theo thời gian trong ngày (`generate_greeting()`) và prompt tiêm nạp cá nhân hóa (`generate_system_persona_prompt()`).
+  - [x] Unit tests verified: `tests/unit/test_user_profile.py` (6/6 passed 100%).
+- [x] **Personal Onboarding Wizard (`jarvis/personalization/onboarding.py`)** — `PASS runtime`:
+  - [x] Trình hướng dẫn thiết lập danh tính tương tác CLI (`jarvis onboarding`) và chế độ headless tự động (`--auto`) giúp làm quen với chủ nhân và khởi tạo profile cá nhân hóa ngay từ lần chạy đầu tiên.
+- [x] **Executive Briefing Engine (`jarvis/personalization/briefing.py`)** — `PASS runtime`:
+  - [x] Động cơ tổng hợp báo cáo điều hành buổi sáng (`jarvis briefing`, `--speak`), quét thời gian thực tài nguyên phần cứng (CPU, RAM, Ổ cứng, Pin), tổng hợp trạng thái Git repositories đang phát triển trong workspace, và tạo kịch bản phát âm súc tích cho TTS.
+  - [x] Unit tests verified: `tests/unit/test_executive_briefing.py` (4/4 passed 100%).
+- [x] **Mini Floating Ambient HUD (Dynamic Island) (`jarvis/ui/mini_hud.py`)** — `PASS runtime`:
+  - [x] Giao diện Dynamic Island thu nhỏ bán trong suốt dạng viên con nhộng (pill), có thể kéo thả tự do, hiển thị xung nhịp Arc Reactor và trạng thái (IDLE, LISTENING, THINKING, SPEAKING, ALERT) cùng chỉ số phần cứng thời gian thực.
+  - [x] Tiêu thụ 0% CPU lúc rảnh rỗi và 0.00 MiB VRAM GPU, hỗ trợ tự phục hồi headless an toàn cho môi trường test/CI.
+  - [x] Unit tests verified: `tests/unit/test_mini_hud.py` (2/2 passed 100%).
+- [x] **Core System, LLM & UI Integration** — `PASS runtime`:
+  - [x] `jarvis/llm/router.py`: Bổ sung tiêm nạp tự động `user_profile.generate_system_persona_prompt()` vào `build_jarvis_system_prompt()`, đảm bảo mọi phản hồi LLM luôn tuân thủ danh xưng và phong thái được cấu hình.
+  - [x] `jarvis/core/app.py`: Tự động kích hoạt câu chào mở màn theo danh tính chủ nhân từ `UserProfileManager.generate_greeting()` khi khởi động daemon.
+  - [x] `jarvis/core/handlers/service_handlers.py`: Nâng cấp handler `_handle_morning_briefing` kết nối trực tiếp với `ExecutiveBriefingEngine`.
+  - [x] `jarvis/ui/terminal/app.py`: Hiển thị thông tin người đồng hành (`Companion For: <honorific> <user_name> (JARVIS)`) trên tiêu đề Terminal Control Center.
+  - [x] `jarvis/cli.py`: Bổ sung 3 lệnh CLI: `onboarding`, `briefing`, `mini-hud`.
+- [x] **Extended Skills Library (`jarvis/skills/*`)** — `PASS runtime`:
+  - [x] Bổ sung 13 kỹ năng chuyên sâu: `anki_generator`, `code_archaeologist`, `command_palette`, `contract_scanner`, `deep_search`, `desktop_notifier`, `health_twin`, `price_tracker`, `smart_clipboard`, `smart_downloads`, `smart_renamer`, `usb_backup`, `video_summarizer`.
+  - [x] Unit tests verified: `tests/unit/test_extended_skills.py` (16/16 passed 100%).
+
 ## Sprint 29: Frontiers 29.0 - 33.0 The Transcendent Singularity (2026-10-25, v9.0.0)
 
 - [x] **Frontier 29.0: Holographic Memory Encoding & Hyper-Dimensional Tensor Associative Holography (`jarvis/hardware/holographic_memory.py`)** — `PASS runtime`:

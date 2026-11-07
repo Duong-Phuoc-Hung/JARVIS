@@ -1,0 +1,52 @@
+{
+  "name": "price_tracker",
+  "display_name": "Smart Price Drop & Deal Watchdog",
+  "description": "Theo dõi biến động giá sản phẩm Shopee/Lazada/Tiki/Crypto, lưu SQLite nội bộ và kích hoạt thông báo khi giá chạm ngưỡng kỳ vọng.",
+  "version": "1.0.0",
+  "category": "personal_productivity",
+  "tags": ["price", "deal", "tracker", "ecommerce", "shopping", "sqlite", "alert"],
+  "inputs": [
+    {
+      "name": "action",
+      "type": "string",
+      "description": "Hành động thực hiện ('list', 'add', 'check')",
+      "default": "list"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "description": "Tên sản phẩm cần theo dõi giá",
+      "default": ""
+    },
+    {
+      "name": "url",
+      "type": "string",
+      "description": "Đường dẫn link sản phẩm",
+      "default": ""
+    },
+    {
+      "name": "target_price",
+      "type": "float",
+      "description": "Mức giá kỳ vọng (nếu giá dưới hoặc bằng mức này sẽ cảnh báo)",
+      "default": 0.0
+    },
+    {
+      "name": "initial_price",
+      "type": "float",
+      "description": "Giá khởi điểm lúc thêm theo dõi",
+      "default": 0.0
+    },
+    {
+      "name": "simulate_drop_id",
+      "type": "int",
+      "description": "Mô phỏng giảm giá cho item id cụ thể để kiểm tra luồng thông báo",
+      "default": 0
+    },
+    {
+      "name": "notify",
+      "type": "bool",
+      "description": "Gửi Windows Toast Notification khi có giảm giá",
+      "default": true
+    }
+  ]
+}

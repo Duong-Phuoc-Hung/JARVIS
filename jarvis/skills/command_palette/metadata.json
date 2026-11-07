@@ -1,0 +1,34 @@
+{
+  "name": "command_palette",
+  "display_name": "Command Palette & Global Launcher",
+  "description": "Bảng tìm kiếm nhanh và khởi chạy tức thì mọi skill của JARVIS cũng như các phím tắt hệ thống Windows.",
+  "version": "1.0.0",
+  "category": "productivity",
+  "tags": ["launcher", "palette", "spotlight", "raycast", "alfred", "hotkey", "quick_action"],
+  "inputs": [
+    {
+      "name": "query",
+      "type": "string",
+      "description": "Từ khóa tìm kiếm lệnh hoặc tác vụ",
+      "default": ""
+    },
+    {
+      "name": "action_id",
+      "type": "string",
+      "description": "ID định danh cụ thể của lệnh cần thực thi ngay",
+      "default": ""
+    },
+    {
+      "name": "run_matched_skill",
+      "type": "bool",
+      "description": "Nếu True, sẽ tự động gọi và thực thi skill tương ứng",
+      "default": false
+    },
+    {
+      "name": "skill_args",
+      "type": "object",
+      "description": "Tham số truyền vào cho skill được kích hoạt",
+      "default": {}
+    }
+  ]
+}
