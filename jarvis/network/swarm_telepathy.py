@@ -127,7 +127,7 @@ class LoRARank4AdapterDelta:
             + str(self.training_samples).encode()
         )
         expected_hash = hashlib.sha256(raw_buffer).hexdigest()
-        return self.zk_commitment_hash == expected_hash
+        return hmac.compare_digest(self.zk_commitment_hash, expected_hash)
 
     def compute_frobenius_norm(self) -> float:
         """Calculates Frobenius norm ||Delta W||_F to prevent gradient explosion."""

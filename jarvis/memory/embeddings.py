@@ -47,8 +47,8 @@ class DenseSemanticHashEmbeddingBackend:
         return q[:, :self.dim]
 
     def _hash_ngram(self, ngram: str) -> int:
-        """Hash an n-gram deterministically into bucket [0, 1023]."""
-        h = hashlib.md5(ngram.encode("utf-8")).digest()
+        """Hash an n-gram deterministically into bucket [0, 1023] using SHA-256."""
+        h = hashlib.sha256(ngram.encode("utf-8")).digest()
         val = int.from_bytes(h[:4], "little")
         return val % 1024
 

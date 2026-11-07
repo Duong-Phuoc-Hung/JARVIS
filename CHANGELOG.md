@@ -25,6 +25,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `jarvis/tts/__init__.py`: Xuất `VieNeuConfig` và `VieNeuTTSEngine`.
   - `config/default_config.yaml`: Bổ sung cấu hình mẫu cho `vieneu` (model, codec, device, emotion, reference_audio, sample_rate).
   - `tests/unit/test_vieneu_tts.py`: Xây dựng bộ 9 bài unit test bao phủ toàn diện: cấu hình mặc định, khởi tạo engine, kiểm tra fail-closed khi thiếu thư viện, chặn chuỗi rỗng, tổng hợp raw PCM và WAV container 48kHz, truyền dẫn tham số voice cloning `ref_audio`, phát âm Windows sounddevice / PlaySound, kiểm tra giải nén container cache phòng vệ, và tích hợp `TTSManager`.
+  - `jarvis/automation/shell_assistant.py`: Triệt tiêu cờ `shell=True`, chuyển sang gọi trực tiếp `cmd.exe /c` với `shell=False` loại bỏ hoàn toàn bề mặt tấn công Command Chaining Injection (CWE-78).
+  - `jarvis/memory/embeddings.py`: Nâng cấp hàm băm đặc trưng n-gram từ `MD5` sang `SHA-256`, loại bỏ cảnh báo hàm băm yếu (CWE-328).
+  - `jarvis/network/swarm_telepathy.py`: Nâng cấp xác thực cam kết ZK commitment sang `hmac.compare_digest()`, kháng tấn công kênh bên đo lường thời gian (Timing Side-Channel Attack).
   - `jarvis/__init__.py`: Nâng phiên bản chuẩn mực hệ thống lên `9.3.0`.
 - **Chỉ số kiểm thử thực tế**:
   - `9 passed in 1.37s` trên `tests/unit/test_vieneu_tts.py`.

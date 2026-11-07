@@ -702,10 +702,11 @@ class ShellAssistant:
                         cwd=target_dir,
                     )
                 else:
+                    shell_cmd = ["cmd.exe", "/c", cmd] if sys.platform == "win32" else ["/bin/sh", "-c", cmd]
                     proc = subprocess.run(
-                        cmd,
+                        shell_cmd,
                         creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
-                        shell=True,
+                        shell=False,
                         capture_output=True,
                         text=True, encoding='utf-8', errors='replace',
                         timeout=60,
