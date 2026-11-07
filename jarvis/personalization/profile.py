@@ -43,6 +43,7 @@ class UserProfile:
     work_end_hour: int = 18
     daily_briefing_enabled: bool = True
     email_address: str = ""
+    daily_routines: list[str] = field(default_factory=lambda: ["08:00 - Morning Briefing & Planning", "14:00 - Code Review & Implementation"])
     custom_rules: list[str] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)

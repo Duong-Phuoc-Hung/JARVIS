@@ -56,3 +56,27 @@ def test_mini_hud_callbacks():
     hud._drag_data["moved"] = 0
     hud._on_mouse_up(None)
     click_cb.assert_called_once()
+
+
+def test_mini_hud_compact_toggle():
+    hud = MiniAmbientHUD(headless=True)
+    assert hud.is_compact is False
+
+    hud.toggle_compact()
+    assert hud.is_compact is True
+
+    hud.toggle_compact()
+    assert hud.is_compact is False
+
+
+def test_mini_hud_audio_energy():
+    hud = MiniAmbientHUD(headless=True)
+    hud.feed_audio_energy(0.75)
+    assert abs(hud._live_audio_level - 0.75) < 1e-4
+
+    # Clamping tests
+    hud.feed_audio_energy(-0.5)
+    assert hud._live_audio_level == 0.0
+
+    hud.feed_audio_energy(1.5)
+    assert hud._live_audio_level == 1.0

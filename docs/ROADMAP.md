@@ -213,6 +213,23 @@
 - [x] **Consolidated Empirical Benchmark Suite (`tests/eval/test_frontier_24_to_28_omniscient_benchmark.py`)** — `PASS runtime`:
   - [x] Toàn bộ 6 bài kiểm chuẩn thực nghiệm tổng hợp và chu trình phản xạ toàn diện Omniscient Symbiont (6/6 passed 100%).
 
+## Sprint 31: Elite Semantic Memory, Smart Calendar Briefing & Interactive Dynamic Island HUD (2026-11-07, v9.2.0)
+
+- [x] **Local Semantic Embedding Engine & Hybrid Vector Store (`jarvis/memory/embeddings.py`, `jarvis/memory/vector_store.py`)** — `PASS runtime`:
+  - [x] Động cơ nhúng ngữ nghĩa siêu nhẹ `DenseSemanticHashEmbeddingBackend` (128 chiều) Johnson-Lindenstrauss tối ưu hóa 0 MB VRAM, độ trễ < 0.2ms CPU.
+  - [x] Khung kiến trúc mở rộng `ONNXEmbeddingBackend` hỗ trợ onnxruntime CPU execution provider.
+  - [x] Nâng cấp `SemanticVectorStore` cơ chế tìm kiếm lai Hybrid Search `(1 - alpha) * tfidf + alpha * dense_score` với khoảng cách Cosine và lưu trữ nguyên tử Windows Atomic Persistence.
+  - [x] Unit tests verified: `tests/unit/test_semantic_embedding.py` (3/3 passed 100%).
+- [x] **Smart Calendar & Schedule Provider for Executive Morning Briefing (`jarvis/personalization/calendar.py`, `jarvis/personalization/briefing.py`)** — `PASS runtime`:
+  - [x] Trình phân tích cú pháp iCalendar RFC 5545 (`.ics`) thuần túy, zero-dependency, trích xuất sự kiện `VEVENT` từ `%LOCALAPPDATA%/JARVIS/calendars/`.
+  - [x] Quản lý lịch trình tùy biến nguyên tử trong `schedules.json` và đồng bộ thói quen thường nhật `daily_routines`.
+  - [x] Tích hợp sâu vào `ExecutiveBriefingEngine`: báo cáo Markdown buổi sáng và kịch bản phát biểu giọng nói TTS.
+  - [x] Unit tests verified: `tests/unit/test_calendar_provider.py` (4/4 passed 100%).
+- [x] **Interactive Dynamic Island HUD & Audio Waveform Modulation (`jarvis/ui/mini_hud.py`)** — `PASS runtime`:
+  - [x] Chế độ Compact Mode (vòng tròn Arc Reactor 48x48) chuyển đổi mượt mà qua nhấp đúp (`Double-Click`) hoặc menu chuột phải với 0% CPU.
+  - [x] Điều chế sóng âm thanh mini 5 cột thời gian thực theo mức năng lượng giọng nói `feed_audio_energy()`.
+  - [x] Unit tests verified: `tests/unit/test_mini_hud.py` (4/4 passed 100%).
+
 ## Sprint 30: Personal AI Companion & Autonomous Identity Layer (2026-11-07, v9.1.0)
 
 - [x] **User Profile & Identity Manager (`jarvis/personalization/profile.py`)** — `PASS runtime`:

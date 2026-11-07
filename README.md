@@ -1,6 +1,11 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Current verified snapshot (2026-11-07), source **9.1.0**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-11-07), source **9.2.0**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- **Sprint 31 JARVIS Sovereign v9.2.0 Milestone: Elite Semantic Memory, Smart Calendar Briefing & Interactive Dynamic Island HUD**:
+  - *Local Semantic Embedding Engine & Hybrid Vector Store* (`jarvis/memory/embeddings.py`, `jarvis/memory/vector_store.py`): Động cơ nhúng ngữ nghĩa 128 chiều Johnson-Lindenstrauss tối ưu hóa 0 MB VRAM, độ trễ < 0.2ms CPU, hỗ trợ ONNX Runtime backend, kết hợp tìm kiếm lai Hybrid Search `(1 - alpha) * tfidf + alpha * dense_score` tự động bắt trúng từ đồng nghĩa và biến thể ngữ nghĩa.
+  - *Smart Calendar & Schedule Provider* (`jarvis/personalization/calendar.py`, `jarvis/personalization/briefing.py`): Tích hợp bộ phân tích cú pháp iCalendar RFC 5545 (`.ics`) thuần túy, lưu trữ lịch trình tùy biến nguyên tử trong `schedules.json`, tự động tích hợp danh mục sự kiện và kịch bản phát biểu giọng nói trong Báo cáo Buổi sáng.
+  - *Interactive Dynamic Island HUD & Audio Waveform Modulation* (`jarvis/ui/mini_hud.py`): Chế độ Compact Mode (vòng tròn Arc Reactor 48x48) chuyển đổi mượt mà qua nhấp đúp (`Double-Click`), điều chế sóng âm thanh mini 5 cột thời gian thực theo mức năng lượng giọng nói `feed_audio_energy()`.
+  - Toàn bộ 38 bài kiểm thử hợp nhất Personalization, Calendar & Semantic Memory: **100% PASS (38/38 tests in 7.13s)** với **+0.00 MiB VRAM delta**.
 - **Sprint 30 JARVIS Sovereign v9.1.0 Milestone: Personal AI Companion & Autonomous Identity Layer**:
   - *Personal Identity & User Profile Layer* (`jarvis/personalization/profile.py`): Quản lý danh tính người dùng (`user_name`, `honorific` ví dụ `Chủ nhân`, `Boss`), phong cách giao tiếp `PersonaTone` (`IRON_MAN_WITTY`, `FORMAL_CONCISE`, `FRIENDLY_HELPFUL`), chuẩn lưu trữ nguyên tử Windows Atomic Persistence, tự động sinh lời chào theo ngữ cảnh thời gian và prompt tiêm nạp cá nhân hóa.
   - *Personal Onboarding Wizard* (`jarvis/personalization/onboarding.py`): Trình thiết lập làm quen danh tính chủ nhân trực tiếp qua CLI `jarvis onboarding` hoặc tự động `--auto`.

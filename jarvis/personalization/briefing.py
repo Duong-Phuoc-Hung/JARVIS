@@ -23,6 +23,7 @@ from jarvis.personalization.profile import (
     UserProfileManager,
     get_user_profile_manager,
 )
+from jarvis.personalization.calendar import CalendarScheduleProvider, CalendarEvent
 
 logger = logging.getLogger("jarvis.personalization.briefing")
 
@@ -38,6 +39,7 @@ class BriefingReport:
     remembered_facts: list[str]
     summary_markdown: str
     speech_script: str
+    schedule_events: list[dict[str, Any]] = field(default_factory=list)
 
 
 class ExecutiveBriefingEngine:
@@ -50,9 +52,11 @@ class ExecutiveBriefingEngine:
         self,
         profile_manager: UserProfileManager | None = None,
         memory_manager: Any = None,
+        schedule_provider: CalendarScheduleProvider | None = None,
     ) -> None:
         self.profile_mgr = profile_manager or get_user_profile_manager()
         self.memory_mgr = memory_manager
+        self.schedule_provider = schedule_provider or CalendarScheduleProvider()
 
     def generate_morning_briefing(self) -> BriefingReport:
         """Generate a complete intelligence briefing report."""
@@ -73,16 +77,20 @@ class ExecutiveBriefingEngine:
         # 4. Workspace Scan
         git_summaries = self.scan_git_workspace(profile.primary_workspace)
 
-        # 5. Memory Facts
+        # 5. Calendar & Schedule
+        schedule_events = self.schedule_provider.get_today_events(now.date())
+
+        # 6. Memory Facts
         facts = self.collect_memory_facts()
 
-        # 6. Synthesize Markdown text & Speech script
+        # 7. Synthesize Markdown text & Speech script
         summary_md, speech_text = self._compose_briefing(
             profile=profile,
             greeting=greeting,
             date_time_str=date_time_str,
             vitals=vitals,
             git_summaries=git_summaries,
+            schedule_events=schedule_events,
             facts=facts,
         )
 
@@ -95,6 +103,7 @@ class ExecutiveBriefingEngine:
             remembered_facts=facts,
             summary_markdown=summary_md,
             speech_script=speech_text,
+            schedule_events=[e.to_dict() for e in schedule_events],
         )
 
     def collect_system_vitals(self) -> dict[str, Any]:
@@ -168,7 +177,8 @@ class ExecutiveBriefingEngine:
             return results
 
         candidate_dirs = [d for d in p.iterdir() if d.is_dir() and (d / ".git").exists()]
-        # Check current repo first if inside workspace
+        if (p / ".git").exists() and p not in candidate_dirs:
+            candidate_dirs.insert(0, p)
         for repo_dir in candidate_dirs[:max_repos]:
             info: dict[str, Any] = {
                 "name": repo_dir.name,
@@ -184,7 +194,7 @@ class ExecutiveBriefingEngine:
                     cwd=str(repo_dir),
                     capture_output=True,
                     text=True,
-                    timeout=2.0,
+                    timeout=5.0,
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
                 )
                 if branch_out.returncode == 0:
@@ -196,7 +206,7 @@ class ExecutiveBriefingEngine:
                     cwd=str(repo_dir),
                     capture_output=True,
                     text=True,
-                    timeout=2.0,
+                    timeout=5.0,
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
                 )
                 if status_out.returncode == 0:
@@ -228,6 +238,7 @@ class ExecutiveBriefingEngine:
         date_time_str: str,
         vitals: dict[str, Any],
         git_summaries: list[dict[str, Any]],
+        schedule_events: list[CalendarEvent],
         facts: list[str],
     ) -> tuple[str, str]:
         """Generate Markdown document and concise audio speech script."""
@@ -247,6 +258,10 @@ class ExecutiveBriefingEngine:
         if vitals.get("battery_percent") is not None:
             plug_str = " (Đang cắm sạc)" if vitals.get("battery_charging") else " (Đang dùng pin)"
             md_lines.append(f"- **Pin**: `{vitals['battery_percent']}%`{plug_str}")
+
+        # Calendar Schedule Section
+        md_lines.append("\n### 📅 Lịch Trình & Sự Kiện Hôm Nay")
+        md_lines.append(self.schedule_provider.format_markdown_schedule(schedule_events))
 
         if git_summaries:
             md_lines.append("\n### 📂 Tình Trạng Dự Án (Workspace)")
@@ -270,6 +285,10 @@ class ExecutiveBriefingEngine:
             speech_parts.append(f"Lưu ý pin máy tính hiện còn {vitals['battery_percent']}%, {h} nên cắm sạc.")
         else:
             speech_parts.append(f"Tài nguyên hệ thống ổn định, RAM dùng {vitals['ram_percent']}%.")
+
+        # Schedule in speech
+        sched_speech = self.schedule_provider.format_speech_schedule(schedule_events, honorific=h)
+        speech_parts.append(sched_speech)
 
         # Git status in speech
         unclean_repos = [g for g in git_summaries if not g["clean"]]

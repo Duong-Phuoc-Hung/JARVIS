@@ -49,6 +49,7 @@ class DocumentVector:
     tf: dict[str, float]      # Term frequency
     category: str = "general"
     timestamp: float = field(default_factory=time.time)
+    embedding: list[float] | None = None
 
 
 @dataclass
@@ -110,10 +111,16 @@ class SemanticVectorStore:
         if not tokens:
             return False
         tf = self._compute_tf(tokens)
+        try:
+            from jarvis.memory.embeddings import get_embedding_engine
+            embedding = get_embedding_engine().embed(content)
+        except Exception:
+            embedding = None
+
         with self._lock:
             self._documents[doc_id] = DocumentVector(
                 doc_id=doc_id, content=content[:2000], tokens=tokens,
-                tf=tf, category=category,
+                tf=tf, category=category, embedding=embedding,
             )
             self._rebuild_idf()
         if self.config.auto_save:
@@ -125,8 +132,12 @@ class SemanticVectorStore:
         query: str,
         k: int = 5,
         category_filter: str | None = None,
+        alpha: float = 0.65,
     ) -> list[SearchResult]:
-        """Return top-k semantically similar documents."""
+        """
+        Return top-k semantically similar documents using hybrid scoring:
+        score = (1 - alpha) * tfidf_score + alpha * dense_semantic_score.
+        """
         if not query.strip() or not self._documents:
             return []
 
@@ -137,13 +148,29 @@ class SemanticVectorStore:
         q_tf = self._compute_tf(q_tokens)
         q_tfidf = self._compute_tfidf_vec(q_tf)
 
+        q_embedding = None
+        try:
+            from jarvis.memory.embeddings import get_embedding_engine
+            q_embedding = get_embedding_engine().embed(query)
+        except Exception:
+            q_embedding = None
+
         results: list[SearchResult] = []
         with self._lock:
             for doc in self._documents.values():
                 if category_filter and doc.category != category_filter:
                     continue
                 d_tfidf = self._compute_tfidf_vec(doc.tf)
-                score = self._cosine_similarity(q_tfidf, d_tfidf)
+                tfidf_score = self._cosine_similarity(q_tfidf, d_tfidf)
+
+                # Dense semantic score calculation
+                if q_embedding is not None and doc.embedding is not None:
+                    dense_sim = get_embedding_engine().cosine_similarity(q_embedding, doc.embedding)
+                    dense_norm = max(0.0, (dense_sim + 1.0) / 2.0)
+                    score = (1.0 - alpha) * tfidf_score + alpha * dense_norm
+                else:
+                    score = tfidf_score
+
                 if score >= self.config.similarity_threshold:
                     results.append(SearchResult(
                         doc_id=doc.doc_id,
@@ -207,6 +234,7 @@ class SemanticVectorStore:
                         "tf": d.tf,
                         "category": d.category,
                         "timestamp": d.timestamp,
+                        "embedding": d.embedding,
                     }
                     for doc_id, d in self._documents.items()
                 }
@@ -256,6 +284,7 @@ class SemanticVectorStore:
                     tf=d.get("tf", {}),
                     category=d.get("category", "general"),
                     timestamp=d.get("timestamp", 0.0),
+                    embedding=d.get("embedding"),
                 )
             with self._lock:
                 self._documents = loaded_docs

@@ -54,6 +54,8 @@ class MiniAmbientHUD:
         self.profile_mgr = get_user_profile_manager()
         self.state: HUDState = HUDState.IDLE
         self.status_text: str = "Sẵn sàng"
+        self.is_compact: bool = False
+        self._live_audio_level: float = 0.0
         self._running: bool = False
         self._thread: threading.Thread | None = None
         self._root: Any = None
@@ -148,6 +150,7 @@ class MiniAmbientHUD:
             canvas.bind("<Button-1>", self._on_mouse_down)
             canvas.bind("<B1-Motion>", self._on_mouse_drag)
             canvas.bind("<ButtonRelease-1>", self._on_mouse_up)
+            canvas.bind("<Double-Button-1>", self._on_double_click)
             canvas.bind("<Button-3>", self._on_right_click)
 
             # Start animation tick
@@ -175,14 +178,36 @@ class MiniAmbientHUD:
         new_y = self._root.winfo_y() + dy
         self._root.geometry(f"+{new_x}+{new_y}")
 
+    def toggle_compact(self) -> None:
+        """Toggle between minimal Arc Reactor icon (48x48) and full Dynamic Island pill (270x44)."""
+        self.is_compact = not self.is_compact
+        if self._root is not None and self._canvas is not None:
+            try:
+                w, h = (48, 48) if self.is_compact else (270, 44)
+                cur_x = self._root.winfo_x()
+                cur_y = self._root.winfo_y()
+                self._root.geometry(f"{w}x{h}+{cur_x}+{cur_y}")
+                self._canvas.config(width=w, height=h)
+            except Exception as exc:
+                logger.debug(f"Failed toggling HUD compact mode: {exc}")
+
+    def feed_audio_energy(self, level: float) -> None:
+        """Update live audio energy level (0.0 to 1.0) for responsive waveform rendering."""
+        self._live_audio_level = max(0.0, min(1.0, float(level)))
+
+    def _on_double_click(self, event: Any) -> None:
+        self.toggle_compact()
+
     def _on_mouse_up(self, event: Any) -> None:
-        # If clicked without dragging, trigger callback
+        # If clicked without dragging, trigger callback or toggle state
         if self._drag_data.get("moved", 0) < 5:
             if self.on_click_cb is not None:
                 try:
                     self.on_click_cb()
                 except Exception as exc:
                     logger.debug(f"HUD click callback error: {exc}")
+            else:
+                self._cycle_state()
 
     def _on_right_click(self, event: Any) -> None:
         if self._root is None:
@@ -193,6 +218,7 @@ class MiniAmbientHUD:
             if self.on_briefing_cb:
                 menu.add_command(label="🌅 Báo Cáo Buổi Sáng", command=self.on_briefing_cb)
             menu.add_command(label="🔄 Chuyển Trạng Thái", command=self._cycle_state)
+            menu.add_command(label="📐 Thu Nhỏ / Phóng To", command=self.toggle_compact)
             menu.add_separator()
             menu.add_command(label="❌ Đóng HUD", command=self.stop)
             menu.tk_popup(event.x_root, event.y_root)
@@ -234,6 +260,14 @@ class MiniAmbientHUD:
         }
         fg_col, aura_col = aura_colors.get(self.state, ("#00f0ff", "#004455"))
 
+        if self.is_compact:
+            # Compact Mode: 48x48 centered glowing Arc Reactor
+            cx, cy = 24, 24
+            pulse_r = 14 + 4 * math.sin(self._anim_phase)
+            canvas.create_oval(cx - pulse_r, cy - pulse_r, cx + pulse_r, cy + pulse_r, outline=aura_col, width=2)
+            canvas.create_oval(cx - 7, cy - 7, cx + 7, cy + 7, fill=fg_col, outline="")
+            return
+
         cx, cy = 20, 22
         # Pulsing ring
         pulse_r = 8 + 3 * math.sin(self._anim_phase)
@@ -251,14 +285,15 @@ class MiniAmbientHUD:
             anchor="w",
         )
 
-        # 3. Dynamic Waveform Spectrum (4 mini bars on the right)
-        bar_x = 225
-        for i in range(4):
+        # 3. Dynamic Waveform Spectrum (5 mini bars on the right, modulated by audio energy)
+        bar_x = 220
+        audio_boost = self._live_audio_level * 12.0
+        for i in range(5):
             if self.state in (HUDState.LISTENING, HUDState.SPEAKING):
-                h = 4 + 10 * abs(math.sin(self._anim_phase * 1.5 + i * 0.8))
+                h = 4 + audio_boost + 8 * abs(math.sin(self._anim_phase * 1.5 + i * 0.7))
             elif self.state == HUDState.THINKING:
                 h = 4 + 6 * abs(math.sin(self._anim_phase * 2.0 + i * 0.5))
             else:
                 h = 4
-            bx = bar_x + i * 8
-            canvas.create_line(bx, cy - h / 2, bx, cy + h / 2, fill=fg_col, width=3, capstyle="round")
+            bx = bar_x + i * 7
+            canvas.create_line(bx, cy - h / 2, bx, cy + h / 2, fill=fg_col, width=2, capstyle="round")
