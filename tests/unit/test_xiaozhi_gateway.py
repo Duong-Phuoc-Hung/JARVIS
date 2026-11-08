@@ -506,7 +506,19 @@ async def test_device_tool_invocation_and_timeout():
             assert result["status"] == "ok"
             assert result["state"] is True
 
-            # Scenario 2: Timeout when device fails to respond (fail-closed per Rule 2)
+            # Scenario 2: Synchronous tool invocation wrapper (called from worker thread)
+            client_task2 = asyncio.create_task(_respond_tool())
+            sync_result = await asyncio.to_thread(
+                server.call_device_tool_sync,
+                session_id,
+                "self.lamp.set_state",
+                {"state": True},
+                2.0,
+            )
+            await client_task2
+            assert sync_result["status"] == "ok"
+
+            # Scenario 3: Timeout when device fails to respond (fail-closed per Rule 2)
             with pytest.raises(TimeoutError):
                 await server.call_device_tool(
                     session_id=session_id,
@@ -517,6 +529,16 @@ async def test_device_tool_invocation_and_timeout():
 
     finally:
         server.stop()
+
+
+def test_device_id_sanitization():
+    """Verify device-id sanitization guards against command/path injection."""
+    from jarvis.comms.xiaozhi_gateway import _sanitize_device_id
+    assert _sanitize_device_id("esp32_c45789") == "esp32_c45789"
+    assert _sanitize_device_id("esp32; rm -rf /") == "esp32rm-rf"
+    assert _sanitize_device_id("../../../secret") == "secret"
+    assert len(_sanitize_device_id("a" * 100)) == 64
+    assert _sanitize_device_id("   ").startswith("esp32_")
 
 
 @pytest.mark.asyncio

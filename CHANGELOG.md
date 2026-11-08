@@ -28,12 +28,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `config/default_config.yaml`: Bổ sung phân mục `comms.xiaozhi` cấu hình host, port, path, auth_token, audio_format, sample_rate, frame_duration_ms, enable_mcp, tts_voice, và rate_limit.
   - `jarvis/cli.py`: Bổ sung parser subcommand `xiaozhi` và trình xử lý khởi chạy độc lập trong `main()`.
   - `jarvis/core/app.py`: Đấu nối vòng đời `XiaozhiGatewayServer` vào `JarvisApp.__init__()`, `start()`, `stop()`, và định tuyến lệnh thoại qua `process_text_command()`.
-  - `tests/unit/test_xiaozhi_gateway.py`: Xây dựng bộ 11 bài unit test kiểm thử toàn diện: cấu hình, lưu trữ nguyên tử, cỗ máy trạng thái, MCP tools/list & tools/call, bắt tay WebSocket hello, xác thực fail-closed (HTTP 401), rate limiting token bucket, chu trình thoại voice STT/LLM/TTS, ngắt lời barge-in abort, gọi công cụ thiết bị timeout fail-closed, và cô lập lỗi malformed JSON.
+  - `tests/unit/test_xiaozhi_gateway.py`: Xây dựng bộ 12 bài unit test kiểm thử toàn diện: cấu hình, lưu trữ nguyên tử, cỗ máy trạng thái, MCP tools/list & tools/call, bắt tay WebSocket hello, xác thực fail-closed (HTTP 401 với timing-safe HMAC), rate limiting token bucket, chu trình thoại voice STT/LLM/TTS, ngắt lời barge-in abort, gọi công cụ thiết bị timeout fail-closed, vệ sinh device_id chống path/command injection, và cô lập lỗi malformed JSON.
   - `docs/XIAOZHI_ESP32_INTEGRATION_GUIDE.md`: Biên soạn toàn văn cẩm nang kỹ thuật hướng dẫn kiến trúc, giao thức WebSocket, chuẩn JSON-RPC MCP, và cách nối dây thiết bị phần cứng ESP32.
   - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `9.4.0`.
 - **Chỉ số kiểm thử thực tế**:
-  - `11 passed in 11.35s` trên `tests/unit/test_xiaozhi_gateway.py`.
-  - `77 passed in 22.35s` trên toàn bộ suite kiểm thử hồi quy cốt lõi.
+  - `12 passed in 8.87s` trên `tests/unit/test_xiaozhi_gateway.py`.
+  - `78 passed in 57.12s` trên toàn bộ suite kiểm thử hồi quy cốt lõi.
 
 ## [9.3.0] - SOTA On-Device Neural Voice Cloning & Bilingual Code-Switching with VieNeu-TTS (2026-11-07)
 

@@ -219,7 +219,7 @@
   - [x] Triển khai `XiaozhiGatewayServer` phục vụ kết nối WebSocket song công tại `/xiaozhi/v1` (mặc định cổng 8088).
   - [x] Hỗ trợ luồng âm thanh PCM 16kHz mono (frame 60ms = 1920 bytes) và nén Opus cho vi điều khiển nhúng.
   - [x] Cơ chế Barge-In Interruption: gói tin `abort` lập tức ngắt luồng phát âm thanh TTS của máy chủ.
-  - [x] Chế độ xác thực Bearer token bảo mật và giới hạn tần suất token-bucket `TokenBucketRateLimiter` theo từng `device_id` (fail-closed HTTP 401 & 4429).
+  - [x] Chế độ xác thực Bearer token an toàn trước timing-attack (HMAC timing-safe) và giới hạn tần suất token-bucket `TokenBucketRateLimiter` theo từng `device_id` đã được vệ sinh (fail-closed HTTP 401 & 4429).
 - [x] **Bidirectional Model Context Protocol (MCP JSON-RPC 2.0)** — `PASS runtime`:
   - [x] **Server-to-Device IoT Control**: Tự động phát hiện công cụ thiết bị qua `tools/list` và điều khiển ngoại vi ESP32 (GPIO, OLED, LED, cảm biến) qua `tools/call`.
   - [x] **Device-to-Server PC Superpowers**: Phơi bày kho hành động của JARVIS `ActionDispatcher` dưới dạng MCP tools schema, cho phép phần cứng điều khiển PC.
@@ -228,7 +228,7 @@
 - [x] **App Lifecycle & CLI Subcommand (`jarvis/core/app.py`, `jarvis/cli.py`)** — `PASS runtime`:
   - [x] Đấu nối `XiaozhiGatewayServer` tự động khởi chạy và tắt cùng `JarvisApp`.
   - [x] Bổ sung lệnh CLI `jarvis xiaozhi --host 0.0.0.0 --port 8088`.
-  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_xiaozhi_gateway.py` (11/11 passed 100%).
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_xiaozhi_gateway.py` (12/12 passed 100%).
   - [x] Cẩm nang kỹ thuật đầy đủ: `docs/XIAOZHI_ESP32_INTEGRATION_GUIDE.md`.
 
 ## Sprint 32: SOTA On-Device Neural Voice Cloning & Bilingual Code-Switching with VieNeu-TTS (2026-11-07, v9.3.0)

@@ -10,7 +10,7 @@ Current verified snapshot (2026-11-09), source **9.4.0**, **unreleased / CONDITI
   - *Audio Streaming & Acoustic Barge-In Interruption*: Hỗ trợ cả PCM 16kHz 16-bit mono độ trung thực cao và Opus 60ms; tích hợp tính năng ngắt lời thời gian thực (Barge-In Interruption) huỷ luồng phát âm thanh TTS ngay khi nhận gói tin `abort` từ vi điều khiển.
   - *Windows Atomic Device Persistence & Token-Bucket Rate Limiter*: Triển khai `XiaozhiDeviceRegistry` tuân thủ nghiêm ngặt AGENTS.md Rule 3: tuần tự hóa ghi đĩa `_save_lock`, chụp snapshot nhanh trong `with self._lock:`, ghi ra tệp tạm `.tmp.<tid>.<time_ns>` và thử lại vòng lặp 5 lần chống lỗi khóa tệp `WinError 5`. Ngăn chặn DoS với `TokenBucketRateLimiter` theo từng `device_id`.
   - *First-Class CLI & JarvisApp Daemon Integration*: Lệnh CLI `jarvis xiaozhi --host 0.0.0.0 --port 8088` và tự động kích hoạt cùng `JarvisApp` khi cấu hình `comms.xiaozhi.enabled: true`.
-  - Toàn bộ suite kiểm thử gateway: **100% PASS (11/11 tests in 11.35s)**.
+  - Toàn bộ suite kiểm thử gateway: **100% PASS (12/12 tests in 8.87s)**.
 - **Sprint 32 JARVIS Sovereign v9.3.0 Milestone: SOTA On-Device Neural Voice Cloning, Personal AI Companion & Full Security Hardening**:
   - *Hướng Dẫn Kỹ Thuật Chi Tiết*: Đã xuất bản toàn văn hướng dẫn kiến trúc và hướng dẫn sử dụng tại [`docs/PERSONAL_AI_AND_VOICE_CLONING_GUIDE.md`](docs/PERSONAL_AI_AND_VOICE_CLONING_GUIDE.md).
   - *Instant Voice Cloning via Zero-Shot Audio Reference* (`jarvis/tts/vieneu.py`): Tích hợp framework VieNeu-TTS (`pnnbao97/VieNeu-TTS`), hỗ trợ sao chép giọng nói tức thì chỉ với mẫu audio 3-5s (`ref_audio`) của Chủ nhân hoặc J.A.R.V.I.S kinh điển.

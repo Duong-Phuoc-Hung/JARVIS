@@ -9,7 +9,7 @@ Provides:
       * Server-side: Exposes JARVIS ActionDispatcher actions as MCP tools for edge devices.
       * Client-side: Discovers & invokes hardware capabilities registered on the ESP32 (GPIO, OLED, LEDs, sensors).
   - Acoustic Barge-in Interruption: Cancels active TTS playback on 'abort' frame immediately.
-  - Token-bucket rate limiting per device ID and optional bearer token authentication.
+  - Token-bucket rate limiting per device ID and timing-attack safe bearer token authentication.
   - Thread-safe, non-blocking asynchronous server lifecycle with Windows atomic device persistence.
 """
 from __future__ import annotations
@@ -17,9 +17,11 @@ from __future__ import annotations
 import asyncio
 import datetime
 import enum
+import hmac
 import json
 import logging
 import os
+import re
 import threading
 import time
 import uuid
@@ -44,6 +46,12 @@ DEFAULT_FRAME_DURATION_MS = 60
 DEFAULT_FRAME_SAMPLES = int(DEFAULT_SAMPLE_RATE * (DEFAULT_FRAME_DURATION_MS / 1000.0))
 DEFAULT_FRAME_BYTES = DEFAULT_FRAME_SAMPLES * BYTES_PER_SAMPLE
 MAX_AUDIO_BUFFER_BYTES = 16000 * 2 * 30  # Max 30 seconds of audio buffer (DoS prevention)
+
+
+def _sanitize_device_id(raw_id: str) -> str:
+    """Sanitizes incoming device-id to alphanumeric, dash, or underscore (max 64 chars)."""
+    sanitized = re.sub(r"[^a-zA-Z0-9_\-]", "", raw_id.strip())
+    return sanitized[:64] if sanitized else f"esp32_{uuid.uuid4().hex[:8]}"
 
 
 class XiaozhiSessionState(str, enum.Enum):
@@ -111,11 +119,12 @@ class XiaozhiDeviceRegistry:
         try:
             with open(self.persist_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if isinstance(data, dict) and "devices" in data:
+                if isinstance(data, dict) and "devices" in data and isinstance(data["devices"], dict):
                     self._devices = data["devices"]
                     logger.info("Loaded %d registered Xiaozhi devices.", len(self._devices))
         except Exception as e:
             logger.error("Failed to load Xiaozhi device registry from %s: %s", self.persist_path, e)
+            self._devices = {}
 
     def register_or_update(
         self,
@@ -127,13 +136,14 @@ class XiaozhiDeviceRegistry:
         tools_count: int = 0,
     ) -> dict[str, Any]:
         """Registers a newly seen device or updates last seen heartbeat."""
+        clean_dev_id = _sanitize_device_id(device_id)
         now = time.time()
         with self._lock:
-            dev = self._devices.get(device_id, {})
+            dev = self._devices.get(clean_dev_id, {})
             if not dev:
                 dev = {
-                    "device_id": device_id,
-                    "name": name or f"Xiaozhi-{device_id[-6:]}",
+                    "device_id": clean_dev_id,
+                    "name": name or f"Xiaozhi-{clean_dev_id[-6:]}",
                     "first_paired_at": now,
                     "tools_count": 0,
                 }
@@ -148,15 +158,16 @@ class XiaozhiDeviceRegistry:
             if tools_count > 0:
                 dev["tools_count"] = tools_count
 
-            self._devices[device_id] = dev
+            self._devices[clean_dev_id] = dev
 
         self._save_atomic()
         return dev
 
     def get_device(self, device_id: str) -> dict[str, Any] | None:
         """Returns device record or None."""
+        clean_dev_id = _sanitize_device_id(device_id)
         with self._lock:
-            record = self._devices.get(device_id)
+            record = self._devices.get(clean_dev_id)
             return dict(record) if record else None
 
     def list_devices(self) -> list[dict[str, Any]]:
@@ -214,7 +225,7 @@ class XiaozhiSession:
         audio_params: XiaozhiAudioParams,
     ) -> None:
         self.session_id = session_id
-        self.device_id = device_id
+        self.device_id = _sanitize_device_id(device_id)
         self.websocket = websocket
         self.audio_params = audio_params
         self.state = XiaozhiSessionState.IDLE
@@ -381,6 +392,7 @@ class XiaozhiGatewayServer:
         """
         Validates path and bearer authorization during HTTP upgrade before WebSocket negotiation.
         Fail-closed per AGENTS.md Rule 2: Returns HTTP 401/404 if invalid.
+        Guarded against timing side-channel attacks via hmac.compare_digest.
         """
         try:
             from websockets.http11 import Response
@@ -397,7 +409,7 @@ class XiaozhiGatewayServer:
             headers = getattr(request, "headers", {})
             auth_header = headers.get("Authorization", "") or headers.get("authorization", "")
             expected = f"Bearer {self.config.auth_token}"
-            if auth_header != expected:
+            if not hmac.compare_digest(auth_header, expected):
                 logger.warning("Unauthorized Xiaozhi client connection (invalid or missing bearer token)")
                 return Response(401, "Unauthorized", Headers({"Content-Type": "text/plain"}), b"Unauthorized: Invalid Bearer Token")
 
@@ -459,9 +471,16 @@ class XiaozhiGatewayServer:
         self._is_running = False
         if self._server_loop and self._server:
             async def _cleanup() -> None:
-                # Abort all sessions
+                # Abort all sessions and close pending futures safely across loops
                 for s in list(self.active_sessions.values()):
                     s.abort_tts("server_shutdown")
+                    for req_id, fut in list(s.pending_mcp_requests.items()):
+                        if not fut.done():
+                            target_loop = fut.get_loop()
+                            target_loop.call_soon_threadsafe(
+                                lambda f=fut: not f.done() and f.set_exception(ConnectionError("Server shutting down"))
+                            )
+                    s.pending_mcp_requests.clear()
                     try:
                         await s.websocket.close(code=1001, reason="Server shutting down")
                     except Exception:
@@ -490,7 +509,8 @@ class XiaozhiGatewayServer:
         client_ip = remote_address[0] if remote_address else "unknown"
 
         headers = getattr(getattr(ws, "request", None), "headers", {})
-        device_id = headers.get("device-id", "") or headers.get("Device-Id", "") or f"esp32_{uuid.uuid4().hex[:8]}"
+        raw_dev_id = headers.get("device-id", "") or headers.get("Device-Id", "") or f"esp32_{uuid.uuid4().hex[:8]}"
+        device_id = _sanitize_device_id(raw_dev_id)
 
         # Rate limiting per device
         rl = self.rate_limiter.acquire(device_id)
@@ -534,6 +554,13 @@ class XiaozhiGatewayServer:
         finally:
             session.abort_tts("connection_closed")
             session.state = XiaozhiSessionState.DISCONNECTED
+            for req_id, fut in list(session.pending_mcp_requests.items()):
+                if not fut.done():
+                    target_loop = fut.get_loop()
+                    target_loop.call_soon_threadsafe(
+                        lambda f=fut, r=req_id: not f.done() and f.set_exception(ConnectionError(f"Client disconnected before responding to MCP request {r}"))
+                    )
+            session.pending_mcp_requests.clear()
             self.active_sessions.pop(session_id, None)
             logger.info("Xiaozhi session %s cleanup complete.", session_id)
 
@@ -675,10 +702,17 @@ class XiaozhiGatewayServer:
         if "result" in payload or "error" in payload:
             fut = session.pending_mcp_requests.pop(req_id, None)
             if fut and not fut.done():
+                target_loop = fut.get_loop()
                 if "error" in payload:
-                    fut.set_exception(RuntimeError(f"MCP Error: {payload['error']}"))
+                    err_msg = payload["error"]
+                    target_loop.call_soon_threadsafe(
+                        lambda f=fut, m=err_msg: not f.done() and f.set_exception(RuntimeError(f"MCP Error: {m}"))
+                    )
                 else:
-                    fut.set_result(payload.get("result"))
+                    res_val = payload.get("result")
+                    target_loop.call_soon_threadsafe(
+                        lambda f=fut, r=res_val: not f.done() and f.set_result(r)
+                    )
 
             # If this is response to tools/list, cache discovered tools
             result = payload.get("result", {})
@@ -736,60 +770,63 @@ class XiaozhiGatewayServer:
             session.state = XiaozhiSessionState.IDLE
             return
 
-        transcribed_text = ""
-
-        # Step 1: STT Transcription
-        if self.stt_engine and hasattr(self.stt_engine, "transcribe_bytes") and callable(self.stt_engine.transcribe_bytes):
-            try:
-                res = self.stt_engine.transcribe_bytes(audio_bytes, format=session.audio_params.format)
-                transcribed_text = str(res) if res is not None else ""
-            except Exception as e:
-                logger.warning("STT transcribe_bytes error: %s", e)
-        elif self.stt_engine and hasattr(self.stt_engine, "transcribe") and callable(self.stt_engine.transcribe):
-            try:
-                # Convert PCM bytes to float32 numpy array
-                audio_np = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
-                res = self.stt_engine.transcribe(audio_np)
-                transcribed_text = str(res) if res is not None else ""
-            except Exception as e:
-                logger.warning("STT transcribe error: %s", e)
-
-        if not transcribed_text:
-            logger.info("No speech detected or STT returned empty string.")
-            session.state = XiaozhiSessionState.IDLE
-            return
-
-        # Notify device of recognized speech for screen display
-        await session.send_json({
-            "type": "stt",
-            "text": str(transcribed_text),
-        })
-
-        # Step 2: Intent / Command Resolution
-        reply_text = ""
-        if self.command_handler:
-            try:
-                res_cmd = await self.command_handler(transcribed_text, session)
-                reply_text = str(res_cmd) if res_cmd is not None else ""
-            except Exception as e:
-                logger.error("Command handler error: %s", e)
-                reply_text = f"Đã xảy ra lỗi khi xử lý: {e}"
-        else:
-            reply_text = f"Tôi đã nhận được lệnh: {transcribed_text}"
-
-        # Send LLM text response
-        await session.send_json({
-            "type": "llm",
-            "text": str(reply_text),
-            "emotion": "happy",
-        })
-
-        # Step 3: Speech Synthesis & Chunked Audio Streaming
-        session.active_tts_task = asyncio.create_task(self._stream_tts(session, reply_text))
         try:
-            await session.active_tts_task
-        except asyncio.CancelledError:
-            logger.info("TTS streaming task cancelled.")
+            transcribed_text = ""
+
+            # Step 1: STT Transcription
+            if self.stt_engine and hasattr(self.stt_engine, "transcribe_bytes") and callable(self.stt_engine.transcribe_bytes):
+                try:
+                    res = self.stt_engine.transcribe_bytes(audio_bytes, format=session.audio_params.format)
+                    transcribed_text = str(res) if res is not None else ""
+                except Exception as e:
+                    logger.warning("STT transcribe_bytes error: %s", e)
+            elif self.stt_engine and hasattr(self.stt_engine, "transcribe") and callable(self.stt_engine.transcribe):
+                try:
+                    # Convert PCM bytes to float32 numpy array
+                    audio_np = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+                    res = self.stt_engine.transcribe(audio_np)
+                    transcribed_text = str(res) if res is not None else ""
+                except Exception as e:
+                    logger.warning("STT transcribe error: %s", e)
+
+            if not transcribed_text:
+                logger.info("No speech detected or STT returned empty string.")
+                session.state = XiaozhiSessionState.IDLE
+                return
+
+            # Notify device of recognized speech for screen display
+            await session.send_json({
+                "type": "stt",
+                "text": str(transcribed_text),
+            })
+
+            # Step 2: Intent / Command Resolution
+            reply_text = ""
+            if self.command_handler:
+                try:
+                    res_cmd = await self.command_handler(transcribed_text, session)
+                    reply_text = str(res_cmd) if res_cmd is not None else ""
+                except Exception as e:
+                    logger.error("Command handler error: %s", e)
+                    reply_text = f"Đã xảy ra lỗi khi xử lý: {e}"
+            else:
+                reply_text = f"Tôi đã nhận được lệnh: {transcribed_text}"
+
+            # Send LLM text response
+            await session.send_json({
+                "type": "llm",
+                "text": str(reply_text),
+                "emotion": "happy",
+            })
+
+            # Step 3: Speech Synthesis & Chunked Audio Streaming
+            session.active_tts_task = asyncio.create_task(self._stream_tts(session, reply_text))
+            try:
+                await session.active_tts_task
+            except asyncio.CancelledError:
+                logger.info("TTS streaming task cancelled.")
+        except Exception as e:
+            logger.error("Error processing utterance in session %s: %s", session.session_id, e)
         finally:
             session.state = XiaozhiSessionState.IDLE
 
@@ -798,37 +835,42 @@ class XiaozhiGatewayServer:
         if not text:
             return
 
-        pcm_bytes = b""
-        if self.tts_manager and hasattr(self.tts_manager, "synthesize_to_bytes"):
-            try:
-                pcm_bytes = self.tts_manager.synthesize_to_bytes(text)
-            except Exception as e:
-                logger.error("TTS synthesis error: %s", e)
+        try:
+            pcm_bytes = b""
+            if self.tts_manager and hasattr(self.tts_manager, "synthesize_to_bytes"):
+                try:
+                    pcm_bytes = self.tts_manager.synthesize_to_bytes(text)
+                except Exception as e:
+                    logger.error("TTS synthesis error: %s", e)
 
-        if not pcm_bytes:
-            # Generate soft confirmation beep (synthetic PCM) if TTS unavailable
-            pcm_bytes = self._generate_fallback_tone()
+            if not pcm_bytes:
+                # Generate soft confirmation beep (synthetic PCM) if TTS unavailable
+                pcm_bytes = self._generate_fallback_tone()
 
-        session.state = XiaozhiSessionState.SPEAKING
-        await session.send_json({"type": "tts", "state": "start"})
+            session.state = XiaozhiSessionState.SPEAKING
+            await session.send_json({"type": "tts", "state": "start"})
 
-        frame_size = DEFAULT_FRAME_BYTES
-        frame_interval_s = (session.audio_params.frame_duration / 1000.0) * 0.85
+            frame_size = DEFAULT_FRAME_BYTES
+            frame_interval_s = (session.audio_params.frame_duration / 1000.0) * 0.85
 
-        for i in range(0, len(pcm_bytes), frame_size):
-            if session.is_aborting or session.state != XiaozhiSessionState.SPEAKING:
-                logger.info("TTS playback aborted mid-stream for session %s", session.session_id)
-                break
+            for i in range(0, len(pcm_bytes), frame_size):
+                if session.is_aborting or session.state != XiaozhiSessionState.SPEAKING:
+                    logger.info("TTS playback aborted mid-stream for session %s", session.session_id)
+                    break
 
-            chunk = pcm_bytes[i:i + frame_size]
-            if len(chunk) < frame_size:
-                # Zero-pad trailing frame
-                chunk = chunk + b"\x00" * (frame_size - len(chunk))
+                chunk = pcm_bytes[i:i + frame_size]
+                if len(chunk) < frame_size:
+                    # Zero-pad trailing frame
+                    chunk = chunk + b"\x00" * (frame_size - len(chunk))
 
-            await session.send_binary(chunk)
-            await asyncio.sleep(frame_interval_s)
+                await session.send_binary(chunk)
+                await asyncio.sleep(frame_interval_s)
 
-        await session.send_json({"type": "tts", "state": "stop"})
+            await session.send_json({"type": "tts", "state": "stop"})
+        except asyncio.CancelledError:
+            logger.info("TTS streaming cancelled for session %s", session.session_id)
+        except Exception as e:
+            logger.warning("Error streaming TTS to session %s: %s", session.session_id, e)
 
     def stream_tts_to_session(self, session_id: str, text: str) -> Any:
         """
@@ -873,7 +915,7 @@ class XiaozhiGatewayServer:
         session.pending_mcp_requests[req_id] = fut
 
         try:
-            await session.send_json({
+            coro = session.send_json({
                 "type": "mcp",
                 "payload": {
                     "jsonrpc": "2.0",
@@ -885,7 +927,30 @@ class XiaozhiGatewayServer:
                     "id": req_id,
                 },
             })
+            if self._server_loop and asyncio.get_running_loop() != self._server_loop:
+                asyncio.run_coroutine_threadsafe(coro, self._server_loop)
+            else:
+                await coro
+
             return await asyncio.wait_for(fut, timeout=timeout)
         except asyncio.TimeoutError:
             session.pending_mcp_requests.pop(req_id, None)
             raise TimeoutError(f"Timeout awaiting tool response for '{tool_name}' on device '{session.device_id}'.")
+
+    def call_device_tool_sync(
+        self,
+        session_id: str,
+        tool_name: str,
+        arguments: dict[str, Any],
+        timeout: float = 5.0,
+    ) -> Any:
+        """
+        Synchronous wrapper for ActionDispatcher or worker threads to execute MCP tool calls on ESP32.
+        """
+        if not self._server_loop:
+            raise ConnectionError("Server event loop is not active.")
+        future = asyncio.run_coroutine_threadsafe(
+            self.call_device_tool(session_id, tool_name, arguments, timeout),
+            self._server_loop,
+        )
+        return future.result(timeout=timeout + 0.5)
