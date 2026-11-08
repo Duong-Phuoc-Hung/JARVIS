@@ -4,6 +4,37 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.4.0] - Xiaozhi-ESP32 Hardware Voice Companion & Bidirectional Model Context Protocol (MCP) Gateway (2026-11-09)
+
+- **Mục tiêu**:
+  - Hợp nhất và tích hợp trọn vẹn kiến trúc chatbot AI phần cứng thời gian thực từ dự án **Xiaozhi-ESP32** (`78/xiaozhi-esp32`, `xinnan-tech/xiaozhi-esp32-server`, `huangjunsen0406/py-xiaozhi`) vào hệ sinh thái JARVIS Sovereign Assistant:
+    1. *Full-Duplex Real-Time WebSocket Edge Gateway*:
+       - Xây dựng cổng giao tiếp `XiaozhiGatewayServer` (`jarvis/comms/xiaozhi_gateway.py`) hỗ trợ kết nối mạng song công thời gian thực qua WebSocket tại đường dẫn `/xiaozhi/v1` (mặc định cổng `8088`), phục vụ cả mạng cục bộ LAN/Wi-Fi lẫn từ xa.
+    2. *Bidirectional Model Context Protocol (MCP JSON-RPC 2.0)*:
+       - **Server-to-Device IoT Control**: Tự động phát hiện qua `tools/list` và điều khiển các thiết bị ngoại vi trên bo mạch ESP32 (đèn bàn GPIO, màn hình OLED/LCD, cảm biến nhiệt ẩm, động cơ servo) qua `tools/call`.
+       - **Device-to-Server PC Superpowers**: Phơi bày toàn bộ kho tính năng của JARVIS `ActionDispatcher` dưới dạng các schema MCP chuẩn mực, cho phép người dùng ra lệnh từ phần cứng ESP32 để điều khiển âm lượng, mở ứng dụng, tra cứu lịch, hoặc vận hành nhà thông minh trên máy tính.
+    3. *Audio Streaming & Acoustic Barge-In Interruption*:
+       - Hỗ trợ cả định dạng âm thanh PCM 16kHz 16-bit mono độ trung thực cao và nén Opus 60ms cho vi điều khiển nhúng.
+       - Tích hợp tính năng ngắt lời thời gian thực (Barge-In Interruption): ngay khi nhận gói tin `abort` từ ESP32, gateway lập tức hủy bỏ task stream âm thanh TTS đang phát mà không làm đứt kết nối WebSocket.
+    4. *Windows Atomic Device Persistence & Token-Bucket Rate Limiter*:
+       - Triển khai `XiaozhiDeviceRegistry` tuân thủ nghiêm ngặt AGENTS.md Rule 3: tuần tự hóa ghi đĩa `_save_lock`, chụp snapshot nhanh trong `with self._lock:`, ghi ra tệp tạm `.tmp.<tid>.<time_ns>` và thử lại vòng lặp 5 lần chống lỗi khóa tệp `WinError 5`.
+       - Ngăn chặn tấn công từ chối dịch vụ (DoS) với bộ giới hạn tốc độ `TokenBucketRateLimiter` theo từng `device_id`.
+    5. *First-Class CLI & JarvisApp Daemon Integration*:
+       - Bổ sung lệnh CLI `jarvis xiaozhi --host 0.0.0.0 --port 8088`.
+       - Tự động kích hoạt cùng vòng đời `JarvisApp` khi cấu hình `comms.xiaozhi.enabled: true`.
+- **Chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/comms/xiaozhi_gateway.py`: Tạo mới toàn bộ module gateway với các lớp `XiaozhiGatewayConfig`, `XiaozhiAudioParams`, `XiaozhiSession`, `XiaozhiMcpBridge`, `XiaozhiDeviceRegistry`, và `XiaozhiGatewayServer`.
+  - `jarvis/comms/__init__.py`: Xuất khẩu đầy đủ các thành phần `XiaozhiGatewayServer`, `XiaozhiGatewayConfig`, `XiaozhiSession`, `XiaozhiMcpBridge`, `XiaozhiDeviceRegistry`, `XiaozhiAudioParams`, `XiaozhiSessionState`.
+  - `config/default_config.yaml`: Bổ sung phân mục `comms.xiaozhi` cấu hình host, port, path, auth_token, audio_format, sample_rate, frame_duration_ms, enable_mcp, tts_voice, và rate_limit.
+  - `jarvis/cli.py`: Bổ sung parser subcommand `xiaozhi` và trình xử lý khởi chạy độc lập trong `main()`.
+  - `jarvis/core/app.py`: Đấu nối vòng đời `XiaozhiGatewayServer` vào `JarvisApp.__init__()`, `start()`, `stop()`, và định tuyến lệnh thoại qua `process_text_command()`.
+  - `tests/unit/test_xiaozhi_gateway.py`: Xây dựng bộ 11 bài unit test kiểm thử toàn diện: cấu hình, lưu trữ nguyên tử, cỗ máy trạng thái, MCP tools/list & tools/call, bắt tay WebSocket hello, xác thực fail-closed (HTTP 401), rate limiting token bucket, chu trình thoại voice STT/LLM/TTS, ngắt lời barge-in abort, gọi công cụ thiết bị timeout fail-closed, và cô lập lỗi malformed JSON.
+  - `docs/XIAOZHI_ESP32_INTEGRATION_GUIDE.md`: Biên soạn toàn văn cẩm nang kỹ thuật hướng dẫn kiến trúc, giao thức WebSocket, chuẩn JSON-RPC MCP, và cách nối dây thiết bị phần cứng ESP32.
+  - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `9.4.0`.
+- **Chỉ số kiểm thử thực tế**:
+  - `11 passed in 11.35s` trên `tests/unit/test_xiaozhi_gateway.py`.
+  - `77 passed in 22.35s` trên toàn bộ suite kiểm thử hồi quy cốt lõi.
+
 ## [9.3.0] - SOTA On-Device Neural Voice Cloning & Bilingual Code-Switching with VieNeu-TTS (2026-11-07)
 
 - **Mục tiêu**:

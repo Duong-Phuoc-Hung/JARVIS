@@ -1,6 +1,16 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Current verified snapshot (2026-11-07), source **9.3.0**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-11-09), source **9.4.0**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- **Sprint 33 JARVIS Sovereign v9.4.0 Milestone: Xiaozhi-ESP32 Hardware Voice Companion & Bidirectional Model Context Protocol (MCP) Gateway**:
+  - *Hướng Dẫn Kỹ Thuật Chi Tiết*: Đã xuất bản toàn văn hướng dẫn kiến trúc, giao thức và nối dây phần cứng tại [`docs/XIAOZHI_ESP32_INTEGRATION_GUIDE.md`](docs/XIAOZHI_ESP32_INTEGRATION_GUIDE.md).
+  - *Full-Duplex Real-Time WebSocket Edge Gateway* (`jarvis/comms/xiaozhi_gateway.py`): Cổng kết nối song công thời gian thực qua WebSocket tại `/xiaozhi/v1` (mặc định cổng `8088`), hỗ trợ truyền nhận âm thanh trực tiếp cho các bo mạch phần cứng ESP32 / ESP32-S3 trong mạng gia đình hoặc từ xa.
+  - *Bidirectional Model Context Protocol (MCP JSON-RPC 2.0)*:
+    - **Server-to-Device IoT Control**: Tự động phát hiện qua `tools/list` và điều khiển các thiết bị ngoại vi trên ESP32 (đèn bàn GPIO, màn hình hiển thị OLED, cảm biến đo đạc) qua `tools/call`.
+    - **Device-to-Server PC Superpowers**: Phơi bày kho tính năng của JARVIS `ActionDispatcher` dưới dạng các schema MCP chuẩn mực, cho phép người dùng ra lệnh từ phần cứng ESP32 để điều khiển âm lượng, mở ứng dụng, tra cứu lịch, hoặc vận hành nhà thông minh trên máy tính.
+  - *Audio Streaming & Acoustic Barge-In Interruption*: Hỗ trợ cả PCM 16kHz 16-bit mono độ trung thực cao và Opus 60ms; tích hợp tính năng ngắt lời thời gian thực (Barge-In Interruption) huỷ luồng phát âm thanh TTS ngay khi nhận gói tin `abort` từ vi điều khiển.
+  - *Windows Atomic Device Persistence & Token-Bucket Rate Limiter*: Triển khai `XiaozhiDeviceRegistry` tuân thủ nghiêm ngặt AGENTS.md Rule 3: tuần tự hóa ghi đĩa `_save_lock`, chụp snapshot nhanh trong `with self._lock:`, ghi ra tệp tạm `.tmp.<tid>.<time_ns>` và thử lại vòng lặp 5 lần chống lỗi khóa tệp `WinError 5`. Ngăn chặn DoS với `TokenBucketRateLimiter` theo từng `device_id`.
+  - *First-Class CLI & JarvisApp Daemon Integration*: Lệnh CLI `jarvis xiaozhi --host 0.0.0.0 --port 8088` và tự động kích hoạt cùng `JarvisApp` khi cấu hình `comms.xiaozhi.enabled: true`.
+  - Toàn bộ suite kiểm thử gateway: **100% PASS (11/11 tests in 11.35s)**.
 - **Sprint 32 JARVIS Sovereign v9.3.0 Milestone: SOTA On-Device Neural Voice Cloning, Personal AI Companion & Full Security Hardening**:
   - *Hướng Dẫn Kỹ Thuật Chi Tiết*: Đã xuất bản toàn văn hướng dẫn kiến trúc và hướng dẫn sử dụng tại [`docs/PERSONAL_AI_AND_VOICE_CLONING_GUIDE.md`](docs/PERSONAL_AI_AND_VOICE_CLONING_GUIDE.md).
   - *Instant Voice Cloning via Zero-Shot Audio Reference* (`jarvis/tts/vieneu.py`): Tích hợp framework VieNeu-TTS (`pnnbao97/VieNeu-TTS`), hỗ trợ sao chép giọng nói tức thì chỉ với mẫu audio 3-5s (`ref_audio`) của Chủ nhân hoặc J.A.R.V.I.S kinh điển.

@@ -277,6 +277,20 @@ comms:
     rate_limit:
       requests_per_minute: 15
       burst_limit: 3
+  xiaozhi:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8088
+    path: "/xiaozhi/v1"
+    auth_token: ""
+    audio_format: "pcm"
+    sample_rate: 16000
+    frame_duration_ms: 60
+    enable_mcp: true
+    tts_voice: "vieneu"
+    rate_limit:
+      requests_per_minute: 60
+      burst_limit: 10
   email_imap:
     enabled: false
     host: "imap.gmail.com"

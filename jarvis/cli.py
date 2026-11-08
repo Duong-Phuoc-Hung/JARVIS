@@ -299,6 +299,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Launch the floating mini ambient HUD dynamic island.",
     )
 
+    # Command: xiaozhi (Xiaozhi ESP32 Gateway Server)
+    xz_cmd = subparsers.add_parser(
+        "xiaozhi",
+        help="Start the Xiaozhi-ESP32 Hardware Bridge & MCP Gateway server.",
+    )
+    xz_cmd.add_argument(
+        "--host",
+        type=str,
+        default=None,
+        help="Bind host (default: from config or 0.0.0.0).",
+    )
+    xz_cmd.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="Bind port (default: from config or 8088).",
+    )
+    xz_cmd.add_argument(
+        "--token",
+        type=str,
+        default=None,
+        help="Auth bearer token required for client connection.",
+    )
+
     return parser
 
 
@@ -616,6 +640,32 @@ def main(argv: Sequence[str] | None = None) -> int:
                 time.sleep(1)
         except KeyboardInterrupt:
             hud.stop()
+            return 0
+
+    elif args.command == "xiaozhi":
+        from jarvis.comms.xiaozhi_gateway import XiaozhiGatewayConfig, XiaozhiGatewayServer
+        from jarvis.core.dispatcher import ActionDispatcher
+        cfg_dict = config.get("comms.xiaozhi", {}) if config else {}
+        host = args.host or cfg_dict.get("host", "0.0.0.0")
+        port = int(args.port or cfg_dict.get("port", 8088))
+        token = args.token or cfg_dict.get("auth_token", "")
+        gateway_cfg = XiaozhiGatewayConfig(
+            enabled=True,
+            host=host,
+            port=port,
+            auth_token=token,
+        )
+        dispatcher = ActionDispatcher()
+        server = XiaozhiGatewayServer(config=gateway_cfg, dispatcher=dispatcher)
+        server.start()
+        _safe_print(f"[+] Xiaozhi-ESP32 Gateway server running on ws://{host}:{port}{gateway_cfg.path}")
+        _safe_print("[*] Nhấn phím Ctrl + C trong terminal này để dừng gateway.")
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            server.stop()
+            _safe_print("[*] Xiaozhi-ESP32 Gateway đã dừng.")
             return 0
 
     else:

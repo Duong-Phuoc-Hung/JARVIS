@@ -185,6 +185,7 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
         self.tray_controller: SystemTrayController | None = None
         self.dashboard_server: DashboardServer | None = None
         self.overlay: AlwaysOnOverlay | None = None
+        self.xiaozhi_gateway: Any | None = None
 
         # 8. Hardware Telemetry & Diagnostics
         self.hardware_reporter: HardwareReporter | None = None
@@ -664,6 +665,37 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                     config_manager=self.config,
                     dispatcher=self.dispatcher,
                 )
+
+            # 22b. Xiaozhi-ESP32 Hardware Bridge & MCP Gateway Server
+            xz_cfg = self.config.get("comms.xiaozhi", {})
+            if xz_cfg.get("enabled", True):
+                try:
+                    from jarvis.comms.xiaozhi_gateway import XiaozhiGatewayConfig, XiaozhiGatewayServer
+                    gateway_cfg = XiaozhiGatewayConfig(
+                        enabled=True,
+                        host=xz_cfg.get("host", "0.0.0.0"),
+                        port=int(xz_cfg.get("port", 8088)),
+                        path=xz_cfg.get("path", "/xiaozhi/v1"),
+                        auth_token=xz_cfg.get("auth_token", ""),
+                        audio_format=xz_cfg.get("audio_format", "pcm"),
+                        sample_rate=int(xz_cfg.get("sample_rate", 16000)),
+                        frame_duration_ms=int(xz_cfg.get("frame_duration_ms", 60)),
+                        enable_mcp=xz_cfg.get("enable_mcp", True),
+                    )
+
+                    async def _handle_xiaozhi_command(text: str, session: Any) -> str:
+                        res = self.process_text_command(text, requester=f"xiaozhi_{session.device_id}")
+                        return res.get("response_text", "")
+
+                    self.xiaozhi_gateway = XiaozhiGatewayServer(
+                        config=gateway_cfg,
+                        dispatcher=self.dispatcher,
+                        tts_manager=self.tts_manager,
+                        stt_engine=self.stt_engine,
+                        command_handler=_handle_xiaozhi_command,
+                    )
+                except Exception as e_xz:
+                    log.warning("XiaozhiGatewayServer initialization warning: %s", e_xz)
 
             # 23. System Tray Controller (F-16 & R1)
             if not self.headless and self.config.get("ui.tray.enabled", True):
@@ -2283,6 +2315,13 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
             except Exception as e:
                 log.warning("Dashboard Server failed to start: %s", e)
 
+        # Start Xiaozhi Gateway Server
+        if self.xiaozhi_gateway:
+            try:
+                self.xiaozhi_gateway.start()
+            except Exception as e:
+                log.warning("Xiaozhi Gateway Server failed to start: %s", e)
+
         # Start JARVIS Overlay (Always-On HUD)
         if self.overlay and not self.headless:
             try:
@@ -2399,6 +2438,11 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
                 self.dashboard_server.stop()
             except Exception as e:
                 log.warning("Error stopping dashboard server: %s", e)
+        if self.xiaozhi_gateway:
+            try:
+                self.xiaozhi_gateway.stop()
+            except Exception as e:
+                log.warning("Error stopping Xiaozhi gateway: %s", e)
         if self.audio_engine:
             try:
                 self.audio_engine.stop_stream()
