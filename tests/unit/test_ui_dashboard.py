@@ -284,3 +284,15 @@ def test_dashboard_xiaozhi_devices_api():
     # Scenario 4: Missing arguments fail-closed
     call_missing = server_gw.call_xiaozhi_tool({"session_id": ""})
     assert call_missing["success"] is False
+
+
+def test_dashboard_html_audio_visualizer_and_xiaozhi_controls() -> None:
+    """Verify DASHBOARD_HTML contains real-time audio visualizer canvas and Xiaozhi buttons."""
+    from jarvis.ui.dashboard import DASHBOARD_HTML
+
+    assert 'id="audio-visualizer"' in DASHBOARD_HTML
+    assert "ARC AUDIO VISUALIZER" in DASHBOARD_HTML
+    assert "quickXiaozhiGreeting()" in DASHBOARD_HTML
+    assert "testXiaozhiTool" in DASHBOARD_HTML
+    assert "initAudioVisualizer()" in DASHBOARD_HTML
+

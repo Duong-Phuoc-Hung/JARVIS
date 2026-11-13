@@ -392,6 +392,62 @@ class TelegramBotController:
         except Exception as e:
             return {"ok": False, "error_code": "ERROR", "description": str(e)}
 
+    def send_voice(
+        self,
+        chat_id: int,
+        voice_bytes: bytes,
+        caption: str = "",
+        duration: int | None = None,
+        mock_http: Any | None = None,
+    ) -> dict[str, Any]:
+        """Dispatches audio voice note (.ogg/.opus/mp3/wav) to whitelisted chat."""
+        client = mock_http or self.http_client
+        if client and hasattr(client, "handle_telegram_send_voice"):
+            return client.handle_telegram_send_voice(chat_id, voice_bytes, caption)
+        if not self.bot_token:
+            return {
+                "ok": False,
+                "error_code": "NOT_CONFIGURED",
+                "description": "Telegram bot token is not configured.",
+            }
+        try:
+            import requests
+        except ImportError:
+            return {"ok": False, "error_code": "ERROR", "description": "requests module not installed"}
+
+        if self._session is None:
+            self._session = requests.Session()
+
+        try:
+            url = f"https://api.telegram.org/bot{self.bot_token}/sendVoice"
+            data: dict[str, Any] = {"chat_id": chat_id, "caption": caption}
+            if duration is not None:
+                data["duration"] = duration
+            files = {"voice": ("voice.ogg", voice_bytes, "audio/ogg")}
+            resp = self._session.post(url, data=data, files=files, timeout=self.timeout_s)
+            if resp.status_code == 200:
+                try:
+                    payload = resp.json()
+                except Exception:
+                    payload = {}
+                if payload.get("ok"):
+                    return {"ok": True, "result": payload.get("result")}
+                return {
+                    "ok": False,
+                    "error_code": "TELEGRAM_API_ERROR",
+                    "description": payload.get("description", "Telegram API returned ok=false"),
+                }
+            elif resp.status_code == 401:
+                return {"ok": False, "error_code": "AUTH_FAILED", "description": "Invalid Telegram bot token."}
+            elif resp.status_code == 429:
+                return {"ok": False, "error_code": "RATE_LIMITED", "retry_after": resp.json().get("parameters", {}).get("retry_after", 1)}
+            else:
+                return {"ok": False, "error_code": "ERROR", "description": f"HTTP {resp.status_code}: {resp.text}"}
+        except requests.exceptions.Timeout:
+            return {"ok": False, "error_code": "TIMEOUT", "description": "Telegram API timeout."}
+        except Exception as e:
+            return {"ok": False, "error_code": "ERROR", "description": str(e)}
+
     def poll_once(self, mock_http: Any | None = None) -> list[dict[str, Any]]:
         """Processes pending updates from queue or HTTP API."""
         client = mock_http or self.http_client

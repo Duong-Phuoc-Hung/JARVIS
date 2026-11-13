@@ -111,6 +111,10 @@ DASHBOARD_HTML = """<!DOCTYPE html>
       </div>
     </div>
     <div style="display: flex; gap: 15px; align-items: center;">
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+        <div style="font-size: 0.65rem; color: var(--accent-cyan); letter-spacing: 1px; font-weight: 600;">ARC AUDIO VISUALIZER</div>
+        <canvas id="audio-visualizer" width="180" height="28" style="background: rgba(11, 14, 20, 0.9); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 4px;"></canvas>
+      </div>
       <span id="uptime-tag" style="font-size: 0.85rem; color: var(--text-secondary);">Uptime: 00:00:00</span>
       <div id="status-pill" class="status-pill">ONLINE</div>
     </div>
@@ -199,6 +203,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         <div style="display: flex; gap: 8px; align-items: center;">
           <span id="xiaozhi-sessions" style="font-size: 0.75rem; color: var(--accent-green);">0 active sessions</span>
           <button class="btn-outline" style="padding: 4px 8px; font-size: 0.75rem;" onclick="refreshXiaozhiDevices()">Poll</button>
+          <button class="btn" style="padding: 4px 8px; font-size: 0.75rem;" onclick="quickXiaozhiGreeting()">Ping Audio</button>
         </div>
       </div>
       <div id="xiaozhi-list" class="actions-list" style="max-height: 180px;">
@@ -386,7 +391,10 @@ DASHBOARD_HTML = """<!DOCTYPE html>
               <strong style="color: var(--accent-cyan);">${escapeHtml(dev.name || dev.device_id)}</strong>
               <div style="font-size: 0.75rem; color: var(--text-secondary);">ID: ${escapeHtml(dev.device_id)} | Tools: ${dev.tools_count || 0} | Last Seen: ${lastSeenDate}</div>
             </div>
-            <span class="status-pill" style="padding: 2px 8px; font-size: 0.7rem;">PAIRED</span>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="action-btn" onclick="testXiaozhiTool('${escapeHtml(dev.device_id)}', 'ping')">Ping</button>
+              <span class="status-pill" style="padding: 2px 8px; font-size: 0.7rem;">PAIRED</span>
+            </div>
           </div>`;
       });
     } catch (e) {
@@ -394,6 +402,68 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     }
   }
   setInterval(refreshXiaozhiDevices, 5000);
+
+  async function quickXiaozhiGreeting() {
+    appendEventLog("Dispatching test TTS greeting to Xiaozhi companions...", "action");
+    try {
+      let res = await fetch('/api/xiaozhi/tool', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          session_id: 'broadcast',
+          tool_name: 'tts_speak',
+          arguments: { text: "JARVIS Edge Audio online." }
+        })
+      });
+      let data = await res.json();
+      appendEventLog(`Xiaozhi response: ${JSON.stringify(data)}`, data.success ? 'action' : 'error');
+    } catch (e) {
+      appendEventLog(`Xiaozhi greeting error: ${e}`, 'error');
+    }
+  }
+
+  async function testXiaozhiTool(deviceId, toolName) {
+    appendEventLog(`Testing Xiaozhi device '${deviceId}' tool: ${toolName}`, 'action');
+    try {
+      let res = await fetch('/api/xiaozhi/tool', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          session_id: deviceId,
+          tool_name: toolName,
+          arguments: {}
+        })
+      });
+      let data = await res.json();
+      appendEventLog(`Device '${deviceId}' tool result: ${JSON.stringify(data)}`, data.success ? 'action' : 'error');
+    } catch (e) {
+      appendEventLog(`Tool execution error: ${e}`, 'error');
+    }
+  }
+
+  function initAudioVisualizer() {
+    let canvas = document.getElementById('audio-visualizer');
+    if (!canvas) return;
+    let ctx = canvas.getContext('2d');
+    let phase = 0;
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#00f0ff';
+      ctx.beginPath();
+      let steps = 36;
+      let slice = canvas.width / steps;
+      for (let i = 0; i <= steps; i++) {
+        let x = i * slice;
+        let y = (canvas.height / 2) + Math.sin(phase + i * 0.35) * (canvas.height * 0.32) * Math.sin(phase * 0.4);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      phase += 0.09;
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+  }
 
   function escapeHtml(str) {
     if (!str) return '';
@@ -405,6 +475,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   loadConfig();
   refreshXiaozhiDevices();
   setupWebSocket();
+  initAudioVisualizer();
 </script>
 </body>
 </html>

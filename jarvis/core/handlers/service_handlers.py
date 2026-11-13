@@ -590,6 +590,26 @@ class ServiceHandlersMixin(BaseActionService):
             return {"status": "success", "success": True, "notes": notes, "message": msg}
         return {"status": "failed", "success": False, "message": "Skill registry unavailable"}
 
+    def _handle_zalo_send(
+        self,
+        recipient: str = "",
+        message: str = "",
+        contact: str = "",
+        text: str = "",
+        attachment_path: str | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Dispatches Zalo message via native Zalo PC client automation."""
+        target_rec = recipient or contact or kwargs.get("user", "") or kwargs.get("to", "") or ""
+        target_msg = message or text or kwargs.get("content", "") or ""
+        from jarvis.automation.zalo_client import ZaloPCAutomation
+        client = ZaloPCAutomation(controller=getattr(self, "computer_controller", None))
+        return client.send_message(
+            recipient=target_rec,
+            message=target_msg,
+            attachment_path=attachment_path,
+        )
+
 
 # Backward-compatibility alias
 ServiceHandlers = ServiceHandlersMixin

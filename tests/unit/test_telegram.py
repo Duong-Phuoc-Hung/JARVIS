@@ -45,7 +45,6 @@ def test_telegram_authorized_user():
     assert res.get("status") == 200
     assert "JARVIS Telegram Commands" in res.get("text", "")
 
-
 def test_telegram_mock_http_backward_compatibility():
     class MockHttp:
         def handle_telegram_send_message(self, chat_id, text):
@@ -121,3 +120,20 @@ def test_telegram_voice_stt_success_routes_to_message():
     res = tg.handle_inbound_voice(user_id=111, voice_bytes=b"audio_bytes", chat_id=111)
     assert res.get("status") == 200
     assert "JARVIS Telegram Commands" in res.get("text", "")
+
+
+def test_telegram_send_voice_fail_closed_and_mock():
+    # 1. Unconfigured bot token -> fail-closed NOT_CONFIGURED
+    bot_unconfigured = TelegramBotController(bot_token="")
+    res_unconfigured = bot_unconfigured.send_voice(12345, b"OGG_HEADER_DATA")
+    assert res_unconfigured["ok"] is False
+    assert res_unconfigured["error_code"] == "NOT_CONFIGURED"
+
+    # 2. Configured bot with mock HTTP handler
+    mock_http = MagicMock()
+    mock_http.handle_telegram_send_voice.return_value = {"ok": True, "result": {"message_id": 999}}
+    bot = TelegramBotController(bot_token="test_token_123")
+    res_mock = bot.send_voice(12345, b"OGG_VOICE_SAMPLE", caption="Hello voice note", mock_http=mock_http)
+    assert res_mock["ok"] is True
+    assert res_mock["result"]["message_id"] == 999
+    mock_http.handle_telegram_send_voice.assert_called_once_with(12345, b"OGG_VOICE_SAMPLE", "Hello voice note")

@@ -18,6 +18,7 @@ import re
 import sys
 import tempfile
 import threading
+import time
 import wave
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -29,6 +30,131 @@ from jarvis.tts.base import BaseTTSEngine, TTSError
 
 log = logging.getLogger("jarvis.tts.vieneu")
 
+__all__ = ["VieNeuConfig", "VieNeuTTSEngine", "VoiceEmbeddingCache"]
+
+
+class VoiceEmbeddingCache:
+    """
+    Thread-safe, on-disk compressed cache for neural voice embeddings / prompt latents.
+    Implements Windows Atomic Persistence (AGENTS.md Rule 3):
+      - _save_lock serialization for file operations.
+      - Fast snapshot with in-memory lock to prevent blocking synthesis threads.
+      - Unique temporary file replace (.tmp.<tid>.<timestamp_ns>.npz).
+      - Windows retry loop (5 attempts with backoff) for WinError 5 / PermissionError.
+      - Guaranteed tempfile cleanup in finally block.
+    """
+
+    def __init__(self, persist_path: str | Path | None = None) -> None:
+        self.persist_path = Path(persist_path) if persist_path else None
+        self._cache: dict[str, np.ndarray] = {}
+        self._lock = threading.Lock()
+        self._save_lock = threading.Lock()
+        if self.persist_path and self.persist_path.is_file():
+            self.load()
+
+    def get(self, voice_id: str) -> np.ndarray | None:
+        """Retrieve copy of cached voice embedding vector, or None if not found."""
+        with self._lock:
+            val = self._cache.get(voice_id)
+            return val.copy() if val is not None else None
+
+    def set(self, voice_id: str, embedding: np.ndarray, persist: bool = True) -> None:
+        """Store a voice embedding vector and optionally persist to disk."""
+        arr = np.asarray(embedding, dtype=np.float32)
+        with self._lock:
+            self._cache[voice_id] = arr
+        if persist and self.persist_path:
+            self.save()
+
+    def has(self, voice_id: str) -> bool:
+        """Check if voice_id is present in memory cache."""
+        with self._lock:
+            return voice_id in self._cache
+
+    def delete(self, voice_id: str, persist: bool = True) -> bool:
+        """Remove a voice embedding from cache and persist changes."""
+        with self._lock:
+            if voice_id in self._cache:
+                del self._cache[voice_id]
+                found = True
+            else:
+                found = False
+        if found and persist and self.persist_path:
+            self.save()
+        return found
+
+    def clear(self, persist: bool = True) -> None:
+        """Wipe all cached voice embeddings in memory and on disk."""
+        with self._lock:
+            self._cache.clear()
+        if persist and self.persist_path:
+            self.save()
+
+    def keys(self) -> list[str]:
+        """Return list of cached voice IDs."""
+        with self._lock:
+            return list(self._cache.keys())
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._cache)
+
+    def load(self) -> bool:
+        """Load compressed embeddings from disk into memory cache."""
+        if not self.persist_path or not self.persist_path.is_file():
+            return False
+        with self._save_lock:
+            try:
+                with np.load(str(self.persist_path), allow_pickle=False) as npz:
+                    loaded = {k: npz[k] for k in npz.files}
+                with self._lock:
+                    self._cache.update(loaded)
+                log.info("Loaded %d voice embeddings from %s", len(loaded), self.persist_path)
+                return True
+            except Exception as exc:
+                log.warning("Failed to load voice embedding cache from %s: %s", self.persist_path, exc)
+                return False
+
+    def save(self) -> bool:
+        """
+        Atomically persist all embeddings to compressed NPZ archive on disk.
+        Windows-safe retry loop guards against WinError 5 file locking.
+        """
+        if not self.persist_path:
+            return False
+        with self._save_lock:
+            with self._lock:
+                snapshot = {k: v.copy() for k, v in self._cache.items()}
+
+            target_path = self.persist_path
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            tid = threading.get_ident()
+            ts = time.time_ns()
+            tmp_path = target_path.with_name(f".tmp.{tid}.{ts}.npz")
+            try:
+                with open(tmp_path, "wb") as f:
+                    np.savez_compressed(f, **snapshot)
+
+                # Windows Atomic Replace with Retry Loop
+                for attempt in range(5):
+                    try:
+                        os.replace(tmp_path, target_path)
+                        break
+                    except (PermissionError, OSError):
+                        if attempt == 4:
+                            raise
+                        time.sleep(0.02 * (attempt + 1))
+                return True
+            except Exception as exc:
+                log.error("Failed to save voice embedding cache to %s: %s", target_path, exc)
+                return False
+            finally:
+                if tmp_path.exists():
+                    try:
+                        tmp_path.unlink()
+                    except OSError:
+                        pass
+
 
 @dataclass
 class VieNeuConfig:
@@ -38,6 +164,7 @@ class VieNeuConfig:
     device: str = "cpu"  # "cpu" or "cuda"
     emotion: str = "natural"  # "natural", "storytelling"
     reference_audio: str = ""  # Path to reference audio clip for voice cloning
+    embedding_cache_path: str = ""  # Path to persist voice embeddings npz archive
     sample_rate: int = 48000
     speed: float = 1.0
     enabled: bool = True
@@ -49,7 +176,11 @@ class VieNeuTTSEngine(BaseTTSEngine):
     Implements BaseTTSEngine for seamless integration into TTSManager.
     """
 
-    def __init__(self, config: dict[str, Any] | VieNeuConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: dict[str, Any] | VieNeuConfig | None = None,
+        embedding_cache: VoiceEmbeddingCache | None = None,
+    ) -> None:
         if isinstance(config, VieNeuConfig):
             self.cfg = config
             raw_cfg = {
@@ -58,6 +189,7 @@ class VieNeuTTSEngine(BaseTTSEngine):
                 "device": config.device,
                 "emotion": config.emotion,
                 "reference_audio": config.reference_audio,
+                "embedding_cache_path": config.embedding_cache_path,
                 "sample_rate": config.sample_rate,
                 "speed": config.speed,
                 "enabled": config.enabled,
@@ -70,6 +202,7 @@ class VieNeuTTSEngine(BaseTTSEngine):
                 device=config.get("device", "cpu"),
                 emotion=config.get("emotion", "natural"),
                 reference_audio=config.get("reference_audio", ""),
+                embedding_cache_path=config.get("embedding_cache_path", ""),
                 sample_rate=int(config.get("sample_rate", 48000)),
                 speed=float(config.get("speed", 1.0)),
                 enabled=bool(config.get("enabled", True)),
@@ -81,6 +214,13 @@ class VieNeuTTSEngine(BaseTTSEngine):
         super().__init__(config=raw_cfg)
         self._tts_instance: Any | None = None
         self._lock = threading.Lock()
+
+        if embedding_cache is not None:
+            self.embedding_cache = embedding_cache
+        elif self.cfg.embedding_cache_path:
+            self.embedding_cache = VoiceEmbeddingCache(self.cfg.embedding_cache_path)
+        else:
+            self.embedding_cache = VoiceEmbeddingCache()
 
     def is_available(self) -> bool:
         """
@@ -193,6 +333,10 @@ class VieNeuTTSEngine(BaseTTSEngine):
         infer_kwargs: dict[str, Any] = {}
         if target_ref and Path(target_ref).is_file():
             infer_kwargs["ref_audio"] = target_ref
+        elif target_ref and self.embedding_cache.has(target_ref):
+            cached_emb = self.embedding_cache.get(target_ref)
+            if cached_emb is not None:
+                infer_kwargs["speaker_embedding"] = cached_emb
 
         # Sentence chunking if text has multiple punctuation boundaries and length > 120 chars
         clean_text = text.strip()

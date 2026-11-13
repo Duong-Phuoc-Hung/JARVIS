@@ -10,6 +10,7 @@ from jarvis.proactive.briefing_scheduler import DailyBriefingScheduler
 from jarvis.proactive.engine import ProactiveConfig, ProactiveEngine
 from jarvis.proactive.health_monitor import HealthAlert, SystemHealthMonitor
 from jarvis.proactive.inactivity import InactivityMonitor
+from jarvis.proactive.night_shift import NightShiftEngine, NightShiftReport
 from jarvis.proactive.pomodoro import PomodoroState, PomodoroStatus, PomodoroTimer
 from jarvis.proactive.reminders import ReminderScheduler, ScheduledReminder
 
@@ -23,6 +24,8 @@ __all__ = [
     "PomodoroStatus",
     "DailyBriefingScheduler",
     "InactivityMonitor",
+    "NightShiftEngine",
+    "NightShiftReport",
     "ProactiveEngine",
     "ProactiveConfig",
 ]

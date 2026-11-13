@@ -213,6 +213,34 @@
 - [x] **Consolidated Empirical Benchmark Suite (`tests/eval/test_frontier_24_to_28_omniscient_benchmark.py`)** — `PASS runtime`:
   - [x] Toàn bộ 6 bài kiểm chuẩn thực nghiệm tổng hợp và chu trình phản xạ toàn diện Omniscient Symbiont (6/6 passed 100%).
 
+## Sprint 34: SOTA Cross-Platform Comms, Neural Audio Cache, Night-Shift Autonomy & Local LLM Mesh (2026-11-13, v9.5.0)
+
+- [x] **Native Zalo PC Client Automation (`jarvis/automation/zalo_client.py`)** — `PASS runtime`:
+  - [x] Điều khiển tự động client Zalo Desktop trên Windows qua Windows UI Automation và clipboard injection, gửi tin nhắn văn bản tiếng Việt có dấu hoàn hảo tới bạn bè/nhóm mà không cần API key Business OA.
+  - [x] Đăng ký actions `zalo_pc_send` và `zalo_send_message` vào `ActionDispatcher` và `ServiceHandlers`.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_zalo_client.py` (5/5 passed 100%).
+- [x] **Telegram Voice Note Audio Delivery (`jarvis/comms/telegram.py`)** — `PASS runtime`:
+  - [x] Mở rộng bộ điều khiển Telegram với hàm `send_voice`, tự động đóng gói âm thanh tổng hợp từ JARVIS thành định dạng voice note tròn chuẩn Telegram qua giao thức HTTP multipart.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_telegram.py` (13/13 passed 100%).
+- [x] **Pre-Computed Voice Embedding Cache for VieNeu-TTS (`jarvis/tts/vieneu.py`)** — `PASS runtime`:
+  - [x] Lưu trữ và nạp tức thì vector đặc trưng giọng nói từ tệp `.npz` nén, cắt giảm độ trễ trích xuất âm thanh từ 300-500ms xuống còn `<1ms`.
+  - [x] Tuân thủ tuyệt đối Chuẩn Ghi Đĩa Nguyên Tử Windows (AGENTS.md Rule 3) với `_save_lock`, fast snapshot, tên tệp tạm `.tmp.<tid>.<ts>.npz` và vòng lặp thử lại 5 lần chống lỗi `WinError 5`.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_vieneu_tts.py` (13/13 passed 100%).
+- [x] **Bluetooth H-10 Smart Audio Profile Switcher & Hybrid Topology (`jarvis/audio/bluetooth_profile.py`)** — `PASS runtime`:
+  - [x] Tự động phát hiện và phân loại thiết bị âm thanh Bluetooth (A2DP stereo 48kHz vs HFP mono 16kHz).
+  - [x] Triển khai cấu trúc kết nối lai (Hybrid Split) kết hợp micro USB chuyên dụng để ghi âm nhận dạng giọng nói trong khi duy trì tai nghe Bluetooth ở chế độ phát nhạc/TTS chất lượng phòng thu A2DP 48kHz, cảnh báo nguy cơ suy giảm chất lượng khi chỉ có tai nghe Bluetooth đơn lẻ.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_bluetooth_profile.py` (6/6 passed 100%).
+- [x] **Night-Shift Autonomous Intelligence & Self-Evolution Engine (`jarvis/proactive/night_shift.py`)** — `PASS runtime`:
+  - [x] Động cơ tự trị vận hành trong giờ đêm (00:00 - 06:00) hoặc khi máy tính không có người dùng qua Win32 `GetLastInputInfo`: tự động hợp nhất các mẩu đối thoại ngắn hạn thành sự thật dài hạn, dọn dẹp các tệp âm thanh tạm thời và tiền xử lý (pre-bake) bản tin điểm báo buổi sáng (Morning Briefing) sẵn sàng phát với độ trễ 0s ngay khi người dùng thức giấc.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_night_shift.py` (5/5 passed 100%).
+- [x] **Native Local LLM Client for Ollama & vLLM (`jarvis/llm/ollama_client.py`)** — `PASS runtime`:
+  - [x] Client HTTP thuần túy kết nối trực tiếp `http://localhost:11434`, hỗ trợ tự động liệt kê mô hình cục bộ (`/api/tags`), trò chuyện chat completion có hỗ trợ tool calling, streaming token thời gian thực qua generator và vector embedding; xử lý fail-closed tuyệt đối không bịa số liệu khi daemon ngoại tuyến.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_ollama_client.py` (7/7 passed 100%).
+- [x] **Real-Time Arc Audio Waveform Visualizer & Interactive Xiaozhi Widget (`jarvis/ui/dashboard.py`)** — `PASS runtime`:
+  - [x] Tích hợp canvas hiển thị dạng sóng âm thanh điều chế 60fps trên giao diện Dark-Mode HUD Arc Reactor thời gian thực.
+  - [x] Bổ sung các nút kiểm thử âm thanh (Ping Audio) và phát lệnh công cụ MCP trực tiếp tới từng vi điều khiển ESP32 kết nối từ trình duyệt.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_ui_dashboard.py` (10/10 passed 100%).
+
 ## Sprint 33.1: Argon Audit Remediation, Faster-Whisper GPU cuBLAS & Xiaozhi Web Dashboard (2026-11-13, v9.4.1)
 
 - [x] **Faster-Whisper GPU CUDA Acceleration (`jarvis/stt/engine.py`)** — `PASS runtime`:

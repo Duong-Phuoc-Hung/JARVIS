@@ -19,6 +19,14 @@ from jarvis.llm.client import (
     TokenUsage,
     ToolCall,
 )
+from jarvis.llm.ollama_client import (
+    OllamaChatResponse,
+    OllamaClient,
+    OllamaConnectionError,
+    OllamaError,
+    OllamaModelNotFoundError,
+    OllamaResponseError,
+)
 from jarvis.llm.local_classifier import (
     ClassificationResult,
     VietnameseNLPClassifier,
@@ -45,6 +53,12 @@ __all__ = [
     "LLMResponse",
     "LLMResponseParsingError",
     "LLMTimeoutError",
+    "OllamaChatResponse",
+    "OllamaClient",
+    "OllamaConnectionError",
+    "OllamaError",
+    "OllamaModelNotFoundError",
+    "OllamaResponseError",
     "TokenUsage",
     "ToolCall",
     "VietnameseNLPClassifier",

@@ -17,6 +17,13 @@ from jarvis.audio.engine import (
     AudioEngineMode,
     MicrophoneProbeManager,
 )
+from jarvis.audio.bluetooth_profile import (
+    AudioEndpoint,
+    AudioProfileMode,
+    AudioTopology,
+    BluetoothAudioManager,
+    DeviceType,
+)
 from jarvis.audio.adap_head import ADAPProjectionHead, ADAPPrediction, DEFAULT_REFLEX_ACTIONS
 from jarvis.audio.liquid_dynamics import (
     LiquidStateSpaceNetwork,
@@ -62,17 +69,22 @@ __all__ = [
     "ADAPProjectionHead",
     "AudioDeviceInfo",
     "AudioDSPProcessor",
+    "AudioEndpoint",
     "AudioEngine",
     "AudioEngineMode",
+    "AudioProfileMode",
+    "AudioTopology",
     "BioHardwareBridge",
     "BioHardwareBridgeTelemetry",
     "BioStimulatorHardwareBridge",
     "BioStimulatorTelemetry",
+    "BluetoothAudioManager",
     "CANONICAL_180_ACTIONS",
     "calculate_rms",
     "ClosedLoopSomaticReflexEngine",
     "ContinuousNeuromuscularLTC",
     "DEFAULT_REFLEX_ACTIONS",
+    "DeviceType",
     "DSPBlockResult",
     "FilterBankConfig",
     "LiquidStateSpaceNetwork",

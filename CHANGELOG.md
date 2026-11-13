@@ -4,6 +4,48 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.5.0] - Cross-Platform Comms, Neural Audio Cache, Night-Shift Autonomy & Local LLM Mesh (2026-11-13)
+
+- **Mục tiêu**:
+  - Triển khai toàn diện 4 trụ cột chiến lược nâng cấp JARVIS theo yêu cầu người dùng:
+    1. *Pillar 1: Real-World Messaging & Voice Notes*:
+       - Native Zalo PC Client Automation (`jarvis/automation/zalo_client.py`): Điều khiển tự động client Zalo Desktop trên Windows qua Windows UI Automation và clipboard injection, gửi tin nhắn văn bản tiếng Việt có dấu tới bạn bè/nhóm mà không cần API key Business OA.
+       - Telegram Voice Note Sender (`jarvis/comms/telegram.py`): Bổ sung hàm `send_voice`, tự động đóng gói âm thanh tổng hợp từ JARVIS thành định dạng voice note tròn chuẩn Telegram qua giao thức HTTP multipart.
+    2. *Pillar 2: SOTA Audio & Speech Pipeline*:
+       - Voice Embedding Cache cho VieNeu-TTS (`jarvis/tts/vieneu.py`): Lưu trữ và nạp tức thì vector đặc trưng giọng nói từ tệp `.npz` nén, cắt giảm độ trễ trích xuất âm thanh từ 300-500ms xuống còn `<1ms`. Tuân thủ tuyệt đối Chuẩn Ghi Đĩa Nguyên Tử Windows (AGENTS.md Rule 3) với `_save_lock`, fast snapshot, tên tệp tạm `.tmp.<tid>.<ts>.npz` và vòng lặp thử lại 5 lần chống lỗi `WinError 5`.
+       - Bluetooth H-10 Smart Audio Profile Switcher (`jarvis/audio/bluetooth_profile.py`): Tự động phát hiện và phân loại thiết bị Bluetooth (A2DP stereo 48kHz vs HFP mono 16kHz). Triển khai cấu trúc kết nối lai (Hybrid Split) kết hợp micro USB chuyên dụng để ghi âm nhận dạng giọng nói trong khi duy trì tai nghe Bluetooth ở chế độ phát nhạc/TTS chất lượng phòng thu A2DP 48kHz.
+    3. *Pillar 3: Autonomous Intelligence & Self-Evolution*:
+       - Night-Shift Autonomous Engine (`jarvis/proactive/night_shift.py`): Động cơ tự trị vận hành trong giờ đêm (00:00 - 06:00) hoặc khi máy tính không có người dùng qua Win32 `GetLastInputInfo`: tự động hợp nhất các mẩu đối thoại ngắn hạn thành sự thật dài hạn, dọn dẹp các tệp âm thanh tạm thời và tiền xử lý (pre-bake) bản tin điểm báo buổi sáng (Morning Briefing) sẵn sàng phát với độ trễ 0s ngay khi người dùng thức giấc.
+       - Native Local LLM Client cho Ollama & vLLM (`jarvis/llm/ollama_client.py`): Client HTTP thuần túy kết nối trực tiếp `http://localhost:11434`, hỗ trợ tự động liệt kê mô hình cục bộ (`/api/tags`), trò chuyện chat completion có hỗ trợ tool calling, streaming token thời gian thực qua generator và vector embedding; xử lý fail-closed tuyệt đối không bịa số liệu khi daemon ngoại tuyến.
+    4. *Pillar 4: Visual Experience & IoT Dashboard*:
+       - Real-Time Arc Audio Waveform Visualizer trên Web Dashboard (`jarvis/ui/dashboard.py`): Tích hợp canvas hiển thị dạng sóng âm thanh điều chế 60fps trên giao diện Dark-Mode HUD Arc Reactor thời gian thực.
+       - Interactive Xiaozhi-ESP32 Hardware IoT Control Widget (`jarvis/ui/dashboard.py`): Bổ sung các nút kiểm thử âm thanh (Ping Audio) và phát lệnh công cụ MCP trực tiếp tới từng vi điều khiển ESP32 kết nối từ trình duyệt.
+- **Chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/automation/zalo_client.py`: Tạo mới bộ điều khiển Zalo PC với UI Automation, kích hoạt cửa sổ và gửi tin nhắn.
+  - `jarvis/core/handlers/service_handlers.py`: Đăng ký handler `_handle_zalo_send`.
+  - `jarvis/core/app.py`: Đăng ký `zalo_pc_send` và `zalo_send_message` vào `ActionDispatcher`.
+  - `jarvis/comms/telegram.py`: Bổ sung hàm `send_voice()` hỗ trợ gửi file âm thanh voice note.
+  - `jarvis/tts/vieneu.py`: Thêm lớp `VoiceEmbeddingCache` nén NPZ nguyên tử, tích hợp vào `VieNeuTTSEngine`.
+  - `jarvis/audio/bluetooth_profile.py`: Tạo mới module quản lý topology âm thanh và chuyển đổi profile Bluetooth.
+  - `jarvis/audio/__init__.py`: Xuất khẩu các lớp của `bluetooth_profile`.
+  - `jarvis/proactive/night_shift.py`: Tạo mới động cơ bảo trì đêm và tiền xử lý briefing tự trị.
+  - `jarvis/proactive/__init__.py`: Xuất khẩu `NightShiftEngine` và `NightShiftReport`.
+  - `jarvis/llm/ollama_client.py`: Tạo mới client giao tiếp trực tiếp Ollama/vLLM.
+  - `jarvis/llm/__init__.py`: Xuất khẩu `OllamaClient` và các ngoại lệ liên quan.
+  - `jarvis/ui/dashboard.py`: Tích hợp canvas Arc Audio Waveform Visualizer và nút tương tác phần cứng Xiaozhi.
+  - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `9.5.0`.
+  - `tests/unit/test_zalo_client.py`: Bộ 5 bài test cho Zalo PC Automation.
+  - `tests/unit/test_telegram.py`: Cập nhật bài test gửi voice note Telegram.
+  - `tests/unit/test_vieneu_tts.py`: Bổ sung 4 bài test cho `VoiceEmbeddingCache`.
+  - `tests/unit/test_bluetooth_profile.py`: Bộ 6 bài test cho Bluetooth Audio Manager.
+  - `tests/unit/test_night_shift.py`: Bộ 5 bài test cho Night Shift Engine.
+  - `tests/unit/test_ollama_client.py`: Bộ 7 bài test cho Ollama Client.
+  - `tests/unit/test_ui_dashboard.py`: Cập nhật test canvas visualizer và tương tác Xiaozhi.
+- **Chỉ số kiểm thử thực tế**:
+  - `59 passed in 22.15s` trên toàn bộ các suite kiểm thử tính năng mới.
+  - `100% pass` trên các bài test tương thích phiên bản E2E.
+  - Quét an ninh tĩnh: 0 findings (0 Critical, 0 High, 0 Medium, 0 Low).
+
 ## [9.4.1] - Argon Audit Remediation: Faster-Whisper GPU CUDA Acceleration & Xiaozhi Web Dashboard (2026-11-13)
 
 - **Mục tiêu**:

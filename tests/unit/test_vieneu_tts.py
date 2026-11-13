@@ -8,6 +8,7 @@ and TTSManager routing integration.
 from __future__ import annotations
 
 import io
+import os
 import sys
 import types
 import wave
@@ -19,7 +20,7 @@ import pytest
 
 from jarvis.tts.base import TTSError
 from jarvis.tts.manager import TTSManager
-from jarvis.tts.vieneu import VieNeuConfig, VieNeuTTSEngine
+from jarvis.tts.vieneu import VieNeuConfig, VieNeuTTSEngine, VoiceEmbeddingCache
 
 
 def test_vieneu_config_defaults() -> None:
@@ -212,3 +213,96 @@ def test_tts_manager_vieneu_provider_wiring(tmp_path: Path) -> None:
         assert mgr.primary_engine.cfg.sample_rate == 48000
     finally:
         mgr.stop()
+
+
+def test_voice_embedding_cache_in_memory() -> None:
+    """Verify in-memory operations of VoiceEmbeddingCache."""
+    cache = VoiceEmbeddingCache()
+    assert len(cache) == 0
+    assert cache.keys() == []
+
+    emb1 = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    cache.set("voice_vi_01", emb1, persist=False)
+    assert len(cache) == 1
+    assert cache.has("voice_vi_01") is True
+    assert cache.has("voice_vi_02") is False
+
+    retrieved = cache.get("voice_vi_01")
+    assert retrieved is not None
+    np.testing.assert_array_almost_equal(retrieved, emb1)
+
+    # Delete
+    assert cache.delete("voice_vi_01", persist=False) is True
+    assert cache.delete("voice_vi_01", persist=False) is False
+    assert len(cache) == 0
+
+    # Clear
+    cache.set("a", np.array([1.0]), persist=False)
+    cache.set("b", np.array([2.0]), persist=False)
+    assert len(cache) == 2
+    cache.clear(persist=False)
+    assert len(cache) == 0
+
+
+def test_voice_embedding_cache_atomic_persistence(tmp_path: Path) -> None:
+    """Verify Windows atomic persistence of VoiceEmbeddingCache via .npz."""
+    npz_path = tmp_path / "voice_embeddings.npz"
+    cache = VoiceEmbeddingCache(persist_path=npz_path)
+
+    emb_friday = np.array([0.42, 0.88, -0.15], dtype=np.float32)
+    cache.set("friday", emb_friday)
+    assert npz_path.is_file()
+
+    # Create fresh instance pointing to same file
+    cache2 = VoiceEmbeddingCache(persist_path=npz_path)
+    assert len(cache2) == 1
+    assert cache2.has("friday") is True
+    retrieved = cache2.get("friday")
+    assert retrieved is not None
+    np.testing.assert_array_almost_equal(retrieved, emb_friday)
+
+
+def test_voice_embedding_cache_windows_retry_resilience(tmp_path: Path) -> None:
+    """Verify retry loop handles temporary file locking (WinError 5 / PermissionError)."""
+    npz_path = tmp_path / "test_retry.npz"
+    cache = VoiceEmbeddingCache(persist_path=npz_path)
+
+    attempts = 0
+    orig_replace = os.replace
+
+    def mock_replace(src: Any, dst: Any) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise PermissionError("WinError 5: Access is denied")
+        orig_replace(src, dst)
+
+    with patch("os.replace", side_effect=mock_replace):
+        cache.set("jarvis_warm", np.array([1.0, 2.0, 3.0], dtype=np.float32))
+
+    assert attempts == 3
+    assert npz_path.is_file()
+
+
+def test_vieneu_engine_uses_voice_embedding_cache() -> None:
+    """Verify synthesize_to_bytes leverages cached speaker embedding."""
+    cache = VoiceEmbeddingCache()
+    emb = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+    cache.set("cached_speaker", emb, persist=False)
+
+    engine = VieNeuTTSEngine(embedding_cache=cache)
+
+    mock_model_instance = MagicMock()
+    mock_model_instance.infer.return_value = np.zeros(2400, dtype=np.float32)
+    mock_vieneu_cls = MagicMock(return_value=mock_model_instance)
+    mock_module = types.ModuleType("vieneu")
+    mock_module.Vieneu = mock_vieneu_cls  # type: ignore[attr-defined]
+
+    with patch.dict(sys.modules, {"vieneu": mock_module}):
+        engine.synthesize_to_bytes("Xin chào Việt Nam", voice_id="cached_speaker")
+
+        assert mock_model_instance.infer.called
+        kwargs = mock_model_instance.infer.call_args[1]
+        assert "speaker_embedding" in kwargs
+        np.testing.assert_array_almost_equal(kwargs["speaker_embedding"], emb)
+

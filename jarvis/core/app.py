@@ -1149,6 +1149,16 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
             handler=self._handle_safety_gate_reject,
             description="Rejects a pending gated high-risk action",
         )
+        self.dispatcher.register_action(
+            name="zalo_pc_send",
+            handler=self._handle_zalo_send,
+            description="Sends message or attachment via native Zalo PC desktop client",
+        )
+        self.dispatcher.register_action(
+            name="zalo_send_message",
+            handler=self._handle_zalo_send,
+            description="Alias for zalo_pc_send (sends Zalo message to recipient)",
+        )
 
         # Proactive Intelligence actions
         self.dispatcher.register_action(
