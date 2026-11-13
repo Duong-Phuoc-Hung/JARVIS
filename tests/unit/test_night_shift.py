@@ -69,6 +69,33 @@ def test_night_shift_should_trigger_idle() -> None:
         assert engine.should_trigger_night_shift() is False
 
 
+def test_night_shift_battery_and_audio_guards() -> None:
+    """Verify NightShift defers execution when running on battery or during movie playback."""
+    # Running on battery
+    engine_battery = NightShiftEngine(
+        get_idle_seconds_fn=lambda: 3600.0,
+        is_on_battery_fn=lambda: True,
+    )
+    assert engine_battery.should_trigger_night_shift() is False
+
+    # Plugged in, but active video/audio playing
+    engine_audio = NightShiftEngine(
+        get_idle_seconds_fn=lambda: 3600.0,
+        is_on_battery_fn=lambda: False,
+        is_audio_playing_fn=lambda: True,
+    )
+    assert engine_audio.should_trigger_night_shift() is False
+
+    # Plugged in, zero audio playing -> triggers normally
+    engine_ok = NightShiftEngine(
+        get_idle_seconds_fn=lambda: 3600.0,
+        is_on_battery_fn=lambda: False,
+        is_audio_playing_fn=lambda: False,
+    )
+    assert engine_ok.should_trigger_night_shift() is True
+
+
+
 def test_night_shift_cooldown() -> None:
     """Verify cooldown prevents repeated execution within cooldown interval."""
     engine = NightShiftEngine(get_idle_seconds_fn=lambda: 2500.0)

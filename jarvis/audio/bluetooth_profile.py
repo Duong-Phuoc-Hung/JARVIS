@@ -271,3 +271,29 @@ class BluetoothAudioManager:
                 remedy = "Standard wired/internal audio pipeline active."
 
         return preferred_in, preferred_out, degradation_risk, remedy
+
+    @staticmethod
+    def generate_preroll_silence(
+        duration_ms: int = 150,
+        sample_rate: int = 48000,
+        channels: int = 1,
+    ) -> bytes:
+        """
+        Generates a small zero-amplitude PCM buffer (16-bit) to wake up sleeping
+        Bluetooth DAC hardware before speech playback begins, preventing initial phoneme clipping.
+        """
+        num_samples = int((max(10, duration_ms) / 1000.0) * sample_rate) * max(1, channels)
+        # 16-bit PCM is 2 bytes per sample
+        return b"\x00\x00" * num_samples
+
+    @classmethod
+    def wrap_audio_with_preroll(
+        cls,
+        pcm_bytes: bytes,
+        duration_ms: int = 150,
+        sample_rate: int = 48000,
+        channels: int = 1,
+    ) -> bytes:
+        """Prepends Bluetooth DAC wake-up silence buffer to primary audio bytes."""
+        preroll = cls.generate_preroll_silence(duration_ms=duration_ms, sample_rate=sample_rate, channels=channels)
+        return preroll + pcm_bytes

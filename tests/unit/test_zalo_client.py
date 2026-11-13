@@ -6,6 +6,7 @@ Unit tests for Zalo PC Client Native Automation.
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from jarvis.automation.zalo_client import ZaloPCAutomation, _find_zalo_executable
@@ -87,3 +88,33 @@ def test_launch_or_activate_when_already_running():
         ok = client.launch_or_activate()
         assert ok is True
         mock_uia._user32.SetForegroundWindow.assert_called_once_with(12345)
+
+
+def test_send_message_clipboard_and_focus_restoration():
+    """Verify clipboard and foreground window are restored after message dispatch."""
+    mock_ctrl = MagicMock()
+    mock_uia = MagicMock()
+    mock_uia.ensure_desktop.return_value = True
+    mock_user32 = MagicMock()
+    mock_user32.GetForegroundWindow.return_value = 99999  # Previous app window
+    mock_uia._user32 = mock_user32
+
+    # User previously had "My Secret Password" in clipboard
+    mock_ctrl.get_clipboard_text.return_value = "My Secret Password"
+
+    client = ZaloPCAutomation(controller=mock_ctrl, uia=mock_uia)
+
+    with patch.object(client, "launch_or_activate", return_value=True):
+        res = client.send_message(
+            recipient="Hưng",
+            message="Xin chào",
+            restore_focus=True,
+        )
+        assert res["success"] is True
+
+        # Verify old clipboard was restored at the end
+        mock_ctrl.set_clipboard_text.assert_called_with("My Secret Password")
+
+        # Verify previous window focus was restored
+        mock_user32.SetForegroundWindow.assert_called_with(99999)
+

@@ -4,6 +4,44 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.5.1] - Real-World OS Chaos Hardening & Fault Resilience (2026-11-13)
+
+- **Mục tiêu**:
+  - Triển khai toàn diện kế hoạch phản biện thực nghiệm (Chaos Hardening) giải quyết các lỗi và rủi ro cạnh tranh tài nguyên trên Windows desktop:
+    1. *Phục hồi Clipboard và Tiêu điểm Zalo PC*:
+       - Lưu trữ và phục hồi nguyên vẹn dữ liệu clipboard của người dùng trong khối `finally:` sau khi gửi tin nhắn Zalo, chống mất dữ liệu khi người dùng đang copy dở.
+       - Lưu trữ HWND cửa sổ đang active và tự động trả lại tiêu điểm (`SetForegroundWindow`) sau khi gửi tin, không cướp gián đoạn phiên làm việc.
+    2. *Metadata Duration & Chuẩn Container Telegram Voice Note*:
+       - Tự động bóc tách sample rate và frame count từ header WAV để tính toán chính xác metadata `duration` cho Telegram Bot API.
+       - Định dạng multipart `filename="voice.ogg"` và MIME `audio/ogg` hiển thị chuẩn giao diện bong bóng tròn.
+    3. *Xác thực Model Fingerprint & Giới hạn LRU Cache VieNeu-TTS*:
+       - Đóng dấu SHA-256 fingerprint kiến trúc mô hình vào tệp `.npz`, tự động vô hiệu hóa cache khi cập nhật trọng số mô hình chống méo tiếng.
+       - Giới hạn dung lượng bộ nhớ RAM (`max_cached_voices=128`) với cơ chế LRU eviction.
+    4. *Chống nuốt âm đầu tai nghe Bluetooth*:
+       - Bổ sung bộ đệm âm thanh tĩnh 150ms (`generate_preroll_silence`), kích hoạt mạch giải mã DAC của tai nghe Bluetooth thức giấc trước khi phát giọng nói TTS.
+    5. *Bảo vệ Pin Laptop & Nhận diện phiên âm thanh Night-Shift*:
+       - Tích hợp Win32 `GetSystemPowerStatus` hoãn tác vụ khi máy chạy pin tránh cạn pin ban đêm.
+       - Tích hợp cảm biến phiên âm thanh hoãn tác vụ khi người dùng đang xem phim/nghe nhạc tránh bắt nhầm trạng thái vắng mặt.
+    6. *Khử trễ nạp nguội Ollama*:
+       - Bổ sung phương thức `warm_up()` và cờ `"keep_alive": -1` giữ mô hình thường trực trong VRAM, loại bỏ 5-15s trễ nạp nguội.
+       - Hỗ trợ tham số `num_ctx` linh hoạt chống cắt xén ngữ cảnh.
+- **Chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/automation/zalo_client.py`: Thêm sao lưu/phục hồi clipboard, lưu/trả lại foreground window HWND.
+  - `jarvis/comms/telegram.py`: Thêm tính toán tự động `duration` từ container WAV.
+  - `jarvis/tts/vieneu.py`: Thêm `model_fingerprint` validation và LRU eviction trong `VoiceEmbeddingCache`.
+  - `jarvis/audio/bluetooth_profile.py`: Thêm `generate_preroll_silence` và `wrap_audio_with_preroll`.
+  - `jarvis/proactive/night_shift.py`: Thêm cấu trúc `SYSTEM_POWER_STATUS`, `is_on_battery`, `is_audio_playing`.
+  - `jarvis/llm/ollama_client.py`: Thêm `warm_up()`, cấu hình `keep_alive` và `num_ctx`.
+  - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `9.5.1`.
+  - `tests/unit/test_zalo_client.py`: Thêm test phục hồi clipboard và focus.
+  - `tests/unit/test_vieneu_tts.py`: Thêm test fingerprint mismatch invalidation và LRU eviction.
+  - `tests/unit/test_bluetooth_profile.py`: Thêm test preroll silence.
+  - `tests/unit/test_night_shift.py`: Thêm test battery guard và audio session guard.
+  - `tests/unit/test_ollama_client.py`: Thêm test warm_up và keep_alive.
+- **Chỉ số kiểm thử thực tế**:
+  - `66 passed in 18.25s` trên toàn bộ suite kiểm thử tính năng gia cố.
+  - Quét an ninh tĩnh: 0 findings (0 Critical, 0 High, 0 Medium, 0 Low) trên 107,047 dòng code.
+
 ## [9.5.0] - Cross-Platform Comms, Neural Audio Cache, Night-Shift Autonomy & Local LLM Mesh (2026-11-13)
 
 - **Mục tiêu**:

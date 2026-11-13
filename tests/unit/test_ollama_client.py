@@ -150,3 +150,47 @@ def test_embeddings() -> None:
     client = OllamaClient(session=mock_session)
     vec = client.embeddings(prompt="Vector test", model="nomic-embed-text")
     assert vec == [0.12, -0.45, 0.78, 0.01]
+
+
+def test_warm_up() -> None:
+    """Verify warm_up pre-loads model with keep_alive."""
+    mock_session = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_session.post.return_value = mock_resp
+
+    client = OllamaClient(session=mock_session)
+    ok = client.warm_up(model="qwen2.5:7b", keep_alive=-1)
+    assert ok is True
+
+    mock_session.post.assert_called_once()
+    payload = mock_session.post.call_args[1]["json"]
+    assert payload["model"] == "qwen2.5:7b"
+    assert payload["prompt"] == ""
+    assert payload["keep_alive"] == -1
+
+
+def test_chat_keep_alive_and_num_ctx() -> None:
+    """Verify chat completion options propagate keep_alive and num_ctx."""
+    mock_session = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "model": "qwen2.5:7b",
+        "message": {"role": "assistant", "content": "Sẵn sàng."},
+        "done": True,
+    }
+    mock_session.post.return_value = mock_resp
+
+    client = OllamaClient(session=mock_session)
+    resp = client.chat(
+        messages=[{"role": "user", "content": "hi"}],
+        model="qwen2.5:7b",
+        num_ctx=4096,
+        keep_alive="24h",
+    )
+    assert resp.content == "Sẵn sàng."
+    payload = mock_session.post.call_args[1]["json"]
+    assert payload["keep_alive"] == "24h"
+    assert payload["options"]["num_ctx"] == 4096
+

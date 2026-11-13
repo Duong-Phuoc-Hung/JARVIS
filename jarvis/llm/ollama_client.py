@@ -129,6 +129,28 @@ class OllamaClient:
         except OllamaConnectionError:
             return False
 
+    def warm_up(self, model: str | None = None, keep_alive: str | int = -1) -> bool:
+        """
+        Pre-loads model weights into GPU VRAM with persistent keep_alive
+        to eliminate the 5-15s cold-start penalty on first user interaction.
+        """
+        target_model = model or self.default_model
+        try:
+            sess = self._get_session()
+            resp = sess.post(
+                f"{self.base_url}/api/generate",
+                json={
+                    "model": target_model,
+                    "prompt": "",
+                    "keep_alive": keep_alive,
+                },
+                timeout=120.0,
+            )
+            return resp.status_code == 200
+        except Exception as exc:
+            logger.debug("Ollama warm_up failed: %s", exc)
+            return False
+
     def chat(
         self,
         messages: list[dict[str, Any]],
@@ -136,6 +158,8 @@ class OllamaClient:
         tools: list[dict[str, Any]] | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        num_ctx: int | None = None,
+        keep_alive: str | int = -1,
         format: str | None = None,
     ) -> OllamaChatResponse:
         """
@@ -143,16 +167,19 @@ class OllamaClient:
         Fail-closed: Raises descriptive OllamaError on connection or execution failure.
         """
         target_model = model or self.default_model
+        options: dict[str, Any] = {"temperature": temperature}
+        if max_tokens is not None:
+            options["num_predict"] = max_tokens
+        if num_ctx is not None:
+            options["num_ctx"] = num_ctx
+
         payload: dict[str, Any] = {
             "model": target_model,
             "messages": messages,
             "stream": False,
-            "options": {
-                "temperature": temperature,
-            },
+            "keep_alive": keep_alive,
+            "options": options,
         }
-        if max_tokens is not None:
-            payload["options"]["num_predict"] = max_tokens
         if tools:
             payload["tools"] = tools
         if format:
@@ -200,22 +227,27 @@ class OllamaClient:
         model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        num_ctx: int | None = None,
+        keep_alive: str | int = -1,
     ) -> Generator[str, None, None]:
         """
         Streams generated text tokens from `/api/generate`.
         Yields token strings as they arrive.
         """
         target_model = model or self.default_model
+        options: dict[str, Any] = {"temperature": temperature}
+        if max_tokens is not None:
+            options["num_predict"] = max_tokens
+        if num_ctx is not None:
+            options["num_ctx"] = num_ctx
+
         payload: dict[str, Any] = {
             "model": target_model,
             "prompt": prompt,
             "stream": True,
-            "options": {
-                "temperature": temperature,
-            },
+            "keep_alive": keep_alive,
+            "options": options,
         }
-        if max_tokens is not None:
-            payload["options"]["num_predict"] = max_tokens
 
         try:
             sess = self._get_session()

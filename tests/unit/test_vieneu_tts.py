@@ -306,3 +306,31 @@ def test_vieneu_engine_uses_voice_embedding_cache() -> None:
         assert "speaker_embedding" in kwargs
         np.testing.assert_array_almost_equal(kwargs["speaker_embedding"], emb)
 
+
+def test_voice_embedding_cache_fingerprint_mismatch_invalidation(tmp_path: Path) -> None:
+    """Verify cache is invalidated if loaded under different model architecture."""
+    npz_path = tmp_path / "fingerprint_test.npz"
+    cache1 = VoiceEmbeddingCache(persist_path=npz_path, model_fingerprint="v1_0.3B_48k")
+    cache1.set("speaker_a", np.array([1.0, 2.0], dtype=np.float32))
+    assert npz_path.is_file()
+
+    # Load with mismatched fingerprint (e.g. model upgraded to v2_0.5B_48k)
+    cache2 = VoiceEmbeddingCache(persist_path=npz_path, model_fingerprint="v2_0.5B_48k")
+    assert len(cache2) == 0  # Invalidation protects against corrupted audio
+
+
+def test_voice_embedding_cache_lru_eviction() -> None:
+    """Verify LRU capacity bounds in-memory RAM usage."""
+    cache = VoiceEmbeddingCache(max_cached_voices=2)
+    cache.set("voice_1", np.array([1.0]), persist=False)
+    cache.set("voice_2", np.array([2.0]), persist=False)
+    assert len(cache) == 2
+
+    # Adding 3rd voice should evict oldest ("voice_1")
+    cache.set("voice_3", np.array([3.0]), persist=False)
+    assert len(cache) == 2
+    assert cache.has("voice_1") is False
+    assert cache.has("voice_2") is True
+    assert cache.has("voice_3") is True
+
+

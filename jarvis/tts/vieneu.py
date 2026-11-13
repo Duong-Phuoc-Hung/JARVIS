@@ -42,10 +42,19 @@ class VoiceEmbeddingCache:
       - Unique temporary file replace (.tmp.<tid>.<timestamp_ns>.npz).
       - Windows retry loop (5 attempts with backoff) for WinError 5 / PermissionError.
       - Guaranteed tempfile cleanup in finally block.
+      - Model fingerprint validation preventing corrupted latent audio playback.
+      - LRU memory bounding guarding against unbounded RAM growth.
     """
 
-    def __init__(self, persist_path: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        persist_path: str | Path | None = None,
+        model_fingerprint: str = "",
+        max_cached_voices: int = 128,
+    ) -> None:
         self.persist_path = Path(persist_path) if persist_path else None
+        self.model_fingerprint = str(model_fingerprint)
+        self.max_cached_voices = max(1, int(max_cached_voices))
         self._cache: dict[str, np.ndarray] = {}
         self._lock = threading.Lock()
         self._save_lock = threading.Lock()
@@ -59,9 +68,12 @@ class VoiceEmbeddingCache:
             return val.copy() if val is not None else None
 
     def set(self, voice_id: str, embedding: np.ndarray, persist: bool = True) -> None:
-        """Store a voice embedding vector and optionally persist to disk."""
+        """Store a voice embedding vector with LRU eviction and optional disk persistence."""
         arr = np.asarray(embedding, dtype=np.float32)
         with self._lock:
+            if len(self._cache) >= self.max_cached_voices and voice_id not in self._cache:
+                oldest = next(iter(self._cache))
+                del self._cache[oldest]
             self._cache[voice_id] = arr
         if persist and self.persist_path:
             self.save()
@@ -100,13 +112,25 @@ class VoiceEmbeddingCache:
             return len(self._cache)
 
     def load(self) -> bool:
-        """Load compressed embeddings from disk into memory cache."""
+        """Load compressed embeddings from disk into memory cache with model fingerprint validation."""
         if not self.persist_path or not self.persist_path.is_file():
             return False
         with self._save_lock:
             try:
                 with np.load(str(self.persist_path), allow_pickle=False) as npz:
-                    loaded = {k: npz[k] for k in npz.files}
+                    stored_fp = ""
+                    if "__model_fingerprint__" in npz.files:
+                        fp_arr = npz["__model_fingerprint__"]
+                        stored_fp = str(fp_arr[0]) if len(fp_arr) > 0 else ""
+
+                    if self.model_fingerprint and stored_fp and stored_fp != self.model_fingerprint:
+                        log.warning(
+                            "Model fingerprint mismatch in %s (expected %s, found %s). Invalidating stale cache.",
+                            self.persist_path, self.model_fingerprint, stored_fp,
+                        )
+                        return False
+
+                    loaded = {k: npz[k] for k in npz.files if k != "__model_fingerprint__"}
                 with self._lock:
                     self._cache.update(loaded)
                 log.info("Loaded %d voice embeddings from %s", len(loaded), self.persist_path)
@@ -125,6 +149,8 @@ class VoiceEmbeddingCache:
         with self._save_lock:
             with self._lock:
                 snapshot = {k: v.copy() for k, v in self._cache.items()}
+            if self.model_fingerprint:
+                snapshot["__model_fingerprint__"] = np.array([self.model_fingerprint])
 
             target_path = self.persist_path
             target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -215,12 +241,13 @@ class VieNeuTTSEngine(BaseTTSEngine):
         self._tts_instance: Any | None = None
         self._lock = threading.Lock()
 
+        fp = f"{self.cfg.model_name}:{self.cfg.codec_repo}:{self.cfg.sample_rate}"
         if embedding_cache is not None:
             self.embedding_cache = embedding_cache
         elif self.cfg.embedding_cache_path:
-            self.embedding_cache = VoiceEmbeddingCache(self.cfg.embedding_cache_path)
+            self.embedding_cache = VoiceEmbeddingCache(self.cfg.embedding_cache_path, model_fingerprint=fp)
         else:
-            self.embedding_cache = VoiceEmbeddingCache()
+            self.embedding_cache = VoiceEmbeddingCache(model_fingerprint=fp)
 
     def is_available(self) -> bool:
         """

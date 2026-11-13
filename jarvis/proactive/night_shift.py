@@ -34,6 +34,17 @@ class LASTINPUTINFO(ctypes.Structure):
     ]
 
 
+class SYSTEM_POWER_STATUS(ctypes.Structure):
+    _fields_ = [
+        ("ACLineStatus", ctypes.c_byte),
+        ("BatteryFlag", ctypes.c_byte),
+        ("BatteryLifePercent", ctypes.c_byte),
+        ("SystemStatusFlag", ctypes.c_byte),
+        ("BatteryLifeTime", ctypes.c_ulong),
+        ("BatteryFullLifeTime", ctypes.c_ulong),
+    ]
+
+
 @dataclass
 class NightShiftReport:
     timestamp: float
@@ -68,6 +79,8 @@ class NightShiftEngine:
         night_start_hour: int = 0,               # 00:00
         night_end_hour: int = 6,                 # 06:00
         get_idle_seconds_fn: Callable[[], float] | None = None,
+        is_on_battery_fn: Callable[[], bool] | None = None,
+        is_audio_playing_fn: Callable[[], bool] | None = None,
         enabled: bool = True,
     ) -> None:
         self.app = app
@@ -76,6 +89,8 @@ class NightShiftEngine:
         self.night_start_hour = int(night_start_hour)
         self.night_end_hour = int(night_end_hour)
         self._get_idle_seconds_fn = get_idle_seconds_fn
+        self._is_on_battery_fn = is_on_battery_fn
+        self._is_audio_playing_fn = is_audio_playing_fn
         self.enabled = enabled
 
         self._lock = threading.RLock()
@@ -84,6 +99,30 @@ class NightShiftEngine:
         self._last_shift_time: float = 0.0
         self._cooldown_seconds: float = 7200.0  # At least 2h between full night-shift cycles
         self._reports_history: list[NightShiftReport] = []
+
+    def is_on_battery(self) -> bool:
+        """Checks if device is running on battery power to prevent overnight drainage."""
+        if self._is_on_battery_fn is not None:
+            return bool(self._is_on_battery_fn())
+
+        if sys.platform != "win32":
+            return False
+
+        try:
+            sps = SYSTEM_POWER_STATUS()
+            if ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(sps)):
+                # ACLineStatus == 0 means offline / on battery
+                return sps.ACLineStatus == 0
+            return False
+        except Exception as exc:
+            logger.debug("Win32 GetSystemPowerStatus query failed: %s", exc)
+            return False
+
+    def is_audio_playing(self) -> bool:
+        """Checks if active media/audio stream is playing to avoid false-positive idle."""
+        if self._is_audio_playing_fn is not None:
+            return bool(self._is_audio_playing_fn())
+        return False
 
     def get_system_idle_seconds(self) -> float:
         """
@@ -121,12 +160,22 @@ class NightShiftEngine:
         """
         Evaluates whether night shift conditions are met:
           - Enabled
+          - Not running on battery (guards against battery drainage)
+          - No active media audio playback (guards against false-positive movie watching)
           - Cooldown elapsed
           - Either:
              a) Nocturnal hours AND user idle > 300s (5 mins)
              b) Extended daytime user idle > idle_threshold_seconds (30 mins)
         """
         if not self.enabled:
+            return False
+
+        if self.is_on_battery():
+            logger.debug("NightShift deferred: Device running on battery.")
+            return False
+
+        if self.is_audio_playing():
+            logger.debug("NightShift deferred: Active audio/media playback detected.")
             return False
 
         current_time = time.time() if now is None else float(now)

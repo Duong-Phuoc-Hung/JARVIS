@@ -213,6 +213,31 @@
 - [x] **Consolidated Empirical Benchmark Suite (`tests/eval/test_frontier_24_to_28_omniscient_benchmark.py`)** — `PASS runtime`:
   - [x] Toàn bộ 6 bài kiểm chuẩn thực nghiệm tổng hợp và chu trình phản xạ toàn diện Omniscient Symbiont (6/6 passed 100%).
 
+## Sprint 34.1: Real-World OS Chaos Hardening & Fault Resilience (2026-11-13, v9.5.1)
+
+- [x] **Zalo PC Clipboard & Window Focus Protection (`jarvis/automation/zalo_client.py`)** — `PASS runtime`:
+  - [x] Tự động sao lưu và phục hồi dữ liệu clipboard gốc của người dùng trong khối `finally:`.
+  - [x] Lưu trữ HWND cửa sổ đang active và tự động trả lại tiêu điểm (`SetForegroundWindow`) sau khi gửi tin nhắn, loại bỏ hiện tượng cướp tiêu điểm.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_zalo_client.py` (6/6 passed 100%).
+- [x] **Telegram Voice Note Header & Duration Auto-Calculation (`jarvis/comms/telegram.py`)** — `PASS runtime`:
+  - [x] Tự động bóc tách số khung và sample rate từ header WAV để tính toán chính xác metadata `duration` cho Telegram Bot API.
+  - [x] Định dạng multipart `filename="voice.ogg"` và MIME `audio/ogg` hiển thị chuẩn giao diện bong bóng tròn.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_telegram.py` (13/13 passed 100%).
+- [x] **VieNeu-TTS Model Fingerprint Invalidation & LRU Memory Bounding (`jarvis/tts/vieneu.py`)** — `PASS runtime`:
+  - [x] Đóng dấu SHA-256 fingerprint kiến trúc mô hình vào cache `.npz`, tự động vô hiệu hóa cache cũ khi cập nhật trọng số mô hình chống méo tiếng.
+  - [x] Áp dụng cơ chế LRU eviction (`max_cached_voices=128`) ngăn ngừa tràn RAM.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_vieneu_tts.py` (15/15 passed 100%).
+- [x] **Bluetooth DAC Pre-Roll Silence Warm-Up (`jarvis/audio/bluetooth_profile.py`)** — `PASS runtime`:
+  - [x] Triển khai bộ đệm âm thanh tĩnh 150ms (`generate_preroll_silence`), kích hoạt mạch giải mã DAC của tai nghe Bluetooth thức giấc trước khi phát giọng nói TTS, loại bỏ hiện tượng nuốt từ đầu câu.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_bluetooth_profile.py` (7/7 passed 100%).
+- [x] **Night-Shift Battery & Media Audio Sensing Guards (`jarvis/proactive/night_shift.py`)** — `PASS runtime`:
+  - [x] Tích hợp Win32 `GetSystemPowerStatus` hoãn tác vụ khi máy chạy pin tránh hao pin ban đêm.
+  - [x] Tích hợp cảm biến phiên âm thanh hoãn tác vụ khi người dùng đang xem phim/nghe nhạc tránh bắt nhầm trạng thái nghỉ.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_night_shift.py` (6/6 passed 100%).
+- [x] **Ollama Warm-Up & Keep-Alive Mesh (`jarvis/llm/ollama_client.py`)** — `PASS runtime`:
+  - [x] Bổ sung phương thức `warm_up()` và cờ `"keep_alive": -1` giữ mô hình thường trực trong VRAM, triệt tiêu hoàn toàn 5-15s độ trễ nạp nguội (cold-start penalty); bổ sung `num_ctx` linh hoạt chống cắt ngắn ngữ cảnh.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_ollama_client.py` (9/9 passed 100%).
+
 ## Sprint 34: SOTA Cross-Platform Comms, Neural Audio Cache, Night-Shift Autonomy & Local LLM Mesh (2026-11-13, v9.5.0)
 
 - [x] **Native Zalo PC Client Automation (`jarvis/automation/zalo_client.py`)** — `PASS runtime`:

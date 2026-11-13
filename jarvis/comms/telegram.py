@@ -421,9 +421,27 @@ class TelegramBotController:
         try:
             url = f"https://api.telegram.org/bot{self.bot_token}/sendVoice"
             data: dict[str, Any] = {"chat_id": chat_id, "caption": caption}
-            if duration is not None:
-                data["duration"] = duration
-            files = {"voice": ("voice.ogg", voice_bytes, "audio/ogg")}
+
+            # Auto-calculate duration from WAV container if not specified
+            calc_duration = duration
+            if calc_duration is None:
+                if voice_bytes.startswith(b"RIFF") and len(voice_bytes) > 44:
+                    try:
+                        import io
+                        import wave
+                        with wave.open(io.BytesIO(voice_bytes), "rb") as wf:
+                            frames = wf.getnframes()
+                            rate = wf.getframerate()
+                            if rate > 0:
+                                calc_duration = max(1, int(frames / rate))
+                    except Exception:
+                        pass
+
+            if calc_duration is not None:
+                data["duration"] = int(calc_duration)
+
+            filename = "voice.ogg" if voice_bytes.startswith(b"OggS") else "voice.ogg"
+            files = {"voice": (filename, voice_bytes, "audio/ogg")}
             resp = self._session.post(url, data=data, files=files, timeout=self.timeout_s)
             if resp.status_code == 200:
                 try:

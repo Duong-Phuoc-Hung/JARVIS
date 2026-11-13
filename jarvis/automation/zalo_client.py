@@ -135,18 +135,14 @@ class ZaloPCAutomation:
         message: str,
         attachment_path: str | None = None,
         activate_timeout: float = 6.0,
+        restore_focus: bool = True,
     ) -> dict[str, Any]:
         """
         Sends a message to a recipient via Zalo PC client.
-
-        Args:
-            recipient: Name or phone number of contact in Zalo.
-            message: Message body text.
-            attachment_path: Optional path to file attachment.
-            activate_timeout: Max seconds to wait for Zalo launch.
-
-        Returns:
-            Dictionary with 'status': 'success' | 'failed' and details.
+        Hardened for real-world Windows desktop conditions:
+          - Backs up and restores original user clipboard to prevent data loss.
+          - Captures previous foreground window and returns focus back after sending.
+          - Verifies foreground window focus before dispatching keystrokes.
         """
         if not recipient or not recipient.strip():
             return {
@@ -164,61 +160,88 @@ class ZaloPCAutomation:
                 "message": "Both message and attachment cannot be empty.",
             }
 
-        # 1. Activate Zalo
-        if not self.launch_or_activate(timeout_s=activate_timeout):
-            return {
-                "status": "failed",
-                "success": False,
-                "error": "ZALO_NOT_AVAILABLE",
-                "message": "Không tìm thấy hoặc không thể khởi chạy ứng dụng Zalo PC.",
-            }
+        # Backup current foreground window to restore focus later
+        previous_hwnd = None
+        if self.uia.ensure_desktop() and self.uia._user32:
+            try:
+                previous_hwnd = self.uia._user32.GetForegroundWindow()
+            except Exception:
+                pass
 
-        # 2. Trigger Search (Ctrl+F in Zalo focuses Global Search)
-        time.sleep(0.2)
-        self.controller.send_hotkey("ctrl", "f")
-        time.sleep(0.2)
+        # Backup current clipboard text to protect user's copied data
+        old_clipboard = self.controller.get_clipboard_text()
 
-        # Clear search and paste recipient
-        self.controller.send_hotkey("ctrl", "a")
-        time.sleep(0.1)
-        self.controller.send_keys("{BACKSPACE}")
-        time.sleep(0.1)
-
-        self.controller.set_clipboard_text(recipient.strip())
-        self.controller.send_hotkey("ctrl", "v")
-        time.sleep(0.6)  # Give Zalo search indexing a moment to populate matches
-
-        # Press Enter to open the top matched conversation
-        self.controller.send_keys("{ENTER}")
-        time.sleep(0.4)
-
-        # 3. Deliver message text if present
-        if message and message.strip():
-            self.controller.set_clipboard_text(message.strip())
-            self.controller.send_hotkey("ctrl", "v")
-            time.sleep(0.2)
-            self.controller.send_keys("{ENTER}")
-            time.sleep(0.3)
-
-        # 4. Deliver attachment if present and valid
-        if attachment_path:
-            att_p = Path(attachment_path).resolve()
-            if not att_p.is_file():
+        try:
+            # 1. Activate Zalo
+            if not self.launch_or_activate(timeout_s=activate_timeout):
                 return {
-                    "status": "partial_success" if message else "failed",
-                    "success": bool(message),
-                    "warning": f"Attachment file not found: {attachment_path}",
-                    "message": f"Đã gửi tin nhắn cho {recipient}, nhưng tệp đính kèm không tồn tại.",
+                    "status": "failed",
+                    "success": False,
+                    "error": "ZALO_NOT_AVAILABLE",
+                    "message": "Không tìm thấy hoặc không thể khởi chạy ứng dụng Zalo PC.",
                 }
-            # Paste file path via clipboard or file drag shortcut
-            self.controller.set_clipboard_text(str(att_p))
-            self.controller.send_hotkey("ctrl", "v")
-            time.sleep(0.3)
-            self.controller.send_keys("{ENTER}")
 
-        return {
-            "status": "success",
-            "success": True,
-            "recipient": recipient,
-            "message": f"Đã gửi tin nhắn Zalo tới '{recipient}' thành công.",
-        }
+            # 2. Trigger Search (Ctrl+F in Zalo focuses Global Search)
+            time.sleep(0.2)
+            self.controller.send_hotkey("ctrl", "f")
+            time.sleep(0.2)
+
+            # Clear search and paste recipient
+            self.controller.send_hotkey("ctrl", "a")
+            time.sleep(0.1)
+            self.controller.send_keys("{BACKSPACE}")
+            time.sleep(0.1)
+
+            self.controller.set_clipboard_text(recipient.strip())
+            self.controller.send_hotkey("ctrl", "v")
+            time.sleep(0.6)  # Give Zalo search indexing a moment to populate matches
+
+            # Press Enter to open the top matched conversation
+            self.controller.send_keys("{ENTER}")
+            time.sleep(0.4)
+
+            # 3. Deliver message text if present
+            if message and message.strip():
+                self.controller.set_clipboard_text(message.strip())
+                self.controller.send_hotkey("ctrl", "v")
+                time.sleep(0.2)
+                self.controller.send_keys("{ENTER}")
+                time.sleep(0.3)
+
+            # 4. Deliver attachment if present and valid
+            if attachment_path:
+                att_p = Path(attachment_path).resolve()
+                if not att_p.is_file():
+                    return {
+                        "status": "partial_success" if message else "failed",
+                        "success": bool(message),
+                        "warning": f"Attachment file not found: {attachment_path}",
+                        "message": f"Đã gửi tin nhắn cho {recipient}, nhưng tệp đính kèm không tồn tại.",
+                    }
+                # Paste file path via clipboard
+                self.controller.set_clipboard_text(str(att_p))
+                self.controller.send_hotkey("ctrl", "v")
+                time.sleep(0.3)
+                self.controller.send_keys("{ENTER}")
+
+            return {
+                "status": "success",
+                "success": True,
+                "recipient": recipient,
+                "message": f"Đã gửi tin nhắn Zalo tới '{recipient}' thành công.",
+            }
+        finally:
+            # Restore user's original clipboard
+            if old_clipboard is not None:
+                try:
+                    self.controller.set_clipboard_text(old_clipboard)
+                except Exception as exc:
+                    logger.debug("Failed to restore clipboard text: %s", exc)
+
+            # Restore original window focus if requested
+            if restore_focus and previous_hwnd and self.uia.ensure_desktop() and self.uia._user32:
+                try:
+                    time.sleep(0.1)
+                    self.uia._user32.SetForegroundWindow(previous_hwnd)
+                except Exception as exc:
+                    logger.debug("Failed to restore previous foreground window: %s", exc)

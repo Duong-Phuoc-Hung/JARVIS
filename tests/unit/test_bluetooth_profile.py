@@ -190,3 +190,18 @@ def test_to_dict_serialization() -> None:
     assert d["output_count"] == 0
     assert d["recommended_input"]["name"] == "Test Mic"
     assert d["degradation_risk"] is False
+
+
+def test_generate_preroll_silence_and_wrap():
+    """Verify DAC warm-up silence buffer generation and audio wrapping."""
+    mgr = BluetoothAudioManager()
+    silence = mgr.generate_preroll_silence(duration_ms=100, sample_rate=48000, channels=1)
+    # 100ms at 48000Hz = 4800 samples = 9600 bytes
+    assert len(silence) == 9600
+    assert silence == b"\x00" * 9600
+
+    speech = b"\x01\x02\x03\x04"
+    wrapped = mgr.wrap_audio_with_preroll(speech, duration_ms=100, sample_rate=48000, channels=1)
+    assert len(wrapped) == 9604
+    assert wrapped.endswith(speech)
+
