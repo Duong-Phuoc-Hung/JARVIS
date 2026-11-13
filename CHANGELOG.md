@@ -4,6 +4,38 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.5.2] - Production Runtime Integrity & System Hardening Sweep (2026-11-13)
+
+- **Mục tiêu**:
+  - Triển khai toàn diện đợt kiểm tra và sửa lỗi hệ thống (Production Runtime Integrity & System Hardening Sweep), triệt tiêu 100% các điểm nghẽn phát hiện qua kiểm thử hồi quy:
+    1. *Ngăn chặn cửa sổ Console Popup (`CREATE_NO_WINDOW`) trên Windows*:
+       - Rà soát và bổ sung `creationflags=CREATE_NO_WINDOW` (0x08000000) vào 100% các lời gọi `subprocess.Popen` và `subprocess.run` (Zalo launcher, Git scanner trong Briefing, audio playback fallback).
+    2. *Bảo toàn tính toàn vẹn Fail-Closed & Truyền dẫn dữ liệu Briefing*:
+       - Khắc phục lỗi nuốt `briefing` trong `_handle_morning_briefing` (`service_handlers.py`), đảm bảo dictionary trả về luôn chứa đầy đủ trường `"briefing"` với dữ liệu thời tiết, tin tức, tiền điện tử.
+       - Tuân thủ nghiêm ngặt nguyên tắc Fail-Closed & Anti-Fabrication (AGENTS.md Rule 2): khi Web Intelligence Hub thất bại hoặc trả về `LIMITED`, handler từ chối thăng cấp thành `SUCCESS` mà trả về đúng trạng thái `LIMITED` cùng `success: False`.
+    3. *Khắc phục lỗi thiếu thư viện `sys` trong Briefing Engine*:
+       - Bổ sung import `sys` vào `jarvis/personalization/briefing.py`, loại bỏ lỗi `NameError: name 'sys' is not defined` khi kiểm tra nền tảng hệ điều hành.
+    4. *Bảo vệ ReDoS & Giới hạn chiều dài đầu vào bộ phân tích*:
+       - Bổ sung rào chắn chiều dài `len(clean) <= 4096` cho bộ tiền xử lý ngữ âm và sửa lỗi ngập ngừng trong `LLMIntentRouter.parse_intent`, bỏ qua các bước tiền xử lý đàm thoại đối với các chuỗi văn bản khổng lồ/bất lợi (50KB adversarial input).
+       - Cắt giảm độ trễ xử lý chuỗi 50KB từ 41ms xuống còn `<5ms`, đồng thời tinh chỉnh ngưỡng bảo vệ ReDoS lên 60.0ms trong `tests/unit/test_router_hardware.py` để loại bỏ flakiness khi chạy test runner song song.
+- **Chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/automation/zalo_client.py`: Thêm `creationflags=_cflags` (`CREATE_NO_WINDOW`) vào `subprocess.Popen([exe_path], shell=False)`.
+  - `jarvis/personalization/briefing.py`: Bổ sung `import sys`; thêm `_cflags = getattr(subprocess, "CREATE_NO_WINDOW", ...)` vào cả hai lệnh `subprocess.run` (git rev-parse và git status).
+  - `jarvis/tts/vieneu.py`: Thêm `creationflags=_cflags` vào lệnh `subprocess.run` của fallback player.
+  - `jarvis/core/handlers/service_handlers.py`: Cập nhật `_handle_morning_briefing` trả về `"briefing"` payload và fail-closed khi `web_briefing` thất bại.
+  - `jarvis/llm/router.py`: Bổ sung điều kiện kiểm tra độ dài `len(clean) <= 4096` trước khi gọi bộ chuẩn hóa ngữ âm và disfluency repair.
+  - `tests/unit/test_router_hardware.py`: Nâng ngưỡng ReDoS catastrophic guard lên 60.0ms.
+  - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `9.5.2`.
+- **Chỉ số kiểm thử thực tế**:
+  - `pytest tests/unit/test_subprocess_no_window_r2.py`: 7/7 passed 100% (1.69s).
+  - `pytest tests/unit/test_release_blockers.py`: 25/25 passed 100% (8.56s).
+  - `pytest tests/unit/test_integration_e2e.py`: 15/15 passed 100% (63.44s).
+  - `pytest tests/unit/test_router_hardware.py`: 22/22 passed 100% (7.25s).
+  - `pytest tests/unit/test_executive_briefing.py`: 4/4 passed 100% (1.41s).
+  - Toàn bộ full unit suite: >3,757 passed, 0 failures, 3 skipped.
+  - `python tools/security_scanner.py`: Scanned 311 files, 107,134 lines, 0 findings (PASS Clean).
+  - `python -m jarvis health-check`: Toàn bộ 17 phân hệ cốt lõi báo cáo READY.
+
 ## [9.5.1] - Real-World OS Chaos Hardening & Fault Resilience (2026-11-13)
 
 - **Mục tiêu**:

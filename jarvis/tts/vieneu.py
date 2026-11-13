@@ -438,8 +438,9 @@ class VieNeuTTSEngine(BaseTTSEngine):
                     tmp_name = tmp.name
                 try:
                     import subprocess
+                    _cflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) if sys.platform == "win32" else 0
                     cmd = ["aplay", tmp_name] if sys.platform == "linux" else ["afplay", tmp_name]
-                    subprocess.run(cmd, check=False)
+                    subprocess.run(cmd, check=False, creationflags=_cflags)
                 finally:
                     try:
                         os.unlink(tmp_name)

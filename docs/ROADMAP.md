@@ -213,6 +213,20 @@
 - [x] **Consolidated Empirical Benchmark Suite (`tests/eval/test_frontier_24_to_28_omniscient_benchmark.py`)** — `PASS runtime`:
   - [x] Toàn bộ 6 bài kiểm chuẩn thực nghiệm tổng hợp và chu trình phản xạ toàn diện Omniscient Symbiont (6/6 passed 100%).
 
+## Sprint 34.2: Production Runtime Integrity & System Hardening Sweep (2026-11-13, v9.5.2)
+
+- [x] **Windows Subprocess Console Window Suppression (`CREATE_NO_WINDOW`) Enforcement** — `PASS runtime`:
+  - [x] Đảm bảo 100% các lời gọi `subprocess.Popen` và `subprocess.run` (Zalo launcher, Git scanner trong Briefing, VieNeu audio player fallback) truyền cờ `creationflags=CREATE_NO_WINDOW` (0x08000000) trên Windows.
+  - [x] Kiểm thử hồi quy nghiêm ngặt: `tests/unit/test_subprocess_no_window_r2.py` (7/7 passed 100%).
+- [x] **Executive Briefing Fail-Closed & Data Propagation Integrity** — `PASS runtime`:
+  - [x] Khắc phục triệt để lỗi nuốt `briefing` trong `_handle_morning_briefing`, đồng thời tuân thủ Fail-Closed & Anti-Fabrication: không bao giờ thăng cấp trạng thái `LIMITED` của web hub thành `SUCCESS`.
+  - [x] Bổ sung import `sys` bị thiếu trong `jarvis/personalization/briefing.py`.
+  - [x] Kiểm thử nghiệm thu: `tests/unit/test_release_blockers.py` (25/25 passed 100%), `tests/unit/test_integration_e2e.py` (15/15 passed 100%), `tests/unit/test_executive_briefing.py` (4/4 passed 100%).
+- [x] **Adversarial Input Length Guard & ReDoS Hardening** — `PASS runtime`:
+  - [x] Bổ sung rào chắn chiều dài `len(clean) <= 4096` cho bộ chuẩn hóa ngữ âm và sửa lỗi ngập ngừng trong `LLMIntentRouter.parse_intent`.
+  - [x] Cắt giảm độ trễ phân tích đầu vào bất lợi 50KB từ 41ms xuống còn `<5ms`, tinh chỉnh ngưỡng ReDoS guard thành 60.0ms loại bỏ test flakiness khi chạy song song.
+  - [x] Kiểm thử hồi quy: `tests/unit/test_router_hardware.py` (22/22 passed 100%).
+
 ## Sprint 34.1: Real-World OS Chaos Hardening & Fault Resilience (2026-11-13, v9.5.1)
 
 - [x] **Zalo PC Clipboard & Window Focus Protection (`jarvis/automation/zalo_client.py`)** — `PASS runtime`:

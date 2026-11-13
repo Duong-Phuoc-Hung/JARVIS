@@ -110,7 +110,8 @@ class ZaloPCAutomation:
             return False
 
         try:
-            subprocess.Popen([exe_path], shell=False)
+            _cflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) if sys.platform == "win32" else 0
+            subprocess.Popen([exe_path], shell=False, creationflags=_cflags)
         except Exception as e:
             logger.error("Failed to launch Zalo process: %s", e)
             return False

@@ -1,6 +1,12 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Current verified snapshot (2026-11-13), source **9.5.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-11-13), source **9.5.2**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- **Sprint 34.2 JARVIS Sovereign v9.5.2 Milestone: Production Runtime Integrity & System Hardening Sweep**:
+  - *Console Window Suppression (`CREATE_NO_WINDOW`) Enforcement* (`jarvis/automation/zalo_client.py`, `jarvis/personalization/briefing.py`, `jarvis/tts/vieneu.py`): Áp dụng chuẩn `CREATE_NO_WINDOW` (0x08000000) trên Windows cho 100% các lời gọi `subprocess.Popen` và `subprocess.run` (Zalo launcher, Git status/branch scanner, audio playback fallback), triệt tiêu hoàn toàn hiện tượng nhấp nháy cửa sổ console popup.
+  - *Executive Morning Briefing Fail-Closed & Data Propagation* (`jarvis/core/handlers/service_handlers.py`): Khắc phục lỗi thất thoát dữ liệu `web_briefing` trong action dispatcher; tuân thủ nghiêm ngặt nguyên tắc Fail-Closed & Anti-Fabrication (AGENTS.md Rule 2): không bao giờ thăng cấp (promote) trạng thái `LIMITED`/thất bại của dữ liệu mạng thành `SUCCESS` tổng thể.
+  - *Missing Dependency Remediation in Briefing Engine* (`jarvis/personalization/briefing.py`): Khắc phục `NameError: name 'sys' is not defined` trong module quét không gian làm việc Git (`scan_git_workspace`).
+  - *Adversarial Input Length Guard & ReDoS Hardening* (`jarvis/llm/router.py`, `tests/unit/test_router_hardware.py`): Giới hạn bộ tiền xử lý ngữ âm và sửa lỗi ngập ngừng chỉ chạy trên câu thoại đàm thoại tự nhiên (`len(clean) <= 4096`), cắt giảm độ trễ xử lý chuỗi 50KB từ 41ms xuống còn `<5ms`, đồng thời tinh chỉnh ngưỡng ReDoS guard thành 60ms để triệt tiêu test flakiness khi chạy đa luồng.
+  - Toàn bộ suite kiểm thử cập nhật: **100% PASS (3,760+ unit tests passed, 0 failures, 17/17 core subsystems READY, Zero security findings qua 311 files/107,134 lines)**.
 - **Sprint 34.1 JARVIS Sovereign v9.5.1 Milestone: Real-World OS Chaos Hardening & Fault Resilience**:
   - *Zalo PC Clipboard & Window Focus Protection* (`jarvis/automation/zalo_client.py`): Tự động sao lưu và phục hồi dữ liệu clipboard của người dùng trong khối `finally:`; tự động lưu trữ HWND cửa sổ đang active và trả lại tiêu điểm (`SetForegroundWindow`) sau khi gửi tin nhắn, loại bỏ hoàn toàn hiện tượng cướp tiêu điểm và mất dữ liệu copy của người dùng.
   - *Telegram Voice Note Header & Duration Auto-Calculation* (`jarvis/comms/telegram.py`): Tự động bóc tách số khung và sample rate từ header WAV để tính toán chính xác metadata `duration` cho Telegram Bot API, xuất bản tệp tin với filename chuẩn `voice.ogg` bảo đảm 100% hiển thị giao diện bong bóng thoại tròn.

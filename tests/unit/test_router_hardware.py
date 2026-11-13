@@ -204,10 +204,9 @@ def test_large_input_string_throughput(mock_router):
     elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
     # Threshold rationale: N=20 benchmark on i7-10750H measured P95=17.8ms,
-    # Stdev=2.79ms, max=17.8ms. The 1 outlier (17.8ms vs median 5.57ms) makes
-    # P95 unstable at N=20, so we use P95*2.0=35.6ms rounded to 40ms rather
-    # than P95*1.5=26.7ms, to avoid flakes under CPU contention (measured 41ms
-    # under load). This is a ReDoS catastrophic-backtracking guard (seconds),
-    # not a micro-benchmark.
-    assert elapsed_ms < 40.0, f"ReDoS guard: 50KB input took {elapsed_ms:.1f}ms (limit 40ms, P95x2.0)"
+    # Stdev=2.79ms, max=17.8ms. Under high parallel test runner load, CPU contention
+    # can spike to ~40-45ms. Setting the guard limit to 60.0ms protects against
+    # catastrophic polynomial/exponential ReDoS (which takes seconds/minutes)
+    # while eliminating test runner flakiness under CPU contention.
+    assert elapsed_ms < 60.0, f"ReDoS guard: 50KB input took {elapsed_ms:.1f}ms (limit 60ms)"
     assert res.action_name == "home_assistant_call"

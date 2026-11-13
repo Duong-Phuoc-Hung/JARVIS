@@ -12,6 +12,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -189,25 +190,27 @@ class ExecutiveBriefingEngine:
             }
             try:
                 # Get current branch
+                _cflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) if sys.platform == "win32" else 0
                 branch_out = subprocess.run(
                     ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                     cwd=str(repo_dir),
+                    creationflags=_cflags,
                     capture_output=True,
                     text=True,
                     timeout=5.0,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
                 )
                 if branch_out.returncode == 0:
                     info["branch"] = branch_out.stdout.strip()
 
                 # Get status
+                _cflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) if sys.platform == "win32" else 0
                 status_out = subprocess.run(
                     ["git", "status", "--porcelain"],
                     cwd=str(repo_dir),
+                    creationflags=_cflags,
                     capture_output=True,
                     text=True,
                     timeout=5.0,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
                 )
                 if status_out.returncode == 0:
                     lines = [l for l in status_out.stdout.strip().splitlines() if l.strip()]

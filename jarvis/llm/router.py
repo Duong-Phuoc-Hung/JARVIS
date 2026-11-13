@@ -2036,7 +2036,8 @@ class LLMIntentRouter:
         clean = text.strip()
 
         # Frontier 1: Spoken Acoustic Phonetics Normalization and Disfluency Self-Correction
-        if not _is_sub_clause and clean:
+        # Guard: Acoustic and disfluency corrections only apply to conversational speech utterances (<= 4096 chars)
+        if not _is_sub_clause and clean and len(clean) <= 4096:
             try:
                 from jarvis.nlp.phonetic_normalizer import normalize_phonetic_stt
                 from jarvis.nlp.disfluency_repair import repair_spoken_disfluency

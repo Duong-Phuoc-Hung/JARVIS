@@ -356,10 +356,21 @@ class ServiceHandlersMixin(BaseActionService):
 
             spoken_summary = report.speech_script
             overlay_text = report.summary_markdown
+            web_briefing = None
 
             if self.web_hub:
                 try:
                     web_briefing = self.web_hub.generate_morning_briefing(city=city)
+                    if web_briefing and web_briefing.get("success") is False:
+                        # Fail-closed: do not promote degraded or failed web intelligence to success
+                        return {
+                            "status": web_briefing.get("status", "LIMITED"),
+                            "success": False,
+                            "code": "BRIEFING_PARTIAL",
+                            "briefing": web_briefing,
+                            "report": report.summary_markdown,
+                            "message": web_briefing.get("spoken_summary", spoken_summary),
+                        }
                     if web_briefing and "overlay_bullets" in web_briefing:
                         bullets = web_briefing["overlay_bullets"]
                         overlay_text += "\n\n### 🌐 Điểm Tin Trực Tuyến\n" + "\n".join(f"- {b}" for b in bullets[:3])
@@ -375,6 +386,12 @@ class ServiceHandlersMixin(BaseActionService):
                 "code": "OK",
                 "report": report.summary_markdown,
                 "message": spoken_summary,
+                "briefing": web_briefing if web_briefing is not None else {
+                    "weather": {},
+                    "news": [],
+                    "crypto": {},
+                    "spoken_summary": spoken_summary,
+                },
             }
         except Exception as exc:
             log.warning("Executive briefing generation fallback: %s", exc)
@@ -382,14 +399,16 @@ class ServiceHandlersMixin(BaseActionService):
                 briefing = self.web_hub.generate_morning_briefing(city=city)
                 if self.overlay and "overlay_bullets" in briefing:
                     self.overlay.show_response("Morning Briefing", "\n".join(briefing["overlay_bullets"]))
+                is_ok = briefing.get("success") is not False
                 return {
-                    "status": "ERROR" if briefing.get("success") is False else "SUCCESS",
-                    "success": briefing.get("success") is not False,
-                    "code": "BRIEFING_PARTIAL" if briefing.get("success") is False else "OK",
+                    "status": "SUCCESS" if is_ok else (briefing.get("status") or "ERROR"),
+                    "success": is_ok,
+                    "code": "OK" if is_ok else "BRIEFING_PARTIAL",
                     "briefing": briefing,
+                    "report": briefing.get("spoken_summary", ""),
                     "message": briefing.get("spoken_summary", "Chào buổi sáng Chủ nhân."),
                 }
-            return {"status": "failed", "message": f"Briefing error: {exc}"}
+            return {"status": "failed", "success": False, "code": "ERROR", "message": f"Briefing error: {exc}"}
 
 
     def _handle_proactive_reminder(
