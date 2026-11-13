@@ -239,7 +239,7 @@ class ArgonNanoLocalReasoner:
             )
 
         # Coding / programming: "mở công cụ gõ code", "vào visual studio", "viết code"
-        if any(k in clean_lower for k in ("gõ code", "go code", "lập trình", "lap trinh", "công cụ code", "viết code", "viet code", "mở code", "mo code")):
+        if any(k in clean_lower for k in ("gõ code", "go code", "công cụ code", "công cụ lập trình", "cong cu lap trinh", "phần mềm lập trình", "phan mem lap trinh", "viết code", "viet code", "mở code", "mo code")) or bool(re.search(r"\b(?:mở|mo|bật|bat|vào|vao)\s+(?:công\s*cụ\s+|phần\s*mềm\s+|trình\s+)?(?:gõ\s*code|lập\s*trình|code|vscode)\b", clean_lower)):
             return IntentResult(
                 action_name="app_open",
                 parameters={"app_name": "vscode", "installed_only": True},

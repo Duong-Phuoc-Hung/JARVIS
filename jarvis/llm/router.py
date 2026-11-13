@@ -723,15 +723,15 @@ class LLMIntentRouter:
 
             # 5. Reminder & Alarms (Duration, Clock Time, Custom Message)
             (
-                re.compile(r"(?:nhắc\s*nhở|nhắc\s*tôi|remind\s*me|reminder)\s+(?:sau|trong\s*vòng)\s+(\d+)\s*(phút|giờ|tiếng|giây|s|m|h)\s*(?:để|về|là)?\s*(.*)", re.IGNORECASE),
+                re.compile(r"(?:nhắc\s*nhở|nhac\s*nho|nhắc\s*tôi|nhac\s*toi|remind\s*me|reminder)\s+(?:sau|trong\s*vòng)\s+(\d+)\s*(phút|giờ|tiếng|giây|s|m|h)\s*(?:để|về|là)?\s*(.*)", re.IGNORECASE),
                 lambda m: self._make_reminder_duration_intent(int(m.group(1)), m.group(2), m.group(3)),
             ),
             (
-                re.compile(r"(?:nhắc\s*nhở|nhắc\s*tôi|remind\s*me|reminder)\s+(.+?)\s+(?:sau|trong\s*vòng)\s+(\d+)\s*(phút|giờ|tiếng|giây|s|m|h)", re.IGNORECASE),
+                re.compile(r"(?:nhắc\s*nhở|nhac\s*nho|nhắc\s*tôi|nhac\s*toi|remind\s*me|reminder)\s+(.+?)\s+(?:sau|trong\s*vòng)\s+(\d+)\s*(phút|giờ|tiếng|giây|s|m|h)", re.IGNORECASE),
                 lambda m: self._make_reminder_duration_intent(int(m.group(2)), m.group(3), m.group(1)),
             ),
             (
-                re.compile(r"(?:nhắc\s*nhở|nhắc\s*tôi|remind\s*me|reminder)\s+(.+?)\s+(?:lúc|vào\s*lúc)\s*(.+)", re.IGNORECASE),
+                re.compile(r"(?:nhắc\s*nhở|nhac\s*nho|nhắc\s*tôi|nhac\s*toi|remind\s*me|reminder)\s+(.+?)\s+(?:lúc|vào\s*lúc)\s*(.+)", re.IGNORECASE),
                 lambda m: IntentResult(
                     action_name="reminder",
                     parameters={"message": m.group(1).strip(), "time_str": m.group(2).strip()},
@@ -740,7 +740,7 @@ class LLMIntentRouter:
                 ),
             ),
             (
-                re.compile(r"^(?:jarvis\s*,?\s*)?(?:nhắc\s*nhở|nhắc\s*tôi|remind\s*me|reminder)\s+(.+)$", re.IGNORECASE),
+                re.compile(r"^(?:jarvis\s*,?\s*)?(?:nhắc\s*nhở|nhac\s*nho|nhắc\s*tôi|nhac\s*toi|remind\s*me|reminder)\s+(.+)$", re.IGNORECASE),
                 lambda m: self._make_reminder_custom_intent(m.group(1)),
             ),
 
@@ -1403,7 +1403,7 @@ class LLMIntentRouter:
         their established behavior. Always inspect the complete input so the
         regex length limit cannot turn a truncated prefix into a launch.
         """
-        clean = text.strip()
+        clean = unicodedata.normalize("NFC", text.strip()) if len(text) <= 2048 else text.strip()
         prefix = self._APP_COMMAND_PREFIX.match(clean)
         if prefix is None:
             return None
@@ -2033,7 +2033,7 @@ class LLMIntentRouter:
                 raw_text="",
                 response_text="",  # Silence → no TTS; caller decides UX
             )
-        clean = text.strip()
+        clean = unicodedata.normalize("NFC", text.strip()) if len(text) <= 2048 else text.strip()
 
         # Frontier 1: Spoken Acoustic Phonetics Normalization and Disfluency Self-Correction
         # Guard: Acoustic and disfluency corrections only apply to conversational speech utterances (<= 4096 chars)
@@ -2072,11 +2072,11 @@ class LLMIntentRouter:
         clean_to_split = clean_normalized if clean_normalized else clean
 
         # Compound Multi-Intent Pre-check: If this is the root query and not forced LLM
-        if not _is_sub_clause and not force_llm and clean_to_split:
+        if not _is_sub_clause and not force_llm and clean_to_split and len(clean_to_split) <= 2048:
             try:
                 from jarvis.nlp.multi_intent import split_compound_utterance
                 clauses = split_compound_utterance(clean_to_split)
-                if len(clauses) > 1:
+                if 1 < len(clauses) <= 10:
                     sub_results: list[IntentResult] = []
                     for cl in clauses:
                         sub_res = self.parse_intent(

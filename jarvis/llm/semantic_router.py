@@ -347,7 +347,9 @@ class LocalSemanticRouter:
     # --------------------------------------------------------------------------
 
     def _match_volume(self, clean: str, norm: str) -> IntentResult | None:
-        is_vol_mention = any(k in norm for k in ("am luong", "volume", "tieng", "loa"))
+        is_vol_mention = any(k in norm for k in ("am luong", "volume", "loa", "am thanh")) or bool(
+            re.search(r"\b(?:tieng\s*(?:to|nho|lon|be)|(?:tang|giam|cho|van|mo|bat|tat|mat|ngat|chinh|ha)\s+tieng|nho\s+tieng)\b", norm)
+        )
         if not is_vol_mention and not re.search(r"\b(?:van to|van nho|mo to|mo nho|tang to|ha nho|tat loa|bat loa)\b", norm):
             return None
 
@@ -717,14 +719,34 @@ class LocalSemanticRouter:
                 response_text="Đang tiếp tục phát nhạc cho Ngài.",
             )
 
-        # Song search: "phát bài X trên spotify", "mở bài X", "nghe bài X"
-        song_match = re.search(r"^(?:phat|mo|nghe|bat)\s+(?:bai\s*hat|bai|song|nhac)\s+(.+)$", norm)
+        # Generic Spotify / Music launch commands (e.g. "mở spotify phát nhạc", "phát nhạc trên spotify", "bật nhạc spotify")
+        if norm in (
+            "mo spotify phat nhac", "mo spotify nghe nhac", "phat nhac tren spotify",
+            "bat nhac spotify", "phat nhac spotify", "mo spotify va phat nhac", "nghe nhac tren spotify"
+        ) or re.search(r"^(?:phat|mo|bat)\s+spotify(?:\s+(?:phat|nghe|bat))?\s*(?:nhac|bai\s*hat)?$", norm):
+            return IntentResult(
+                action_name="spotify",
+                parameters={"command": "play", "query": ""},
+                confidence=1.0,
+                source="rule_fallback",
+                response_text="Đang mở Spotify và phát nhạc cho Ngài.",
+            )
+
+        # Song search: "phát bài X trên spotify", "mở bài X", "nghe bài X", "mở spotify bài X"
+        song_match = re.search(
+            r"^(?:phat|mo|nghe|bat)\s+(?:(?:qua|tren|ung\s*dung)?\s*spotify\s+)?(?:(?:phat|nghe|bat)\s+)?(?:bai\s*hat|bai|song|nhac)\s+(.+)$",
+            norm,
+        )
         if song_match:
             raw_song = song_match.group(1).strip()
             # Clean trailing platform mentions
             raw_song_clean = re.sub(r"\s+(?:tren|qua)\s+spotify$", "", raw_song).strip()
             # Extract corresponding substring from original casing
-            orig_match = re.search(r"^(?:phát|mở|nghe|bật)\s+(?:bài\s*hát|bài|song|nhạc)\s+(.+)$", clean, re.IGNORECASE)
+            orig_match = re.search(
+                r"^(?:phát|mở|nghe|bật)\s+(?:(?:qua|trên|ứng\s*dụng)?\s*spotify\s+)?(?:(?:phát|nghe|bật)\s+)?(?:bài\s*hát|bài|song|nhạc)\s+(.+)$",
+                clean,
+                re.IGNORECASE,
+            )
             orig_song = orig_match.group(1).strip() if orig_match else raw_song_clean
             orig_song = re.sub(r"\s+(?:trên|qua)\s+spotify$", "", orig_song, flags=re.IGNORECASE).strip()
 
@@ -820,7 +842,11 @@ class LocalSemanticRouter:
             )
 
         # Lock / Abort Power
-        if any(k in norm for k in ("huy tat may", "huy lenh tat may", "dung tat may", "abort shutdown")):
+        if any(k in norm for k in (
+            "huy tat may", "huy lenh tat may", "dung tat may", "abort shutdown",
+            "huy shutdown", "huy khoi dong lai", "huy khoi dong", "cancel shutdown",
+            "cancel restart", "abort restart", "dung khoi dong lai",
+        )) or re.search(r"\b(?:huy|cancel|abort|dung)\s+(?:lenh\s+)?(?:tat\s*may|shutdown|khoi\s*dong|restart)\b", norm):
             return IntentResult(
                 action_name="system_power",
                 parameters={"action": "abort"},
@@ -831,13 +857,39 @@ class LocalSemanticRouter:
                 requires_confirmation=False,
             )
 
+        # Restart
+        if any(k in norm for k in ("khoi dong lai", "restart", "reboot")):
+            return IntentResult(
+                action_name="system_power",
+                parameters={"action": "restart"},
+                confidence=1.0,
+                source="rule_fallback",
+                response_text="Ngài có chắc chắn muốn khởi động lại máy tính không?",
+                danger_level="CRITICAL",
+                requires_confirmation=True,
+                confirmation_prompt="Ngài có chắc chắn muốn khởi động lại máy tính không?",
+            )
+
+        # Shutdown
+        if any(k in norm for k in ("tat may tinh", "tat may", "tat nguon", "shutdown", "power off", "turn off computer")):
+            return IntentResult(
+                action_name="system_power",
+                parameters={"action": "shutdown"},
+                confidence=1.0,
+                source="rule_fallback",
+                response_text="Ngài có chắc chắn muốn tắt máy tính không?",
+                danger_level="CRITICAL",
+                requires_confirmation=True,
+                confirmation_prompt="Ngài có chắc chắn muốn tắt máy tính không?",
+            )
+
         if any(k in norm for k in ("khoa man hinh", "khoa may", "lock screen")):
             return IntentResult(
                 action_name="system_power",
                 parameters={"action": "lock"},
                 confidence=1.0,
                 source="rule_fallback",
-                response_text="Đang khóa máy cho Ngài.",
+                response_text="Đã khóa màn hình máy tính cho Ngài.",
                 danger_level="LOW",
                 requires_confirmation=False,
             )
@@ -860,6 +912,8 @@ class LocalSemanticRouter:
 
     def _match_app_launch(self, clean: str, norm: str) -> IntentResult | None:
         """Matches desktop application launch requests with typed slot extraction."""
+        if norm.startswith(("khoi dong lai", "khởi động lại")):
+            return None
         pattern = re.compile(
             r"^(?:mo|bat|chay|khoi dong|open|launch|start)\s+(?:ung dung|phan mem|app|application|chuong trinh)?\s*(.+)$",
             re.IGNORECASE,
@@ -1013,7 +1067,7 @@ class LocalSemanticRouter:
             parameters={"command": cmd, "topic": "weather", "location": location, "city": city_param},
             confidence=1.0,
             source="rule_fallback",
-            response_text=f"Đang kiểm tra thời tiết {location if location != 'current' else 'hôm nay'} cho Ngài.",
+            response_text=f"Đang kiểm tra thông tin thời tiết tại {location} cho Ngài." if location != "current" else "Đang kiểm tra thông tin thời tiết hôm nay cho Ngài.",
         )
 
 

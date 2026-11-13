@@ -439,6 +439,9 @@ class TTSManager:
                 time.sleep(delay_s)
             self.speak(welcome_phrase, wait=False)
 
+        import threading
+        threading.Thread(target=_runner, daemon=True, name="JarvisWelcomeSpeaker").start()
+
     def interrupt(self) -> bool:
         """
         Barge-in / interrupt entrypoint.

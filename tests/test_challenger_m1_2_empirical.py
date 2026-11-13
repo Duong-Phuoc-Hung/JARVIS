@@ -89,6 +89,7 @@ def test_record_audio_exception_resilience_when_sounddevice_fails():
     """
     app = JarvisApp(headless=False, no_hot_reload=True)
     app.initialize()
+    app.config.set("audio.input_device", "")
 
     # Simulate sounddevice raising PortAudioError or generic exception
     with patch("sounddevice.rec", side_effect=RuntimeError("PortAudio device unavailable")):

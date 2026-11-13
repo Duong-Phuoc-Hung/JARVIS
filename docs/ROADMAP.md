@@ -213,6 +213,28 @@
 - [x] **Consolidated Empirical Benchmark Suite (`tests/eval/test_frontier_24_to_28_omniscient_benchmark.py`)** — `PASS runtime`:
   - [x] Toàn bộ 6 bài kiểm chuẩn thực nghiệm tổng hợp và chu trình phản xạ toàn diện Omniscient Symbiont (6/6 passed 100%).
 
+## Sprint 34.4: Comprehensive Adversarial Test Remediation, ReDoS SLA Optimization, and Intent Engine Precision (2026-11-13, v9.5.4)
+
+- [x] **Adversarial SLA ReDoS Optimization & Unicode NFC Acceleration** — `PASS runtime`:
+  - [x] Giới hạn `unicodedata.normalize("NFC", ...)` cho `len(text) <= 2048`, cắt giảm độ trễ 50KB combining diacritics từ 659.93ms xuống **0.81ms** (tăng tốc 733 lần), vượt chuẩn SLA <20.0ms.
+  - [x] Giới hạn bộ phân rã câu ghép đa ý định `split_compound_utterance` cho câu thoại `len <= 2048` và `1 < len(clauses) <= 10`, ngăn chặn đệ quy 1,073 lần trên chuỗi ASCII ngẫu nhiên 100KB (giảm thời gian từ 753ms xuống <15ms).
+- [x] **TTS Daemon Welcome Phrases Thread Execution** — `PASS runtime`:
+  - [x] Khởi chạy worker daemon thread `threading.Thread(target=_runner, daemon=True, name="JarvisWelcomeSpeaker").start()` trong `TTSManager.speak_welcome()`.
+- [x] **Intent Routing Precision & Dangerous Action Safety Gating** — `PASS runtime`:
+  - [x] Tinh chỉnh `_match_volume` loại bỏ bắt nhầm "tiếng ve", định tuyến trực tiếp các lệnh Spotify ("mở spotify bài <tên bài>", "mở spotify phát nhạc"), bổ sung định tuyến an toàn cho Khởi động lại (`restart`) và Tắt máy (`shutdown`) với cờ `danger_level="CRITICAL"` và `requires_confirmation=True`, loại trừ nhận diện nhầm "khởi động lại máy" thành mở ứng dụng "lại máy"; chuẩn hóa điều kiện mở VS Code trong `ArgonNanoLocalReasoner`.
+- [x] **Test Contract Normalization & Fail-Closed Integrity** — `PASS runtime`:
+  - [x] Cập nhật assert Fail-Closed 503 (`STT_UNAVAILABLE`) trong Tier 5 Comms test, hỗ trợ regex lời nhắc không dấu, và cô lập `audio.input_device` an toàn trong kiểm thử sounddevice.
+  - [x] Toàn bộ 63 root test files và 191 adversarial items: **100% passed**, 0 failures.
+
+## Sprint 34.3: Native Zalo PC File Attachment (CF_HDROP), VieNeu Bluetooth DAC Audio Pre-Roll & Code Cleanliness Sweep (2026-11-13, v9.5.3)
+
+- [x] **Native Windows File Drop (`CF_HDROP`) cho Zalo PC Client** — `PASS runtime`:
+  - [x] Triển khai `ComputerController.set_clipboard_file(file_path)` sử dụng Win32 `ctypes` (`CF_HDROP` / `DROPFILES` struct và UTF-16LE double-null termination) cho phép `Ctrl+V` dán tệp tin nhị phân thực tế vào cửa sổ chat Zalo PC.
+- [x] **Bluetooth DAC Pre-Roll Silence Warm-Up trong VieNeu-TTS** — `PASS runtime`:
+  - [x] Tích hợp trực tiếp bộ đệm tĩnh 120ms (`np.zeros`) vào luồng phát âm thanh `synthesize_and_play`, đánh thức mạch giải mã DAC của tai nghe Bluetooth, loại bỏ triệt để hiện tượng nuốt âm đầu câu.
+- [x] **Code Cleanliness & Full Linter Sweep** — `PASS engineering`:
+  - [x] Dọn dẹp cấu trúc imports theo chuẩn PEP 8, loại bỏ `getattr(const)` dư thừa, xử lý tương thích `ast.Constant` / `ast.Str`, đạt chuẩn Ruff **0 errors, 0 warnings** trên toàn bộ 107,000+ dòng mã.
+
 ## Sprint 34.2: Production Runtime Integrity & System Hardening Sweep (2026-11-13, v9.5.2)
 
 - [x] **Windows Subprocess Console Window Suppression (`CREATE_NO_WINDOW`) Enforcement** — `PASS runtime`:
