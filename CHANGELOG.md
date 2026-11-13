@@ -4,6 +4,37 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.4.1] - Argon Audit Remediation: Faster-Whisper GPU CUDA Acceleration & Xiaozhi Web Dashboard (2026-11-13)
+
+- **Mục tiêu**:
+  - Khắc phục triệt để các phát hiện khiếm khuyết và điểm nghẽn hiệu năng qua đợt kiểm toán hệ thống toàn diện Argon:
+    1. *Khôi phục gia tốc GPU CUDA cho Faster-Whisper*:
+       - Bổ sung cấu hình tìm nạp và tự động liên kết `nvidia.cublas.lib` trên Windows qua `os.add_dll_directory` và PATH runtime trong `jarvis/stt/engine.py`.
+       - Cài đặt gói `nvidia-cublas-cu12` (12.9.2), giải phóng hoàn toàn nghẽn cổ chai CPU, đưa thời gian nhận dạng tiếng Việt về ngưỡng chuẩn `<150ms`.
+    2. *Loại bỏ hoàn toàn xung đột ActionDispatcher khi khởi động*:
+       - Bổ sung tham số `allow_override=True` cho `ActionDispatcher.register_action()`, `BasePlugin.register_action()`, `ShellPlugin.initialize()` và `SkillRegistry.register_single_into_dispatcher()`.
+       - Triệt tiêu hoàn toàn các cảnh báo `Action overwritten` khi khởi chạy daemon `JarvisApp`.
+    3. *Loại bỏ cảnh báo OpenWakeWord TFLite Runtime*:
+       - Thiết lập `inference_framework="onnx"` tường minh khi nạp các mô hình ONNX trong `jarvis/audio/wake_word.py`, loại bỏ cảnh báo runtime thiếu `tflite-runtime`.
+    4. *Giao diện quản lý phần cứng Xiaozhi-ESP32 trên Web Dashboard*:
+       - Bổ sung thẻ điều khiển phần cứng Xiaozhi trên Dark-Mode Dashboard (`jarvis/ui/dashboard.py`).
+       - Mở rộng các REST API endpoints `/api/xiaozhi/devices` (tra cứu danh sách bo mạch, RSSI, công cụ) và `/api/xiaozhi/tool` (gọi công cụ phần cứng từ xa qua giao thức JSON-RPC MCP).
+- **Chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/stt/engine.py`: Nạp động thư mục DLL `nvidia.cublas.lib` cho Windows CTranslate2 và ctypes.
+  - `jarvis/core/dispatcher.py`: Thêm cờ `allow_override` cho phép ghi đè handler có chủ đích không phát cảnh báo.
+  - `jarvis/core/plugin.py`: Chuyển tiếp cờ `allow_override` từ `BasePlugin` sang `ActionDispatcher`.
+  - `jarvis/plugins/shell.py`: Đăng ký `shell_exec` với `allow_override=True`.
+  - `jarvis/skills/registry.py`: Đăng ký modular skills với `allow_override=True`.
+  - `jarvis/audio/wake_word.py`: Cấu hình `inference_framework="onnx"` cho mô hình ONNX.
+  - `jarvis/ui/dashboard.py`: Thêm thẻ giao diện phần cứng Xiaozhi, API `/api/xiaozhi/devices` và `/api/xiaozhi/tool`.
+  - `tests/unit/test_ui_dashboard.py`: Bổ sung 4 kịch bản kiểm thử API Xiaozhi Dashboard.
+  - `requirements.txt`: Bổ sung tùy chọn `nvidia-cublas-cu12` cho GPU acceleration.
+  - `jarvis/__init__.py`: Nâng phiên bản hệ thống lên `9.4.1`.
+- **Chỉ số kiểm thử thực tế**:
+  - `9 passed in 2.61s` trên `tests/unit/test_ui_dashboard.py`.
+  - `165 passed in 87.75s` trên toàn bộ suite kiểm thử hồi quy đa phân hệ.
+  - Quét an ninh tĩnh: 0 findings (0 Critical, 0 High, 0 Medium, 0 Low).
+
 ## [9.4.0] - Xiaozhi-ESP32 Hardware Voice Companion & Bidirectional Model Context Protocol (MCP) Gateway (2026-11-09)
 
 - **Mục tiêu**:

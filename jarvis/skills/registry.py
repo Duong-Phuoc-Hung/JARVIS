@@ -561,6 +561,7 @@ class SkillRegistry:
             required_privilege=PrivilegeLevel.NORMAL,
             description=skill_def.metadata.description,
             schema=skill_def.metadata.parameters_schema,
+            allow_override=True,
         )
         self.dispatcher.register_action(
             name=colon_name,
@@ -568,6 +569,7 @@ class SkillRegistry:
             required_privilege=PrivilegeLevel.NORMAL,
             description=skill_def.metadata.description,
             schema=skill_def.metadata.parameters_schema,
+            allow_override=True,
         )
         logger.debug("Registered skill action '%s' and '%s' into ActionDispatcher", action_name, colon_name)
 

@@ -191,7 +191,23 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- Card 5: Visual Config Viewer & Live Editor -->
+  <div class="grid">
+    <!-- Card 5: Xiaozhi-ESP32 Hardware Edge Gateway & MCP Devices -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">XIAOZHI-ESP32 HARDWARE COMPANIONS</span>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span id="xiaozhi-sessions" style="font-size: 0.75rem; color: var(--accent-green);">0 active sessions</span>
+          <button class="btn-outline" style="padding: 4px 8px; font-size: 0.75rem;" onclick="refreshXiaozhiDevices()">Poll</button>
+        </div>
+      </div>
+      <div id="xiaozhi-list" class="actions-list" style="max-height: 180px;">
+        <div style="font-size: 0.85rem; color: var(--text-secondary); padding: 8px;">No devices paired yet. Connect your Xiaozhi-ESP32 via Wi-Fi to port 8088.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 6: Visual Config Viewer & Live Editor -->
   <div class="card">
     <div class="card-header">
       <span class="card-title">CONFIGURATION VIEWER & LIVE HOT-RELOAD</span>
@@ -343,6 +359,42 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     } catch (e) {}
   }
 
+  async function refreshXiaozhiDevices() {
+    try {
+      let res = await fetch('/api/xiaozhi/devices');
+      let data = await res.json();
+      let sessionsTag = document.getElementById('xiaozhi-sessions');
+      let list = document.getElementById('xiaozhi-list');
+      if (!data.enabled) {
+        sessionsTag.innerText = 'Gateway disabled';
+        sessionsTag.style.color = 'var(--text-secondary)';
+        return;
+      }
+      sessionsTag.innerText = `${data.active_sessions || 0} active session(s)`;
+      sessionsTag.style.color = data.active_sessions > 0 ? 'var(--accent-green)' : 'var(--accent-cyan)';
+      let devices = data.devices || [];
+      if (devices.length === 0) {
+        list.innerHTML = '<div style="font-size: 0.85rem; color: var(--text-secondary); padding: 8px;">No devices paired yet. Connect your Xiaozhi-ESP32 to port 8088.</div>';
+        return;
+      }
+      list.innerHTML = '';
+      devices.forEach(dev => {
+        let lastSeenDate = dev.last_seen_at ? new Date(dev.last_seen_at * 1000).toLocaleTimeString() : 'Unknown';
+        list.innerHTML += `
+          <div class="action-item">
+            <div>
+              <strong style="color: var(--accent-cyan);">${escapeHtml(dev.name || dev.device_id)}</strong>
+              <div style="font-size: 0.75rem; color: var(--text-secondary);">ID: ${escapeHtml(dev.device_id)} | Tools: ${dev.tools_count || 0} | Last Seen: ${lastSeenDate}</div>
+            </div>
+            <span class="status-pill" style="padding: 2px 8px; font-size: 0.7rem;">PAIRED</span>
+          </div>`;
+      });
+    } catch (e) {
+      console.warn("Failed loading Xiaozhi devices:", e);
+    }
+  }
+  setInterval(refreshXiaozhiDevices, 5000);
+
   function escapeHtml(str) {
     if (!str) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -351,6 +403,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   refreshTelemetry();
   loadActions();
   loadConfig();
+  refreshXiaozhiDevices();
   setupWebSocket();
 </script>
 </body>
@@ -440,6 +493,8 @@ class DashboardHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(srv.get_memory_facts())
         elif path == "/api/hotkeys":
             self._send_json({"hotkeys": srv.get_hotkeys()})
+        elif path == "/api/xiaozhi/devices":
+            self._send_json(srv.get_xiaozhi_devices())
         else:
             self._send_json({"error": "Not Found", "path": path}, 404)
 
@@ -471,6 +526,9 @@ class DashboardHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(result)
         elif path == "/api/memory/fact":
             result = srv.store_memory_fact(payload)
+            self._send_json(result)
+        elif path == "/api/xiaozhi/tool":
+            result = srv.call_xiaozhi_tool(payload)
             self._send_json(result)
         else:
             self._send_json({"error": "Endpoint not found", "path": path}, 404)
@@ -808,6 +866,41 @@ class DashboardServer:
         if hk:
             return hk.list_hotkeys()
         return []
+
+    def get_xiaozhi_devices(self) -> dict[str, Any]:
+        """Returns registered Xiaozhi-ESP32 devices and active sessions."""
+        gw = getattr(self.app, "xiaozhi_gateway", None)
+        if not gw:
+            return {"enabled": False, "devices": [], "active_sessions": 0}
+        devices = gw.registry.list_devices() if hasattr(gw, "registry") else []
+        sessions_count = len(getattr(gw, "active_sessions", {}))
+        return {
+            "enabled": True,
+            "devices": devices,
+            "active_sessions": sessions_count,
+        }
+
+    def call_xiaozhi_tool(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Dispatches an MCP tool call to a connected Xiaozhi-ESP32 device."""
+        gw = getattr(self.app, "xiaozhi_gateway", None)
+        if not gw:
+            return {"success": False, "error": "Xiaozhi gateway is not running."}
+        session_id = payload.get("session_id", "")
+        tool_name = payload.get("tool_name", "")
+        arguments = payload.get("arguments", {})
+        timeout = float(payload.get("timeout", 5.0))
+        if not session_id or not tool_name:
+            return {"success": False, "error": "Missing required 'session_id' or 'tool_name'."}
+        try:
+            res = gw.call_device_tool_sync(
+                session_id=session_id,
+                tool_name=tool_name,
+                arguments=arguments,
+                timeout=timeout,
+            )
+            return {"success": True, "result": res}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
 
 # Backward compatibility alias for test suite

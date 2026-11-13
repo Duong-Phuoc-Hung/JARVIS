@@ -40,6 +40,7 @@ class ShellPlugin(BasePlugin):
             handler=self.exec_command,
             required_privilege=PrivilegeLevel.ADMIN,
             description="Execute shell command",
+            allow_override=True,
         )
 
     def exec_command(self, command: str, timeout: float = 5.0, **kwargs) -> dict[str, Any]:

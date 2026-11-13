@@ -15,6 +15,7 @@ edge-tts>=7.2,<8                    # Default Vietnamese TTS provider
 soundfile>=0.13,<1                  # Decode provider audio before PCM playback
 # Tuỳ chọn (cài thêm để dùng offline):
 # faster-whisper>=1.0                # STT offline (cần ffmpeg)
+# nvidia-cublas-cu12>=12.0           # GPU CUDA acceleration cho faster-whisper (tuỳ chọn)
 # piper-tts>=1.2                     # TTS offline
 # webrtcvad>=2.0                     # VAD chuẩn Google (thay RMS)
 

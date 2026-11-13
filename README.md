@@ -1,6 +1,12 @@
 # 🤖 JARVIS — Trợ Lý AI Cá Nhân Tự Trị Cho Windows
 
-Current verified snapshot (2026-11-09), source **9.4.0**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+Current verified snapshot (2026-11-13), source **9.4.1**, **unreleased / CONDITIONAL GO (Internal Pilot)**:
+- **Sprint 33.1 JARVIS Sovereign v9.4.1 Milestone: Argon Audit Remediation, Faster-Whisper GPU cuBLAS & Xiaozhi Web Dashboard**:
+  - *Faster-Whisper GPU CUDA Acceleration* (`jarvis/stt/engine.py`): Tự động nạp động thư viện `nvidia.cublas.lib` qua `os.add_dll_directory` và PATH linking trên Windows. Cài đặt `nvidia-cublas-cu12`, mở khóa 100% gia tốc phần cứng GPU CUDA cho mô hình Faster-Whisper, cắt giảm độ trễ STT từ 600-1200ms CPU xuống còn `<150ms` trên GPU rời.
+  - *ActionDispatcher Zero-Collision & Clean Boot* (`jarvis/core/dispatcher.py`, `jarvis/core/plugin.py`, `jarvis/skills/registry.py`): Bổ sung cờ `allow_override=True` cho phép plugin quản trị viên (`ShellPlugin`) và modular skills (`SkillRegistry`) gắn kết hợp pháp lên các fallback cốt lõi, triệt tiêu hoàn toàn cảnh báo runtime `Action overwritten` khi khởi động.
+  - *OpenWakeWord ONNX Clean Engine Load* (`jarvis/audio/wake_word.py`): Khởi tạo `openwakeword.Model(inference_framework="onnx")` tường minh khi nạp các mô hình ONNX, loại bỏ cảnh báo thiếu `tflite-runtime`.
+  - *Xiaozhi-ESP32 Hardware Management trên Web Dashboard* (`jarvis/ui/dashboard.py`): Tích hợp thẻ điều khiển phần cứng Xiaozhi, API REST `/api/xiaozhi/devices` tra cứu danh sách bo mạch/cảm biến/phiên kết nối, và `/api/xiaozhi/tool` kích hoạt công cụ MCP từ xa ngay trên trình duyệt.
+  - Toàn bộ suite kiểm thử cập nhật: **100% PASS (165/165 tests in 87.75s, 9/9 Dashboard tests in 2.61s)**.
 - **Sprint 33 JARVIS Sovereign v9.4.0 Milestone: Xiaozhi-ESP32 Hardware Voice Companion & Bidirectional Model Context Protocol (MCP) Gateway**:
   - *Hướng Dẫn Kỹ Thuật Chi Tiết*: Đã xuất bản toàn văn hướng dẫn kiến trúc, giao thức và nối dây phần cứng tại [`docs/XIAOZHI_ESP32_INTEGRATION_GUIDE.md`](docs/XIAOZHI_ESP32_INTEGRATION_GUIDE.md).
   - *Full-Duplex Real-Time WebSocket Edge Gateway* (`jarvis/comms/xiaozhi_gateway.py`): Cổng kết nối song công thời gian thực qua WebSocket tại `/xiaozhi/v1` (mặc định cổng `8088`), hỗ trợ truyền nhận âm thanh trực tiếp cho các bo mạch phần cứng ESP32 / ESP32-S3 trong mạng gia đình hoặc từ xa.

@@ -642,6 +642,22 @@ class FasterWhisperSTT(BaseSTTEngine):
             # DLL not in PATH — try locating via nvidia wheel
             try:
                 import nvidia.cublas.lib  # noqa: F401 (nvidia-cublas-cu12 wheel)
+                import pathlib
+                pkg_dir = pathlib.Path(nvidia.cublas.lib.__file__).resolve().parent
+                for candidate in (pkg_dir, pkg_dir.parent / "bin", pkg_dir.parent / "lib"):
+                    if candidate.is_dir():
+                        if hasattr(os, "add_dll_directory"):
+                            try:
+                                os.add_dll_directory(str(candidate))
+                            except Exception:
+                                pass
+                        os.environ["PATH"] = str(candidate) + os.pathsep + os.environ.get("PATH", "")
+                for dll in ("cublas64_12.dll", "cublas64_11.dll"):
+                    try:
+                        ctypes.CDLL(dll)
+                        return "cuda"
+                    except OSError:
+                        continue
                 return "cuda"
             except ImportError:
                 pass

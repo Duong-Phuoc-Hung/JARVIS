@@ -821,7 +821,10 @@ class WakeWordDetector:
                         # label to look for, not a fabricated one.
                         configured_labels = ["hey_jarvis", "hey jarvis", "jarvis"]
 
-                    oww_model = openwakeword.Model(wakeword_models=model_paths)
+                    oww_kwargs: dict[str, Any] = {"wakeword_models": model_paths}
+                    if model_paths and all(str(p).endswith(".onnx") for p in model_paths):
+                        oww_kwargs["inference_framework"] = "onnx"
+                    oww_model = openwakeword.Model(**oww_kwargs)
                     available_labels = {
                         str(k).strip().lower(): k
                         for k in getattr(oww_model, "models", {}).keys()

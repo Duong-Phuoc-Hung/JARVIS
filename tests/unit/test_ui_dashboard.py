@@ -234,3 +234,53 @@ def test_dashboard_metrics_server_alias():
     """Verify DashboardMetricsServer backward compatibility alias."""
     metrics_srv = DashboardMetricsServer()
     assert isinstance(metrics_srv, DashboardServer)
+
+
+def test_dashboard_xiaozhi_devices_api():
+    """Verify /api/xiaozhi/devices and /api/xiaozhi/tool endpoint handlers."""
+    # Scenario 1: Gateway not present on app
+    server_no_gw = DashboardServer()
+    res = server_no_gw.get_xiaozhi_devices()
+    assert res["enabled"] is False
+    assert res["devices"] == []
+
+    tool_res_fail = server_no_gw.call_xiaozhi_tool({"session_id": "s1", "tool_name": "lamp"})
+    assert tool_res_fail["success"] is False
+    assert "not running" in tool_res_fail["error"]
+
+    # Scenario 2: Gateway present on app with mock registry and sessions
+    mock_app = MagicMock()
+    mock_gw = MagicMock()
+    mock_gw.registry.list_devices.return_value = [
+        {"device_id": "esp32_1", "name": "Desk Companion", "tools_count": 2, "last_seen_at": 1000.0}
+    ]
+    mock_gw.active_sessions = {"sess_1": MagicMock()}
+    mock_gw.call_device_tool_sync.return_value = {"status": "ok", "state": True}
+    mock_app.xiaozhi_gateway = mock_gw
+
+    server_gw = DashboardServer(app=mock_app)
+    dev_res = server_gw.get_xiaozhi_devices()
+    assert dev_res["enabled"] is True
+    assert len(dev_res["devices"]) == 1
+    assert dev_res["devices"][0]["device_id"] == "esp32_1"
+    assert dev_res["active_sessions"] == 1
+
+    # Scenario 3: Call device tool via dashboard
+    call_res = server_gw.call_xiaozhi_tool({
+        "session_id": "sess_1",
+        "tool_name": "self.lamp.set_state",
+        "arguments": {"state": True},
+        "timeout": 2.0,
+    })
+    assert call_res["success"] is True
+    assert call_res["result"]["status"] == "ok"
+    mock_gw.call_device_tool_sync.assert_called_once_with(
+        session_id="sess_1",
+        tool_name="self.lamp.set_state",
+        arguments={"state": True},
+        timeout=2.0,
+    )
+
+    # Scenario 4: Missing arguments fail-closed
+    call_missing = server_gw.call_xiaozhi_tool({"session_id": ""})
+    assert call_missing["success"] is False

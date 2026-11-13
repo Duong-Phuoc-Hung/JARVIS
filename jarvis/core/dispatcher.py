@@ -363,6 +363,7 @@ class ActionDispatcher:
         timeout_seconds: float | None = None,
         plugin_name: str | None = None,
         labs_feature: str | None = None,
+        allow_override: bool = False,
     ) -> None:
         """Register a new callable action."""
         if not name or not isinstance(name, str):
@@ -386,7 +387,10 @@ class ActionDispatcher:
 
         with self._lock:
             if name in self._actions:
-                logger.warning("Action '%s' is being overwritten in ActionDispatcher.", name)
+                if not allow_override:
+                    logger.warning("Action '%s' is being overwritten in ActionDispatcher.", name)
+                else:
+                    logger.debug("Action '%s' overridden in ActionDispatcher (allow_override=True).", name)
             self._actions[name] = action_def
 
         logger.debug("Registered action '%s' (privilege=%s, async=%s)", name, required_privilege.name, is_async)

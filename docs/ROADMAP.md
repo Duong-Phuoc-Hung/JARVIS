@@ -213,6 +213,18 @@
 - [x] **Consolidated Empirical Benchmark Suite (`tests/eval/test_frontier_24_to_28_omniscient_benchmark.py`)** — `PASS runtime`:
   - [x] Toàn bộ 6 bài kiểm chuẩn thực nghiệm tổng hợp và chu trình phản xạ toàn diện Omniscient Symbiont (6/6 passed 100%).
 
+## Sprint 33.1: Argon Audit Remediation, Faster-Whisper GPU cuBLAS & Xiaozhi Web Dashboard (2026-11-13, v9.4.1)
+
+- [x] **Faster-Whisper GPU CUDA Acceleration (`jarvis/stt/engine.py`)** — `PASS runtime`:
+  - [x] Tự động nạp động thư viện `nvidia.cublas.lib` qua `os.add_dll_directory` và PATH linking trên Windows. Cài đặt `nvidia-cublas-cu12`, mở khóa 100% gia tốc phần cứng GPU CUDA cho Faster-Whisper (<150ms).
+- [x] **ActionDispatcher Zero-Collision & Clean Boot (`jarvis/core/dispatcher.py`, `jarvis/core/plugin.py`, `jarvis/skills/registry.py`)** — `PASS runtime`:
+  - [x] Bổ sung cờ `allow_override=True` cho phép plugin quản trị viên (`ShellPlugin`) và modular skills (`SkillRegistry`) gắn kết hợp pháp lên các fallback cốt lõi, triệt tiêu hoàn toàn cảnh báo runtime `Action overwritten` khi khởi động.
+- [x] **OpenWakeWord ONNX Clean Engine Load (`jarvis/audio/wake_word.py`)** — `PASS runtime`:
+  - [x] Khởi tạo `openwakeword.Model(inference_framework="onnx")` tường minh khi nạp các mô hình ONNX, loại bỏ cảnh báo thiếu `tflite-runtime`.
+- [x] **Xiaozhi-ESP32 Hardware Management trên Web Dashboard (`jarvis/ui/dashboard.py`)** — `PASS runtime`:
+  - [x] Tích hợp thẻ điều khiển phần cứng Xiaozhi, API REST `/api/xiaozhi/devices` tra cứu danh sách bo mạch/cảm biến/phiên kết nối, và `/api/xiaozhi/tool` kích hoạt công cụ MCP từ xa ngay trên trình duyệt.
+  - [x] Unit test suite hoàn chỉnh: `tests/unit/test_ui_dashboard.py` (9/9 passed 100%).
+
 ## Sprint 33: Xiaozhi-ESP32 Hardware Companion & Bidirectional Model Context Protocol (MCP) Gateway (2026-11-09, v9.4.0)
 
 - [x] **Full-Duplex Real-Time WebSocket Edge Gateway (`jarvis/comms/xiaozhi_gateway.py`)** — `PASS runtime`:

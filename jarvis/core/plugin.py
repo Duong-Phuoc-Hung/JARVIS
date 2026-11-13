@@ -104,6 +104,7 @@ class BasePlugin(ABC):
         schema: dict[str, Any] | None = None,
         timeout_seconds: float | None = None,
         dispatcher: ActionDispatcher | None = None,
+        allow_override: bool = False,
     ) -> None:
         """Helper to register action associated with this plugin."""
         disp = dispatcher or self.dispatcher
@@ -117,7 +118,8 @@ class BasePlugin(ABC):
             description=description,
             schema=schema,
             timeout_seconds=timeout_seconds,
-            plugin_name=self.metadata.name
+            plugin_name=self.metadata.name,
+            allow_override=allow_override,
         )
         self._registered_actions.append(name)
 
