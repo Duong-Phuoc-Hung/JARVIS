@@ -1,96 +1,131 @@
 {
-  "version": "1.0.0",
-  "generated_at": "2026-08-28 12:56:15",
-  "ready_subsystems": 0,
-  "total_subsystems": 0,
-  "new_modules_ready": 0,
-  "new_modules_total": 17,
-  "test_summary": "536 tests collected in 1.86s",
+  "version": "9.5.1",
+  "generated_at": "2026-11-13 12:07:15",
+  "ready_subsystems": 17,
+  "total_subsystems": 17,
+  "new_modules_ready": 24,
+  "new_modules_total": 24,
+  "test_summary": "3753 tests collected in 6.39s",
   "modules": [
     {
       "module": "jarvis.audio.vad",
       "display": "VAD Engine",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.audio.fullduplex",
       "display": "Full-Duplex Barge-in",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.audio.sound_effects",
       "display": "Stark UI Sound Effects",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
+    },
+    {
+      "module": "jarvis.audio.bluetooth_profile",
+      "display": "Bluetooth DAC Audio Optimizer",
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.tts.piper",
       "display": "Piper TTS Offline",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
+    },
+    {
+      "module": "jarvis.tts.vieneu",
+      "display": "VieNeu TTS Neural Synthesis",
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.stt.faster_whisper",
       "display": "Faster-Whisper STT",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.memory.vector_store",
       "display": "Semantic Vector Store",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.workers.night_shift",
       "display": "Night Shift Worker",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
+    },
+    {
+      "module": "jarvis.proactive.night_shift",
+      "display": "Battery & Sleep Sensing",
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.comms.discord",
       "display": "Discord Bot Controller",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
+    },
+    {
+      "module": "jarvis.comms.telegram",
+      "display": "Telegram Voice & Bot Client",
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.comms.mobile_bridge",
       "display": "Mobile File Bridge",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
+    },
+    {
+      "module": "jarvis.automation.zalo_client",
+      "display": "Zalo Desktop Automation",
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.smart_home.discovery",
       "display": "Smart Home Discovery",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
+    },
+    {
+      "module": "jarvis.security.path_guard",
+      "display": "Filesystem Path Guard",
+      "status": "✅ READY"
+    },
+    {
+      "module": "jarvis.llm.ollama_client",
+      "display": "Ollama Local LLM Acceleration",
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.skills.screen_context",
       "display": "Screen Context AI",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.skills.macro_recorder",
       "display": "Voice Macro Recorder",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.skills.skill_synthesizer",
       "display": "Self-Coding Synthesizer",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.skills.rag_search",
       "display": "Semantic RAG Search",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.skills.night_planner",
       "display": "Night Planner",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.skills.smart_home_discovery",
       "display": "Smart Home Discovery",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
     },
     {
       "module": "jarvis.skills.sound_board",
       "display": "Sound Board",
-      "status": "❌ ERROR: No module named 'jarvis'"
+      "status": "✅ READY"
     }
   ]
 }

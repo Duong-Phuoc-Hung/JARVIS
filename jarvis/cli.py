@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import enum
+import json
 import os
 import sys
 from collections.abc import Sequence
@@ -234,8 +235,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # Command: health-check / health
-    subparsers.add_parser("health-check", help="Run comprehensive environment and device diagnostics.")
-    subparsers.add_parser("health", help="Alias for health-check.")
+    hc_cmd = subparsers.add_parser("health-check", help="Run comprehensive environment and device diagnostics.")
+    hc_cmd.add_argument(
+        "--format",
+        type=str,
+        choices=["text", "json"],
+        default="text",
+        help="Diagnostic output format: text (human readable) or json (machine readable).",
+    )
+    h_cmd = subparsers.add_parser("health", help="Alias for health-check.")
+    h_cmd.add_argument(
+        "--format",
+        type=str,
+        choices=["text", "json"],
+        default="text",
+        help="Diagnostic output format: text (human readable) or json (machine readable).",
+    )
 
     # Command: install-autostart
     subparsers.add_parser("install-autostart", help="Configure JARVIS to launch automatically at Windows startup.")
@@ -352,34 +367,45 @@ def _browser_health_exit_code(line: str | None) -> int:
     return 1
 
 
-def run_health_check(config: ConfigManager) -> int:
+def run_health_check(config: ConfigManager, output_format: str = "text") -> int:
     """Execute comprehensive diagnostics on all 17 JARVIS core and autonomous subsystems."""
     failure_count = 0
+    subsystem_results: dict[str, dict[str, Any]] = {}
 
     def report_subsystem_error(subsystem: str, error: Exception) -> None:
         nonlocal failure_count
         failure_count += 1
-        _safe_print(f"[-] {subsystem} Error: {error}")
+        subsystem_results[subsystem] = {"status": "error", "message": str(error)}
+        if output_format != "json":
+            _safe_print(f"[-] {subsystem} Error: {error}")
 
-    _safe_print("=" * 65)
-    _safe_print(f" JARVIS System Health Diagnostics (v{__version__})")
-    _safe_print("=" * 65)
+    def record_subsystem_ok(subsystem: str, message: str) -> None:
+        subsystem_results[subsystem] = {"status": "ready", "message": message}
+        if output_format != "json":
+            _safe_print(f"[+] {subsystem}: {message}")
+
+    if output_format != "json":
+        _safe_print("=" * 65)
+        _safe_print(f" JARVIS System Health Diagnostics (v{__version__})")
+        _safe_print("=" * 65)
 
     # 1. Platform & OS
-    _safe_print(f"[+] Platform & OS: READY (Operating System: {sys.platform}/{os.name}, Python {sys.version.split()[0]} at {sys.executable})")
+    plat_msg = f"READY (Operating System: {sys.platform}/{os.name}, Python {sys.version.split()[0]} at {sys.executable})"
+    record_subsystem_ok("Platform & OS", plat_msg)
 
     # 2. Audio Subsystem
     try:
         import sounddevice as sd
         devices = sd.query_devices()
         input_devices = [d for d in devices if d.get("max_input_channels", 0) > 0]
-        _safe_print(f"[+] Audio Subsystem: sounddevice READY ({len(input_devices)} input devices found)")
         default_in = sd.default.device[0] if hasattr(sd, "default") and hasattr(sd.default, "device") else None
         if default_in is not None and default_in >= 0 and default_in < len(devices):
             dev_name = devices[default_in].get("name", "Default")
-            _safe_print(f"    - Default Input: [{default_in}] {dev_name}")
+            dev_info = f"Default Input: [{default_in}] {dev_name}"
         else:
-            _safe_print("    - [!] Default Input: None (Headless/Virtual fallback active)")
+            dev_info = "Default Input: None (Headless/Virtual fallback active)"
+        audio_msg = f"sounddevice READY ({len(input_devices)} input devices found) - {dev_info}"
+        record_subsystem_ok("Audio Subsystem", audio_msg)
     except Exception as e:
         report_subsystem_error("Audio Subsystem", e)
 
@@ -389,7 +415,8 @@ def run_health_check(config: ConfigManager) -> int:
         ww_cfg = config.get("audio.wake_word", config.get("wake_word", {}))
         detector = WakeWordDetector(enabled=True, sensitivity=float(ww_cfg.get("sensitivity", 0.5)))
         model_name = "Vosk" if getattr(detector, "_vosk_model", None) else ("Porcupine" if getattr(detector, "_porcupine", None) else "Acoustic Spectral Filter")
-        _safe_print(f"[+] Wake Word Engine: {model_name} READY (keyword='hey jarvis', sensitivity={detector.sensitivity})")
+        ww_msg = f"{model_name} READY (keyword='hey jarvis', sensitivity={detector.sensitivity})"
+        record_subsystem_ok("Wake Word Engine", ww_msg)
     except Exception as e:
         report_subsystem_error("Wake Word Engine", e)
 
@@ -400,7 +427,8 @@ def run_health_check(config: ConfigManager) -> int:
         store = SQLiteMemoryStore(db_path=mem_db)
         facts = store.list_facts()
         episodes = store.get_episodes(limit=5) if hasattr(store, "get_episodes") else store.list_episodes(limit=5)
-        _safe_print(f"[+] Persistent Memory: SQLite WAL Store READY ({mem_db} | {len(facts)} facts, {len(episodes)} recent episodes)")
+        mem_msg = f"SQLite WAL Store READY ({mem_db} | {len(facts)} facts, {len(episodes)} recent episodes)"
+        record_subsystem_ok("Persistent Memory", mem_msg)
     except Exception as e:
         report_subsystem_error("Memory Subsystem", e)
 
@@ -419,7 +447,8 @@ def run_health_check(config: ConfigManager) -> int:
         diag_ok = dialog_detector.is_available() if hasattr(dialog_detector, "is_available") else True
         vis_key = bool(vis_mgr.gemini_api_key or vis_mgr.openai_api_key)
         key_status = "API Key Active" if vis_key else "Polite Fallback Mode"
-        _safe_print(f"[+] Screen Vision: Engine READY (Capture={'mss/PIL' if cap_ok else 'Ready'}, Win32 Dialog Detector={'Ready' if diag_ok else 'N/A'}, {key_status})")
+        vis_msg = f"Engine READY (Capture={'mss/PIL' if cap_ok else 'Ready'}, Win32 Dialog Detector={'Ready' if diag_ok else 'N/A'}, {key_status})"
+        record_subsystem_ok("Screen Vision", vis_msg)
     except Exception as e:
         report_subsystem_error("Vision Subsystem", e)
 
@@ -428,7 +457,8 @@ def run_health_check(config: ConfigManager) -> int:
         from jarvis.web.hub import WebIntelligenceHub
         web_hub = WebIntelligenceHub()
         online_str = "Online" if web_hub.is_online() else "Offline Cache Fallback"
-        _safe_print(f"[+] Web Intelligence Hub: READY ({online_str} | Weather, News, Crypto, 10m TTLCache OK)")
+        web_msg = f"READY ({online_str} | Weather, News, Crypto, 10m TTLCache OK)"
+        record_subsystem_ok("Web Intelligence Hub", web_msg)
     except Exception as e:
         report_subsystem_error("Web Intelligence Hub", e)
 
@@ -441,7 +471,8 @@ def run_health_check(config: ConfigManager) -> int:
         gate = SafetyGate(timeout_seconds=30.0)
         shell_ast = ShellAssistant(safety_gate=gate)
         mon_count = len(ctrl.get_monitors()) if hasattr(ctrl, "get_monitors") else len(ctrl.win32.get_monitors())
-        _safe_print(f"[+] OS Automation & Shell: Win32 APIs READY ({mon_count} display(s), Safety Gate 30s Token FSM OK)")
+        os_msg = f"Win32 APIs READY ({mon_count} display(s), Safety Gate 30s Token FSM OK)"
+        record_subsystem_ok("OS Automation & Shell", os_msg)
     except Exception as e:
         report_subsystem_error("OS Automation", e)
 
@@ -450,7 +481,8 @@ def run_health_check(config: ConfigManager) -> int:
         from jarvis.proactive.engine import ProactiveEngine
         p_cfg = config.get("proactive", {})
         engine = ProactiveEngine(config=p_cfg if isinstance(p_cfg, dict) else {})
-        _safe_print("[+] Proactive Intelligence: READY (5 Sub-Engines Operational: Reminders, Health Watchdog, Pomodoro, 8AM Briefing, Inactivity)")
+        pro_msg = "READY (5 Sub-Engines Operational: Reminders, Health Watchdog, Pomodoro, 8AM Briefing, Inactivity)"
+        record_subsystem_ok("Proactive Intelligence", pro_msg)
     except Exception as e:
         report_subsystem_error("Proactive Intelligence", e)
 
@@ -458,7 +490,8 @@ def run_health_check(config: ConfigManager) -> int:
     try:
         from jarvis.ui.overlay import AlwaysOnOverlay
         overlay = AlwaysOnOverlay(headless=True)
-        _safe_print("[+] Always-On Overlay HUD: READY (Sidebar HUD, Task DAG & Waveform Spectrum Analyzer OK)")
+        hud_msg = "READY (Sidebar HUD, Task DAG & Waveform Spectrum Analyzer OK)"
+        record_subsystem_ok("Always-On Overlay HUD", hud_msg)
     except Exception as e:
         report_subsystem_error("Overlay HUD", e)
 
@@ -467,7 +500,8 @@ def run_health_check(config: ConfigManager) -> int:
         from jarvis.planner.engine import ReActTaskEngine
         planner = ReActTaskEngine()
         test_dag = planner.create_plan("Kiểm tra sức khỏe hệ thống tự trị")
-        _safe_print(f"[+] Autonomous ReAct Planner: READY ({len(test_dag.nodes)} steps planned, Self-Reflection & Safety Gate Active)")
+        plan_msg = f"READY ({len(test_dag.nodes)} steps planned, Self-Reflection & Safety Gate Active)"
+        record_subsystem_ok("Autonomous ReAct Planner", plan_msg)
     except Exception as e:
         report_subsystem_error("Autonomous ReAct Planner", e)
 
@@ -475,7 +509,8 @@ def run_health_check(config: ConfigManager) -> int:
     try:
         from jarvis.sandbox.interpreter import CodeInterpreterSandbox
         sandbox = CodeInterpreterSandbox()
-        _safe_print("[+] Code Interpreter Sandbox: READY (AST Safety Validator, Python/PowerShell Subprocess & Artifact Manager OK)")
+        sand_msg = "READY (AST Safety Validator, Python/PowerShell Subprocess & Artifact Manager OK)"
+        record_subsystem_ok("Code Interpreter Sandbox", sand_msg)
     except Exception as e:
         report_subsystem_error("Code Interpreter Sandbox", e)
 
@@ -485,7 +520,8 @@ def run_health_check(config: ConfigManager) -> int:
         skills_dir = config.get("skills.dir", "jarvis/skills")
         registry = SkillRegistry(skills_dir=skills_dir)
         count = len(registry.list_skills())
-        _safe_print(f"[+] Persistent Skill Library: READY ({count} packaged skills indexed in {skills_dir})")
+        skill_msg = f"READY ({count} packaged skills indexed in {skills_dir})"
+        record_subsystem_ok("Persistent Skill Library", skill_msg)
     except Exception as e:
         report_subsystem_error("Persistent Skill Library", e)
 
@@ -493,7 +529,11 @@ def run_health_check(config: ConfigManager) -> int:
     browser_health_line: str | None = None
     try:
         browser_health_line = _browser_health_line()
-        _safe_print(browser_health_line)
+        if output_format != "json":
+            _safe_print(browser_health_line)
+        b_code = _browser_health_exit_code(browser_health_line)
+        b_st = "ready" if b_code == 0 else ("warning" if b_code == 2 else "error")
+        subsystem_results["Browser Automation Agent"] = {"status": b_st, "message": browser_health_line}
     except Exception as e:
         report_subsystem_error("Browser Automation Agent", e)
 
@@ -503,7 +543,8 @@ def run_health_check(config: ConfigManager) -> int:
         from jarvis.vision.computer_use import ComputerUseVision
         cuv = ComputerUseVision()
         actor = GUIActor(vision=cuv)
-        _safe_print("[+] Computer-Use Vision & GUI Actor: READY (1000x1000 Coordinate Grounding & Visual Verification Loop Active)")
+        cu_msg = "READY (1000x1000 Coordinate Grounding & Visual Verification Loop Active)"
+        record_subsystem_ok("Computer-Use Vision & GUI Actor", cu_msg)
     except Exception as e:
         report_subsystem_error("Computer-Use Vision & GUI Actor", e)
 
@@ -511,20 +552,42 @@ def run_health_check(config: ConfigManager) -> int:
     try:
         from jarvis.workers.manager import SubAgentManager
         mgr = SubAgentManager(max_workers=4)
-        _safe_print("[+] Sub-Agent Worker Pool: READY (Concurrency=4 workers, Cooperative Cancellation & Telemetry OK)")
+        sub_msg = "READY (Concurrency=4 workers, Cooperative Cancellation & Telemetry OK)"
+        record_subsystem_ok("Sub-Agent Worker Pool", sub_msg)
         mgr.shutdown(wait=False, cancel_running=True)
     except Exception as e:
         report_subsystem_error("Sub-Agent Worker Pool", e)
 
     # 16. Speech & AI Services
-    eleven_key = config.get("tts.elevenlabs.api_key") or os.environ.get("ELEVENLABS_API_KEY")
-    tts_status = "ElevenLabs API Key configured" if eleven_key else "Windows SAPI5 / Local WAV Cache fallback"
-    _safe_print(f"[+] Speech Services: READY (TTS Engine: {tts_status} | STT: Whisper API / Local fallback)")
+    try:
+        eleven_key = config.get("tts.elevenlabs.api_key") or os.environ.get("ELEVENLABS_API_KEY")
+        tts_status = "ElevenLabs API Key configured" if eleven_key else "Windows SAPI5 / Local WAV Cache fallback"
+        speech_msg = f"READY (TTS Engine: {tts_status} | STT: Whisper API / Local fallback)"
+        record_subsystem_ok("Speech Services", speech_msg)
+    except Exception as e:
+        report_subsystem_error("Speech Services", e)
 
     # 17. Configuration Status
-    _safe_print(f"[+] Configuration: READY (Schema loaded with {len(config.to_dict())} root sections, Hot-Reload Watcher Ready)")
-    _safe_print("=" * 65)
+    try:
+        cfg_msg = f"READY (Schema loaded with {len(config.to_dict())} root sections, Hot-Reload Watcher Ready)"
+        record_subsystem_ok("Configuration", cfg_msg)
+    except Exception as e:
+        report_subsystem_error("Configuration", e)
+
     browser_exit_code = _browser_health_exit_code(browser_health_line)
+
+    if output_format == "json":
+        payload = {
+            "version": __version__,
+            "subsystems": subsystem_results,
+            "failure_count": failure_count,
+            "browser_exit_code": browser_exit_code,
+            "status": "ready" if failure_count == 0 and browser_exit_code == 0 else ("limited" if failure_count == 0 and browser_exit_code == 2 else "error"),
+        }
+        _safe_print(json.dumps(payload, indent=2, ensure_ascii=False))
+        return 1 if failure_count > 0 else browser_exit_code
+
+    _safe_print("=" * 65)
     if failure_count:
         error_word = "error" if failure_count == 1 else "errors"
         browser_note = (
@@ -560,7 +623,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # Route subcommands
     if args.command in ("health-check", "health"):
-        return run_health_check(config)
+        return run_health_check(config, output_format=getattr(args, "format", "text"))
 
     elif args.command == "install-autostart":
         from jarvis.platform.windows import set_autostart

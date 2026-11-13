@@ -17,7 +17,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).parent.parent
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 REPORTS_DIR = ROOT / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -34,8 +36,13 @@ def run_health_check() -> dict:
             cwd=ROOT,
             creationflags=_cflags,
         )
-        if result.stdout.strip():
-            return json.loads(result.stdout)
+        raw = result.stdout.strip()
+        if raw:
+            start = raw.find("{")
+            end = raw.rfind("}")
+            if start != -1 and end != -1:
+                data = json.loads(raw[start : end + 1])
+                return data.get("subsystems", data)
     except Exception:
         pass
     return {}
@@ -46,47 +53,62 @@ def run_test_count() -> dict:
     try:
         _cflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         result = subprocess.run(
-            [sys.executable, "-m", "pytest", "tests/unit/", "--collect-only", "-q", "--tb=no"],
+            [sys.executable, "-m", "pytest", "tests/unit/", "--collect-only"],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=60,
             cwd=ROOT,
             creationflags=_cflags,
         )
         lines = result.stdout.splitlines()
         for line in reversed(lines):
-            if "test" in line and ("selected" in line or "passed" in line or "collected" in line):
-                return {"raw": line.strip()}
+            line_str = line.strip()
+            if "test" in line_str and ("collected" in line_str or "selected" in line_str or "passed" in line_str):
+                return {"raw": line_str}
     except Exception:
         pass
     return {}
 
 
 def get_version() -> str:
-    """Extract version from jarvis/__init__.py."""
+    """Extract version from jarvis package or jarvis/__init__.py."""
+    try:
+        import jarvis
+
+        return getattr(jarvis, "__version__", "unknown")
+    except Exception:
+        pass
     try:
         init = (ROOT / "jarvis" / "__init__.py").read_text(encoding="utf-8")
         for line in init.splitlines():
-            if "__version__" in line:
-                return line.split("=")[-1].strip().strip('"').strip("'")
+            line_s = line.strip()
+            if line_s.startswith("__version__") and "=" in line_s:
+                return line_s.split("=", 1)[1].strip().strip('"').strip("'")
     except Exception:
         pass
     return "unknown"
 
 
 def get_new_module_status() -> list:
-    """Check which new modules exist and can be imported."""
+    """Check which core and extended modules exist and can be imported."""
     modules = [
         ("jarvis.audio.vad", "VAD Engine"),
         ("jarvis.audio.fullduplex", "Full-Duplex Barge-in"),
         ("jarvis.audio.sound_effects", "Stark UI Sound Effects"),
+        ("jarvis.audio.bluetooth_profile", "Bluetooth DAC Audio Optimizer"),
         ("jarvis.tts.piper", "Piper TTS Offline"),
+        ("jarvis.tts.vieneu", "VieNeu TTS Neural Synthesis"),
         ("jarvis.stt.faster_whisper", "Faster-Whisper STT"),
         ("jarvis.memory.vector_store", "Semantic Vector Store"),
         ("jarvis.workers.night_shift", "Night Shift Worker"),
+        ("jarvis.proactive.night_shift", "Battery & Sleep Sensing"),
         ("jarvis.comms.discord", "Discord Bot Controller"),
+        ("jarvis.comms.telegram", "Telegram Voice & Bot Client"),
         ("jarvis.comms.mobile_bridge", "Mobile File Bridge"),
+        ("jarvis.automation.zalo_client", "Zalo Desktop Automation"),
         ("jarvis.smart_home.discovery", "Smart Home Discovery"),
+        ("jarvis.security.path_guard", "Filesystem Path Guard"),
+        ("jarvis.llm.ollama_client", "Ollama Local LLM Acceleration"),
     ]
     skills = [
         ("jarvis.skills.screen_context", "Screen Context AI"),
@@ -127,17 +149,17 @@ def build_markdown_report(
     mod_total = len(module_status)
 
     lines = [
-        f"# 🤖 JARVIS Health Report",
-        f"",
+        "# 🤖 JARVIS Health Report",
+        "",
         f"**Generated:** {ts}  |  **Version:** {version}",
-        f"**Subsystems:** {ready}/{total} READY  |  **New Modules:** {mod_ready}/{mod_total} READY",
-        f"",
-        f"---",
-        f"",
-        f"## 🆕 New Modules Status (v2.1.0 → v3.0.0)",
-        f"",
-        f"| Module | Display Name | Status |",
-        f"|--------|-------------|--------|",
+        f"**Subsystems:** {ready}/{total} READY  |  **Architecture Modules:** {mod_ready}/{mod_total} READY",
+        "",
+        "---",
+        "",
+        f"## 🧩 Core & Modern Architecture Modules (v{version})",
+        "",
+        "| Module | Display Name | Status |",
+        "|--------|-------------|--------|",
     ]
     for m in module_status:
         lines.append(f"| `{m['module'].split('.')[-1]}` | {m['display']} | {m['status']} |")
@@ -152,7 +174,7 @@ def build_markdown_report(
                 lines.append(f"| {name} | {icon} {st.upper()} | {detail} |")
 
     if test_info.get("raw"):
-        lines += ["", f"## 🧪 Tests", f"", f"```", test_info["raw"], f"```"]
+        lines += ["", "## 🧪 Tests", "", "```", test_info["raw"], "```"]
 
     lines += [
         "",
@@ -167,7 +189,7 @@ def main():
     ts_file = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     print(f"[JARVIS Health Report] {ts}")
 
-    print(f"  -> Running health check...")
+    print("  -> Running health check...")
     health_data = run_health_check()
 
     print("  -> Counting tests...")
