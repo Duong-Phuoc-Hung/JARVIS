@@ -10,11 +10,11 @@ import numpy as np
 import pytest
 
 from jarvis.core.hd_vsa import (
-    CompoundMacroComposer,
     HD_DIMENSION_BITS,
     HD_UINT64_WORDS,
-    HyperVector,
+    CompoundMacroComposer,
     HyperdimensionalItemMemory,
+    HyperVector,
     bundle_hypervectors,
 )
 

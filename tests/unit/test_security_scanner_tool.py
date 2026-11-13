@@ -7,10 +7,10 @@ CLI flags, report formats, and exit code policies (R4 / Milestone M3).
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import tempfile
-from typing import Any
 import unittest
+from pathlib import Path
+from typing import Any
 
 from tools.security_scanner import (
     RULES,

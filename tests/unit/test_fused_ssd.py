@@ -6,6 +6,7 @@ Unit tests for Hardware-Fused Mamba-2 Structured State Space Duality (FBT-SSD) B
 from __future__ import annotations
 
 import unittest
+
 import numpy as np
 
 from jarvis.stt.fused_ssd import FusedMamba2SSDBlock, FusedStreamingSpeechSSDEncoder

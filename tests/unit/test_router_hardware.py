@@ -9,13 +9,14 @@ Unit and validation test suite for Sprint 2 (v4.7.0) R5 & Hardware/Adversarial f
 - Large input string parsing throughput & ReDoS resistance
 """
 import time
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from jarvis.hardware.monitor import DiskSmartMetrics, HardwareMetrics, HardwareMonitor
+from jarvis.hardware.reporter import HardwareReporter
 from jarvis.llm.client import LLMClient
 from jarvis.llm.router import LLMIntentRouter
-from jarvis.hardware.monitor import HardwareMetrics, HardwareMonitor, DiskSmartMetrics
-from jarvis.hardware.reporter import HardwareReporter
 from jarvis.vision.dialog_detector import DialogDetector
 
 

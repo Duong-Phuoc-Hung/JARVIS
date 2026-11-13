@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import pytest
 
+from jarvis.llm.local_classifier import extract_slots_for_intent
 from jarvis.nlp.phonetic_normalizer import (
     VietnamesePhoneticNormalizer,
     normalize_phonetic_stt,
 )
-from jarvis.llm.local_classifier import extract_slots_for_intent
 
 
 def test_phonetic_normalizer_loan_words():

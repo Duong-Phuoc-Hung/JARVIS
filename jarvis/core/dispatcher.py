@@ -461,7 +461,7 @@ class ActionDispatcher:
         if self.voice_gate is not None:
             speaker_similarity = None
             if hasattr(context, "speaker_similarity"):
-                speaker_similarity = getattr(context, "speaker_similarity")
+                speaker_similarity = context.speaker_similarity
             elif hasattr(context, "metadata") and isinstance(context.metadata, dict):
                 speaker_similarity = context.metadata.get("speaker_similarity")
             if speaker_similarity is None and isinstance(payload, dict):

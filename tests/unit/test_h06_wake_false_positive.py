@@ -351,8 +351,9 @@ def test_music_harmonic_negative_class_specifically_rejected():
     percussive-transient signal (the class that measured 0.89+ confidence
     -- above even the strictest threshold -- before the minimum-sustained-
     duration fix) must now be rejected."""
-    from tests.eval.wake_word_fp_benchmark import gen_music_harmonic
     import zlib
+
+    from tests.eval.wake_word_fp_benchmark import gen_music_harmonic
 
     detector = AcousticSpectralDetector(sample_rate=16000)
     for variant in range(8):

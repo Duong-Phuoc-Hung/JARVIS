@@ -20,8 +20,8 @@ from jarvis.stt.engine import (
     audio_to_float32,
     audio_to_wav_bytes,
     float32_to_pcm16_wav_bytes,
-    resample_audio,
     prepare_stt_audio,
+    resample_audio,
 )
 
 __all__ = [

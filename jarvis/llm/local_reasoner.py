@@ -261,7 +261,7 @@ class ArgonNanoLocalReasoner:
                 if act and act not in ("unknown_intent", "generic_llm_response"):
                     return turn
             elif hasattr(turn, "action_name"):
-                act = getattr(turn, "action_name")
+                act = turn.action_name
                 if act and act not in ("unknown_intent", "generic_llm_response"):
                     params = dict(getattr(turn, "parameters", {})) if isinstance(getattr(turn, "parameters", None), dict) else {}
                     return {

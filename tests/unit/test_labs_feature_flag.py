@@ -39,7 +39,6 @@ from jarvis.core.labs import (
 from jarvis.core.models import ActionResult, ActionStatus
 from jarvis.security.scanner import PacketCapture
 
-
 # ── 1. Configuration System Tests ─────────────────────────────────────────────
 
 def test_default_config_labs_disabled_and_empty_features():

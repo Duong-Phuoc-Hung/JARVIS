@@ -103,8 +103,8 @@ class VoiceActivityDetector:
     def _init_backend(self) -> None:
         if self.config.backend in ("auto", "silero"):
             try:
-                import onnxruntime as ort
                 import numpy as np
+                import onnxruntime as ort
                 model_path = _find_silero_vad_path()
                 if model_path is not None:
                     opts = ort.SessionOptions()

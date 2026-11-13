@@ -47,7 +47,8 @@ class TestAuthorization:
         assert bot_unconfigured.verify_webhook_signature(b"payload", "sig") is False
 
     def test_real_webhook_signature_validates_correctly(self):
-        import hashlib, hmac
+        import hashlib
+        import hmac
         secret = "super_secret_key"
         cfg = ZaloConfig(webhook_secret=secret, whitelist_user_ids=["u1"])
         controller = ZaloBotController(config=cfg, is_mock=False)

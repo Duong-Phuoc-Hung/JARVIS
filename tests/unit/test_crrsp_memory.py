@@ -6,13 +6,14 @@ Validates dual fast/slow state separation, multi-turn persistence,
 zero-VRAM allocation, and bounded O(1) buffer size in Argon Frontier 10.0.
 """
 import time
+
 import numpy as np
 import pytest
 
 from jarvis.stt.crrsp_memory import (
+    ContinuousRollingRecurrentMemory,
     CRRSPConfig,
     CRRSPTelemetry,
-    ContinuousRollingRecurrentMemory,
 )
 
 

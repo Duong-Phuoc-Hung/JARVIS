@@ -13,10 +13,10 @@ import pytest
 
 from jarvis.security.secrets import (
     KNOWN_SECRETS,
-    get_secret,
-    set_secret,
     delete_secret,
+    get_secret,
     migrate_from_dotenv,
+    set_secret,
 )
 
 
@@ -150,8 +150,9 @@ class TestSecretsCLISlice4:
     """Slice 4: CLI interface for secrets management and dotenv migration."""
 
     def test_cli_migrate_dotenv_dry_run(self, tmp_path, capsys):
-        from jarvis.security import secrets
         import sys
+
+        from jarvis.security import secrets
 
         env_file = tmp_path / ".env"
         env_file.write_text("GEMINI_API_KEY=AIzaSySecret123\n", encoding="utf-8")

@@ -45,7 +45,6 @@ from jarvis.core.labs import (
 )
 from jarvis.core.models import ActionResult, ActionStatus, RequesterContext
 
-
 # ==============================================================================
 # 1. Async Actions with @require_labs & dispatch_action_async
 # ==============================================================================
@@ -803,6 +802,7 @@ def test_adversarial_browser_cdp_capture_probe_respects_timeout_s():
     and cleanly catches socket.timeout/TimeoutError returning fail-closed result.
     """
     import urllib.request
+
     from jarvis.core.app import JarvisApp
 
     app = JarvisApp(headless=True, no_hot_reload=True)

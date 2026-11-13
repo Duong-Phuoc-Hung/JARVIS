@@ -9,6 +9,7 @@ Validates:
   4. Suggested trigger generation in natural Vietnamese.
 """
 import time
+
 import pytest
 
 from jarvis.learning.macro_miner import CandidateMacro, SequentialMacroMiner

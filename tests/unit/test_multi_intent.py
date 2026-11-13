@@ -10,8 +10,9 @@ Verifies:
 """
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from jarvis.llm.client import LLMClient
 from jarvis.llm.router import LLMIntentRouter

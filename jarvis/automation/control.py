@@ -10,11 +10,13 @@ import fnmatch
 import logging
 import os
 import re
+import struct
 import subprocess
 import sys
 import time
 from collections import deque
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Union
 from urllib.parse import urlencode, urlsplit
 
@@ -418,6 +420,45 @@ class ComputerController:
             except Exception:
                 pass
         return True
+
+    def set_clipboard_file(self, file_path: str | Path) -> bool:
+        """Sets a file onto the Windows clipboard as a CF_HDROP structure so Ctrl+V pastes the file itself."""
+        p = Path(file_path).resolve()
+        if not p.is_file():
+            return False
+
+        if sys.platform == "win32" and hasattr(ctypes, "windll") and hasattr(ctypes.windll, "user32"):
+            try:
+                u32 = ctypes.windll.user32
+                k32 = ctypes.windll.kernel32
+
+                # CF_HDROP = 15
+                # DROPFILES structure:
+                # DWORD pFiles (offset of file list) = 20 (sizeof DROPFILES)
+                # POINT pt = (0, 0)
+                # BOOL fNC = False
+                # BOOL fWide = True (Unicode UTF-16LE)
+                dropfiles_header = struct.pack("IIIIi", 20, 0, 0, 0, 1)
+                encoded_path = str(p).encode("utf-16le") + b"\x00\x00\x00\x00"
+                payload = dropfiles_header + encoded_path
+
+                if u32.OpenClipboard(None):
+                    try:
+                        u32.EmptyClipboard()
+                        # GMEM_MOVEABLE = 0x0002
+                        h_glb = k32.GlobalAlloc(0x0002, len(payload))
+                        if h_glb:
+                            ptr = k32.GlobalLock(h_glb)
+                            if ptr:
+                                ctypes.memmove(ptr, payload, len(payload))
+                                k32.GlobalUnlock(h_glb)
+                                u32.SetClipboardData(15, h_glb)
+                                return True
+                    finally:
+                        u32.CloseClipboard()
+            except Exception as exc:
+                logger.debug("set_clipboard_file error: %s", exc)
+        return False
 
     def copy_selection(self) -> str:
         """Sends Ctrl+C and reads clipboard text."""

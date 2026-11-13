@@ -27,7 +27,6 @@ from __future__ import annotations
 import ctypes
 import logging
 import os
-from pathlib import Path
 import signal
 import sys
 import threading
@@ -35,6 +34,7 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import asdict, is_dataclass
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -62,6 +62,20 @@ from jarvis.browser.models import (
 from jarvis.browser.session import BrowserSessionManager
 from jarvis.core.config import ConfigManager
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
+from jarvis.core.handlers import (
+    _POWER_ACTION_ALIASES,
+    _UNSUPPORTED_POWER_ACTIONS,
+    AutomationHandlers,
+    AutomationHandlersMixin,
+    BaseActionService,
+    ServiceHandlers,
+    ServiceHandlersMixin,
+    SystemHandlers,
+    SystemHandlersMixin,
+    _build_browser_config,
+    _DualErrorStr,
+    _safe_browser_failure_url,
+)
 from jarvis.core.labs import require_labs
 from jarvis.core.logger import log_interaction as _global_log_interaction
 from jarvis.core.models import RequesterContext
@@ -108,22 +122,6 @@ from jarvis.workers.models import WorkerPriority, WorkerTask
 from jarvis.workers.notifications import WorkerNotificationDispatcher
 
 log = logging.getLogger("jarvis.core.app")
-
-
-from jarvis.core.handlers import (
-    AutomationHandlers,
-    AutomationHandlersMixin,
-    BaseActionService,
-    ServiceHandlers,
-    ServiceHandlersMixin,
-    SystemHandlers,
-    SystemHandlersMixin,
-    _DualErrorStr,
-    _POWER_ACTION_ALIASES,
-    _UNSUPPORTED_POWER_ACTIONS,
-    _build_browser_config,
-    _safe_browser_failure_url,
-)
 
 
 class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMixin):
@@ -328,7 +326,10 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
             # 5a. Acoustic Voice Biometrics (Speaker Verification Gate)
             try:
                 from jarvis.audio.biometrics import VoiceBiometricsManager
-                from jarvis.audio.voiceprint import VoiceBiometricsGate, DEFAULT_MASTER_SIMILARITY_THRESHOLD
+                from jarvis.audio.voiceprint import (
+                    DEFAULT_MASTER_SIMILARITY_THRESHOLD,
+                    VoiceBiometricsGate,
+                )
                 biometrics_cfg = self.config.get("audio.biometrics", {})
                 bio_path = biometrics_cfg.get("path") or str(get_jarvis_data_dir() / "voiceprints.json")
                 self.voice_biometrics = VoiceBiometricsManager(
@@ -670,7 +671,10 @@ class JarvisApp(SystemHandlersMixin, ServiceHandlersMixin, AutomationHandlersMix
             xz_cfg = self.config.get("comms.xiaozhi", {})
             if xz_cfg.get("enabled", True):
                 try:
-                    from jarvis.comms.xiaozhi_gateway import XiaozhiGatewayConfig, XiaozhiGatewayServer
+                    from jarvis.comms.xiaozhi_gateway import (
+                        XiaozhiGatewayConfig,
+                        XiaozhiGatewayServer,
+                    )
                     gateway_cfg = XiaozhiGatewayConfig(
                         enabled=True,
                         host=xz_cfg.get("host", "0.0.0.0"),

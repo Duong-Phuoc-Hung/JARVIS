@@ -43,7 +43,7 @@ def test_no_os_system_in_codebase():
                         if re.search(r"\bos\.system\s*\(", stripped):
                             violating_lines.append(f"{file_path}:{idx} -> {stripped}")
 
-    assert not violating_lines, f"Found forbidden os.system calls:\n" + "\n".join(violating_lines)
+    assert not violating_lines, "Found forbidden os.system calls:\n" + "\n".join(violating_lines)
 
 
 def test_all_subprocess_calls_have_create_no_window():

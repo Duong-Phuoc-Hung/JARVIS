@@ -1,11 +1,11 @@
 {
-  "version": "9.5.1",
-  "generated_at": "2026-11-13 12:07:15",
+  "version": "9.5.2",
+  "generated_at": "2026-11-13 16:59:07",
   "ready_subsystems": 17,
   "total_subsystems": 17,
   "new_modules_ready": 24,
   "new_modules_total": 24,
-  "test_summary": "3753 tests collected in 6.39s",
+  "test_summary": "3763 tests collected in 7.34s",
   "modules": [
     {
       "module": "jarvis.audio.vad",

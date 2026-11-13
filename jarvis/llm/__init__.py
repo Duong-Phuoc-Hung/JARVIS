@@ -19,6 +19,11 @@ from jarvis.llm.client import (
     TokenUsage,
     ToolCall,
 )
+from jarvis.llm.local_classifier import (
+    ClassificationResult,
+    VietnameseNLPClassifier,
+    normalize_vietnamese_text,
+)
 from jarvis.llm.ollama_client import (
     OllamaChatResponse,
     OllamaClient,
@@ -26,11 +31,6 @@ from jarvis.llm.ollama_client import (
     OllamaError,
     OllamaModelNotFoundError,
     OllamaResponseError,
-)
-from jarvis.llm.local_classifier import (
-    ClassificationResult,
-    VietnameseNLPClassifier,
-    normalize_vietnamese_text,
 )
 from jarvis.llm.router import (
     IntentResult,

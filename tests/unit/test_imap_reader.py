@@ -30,7 +30,6 @@ from jarvis.comms.email_imap import (
     IMAPNotConfiguredError,
 )
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 def _make_raw_email(

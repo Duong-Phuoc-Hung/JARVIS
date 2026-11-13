@@ -18,13 +18,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from jarvis.personalization.calendar import CalendarEvent, CalendarScheduleProvider
 from jarvis.personalization.profile import (
     PersonaTone,
     UserProfile,
     UserProfileManager,
     get_user_profile_manager,
 )
-from jarvis.personalization.calendar import CalendarScheduleProvider, CalendarEvent
 
 logger = logging.getLogger("jarvis.personalization.briefing")
 

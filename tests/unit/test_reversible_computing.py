@@ -7,6 +7,7 @@ Milestone v8.0.0 ("The Omniscient Symbiont", Frontier 24.0).
 from __future__ import annotations
 
 import math
+
 import numpy as np
 import pytest
 

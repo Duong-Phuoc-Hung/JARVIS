@@ -6,6 +6,7 @@ Validates 60-75% latency reduction, mid-sentence cancellation handling,
 and Draft AST verification in Argon Frontier 10.0 (JARVIS v6.0.0).
 """
 import time
+
 import pytest
 
 from jarvis.llm.speculative_cloud import (

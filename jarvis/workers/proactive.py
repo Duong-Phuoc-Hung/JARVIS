@@ -22,7 +22,8 @@ from collections.abc import Callable
 from typing import Any
 
 from jarvis.proactive.briefing_scheduler import DailyBriefingScheduler
-from jarvis.proactive.engine import ProactiveConfig, ProactiveEngine as BaseProactiveEngine
+from jarvis.proactive.engine import ProactiveConfig
+from jarvis.proactive.engine import ProactiveEngine as BaseProactiveEngine
 from jarvis.proactive.health_monitor import HealthAlert, SystemHealthMonitor
 from jarvis.proactive.inactivity import InactivityMonitor
 from jarvis.proactive.pomodoro import PomodoroState, PomodoroStatus, PomodoroTimer

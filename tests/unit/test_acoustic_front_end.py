@@ -9,6 +9,7 @@ Verifies:
   - Fail-closed behavior on pure noise, silence, NaN/Inf, and corrupt buffers.
 """
 import math
+
 import numpy as np
 import pytest
 

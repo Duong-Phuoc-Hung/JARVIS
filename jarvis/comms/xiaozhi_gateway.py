@@ -395,8 +395,8 @@ class XiaozhiGatewayServer:
         Guarded against timing side-channel attacks via hmac.compare_digest.
         """
         try:
-            from websockets.http11 import Response
             from websockets.datastructures import Headers
+            from websockets.http11 import Response
         except ImportError:
             return None
 

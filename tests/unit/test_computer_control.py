@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import time
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -556,4 +557,18 @@ class TestVolumeControlFailClosed:
         assert isinstance(result, (int, float, type(None))), (
             "get_volume() must return a numeric value or None"
         )
+
+
+def test_set_clipboard_file_nonexistent(tmp_path: Path):
+    ctrl = ComputerController()
+    fake_file = tmp_path / "does_not_exist.png"
+    assert ctrl.set_clipboard_file(str(fake_file)) is False
+
+
+def test_set_clipboard_file_existing(tmp_path: Path):
+    ctrl = ComputerController()
+    real_file = tmp_path / "test_drop.txt"
+    real_file.write_text("Hello clipboard drop", encoding="utf-8")
+    res = ctrl.set_clipboard_file(str(real_file))
+    assert isinstance(res, bool)
 

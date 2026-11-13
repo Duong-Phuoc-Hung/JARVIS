@@ -23,10 +23,10 @@ Key Features:
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
 import logging
 import sys
 import time
+from ctypes import wintypes
 from dataclasses import dataclass
 from typing import Any
 

@@ -10,6 +10,7 @@ import os
 import struct
 import tempfile
 import zlib
+
 import numpy as np
 import pytest
 

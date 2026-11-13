@@ -50,13 +50,12 @@ from jarvis.stt.dynamic_tiered import (
     TranscriptionResult,
 )
 from jarvis.stt.engine import (
+    STT_SAMPLE_RATE,
     BaseSTTEngine,
     FasterWhisperSTT,
     STTError,
     STTMetricsResult,
-    STT_SAMPLE_RATE,
 )
-
 
 # ============================================================================
 # Helpers

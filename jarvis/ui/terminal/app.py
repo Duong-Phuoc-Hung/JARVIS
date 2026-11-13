@@ -169,7 +169,11 @@ class TerminalApp:
         lifetime, so no other JARVIS instance (including a future `[J]`
         invocation in a fresh process) could ever acquire it again, even
         after the delegated JarvisApp had fully shut down."""
-        from jarvis.cli import SingleInstanceResult, _acquire_single_instance_mutex, _release_single_instance_mutex
+        from jarvis.cli import (
+            SingleInstanceResult,
+            _acquire_single_instance_mutex,
+            _release_single_instance_mutex,
+        )
         from jarvis.core.app import JarvisApp
 
         result = _acquire_single_instance_mutex()

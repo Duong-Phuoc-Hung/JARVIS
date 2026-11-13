@@ -408,7 +408,13 @@ class VieNeuTTSEngine(BaseTTSEngine):
             # Method 1: sounddevice high-fidelity 48kHz playback
             try:
                 import sounddevice as sd
+
                 samples = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+                # Prepend Bluetooth DAC wake-up silence buffer (120ms) to prevent initial phoneme swallowing
+                preroll_samples = int(0.12 * self.sample_rate)
+                if preroll_samples > 0:
+                    samples = np.concatenate([np.zeros(preroll_samples, dtype=np.float32), samples])
+
                 if wait:
                     sd.play(samples, samplerate=self.sample_rate)
                     sd.wait()

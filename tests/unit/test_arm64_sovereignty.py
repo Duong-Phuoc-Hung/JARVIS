@@ -18,6 +18,7 @@ from __future__ import annotations
 import threading
 import time
 from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
 
@@ -34,7 +35,6 @@ from jarvis.hardware.arm64_sovereignty import (
     SnapdragonPowerState,
 )
 from jarvis.hardware.universal_hal import CPUArchitecture, HardwareTier
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 1. ISA Extensions & Chipset Detection Tests

@@ -37,9 +37,9 @@ from pathlib import Path
 import pytest
 
 from jarvis.llm.router import strip_vietnamese_diacritics
+from tests.eval import failure_decomposition as fd
 from tests.eval.independent_test_manifest import INDEPENDENT_MANIFEST
 from tests.eval.no_diacritic_regression import NO_DIACRITIC_MANIFEST, run_no_diacritic_regression
-from tests.eval import failure_decomposition as fd
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 AUDIO_ROOT = ROOT / "tests" / "eval" / "audio_independent"

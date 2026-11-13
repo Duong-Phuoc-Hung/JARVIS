@@ -120,8 +120,8 @@ class SpotifyPlugin(BasePlugin):
                     os.startfile(target)
                 except OSError:
                     if target.startswith("spotify:search:") and clean_q:
-                        import webbrowser
                         import urllib.parse
+                        import webbrowser
                         webbrowser.open(f"https://open.spotify.com/search/{urllib.parse.quote(clean_q)}")
                     else:
                         raise

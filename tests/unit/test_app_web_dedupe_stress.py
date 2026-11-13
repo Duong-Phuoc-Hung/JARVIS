@@ -6,6 +6,7 @@ Verify that rapid repeated open_app / open_website dispatches (3 commands x 20 i
 enforce rate-limiting and deduplication without process fanout or runaway.
 """
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from jarvis.automation.control import ComputerController

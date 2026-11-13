@@ -36,7 +36,11 @@ from typing import Any, Callable, Sequence
 import numpy as np
 import psutil
 
-from jarvis.learning.win32_oracle import ExecutionRewardBreakdown, OracleConfig, Win32ExecutionRewardOracle
+from jarvis.learning.win32_oracle import (
+    ExecutionRewardBreakdown,
+    OracleConfig,
+    Win32ExecutionRewardOracle,
+)
 
 logger = logging.getLogger("jarvis.learning.grpo_engine")
 

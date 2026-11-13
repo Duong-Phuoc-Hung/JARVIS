@@ -14,6 +14,7 @@ Evaluates:
 """
 
 from unittest.mock import MagicMock, call, patch
+
 import numpy as np
 import pytest
 

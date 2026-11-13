@@ -12,9 +12,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from jarvis.automation.control import ComputerController
 from jarvis.audio.engine import AudioEngine
-from jarvis.browser.driver import CDPBrowserDriver, BrowserConfig
+from jarvis.automation.control import ComputerController
+from jarvis.browser.driver import BrowserConfig, CDPBrowserDriver
 from jarvis.comms.discord import DiscordBotController
 from jarvis.comms.telegram import TelegramBotController
 from jarvis.comms.zalo import ZaloBotController, ZaloConfig

@@ -4,18 +4,28 @@ tests/unit/test_updater_and_diagnostics.py
 D-13 + D-15: Updater integrity/rollback + Support diagnostics tests
 """
 from __future__ import annotations
-import hashlib, json, os, zipfile
+
+import hashlib
+import json
+import os
+import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
 import pytest
 
+from jarvis.support.diagnostics import SupportDiagnostics, redact_dict, redact_text
 from jarvis.updater.updater import (
-    JarvisUpdater, UPDATE_OK, UP_TO_DATE, INTEGRITY_FAIL,
-    DOWNLOAD_FAIL, NOT_CONFIGURED, HEALTH_CHECK_FAIL, ROLLBACK_OK,
+    DOWNLOAD_FAIL,
+    HEALTH_CHECK_FAIL,
+    INTEGRITY_FAIL,
     MANIFEST_NOT_FOUND,
+    NOT_CONFIGURED,
+    ROLLBACK_OK,
+    UP_TO_DATE,
+    UPDATE_OK,
+    JarvisUpdater,
 )
-from jarvis.support.diagnostics import SupportDiagnostics, redact_text, redact_dict
-
 
 # ─── D-13 Updater ────────────────────────────────────────────────────────────
 

@@ -7,6 +7,7 @@ Verifies fail-closed semantics, STT voice handling, rate limiting, and authoriza
 
 from typing import Any
 from unittest.mock import MagicMock
+
 import pytest
 
 from jarvis.comms.telegram import TelegramBotController, TelegramConfig

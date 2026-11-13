@@ -723,8 +723,8 @@ def test_telegram_inbound_voice_and_stt_exception_resilience():
     bot = TelegramBotController(allowed_user_ids={12345}, stt_engine=CrashingSTT())
 
     res = bot.handle_inbound_voice(user_id=12345, voice_bytes=b"fake_ogg_voice_data")
-    assert res["status"] == 200
-    assert "Lệnh thoại đã nhận" in res["text"]
+    assert res["status"] == 503
+    assert res["error_code"] == "STT_UNAVAILABLE"
 
 
 def test_imap_email_reader_mime_html_cleaning_and_fuzzing():

@@ -17,6 +17,13 @@ from jarvis.vision.computer_use import (
     UIElementDetector,
 )
 from jarvis.vision.dialog_detector import ErrorDialogDetector
+from jarvis.vision.dma_streaming import (
+    DMABufferFormat,
+    DMAPinnedSlot,
+    DMAStreamingBackend,
+    DMAStreamingStatus,
+    ZeroCopyDMAManager,
+)
 from jarvis.vision.hands import (
     GestureType,
     HandGestureClassifier,
@@ -26,13 +33,6 @@ from jarvis.vision.hands import (
 )
 from jarvis.vision.ocr import DesktopOCR
 from jarvis.vision.screen import ScreenCaptureResult, ScreenVisionManager
-from jarvis.vision.dma_streaming import (
-    DMABufferFormat,
-    DMAPinnedSlot,
-    DMAStreamingBackend,
-    DMAStreamingStatus,
-    ZeroCopyDMAManager,
-)
 from jarvis.vision.spiking_saliency import (
     NeuromorphicEventSaliencyEngine,
     SaliencyROI,

@@ -24,7 +24,7 @@ from jarvis.proactive.health_monitor import SystemHealthMonitor
 from jarvis.proactive.inactivity import InactivityMonitor
 from jarvis.proactive.pomodoro import PomodoroTimer
 from jarvis.proactive.reminders import ReminderScheduler, ScheduledReminder
-from jarvis.proactive.win32_hooks import Win32EventHookCoPilot, ProactiveRule, ProactiveSystemEvent
+from jarvis.proactive.win32_hooks import ProactiveRule, ProactiveSystemEvent, Win32EventHookCoPilot
 
 logger = logging.getLogger("jarvis.proactive.engine")
 

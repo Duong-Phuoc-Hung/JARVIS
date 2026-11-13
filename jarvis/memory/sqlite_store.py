@@ -35,7 +35,8 @@ class SQLiteMemoryStore:
         db_path: str | Path = "",  # auto-resolved to AppData/JARVIS/memory.db
         timeout: float = 10.0,
     ) -> None:
-        import os as _os, sys as _sys
+        import os as _os
+        import sys as _sys
         _raw = str(db_path) if db_path else ""
         if not _raw:
             _apd = _os.environ.get("LOCALAPPDATA") or _os.environ.get("APPDATA")

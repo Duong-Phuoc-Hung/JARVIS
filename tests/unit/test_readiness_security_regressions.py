@@ -4,9 +4,9 @@ import types
 
 import pytest
 
-from jarvis.planner.safety_interceptor import SafetyGateInterceptor
 from jarvis.core.dispatcher import ActionDispatcher
 from jarvis.core.models import ActionResult
+from jarvis.planner.safety_interceptor import SafetyGateInterceptor
 from jarvis.skills import skill_synthesizer as synth
 from jarvis.skills.synthesizer import DynamicSkillSynthesizer
 

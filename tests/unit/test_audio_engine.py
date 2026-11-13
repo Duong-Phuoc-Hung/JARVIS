@@ -19,7 +19,6 @@ from jarvis.audio.engine import (
 from jarvis.core.dispatcher import EventBus
 
 
-
 def test_microphone_probe_loudest_device(mock_sounddevice):
     """Verify MicrophoneProbeManager selects loudest working device."""
     probe_mgr = MicrophoneProbeManager(mock_sounddevice["devices"])

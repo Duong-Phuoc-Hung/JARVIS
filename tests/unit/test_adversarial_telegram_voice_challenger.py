@@ -14,6 +14,7 @@ Empirically challenges:
 
 from typing import Any
 from unittest.mock import MagicMock
+
 import pytest
 
 from jarvis.comms.telegram import TelegramBotController

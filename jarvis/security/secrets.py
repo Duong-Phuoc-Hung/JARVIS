@@ -245,7 +245,8 @@ if __name__ == "__main__":
     mig_dotenv.add_argument("--purge", action="store_true", help="Comment out plaintext secrets in .env upon success")
 
     set_p = sub.add_parser("set", help="Store a secret")
-    set_p.add_argument("name"); set_p.add_argument("value")
+    set_p.add_argument("name")
+    set_p.add_argument("value")
 
     get_p = sub.add_parser("get", help="Read a secret")
     get_p.add_argument("name")
@@ -257,13 +258,16 @@ if __name__ == "__main__":
 
     if args.cmd == "migrate":
         results = migrate_from_env(dry_run=False)
-        for k, v in results.items(): print(f"  {k}: {v}")
+        for k, v in results.items():
+            print(f"  {k}: {v}")
     elif args.cmd == "migrate-dry":
         results = migrate_from_env(dry_run=True)
-        for k, v in results.items(): print(f"  {k}: {v}")
+        for k, v in results.items():
+            print(f"  {k}: {v}")
     elif args.cmd == "migrate-dotenv":
         results = migrate_from_dotenv(dotenv_path=args.path, dry_run=args.dry_run, purge_secrets=args.purge)
-        for k, v in results.items(): print(f"  {k}: {v}")
+        for k, v in results.items():
+            print(f"  {k}: {v}")
     elif args.cmd == "set":
         ok = set_secret(args.name, args.value)
         sys.exit(0 if ok else 1)

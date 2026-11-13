@@ -16,9 +16,9 @@ from typing import Any
 
 import pytest
 
+from jarvis.memory.manager import MemoryManager
 from jarvis.memory.sqlite_store import SQLiteMemoryStore
 from jarvis.memory.vector_store import SemanticVectorStore, VectorStoreConfig
-from jarvis.memory.manager import MemoryManager
 
 
 class TestSemanticVectorStoreConcurrency:

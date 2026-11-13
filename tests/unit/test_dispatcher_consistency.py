@@ -13,7 +13,8 @@ Verifies:
 from __future__ import annotations
 
 import pytest
-from jarvis.core.dispatcher import EventBus, ActionDispatcher
+
+from jarvis.core.dispatcher import ActionDispatcher, EventBus
 
 
 class TestEventBusConsistency:

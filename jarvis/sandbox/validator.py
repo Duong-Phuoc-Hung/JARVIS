@@ -96,10 +96,11 @@ class _PythonASTSafetyVisitor(ast.NodeVisitor):
     def visit_Subscript(self, node: ast.Subscript) -> None:
         if self._is_sys_modules(node.value):
             target_mod: str | None = None
+            str_cls = getattr(ast, "Str", None)
             if isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str):
                 target_mod = node.slice.value.split(".")[0]
-            elif hasattr(ast, "Str") and isinstance(node.slice, getattr(ast, "Str")):
-                target_mod = getattr(node.slice, "s").split(".")[0]
+            elif str_cls is not None and isinstance(node.slice, str_cls):
+                target_mod = str(getattr(node.slice, "s", "")).split(".")[0]
 
             forbidden_mods = self.forbidden_modules | {"os", "sys", "subprocess", "importlib", "_imp", "builtins"}
             if target_mod is not None:
@@ -135,10 +136,11 @@ class _PythonASTSafetyVisitor(ast.NodeVisitor):
                 target_mod: str | None = None
                 if node.args:
                     arg0 = node.args[0]
+                    str_cls = getattr(ast, "Str", None)
                     if isinstance(arg0, ast.Constant) and isinstance(arg0.value, str):
                         target_mod = arg0.value.split(".")[0]
-                    elif hasattr(ast, "Str") and isinstance(arg0, getattr(ast, "Str")):
-                        target_mod = getattr(arg0, "s").split(".")[0]
+                    elif str_cls is not None and isinstance(arg0, str_cls):
+                        target_mod = str(getattr(arg0, "s", "")).split(".")[0]
                 forbidden_mods = self.forbidden_modules | {"os", "sys", "subprocess", "importlib", "_imp", "builtins"}
                 if target_mod is not None:
                     if target_mod in forbidden_mods:

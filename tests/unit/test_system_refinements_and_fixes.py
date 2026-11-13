@@ -610,7 +610,7 @@ def test_error_dialog_dismissal_logic():
 
 def test_ollama_offline_cascade_fallback():
     """Verify LLMClient cascades gracefully to Ollama when cloud provider fails."""
-    from jarvis.llm.client import LLMClient, LLMProvider, ChatMessage, LLMResponse
+    from jarvis.llm.client import ChatMessage, LLMClient, LLMProvider, LLMResponse
 
     client = LLMClient(
         provider=LLMProvider.GEMINI,
@@ -648,7 +648,8 @@ def test_router_routine_and_research_intents():
 
 def test_vietnamese_verbal_math_evaluation():
     """Verify calculator handles verbal Vietnamese math expressions."""
-    from jarvis.skills.calculator import evaluate_expression, execute as calc_execute
+    from jarvis.skills.calculator import evaluate_expression
+    from jarvis.skills.calculator import execute as calc_execute
 
     assert evaluate_expression("15 cộng 35") == 50.0
     assert evaluate_expression("100 trừ 45") == 55.0

@@ -16,6 +16,7 @@ import json
 import tempfile
 import time
 from pathlib import Path
+
 import pytest
 
 from jarvis.llm.local_classifier import VietnameseNLPClassifier

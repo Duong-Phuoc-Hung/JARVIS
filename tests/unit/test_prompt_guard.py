@@ -22,7 +22,8 @@ import pytest
 from jarvis.browser.cdp_controller import BrowserCDPController
 from jarvis.browser.scraper import WebScraper
 from jarvis.security.prompt_guard import PromptGuard, SanitizationResult
-from jarvis.skills.screen_context import _UNTRUSTED_VISION_DIRECTIVE, execute as screen_context_execute
+from jarvis.skills.screen_context import _UNTRUSTED_VISION_DIRECTIVE
+from jarvis.skills.screen_context import execute as screen_context_execute
 
 
 class TestPromptGuardUnit:

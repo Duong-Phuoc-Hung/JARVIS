@@ -18,12 +18,12 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import wave
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-import time
 from typing import Any, NamedTuple
 
 import numpy as np
@@ -641,8 +641,9 @@ class FasterWhisperSTT(BaseSTTEngine):
                     continue
             # DLL not in PATH — try locating via nvidia wheel
             try:
-                import nvidia.cublas.lib  # noqa: F401 (nvidia-cublas-cu12 wheel)
                 import pathlib
+
+                import nvidia.cublas.lib  # noqa: F401 (nvidia-cublas-cu12 wheel)
                 pkg_dir = pathlib.Path(nvidia.cublas.lib.__file__).resolve().parent
                 for candidate in (pkg_dir, pkg_dir.parent / "bin", pkg_dir.parent / "lib"):
                     if candidate.is_dir():

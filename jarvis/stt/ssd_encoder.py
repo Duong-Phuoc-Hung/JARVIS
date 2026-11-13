@@ -35,7 +35,7 @@ from typing import Any, Sequence
 
 import numpy as np
 
-from jarvis.stt.crrsp_memory import CRRSPConfig, ContinuousRollingRecurrentMemory
+from jarvis.stt.crrsp_memory import ContinuousRollingRecurrentMemory, CRRSPConfig
 
 logger = logging.getLogger("jarvis.stt.ssd_encoder")
 

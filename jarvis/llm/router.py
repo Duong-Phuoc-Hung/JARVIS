@@ -2039,8 +2039,8 @@ class LLMIntentRouter:
         # Guard: Acoustic and disfluency corrections only apply to conversational speech utterances (<= 4096 chars)
         if not _is_sub_clause and clean and len(clean) <= 4096:
             try:
-                from jarvis.nlp.phonetic_normalizer import normalize_phonetic_stt
                 from jarvis.nlp.disfluency_repair import repair_spoken_disfluency
+                from jarvis.nlp.phonetic_normalizer import normalize_phonetic_stt
 
                 # 1. Phonetic normalizer (reconstruct transliterated loan words)
                 clean = normalize_phonetic_stt(clean)
@@ -2810,7 +2810,7 @@ class LLMIntentRouter:
                     raw = act_item.get("raw_text", "")
                     resp_txt = act_item.get("response_text")
                 elif hasattr(act_item, "action_name"):
-                    act_name = getattr(act_item, "action_name")
+                    act_name = act_item.action_name
                     params = dict(getattr(act_item, "parameters", {})) if isinstance(getattr(act_item, "parameters", None), dict) else {}
                     conf = float(getattr(act_item, "confidence", 1.0))
                     src = getattr(act_item, "source", "multi_intent")

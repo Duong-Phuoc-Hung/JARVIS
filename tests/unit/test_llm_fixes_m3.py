@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from jarvis.core.app import JarvisApp
@@ -27,7 +28,6 @@ from jarvis.llm.router import (
     _parse_duration_seconds,
     generate_tool_schema_from_dispatcher,
 )
-
 
 # ============================================================================
 # 1. BUG-LLM-01: Non-Diacritic Duration Unit Parsing

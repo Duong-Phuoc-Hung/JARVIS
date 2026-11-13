@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+
 import pytest
 
 
@@ -104,7 +105,7 @@ def test_legacy_status_aliases():
 
 def test_status_icons_mapped_for_all_canonical_states():
     """Verify that _STATUS_ICON maps all 5 canonical states and status_icon formats without error."""
-    from jarvis.ui.terminal.theme import StatusLevel, TerminalTheme, _STATUS_ICON
+    from jarvis.ui.terminal.theme import _STATUS_ICON, StatusLevel, TerminalTheme
 
     canonical_states = (
         StatusLevel.READY,

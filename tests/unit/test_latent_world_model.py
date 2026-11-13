@@ -6,10 +6,10 @@ Sprint 26 / Milestone v6.4.0.
 """
 from __future__ import annotations
 
+import time
+
 import numpy as np
 import pytest
-
-import time
 
 from jarvis.learning.latent_world_model import (
     CONTEXT_DIM,

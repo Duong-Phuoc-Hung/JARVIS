@@ -8,13 +8,18 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from jarvis.stt.engine import (
-    FasterWhisperSTT, MockSTTEngine, STTEngine, TieredSTTEngine,
-    prepare_stt_audio, resample_audio,
-    STTStreamNormalizer, OpenAIWhisperSTT,
-)
 from jarvis.core.app import JarvisApp
 from jarvis.core.config import ConfigManager
+from jarvis.stt.engine import (
+    FasterWhisperSTT,
+    MockSTTEngine,
+    OpenAIWhisperSTT,
+    STTEngine,
+    STTStreamNormalizer,
+    TieredSTTEngine,
+    prepare_stt_audio,
+    resample_audio,
+)
 
 
 @pytest.fixture

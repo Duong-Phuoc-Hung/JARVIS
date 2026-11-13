@@ -6,6 +6,7 @@ Unit tests for Polyglot Inference Runtime across heterogeneous backends and quan
 from __future__ import annotations
 
 import unittest
+
 import numpy as np
 
 from jarvis.hardware.polyglot_runtime import (

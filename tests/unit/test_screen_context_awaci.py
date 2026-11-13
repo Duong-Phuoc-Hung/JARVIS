@@ -12,6 +12,7 @@ Tests:
 from __future__ import annotations
 
 import time
+
 import pytest
 
 from jarvis.context.screen_context import (
@@ -295,9 +296,10 @@ def test_awaci_new_tab_and_streaming_domains():
 
 def test_jarvis_app_awaci_actions_registered():
     """Verify that file_save, tab_control, window_control, terminal_control, browser_control are all registered in JarvisApp."""
+    from unittest.mock import MagicMock
+
     from jarvis.core.dispatcher import ActionDispatcher
     from jarvis.core.handlers.system_handlers import SystemHandlersMixin
-    from unittest.mock import MagicMock
 
     class MockApp(SystemHandlersMixin):
         def __init__(self):

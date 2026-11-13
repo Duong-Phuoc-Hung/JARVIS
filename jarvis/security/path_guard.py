@@ -9,9 +9,9 @@ and URL-encoded traversal patterns (%2e%2e%2f, %2e%2e\\).
 from __future__ import annotations
 
 import os
+import urllib.parse
 from pathlib import Path
 from typing import Any
-import urllib.parse
 
 
 def validate_safe_path(

@@ -6,6 +6,7 @@ Unit tests for Adaptive Multi-Precision CRRSP Memory.
 from __future__ import annotations
 
 import unittest
+
 import numpy as np
 
 from jarvis.stt.adaptive_crrsp import (

@@ -124,7 +124,7 @@ def require_labs(
 
             # 3. Method on instance with config attribute
             if args and hasattr(args[0], "config"):
-                inst_cfg = getattr(args[0], "config")
+                inst_cfg = args[0].config
                 if inst_cfg is not None:
                     return is_labs_enabled(feature_name, inst_cfg)
                 # Fail-closed: instance.config is None -> fall back to global config

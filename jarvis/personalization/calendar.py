@@ -19,8 +19,8 @@ from pathlib import Path
 from typing import Any
 
 from jarvis.core.paths import data_path
-from jarvis.utils.atomic_io import atomic_write_json
 from jarvis.personalization.profile import UserProfile, get_user_profile_manager
+from jarvis.utils.atomic_io import atomic_write_json
 
 logger = logging.getLogger("jarvis.personalization.calendar")
 

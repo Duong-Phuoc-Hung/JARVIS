@@ -7,11 +7,12 @@ Covers:
 """
 
 from unittest.mock import MagicMock
+
 import pytest
 
-from jarvis.llm.client import LLMClient, LLMResponse, ToolCall
-from jarvis.llm.router import LLMIntentRouter, IntentResult
 from jarvis.core.dispatcher import ActionDispatcher
+from jarvis.llm.client import LLMClient, LLMResponse, ToolCall
+from jarvis.llm.router import IntentResult, LLMIntentRouter
 
 
 @pytest.fixture

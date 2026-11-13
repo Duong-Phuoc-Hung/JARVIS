@@ -7,6 +7,7 @@ Milestone v7.0.0 (Singularity Matrix).
 from __future__ import annotations
 
 import time
+
 import pytest
 
 from jarvis.hardware.kernel_telepathy import (

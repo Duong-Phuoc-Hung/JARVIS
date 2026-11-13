@@ -3,6 +3,25 @@ Audio subsystem package for JARVIS.
 Provides acoustic DSP math, noise floor tracking, Schmitt trigger transient detection,
 and thread-safe SoundDevice audio stream capture.
 """
+from jarvis.audio.adap_head import DEFAULT_REFLEX_ACTIONS, ADAPPrediction, ADAPProjectionHead
+from jarvis.audio.bluetooth_profile import (
+    AudioEndpoint,
+    AudioProfileMode,
+    AudioTopology,
+    BluetoothAudioManager,
+    DeviceType,
+)
+from jarvis.audio.cortical_telepathy import (
+    BioStimulatorHardwareBridge,
+    BioStimulatorTelemetry,
+    ClosedLoopSomaticReflexEngine,
+    PhosphenePatternType,
+    PhosphenePercept,
+    PhospheneVisualGenerator,
+    SomaticReflexEvent,
+    TemporalInterferenceModel,
+    TemporalInterferenceWaveform,
+)
 from jarvis.audio.dsp import (
     AudioDSPProcessor,
     DSPBlockResult,
@@ -17,14 +36,6 @@ from jarvis.audio.engine import (
     AudioEngineMode,
     MicrophoneProbeManager,
 )
-from jarvis.audio.bluetooth_profile import (
-    AudioEndpoint,
-    AudioProfileMode,
-    AudioTopology,
-    BluetoothAudioManager,
-    DeviceType,
-)
-from jarvis.audio.adap_head import ADAPProjectionHead, ADAPPrediction, DEFAULT_REFLEX_ACTIONS
 from jarvis.audio.liquid_dynamics import (
     LiquidStateSpaceNetwork,
     LiquidTimeConstantConfig,
@@ -40,17 +51,6 @@ from jarvis.audio.ssd_vocoder import (
     SSDVocoderFrame,
     SSDVocoderSampleRate,
     StateSpaceStreamingVocoder,
-)
-from jarvis.audio.cortical_telepathy import (
-    BioStimulatorHardwareBridge,
-    BioStimulatorTelemetry,
-    ClosedLoopSomaticReflexEngine,
-    PhosphenePatternType,
-    PhosphenePercept,
-    PhospheneVisualGenerator,
-    SomaticReflexEvent,
-    TemporalInterferenceModel,
-    TemporalInterferenceWaveform,
 )
 from jarvis.audio.subvocal_semg import (
     BioHardwareBridge,

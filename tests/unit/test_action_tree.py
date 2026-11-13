@@ -10,6 +10,7 @@ Validates:
   - Integration with ArgonNanoLocalReasoner.
 """
 import time
+
 import pytest
 
 from jarvis.context.screen_context import WindowContext

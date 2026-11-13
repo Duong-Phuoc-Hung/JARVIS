@@ -7,14 +7,15 @@ Whisper local offline vs Cloud fallback, and deadline enforcement.
 """
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import numpy as np
 import pytest
-from unittest.mock import MagicMock
 
 from jarvis.stt.engine import (
     BaseSTTEngine,
-    TranscriptionResult,
     TieredSTTEngine,
+    TranscriptionResult,
 )
 
 

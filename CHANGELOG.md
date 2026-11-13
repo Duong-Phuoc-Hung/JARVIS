@@ -4,6 +4,40 @@ All notable changes to JARVIS are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.5.3] - Native Zalo PC File Attachment (CF_HDROP), VieNeu Bluetooth DAC Audio Pre-Roll & Code Cleanliness Sweep (2026-11-13)
+
+- **Mục tiêu**:
+  - Triển khai toàn diện đợt kiểm toán và sửa lỗi tối ưu hệ thống:
+    1. *Hỗ trợ Đính kèm Tệp Tin Native Zalo PC qua Windows Clipboard `CF_HDROP`*:
+       - Khắc phục hạn chế gửi đường dẫn chuỗi text thay vì tệp tin trong `jarvis/automation/zalo_client.py`. Hiện thực hóa `ComputerController.set_clipboard_file(file_path)` trong `jarvis/automation/control.py` sử dụng Win32 `ctypes` (`CF_HDROP` / `DROPFILES` struct với double-null UTF-16LE termination) cho phép `Ctrl+V` đính kèm tệp nhị phân thực tế vào cửa sổ chat Zalo PC.
+    2. *Tích hợp Bộ đệm Tĩnh 120ms Pre-Roll DAC Bluetooth vào VieNeu-TTS*:
+       - Đánh thức mạch giải mã DAC của tai nghe Bluetooth A2DP trước khi phát giọng đọc, triệt tiêu hoàn toàn hiện tượng nuốt âm tiết đầu tiên của câu.
+       - Tạo trực tiếp buffer silence 120ms bằng `np.concatenate([np.zeros(int(sample_rate * 0.12), dtype=samples.dtype), samples])` trong `jarvis/tts/vieneu.py:synthesize_and_play()`. Tránh việc import chéo STT / torch trong dynamic sub-thread để loại bỏ triệt để lỗi xung đột bộ nhớ Windows fatal access violation (0xC0000005) trong Python 3.13.
+    3. *Tổng vệ sinh mã nguồn & Chuẩn hóa Linter (Ruff Clean Sweep)*:
+       - Tối ưu hóa thứ tự imports theo chuẩn PEP 8 across `jarvis/` và `tests/unit/`.
+       - Thay thế các lời gọi `getattr(const)` không cần thiết thành truy cập thuộc tính trực tiếp trong `dispatcher.py`, `labs.py`, `local_reasoner.py`, `router.py`.
+       - Khắc phục `ast.Str` tương thích ngược trong `jarvis/sandbox/validator.py`.
+       - Tách các câu lệnh gộp trên một dòng trong `jarvis/security/secrets.py` và `jarvis/memory/sqlite_store.py`.
+       - Đạt chuẩn Ruff: **0 errors, 0 warnings** trên toàn bộ codebase `jarvis/`.
+    4. *Hợp đồng Kiểm thử Bảo mật Đối kháng (Adversarial Security Test Contract)*:
+       - Cập nhật `tests/test_tier5_adversarial_sec_iot_comms_data.py` để khẳng định trạng thái Fail-Closed 503 (`STT_UNAVAILABLE`) thay vì giả mạo 200 success.
+- **Chỉnh sửa kỹ thuật chi tiết theo từng file**:
+  - `jarvis/automation/control.py`: Bổ sung `set_clipboard_file(file_path)` sử dụng cấu trúc Windows C-API `DROPFILES` và `CF_HDROP (0x000F)`.
+  - `jarvis/automation/zalo_client.py`: Tích hợp `controller.set_clipboard_file(attachment_path)` khi gửi tệp đính kèm.
+  - `jarvis/tts/vieneu.py`: Tích hợp 120ms silence pre-roll qua numpy zeros trước khi phát âm thanh; tránh import chéo STT.
+  - `jarvis/sandbox/validator.py`: Cập nhật xử lý `ast.Constant` / `ast.Str` an toàn trên Python 3.8 - 3.13+.
+  - `jarvis/core/app.py`: Tối ưu hóa import ordering.
+  - `jarvis/core/dispatcher.py`, `labs.py`, `llm/local_reasoner.py`, `llm/router.py`: Loại bỏ `getattr` dư thừa cho hằng số.
+  - `tests/unit/test_computer_control.py`: Bổ sung unit tests cho `set_clipboard_file` (file tồn tại và file không tồn tại).
+  - `tests/test_tier5_adversarial_sec_iot_comms_data.py`: Cập nhật mock ASR assert fail-closed code 503.
+  - `jarvis/__init__.py`: Nâng phiên bản lên `9.5.3`.
+- **Chỉ số kiểm thử thực tế**:
+  - `pytest tests/unit/test_computer_control.py`: 38/38 passed 100%.
+  - `pytest tests/unit/test_zalo_client.py tests/unit/test_vieneu_tts.py tests/unit/test_security_hardening.py tests/unit/test_health_check_format.py tests/unit/test_computer_control.py`: 86/86 passed 100%.
+  - `python tools/security_scanner.py`: Scanned 311 files, 107,209 lines, 0 findings (PASS Clean).
+  - `python -m jarvis health-check`: Toàn bộ 17 phân hệ cốt lõi báo cáo READY, 24/24 architecture modules READY.
+  - `ruff check jarvis/`: 0 errors, 0 warnings.
+
 ## [9.5.2] - Production Runtime Integrity & System Hardening Sweep (2026-11-13)
 
 - **Mục tiêu**:

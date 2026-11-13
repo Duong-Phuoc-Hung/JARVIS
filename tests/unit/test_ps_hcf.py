@@ -10,6 +10,7 @@ Validates:
   - Clean integration with AcousticFrontEnd in jarvis.audio.dsp.
 """
 import time
+
 import numpy as np
 import pytest
 

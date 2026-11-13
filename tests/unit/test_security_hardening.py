@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import concurrent.futures
 import time
+import unittest
 from pathlib import Path
 from typing import Any
-import unittest
 
 from jarvis.automation.safety_gate import SafetyGate
 from jarvis.core.dispatcher import ActionDispatcher, EventBus
@@ -31,7 +31,6 @@ from jarvis.security.path_guard import validate_safe_path
 from jarvis.security.prompt_guard import PromptGuard, SanitizationResult
 from jarvis.security.report import SecurityPrivilegeGate
 from jarvis.security.scanner import validate_scan_target
-
 
 # ===========================================================================
 # Category A: Fuzzing Tests (4 tests)

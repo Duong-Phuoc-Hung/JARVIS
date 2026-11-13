@@ -20,8 +20,8 @@ Covers:
 from __future__ import annotations
 
 import time
-from unittest.mock import MagicMock, patch
 from dataclasses import FrozenInstanceError
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -37,7 +37,6 @@ from jarvis.stt.engine import (
     STTError,
     STTMetricsResult,
 )
-
 
 # ============================================================================
 # Helpers & Fixtures

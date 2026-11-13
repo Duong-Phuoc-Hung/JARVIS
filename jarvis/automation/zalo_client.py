@@ -219,8 +219,13 @@ class ZaloPCAutomation:
                         "warning": f"Attachment file not found: {attachment_path}",
                         "message": f"Đã gửi tin nhắn cho {recipient}, nhưng tệp đính kèm không tồn tại.",
                     }
-                # Paste file path via clipboard
-                self.controller.set_clipboard_text(str(att_p))
+                # Place file on clipboard as CF_HDROP structure so Zalo pastes the file attachment
+                copied = False
+                if hasattr(self.controller, "set_clipboard_file"):
+                    copied = self.controller.set_clipboard_file(str(att_p))
+                if not copied:
+                    self.controller.set_clipboard_text(str(att_p))
+                time.sleep(0.1)
                 self.controller.send_hotkey("ctrl", "v")
                 time.sleep(0.3)
                 self.controller.send_keys("{ENTER}")

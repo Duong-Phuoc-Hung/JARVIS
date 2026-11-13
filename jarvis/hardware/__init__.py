@@ -68,6 +68,10 @@ from jarvis.hardware.photonic_bridge import (
     PhotonicPhysicalMetrics,
     PhotonicTensorCore,
 )
+from jarvis.hardware.polyglot_runtime import (
+    ExecutionTelemetry,
+    PolyglotInferenceEngine,
+)
 from jarvis.hardware.polyhedral_jit import (
     AffineCacheScheduler,
     CacheSchedulePlan,
@@ -76,10 +80,6 @@ from jarvis.hardware.polyhedral_jit import (
     MachineCodeCrystallizer,
     PolyhedralDomainBounds,
     PolyhedralIterationDomain,
-)
-from jarvis.hardware.polyglot_runtime import (
-    ExecutionTelemetry,
-    PolyglotInferenceEngine,
 )
 from jarvis.hardware.reporter import HardwareReporter
 from jarvis.hardware.reversible_computing import (

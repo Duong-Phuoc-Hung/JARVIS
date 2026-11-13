@@ -9,6 +9,7 @@ Seam-level regression tests for Voice Pipeline Audit Backlog:
   - H-08: Master volume and brightness fail-closed semantics when hardware returns None.
 """
 from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
 

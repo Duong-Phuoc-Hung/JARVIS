@@ -34,7 +34,6 @@ from jarvis.core.dispatcher import ActionDispatcher, EventBus, _normalize_handle
 from jarvis.core.models import ActionResult
 from jarvis.llm.router import IntentResult
 
-
 # ============================================================================
 # 1. Pure normalization function
 # ============================================================================

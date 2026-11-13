@@ -4,14 +4,14 @@ JARVIS Core Framework & Subsystems.
 from __future__ import annotations
 
 from jarvis.core.config import ConfigManager, get_config
-from jarvis.core.logger import JarvisLoggerAdapter, get_logger, setup_logging
 from jarvis.core.hd_vsa import (
-    CompoundMacroComposer,
     HD_DIMENSION_BITS,
-    HyperVector,
+    CompoundMacroComposer,
     HyperdimensionalItemMemory,
+    HyperVector,
     bundle_hypervectors,
 )
+from jarvis.core.logger import JarvisLoggerAdapter, get_logger, setup_logging
 from jarvis.core.models import (
     ActionDefinition,
     ActionResult,

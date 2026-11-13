@@ -6,13 +6,13 @@ Reinforcement learning, latent world modeling, and speculative execution subsyst
 from __future__ import annotations
 
 from jarvis.learning.latent_world_model import (
-    LATENT_DIM,
     CONTEXT_DIM,
-    SpeculativeActionStatus,
-    SpeculativeActionCandidate,
-    LatentPredictionResult,
+    LATENT_DIM,
     LatentOSWorldModel,
+    LatentPredictionResult,
     NegativeLatencyExecutionManager,
+    SpeculativeActionCandidate,
+    SpeculativeActionStatus,
 )
 from jarvis.learning.quantum_tensor_policy import (
     AnnealingScheduleResult,

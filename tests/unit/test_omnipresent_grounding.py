@@ -16,6 +16,7 @@ from __future__ import annotations
 import io
 import time
 from typing import Any, Tuple
+
 import pytest
 from PIL import Image, ImageDraw
 
@@ -26,7 +27,6 @@ from jarvis.vision.omnipresent_grounding import (
     VisualAnchorType,
     VisualGroundingResult,
 )
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Test Fixtures & Synthetic Canvas Generators

@@ -14,14 +14,15 @@ Verifies:
   9. Full LLMIntentRouter Integration (<1ms fast path routing without LLM invocation).
 """
 import pytest
+
+from jarvis.llm.client import LLMClient
+from jarvis.llm.router import LLMIntentRouter
 from jarvis.llm.semantic_router import (
     LocalSemanticRouter,
     normalize_vietnamese_text,
-    parse_vietnamese_number,
     parse_duration_seconds,
+    parse_vietnamese_number,
 )
-from jarvis.llm.router import LLMIntentRouter
-from jarvis.llm.client import LLMClient
 
 
 @pytest.fixture
